@@ -145,6 +145,7 @@ var restDoors = map[string]restDoor{
 	"defineCiSource":                    {UseCase: "DefineCiSource", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"rank"}},
 	"defineCustomField":                 {UseCase: "DefineCustomField", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/custom-fields/{id}", NullClears: false, Integers: []string(nil)},
 	"defineGoalPeriod":                  {UseCase: "DefineGoalPeriod", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"defineHubCalendar":                 {UseCase: "DefineHubCalendar", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"defineReplyTemplate":               {UseCase: "DefineReplyTemplate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"defineSlaPolicy":                   {UseCase: "DefineSlaPolicy", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"defineSoftwareAlias":               {UseCase: "DefineSoftwareAlias", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -161,6 +162,7 @@ var restDoors = map[string]restDoor{
 	"deleteEntryType":                   {UseCase: "DeleteEntryType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteGoal":                        {UseCase: "DeleteGoal", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteGroup":                       {UseCase: "DeleteGroup", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteHubCalendar":                 {UseCase: "DeleteHubCalendar", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteInstanceBackupTarget":        {UseCase: "DeleteInstanceBackupTarget", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteLabel":                       {UseCase: "DeleteLabel", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteLinkType":                    {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -292,6 +294,7 @@ var restDoors = map[string]restDoor{
 	"listGoalPeriods":                   {UseCase: "ListGoalPeriods", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGoals":                         {UseCase: "ListGoals", Status: 200, Query: []string{"hub_id", "owner_id", "parent_id", "period_id", "workspace_only"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGroups":                        {UseCase: "ListGroups", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listHubCalendars":                  {UseCase: "ListHubCalendars", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listIdentityProviderPresets":       {UseCase: "ListIdentityProviderPresets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listIdentityProviders":             {UseCase: "ListIdentityProviders", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listInstallationPresets":           {UseCase: "ListInstallationPresets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1487,6 +1490,13 @@ func (c *RestController) DefineGoalPeriod(w http.ResponseWriter, r *http.Request
 	c.door(w, r, restDoors["defineGoalPeriod"], usecase.Input{}, nil, &body, &answer)
 }
 
+// DefineHubCalendar answers PUT /hubs/{hubId}/business-calendars/{calendarKey} by the generated mapping.
+func (c *RestController) DefineHubCalendar(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, calendarKey string, params openapi.DefineHubCalendarParams) {
+	var body openapi.DefineHubCalendarJSONRequestBody
+	var answer openapi.BusinessCalendar
+	c.door(w, r, restDoors["defineHubCalendar"], usecase.Input{"hub_id": hubId.String(), "key": calendarKey}, params, &body, &answer)
+}
+
 // DefineReplyTemplate answers PUT /reply-templates/{templateKey} by the generated mapping.
 func (c *RestController) DefineReplyTemplate(w http.ResponseWriter, r *http.Request, templateKey string, params openapi.DefineReplyTemplateParams) {
 	var body openapi.DefineReplyTemplateJSONRequestBody
@@ -1574,6 +1584,11 @@ func (c *RestController) DeleteGoal(w http.ResponseWriter, r *http.Request, goal
 // DeleteGroup answers DELETE /groups/{groupId} by the generated mapping.
 func (c *RestController) DeleteGroup(w http.ResponseWriter, r *http.Request, groupId openapi.GroupId, params openapi.DeleteGroupParams) {
 	c.door(w, r, restDoors["deleteGroup"], usecase.Input{"group_id": groupId.String()}, params, nil, nil)
+}
+
+// DeleteHubCalendar answers DELETE /hubs/{hubId}/business-calendars/{calendarKey} by the generated mapping.
+func (c *RestController) DeleteHubCalendar(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, calendarKey string) {
+	c.door(w, r, restDoors["deleteHubCalendar"], usecase.Input{"hub_id": hubId.String(), "key": calendarKey}, nil, nil, nil)
 }
 
 // DeleteInstanceBackupTarget answers DELETE /admin/backup-targets/{targetId} by the generated mapping.
@@ -2303,6 +2318,12 @@ func (c *RestController) ListGoals(w http.ResponseWriter, r *http.Request, param
 // ListGroups answers GET /groups by the generated mapping.
 func (c *RestController) ListGroups(w http.ResponseWriter, r *http.Request, params openapi.ListGroupsParams) {
 	c.door(w, r, restDoors["listGroups"], usecase.Input{}, params, nil, answerPage(groupResponse))
+}
+
+// ListHubCalendars answers GET /hubs/{hubId}/business-calendars by the generated mapping.
+func (c *RestController) ListHubCalendars(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var answer openapi.BusinessCalendarList
+	c.door(w, r, restDoors["listHubCalendars"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
 }
 
 // ListIdentityProviderPresets answers GET /identity-provider-presets by the generated mapping.

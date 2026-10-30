@@ -711,6 +711,21 @@ export class HubtaskClient {
     return this.call("DELETE", "/business-calendars/{calendarKey}", { "calendarKey": calendarKey }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** A hub's own business calendars */
+  listHubCalendars(hubId: string, options: CallOptions = {}): Promise<operations["listHubCalendars"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/business-calendars", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Keep a hub's own version of a business calendar */
+  defineHubCalendar(hubId: string, calendarKey: string, body: NonNullable<operations["defineHubCalendar"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineHubCalendar"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/hubs/{hubId}/business-calendars/{calendarKey}", { "hubId": hubId, "calendarKey": calendarKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete a hub's own business calendar */
+  deleteHubCalendar(hubId: string, calendarKey: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/hubs/{hubId}/business-calendars/{calendarKey}", { "hubId": hubId, "calendarKey": calendarKey }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The workspace's SLA policies */
   listSlaPolicies(options: CallOptions = {}): Promise<operations["listSlaPolicies"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/sla-policies", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -2902,6 +2902,82 @@ paths:
           description: Deleted
         "4XX":
           $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/business-calendars:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [servicedesk]
+      operationId: listHubCalendars
+      x-hubtask-rest: generated
+      x-hubtask-cli: "business-calendar hub-ls"
+      summary: A hub's own business calendars
+      description: >
+        The hub's own versions of the workspace's calendars, by key: working hours per weekday,
+        holidays and a time zone. Every SLA policy naming the key counts on the hub's version for
+        the hub's entries. Needs READ on the hub and the service desk switched on.
+      responses:
+        "200":
+          description: The hub's calendars
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessCalendarList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/business-calendars/{calendarKey}:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: calendarKey
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+    put:
+      tags: [servicedesk]
+      operationId: defineHubCalendar
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { calendarKey: key }
+      x-hubtask-cli: "business-calendar hub-define"
+      summary: Keep a hub's own version of a business calendar
+      description: >
+        Keeps the hub's own working hours, holidays and time zone under the key of a calendar the
+        workspace holds, or replaces them; a key the workspace holds no calendar under is
+        `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a
+        clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BusinessCalendarDefine" }
+      responses:
+        "200":
+          description: The hub's calendar
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessCalendar" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [servicedesk]
+      operationId: deleteHubCalendar
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { calendarKey: key }
+      x-hubtask-cli: "business-calendar hub-rm"
+      summary: Delete a hub's own business calendar
+      description: >
+        Deletes the hub's own version; the hub's entries count on the workspace's calendar of the
+        key again. Needs STRUCTURE on the hub.
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /sla-policies:
     get:
       tags: [servicedesk]
@@ -25560,6 +25636,7 @@ components:
         zone: { type: string, description: "An IANA time zone." }
         hours: { type: array, items: { $ref: "#/components/schemas/BusinessHours" } }
         holidays: { type: array, items: { type: string, format: date }, description: "Whole local days without working time." }
+        hub_id: { type: string, format: uuid, description: "The hub whose own version this is; absent for the workspace's calendar." }
         version: { type: integer }
 
     ReplyTemplate:

@@ -583,6 +583,18 @@ class Client:
         """Delete an unused business calendar"""
         return self._call("DELETE", "/business-calendars/{calendarKey}", {"calendarKey": calendar_key}, None, {}, None, "none", None, "void")
 
+    def list_hub_calendars(self, hub_id: str) -> "BusinessCalendarList":
+        """A hub's own business calendars"""
+        return self._call("GET", "/hubs/{hubId}/business-calendars", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def define_hub_calendar(self, hub_id: str, calendar_key: str, body: "BusinessCalendarDefine", *, if_match: str | None = None) -> "BusinessCalendar":
+        """Keep a hub's own version of a business calendar"""
+        return self._call("PUT", "/hubs/{hubId}/business-calendars/{calendarKey}", {"hubId": hub_id, "calendarKey": calendar_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_hub_calendar(self, hub_id: str, calendar_key: str) -> None:
+        """Delete a hub's own business calendar"""
+        return self._call("DELETE", "/hubs/{hubId}/business-calendars/{calendarKey}", {"hubId": hub_id, "calendarKey": calendar_key}, None, {}, None, "none", None, "void")
+
     def list_sla_policies(self) -> "SlaPolicyList":
         """The workspace's SLA policies"""
         return self._call("GET", "/sla-policies", {}, None, {}, None, "none", None, "json")

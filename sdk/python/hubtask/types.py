@@ -1938,6 +1938,7 @@ class BusinessCalendar(TypedDict, total=False):
     zone: Required[str]
     hours: Required[list["BusinessHours"]]
     holidays: Required[list[str]]
+    hub_id: str
     version: Required[int]
 
 class ReplyTemplate(TypedDict, total=False):

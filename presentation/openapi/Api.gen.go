@@ -12072,9 +12072,12 @@ type BusinessCalendar struct {
 	// Holidays Whole local days without working time.
 	Holidays []openapi_types.Date `json:"holidays"`
 	Hours    []BusinessHours      `json:"hours"`
-	Key      string               `json:"key"`
-	Name     string               `json:"name"`
-	Version  int                  `json:"version"`
+
+	// HubId The hub whose own version this is; absent for the workspace's calendar.
+	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key     string              `json:"key"`
+	Name    string              `json:"name"`
+	Version int                 `json:"version"`
 
 	// Zone An IANA time zone.
 	Zone string `json:"zone"`
@@ -24006,6 +24009,12 @@ type ListCiAssetsParams struct {
 // ListCiAssetsParamsState defines parameters for ListCiAssets.
 type ListCiAssetsParamsState string
 
+// DefineHubCalendarParams defines parameters for DefineHubCalendar.
+type DefineHubCalendarParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListCiAlertsParams defines parameters for ListCiAlerts.
 type ListCiAlertsParams struct {
 	Status *ListCiAlertsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -25917,6 +25926,9 @@ type CreateGroupJSONRequestBody = GroupCreate
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 
+// DefineHubCalendarJSONRequestBody defines body for DefineHubCalendar for application/json ContentType.
+type DefineHubCalendarJSONRequestBody = BusinessCalendarDefine
+
 // StartCiCampaignJSONRequestBody defines body for StartCiCampaign for application/json ContentType.
 type StartCiCampaignJSONRequestBody = CiCampaignStart
 
@@ -27818,6 +27830,15 @@ type ServerInterface interface {
 	// ListCiAssets A hub's asset register
 	// (GET /hubs/{hubId}/assets)
 	ListCiAssets(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiAssetsParams)
+	// ListHubCalendars A hub's own business calendars
+	// (GET /hubs/{hubId}/business-calendars)
+	ListHubCalendars(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// DeleteHubCalendar Delete a hub's own business calendar
+	// (DELETE /hubs/{hubId}/business-calendars/{calendarKey})
+	DeleteHubCalendar(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, calendarKey string)
+	// DefineHubCalendar Keep a hub's own version of a business calendar
+	// (PUT /hubs/{hubId}/business-calendars/{calendarKey})
+	DefineHubCalendar(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, calendarKey string, params DefineHubCalendarParams)
 	// ListCiAlerts A hub's alerts
 	// (GET /hubs/{hubId}/ci-alerts)
 	ListCiAlerts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiAlertsParams)
@@ -39461,6 +39482,126 @@ func (siw *ServerInterfaceWrapper) ListCiAssets(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListCiAssets(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListHubCalendars operation middleware
+func (siw *ServerInterfaceWrapper) ListHubCalendars(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHubCalendars(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteHubCalendar operation middleware
+func (siw *ServerInterfaceWrapper) DeleteHubCalendar(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "calendarKey" -------------
+	var calendarKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "calendarKey", r.PathValue("calendarKey"), &calendarKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "calendarKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteHubCalendar(w, r, hubId, calendarKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineHubCalendar operation middleware
+func (siw *ServerInterfaceWrapper) DefineHubCalendar(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "calendarKey" -------------
+	var calendarKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "calendarKey", r.PathValue("calendarKey"), &calendarKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "calendarKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineHubCalendarParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineHubCalendar(w, r, hubId, calendarKey, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -53014,6 +53155,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/business-calendars", wrapper.ListBusinessCalendars)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DeleteBusinessCalendar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DefineBusinessCalendar)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/business-calendars", wrapper.ListHubCalendars)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/hubs/{hubId}/business-calendars/{calendarKey}", wrapper.DeleteHubCalendar)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/business-calendars/{calendarKey}", wrapper.DefineHubCalendar)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-policies", wrapper.ListSlaPolicies)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DeleteSlaPolicy)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DefineSlaPolicy)

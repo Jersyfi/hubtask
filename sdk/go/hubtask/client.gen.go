@@ -12077,9 +12077,12 @@ type BusinessCalendar struct {
 	// Holidays Whole local days without working time.
 	Holidays []openapi_types.Date `json:"holidays"`
 	Hours    []BusinessHours      `json:"hours"`
-	Key      string               `json:"key"`
-	Name     string               `json:"name"`
-	Version  int                  `json:"version"`
+
+	// HubId The hub whose own version this is; absent for the workspace's calendar.
+	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key     string              `json:"key"`
+	Name    string              `json:"name"`
+	Version int                 `json:"version"`
 
 	// Zone An IANA time zone.
 	Zone string `json:"zone"`
@@ -24011,6 +24014,12 @@ type ListCiAssetsParams struct {
 // ListCiAssetsParamsState defines parameters for ListCiAssets.
 type ListCiAssetsParamsState string
 
+// DefineHubCalendarParams defines parameters for DefineHubCalendar.
+type DefineHubCalendarParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListCiAlertsParams defines parameters for ListCiAlerts.
 type ListCiAlertsParams struct {
 	Status *ListCiAlertsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -25921,6 +25930,9 @@ type CreateGroupJSONRequestBody = GroupCreate
 
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
+
+// DefineHubCalendarJSONRequestBody defines body for DefineHubCalendar for application/json ContentType.
+type DefineHubCalendarJSONRequestBody = BusinessCalendarDefine
 
 // StartCiCampaignJSONRequestBody defines body for StartCiCampaign for application/json ContentType.
 type StartCiCampaignJSONRequestBody = CiCampaignStart
@@ -31427,6 +31439,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
 	ListCiAssets(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListHubCalendars A hub's own business calendars
+	//
+	// The hub's own versions of the workspace's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
+	//
+	// Corresponds with GET /hubs/{hubId}/business-calendars (the `ListHubCalendars` operationId).
+	ListHubCalendars(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteHubCalendar Delete a hub's own business calendar
+	//
+	// Deletes the hub's own version; the hub's entries count on the workspace's calendar of the key again. Needs STRUCTURE on the hub.
+	//
+	// Corresponds with DELETE /hubs/{hubId}/business-calendars/{calendarKey} (the `DeleteHubCalendar` operationId).
+	DeleteHubCalendar(ctx context.Context, hubId openapi_types.UUID, calendarKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineHubCalendarWithBody Keep a hub's own version of a business calendar
+	//
+	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
+	DefineHubCalendarWithBody(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineHubCalendar Keep a hub's own version of a business calendar
+	//
+	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
+	DefineHubCalendar(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCiAlerts A hub's alerts
 	//
@@ -45709,6 +45753,78 @@ func (c *Client) UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Co
 // Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
 func (c *Client) ListCiAssets(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCiAssetsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListHubCalendars A hub's own business calendars
+//
+// The hub's own versions of the workspace's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
+//
+// Corresponds with GET /hubs/{hubId}/business-calendars (the `ListHubCalendars` operationId).
+func (c *Client) ListHubCalendars(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHubCalendarsRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteHubCalendar Delete a hub's own business calendar
+//
+// Deletes the hub's own version; the hub's entries count on the workspace's calendar of the key again. Needs STRUCTURE on the hub.
+//
+// Corresponds with DELETE /hubs/{hubId}/business-calendars/{calendarKey} (the `DeleteHubCalendar` operationId).
+func (c *Client) DeleteHubCalendar(ctx context.Context, hubId openapi_types.UUID, calendarKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteHubCalendarRequest(c.Server, hubId, calendarKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineHubCalendarWithBody Keep a hub's own version of a business calendar
+//
+// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
+func (c *Client) DefineHubCalendarWithBody(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineHubCalendarRequestWithBody(c.Server, hubId, calendarKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineHubCalendar Keep a hub's own version of a business calendar
+//
+// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
+func (c *Client) DefineHubCalendar(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineHubCalendarRequest(c.Server, hubId, calendarKey, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -71306,6 +71422,150 @@ func NewListCiAssetsRequest(server string, hubId openapi_types.UUID, params *Lis
 	return req, nil
 }
 
+// NewListHubCalendarsRequest constructs an http.Request for the ListHubCalendars method
+func NewListHubCalendarsRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/business-calendars", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteHubCalendarRequest constructs an http.Request for the DeleteHubCalendar method
+func NewDeleteHubCalendarRequest(server string, hubId openapi_types.UUID, calendarKey string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "calendarKey", calendarKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/business-calendars/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineHubCalendarRequest calls the generic DefineHubCalendar builder with application/json body
+func NewDefineHubCalendarRequest(server string, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineHubCalendarRequestWithBody(server, hubId, calendarKey, params, "application/json", bodyReader)
+}
+
+// NewDefineHubCalendarRequestWithBody constructs an http.Request for the DefineHubCalendar method, with any body, and a specified content type
+func NewDefineHubCalendarRequestWithBody(server string, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "calendarKey", calendarKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/business-calendars/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListCiAlertsRequest constructs an http.Request for the ListCiAlerts method
 func NewListCiAlertsRequest(server string, hubId openapi_types.UUID, params *ListCiAlertsParams) (*http.Request, error) {
 	var err error
@@ -94688,6 +94948,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
 	ListCiAssetsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*ListCiAssetsResult, error)
 
+	// ListHubCalendarsWithResponse A hub's own business calendars
+	//
+	// The hub's own versions of the workspace's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/business-calendars (the `ListHubCalendars` operationId).
+	ListHubCalendarsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListHubCalendarsResult, error)
+
+	// DeleteHubCalendarWithResponse Delete a hub's own business calendar
+	//
+	// Deletes the hub's own version; the hub's entries count on the workspace's calendar of the key again. Needs STRUCTURE on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /hubs/{hubId}/business-calendars/{calendarKey} (the `DeleteHubCalendar` operationId).
+	DeleteHubCalendarWithResponse(ctx context.Context, hubId openapi_types.UUID, calendarKey string, reqEditors ...RequestEditorFn) (*DeleteHubCalendarResult, error)
+
+	// DefineHubCalendarWithBodyWithResponse Keep a hub's own version of a business calendar
+	//
+	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
+	DefineHubCalendarWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineHubCalendarResult, error)
+
+	// DefineHubCalendarWithResponse Keep a hub's own version of a business calendar
+	//
+	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
+	DefineHubCalendarWithResponse(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineHubCalendarResult, error)
+
 	// ListCiAlertsWithResponse A hub's alerts
 	//
 	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
@@ -115930,6 +116226,143 @@ func (r ListCiAssetsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListCiAssetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListHubCalendarsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BusinessCalendarList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHubCalendarsResult) GetJSON200() *BusinessCalendarList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListHubCalendarsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHubCalendarsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHubCalendarsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHubCalendarsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHubCalendarsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteHubCalendarResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteHubCalendarResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteHubCalendarResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteHubCalendarResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteHubCalendarResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteHubCalendarResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineHubCalendarResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BusinessCalendar
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineHubCalendarResult) GetJSON200() *BusinessCalendar {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineHubCalendarResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineHubCalendarResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineHubCalendarResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineHubCalendarResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineHubCalendarResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -142482,6 +142915,66 @@ func (c *ClientWithResponses) ListCiAssetsWithResponse(ctx context.Context, hubI
 	return ParseListCiAssetsResult(rsp)
 }
 
+// ListHubCalendarsWithResponse A hub's own business calendars
+//
+// The hub's own versions of the workspace's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/business-calendars (the `ListHubCalendars` operationId).
+func (c *ClientWithResponses) ListHubCalendarsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListHubCalendarsResult, error) {
+	rsp, err := c.ListHubCalendars(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHubCalendarsResult(rsp)
+}
+
+// DeleteHubCalendarWithResponse Delete a hub's own business calendar
+//
+// Deletes the hub's own version; the hub's entries count on the workspace's calendar of the key again. Needs STRUCTURE on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /hubs/{hubId}/business-calendars/{calendarKey} (the `DeleteHubCalendar` operationId).
+func (c *ClientWithResponses) DeleteHubCalendarWithResponse(ctx context.Context, hubId openapi_types.UUID, calendarKey string, reqEditors ...RequestEditorFn) (*DeleteHubCalendarResult, error) {
+	rsp, err := c.DeleteHubCalendar(ctx, hubId, calendarKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteHubCalendarResult(rsp)
+}
+
+// DefineHubCalendarWithBodyWithResponse Keep a hub's own version of a business calendar
+//
+// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
+func (c *ClientWithResponses) DefineHubCalendarWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineHubCalendarResult, error) {
+	rsp, err := c.DefineHubCalendarWithBody(ctx, hubId, calendarKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineHubCalendarResult(rsp)
+}
+
+// DefineHubCalendarWithResponse Keep a hub's own version of a business calendar
+//
+// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
+func (c *ClientWithResponses) DefineHubCalendarWithResponse(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineHubCalendarResult, error) {
+	rsp, err := c.DefineHubCalendar(ctx, hubId, calendarKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineHubCalendarResult(rsp)
+}
+
 // ListCiAlertsWithResponse A hub's alerts
 //
 // The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
@@ -162439,6 +162932,101 @@ func ParseListCiAssetsResult(rsp *http.Response) (*ListCiAssetsResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiAssetList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListHubCalendarsResult parses an HTTP response from a ListHubCalendarsWithResponse call
+func ParseListHubCalendarsResult(rsp *http.Response) (*ListHubCalendarsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHubCalendarsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BusinessCalendarList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteHubCalendarResult parses an HTTP response from a DeleteHubCalendarWithResponse call
+func ParseDeleteHubCalendarResult(rsp *http.Response) (*DeleteHubCalendarResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteHubCalendarResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineHubCalendarResult parses an HTTP response from a DefineHubCalendarWithResponse call
+func ParseDefineHubCalendarResult(rsp *http.Response) (*DefineHubCalendarResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineHubCalendarResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BusinessCalendar
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

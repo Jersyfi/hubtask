@@ -2137,6 +2137,15 @@ func (pending) DeleteBusinessCalendar(w http.ResponseWriter, r *http.Request, _ 
 func (pending) DefineBusinessCalendar(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineBusinessCalendarParams) {
 	notAvailable(w, r)
 }
+func (pending) ListHubCalendars(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) DeleteHubCalendar(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string) {
+	notAvailable(w, r)
+}
+func (pending) DefineHubCalendar(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string, _ openapi.DefineHubCalendarParams) {
+	notAvailable(w, r)
+}
 func (pending) ReadEntrySla(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
