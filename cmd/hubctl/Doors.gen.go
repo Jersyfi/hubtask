@@ -584,6 +584,11 @@ var generatedCommands = []door{
 			{Name: "value", Kind: "number", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id", "size", "unit", "value"}},
+	{Group: "item", Verb: "goals", OperationID: "listEntryGoals", Method: "GET", Path: "/items/{itemId}/goals", Summary: "The goals an entry serves",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "status", "version"}},
 	{Group: "item", Verb: "step", OperationID: "takeStep", Method: "POST", Path: "/items/{itemId}:step", Summary: "Move an entry on by one step",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},

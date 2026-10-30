@@ -239,6 +239,10 @@ class Client:
         """Check in on a goal"""
         return self._call("POST", "/goals/{goalId}/check-ins", {"goalId": goal_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_entry_goals(self, item_id: str) -> "GoalList":
+        """The goals an entry serves"""
+        return self._call("GET", "/items/{itemId}/goals", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
     def list_portfolios(self) -> "PortfolioList":
         """The portfolios"""
         return self._call("GET", "/portfolios", {}, None, {}, None, "none", None, "json")

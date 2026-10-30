@@ -2393,6 +2393,10 @@ func (pending) ListGoalCheckIns(w http.ResponseWriter, r *http.Request, _ openap
 	notAvailable(w, r)
 }
 
+func (pending) ListEntryGoals(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
 func (pending) ListPortfolios(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

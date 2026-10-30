@@ -32,6 +32,7 @@ const (
 	UnlinkGoalEntryName  = "UnlinkGoalEntry"
 	CheckInGoalName      = "CheckInGoal"
 	ListGoalCheckInsName = "ListGoalCheckIns"
+	ListEntryGoalsName   = "ListEntryGoals"
 )
 
 var workspace = []identity.Scope{identity.TenantScope()}
@@ -822,6 +823,70 @@ func (h UnlinkGoalEntry) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			return s.answer(ctx, actor, id)
+		}),
+	}, goalTarget)
+}
+
+// ListEntryGoals answers the goals an entry is linked to, beside its links: the ones the reader may
+// read, each with its progress as the reader sees it.
+type ListEntryGoals struct{ Steward Steward }
+
+// Descriptor is the catalogue entry.
+func (h ListEntryGoals) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: ListEntryGoalsName, Permission: service.PermissionRead, ReadOnly: true,
+		Summary: "The goals an entry is linked to that the caller may read, each with its key results and its " +
+			"progress as the caller sees it. An entry the caller may not read is not found.",
+		SideEffects: "None. Reads only.", TokenScope: itemsRead,
+		Input: []usecase.Field{
+			{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The entry."},
+		},
+		Audit: usecase.AuditDeclaration{Action: GoalReadAction},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			s := h.Steward
+			if err := person(actor); err != nil {
+				return nil, err
+			}
+			if err := actor.RequireScope(itemsRead); err != nil {
+				return nil, err
+			}
+			entry, err := in.ID("item_id")
+			if err != nil {
+				return nil, err
+			}
+			readable, err := s.readableEntries(ctx, actor, []shared.ID{entry})
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := readable[entry]; !ok {
+				return nil, appshared.ItemNotFound(entry)
+			}
+			var ids []shared.ID
+			if err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				var err error
+				ids, err = s.Store.GoalsOfEntry(ctx, entry, maxGoals)
+				return err
+			}); err != nil {
+				return nil, err
+			}
+			data := []usecase.Output{}
+			if len(ids) == 0 {
+				return usecase.Output{"data": data}, nil
+			}
+			linked := make(map[shared.ID]bool, len(ids))
+			for _, id := range ids {
+				linked[id] = true
+			}
+			sight, err := s.sight(ctx, actor, nil)
+			if err != nil {
+				return nil, err
+			}
+			for _, id := range sight.Order {
+				if linked[id] {
+					data = append(data, sight.GoalOutput(sight.Goals[id]))
+				}
+			}
+			return usecase.Output{"data": data}, nil
 		}),
 	}, goalTarget)
 }

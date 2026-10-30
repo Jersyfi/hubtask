@@ -401,6 +401,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `goal.deleted` | DeleteGoal | `goal` | INFO | Every time |
 | `goal.entries_linked` | LinkGoalEntries | `goal` | INFO | Every time |
 | `goal.entry_unlinked` | UnlinkGoalEntry | `goal` | INFO | Every time |
+| `goal.read` | ListEntryGoals | `goal` | INFO | When refused |
 | `goal.read` | ListGoalCheckIns | `goal` | INFO | When refused |
 | `goal.read` | ListGoals | `goal` | INFO | When refused |
 | `goal.read` | ReadGoal | `goal` | INFO | When refused |

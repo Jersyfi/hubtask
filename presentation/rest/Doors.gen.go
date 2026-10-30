@@ -214,6 +214,7 @@ var restDoors = map[string]restDoor{
 	"listCustomFields":                  {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listDashboards":                    {UseCase: "ListDashboards", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEmergencyNotices":              {UseCase: "ListEmergencyNotices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listEntryGoals":                    {UseCase: "ListEntryGoals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryLinks":                    {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntrySteps":                    {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryTypes":                    {UseCase: "ListEntryTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1655,6 +1656,12 @@ func (c *RestController) ListDashboards(w http.ResponseWriter, r *http.Request, 
 // ListEmergencyNotices answers GET /accounts/me/emergency-notices by the generated mapping.
 func (c *RestController) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listEmergencyNotices"], usecase.Input{}, nil, nil, answerRows(privateHubAccessResponse))
+}
+
+// ListEntryGoals answers GET /items/{itemId}/goals by the generated mapping.
+func (c *RestController) ListEntryGoals(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var answer openapi.GoalList
+	c.door(w, r, restDoors["listEntryGoals"], usecase.Input{"item_id": itemId.String()}, nil, nil, &answer)
 }
 
 // ListEntryLinks answers GET /items/{itemId}/links by the generated mapping.

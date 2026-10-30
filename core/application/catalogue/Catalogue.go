@@ -206,6 +206,7 @@ func Descriptors() []usecase.Descriptor {
 		goalservice.UnlinkGoalEntry{}.Descriptor(),
 		goalservice.CheckInGoal{}.Descriptor(),
 		goalservice.ListGoalCheckIns{}.Descriptor(),
+		goalservice.ListEntryGoals{}.Descriptor(),
 		goalservice.ListPortfolios{}.Descriptor(),
 		goalservice.ReadPortfolio{}.Descriptor(),
 		goalservice.CreatePortfolio{}.Descriptor(),

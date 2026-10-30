@@ -292,6 +292,30 @@ func TestAGoalOutOfReachIsNoPartOfTheNumber(t *testing.T) {
 	}
 }
 
+// UC-GOL-01 checks 4 and 5: an entry lists the goals it serves that its reader may read, and an
+// entry the reader may not read is not found.
+func TestAnEntryListsTheGoalsItServes(t *testing.T) {
+	s, _, _, _ := newSteward(t)
+	p := period(t, s)
+	open := ok(t, CreateGoal{s}.Descriptor(), ana, usecase.Input{"period_id": p, "title": "Grow"})
+	hidden := ok(t, CreateGoal{s}.Descriptor(), ana, usecase.Input{"period_id": p, "hub_id": secret.String(), "title": "Merge"})
+	for _, g := range []usecase.Output{open, hidden} {
+		ok(t, LinkGoalEntries{s}.Descriptor(), ana, usecase.Input{"goal_id": g.String("id"), "entry_ids": []any{entry2.String()}})
+	}
+	asAna := ok(t, ListEntryGoals{s}.Descriptor(), ana, usecase.Input{"item_id": entry2.String()})
+	if len(asAna["data"].([]usecase.Output)) != 2 {
+		t.Fatalf("Ana sees %v", asAna["data"])
+	}
+	asBen := ok(t, ListEntryGoals{s}.Descriptor(), ben, usecase.Input{"item_id": entry2.String()})
+	data := asBen["data"].([]usecase.Output)
+	if len(data) != 1 || data[0]["id"] != open.String("id") {
+		t.Fatalf("Ben sees %v", data)
+	}
+	if _, err := call(t, ListEntryGoals{s}.Descriptor(), ben, usecase.Input{"item_id": entryS.String()}); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("Ben reads the goals of an entry he may not read: %v", err)
+	}
+}
+
 // UC-GOL-01 check 6: a goal never sits under itself or one of its own.
 func TestAGoalIsNoParentOfItsParent(t *testing.T) {
 	s, _, _, _ := newSteward(t)
@@ -535,7 +559,17 @@ func (m *memory) LinkedEntries(_ context.Context, goals []shared.ID) (map[shared
 	return out, nil
 }
 
-func (m *memory) GoalsOfEntry(context.Context, shared.ID, int) ([]shared.ID, error) { return nil, nil }
+func (m *memory) GoalsOfEntry(_ context.Context, entry shared.ID, _ int) ([]shared.ID, error) {
+	var out []shared.ID
+	for g, entries := range m.links {
+		for _, e := range entries {
+			if e == entry {
+				out = append(out, g)
+			}
+		}
+	}
+	return out, nil
+}
 
 func (m *memory) LinkEntries(_ context.Context, goal shared.ID, entries []shared.ID, _ shared.ID, _ time.Time) error {
 	m.links[goal] = append(m.links[goal], entries...)

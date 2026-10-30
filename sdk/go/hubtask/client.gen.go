@@ -28701,6 +28701,13 @@ type ClientInterface interface {
 	// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
 	SetEntryEstimate(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListEntryGoals The goals an entry serves
+	//
+	// The goals the entry is linked to that the caller may read, each with its key results and its progress as the caller sees it. An entry the caller may not read is not found.
+	//
+	// Corresponds with GET /items/{itemId}/goals (the `ListEntryGoals` operationId).
+	ListEntryGoals(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// TakeBackKudos performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
 	//
 	// Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos not given succeed.
@@ -42054,6 +42061,23 @@ func (c *Client) SetEntryEstimateWithBody(ctx context.Context, itemId ItemId, co
 // Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
 func (c *Client) SetEntryEstimate(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetEntryEstimateRequest(c.Server, itemId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListEntryGoals The goals an entry serves
+//
+// The goals the entry is linked to that the caller may read, each with its key results and its progress as the caller sees it. An entry the caller may not read is not found.
+//
+// Corresponds with GET /items/{itemId}/goals (the `ListEntryGoals` operationId).
+func (c *Client) ListEntryGoals(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEntryGoalsRequest(c.Server, itemId)
 	if err != nil {
 		return nil, err
 	}
@@ -65930,6 +65954,40 @@ func NewSetEntryEstimateRequestWithBody(server string, itemId ItemId, contentTyp
 	return req, nil
 }
 
+// NewListEntryGoalsRequest constructs an http.Request for the ListEntryGoals method
+func NewListEntryGoalsRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/goals", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewTakeBackKudosRequest constructs an http.Request for the TakeBackKudos method
 func NewTakeBackKudosRequest(server string, itemId ItemId) (*http.Request, error) {
 	var err error
@@ -84091,6 +84149,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
 	SetEntryEstimateWithResponse(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetEntryEstimateResult, error)
+
+	// ListEntryGoalsWithResponse The goals an entry serves
+	//
+	// The goals the entry is linked to that the caller may read, each with its key results and its progress as the caller sees it. An entry the caller may not read is not found.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/goals (the `ListEntryGoals` operationId).
+	ListEntryGoalsWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryGoalsResult, error)
 
 	// TakeBackKudosWithResponse performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
 	//
@@ -104536,6 +104603,54 @@ func (r SetEntryEstimateResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetEntryEstimateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListEntryGoalsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GoalList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListEntryGoalsResult) GetJSON200() *GoalList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListEntryGoalsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListEntryGoalsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEntryGoalsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEntryGoalsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListEntryGoalsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -126127,6 +126242,21 @@ func (c *ClientWithResponses) SetEntryEstimateWithResponse(ctx context.Context, 
 	return ParseSetEntryEstimateResult(rsp)
 }
 
+// ListEntryGoalsWithResponse The goals an entry serves
+//
+// The goals the entry is linked to that the caller may read, each with its key results and its progress as the caller sees it. An entry the caller may not read is not found.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/goals (the `ListEntryGoals` operationId).
+func (c *ClientWithResponses) ListEntryGoalsWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryGoalsResult, error) {
+	rsp, err := c.ListEntryGoals(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEntryGoalsResult(rsp)
+}
+
 // TakeBackKudosWithResponse performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
 //
 // Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos not given succeed.
@@ -144208,6 +144338,39 @@ func ParseSetEntryEstimateResult(rsp *http.Response) (*SetEntryEstimateResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest EntryEstimate
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListEntryGoalsResult parses an HTTP response from a ListEntryGoalsWithResponse call
+func ParseListEntryGoalsResult(rsp *http.Response) (*ListEntryGoalsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEntryGoalsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GoalList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

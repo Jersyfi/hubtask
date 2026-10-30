@@ -2023,6 +2023,7 @@ func run() error {
 		goalservice.UnlinkGoalEntry{Steward: steward}.Descriptor(),
 		goalservice.CheckInGoal{Steward: steward}.Descriptor(),
 		goalservice.ListGoalCheckIns{Steward: steward}.Descriptor(),
+		goalservice.ListEntryGoals{Steward: steward}.Descriptor(),
 		goalservice.ListPortfolios{Steward: steward}.Descriptor(),
 		goalservice.ReadPortfolio{Steward: steward}.Descriptor(),
 		goalservice.CreatePortfolio{Steward: steward}.Descriptor(),

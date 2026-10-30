@@ -924,6 +924,26 @@ paths:
               schema: { $ref: "#/components/schemas/Goal" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /items/{itemId}/goals:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [goals]
+      operationId: listEntryGoals
+      x-hubtask-rest: generated
+      x-hubtask-cli: "item goals"
+      summary: The goals an entry serves
+      description: >
+        The goals the entry is linked to that the caller may read, each with its key results and its
+        progress as the caller sees it. An entry the caller may not read is not found.
+      responses:
+        "200":
+          description: The goals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /portfolios:
     get:
       tags: [goals]

@@ -24961,6 +24961,9 @@ type ServerInterface interface {
 	// SetEntryEstimate Say how big an entry is
 	// (PUT /items/{itemId}/estimate)
 	SetEntryEstimate(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// ListEntryGoals The goals an entry serves
+	// (GET /items/{itemId}/goals)
+	ListEntryGoals(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (DELETE /items/{itemId}/kudos)
 	TakeBackKudos(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -37383,6 +37386,32 @@ func (siw *ServerInterfaceWrapper) SetEntryEstimate(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListEntryGoals operation middleware
+func (siw *ServerInterfaceWrapper) ListEntryGoals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEntryGoals(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // TakeBackKudos operation middleware
 func (siw *ServerInterfaceWrapper) TakeBackKudos(w http.ResponseWriter, r *http.Request) {
 
@@ -46966,6 +46995,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/goals/{goalId}/entries/{entryId}", wrapper.UnlinkGoalEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/goals/{goalId}/check-ins", wrapper.ListGoalCheckIns)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/goals/{goalId}/check-ins", wrapper.CheckInGoal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/goals", wrapper.ListEntryGoals)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios", wrapper.ListPortfolios)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/portfolios", wrapper.CreatePortfolio)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/portfolios/{portfolioId}", wrapper.DeletePortfolio)

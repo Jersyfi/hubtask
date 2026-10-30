@@ -281,6 +281,11 @@ export class HubtaskClient {
     return this.call("POST", "/goals/{goalId}/check-ins", { "goalId": goalId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The goals an entry serves */
+  listEntryGoals(itemId: string, options: CallOptions = {}): Promise<operations["listEntryGoals"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/goals", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The portfolios */
   listPortfolios(options: CallOptions = {}): Promise<operations["listPortfolios"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/portfolios", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
