@@ -2003,6 +2003,8 @@ type Page struct {
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
 	SearchDocument  interface{}
+	Restricted      bool
+	DailyFor        pgtype.Date
 }
 
 type PageComment struct {
@@ -2031,6 +2033,22 @@ type PageReference struct {
 	Strength   string
 }
 
+type PageRestriction struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+	GrantedBy pgtype.UUID
+	GrantedAt pgtype.Timestamptz
+}
+
+type PageShare struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+	GrantedBy pgtype.UUID
+	GrantedAt pgtype.Timestamptz
+}
+
 type PageVersion struct {
 	TenantID  pgtype.UUID
 	PageID    pgtype.UUID
@@ -2040,6 +2058,13 @@ type PageVersion struct {
 	AuthorID  pgtype.UUID
 	Name      string
 	Restored  int32
+	CreatedAt pgtype.Timestamptz
+}
+
+type PersonalSpace struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	HubID     pgtype.UUID
 	CreatedAt pgtype.Timestamptz
 }
 

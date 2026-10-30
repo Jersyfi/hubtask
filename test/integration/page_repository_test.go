@@ -188,3 +188,76 @@ func TestThePageWalkStaysInItsWorkspace(t *testing.T) {
 		t.Errorf("the workspace next door walked the page: %v", next)
 	}
 }
+
+// A restriction narrows down the tree and keeps the page off the walk; a share and a personal
+// space are read back; the workspace next door sees none of them (migration 0261).
+func TestAPagesAccessIsReadAsWrittenAndStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hub, root, child := seedSpace(ctx, t)
+	repo := postgres.NewPageRepository()
+	at := time.Date(2026, 10, 29, 11, 0, 0, 0, time.UTC)
+	day := time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		page, err := repo.Find(ctx, root)
+		if err != nil {
+			return err
+		}
+		page.Restricted, page.UpdatedBy, page.UpdatedAt = true, authorA, at
+		if err := repo.Restrict(ctx, page, []shared.ID{authorA}, page.Version); err != nil {
+			return err
+		}
+		readers, err := repo.Readers(ctx, []shared.ID{root, child})
+		if err != nil || !readers[child].Restricted || !readers[child].Admits(authorA) || readers[child].Admits(authorB) {
+			t.Errorf("readers %+v, %v", readers, err)
+		}
+		if walked, _ := postgres.NewSnapshotRepository().Pages(ctx, "", 100); len(walked) != 0 {
+			t.Errorf("the walk carried a restricted page: %+v", walked)
+		}
+		if added, err := repo.InsertShare(ctx, knowledge.Share{PageID: child, AccountID: authorA, GrantedBy: authorA, GrantedAt: at}); err != nil || !added {
+			t.Errorf("share %v, %v", added, err)
+		}
+		if held, _ := repo.SharedWith(ctx, child, authorA); !held {
+			t.Error("the share was not read back")
+		}
+		if claimed, err := repo.ClaimPersonalSpace(ctx, authorA, hub, at); err != nil || claimed != hub {
+			t.Errorf("claimed %v, %v", claimed, err)
+		}
+		note := knowledge.Page{ID: freshID(t), HubID: hub, Title: "2026-10-30", OrderKey: "b0", DailyFor: &day,
+			CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1}
+		if err := repo.Insert(ctx, note); err != nil {
+			return err
+		}
+		if id, found, err := repo.DailyNote(ctx, hub, day); err != nil || !found || id != note.ID {
+			t.Errorf("daily note %v %v, %v", id, found, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if readers, _ := repo.Readers(ctx, []shared.ID{child}); readers[child].Restricted {
+			t.Error("the workspace next door read the restriction")
+		}
+		if to, _ := repo.RestrictedTo(ctx, root); len(to) != 0 {
+			t.Error("the workspace next door read who the page is restricted to")
+		}
+		if held, _ := repo.SharedWith(ctx, child, authorA); held {
+			t.Error("the workspace next door read the share")
+		}
+		if shares, _ := repo.Shares(ctx, child, 10); len(shares) != 0 {
+			t.Error("the workspace next door listed the shares")
+		}
+		if _, found, _ := repo.PersonalSpace(ctx, authorA); found {
+			t.Error("the workspace next door read the personal space")
+		}
+		if _, found, _ := repo.DailyNote(ctx, hub, day); found {
+			t.Error("the workspace next door read the daily note")
+		}
+		if removed, _ := repo.DeleteShare(ctx, child, authorA); removed {
+			t.Error("the workspace next door removed the share")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

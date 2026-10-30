@@ -4,25 +4,25 @@
 -- name: InsertPage :exec
 INSERT INTO page (
   id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
-  created_by, created_at, updated_by, updated_at, version
+  created_by, created_at, updated_by, updated_at, version, daily_for
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.narg('parent_id'), sqlc.arg('title'),
   sqlc.arg('body'), sqlc.arg('icon'), sqlc.arg('order_key'), sqlc.arg('template'),
   sqlc.narg('content_language'), sqlc.arg('created_by'), sqlc.arg('at'), sqlc.arg('created_by'),
-  sqlc.arg('at'), 1
+  sqlc.arg('at'), 1, sqlc.narg('daily_for')
 );
 
 -- name: FindPage :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
 
 -- name: FindPageForUpdate :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')
 FOR UPDATE;
@@ -43,7 +43,7 @@ WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc
 -- A space's tree without the bodies, at most a bound past the space's limit.
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
   AND deleted_at IS NULL
@@ -55,7 +55,7 @@ LIMIT sqlc.arg('batch');
 -- name: ListTrashedHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC, id
@@ -85,7 +85,7 @@ WITH RECURSIVE down (id, depth) AS (
 )
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
-       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
 FROM page p JOIN down ON down.id = p.id
 WHERE p.tenant_id = current_tenant_id()
 ORDER BY down.depth, p.order_key, p.id
@@ -142,7 +142,7 @@ LIMIT sqlc.arg('batch');
 
 -- name: PageSummaries :many
 -- The pages among the identifiers that are not trashed, for a reference's resolution.
-SELECT id, hub_id, title, icon, archived_at, verified_until
+SELECT id, hub_id, title, icon, archived_at, verified_until, restricted
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = ANY(sqlc.arg('ids')::uuid[]) AND deleted_at IS NULL;
 
@@ -215,3 +215,93 @@ UPDATE page_comment SET body = sqlc.arg('body'), resolved_at = sqlc.narg('resolv
   resolved_by = sqlc.narg('resolved_by'), edited_at = sqlc.narg('edited_at'),
   deleted_at = sqlc.narg('deleted_at'), version = version + 1
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
+
+-- name: PageChainRestrictions :many
+-- For each page among the identifiers, every restricted page on its way up (itself included) with
+-- the people it names; a restricted page naming nobody answers one row without an account.
+WITH RECURSIVE up (page_id, above_id, parent_id, restricted, depth) AS (
+  SELECT p.id, p.id, p.parent_id, p.restricted, 0 FROM page p
+   WHERE p.tenant_id = current_tenant_id() AND p.id = ANY(sqlc.arg('ids')::uuid[])
+  UNION ALL
+  SELECT up.page_id, p.id, p.parent_id, p.restricted, up.depth + 1 FROM page p
+    JOIN up ON p.id = up.parent_id
+   WHERE p.tenant_id = current_tenant_id() AND up.depth < 16
+)
+SELECT up.page_id, up.above_id, r.account_id
+FROM up
+LEFT JOIN page_restriction r
+  ON r.tenant_id = current_tenant_id() AND r.page_id = up.above_id
+WHERE up.restricted
+ORDER BY up.page_id, up.above_id, r.account_id;
+
+-- name: PageRestrictedTo :many
+-- The people one page's own restriction names.
+SELECT account_id FROM page_restriction
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id')
+ORDER BY granted_at, account_id;
+
+-- name: ClearPageRestriction :exec
+DELETE FROM page_restriction WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
+
+-- name: InsertPageRestriction :exec
+INSERT INTO page_restriction (tenant_id, page_id, account_id, granted_by, granted_at)
+SELECT current_tenant_id(), sqlc.arg('page_id'), a, sqlc.arg('granted_by'), sqlc.arg('at')
+FROM unnest(sqlc.arg('account_ids')::uuid[]) AS a
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING;
+
+-- name: SetPageRestricted :execrows
+-- The flag alone; the page's version moves, so that an editor holding it reads it again.
+UPDATE page SET restricted = sqlc.arg('restricted'), updated_by = sqlc.arg('updated_by'),
+  updated_at = sqlc.arg('updated_at'), version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
+
+-- name: InsertPageShare :execrows
+INSERT INTO page_share (tenant_id, page_id, account_id, granted_by, granted_at)
+VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('account_id'), sqlc.arg('granted_by'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING;
+
+-- name: DeletePageShare :execrows
+DELETE FROM page_share
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND account_id = sqlc.arg('account_id');
+
+-- name: PageShares :many
+SELECT page_id, account_id, granted_by, granted_at FROM page_share
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id')
+ORDER BY granted_at, account_id
+LIMIT sqlc.arg('batch');
+
+-- name: IsPageSharedWith :one
+SELECT EXISTS (
+  SELECT 1 FROM page_share
+  WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND account_id = sqlc.arg('account_id')
+) AS shared;
+
+-- name: PagesSharedWith :many
+-- The living pages shared with a person, newest share first.
+SELECT p.id, p.hub_id, p.title, p.icon, p.archived_at, p.verified_until, p.restricted
+FROM page_share s JOIN page p ON p.tenant_id = s.tenant_id AND p.id = s.page_id
+WHERE s.tenant_id = current_tenant_id() AND s.account_id = sqlc.arg('account_id') AND p.deleted_at IS NULL
+ORDER BY s.granted_at DESC, p.id
+LIMIT sqlc.arg('batch');
+
+-- name: FindPersonalSpace :one
+SELECT ps.hub_id FROM personal_space ps
+JOIN container c ON c.tenant_id = ps.tenant_id AND c.id = ps.hub_id
+WHERE ps.tenant_id = current_tenant_id() AND ps.account_id = sqlc.arg('account_id') AND c.deleted_at IS NULL;
+
+-- name: ClaimPersonalSpace :one
+-- The first claim wins; a later one answers the hub already named, or the one it claims when the
+-- named hub has gone.
+INSERT INTO personal_space (tenant_id, account_id, hub_id, created_at)
+VALUES (current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('hub_id'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET hub_id = EXCLUDED.hub_id, created_at = EXCLUDED.created_at
+  WHERE NOT EXISTS (
+    SELECT 1 FROM container c
+    WHERE c.tenant_id = personal_space.tenant_id AND c.id = personal_space.hub_id AND c.deleted_at IS NULL
+  )
+RETURNING hub_id;
+
+-- name: FindDailyNote :one
+SELECT id FROM page
+WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND daily_for = sqlc.arg('day')
+  AND deleted_at IS NULL;

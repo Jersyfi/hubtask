@@ -11,6 +11,41 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const claimPersonalSpace = `-- name: ClaimPersonalSpace :one
+INSERT INTO personal_space (tenant_id, account_id, hub_id, created_at)
+VALUES (current_tenant_id(), $1, $2, $3)
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET hub_id = EXCLUDED.hub_id, created_at = EXCLUDED.created_at
+  WHERE NOT EXISTS (
+    SELECT 1 FROM container c
+    WHERE c.tenant_id = personal_space.tenant_id AND c.id = personal_space.hub_id AND c.deleted_at IS NULL
+  )
+RETURNING hub_id
+`
+
+type ClaimPersonalSpaceParams struct {
+	AccountID pgtype.UUID
+	HubID     pgtype.UUID
+	At        pgtype.Timestamptz
+}
+
+// The first claim wins; a later one answers the hub already named, or the one it claims when the
+// named hub has gone.
+func (q *Queries) ClaimPersonalSpace(ctx context.Context, arg ClaimPersonalSpaceParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, claimPersonalSpace, arg.AccountID, arg.HubID, arg.At)
+	var hub_id pgtype.UUID
+	err := row.Scan(&hub_id)
+	return hub_id, err
+}
+
+const clearPageRestriction = `-- name: ClearPageRestriction :exec
+DELETE FROM page_restriction WHERE tenant_id = current_tenant_id() AND page_id = $1
+`
+
+func (q *Queries) ClearPageRestriction(ctx context.Context, pageID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearPageRestriction, pageID)
+	return err
+}
+
 const countHubPages = `-- name: CountHubPages :one
 SELECT count(*) FROM page WHERE tenant_id = current_tenant_id() AND hub_id = $1
 `
@@ -22,10 +57,46 @@ func (q *Queries) CountHubPages(ctx context.Context, hubID pgtype.UUID) (int64, 
 	return count, err
 }
 
+const deletePageShare = `-- name: DeletePageShare :execrows
+DELETE FROM page_share
+WHERE tenant_id = current_tenant_id() AND page_id = $1 AND account_id = $2
+`
+
+type DeletePageShareParams struct {
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+func (q *Queries) DeletePageShare(ctx context.Context, arg DeletePageShareParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePageShare, arg.PageID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const findDailyNote = `-- name: FindDailyNote :one
+SELECT id FROM page
+WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND daily_for = $2
+  AND deleted_at IS NULL
+`
+
+type FindDailyNoteParams struct {
+	HubID pgtype.UUID
+	Day   pgtype.Date
+}
+
+func (q *Queries) FindDailyNote(ctx context.Context, arg FindDailyNoteParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findDailyNote, arg.HubID, arg.Day)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const findPage = `-- name: FindPage :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = $1
 `
@@ -51,6 +122,8 @@ type FindPageRow struct {
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
+	Restricted      bool
+	DailyFor        pgtype.Date
 }
 
 func (q *Queries) FindPage(ctx context.Context, id pgtype.UUID) (FindPageRow, error) {
@@ -77,6 +150,8 @@ func (q *Queries) FindPage(ctx context.Context, id pgtype.UUID) (FindPageRow, er
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Restricted,
+		&i.DailyFor,
 	)
 	return i, err
 }
@@ -128,7 +203,7 @@ func (q *Queries) FindPageComment(ctx context.Context, id pgtype.UUID) (FindPage
 const findPageForUpdate = `-- name: FindPageForUpdate :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = $1
 FOR UPDATE
@@ -155,6 +230,8 @@ type FindPageForUpdateRow struct {
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
+	Restricted      bool
+	DailyFor        pgtype.Date
 }
 
 func (q *Queries) FindPageForUpdate(ctx context.Context, id pgtype.UUID) (FindPageForUpdateRow, error) {
@@ -181,6 +258,8 @@ func (q *Queries) FindPageForUpdate(ctx context.Context, id pgtype.UUID) (FindPa
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Restricted,
+		&i.DailyFor,
 	)
 	return i, err
 }
@@ -220,6 +299,19 @@ func (q *Queries) FindPageVersion(ctx context.Context, arg FindPageVersionParams
 	return i, err
 }
 
+const findPersonalSpace = `-- name: FindPersonalSpace :one
+SELECT ps.hub_id FROM personal_space ps
+JOIN container c ON c.tenant_id = ps.tenant_id AND c.id = ps.hub_id
+WHERE ps.tenant_id = current_tenant_id() AND ps.account_id = $1 AND c.deleted_at IS NULL
+`
+
+func (q *Queries) FindPersonalSpace(ctx context.Context, accountID pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findPersonalSpace, accountID)
+	var hub_id pgtype.UUID
+	err := row.Scan(&hub_id)
+	return hub_id, err
+}
+
 const foldPageVersion = `-- name: FoldPageVersion :exec
 UPDATE page_version SET title = $1, body = $2, created_at = $3
 WHERE tenant_id = current_tenant_id() AND page_id = $4 AND seq = $5
@@ -248,12 +340,12 @@ const insertPage = `-- name: InsertPage :exec
 
 INSERT INTO page (
   id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
-  created_by, created_at, updated_by, updated_at, version
+  created_by, created_at, updated_by, updated_at, version, daily_for
 ) VALUES (
   $1, current_tenant_id(), $2, $3, $4,
   $5, $6, $7, $8,
   $9, $10, $11, $10,
-  $11, 1
+  $11, 1, $12
 )
 `
 
@@ -269,6 +361,7 @@ type InsertPageParams struct {
 	ContentLanguage *string
 	CreatedBy       pgtype.UUID
 	At              pgtype.Timestamptz
+	DailyFor        pgtype.Date
 }
 
 // The knowledge module's pages (migration 0231, M3). The tenant is the transaction's in every
@@ -286,6 +379,7 @@ func (q *Queries) InsertPage(ctx context.Context, arg InsertPageParams) error {
 		arg.ContentLanguage,
 		arg.CreatedBy,
 		arg.At,
+		arg.DailyFor,
 	)
 	return err
 }
@@ -321,6 +415,56 @@ func (q *Queries) InsertPageComment(ctx context.Context, arg InsertPageCommentPa
 	return err
 }
 
+const insertPageRestriction = `-- name: InsertPageRestriction :exec
+INSERT INTO page_restriction (tenant_id, page_id, account_id, granted_by, granted_at)
+SELECT current_tenant_id(), $1, a, $2, $3
+FROM unnest($4::uuid[]) AS a
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING
+`
+
+type InsertPageRestrictionParams struct {
+	PageID     pgtype.UUID
+	GrantedBy  pgtype.UUID
+	At         pgtype.Timestamptz
+	AccountIds []pgtype.UUID
+}
+
+func (q *Queries) InsertPageRestriction(ctx context.Context, arg InsertPageRestrictionParams) error {
+	_, err := q.db.Exec(ctx, insertPageRestriction,
+		arg.PageID,
+		arg.GrantedBy,
+		arg.At,
+		arg.AccountIds,
+	)
+	return err
+}
+
+const insertPageShare = `-- name: InsertPageShare :execrows
+INSERT INTO page_share (tenant_id, page_id, account_id, granted_by, granted_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4)
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING
+`
+
+type InsertPageShareParams struct {
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+	GrantedBy pgtype.UUID
+	At        pgtype.Timestamptz
+}
+
+func (q *Queries) InsertPageShare(ctx context.Context, arg InsertPageShareParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertPageShare,
+		arg.PageID,
+		arg.AccountID,
+		arg.GrantedBy,
+		arg.At,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertPageVersion = `-- name: InsertPageVersion :exec
 INSERT INTO page_version (tenant_id, page_id, seq, title, body, author_id, name, restored, created_at)
 VALUES (current_tenant_id(), $1, $2, $3, $4,
@@ -350,6 +494,25 @@ func (q *Queries) InsertPageVersion(ctx context.Context, arg InsertPageVersionPa
 		arg.At,
 	)
 	return err
+}
+
+const isPageSharedWith = `-- name: IsPageSharedWith :one
+SELECT EXISTS (
+  SELECT 1 FROM page_share
+  WHERE tenant_id = current_tenant_id() AND page_id = $1 AND account_id = $2
+) AS shared
+`
+
+type IsPageSharedWithParams struct {
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+func (q *Queries) IsPageSharedWith(ctx context.Context, arg IsPageSharedWithParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isPageSharedWith, arg.PageID, arg.AccountID)
+	var shared bool
+	err := row.Scan(&shared)
+	return shared, err
 }
 
 const lastPageVersion = `-- name: LastPageVersion :one
@@ -404,7 +567,7 @@ func (q *Queries) LastSiblingOrderKey(ctx context.Context, arg LastSiblingOrderK
 const listHubPages = `-- name: ListHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = $1
   AND deleted_at IS NULL
@@ -441,6 +604,8 @@ type ListHubPagesRow struct {
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
+	Restricted      bool
+	DailyFor        pgtype.Date
 }
 
 // A space's tree without the bodies, at most a bound past the space's limit.
@@ -478,6 +643,8 @@ func (q *Queries) ListHubPages(ctx context.Context, arg ListHubPagesParams) ([]L
 			&i.UpdatedBy,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Restricted,
+			&i.DailyFor,
 		); err != nil {
 			return nil, err
 		}
@@ -608,7 +775,7 @@ func (q *Queries) ListPageVersions(ctx context.Context, arg ListPageVersionsPara
 const listTrashedHubPages = `-- name: ListTrashedHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC, id
@@ -640,6 +807,8 @@ type ListTrashedHubPagesRow struct {
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
+	Restricted      bool
+	DailyFor        pgtype.Date
 }
 
 func (q *Queries) ListTrashedHubPages(ctx context.Context, arg ListTrashedHubPagesParams) ([]ListTrashedHubPagesRow, error) {
@@ -671,6 +840,8 @@ func (q *Queries) ListTrashedHubPages(ctx context.Context, arg ListTrashedHubPag
 			&i.UpdatedBy,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Restricted,
+			&i.DailyFor,
 		); err != nil {
 			return nil, err
 		}
@@ -796,6 +967,122 @@ func (q *Queries) PageBacklinks(ctx context.Context, arg PageBacklinksParams) ([
 	return items, nil
 }
 
+const pageChainRestrictions = `-- name: PageChainRestrictions :many
+WITH RECURSIVE up (page_id, above_id, parent_id, restricted, depth) AS (
+  SELECT p.id, p.id, p.parent_id, p.restricted, 0 FROM page p
+   WHERE p.tenant_id = current_tenant_id() AND p.id = ANY($1::uuid[])
+  UNION ALL
+  SELECT up.page_id, p.id, p.parent_id, p.restricted, up.depth + 1 FROM page p
+    JOIN up ON p.id = up.parent_id
+   WHERE p.tenant_id = current_tenant_id() AND up.depth < 16
+)
+SELECT up.page_id, up.above_id, r.account_id
+FROM up
+LEFT JOIN page_restriction r
+  ON r.tenant_id = current_tenant_id() AND r.page_id = up.above_id
+WHERE up.restricted
+ORDER BY up.page_id, up.above_id, r.account_id
+`
+
+type PageChainRestrictionsRow struct {
+	PageID    pgtype.UUID
+	AboveID   pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// For each page among the identifiers, every restricted page on its way up (itself included) with
+// the people it names; a restricted page naming nobody answers one row without an account.
+func (q *Queries) PageChainRestrictions(ctx context.Context, ids []pgtype.UUID) ([]PageChainRestrictionsRow, error) {
+	rows, err := q.db.Query(ctx, pageChainRestrictions, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PageChainRestrictionsRow{}
+	for rows.Next() {
+		var i PageChainRestrictionsRow
+		if err := rows.Scan(&i.PageID, &i.AboveID, &i.AccountID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pageRestrictedTo = `-- name: PageRestrictedTo :many
+SELECT account_id FROM page_restriction
+WHERE tenant_id = current_tenant_id() AND page_id = $1
+ORDER BY granted_at, account_id
+`
+
+// The people one page's own restriction names.
+func (q *Queries) PageRestrictedTo(ctx context.Context, pageID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, pageRestrictedTo, pageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pageShares = `-- name: PageShares :many
+SELECT page_id, account_id, granted_by, granted_at FROM page_share
+WHERE tenant_id = current_tenant_id() AND page_id = $1
+ORDER BY granted_at, account_id
+LIMIT $2
+`
+
+type PageSharesParams struct {
+	PageID pgtype.UUID
+	Batch  int32
+}
+
+type PageSharesRow struct {
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+	GrantedBy pgtype.UUID
+	GrantedAt pgtype.Timestamptz
+}
+
+func (q *Queries) PageShares(ctx context.Context, arg PageSharesParams) ([]PageSharesRow, error) {
+	rows, err := q.db.Query(ctx, pageShares, arg.PageID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PageSharesRow{}
+	for rows.Next() {
+		var i PageSharesRow
+		if err := rows.Scan(
+			&i.PageID,
+			&i.AccountID,
+			&i.GrantedBy,
+			&i.GrantedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pageSubtree = `-- name: PageSubtree :many
 WITH RECURSIVE down (id, depth) AS (
   SELECT p.id, 0 FROM page p WHERE p.tenant_id = current_tenant_id() AND p.id = $2
@@ -807,7 +1094,7 @@ WITH RECURSIVE down (id, depth) AS (
 )
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
-       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
 FROM page p JOIN down ON down.id = p.id
 WHERE p.tenant_id = current_tenant_id()
 ORDER BY down.depth, p.order_key, p.id
@@ -841,6 +1128,8 @@ type PageSubtreeRow struct {
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
+	Restricted      bool
+	DailyFor        pgtype.Date
 }
 
 // The page and every page under it, the page first, bodies included, bounded.
@@ -874,6 +1163,8 @@ func (q *Queries) PageSubtree(ctx context.Context, arg PageSubtreeParams) ([]Pag
 			&i.UpdatedBy,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Restricted,
+			&i.DailyFor,
 		); err != nil {
 			return nil, err
 		}
@@ -886,7 +1177,7 @@ func (q *Queries) PageSubtree(ctx context.Context, arg PageSubtreeParams) ([]Pag
 }
 
 const pageSummaries = `-- name: PageSummaries :many
-SELECT id, hub_id, title, icon, archived_at, verified_until
+SELECT id, hub_id, title, icon, archived_at, verified_until, restricted
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = ANY($1::uuid[]) AND deleted_at IS NULL
 `
@@ -898,6 +1189,7 @@ type PageSummariesRow struct {
 	Icon          string
 	ArchivedAt    pgtype.Timestamptz
 	VerifiedUntil pgtype.Timestamptz
+	Restricted    bool
 }
 
 // The pages among the identifiers that are not trashed, for a reference's resolution.
@@ -917,6 +1209,59 @@ func (q *Queries) PageSummaries(ctx context.Context, ids []pgtype.UUID) ([]PageS
 			&i.Icon,
 			&i.ArchivedAt,
 			&i.VerifiedUntil,
+			&i.Restricted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pagesSharedWith = `-- name: PagesSharedWith :many
+SELECT p.id, p.hub_id, p.title, p.icon, p.archived_at, p.verified_until, p.restricted
+FROM page_share s JOIN page p ON p.tenant_id = s.tenant_id AND p.id = s.page_id
+WHERE s.tenant_id = current_tenant_id() AND s.account_id = $1 AND p.deleted_at IS NULL
+ORDER BY s.granted_at DESC, p.id
+LIMIT $2
+`
+
+type PagesSharedWithParams struct {
+	AccountID pgtype.UUID
+	Batch     int32
+}
+
+type PagesSharedWithRow struct {
+	ID            pgtype.UUID
+	HubID         pgtype.UUID
+	Title         string
+	Icon          string
+	ArchivedAt    pgtype.Timestamptz
+	VerifiedUntil pgtype.Timestamptz
+	Restricted    bool
+}
+
+// The living pages shared with a person, newest share first.
+func (q *Queries) PagesSharedWith(ctx context.Context, arg PagesSharedWithParams) ([]PagesSharedWithRow, error) {
+	rows, err := q.db.Query(ctx, pagesSharedWith, arg.AccountID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PagesSharedWithRow{}
+	for rows.Next() {
+		var i PagesSharedWithRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.Title,
+			&i.Icon,
+			&i.ArchivedAt,
+			&i.VerifiedUntil,
+			&i.Restricted,
 		); err != nil {
 			return nil, err
 		}
@@ -1023,6 +1368,35 @@ func (q *Queries) SearchPages(ctx context.Context, arg SearchPagesParams) ([]Sea
 		return nil, err
 	}
 	return items, nil
+}
+
+const setPageRestricted = `-- name: SetPageRestricted :execrows
+UPDATE page SET restricted = $1, updated_by = $2,
+  updated_at = $3, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $4 AND version = $5
+`
+
+type SetPageRestrictedParams struct {
+	Restricted      bool
+	UpdatedBy       pgtype.UUID
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The flag alone; the page's version moves, so that an editor holding it reads it again.
+func (q *Queries) SetPageRestricted(ctx context.Context, arg SetPageRestrictedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setPageRestricted,
+		arg.Restricted,
+		arg.UpdatedBy,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const trashPageSubtree = `-- name: TrashPageSubtree :execrows

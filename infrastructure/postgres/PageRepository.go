@@ -5,9 +5,11 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
@@ -46,7 +48,7 @@ func (PageRepository) Insert(ctx context.Context, page knowledge.Page) error {
 	if err := queries.InsertPage(ctx, sqlc.InsertPageParams{
 		ID: ids[0], HubID: ids[1], ParentID: parent, Title: page.Title, Body: page.Body, Icon: page.Icon,
 		OrderKey: page.OrderKey, Template: page.Template, ContentLanguage: optionalText(page.ContentLanguage),
-		CreatedBy: ids[2], At: timestampOf(page.CreatedAt),
+		CreatedBy: ids[2], At: timestampOf(page.CreatedAt), DailyFor: pageDay(page.DailyFor),
 	}); err != nil {
 		return pageFailed("writing the page", err)
 	}
@@ -321,13 +323,42 @@ func (PageRepository) Summaries(ctx context.Context, ids []shared.ID) ([]reposit
 	if err != nil {
 		return nil, pageFailed("reading the page summaries", err)
 	}
-	return mapRows(rows, func(row sqlc.PageSummariesRow) (repository.Summary, error) {
-		ids, err := pageIDs(row.ID, row.HubID)
-		return repository.Summary{
-			ID: ids[0], HubID: ids[1], Title: row.Title, Icon: row.Icon,
-			Archived: row.ArchivedAt.Valid, VerifiedUntil: optionalTime(row.VerifiedUntil),
-		}, err
+	summaries, err := mapRows(rows, func(row sqlc.PageSummariesRow) (repository.Summary, error) {
+		return summaryFrom(sqlc.PagesSharedWithRow(row))
 	})
+	if err != nil {
+		return nil, err
+	}
+	return withReaders(ctx, summaries)
+}
+
+func summaryFrom(row sqlc.PagesSharedWithRow) (repository.Summary, error) {
+	ids, err := pageIDs(row.ID, row.HubID)
+	return repository.Summary{
+		ID: ids[0], HubID: ids[1], Title: row.Title, Icon: row.Icon,
+		Archived: row.ArchivedAt.Valid, VerifiedUntil: optionalTime(row.VerifiedUntil),
+		Readers: knowledge.Readers{Restricted: row.Restricted},
+	}, err
+}
+
+// withReaders fills the readers of the summaries whose page or one above it is restricted - all
+// of them, since a page under a restricted one carries no flag of its own.
+func withReaders(ctx context.Context, summaries []repository.Summary) ([]repository.Summary, error) {
+	if len(summaries) == 0 {
+		return summaries, nil
+	}
+	ids := make([]shared.ID, 0, len(summaries))
+	for _, summary := range summaries {
+		ids = append(ids, summary.ID)
+	}
+	readers, err := PageRepository{}.Readers(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range summaries {
+		summaries[i].Readers = readers[summaries[i].ID]
+	}
+	return summaries, nil
 }
 
 // Backlinks answers the texts pointing at an object.
@@ -598,7 +629,7 @@ func bodiless(row sqlc.ListHubPagesRow) sqlc.FindPageRow {
 		OwnerID: row.OwnerID, VerifiedUntil: row.VerifiedUntil, VerifiedAt: row.VerifiedAt,
 		VerifiedBy: row.VerifiedBy, ArchivedAt: row.ArchivedAt, DeletedAt: row.DeletedAt,
 		CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt, UpdatedBy: row.UpdatedBy,
-		UpdatedAt: row.UpdatedAt, Version: row.Version,
+		UpdatedAt: row.UpdatedAt, Version: row.Version, Restricted: row.Restricted, DailyFor: row.DailyFor,
 	}
 }
 
@@ -619,7 +650,11 @@ func pageFrom(row sqlc.FindPageRow) (knowledge.Page, error) {
 		VerifiedUntil: optionalTime(row.VerifiedUntil), VerifiedAt: optionalTime(row.VerifiedAt),
 		VerifiedBy: nullable[2], ArchivedAt: optionalTime(row.ArchivedAt), DeletedAt: optionalTime(row.DeletedAt),
 		CreatedBy: ids[2], CreatedAt: timeFrom(row.CreatedAt), UpdatedBy: ids[3], UpdatedAt: timeFrom(row.UpdatedAt),
-		Version: int(row.Version),
+		Version: int(row.Version), Restricted: row.Restricted,
+	}
+	if row.DailyFor.Valid {
+		day := row.DailyFor.Time
+		page.DailyFor = &day
 	}
 	if row.ContentLanguage != nil {
 		page.ContentLanguage = *row.ContentLanguage
@@ -688,4 +723,290 @@ func pageIDs(values ...pgtype.UUID) ([]shared.ID, error) {
 		out[i] = id
 	}
 	return out, nil
+}
+
+func pageDay(day *time.Time) pgtype.Date {
+	if day == nil {
+		return pgtype.Date{}
+	}
+	return pgtype.Date{Time: *day, Valid: true}
+}
+
+// Readers answers who of each page's hub readers may read it.
+func (PageRepository) Readers(ctx context.Context, ids []shared.ID) (map[shared.ID]knowledge.Readers, error) {
+	out := map[shared.ID]knowledge.Readers{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := pageUUIDs(ids...)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PageChainRestrictions(ctx, keys)
+	if err != nil {
+		return nil, pageFailed("reading the page restrictions", err)
+	}
+	// Per page, one set per restricted page above it, in the order the rows come.
+	sets := map[shared.ID]map[shared.ID][]shared.ID{}
+	for _, row := range rows {
+		ids, err := pageIDs(row.PageID, row.AboveID)
+		if err != nil {
+			return nil, err
+		}
+		if sets[ids[0]] == nil {
+			sets[ids[0]] = map[shared.ID][]shared.ID{}
+		}
+		set := sets[ids[0]][ids[1]]
+		if set == nil {
+			set = []shared.ID{}
+		}
+		if account, err := optionalID(row.AccountID); err != nil {
+			return nil, err
+		} else if !account.IsZero() {
+			set = append(set, account)
+		}
+		sets[ids[0]][ids[1]] = set
+	}
+	for page, above := range sets {
+		combined := make([][]shared.ID, 0, len(above))
+		for _, set := range above {
+			combined = append(combined, set)
+		}
+		out[page] = knowledge.CombineRestrictions(combined)
+	}
+	return out, nil
+}
+
+// RestrictedTo answers the people a page's own restriction names.
+func (PageRepository) RestrictedTo(ctx context.Context, pageID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	key, err := uuidOf(pageID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PageRestrictedTo(ctx, key)
+	if err != nil {
+		return nil, pageFailed("reading the page restriction", err)
+	}
+	return pageIDs(rows...)
+}
+
+// Restrict writes a page's own restriction at the version expected.
+func (PageRepository) Restrict(ctx context.Context, page knowledge.Page, accounts []shared.ID, expected int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	ids, err := pageUUIDs(page.ID, page.UpdatedBy)
+	if err != nil {
+		return err
+	}
+	rows, err := queries.SetPageRestricted(ctx, sqlc.SetPageRestrictedParams{
+		Restricted: accounts != nil, UpdatedBy: ids[1], UpdatedAt: timestampOf(page.UpdatedAt), ID: ids[0],
+		ExpectedVersion: int32(expected), //nolint:gosec // a row's version
+	})
+	if err != nil {
+		return pageFailed("writing the page restriction", err)
+	}
+	if rows == 0 {
+		return shared.ErrVersionConflict.WithDetail("pages.version_conflict")
+	}
+	if err := queries.ClearPageRestriction(ctx, ids[0]); err != nil {
+		return pageFailed("writing the page restriction", err)
+	}
+	if len(accounts) == 0 {
+		return nil
+	}
+	keys, err := pageUUIDs(accounts...)
+	if err != nil {
+		return err
+	}
+	if err := queries.InsertPageRestriction(ctx, sqlc.InsertPageRestrictionParams{
+		PageID: ids[0], AccountIds: keys, GrantedBy: ids[1], At: timestampOf(page.UpdatedAt),
+	}); isForeignKeyViolation(err) {
+		return shared.ErrValidation.WithDetail("pages.restriction_account_unknown").
+			WithFields(shared.FieldError{Path: "/account_ids", Code: "pages.restriction_account_unknown"})
+	} else if err != nil {
+		return pageFailed("writing the page restriction", err)
+	}
+	return nil
+}
+
+// InsertShare writes a share.
+func (PageRepository) InsertShare(ctx context.Context, share knowledge.Share) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	ids, err := pageUUIDs(share.PageID, share.AccountID, share.GrantedBy)
+	if err != nil {
+		return false, err
+	}
+	rows, err := queries.InsertPageShare(ctx, sqlc.InsertPageShareParams{
+		PageID: ids[0], AccountID: ids[1], GrantedBy: ids[2], At: timestampOf(share.GrantedAt),
+	})
+	if isForeignKeyViolation(err) {
+		return false, shared.ErrValidation.WithDetail("pages.share_account_unknown").
+			WithFields(shared.FieldError{Path: "/account_id", Code: "pages.share_account_unknown"})
+	}
+	if err != nil {
+		return false, pageFailed("writing the share", err)
+	}
+	return rows > 0, nil
+}
+
+// DeleteShare takes a share away.
+func (PageRepository) DeleteShare(ctx context.Context, pageID, accountID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	ids, err := pageUUIDs(pageID, accountID)
+	if err != nil {
+		return false, err
+	}
+	rows, err := queries.DeletePageShare(ctx, sqlc.DeletePageShareParams{PageID: ids[0], AccountID: ids[1]})
+	if err != nil {
+		return false, pageFailed("removing the share", err)
+	}
+	return rows > 0, nil
+}
+
+// Shares answers the people a page is shared with.
+func (PageRepository) Shares(ctx context.Context, pageID shared.ID, limit int) ([]knowledge.Share, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	key, err := uuidOf(pageID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PageShares(ctx, sqlc.PageSharesParams{
+		PageID: key, Batch: int32(limit), //nolint:gosec // bounded by knowledge.MaxSharesPerPage
+	})
+	if err != nil {
+		return nil, pageFailed("reading the shares", err)
+	}
+	return mapRows(rows, func(row sqlc.PageSharesRow) (knowledge.Share, error) {
+		ids, err := pageIDs(row.PageID, row.AccountID)
+		if err != nil {
+			return knowledge.Share{}, err
+		}
+		by, err := optionalID(row.GrantedBy)
+		return knowledge.Share{PageID: ids[0], AccountID: ids[1], GrantedBy: by, GrantedAt: timeFrom(row.GrantedAt)}, err
+	})
+}
+
+// SharedWith answers whether a page is shared with a person.
+func (PageRepository) SharedWith(ctx context.Context, pageID, accountID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	ids, err := pageUUIDs(pageID, accountID)
+	if err != nil {
+		return false, nil
+	}
+	held, err := queries.IsPageSharedWith(ctx, sqlc.IsPageSharedWithParams{PageID: ids[0], AccountID: ids[1]})
+	if err != nil {
+		return false, pageFailed("reading the share", err)
+	}
+	return held, nil
+}
+
+// PagesSharedWith answers the living pages shared with a person.
+func (PageRepository) PagesSharedWith(ctx context.Context, accountID shared.ID, limit int) ([]repository.Summary, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	key, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PagesSharedWith(ctx, sqlc.PagesSharedWithParams{
+		AccountID: key, Batch: int32(limit), //nolint:gosec // bounded by the use case
+	})
+	if err != nil {
+		return nil, pageFailed("reading the shared pages", err)
+	}
+	summaries, err := mapRows(rows, summaryFrom)
+	if err != nil {
+		return nil, err
+	}
+	return withReaders(ctx, summaries)
+}
+
+// PersonalSpace answers a person's own notes' hub.
+func (PageRepository) PersonalSpace(ctx context.Context, accountID shared.ID) (shared.ID, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	key, err := uuidOf(accountID)
+	if err != nil {
+		return "", false, err
+	}
+	hub, err := queries.FindPersonalSpace(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, pageFailed("reading the personal space", err)
+	}
+	id, err := optionalID(hub)
+	return id, err == nil, err
+}
+
+// ClaimPersonalSpace names a hub a person's own notes.
+func (r PageRepository) ClaimPersonalSpace(ctx context.Context, accountID, hubID shared.ID, at time.Time) (shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	ids, err := pageUUIDs(accountID, hubID)
+	if err != nil {
+		return "", err
+	}
+	hub, err := queries.ClaimPersonalSpace(ctx, sqlc.ClaimPersonalSpaceParams{AccountID: ids[0], HubID: ids[1], At: timestampOf(at)})
+	if errors.Is(err, pgx.ErrNoRows) {
+		held, found, err := r.PersonalSpace(ctx, accountID)
+		if err == nil && !found {
+			err = shared.ErrVersionConflict.WithDetail("pages.personal_space_conflict")
+		}
+		return held, err
+	}
+	if err != nil {
+		return "", pageFailed("writing the personal space", err)
+	}
+	return optionalID(hub)
+}
+
+// DailyNote answers a space's daily note for a day.
+func (PageRepository) DailyNote(ctx context.Context, hubID shared.ID, day time.Time) (shared.ID, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	key, err := uuidOf(hubID)
+	if err != nil {
+		return "", false, err
+	}
+	id, err := queries.FindDailyNote(ctx, sqlc.FindDailyNoteParams{HubID: key, Day: pgtype.Date{Time: day, Valid: true}})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, pageFailed("reading the daily note", err)
+	}
+	page, err := optionalID(id)
+	return page, err == nil, err
 }

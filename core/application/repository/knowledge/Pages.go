@@ -40,6 +40,8 @@ type Summary struct {
 	Icon          string
 	Archived      bool
 	VerifiedUntil *time.Time
+	// Readers is who of the hub's readers may read the page; every door showing a summary asks it.
+	Readers knowledge.Readers
 }
 
 // Backlink is a text that points at an object: a page (HubID set) or an entry's notes or one of
@@ -116,4 +118,33 @@ type Pages interface {
 	FindComment(ctx context.Context, id shared.ID) (knowledge.Comment, error)
 	Comments(ctx context.Context, pageID shared.ID, limit int) ([]knowledge.Comment, error)
 	UpdateComment(ctx context.Context, comment knowledge.Comment, expected int) error
+
+	// Readers answers, for each page among the identifiers, who of its hub's readers may read it:
+	// the restrictions on its way up, combined. A page that is not there answers unrestricted.
+	Readers(ctx context.Context, ids []shared.ID) (map[shared.ID]knowledge.Readers, error)
+	// RestrictedTo answers the people a page's own restriction names.
+	RestrictedTo(ctx context.Context, pageID shared.ID) ([]shared.ID, error)
+	// Restrict writes a page's own restriction - the people, or nil to lift it - if the page still
+	// stands at the version expected; ErrVersionConflict if not.
+	Restrict(ctx context.Context, page knowledge.Page, accounts []shared.ID, expected int) error
+
+	// InsertShare writes a share, false when the person already had it; DeleteShare takes one
+	// away, false when there was none.
+	InsertShare(ctx context.Context, share knowledge.Share) (bool, error)
+	DeleteShare(ctx context.Context, pageID, accountID shared.ID) (bool, error)
+	// Shares answers the people a page is shared with, at most limit.
+	Shares(ctx context.Context, pageID shared.ID, limit int) ([]knowledge.Share, error)
+	// SharedWith answers whether a page is shared with a person.
+	SharedWith(ctx context.Context, pageID, accountID shared.ID) (bool, error)
+	// PagesSharedWith answers the living pages shared with a person, newest share first.
+	PagesSharedWith(ctx context.Context, accountID shared.ID, limit int) ([]Summary, error)
+
+	// PersonalSpace answers the hub that is a person's own notes, found false when there is none
+	// or it has gone to the trash.
+	PersonalSpace(ctx context.Context, accountID shared.ID) (shared.ID, bool, error)
+	// ClaimPersonalSpace names a hub a person's own notes and answers the one that is: the first
+	// claim wins while its hub stands.
+	ClaimPersonalSpace(ctx context.Context, accountID, hubID shared.ID, at time.Time) (shared.ID, error)
+	// DailyNote answers the living daily note of a space for a day, found false when there is none.
+	DailyNote(ctx context.Context, hubID shared.ID, day time.Time) (shared.ID, bool, error)
 }

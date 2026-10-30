@@ -2143,12 +2143,13 @@ func (q *Queries) SnapshotOwnTimesheets(ctx context.Context, arg SnapshotOwnTime
 }
 
 const snapshotPages = `-- name: SnapshotPages :many
-SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
-       owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
-FROM page
-WHERE tenant_id = current_tenant_id() AND id > $1 AND deleted_at IS NULL
-ORDER BY id
+SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
+       p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
+FROM page p
+WHERE p.tenant_id = current_tenant_id() AND p.id > $1 AND p.deleted_at IS NULL
+  AND NOT page_behind_restriction(p.id)
+ORDER BY p.id
 LIMIT $2
 `
 
@@ -2178,10 +2179,13 @@ type SnapshotPagesRow struct {
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
+	Restricted      bool
+	DailyFor        pgtype.Date
 }
 
 // The workspace's living pages with their bodies (migration 0231), for reading offline; each is
-// filed under its hub, which decides who is told of it.
+// filed under its hub, which decides who is told of it. A page behind a restriction stays on the
+// server: a hub's readers are not all its readers (migration 0261).
 func (q *Queries) SnapshotPages(ctx context.Context, arg SnapshotPagesParams) ([]SnapshotPagesRow, error) {
 	rows, err := q.db.Query(ctx, snapshotPages, arg.After, arg.Batch)
 	if err != nil {
@@ -2212,6 +2216,8 @@ func (q *Queries) SnapshotPages(ctx context.Context, arg SnapshotPagesParams) ([
 			&i.UpdatedBy,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Restricted,
+			&i.DailyFor,
 		); err != nil {
 			return nil, err
 		}

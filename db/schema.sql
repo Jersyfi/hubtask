@@ -1561,6 +1561,8 @@ CREATE TABLE page (
   updated_by       uuid NOT NULL,
   updated_at       timestamptz NOT NULL,
   version          integer NOT NULL DEFAULT 1,
+  restricted       boolean NOT NULL DEFAULT false,   -- migration 0261: who reads it is page_restriction
+  daily_for        date,                             -- a personal space's daily note (UC-DOC-07)
   search_document  tsvector,
   UNIQUE (tenant_id, id),
   CHECK (parent_id IS NULL OR parent_id <> id),
@@ -1656,6 +1658,56 @@ CREATE TABLE page_reference (
 CREATE INDEX page_reference_target_idx ON page_reference (tenant_id, target_kind, target_id);
 
 GRANT SELECT, INSERT, DELETE ON page_reference TO hubtask_app;
+
+-- Migration 0261: who reads a page beyond its hub, and a person's own space.
+CREATE UNIQUE INDEX page_daily_note_idx ON page (tenant_id, hub_id, daily_for)
+  WHERE daily_for IS NOT NULL AND deleted_at IS NULL;
+
+CREATE TABLE page_restriction (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  account_id uuid NOT NULL,
+  granted_by uuid,
+  granted_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, account_id),
+  CONSTRAINT page_restriction_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_restriction_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_restriction_granted_by_fkey FOREIGN KEY (tenant_id, granted_by)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (granted_by)
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_restriction TO hubtask_app;
+
+CREATE TABLE page_share (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  account_id uuid NOT NULL,
+  granted_by uuid,
+  granted_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, account_id),
+  CONSTRAINT page_share_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_share_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_share_granted_by_fkey FOREIGN KEY (tenant_id, granted_by)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (granted_by)
+);
+CREATE INDEX page_share_account_idx ON page_share (tenant_id, account_id, granted_at);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_share TO hubtask_app;
+
+CREATE TABLE personal_space (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  hub_id     uuid NOT NULL,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT personal_space_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT personal_space_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON personal_space TO hubtask_app;
 
 CREATE OR REPLACE FUNCTION page_reference_of_body() RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -3589,7 +3641,7 @@ BEGIN
     'config_sandbox',
     'work_item_announcement','work_item_flow','work_item_retention','durable_timer',
     'realtime_document','realtime_update','realtime_snapshot',
-    'page','page_version','page_comment','page_reference'
+    'page','page_version','page_comment','page_reference','page_restriction','page_share','personal_space'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
