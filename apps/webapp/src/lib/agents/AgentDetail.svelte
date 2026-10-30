@@ -13,7 +13,7 @@
 
   import EntryPicker from '../entries/EntryPicker.svelte';
   import {
-    agentActionsPath, agentCasesPath, agentEvaluationsPath, agentJobsPath, agentPath, agents, expectedFrom, jobTarget, mayStartJob, type Viewer,
+    agentActionsPath, agentCasesPath, agentEvaluationsPath, agentJobsPath, agentPath, agents, expectedFrom, jobTarget, mayStartJob, selfEvaluation, type Viewer,
   } from '../data/agents.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
@@ -79,6 +79,15 @@
       chosenHub = '';
       shown = 'jobs';
     }
+  }
+
+  // --- The agent answering its own set ---------------------------------------------------------
+
+  const answersItself = $derived(selfEvaluation(agent.kind));
+  let evaluationHub = $state('');
+
+  function evaluate() {
+    void act(() => agents.evaluate(id, answersItself === 'hub' ? evaluationHub : undefined), t('app.agents.evaluated'));
   }
 
   // --- A case ----------------------------------------------------------------------------------
@@ -228,6 +237,18 @@
         {/if}
 
         <h3 class="section">{t('app.agents.runs')}</h3>
+        {#if viewer.administers && answersItself}
+          <div class="line">
+            {#if answersItself === 'hub'}
+              <Select label={t('app.agents.evaluation_hub')} size="sm" options={hubOptions} bind:value={evaluationHub} />
+            {/if}
+            <Button
+              icon="play"
+              disabledReason={answersItself === 'hub' && !evaluationHub ? t('app.agents.evaluation_hub_needed') : undefined}
+              onclick={evaluate}
+            >{t('app.agents.answer_itself')}</Button>
+          </div>
+        {/if}
         {#if runs.state.status === 'ready'}
           <Table
             label={t('app.agents.runs')}
@@ -299,4 +320,5 @@
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; overflow-wrap: anywhere; }
   .section { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .number { text-align: end; font-variant-numeric: tabular-nums; }
+  .line { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: end; }
 </style>

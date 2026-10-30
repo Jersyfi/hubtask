@@ -10,11 +10,11 @@
  */
 
 import type {
-  Agent, AgentCase, AgentCaseCreate, AgentHalt, AgentJob, AgentModel, AgentModelChange, AgentModelCreate, AgentRequest, AgentWrite,
+  Agent, AgentCase, AgentCaseCreate, AgentHalt, AgentJob, AgentModel, AgentModelChange, AgentModelCreate, AgentRequest, AgentRun, AgentWrite,
 } from '@hubtask/sync-engine';
 
 import {
-  agentCasesPath, agentHaltPath, agentJobsPath, agentModelPath, agentModelsPath, agentPath, agentsPath, meteringPath, requestsPath,
+  agentCasesPath, agentEvaluationsPath, agentHaltPath, agentJobsPath, agentModelPath, agentModelsPath, agentPath, agentsPath, meteringPath, requestsPath,
 } from './agents.ts';
 import { engine } from './engine.ts';
 
@@ -74,6 +74,14 @@ class Agents {
     return engine.mutate<AgentCase>('POST', agentCasesPath(agentId), body, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: [agentCasesPath(agentId)],
+    });
+  }
+
+  /** A shipped agent answers its own set; a CI suggestion and a triage match the hub named. */
+  evaluate(agentId: string, hubId?: string): Promise<AgentRun> {
+    return engine.mutate<AgentRun>('POST', `${agentEvaluationsPath(agentId)}:run`, hubId ? { hub_id: hubId } : {}, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [agentEvaluationsPath(agentId)],
     });
   }
 

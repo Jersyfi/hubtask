@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  aiFields, expectedFrom, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, requestsPath, retentionOf, scopesFrom,
+  aiFields, expectedFrom, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, requestsPath, retentionOf, scopesFrom, selfEvaluation,
 } from './agents.ts';
 
 const admin = { administers: true, accountId: 'root' };
@@ -102,4 +102,12 @@ test('UC-AGT-03 check 7: a model says how long its provider keeps what it is sen
   assert.deepEqual(retentionOf(null), { code: 'app.agents.retention_unknown', params: {} });
   assert.deepEqual(retentionOf(0), { code: 'app.agents.retention_none', params: {} });
   assert.deepEqual(retentionOf(30), { code: 'app.agents.retention_days', params: { days: '30' } });
+});
+
+test('UC-AGT-04 check 7: a shipped agent answers its own set, a CI suggestion and a triage against a hub', () => {
+  assert.equal(selfEvaluation('KNOWLEDGE_DRAFT'), 'ready');
+  assert.equal(selfEvaluation('CI_SUGGESTION'), 'hub');
+  assert.equal(selfEvaluation('TICKET_TRIAGE'), 'hub');
+  assert.equal(selfEvaluation('DUPLICATE_REVIEW'), undefined);
+  assert.equal(selfEvaluation('EXTERNAL'), undefined);
 });

@@ -76,6 +76,13 @@ export function mayStartJob(agent: Pick<Agent, 'status' | 'kind' | 'owner_id'>, 
   return viewer.administers || (viewer.accountId !== undefined && agent.owner_id === viewer.accountId);
 }
 
+/** What a shipped agent's own run of its set needs: nothing, a hub, or answers somebody sends (UC-AGT-04 check 7). */
+export function selfEvaluation(kind: Agent['kind']): 'ready' | 'hub' | undefined {
+  if (kind === 'KNOWLEDGE_DRAFT') return 'ready';
+  if (kind === 'CI_SUGGESTION' || kind === 'TICKET_TRIAGE') return 'hub';
+  return undefined;
+}
+
 /** Whether the viewer decides an agent's held acts: its owner or an administrator (UC-AGT-02 check 5). */
 export function mayDecide(agent: Pick<Agent, 'owner_id'> | undefined, viewer: Viewer): boolean {
   if (viewer.administers) return true;
