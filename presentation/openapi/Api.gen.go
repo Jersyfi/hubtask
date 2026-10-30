@@ -17343,7 +17343,7 @@ type ReferenceTarget struct {
 	ElementCount *int    `json:"element_count,omitempty"`
 	EntryType    *string `json:"entry_type,omitempty"`
 
-	// HubId The hub a page, a whiteboard or a configuration item is in.
+	// HubId The hub a page, a whiteboard, a configuration item, or a goal or dashboard of a hub is in.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon A page's icon.
@@ -17367,7 +17367,10 @@ type ReferenceTarget struct {
 	Stage   *string    `json:"stage,omitempty"`
 	StartAt *time.Time `json:"start_at,omitempty"`
 
-	// Title The entry's or page's title, the container's, view's or configuration item's name.
+	// Status A goal's status.
+	Status *string `json:"status,omitempty"`
+
+	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name.
 	Title *string `json:"title,omitempty"`
 }
 

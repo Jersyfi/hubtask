@@ -23160,7 +23160,7 @@ components:
         id: { type: string, format: uuid }
         anchor: { type: [string, "null"] }
         available: { type: boolean }
-        title: { type: string, description: "The entry's or page's title, the container's, view's or configuration item's name." }
+        title: { type: string, description: "The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name." }
         key: { type: [string, "null"], description: "The entry's key (`sup-128`) or the container's handle, where it has one." }
         number: { type: [integer, "null"], format: int64 }
         level: { $ref: "#/components/schemas/ItemType" }
@@ -23171,7 +23171,8 @@ components:
         start_at: { type: [string, "null"], format: date-time }
         due_at: { type: [string, "null"], format: date-time }
         layout: { type: string, description: "A view's layout." }
-        hub_id: { type: string, format: uuid, description: "The hub a page, a whiteboard or a configuration item is in." }
+        hub_id: { type: string, format: uuid, description: "The hub a page, a whiteboard, a configuration item, or a goal or dashboard of a hub is in." }
+        status: { type: string, description: "A goal's status." }
         ci_class: { type: string, description: "A configuration item's class." }
         stage: { type: string, description: "A configuration item's lifecycle stage." }
         icon: { type: [string, "null"], description: "A page's icon." }

@@ -1934,6 +1934,7 @@ class ReferenceTarget(TypedDict, total=False):
     due_at: str | None
     layout: str
     hub_id: str
+    status: str
     ci_class: str
     stage: str
     icon: str | None

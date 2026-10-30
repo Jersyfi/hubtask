@@ -69,7 +69,9 @@ type Linking struct {
 	// nil resolves none.
 	Boards BoardSummaries
 	// Cis resolves a reference to a configuration item (M6); nil resolves none.
-	Cis        CiSummaries
+	Cis CiSummaries
+	// Goals resolves a reference to a goal or a dashboard (M8); nil resolves none.
+	Goals      GoalSummaries
 	Authorizer Authorizer
 	// Reader filters a page by what the reader may see, and Permits answers one question, both
 	// without writing a refusal: a reference out of reach is not somebody trying anything.
@@ -889,7 +891,7 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 		return nil, shared.ErrValidation.WithDetail("references.too_many").
 			WithParams(map[string]string{"maximum": strconv.Itoa(maxReferencesAsked)})
 	}
-	var entries, containers, pages, boards, cis []shared.ID
+	var entries, containers, pages, boards, cis, goals []shared.ID
 	for _, ref := range refs {
 		switch ref.Kind {
 		case reference.KindEntry:
@@ -902,7 +904,13 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 			boards = append(boards, ref.ID)
 		case reference.KindCI:
 			cis = append(cis, ref.ID)
+		case reference.KindGoal:
+			goals = append(goals, ref.ID)
 		}
+	}
+	visibleGoals, err := h.Linking.visibleGoals(ctx, actor, goals, ReferencesResolveAction)
+	if err != nil {
+		return nil, err
 	}
 	visibleCis, err := h.Linking.visibleCis(ctx, actor, cis, ReferencesResolveAction)
 	if err != nil {
@@ -962,6 +970,20 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 				target := pageTarget(summary, h.Linking.Clock)
 				target["anchor"] = anchorOrNil(ref.Anchor)
 				out = append(out, target)
+				continue
+			}
+		case reference.KindGoal:
+			if g, ok := visibleGoals[ref.ID]; ok {
+				out = append(out, goalTarget(g, ref.Anchor))
+				continue
+			}
+		case reference.KindDashboard:
+			d, ok, err := h.Linking.visibleDashboard(ctx, actor, ref.ID, ReferencesResolveAction)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				out = append(out, dashboardTarget(d, ref.Anchor))
 				continue
 			}
 		case reference.KindView:

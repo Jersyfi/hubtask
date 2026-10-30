@@ -35458,7 +35458,7 @@
           },
           "title": {
             "type": "string",
-            "description": "The entry's or page's title, the container's, view's or configuration item's name."
+            "description": "The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name."
           },
           "key": {
             "type": [
@@ -35511,7 +35511,11 @@
           "hub_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The hub a page, a whiteboard or a configuration item is in."
+            "description": "The hub a page, a whiteboard, a configuration item, or a goal or dashboard of a hub is in."
+          },
+          "status": {
+            "type": "string",
+            "description": "A goal's status."
           },
           "ci_class": {
             "type": "string",
