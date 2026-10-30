@@ -985,6 +985,8 @@ export function stub(route) {
   if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
   if (path.endsWith('/api/v1/meta/capabilities')) return route.fulfill({ json: MANIFEST });
   if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
+  // No view as another person runs: the banner it would draw is no walk's subject.
+  if (path.endsWith('/api/v1/auth/sessions:view-as') && request.method() === 'GET') return route.fulfill({ json: { active: false } });
   // The reader's passkeys: none yet, and another can be added - at `localhost`, the host a walk opens
   // the bundle at when it needs a browser to make one (an address is no relying party).
   if (path.endsWith('/api/v1/accounts/me/passkeys')) return route.fulfill({ json: PASSKEYS });
