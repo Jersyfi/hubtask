@@ -562,4 +562,6 @@ export type {
   CodeHookMinted,
   CodeLink,
   CodeLinkList,
+  FileLink,
+  FileLinkList,
 } from './schema.ts';

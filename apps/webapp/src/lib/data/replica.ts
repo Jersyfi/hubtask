@@ -452,6 +452,17 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return { data: rows };
   }
 
+  // An entry's files in a store while the server is away (UC-INT-14), in the order they were
+  // added as the server answers them.
+  match = /^\/items\/([^/]+)\/file-links$/.exec(pathname);
+  if (match?.[1]) {
+    const itemId = match[1];
+    const rows = (await documents(storage, 'file_links'))
+      .filter((row) => row.item_id === itemId)
+      .sort((a, b) => String(a.added_at ?? '').localeCompare(String(b.added_at ?? '')) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+
   // An entry's commits, branches and pull requests while the server is away (UC-INT-13), the
   // latest first as the server answers them.
   match = /^\/items\/([^/]+)\/code-links$/.exec(pathname);

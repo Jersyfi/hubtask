@@ -125,6 +125,8 @@ export function collectionOf(entity: string): string {
       return 'satisfaction_ratings';
     case 'code_link':
       return 'code_links';
+    case 'file_link':
+      return 'file_links';
     case 'whiteboard':
       return 'whiteboards';
     case 'cmdb_ci':

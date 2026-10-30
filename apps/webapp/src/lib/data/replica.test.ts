@@ -721,6 +721,16 @@ test('an entry\'s goals and approvals are answered from the copy', async () => {
   assert.equal((asked.data[1]!.decisions as unknown[]).length, 1);
 });
 
+// UC-INT-14 check 5: an entry's files read while the server is away, in the order they were added.
+test('an entry\'s file links are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('file_links', 'f-2', record({ id: 'f-2', item_id: 'i-1', provider: 'SHAREPOINT', added_at: '2026-10-02T08:00:00Z' }));
+  await storage.put('file_links', 'f-1', record({ id: 'f-1', item_id: 'i-1', provider: 'NEXTCLOUD', added_at: '2026-10-01T08:00:00Z' }));
+  await storage.put('file_links', 'f-3', record({ id: 'f-3', item_id: 'i-2', provider: 'WEBDAV', added_at: '2026-10-03T08:00:00Z' }));
+  const read = await storeFor({ path: '/items/i-1/file-links' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(read.data.map((row) => row.id), ['f-1', 'f-2']);
+});
+
 // UC-INT-13 check 6: an entry's code read while the server is away, the latest first.
 test('an entry\'s code links are answered from the copy', async () => {
   const storage = new MemoryStorage();

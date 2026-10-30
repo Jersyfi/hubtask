@@ -996,3 +996,5 @@ export type CodeHookList = components['schemas']['CodeHookList'];
 export type CodeHookMinted = components['schemas']['CodeHookMinted'];
 export type CodeLink = components['schemas']['CodeLink'];
 export type CodeLinkList = components['schemas']['CodeLinkList'];
+export type FileLink = components['schemas']['FileLink'];
+export type FileLinkList = components['schemas']['FileLinkList'];
