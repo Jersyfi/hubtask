@@ -31,4 +31,4 @@ Emil drops the photo of last week's whiteboard and the PDF of the brief onto the
 
 * At most 500 files per board; the bytes count towards the workspace's storage ceiling at the upload.
 * A file stays with the board as long as the board exists, even after its object is taken off - a version brought back draws it again.
-* An exported SVG, PNG or PDF draws a picture's place and name, not its bytes.
+* An exported SVG, PNG or PDF carries a picture's own bytes where the browser may read them back - the installation's own storage, or one of another origin that allows it; otherwise it draws the picture's place and name.

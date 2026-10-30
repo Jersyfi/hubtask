@@ -728,10 +728,43 @@
     return elements;
   }
 
-  function svgOf(part: Which): string {
-    return toSvg(picture(part), {
+  /**
+   * The pictures of an export as their own bytes (`data:`), so the file stands on its own and the
+   * canvas a PNG or PDF is drawn on is not tainted. A picture the browser may not read back - a
+   * storage of another origin that does not allow it - is left out and drawn as its place and name.
+   */
+  async function inlined(part: readonly Element[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    const ids = [...new Set(part.flatMap((e) => (e.kind === 'IMAGE' && e.media_id ? [e.media_id] : [])))];
+    await Promise.all(ids.map(async (id) => {
+      try {
+        const url = await media.downloadUrl(id, Date.now());
+        if (!url) return;
+        const image = new Image();
+        image.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error('picture'));
+          image.src = url;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        canvas.getContext('2d')?.drawImage(image, 0, 0);
+        out.set(id, canvas.toDataURL('image/png'));
+      } catch {
+        // Unreadable here: the export draws its place and name.
+      }
+    }));
+    return out;
+  }
+
+  async function svgOf(part: Which): Promise<string> {
+    const shown = picture(part);
+    const pictures = await inlined(shown);
+    return toSvg(shown, {
       title: board.title, colours: pictureColours(), unavailable: t('app.whiteboards.card_unavailable'),
-      media: (id) => ({ name: media.fileNameOf(id) }),
+      media: (id) => ({ href: pictures.get(id), name: media.fileNameOf(id) }),
       card: (id) => {
         const target = cards.get(id.toLowerCase());
         return target?.available ? { title: target.title ?? '', key: target.key ?? null, completed: target.completed ?? false } : undefined;
@@ -739,13 +772,13 @@
     });
   }
 
-  function saveSvg(part: Which) {
-    platform.saveFile(new Blob([svgOf(part)], { type: 'image/svg+xml' }), boardFileName(board.title, 'svg'));
+  async function saveSvg(part: Which) {
+    platform.saveFile(new Blob([await svgOf(part)], { type: 'image/svg+xml' }), boardFileName(board.title, 'svg'));
   }
 
   /** The picture drawn on a canvas at twice its size, for PNG and PDF. */
   async function rendered(part: Which): Promise<{ canvas: HTMLCanvasElement; width: number; height: number }> {
-    const url = URL.createObjectURL(new Blob([svgOf(part)], { type: 'image/svg+xml' }));
+    const url = URL.createObjectURL(new Blob([await svgOf(part)], { type: 'image/svg+xml' }));
     try {
       const image = new Image();
       await new Promise<void>((resolve, reject) => {
@@ -1386,7 +1419,7 @@
       <Stack gap="050">
         <h3 class="heading">{t('app.whiteboards.export')}</h3>
         <Inline gap="050">
-          <Button size="sm" tone="subtle" onclick={() => saveSvg(which)}>SVG</Button>
+          <Button size="sm" tone="subtle" onclick={() => void saveSvg(which)}>SVG</Button>
           <Button size="sm" tone="subtle" onclick={() => void savePng(which)}>PNG</Button>
           <Button size="sm" tone="subtle" onclick={() => void savePdf(which)}>PDF</Button>
           <Button size="sm" tone="subtle" onclick={() => void saveNative()}>{t('app.whiteboards.export_native')}</Button>
