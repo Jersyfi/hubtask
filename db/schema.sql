@@ -1725,6 +1725,40 @@ CREATE TABLE page_public_link (
 CREATE UNIQUE INDEX page_public_link_token_uq ON page_public_link (token_hash);
 GRANT SELECT, INSERT, UPDATE, DELETE ON page_public_link TO hubtask_app;
 
+-- Migration 0264: a page published as an article of a service's portal (UC-DOC-13).
+CREATE TABLE page_article (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id       uuid NOT NULL,
+  collection_id uuid NOT NULL,
+  published_by  uuid,
+  published_at  timestamptz NOT NULL,
+  views         bigint NOT NULL DEFAULT 0 CHECK (views >= 0),
+  PRIMARY KEY (tenant_id, page_id, collection_id),
+  CONSTRAINT page_article_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_article_collection_fkey FOREIGN KEY (tenant_id, collection_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_article_published_by_fkey FOREIGN KEY (tenant_id, published_by)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (published_by)
+);
+CREATE INDEX page_article_collection_idx ON page_article (tenant_id, collection_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_article TO hubtask_app;
+
+CREATE TABLE page_article_rating (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id       uuid NOT NULL,
+  collection_id uuid NOT NULL,
+  account_id    uuid NOT NULL,
+  helpful       boolean NOT NULL,
+  rated_at      timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, collection_id, account_id),
+  CONSTRAINT page_article_rating_article_fkey FOREIGN KEY (tenant_id, page_id, collection_id)
+    REFERENCES page_article (tenant_id, page_id, collection_id) ON DELETE CASCADE,
+  CONSTRAINT page_article_rating_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_article_rating TO hubtask_app;
+
 CREATE OR REPLACE FUNCTION page_reference_of_body() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -3658,7 +3692,7 @@ BEGIN
     'work_item_announcement','work_item_flow','work_item_retention','durable_timer',
     'realtime_document','realtime_update','realtime_snapshot',
     'page','page_version','page_comment','page_reference','page_restriction','page_share','personal_space',
-    'page_public_link'
+    'page_public_link','page_article','page_article_rating'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

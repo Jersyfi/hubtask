@@ -121,3 +121,17 @@ func TestAPublicLinkIsNeverMadePastARestriction(t *testing.T) {
 		t.Fatal("a plan cannot lock public links")
 	}
 }
+
+// UC-DOC-13 check 1: a page is published to a service, never from behind a restriction.
+func TestAnArticleIsNeverPublishedPastARestriction(t *testing.T) {
+	now := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
+	if a, err := NewArticle("p", "c", "a", Readers{}, now); err != nil || a.CollectionID != "c" {
+		t.Fatalf("an open page: %+v %v", a, err)
+	}
+	if _, err := NewArticle("p", "", "a", Readers{}, now); !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("no service: %v", err)
+	}
+	if _, err := NewArticle("p", "c", "a", Readers{Restricted: true}, now); !errors.Is(err, shared.ErrConflict) {
+		t.Fatalf("a restricted page was published: %v", err)
+	}
+}

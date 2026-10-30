@@ -326,3 +326,57 @@ func TestAPagesPublicLinkIsFoundByItsTokenInItsWorkspaceAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// UC-DOC-13: an article is published to one service, found by its words there, counted and
+// rated, and read in its own workspace alone (migration 0264).
+func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	_, root, child := seedSpace(ctx, t)
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	articles := postgres.NewPageArticleRepository()
+	at := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, page := range []shared.ID{root, child} {
+			if added, err := articles.Publish(ctx, knowledge.Article{PageID: page, CollectionID: collection, PublishedBy: authorA, PublishedAt: at}); err != nil || !added {
+				t.Errorf("publish %v, %v", added, err)
+			}
+		}
+		hits, err := articles.Search(ctx, collection, "budget", 10)
+		if err != nil || len(hits) != 1 || hits[0].PageID != root {
+			t.Errorf("search %+v, %v", hits, err)
+		}
+		if err := articles.CountView(ctx, child, collection); err != nil {
+			return err
+		}
+		if err := articles.Rate(ctx, child, collection, authorA, true, at); err != nil {
+			return err
+		}
+		if err := articles.Rate(ctx, child, collection, authorA, false, at); err != nil {
+			return err
+		}
+		of, err := articles.Of(ctx, child)
+		if err != nil || len(of) != 1 || of[0].Views != 1 || of[0].Helpful != 0 || of[0].Unhelpful != 1 {
+			t.Errorf("of %+v, %v", of, err)
+		}
+		if top, _ := articles.Search(ctx, collection, "", 10); len(top) != 2 || top[0].PageID != child {
+			t.Errorf("the most read does not come first: %+v", top)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if hits, _ := articles.Search(ctx, collection, "", 10); len(hits) != 0 {
+			t.Error("the workspace next door found the articles")
+		}
+		if held, _ := articles.Published(ctx, root, collection); held {
+			t.Error("the workspace next door read the publication")
+		}
+		if removed, _ := articles.Unpublish(ctx, root, collection); removed {
+			t.Error("the workspace next door unpublished the article")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

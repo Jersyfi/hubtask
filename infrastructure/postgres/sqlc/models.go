@@ -2007,6 +2007,24 @@ type Page struct {
 	DailyFor        pgtype.Date
 }
 
+type PageArticle struct {
+	TenantID     pgtype.UUID
+	PageID       pgtype.UUID
+	CollectionID pgtype.UUID
+	PublishedBy  pgtype.UUID
+	PublishedAt  pgtype.Timestamptz
+	Views        int64
+}
+
+type PageArticleRating struct {
+	TenantID     pgtype.UUID
+	PageID       pgtype.UUID
+	CollectionID pgtype.UUID
+	AccountID    pgtype.UUID
+	Helpful      bool
+	RatedAt      pgtype.Timestamptz
+}
+
 type PageComment struct {
 	ID         pgtype.UUID
 	TenantID   pgtype.UUID

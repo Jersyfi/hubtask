@@ -48,6 +48,24 @@ func (q *Queries) CountHubPages(ctx context.Context, hubID pgtype.UUID) (int64, 
 	return count, err
 }
 
+const countPageArticleView = `-- name: CountPageArticleView :execrows
+UPDATE page_article SET views = views + 1
+WHERE tenant_id = current_tenant_id() AND page_id = $1 AND collection_id = $2
+`
+
+type CountPageArticleViewParams struct {
+	PageID       pgtype.UUID
+	CollectionID pgtype.UUID
+}
+
+func (q *Queries) CountPageArticleView(ctx context.Context, arg CountPageArticleViewParams) (int64, error) {
+	result, err := q.db.Exec(ctx, countPageArticleView, arg.PageID, arg.CollectionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deletePagePublicLink = `-- name: DeletePagePublicLink :execrows
 DELETE FROM page_public_link WHERE tenant_id = current_tenant_id() AND page_id = $1
 `
@@ -545,6 +563,25 @@ func (q *Queries) InsertPageVersion(ctx context.Context, arg InsertPageVersionPa
 	return err
 }
 
+const isPageArticle = `-- name: IsPageArticle :one
+SELECT EXISTS (
+  SELECT 1 FROM page_article
+  WHERE tenant_id = current_tenant_id() AND page_id = $1 AND collection_id = $2
+) AS held
+`
+
+type IsPageArticleParams struct {
+	PageID       pgtype.UUID
+	CollectionID pgtype.UUID
+}
+
+func (q *Queries) IsPageArticle(ctx context.Context, arg IsPageArticleParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isPageArticle, arg.PageID, arg.CollectionID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const isPageSharedWith = `-- name: IsPageSharedWith :one
 SELECT EXISTS (
   SELECT 1 FROM page_share
@@ -959,6 +996,55 @@ func (q *Queries) PageAncestors(ctx context.Context, id pgtype.UUID) ([]PageAnce
 	return items, nil
 }
 
+const pageArticles = `-- name: PageArticles :many
+SELECT a.collection_id, a.published_by, a.published_at, a.views,
+       count(r.account_id) FILTER (WHERE r.helpful)::bigint AS helpful,
+       count(r.account_id) FILTER (WHERE NOT r.helpful)::bigint AS unhelpful
+FROM page_article a
+LEFT JOIN page_article_rating r
+  ON r.tenant_id = a.tenant_id AND r.page_id = a.page_id AND r.collection_id = a.collection_id
+WHERE a.tenant_id = current_tenant_id() AND a.page_id = $1
+GROUP BY a.collection_id, a.published_by, a.published_at, a.views
+ORDER BY a.published_at, a.collection_id
+`
+
+type PageArticlesRow struct {
+	CollectionID pgtype.UUID
+	PublishedBy  pgtype.UUID
+	PublishedAt  pgtype.Timestamptz
+	Views        int64
+	Helpful      int64
+	Unhelpful    int64
+}
+
+// Where a page is published, with what its readers made of it.
+func (q *Queries) PageArticles(ctx context.Context, pageID pgtype.UUID) ([]PageArticlesRow, error) {
+	rows, err := q.db.Query(ctx, pageArticles, pageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PageArticlesRow{}
+	for rows.Next() {
+		var i PageArticlesRow
+		if err := rows.Scan(
+			&i.CollectionID,
+			&i.PublishedBy,
+			&i.PublishedAt,
+			&i.Views,
+			&i.Helpful,
+			&i.Unhelpful,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pageBacklinks = `-- name: PageBacklinks :many
 SELECT 'PAGE'::text AS source_kind, r.page_id AS source_id, p.hub_id AS hub_id,
        '00000000-0000-0000-0000-000000000000'::uuid AS entry_id, r.strength
@@ -1322,6 +1408,32 @@ func (q *Queries) PagesSharedWith(ctx context.Context, arg PagesSharedWithParams
 	return items, nil
 }
 
+const publishPageArticle = `-- name: PublishPageArticle :execrows
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4)
+ON CONFLICT (tenant_id, page_id, collection_id) DO NOTHING
+`
+
+type PublishPageArticleParams struct {
+	PageID       pgtype.UUID
+	CollectionID pgtype.UUID
+	PublishedBy  pgtype.UUID
+	At           pgtype.Timestamptz
+}
+
+func (q *Queries) PublishPageArticle(ctx context.Context, arg PublishPageArticleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, publishPageArticle,
+		arg.PageID,
+		arg.CollectionID,
+		arg.PublishedBy,
+		arg.At,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const putPagePublicLink = `-- name: PutPagePublicLink :exec
 INSERT INTO page_public_link (tenant_id, page_id, token_hash, created_by, created_at)
 VALUES (current_tenant_id(), $1, $2, $3, $4)
@@ -1342,6 +1454,31 @@ func (q *Queries) PutPagePublicLink(ctx context.Context, arg PutPagePublicLinkPa
 		arg.PageID,
 		arg.TokenHash,
 		arg.CreatedBy,
+		arg.At,
+	)
+	return err
+}
+
+const ratePageArticle = `-- name: RatePageArticle :exec
+INSERT INTO page_article_rating (tenant_id, page_id, collection_id, account_id, helpful, rated_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4, $5)
+ON CONFLICT (tenant_id, page_id, collection_id, account_id) DO UPDATE SET helpful = EXCLUDED.helpful, rated_at = EXCLUDED.rated_at
+`
+
+type RatePageArticleParams struct {
+	PageID       pgtype.UUID
+	CollectionID pgtype.UUID
+	AccountID    pgtype.UUID
+	Helpful      bool
+	At           pgtype.Timestamptz
+}
+
+func (q *Queries) RatePageArticle(ctx context.Context, arg RatePageArticleParams) error {
+	_, err := q.db.Exec(ctx, ratePageArticle,
+		arg.PageID,
+		arg.CollectionID,
+		arg.AccountID,
+		arg.Helpful,
 		arg.At,
 	)
 	return err
@@ -1380,6 +1517,65 @@ func (q *Queries) RestorePageSubtree(ctx context.Context, arg RestorePageSubtree
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const searchPageArticles = `-- name: SearchPageArticles :many
+SELECT p.id, p.title, p.icon, p.updated_at,
+       CASE WHEN $1::text = '' THEN ''::text
+            ELSE ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
+                   'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»')::text END AS excerpt
+FROM page_article a
+JOIN page p ON p.tenant_id = a.tenant_id AND p.id = a.page_id,
+     LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(p.content_language), $1::text)
+                  || websearch_to_tsquery('simple', $1::text) AS query) q
+WHERE a.tenant_id = current_tenant_id() AND a.collection_id = $2
+  AND p.deleted_at IS NULL AND p.archived_at IS NULL AND NOT page_behind_restriction(p.id)
+  AND ($1::text = '' OR p.search_document @@ q.query)
+ORDER BY CASE WHEN $1::text = '' THEN 0 ELSE ts_rank_cd(p.search_document, q.query) END DESC,
+         a.views DESC, p.updated_at DESC, p.id
+LIMIT $3
+`
+
+type SearchPageArticlesParams struct {
+	Text         string
+	CollectionID pgtype.UUID
+	Batch        int32
+}
+
+type SearchPageArticlesRow struct {
+	ID        pgtype.UUID
+	Title     string
+	Icon      string
+	UpdatedAt pgtype.Timestamptz
+	Excerpt   string
+}
+
+// The live articles of one service a text finds, ranked; with no text, the most read. A page
+// behind a restriction is never an article a requester reads.
+func (q *Queries) SearchPageArticles(ctx context.Context, arg SearchPageArticlesParams) ([]SearchPageArticlesRow, error) {
+	rows, err := q.db.Query(ctx, searchPageArticles, arg.Text, arg.CollectionID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchPageArticlesRow{}
+	for rows.Next() {
+		var i SearchPageArticlesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Icon,
+			&i.UpdatedAt,
+			&i.Excerpt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const searchPages = `-- name: SearchPages :many
@@ -1494,6 +1690,24 @@ type TrashPageSubtreeParams struct {
 // Marks the page and the pages under it trashed at one moment, which is what a restore brings back.
 func (q *Queries) TrashPageSubtree(ctx context.Context, arg TrashPageSubtreeParams) (int64, error) {
 	result, err := q.db.Exec(ctx, trashPageSubtree, arg.At, arg.By, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const unpublishPageArticle = `-- name: UnpublishPageArticle :execrows
+DELETE FROM page_article
+WHERE tenant_id = current_tenant_id() AND page_id = $1 AND collection_id = $2
+`
+
+type UnpublishPageArticleParams struct {
+	PageID       pgtype.UUID
+	CollectionID pgtype.UUID
+}
+
+func (q *Queries) UnpublishPageArticle(ctx context.Context, arg UnpublishPageArticleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, unpublishPageArticle, arg.PageID, arg.CollectionID)
 	if err != nil {
 		return 0, err
 	}

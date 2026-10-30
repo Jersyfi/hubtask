@@ -324,3 +324,57 @@ WHERE token_hash = sqlc.arg('token_hash');
 
 -- name: DeletePagePublicLink :execrows
 DELETE FROM page_public_link WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
+
+-- name: PublishPageArticle :execrows
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at)
+VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('collection_id'), sqlc.arg('published_by'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, page_id, collection_id) DO NOTHING;
+
+-- name: UnpublishPageArticle :execrows
+DELETE FROM page_article
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND collection_id = sqlc.arg('collection_id');
+
+-- name: PageArticles :many
+-- Where a page is published, with what its readers made of it.
+SELECT a.collection_id, a.published_by, a.published_at, a.views,
+       count(r.account_id) FILTER (WHERE r.helpful)::bigint AS helpful,
+       count(r.account_id) FILTER (WHERE NOT r.helpful)::bigint AS unhelpful
+FROM page_article a
+LEFT JOIN page_article_rating r
+  ON r.tenant_id = a.tenant_id AND r.page_id = a.page_id AND r.collection_id = a.collection_id
+WHERE a.tenant_id = current_tenant_id() AND a.page_id = sqlc.arg('page_id')
+GROUP BY a.collection_id, a.published_by, a.published_at, a.views
+ORDER BY a.published_at, a.collection_id;
+
+-- name: IsPageArticle :one
+SELECT EXISTS (
+  SELECT 1 FROM page_article
+  WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND collection_id = sqlc.arg('collection_id')
+) AS held;
+
+-- name: SearchPageArticles :many
+-- The live articles of one service a text finds, ranked; with no text, the most read. A page
+-- behind a restriction is never an article a requester reads.
+SELECT p.id, p.title, p.icon, p.updated_at,
+       CASE WHEN sqlc.arg('text')::text = '' THEN ''::text
+            ELSE ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
+                   'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»')::text END AS excerpt
+FROM page_article a
+JOIN page p ON p.tenant_id = a.tenant_id AND p.id = a.page_id,
+     LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(p.content_language), sqlc.arg('text')::text)
+                  || websearch_to_tsquery('simple', sqlc.arg('text')::text) AS query) q
+WHERE a.tenant_id = current_tenant_id() AND a.collection_id = sqlc.arg('collection_id')
+  AND p.deleted_at IS NULL AND p.archived_at IS NULL AND NOT page_behind_restriction(p.id)
+  AND (sqlc.arg('text')::text = '' OR p.search_document @@ q.query)
+ORDER BY CASE WHEN sqlc.arg('text')::text = '' THEN 0 ELSE ts_rank_cd(p.search_document, q.query) END DESC,
+         a.views DESC, p.updated_at DESC, p.id
+LIMIT sqlc.arg('batch');
+
+-- name: CountPageArticleView :execrows
+UPDATE page_article SET views = views + 1
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND collection_id = sqlc.arg('collection_id');
+
+-- name: RatePageArticle :exec
+INSERT INTO page_article_rating (tenant_id, page_id, collection_id, account_id, helpful, rated_at)
+VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('collection_id'), sqlc.arg('account_id'), sqlc.arg('helpful'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, page_id, collection_id, account_id) DO UPDATE SET helpful = EXCLUDED.helpful, rated_at = EXCLUDED.rated_at;

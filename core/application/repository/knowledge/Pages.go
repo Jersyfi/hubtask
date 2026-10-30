@@ -163,3 +163,31 @@ type PublicLinks interface {
 	// Delete takes the page's link away and says whether it had one.
 	Delete(ctx context.Context, pageID shared.ID) (bool, error)
 }
+
+// ArticleHit is one article a portal's question finds.
+type ArticleHit struct {
+	PageID    shared.ID
+	Title     string
+	Icon      string
+	Excerpt   string
+	UpdatedAt time.Time
+}
+
+// Articles stores the pages published to a service's portal and what requesters said of them
+// (UC-DOC-13).
+type Articles interface {
+	// Publish publishes the page to the collection; false when it already was.
+	Publish(ctx context.Context, article knowledge.Article) (bool, error)
+	// Unpublish takes it back; false when it was not published there.
+	Unpublish(ctx context.Context, pageID, collectionID shared.ID) (bool, error)
+	// Of answers where a page is published, with its openings and ratings.
+	Of(ctx context.Context, pageID shared.ID) ([]knowledge.Article, error)
+	// Published answers whether the page is published to the collection.
+	Published(ctx context.Context, pageID, collectionID shared.ID) (bool, error)
+	// Search answers the collection's live, unrestricted articles a text finds; empty text the most read.
+	Search(ctx context.Context, collectionID shared.ID, text string, limit int) ([]ArticleHit, error)
+	// CountView counts one opening in the portal.
+	CountView(ctx context.Context, pageID, collectionID shared.ID) error
+	// Rate keeps one person's "was this helpful?", replacing what they said before.
+	Rate(ctx context.Context, pageID, collectionID, accountID shared.ID, helpful bool, at time.Time) error
+}
