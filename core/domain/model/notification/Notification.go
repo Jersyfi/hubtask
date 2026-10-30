@@ -36,7 +36,8 @@ const (
 	// (`item.member_added`) or a workspace scope (`membership.granted`). One category, because
 	// both are the same sentence to the person reading it: you are now part of this.
 	CategoryMembership Category = "MEMBERSHIP"
-	// CategoryComment is somebody writing on an entry: `comment.created`.
+	// CategoryComment is somebody writing on an entry (`comment.created`), or naming the recipient
+	// in a whiteboard's comment.
 	CategoryComment Category = "COMMENT"
 	// CategoryReminder is a moment somebody asked to be told about: a reminder firing.
 	//
