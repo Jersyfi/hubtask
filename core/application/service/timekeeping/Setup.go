@@ -101,6 +101,9 @@ func (h DefineWorkType) Execute(ctx context.Context, actor appshared.ActorContex
 		if err := h.Keeper.Store.PutWorkType(ctx, h.Keeper.IDs.NewID(), w, now); err != nil {
 			return err
 		}
+		if err := h.Keeper.workTypesChanged(ctx, actor); err != nil {
+			return err
+		}
 		return h.Keeper.record(ctx, actor, WorkTypeDefinedAction, workTypeTarget, "", now,
 			audit.Change{Field: "key", Classification: audit.Open, To: w.Key},
 			audit.Change{Field: "billable", Classification: audit.Open, To: strconv.FormatBool(w.Billable)},
@@ -210,6 +213,9 @@ func (h SetTimePolicy) Execute(ctx context.Context, actor appshared.ActorContext
 			return err
 		}
 		p.Version = expected + 1
+		if err := h.Keeper.policyChanged(ctx, actor, p); err != nil {
+			return err
+		}
 		return h.Keeper.record(ctx, actor, PolicySetAction, policyTarget, "", now,
 			audit.Change{Field: "locked_through", Classification: audit.Open, From: dayText(before.LockedThrough), To: dayText(p.LockedThrough)},
 			audit.Change{Field: "visibility", Classification: audit.Open, From: string(before.Visibility), To: string(p.Visibility)})

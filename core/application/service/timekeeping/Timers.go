@@ -69,6 +69,9 @@ func (h StartTimer) Execute(ctx context.Context, actor appshared.ActorContext, e
 		if err := h.Keeper.Store.StartTimer(ctx, id, timer); err != nil {
 			return err
 		}
+		if err := h.Keeper.timerChanged(ctx, actor, actor.AccountID, &timer); err != nil {
+			return err
+		}
 		return h.Keeper.record(ctx, actor, TimerStartedAction, timerTarget, id, now,
 			audit.Change{Field: "entry_id", Classification: audit.Open, To: entry.String()})
 	})
@@ -143,6 +146,12 @@ func (h StopTimer) Execute(ctx context.Context, actor appshared.ActorContext, zo
 		if err := h.Keeper.Store.InsertRecord(ctx, record); err != nil {
 			return err
 		}
+		if err := h.Keeper.timerChanged(ctx, actor, actor.AccountID, nil); err != nil {
+			return err
+		}
+		if err := h.Keeper.recordChanged(ctx, actor, record); err != nil {
+			return err
+		}
 		return h.Keeper.record(ctx, actor, TimerStoppedAction, recordTarget, record.ID, now, recordChanges(domain.Record{}, record)...)
 	})
 	return record, err
@@ -191,6 +200,9 @@ func (h DiscardTimer) Execute(ctx context.Context, actor appshared.ActorContext)
 		}
 		if !removed {
 			return shared.ErrNotFound.WithDetail("timers.not_running")
+		}
+		if err := h.Keeper.timerChanged(ctx, actor, actor.AccountID, nil); err != nil {
+			return err
 		}
 		return h.Keeper.record(ctx, actor, TimerDiscardedAction, timerTarget, actor.AccountID, now)
 	})

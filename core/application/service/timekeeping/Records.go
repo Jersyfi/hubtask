@@ -102,6 +102,9 @@ func (h LogTime) Execute(ctx context.Context, actor appshared.ActorContext, f Re
 		if err := h.Keeper.Store.InsertRecord(ctx, record); err != nil {
 			return err
 		}
+		if err := h.Keeper.recordChanged(ctx, actor, record); err != nil {
+			return err
+		}
 		return h.Keeper.record(ctx, actor, RecordLoggedAction, recordTarget, record.ID, now, recordChanges(domain.Record{}, record)...)
 	})
 	return record, err
@@ -273,6 +276,11 @@ func (h UpdateTimeRecord) Execute(
 		if err := h.Keeper.Store.UpdateRecord(ctx, after, expected); err != nil {
 			return err
 		}
+		changed := after
+		changed.Version = expected + 1
+		if err := h.Keeper.recordChanged(ctx, actor, changed); err != nil {
+			return err
+		}
 		return h.Keeper.record(ctx, actor, RecordUpdatedAction, recordTarget, after.ID, now, recordChanges(before, after)...)
 	})
 	return after, err
@@ -333,6 +341,9 @@ func (h DeleteTimeRecord) Execute(ctx context.Context, actor appshared.ActorCont
 			return err
 		}
 		if err := h.Keeper.Store.DeleteRecord(ctx, id, expected); err != nil {
+			return err
+		}
+		if err := h.Keeper.recordRemoved(ctx, actor, id, r.AccountID); err != nil {
 			return err
 		}
 		return h.Keeper.record(ctx, actor, RecordDeletedAction, recordTarget, id, now, recordChanges(r, domain.Record{})...)
@@ -405,6 +416,9 @@ func (h CorrectTimeRecord) Execute(
 			return err
 		}
 		if err := h.Keeper.Store.InsertRecord(ctx, correction); err != nil {
+			return err
+		}
+		if err := h.Keeper.recordChanged(ctx, actor, correction); err != nil {
 			return err
 		}
 		return h.Keeper.record(ctx, actor, RecordCorrectedAction, recordTarget, correction.ID, now,

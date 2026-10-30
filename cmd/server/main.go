@@ -1862,6 +1862,7 @@ func run() error {
 		Items: items, Containers: containers, References: entryLinks,
 		Plans: planningStore, Estimates: planningStore.Sprints(), Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Changes: changes, HLC: hybrid,
 	}
 	// The goals and insight module (M8): every number it shows is POST /items:aggregate's or a
 	// saved view's summary, run as the reader.

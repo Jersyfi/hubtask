@@ -20,6 +20,7 @@ import (
 
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
 	deskrepo "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	timerepo "github.com/Jersyfi/hubtask/core/application/repository/timekeeping"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -121,6 +122,10 @@ type Keeper struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Changes and HLC tell a person's devices of their records and timer, and every member's of
+	// the kinds of work and the policy; nil records nothing.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
 }
 
 func (k Keeper) record(

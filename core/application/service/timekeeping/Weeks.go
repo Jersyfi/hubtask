@@ -224,6 +224,9 @@ func (h CopyTimesheetWeek) Execute(ctx context.Context, actor appshared.ActorCon
 			if err := h.Keeper.Store.InsertRecord(ctx, c); err != nil {
 				return err
 			}
+			if err := h.Keeper.recordChanged(ctx, actor, c); err != nil {
+				return err
+			}
 			copied++
 		}
 		return h.Keeper.record(ctx, actor, WeekCopiedAction, sheetTarget, actor.AccountID, now,
