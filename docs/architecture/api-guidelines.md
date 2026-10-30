@@ -309,6 +309,7 @@ Token shapes, lifetimes and storage are in [identity.md](./identity.md) §14 and
 | Service account token | Automation, AI agents | Its own actor type in the audit |
 | OAuth 2 authorization code + PKCE | Third-party apps (the Zapier marketplace) | PKCE is required; consent only to scopes the catalogue names |
 | Signed feed token (`hbt_cal_`) | ICS calendar | Read-only on one view, revocable |
+| The same feed token, of the data kind | An OData v4 feed (`/odata/{token}`) for Power BI and Excel (UC-INT-15) | Read-only on one view's rows, revocable; one token opens one kind. Its JSON follows OData v4 - `value`, `@odata.nextLink`, PascalCase properties - rather than §1.6, as the calendar follows RFC 5545 |
 | Personal access token as an HTTP Basic password | CalDAV clients (`/caldav/`) | The one place Basic is taken, since a calendar client can send nothing else; the user name is discarded. Outside the OpenAPI document because WebDAV's methods are not the contract's. No `MKCALENDAR`: a calendar exists because a calendar feed does |
 
 **Scopes.** `catalogue.Scopes()` is the source, derived from the use case descriptors, so a scope no

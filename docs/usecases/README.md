@@ -369,6 +369,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-INT-12](./integration/UC-INT-12-tell-our-chat-room-what-happens.md) | Tell our team's chat room what happens | integration |
 | [UC-INT-13](./integration/UC-INT-13-see-the-code-that-names-an-entry.md) | See the commits, branches and pull requests that name an entry | integration |
 | [UC-INT-14](./integration/UC-INT-14-link-a-file-from-a-store-on-an-entry.md) | Link a file from Nextcloud, SharePoint, OneDrive or WebDAV on an entry | integration |
+| [UC-INT-15](./integration/UC-INT-15-read-a-view-in-power-bi-or-excel.md) | Read a saved view in Power BI or Excel | integration |
 | [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification |
 | [UC-NOT-02](./notification/UC-NOT-02-get-my-reminders-by-mail.md) | Get my reminders by mail | notification |
 | [UC-NOT-03](./notification/UC-NOT-03-choose-which-mails-i-get.md) | Choose which mails I get | notification |
