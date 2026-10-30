@@ -79,6 +79,9 @@
     CmdbView: () => import('./views/CmdbView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
+    PortalView: () => import('./views/PortalView.svelte'),
+    PortalRequestView: () => import('./views/PortalRequestView.svelte'),
+    PortalArticleView: () => import('./views/PortalArticleView.svelte'),
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     PlanView: () => import('./views/PlanView.svelte'),
     SprintView: () => import('./views/SprintView.svelte'),
@@ -410,6 +413,18 @@
     {/key}
   {:else if route.name === 'notes'}
     <LazyView load={views.NotesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'portal'}
+    {#key route.path}
+      <LazyView load={views.PortalView} props={{ collectionId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'portal-request'}
+    {#key route.path}
+      <LazyView load={views.PortalRequestView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'portal-article'}
+    {#key route.path}
+      <LazyView load={views.PortalArticleView} props={{ collectionId: route.params.id ?? '', pageId: route.params.pageId ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if route.name === 'hub-pages' || route.name === 'page'}
     {#key route.path}
       <LazyView

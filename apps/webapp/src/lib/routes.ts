@@ -140,6 +140,11 @@ export const ROUTES: readonly Route[] = [
   { name: 'page', pattern: '/pages/:id' },
   // The reader's own notes and the pages shared with them (UC-DOC-07, UC-DOC-08).
   { name: 'notes', pattern: '/notes' },
+  // The requester portal (M5): a service's catalogue, the reader's own requests and the articles
+  // the service publishes - the same app, its own route area by address (NG-second-app).
+  { name: 'portal-request', pattern: '/portal/requests/:id' },
+  { name: 'portal-article', pattern: '/portal/:id/articles/:pageId' },
+  { name: 'portal', pattern: '/portal/:id' },
   // A hub's whiteboards and one of them (M4), addressed as a page is.
   { name: 'hub-whiteboards', pattern: '/hubs/:id/whiteboards' },
   { name: 'whiteboard', pattern: '/whiteboards/:id' },
