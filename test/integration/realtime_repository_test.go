@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/realtime"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -138,5 +139,44 @@ func TestADocumentIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A hub purged takes its pages' and boards' live documents with them, history and snapshots
+// included; a document of a page in another hub stays (migration 0260).
+func TestAHubPurgedTakesItsLiveDocuments(t *testing.T) {
+	ctx := context.Background()
+	pageHub, page, _ := seedSpace(ctx, t)
+	boardHub, board, _ := seedBoard(ctx, t)
+	_, otherPage, _ := seedSpace(ctx, t)
+	repo := postgres.NewRealtimeRepository()
+	at := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
+	refs := []realtime.Ref{{Kind: "page", ID: page}, {Kind: "whiteboard", ID: board}, {Kind: "page", ID: otherPage}}
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, ref := range refs {
+			if _, err := repo.Append(ctx, ref, []byte{1}, authorA, at); err != nil {
+				return err
+			}
+			if _, err := repo.StoreSnapshot(ctx, ref, realtime.Snapshot{UpToSeq: 1, State: []byte{1}, At: at}); err != nil {
+				return err
+			}
+		}
+		_, err := trashRepo().PurgeContainers(ctx, []shared.ID{pageHub, boardHub})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, gone := range refs[:2] {
+		if rows := countIn(ctx, t, `SELECT count(*) FROM realtime_update WHERE document_id = $1`, gone.ID.String()); rows != 0 {
+			t.Errorf("the %s's history outlived its hub: %d updates", gone.Kind, rows)
+		}
+		if rows := countIn(ctx, t, `SELECT count(*) FROM realtime_document WHERE document_id = $1`, gone.ID.String()); rows != 0 {
+			t.Errorf("the %s's live document outlived its hub", gone.Kind)
+		}
+	}
+	if rows := countIn(ctx, t, `SELECT count(*) FROM realtime_snapshot WHERE document_id = $1`, otherPage.String()); rows != 1 {
+		t.Errorf("a page in another hub lost its live document: %d snapshots", rows)
 	}
 }

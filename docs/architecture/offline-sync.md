@@ -505,7 +505,9 @@ it, order it and decide who may touch it.
   `DOCUMENT_HISTORY` removes them after thirty days ([data-retention.md](./data-retention.md) §3),
   held by a workspace hold. The document itself - the newest snapshot and the updates after it - is
   never aged out. An erased author leaves the update without a name (`ON DELETE SET NULL`); the
-  owning kind erases its documents with itself (`Documents.Erase`). The archive carries all three
+  owning kind erases its documents with itself: a page or a board removed - by its hub's purge, a
+  workspace's or a replacing restore - takes its document in the same statement (a row trigger,
+  migration 0260; `Documents.Erase` for a kind removed on its own). The archive carries all three
   tables ([tenant-export.md](./tenant-export.md) §6).
 
 | # | Open point | Needed by |
