@@ -6,12 +6,14 @@
   // and how a day is spelled is a question this package answers in no language.
 
   import IconButton from './IconButton.svelte';
-  import Timeline, { type TimelineCarry, type TimelineDependency, type TimelineRow, type TimelineTick } from './Timeline.svelte';
+  import Timeline, {
+    type TimelineCarry, type TimelineDependency, type TimelineLink, type TimelineRow, type TimelineTick,
+  } from './Timeline.svelte';
 
   const {
     mode = 'mixed',
     scale = 'day',
-  }: { mode?: 'mixed' | 'undatedOnly' | 'empty' | 'locked' | 'actions' | 'dependencies'; scale?: 'day' | 'week' | 'month' } = $props();
+  }: { mode?: 'mixed' | 'undatedOnly' | 'empty' | 'locked' | 'actions' | 'dependencies' | 'gantt'; scale?: 'day' | 'week' | 'month' | 'quarter' | 'year' } = $props();
 
   // The entry open beside the timeline, and what a row's menu or a long press last asked for.
   let current = $state<string | undefined>('r2');
@@ -53,6 +55,24 @@
     });
   }
 
+  // A Gantt chart: a summary over two children, a critical chain, a baseline, a milestone, and the
+  // dependencies drawn by dragging from a bar's knob onto another row.
+  let gantt = $state<TimelineRow[]>([
+    { id: 'g0', title: 'Relaunch', start: '2026-09-07', due: '2026-09-18', kind: 'summary' },
+    { id: 'g1', title: 'Approve the design', start: '2026-09-07', due: '2026-09-09', depth: 1, isCritical: true, baseline: { start: '2026-09-07', due: '2026-09-08' } },
+    { id: 'g2', title: 'Build the pages', start: '2026-09-10', due: '2026-09-15', depth: 1, isCritical: true, baseline: { start: '2026-09-09', due: '2026-09-11' } },
+    { id: 'g3', title: 'Write the copy', start: '2026-09-09', due: '2026-09-11', depth: 1 },
+    { id: 'g4', title: 'Go live', start: '2026-09-16', due: '2026-09-16', kind: 'milestone', isCritical: true },
+  ]);
+  let drawnLinks = $state<TimelineDependency[]>([
+    { id: 'l1', from: 'g1', to: 'g2', label: 'Build the pages waits for Approve the design' },
+    { id: 'l2', from: 'g2', to: 'g4', label: 'Go live waits for Build the pages' },
+  ]);
+  function linked(link: TimelineLink) {
+    const title = (id: string) => gantt.find((row) => row.id === id)?.title ?? id;
+    drawnLinks = [...drawnLinks, { id: `l${drawnLinks.length + 1}`, ...link, label: `${title(link.to)} waits for ${title(link.from)}` }];
+  }
+
   // A reader who may change only what is on them: the fit-out and one undated entry are someone
   // else's, so they show where they are and cannot be carried.
   const LOCKED = new Set(['r1', 'r5']);
@@ -63,8 +83,11 @@
         ? rows.filter((row) => !row.start && !row.due)
         : mode === 'locked'
           ? rows.map((row) => ({ ...row, isLocked: LOCKED.has(row.id) }))
-          : rows,
+          : mode === 'gantt'
+            ? gantt
+            : rows,
   );
+
 
   // The electrics wait for the fit-out to start nothing - they start before it is due, which is
   // the case drawn dashed; the sign-off waits for the delivery in good time.
@@ -94,8 +117,10 @@
   onSelect={mode === 'actions' ? (id) => (current = id) : undefined}
   onHold={mode === 'actions' ? (id) => (asked = id) : undefined}
   rowAction={mode === 'actions' ? rowAction : undefined}
-  dependencies={mode === 'dependencies' ? dependencies : []}
+  dependencies={mode === 'dependencies' ? dependencies : mode === 'gantt' ? drawnLinks : []}
   dependenciesLabel="Dependencies"
+  onLink={mode === 'gantt' ? linked : undefined}
+  linkHandleLabel="Draw a dependency from here"
 />
 {#if mode === 'actions'}
   <p>Asked for the menu of: {asked ?? 'nothing yet'}</p>

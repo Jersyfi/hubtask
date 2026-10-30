@@ -41,6 +41,12 @@
   // one** (UC-PLN-01 check 6), measured off the cells it joins rather than computed, so it lands on
   // the bars at every scale and direction. An arrow is not readable: each is also said in words,
   // and one whose waiting entry starts too early is dashed as well as tinted (rule 3).
+  //
+  // **As a Gantt chart (UC-PLN-02 check 7) a row says what kind of bar it is**: a milestone is a
+  // diamond, a summary a thin bar over its children's span, a critical bar is tinted and also said
+  // by the caller's table, and a baseline is a second, thin lane under the bar. A dependency is
+  // drawn by dragging from the knob after a bar's end onto the waiting row; the keyboard path to
+  // the same link is the caller's table, as the row is for the dates.
 
   import { tick, type Snippet } from 'svelte';
 
@@ -62,6 +68,14 @@
      * a bar that can be dragged is a promise the server will accept the dates.
      */
     readonly isLocked?: boolean;
+    /** A milestone is a date without a duration; a summary spans its children. */
+    readonly kind?: 'milestone' | 'summary';
+    /** Whether it is on the chain that decides the end. Tinted; the caller says it in words too. */
+    readonly isCritical?: boolean;
+    /** The dates an agreed plan held, drawn as a thin lane under the bar. */
+    readonly baseline?: { readonly start?: string; readonly due?: string };
+    /** How deep the row sits under its parents, for the indent; 0 is the top. */
+    readonly depth?: number;
   }
 
   /** One mark on the axis: where it sits, and what it says. */
@@ -83,6 +97,12 @@
     readonly label: string;
   }
 
+  /** A dependency drawn by dragging: the row waited for, and the row that waits. */
+  export interface TimelineLink {
+    readonly from: string;
+    readonly to: string;
+  }
+
   /** What a drag took hold of, and the columns it went from and to. */
   export interface TimelineCarry {
     readonly id: string;
@@ -99,7 +119,7 @@
     from: string;
     to: string;
     /** How finely the axis is ruled. It decides the column width and nothing else. */
-    scale?: 'day' | 'week' | 'month';
+    scale?: 'day' | 'week' | 'month' | 'quarter' | 'year';
     rows: readonly TimelineRow[];
     /** The dated gridlines, already worded. */
     gridlines?: readonly TimelineTick[];
@@ -134,6 +154,10 @@
     dependencies?: readonly TimelineDependency[];
     /** What the list of dependencies in words is called. */
     dependenciesLabel?: string;
+    /** A dependency drawn from one bar's knob onto another row. Without it no knob is drawn. */
+    onLink?: (link: TimelineLink) => void;
+    /** What the knob after a bar is called. */
+    linkHandleLabel?: string;
   }
 
   const {
@@ -156,6 +180,8 @@
     onHold,
     dependencies = [],
     dependenciesLabel,
+    onLink,
+    linkHandleLabel,
   }: Props = $props();
 
   const DAY = 86_400_000;
@@ -166,6 +192,8 @@
 
   /** The drag in progress, in columns. `null` between drags, which is most of the time. */
   let carry = $state<TimelineCarry | null>(null);
+  /** The dependency being drawn: from which row, and the row under the pointer now. */
+  let linking = $state<{ from: string; over?: string } | null>(null);
 
   /** UTC, deliberately: a day index must not move because the machine is west of Greenwich. */
   const dayOf = (date: string) => Date.parse(`${date}T00:00:00Z`);
@@ -186,6 +214,14 @@
     return { first: Math.max(0, Math.min(first, last)), last: Math.min(days - 1, Math.max(first, last)) };
   }
 
+  /** Where a row's baseline lies, in the same columns, or nothing. */
+  function kept(row: TimelineRow): { first: number; last: number } | undefined {
+    return row.baseline ? placement({ id: row.id, title: row.title, ...row.baseline }) : undefined;
+  }
+
+  /** The indent step a depth is drawn at; deeper than four is drawn as four. */
+  const depthOf = (row: TimelineRow) => String(Math.min(4, Math.max(0, row.depth ?? 0)));
+
   /**
    * Where a row would be while it is being dragged.
    *
@@ -204,7 +240,7 @@
     rows
       .map((row) => ({ row, at: placement(row) }))
       .filter((entry): entry is { row: TimelineRow; at: { first: number; last: number } } => entry.at !== undefined)
-      .map((entry) => ({ row: entry.row, at: previewed(entry.row, entry.at) })),
+      .map((entry) => ({ row: entry.row, at: previewed(entry.row, entry.at), kept: kept(entry.row) })),
   );
   const undated = $derived(rows.filter((row) => placement(row) === undefined));
 
@@ -328,6 +364,12 @@
       const target = event.target as Element | null;
       // The row's action is a control of its own, and a press on it is that control's.
       if (target?.closest?.('[data-action]')) return;
+      const knob = target?.closest?.('[data-knob]');
+      if (knob instanceof HTMLElement) {
+        const from = knob.closest<HTMLElement>('[data-row]')?.dataset.row;
+        if (from !== undefined) beginLink(event, from);
+        return;
+      }
       const end = target?.closest?.('[data-end]');
       const surface =
         end ?? target?.closest?.('[data-track]') ?? target?.closest?.('[data-tray]') ?? target?.closest?.('[data-hold]');
@@ -358,6 +400,30 @@
     window.addEventListener('click', swallow, { capture: true, once: true });
     // A lift that sends no click (the finger left the row) must not eat the next real one.
     setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), HOLD_MS);
+  }
+
+  /** Drawing a dependency: the knob is followed to the row it is let go over. */
+  function beginLink(event: PointerEvent, id: string) {
+    if (event.button !== 0 || !onLink) return;
+    event.preventDefault();
+    const rowAt = (x: number, y: number) =>
+      document.elementFromPoint(x, y)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined;
+    linking = { from: id };
+    const onMove = (move: PointerEvent) => {
+      const over = rowAt(move.clientX, move.clientY);
+      linking = { from: id, over: over === id ? undefined : over };
+    };
+    const finish = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      const to = linking?.over;
+      linking = null;
+      if (to !== undefined && to !== id) onLink({ from: id, to });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
   }
 
   function begin(event: PointerEvent, id: string, grab: TimelineCarry['grab'], isHoldOnly = false) {
@@ -477,8 +543,9 @@
             data-row={entry.row.id}
             data-carrying={carry?.id === entry.row.id ? '' : undefined}
             data-locked={entry.row.isLocked ? '' : undefined}
+            data-link-target={linking?.over === entry.row.id ? '' : undefined}
           >
-            <span class="lead">
+            <span class="lead" data-depth={depthOf(entry.row)}>
               <button
                 type="button"
                 class="title"
@@ -499,6 +566,7 @@
             </span>
             <!-- The track is the drag surface and not a control: the row's control is its title,
                  which opens the entry and is where a keyboard reaches the dates. -->
+            <div class="lanes">
             <div class="track" data-track>
               {#each columns as column (column)}
                 {@const isFilled = column >= entry.at.first && column <= entry.at.last}
@@ -512,6 +580,9 @@
                   data-point={entry.at.first === entry.at.last && column === entry.at.first && !entry.row.start
                     ? ''
                     : undefined}
+                  data-milestone={isFilled && entry.row.kind === 'milestone' ? '' : undefined}
+                  data-summary={isFilled && entry.row.kind === 'summary' ? '' : undefined}
+                  data-critical={isFilled && entry.row.isCritical ? '' : undefined}
                 >
                   {#if !entry.row.isLocked && hasEnds(entry.at) && isFilled && entry.row.start && column === entry.at.first && startHandleLabel}
                     <!-- `tabindex="-1"`: the keyboard path to a date is the entry's own editor, not
@@ -523,8 +594,22 @@
                     <button type="button" class="end" data-end="due" aria-label={dueHandleLabel} tabindex="-1"
                     ></button>
                   {/if}
+                  {#if onLink && linkHandleLabel && !entry.row.isLocked && column === entry.at.last + 1}
+                    <!-- `tabindex="-1"` for the reason the ends give: the keyboard path to a
+                         dependency is the caller's table, not a knob with key bindings of its own. -->
+                    <button type="button" class="knob" data-knob aria-label={linkHandleLabel} tabindex="-1"></button>
+                  {/if}
                 </span>
               {/each}
+            </div>
+            {#if entry.kept}
+              {@const baseline = entry.kept}
+              <div class="track kept" aria-hidden="true">
+                {#each columns as column (column)}
+                  <span class="lane" data-kept={column >= baseline.first && column <= baseline.last ? '' : undefined}></span>
+                {/each}
+              </div>
+            {/if}
             </div>
           </li>
         {/each}
@@ -599,6 +684,8 @@
   .timeline[data-scale='day'] { --column: var(--sp-300); }
   .timeline[data-scale='week'] { --column: var(--sp-100); }
   .timeline[data-scale='month'] { --column: var(--sp-050); }
+  .timeline[data-scale='quarter'] { --column: var(--sp-025); }
+  .timeline[data-scale='year'] { --column: var(--bw-hairline); }
 
   /* Positioned, so it is the containing block of what it scrolls: an absolutely positioned
      descendant of an unpositioned scroller overflows the page instead. */
@@ -678,6 +765,75 @@
   }
 
   .action { display: inline-flex; flex: none; }
+
+  /* A child is indented under its parent, out of the title's width, so the axis keeps its columns. */
+  .lead[data-depth='1'] { padding-inline-start: var(--sp-150); }
+  .lead[data-depth='2'] { padding-inline-start: var(--sp-300); }
+  .lead[data-depth='3'] { padding-inline-start: var(--sp-400); }
+  .lead[data-depth='4'] { padding-inline-start: var(--sp-500); }
+
+  .lanes { display: flex; flex-direction: column; }
+
+  /* The baseline: a thin lane under the bar, the agreed dates against today's. */
+  .lane { block-size: var(--sp-050); }
+  .lane[data-kept] { background: var(--border-strong); }
+
+  /* A summary spans its children: thinner and darker, so it does not read as one more task. */
+  .cell[data-filled][data-summary] { block-size: var(--sp-050); background: var(--text-secondary); }
+
+  /* The chain that decides the end. The tint is not alone: the caller's table says "critical". */
+  .cell[data-filled][data-critical] { background: var(--status-danger-text); }
+
+  /* A milestone is a diamond on its day, not a one-day bar: a date without a duration. */
+  .cell[data-filled][data-milestone] {
+    justify-content: center;
+    overflow: visible;
+    background: transparent;
+  }
+
+  .cell[data-filled][data-milestone]::before {
+    content: '';
+    flex: none;
+    inline-size: var(--sp-150);
+    block-size: var(--sp-150);
+    background: var(--text-primary);
+    rotate: 45deg;
+  }
+
+  .cell[data-filled][data-milestone][data-critical]::before { background: var(--status-danger-text); }
+
+  /* The knob after a bar's end, which a dependency is drawn from. */
+  .knob {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: var(--sp-300);
+    block-size: var(--sp-300);
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: crosshair;
+  }
+
+  .knob::before {
+    content: '';
+    inline-size: var(--sp-100);
+    block-size: var(--sp-100);
+    border: var(--bw-ring) solid var(--accent-primary);
+    border-radius: var(--r-full);
+    background: var(--bg-surface);
+  }
+
+  .knob:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+  }
+
+  /* The row a dependency would be drawn onto, outlined as well as tinted. */
+  .row[data-link-target] {
+    outline: var(--bw-ring) dashed var(--accent-primary);
+    background: var(--bg-surface-hover);
+  }
 
   .title {
     flex: 1 1 auto;

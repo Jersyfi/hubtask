@@ -118,6 +118,7 @@ export {
   default as Timeline,
   type TimelineCarry,
   type TimelineDependency,
+  type TimelineLink,
   type TimelineRow,
   type TimelineTick,
 } from './Timeline.svelte';
