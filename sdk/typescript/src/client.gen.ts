@@ -821,6 +821,21 @@ export class HubtaskClient {
     return this.call("GET", "/items/{itemId}/sla", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The portal's organisations */
+  listRequesterOrganisations(options: CallOptions = {}): Promise<operations["listRequesterOrganisations"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/requester-organisations", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add or replace an organisation */
+  defineRequesterOrganisation(organisationKey: string, body: NonNullable<operations["defineRequesterOrganisation"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineRequesterOrganisation"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/requester-organisations/{organisationKey}", { "organisationKey": organisationKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete an organisation */
+  deleteRequesterOrganisation(organisationKey: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/requester-organisations/{organisationKey}", { "organisationKey": organisationKey }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The workspace's canned replies */
   listReplyTemplates(options: CallOptions = {}): Promise<operations["listReplyTemplates"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/reply-templates", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

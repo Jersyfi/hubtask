@@ -1916,8 +1916,9 @@ func run() error {
 	serviceDesk := servicedeskservice.Desk{
 		Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
 		Records: slaRecords, Replies: serviceDeskStore.Replies(),
-		Ratings:      deskAnnouncer.Ratings(serviceDeskStore.Ratings()),
-		HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
+		Ratings:       deskAnnouncer.Ratings(serviceDeskStore.Ratings()),
+		Organisations: serviceDeskStore.Organisations(),
+		HubCalendars:  serviceDeskStore.HubCalendars(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the
@@ -1925,7 +1926,7 @@ func run() error {
 	portalEntries := &deferredCatalogue{}
 	requestPortal := servicedeskservice.Portal{
 		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
-		EntryTypes: entryTypes, Fields: customFields, Gate: entryGate, Desk: serviceDesk,
+		EntryTypes: entryTypes, Fields: customFields, Gate: entryGate, Desk: serviceDesk, Accounts: accounts,
 	}
 	// Approvals (UC-SVC-08 to 10): a step waiting for people's yes; the decision takes the step
 	// through TakeStep in the registry. A level's people are told by mail and reminded by its
@@ -2188,6 +2189,9 @@ func run() error {
 		servicedeskservice.ListRequestCatalogue{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.RaiseRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.ListMyRequests{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.ListRequesterOrganisations{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineRequesterOrganisation{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteRequesterOrganisation{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ReadMyRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.CommentOnMyRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.RateMyRequest{Portal: requestPortal}.Descriptor(),

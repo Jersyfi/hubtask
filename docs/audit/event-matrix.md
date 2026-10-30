@@ -908,6 +908,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `request.read` | ListMyRequests | `request` | INFO | When refused |
 | `request.read` | ReadMyRequest | `request` | INFO | When refused |
 
+## Requester_organisation
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `requester_organisation.defined` | DefineRequesterOrganisation | `requester_organisation` | INFO | Every time |
+| `requester_organisation.deleted` | DeleteRequesterOrganisation | `requester_organisation` | INFO | Every time |
+| `requester_organisation.read` | ListRequesterOrganisations | `requester_organisation` | INFO | When refused |
+
 ## Retention and legal hold
 
 | Action | Use case | Target | Severity | Recorded |

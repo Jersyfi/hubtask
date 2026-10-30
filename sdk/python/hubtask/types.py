@@ -2135,6 +2135,7 @@ class PortalRequest(TypedDict, total=False):
     completed_at: Required[str | None]
     created_at: Required[str]
     updated_at: Required[str]
+    is_own: bool
 
 class RequestSatisfaction(TypedDict, total=False):
     score: Required[int]
@@ -2143,6 +2144,27 @@ class RequestSatisfaction(TypedDict, total=False):
 class PortalRequestPage(TypedDict, total=False):
     data: Required[list["PortalRequest"]]
     page_info: Required["PageInfo"]
+    organisation: "PortalOrganisation" | Any
+
+class PortalOrganisation(TypedDict, total=False):
+    """The organisation a requester belongs to, as the portal names it."""
+    name: Required[str]
+    shares_requests: Required[bool]
+
+class RequesterOrganisation(TypedDict, total=False):
+    key: Required[str]
+    name: Required[str]
+    domains: Required[list[str]]
+    shares_requests: Required[bool]
+    version: Required[int]
+
+class RequesterOrganisationDefine(TypedDict, total=False):
+    name: Required[str]
+    domains: Required[list[str]]
+    shares_requests: bool
+
+class RequesterOrganisationList(TypedDict, total=False):
+    data: Required[list["RequesterOrganisation"]]
 
 class PortalRequestDetail(TypedDict, total=False):
     id: Required[str]
@@ -2156,6 +2178,7 @@ class PortalRequestDetail(TypedDict, total=False):
     completed_at: Required[str | None]
     created_at: Required[str]
     updated_at: Required[str]
+    is_own: bool
     satisfaction: Required["RequestSatisfaction" | Any]
     comments: Required[list[dict[str, Any]]]
     sla: Required[list["EntrySlaGoal"]]

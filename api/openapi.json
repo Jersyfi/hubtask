@@ -6314,6 +6314,110 @@
         }
       }
     },
+    "/requester-organisations": {
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "listRequesterOrganisations",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "organisation ls",
+        "summary": "The portal's organisations",
+        "description": "Every organisation of the workspace, by key: its name, the mail domains its people are assigned by and whether they see each other's requests in the portal. Needs READ at the workspace and the service desk switched on.\n",
+        "responses": {
+          "200": {
+            "description": "The organisations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequesterOrganisationList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/requester-organisations/{organisationKey}": {
+      "parameters": [
+        {
+          "name": "organisationKey",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "defineRequesterOrganisation",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "organisationKey": "key"
+        },
+        "x-hubtask-cli": "organisation define",
+        "summary": "Add or replace an organisation",
+        "description": "Creates the organisation under the key, or replaces the one there. Every person whose address is at one of its domains belongs to it - exactly that domain, never a subdomain. A domain is in at most one organisation (`organisations.domain_taken`). Its people see each other's requests only with `shares_requests`, which is off unless set. Needs STRUCTURE at the workspace.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequesterOrganisationDefine"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequesterOrganisation"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "deleteRequesterOrganisation",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "organisationKey": "key"
+        },
+        "x-hubtask-cli": "organisation rm",
+        "summary": "Delete an organisation",
+        "description": "Deletes the organisation; its people keep their own requests and see only those again. Needs STRUCTURE at the workspace.\n",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/reply-templates": {
       "get": {
         "tags": [
@@ -6874,7 +6978,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "request ls",
         "summary": "The requests I raised",
-        "description": "The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.\n",
+        "description": "The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.\nWith `scope=ORGANISATION`, the requests of every person of the caller's organisation - the one their address's mail domain belongs to - where that organisation shares its requests; otherwise refused with `requests.organisation_not_shared`. The answer names the caller's organisation either way, `null` for none.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/CollectionId"
@@ -6884,6 +6988,19 @@
           },
           {
             "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "description": "`MINE`, the default, or `ORGANISATION`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MINE",
+                "ORGANISATION"
+              ],
+              "default": "MINE"
+            }
           }
         ],
         "responses": {
@@ -6984,7 +7101,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "request show",
         "summary": "One request I raised",
-        "description": "Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found. Needs REQUEST at its collection.\n",
+        "description": "Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found, unless they are of the caller's organisation and it shares its requests. Needs REQUEST at its collection.\n",
         "responses": {
           "200": {
             "description": "The request",
@@ -43208,6 +43325,10 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "is_own": {
+            "type": "boolean",
+            "description": "Whether the caller raised it; false for a colleague's request of their organisation."
           }
         }
       },
@@ -43244,6 +43365,104 @@
           },
           "page_info": {
             "$ref": "#/components/schemas/PageInfo"
+          },
+          "organisation": {
+            "description": "The caller's organisation, `null` for none.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PortalOrganisation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PortalOrganisation": {
+        "type": "object",
+        "description": "The organisation a requester belongs to, as the portal names it.",
+        "required": [
+          "name",
+          "shares_requests"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "shares_requests": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RequesterOrganisation": {
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "domains",
+          "shares_requests",
+          "version"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "shares_requests": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "RequesterOrganisationDefine": {
+        "type": "object",
+        "required": [
+          "name",
+          "domains"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "domains": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "maxLength": 253
+            },
+            "description": "Mail domains such as `example.org`, small letters, without `@`."
+          },
+          "shares_requests": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "RequesterOrganisationList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequesterOrganisation"
+            }
           }
         }
       },
@@ -43312,6 +43531,10 @@
                     },
                     "mine": {
                       "type": "boolean"
+                    },
+                    "by_requester": {
+                      "type": "boolean",
+                      "description": "Whether whoever raised the request wrote it; false for the team."
                     }
                   }
                 }

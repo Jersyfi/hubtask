@@ -73,6 +73,8 @@ type Desk struct {
 	Records   repository.Records
 	Replies   repository.ReplyTemplates
 	Ratings   repository.Ratings
+	// Organisations groups the portal's requesters by mail domain (UC-SVC-11); nil holds none.
+	Organisations repository.Organisations
 	// HubCalendars and Containers serve a hub's own calendars: the hub is read to ask there.
 	HubCalendars repository.HubCalendars
 	Containers   workrepo.Containers

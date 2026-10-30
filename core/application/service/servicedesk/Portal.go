@@ -6,7 +6,9 @@ package servicedesk
 import (
 	"context"
 	"errors"
+	"slices"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
@@ -67,6 +69,9 @@ type Portal struct {
 	Fields workrepo.CustomFields
 	Gate   work.EntryGate
 	Desk   Desk
+	// Accounts answers the caller's address, whose mail domain names their organisation
+	// (UC-SVC-11); nil leaves everybody in none.
+	Accounts identityrepo.Accounts
 }
 
 // portal marks the act as the portal's door, which the entry use cases read as REQUEST.
@@ -106,9 +111,25 @@ func (p Portal) collectionOf(
 func (p Portal) ownRequest(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
 ) (workdomain.WorkItem, error) {
+	return p.request(ctx, actor, itemID, false)
+}
+
+// visibleRequest is ownRequest that also reads a colleague's request where the caller's
+// organisation shares its requests (UC-SVC-11 check 4): read only, answered and rated by its own
+// requester alone.
+func (p Portal) visibleRequest(
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
+) (workdomain.WorkItem, error) {
+	return p.request(ctx, actor, itemID, true)
+}
+
+func (p Portal) request(
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, colleagues bool,
+) (workdomain.WorkItem, error) {
 	var (
 		item       workdomain.WorkItem
 		collection workdomain.Container
+		visible    bool
 	)
 	err := p.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		found, err := p.Items.Find(ctx, itemID)
@@ -116,10 +137,16 @@ func (p Portal) ownRequest(
 			return err
 		}
 		item = found
+		visible = found.CreatedBy == actor.AccountID
+		if !visible && colleagues && !found.CreatedBy.IsZero() {
+			if visible, err = p.colleague(ctx, actor, found.CreatedBy); err != nil {
+				return err
+			}
+		}
 		collection, err = p.Containers.Find(ctx, found.CollectionID)
 		return err
 	})
-	if errors.Is(err, shared.ErrNotFound) || (err == nil && (item.CreatedBy != actor.AccountID || item.DeletedAt != nil)) {
+	if errors.Is(err, shared.ErrNotFound) || (err == nil && (!visible || item.DeletedAt != nil)) {
 		return workdomain.WorkItem{}, appshared.ItemNotFound(itemID)
 	}
 	if err != nil {
@@ -132,6 +159,47 @@ func (p Portal) ownRequest(
 		return workdomain.WorkItem{}, err
 	}
 	return item, nil
+}
+
+// organisationOf answers the caller's organisation - the one the mail domain of their address
+// belongs to -, false for none. Read inside the caller's transaction.
+func (p Portal) organisationOf(ctx context.Context, account shared.ID) (domain.Organisation, bool, error) {
+	if p.Accounts == nil || p.Desk.Organisations == nil {
+		return domain.Organisation{}, false, nil
+	}
+	found, err := p.Accounts.Find(ctx, account)
+	switch {
+	case errors.Is(err, shared.ErrNotFound):
+		return domain.Organisation{}, false, nil
+	case err != nil:
+		return domain.Organisation{}, false, err
+	}
+	mailDomain := domain.DomainOfAddress(found.Email)
+	if mailDomain == "" {
+		return domain.Organisation{}, false, nil
+	}
+	organisation, err := p.Desk.Organisations.OfDomain(ctx, mailDomain)
+	switch {
+	case errors.Is(err, shared.ErrNotFound):
+		return domain.Organisation{}, false, nil
+	case err != nil:
+		return domain.Organisation{}, false, err
+	}
+	return organisation, true, nil
+}
+
+// colleague reports whether another person is of the caller's organisation and it shares its
+// requests: both addresses at its domains, read now, so a person who moved on reads nothing more.
+func (p Portal) colleague(ctx context.Context, actor appshared.ActorContext, other shared.ID) (bool, error) {
+	organisation, found, err := p.organisationOf(ctx, actor.AccountID)
+	if err != nil || !found || !organisation.SharesRequests {
+		return false, err
+	}
+	theirs, found, err := p.organisationOf(ctx, other)
+	if err != nil || !found {
+		return false, err
+	}
+	return theirs.ID == organisation.ID, nil
 }
 
 // catalogueOf answers what the collection offers through the portal.
@@ -161,8 +229,14 @@ func (p Portal) catalogueOf(ctx context.Context, actor appshared.ActorContext, c
 // RequestOutput is a request as its requester reads it (api/openapi.yaml, schema PortalRequest):
 // what they asked and where it stands, never the team's fields.
 func RequestOutput(item workdomain.WorkItem) usecase.Output {
+	return requestOutputFor(item, item.CreatedBy)
+}
+
+// requestOutputFor is RequestOutput saying whether the reader raised it.
+func requestOutputFor(item workdomain.WorkItem, reader shared.ID) usecase.Output {
 	out := usecase.Output{
-		"id": item.ID.String(), "number": item.Number, "collection_id": item.CollectionID.String(),
+		"is_own": item.CreatedBy == reader,
+		"id":     item.ID.String(), "number": item.Number, "collection_id": item.CollectionID.String(),
 		"entry_type": item.EntryType, "title": item.Title, "notes": nil, "status": nil,
 		"is_completed": item.Completion.IsCompleted, "completed_at": nil,
 		"created_at": item.CreatedAt.UTC(), "updated_at": item.UpdatedAt.UTC(),
@@ -325,51 +399,108 @@ func (h RaiseRequest) Descriptor() usecase.Descriptor {
 	return d
 }
 
+// The scopes of a portal list (UC-SVC-11 check 3).
+const (
+	RequestsMine         = "MINE"
+	RequestsOrganisation = "ORGANISATION"
+)
+
+// MyRequests is one page of a portal list and the caller's organisation, nil for none.
+type MyRequests struct {
+	workrepo.ItemQueryResult
+	Organisation *domain.Organisation
+}
+
 // ListMyRequests answers the requests the actor raised in a collection, newest first
-// (UC-SVC-05 check 3).
+// (UC-SVC-05 check 3), or those of their organisation where it shares them (UC-SVC-11 check 3).
 type ListMyRequests struct{ Portal Portal }
 
 // Execute answers one page.
 func (h ListMyRequests) Execute(
-	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, cursor string, size int,
-) (workrepo.ItemQueryResult, error) {
-	if _, err := h.Portal.collectionOf(ctx, actor, collectionID, RequestsReadAction); err != nil {
-		return workrepo.ItemQueryResult{}, err
+	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, scope, cursor string, size int,
+) (MyRequests, error) {
+	if scope == "" {
+		scope = RequestsMine
 	}
-	filter, err := view.ParseFilter(map[string]any{
-		"field": view.FieldCreatedBy, "op": "EQ", "value": actor.AccountID.String(),
-	}, "/filter")
-	if err != nil {
-		return workrepo.ItemQueryResult{}, err
+	if scope != RequestsMine && scope != RequestsOrganisation {
+		return MyRequests{}, malformed("/scope", "requests.scope_unknown")
+	}
+	if _, err := h.Portal.collectionOf(ctx, actor, collectionID, RequestsReadAction); err != nil {
+		return MyRequests{}, err
 	}
 	sort, err := view.ParseSort([]any{map[string]any{"field": view.FieldCreatedAt, "dir": "DESC"}}, "/sort")
 	if err != nil {
-		return workrepo.ItemQueryResult{}, err
+		return MyRequests{}, err
 	}
 	if size < 1 {
 		size = defaultRequestPage
 	}
 	size = min(size, maxRequestPage)
-	search := workrepo.ItemSearch{
-		Anchor: workrepo.Anchor{Kind: workrepo.AnchorCollection, CollectionID: collectionID},
-		Spec:   view.Spec{Filter: filter, Sort: sort, Size: size, Cursor: cursor},
-	}
-	var result workrepo.ItemQueryResult
+	var answer MyRequests
 	err = h.Portal.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		result, err = h.Portal.Items.Query(ctx, search)
+		organisation, found, err := h.Portal.organisationOf(ctx, actor.AccountID)
+		if err != nil {
+			return err
+		}
+		if found {
+			answer.Organisation = &organisation
+		}
+		raisers := []shared.ID{actor.AccountID}
+		if scope == RequestsOrganisation {
+			if !found || !organisation.SharesRequests {
+				return shared.ErrForbidden.WithDetail("requests.organisation_not_shared")
+			}
+			members, err := h.Portal.Desk.Organisations.Members(ctx, organisation.Domains, domain.MaxOrganisationMembers)
+			if err != nil {
+				return err
+			}
+			if !slices.Contains(members, actor.AccountID) {
+				members = append(members[:min(len(members), domain.MaxOrganisationMembers-1)], actor.AccountID)
+			}
+			raisers = members
+		}
+		filter, err := view.ParseFilter(raisedBy(raisers), "/filter")
+		if err != nil {
+			return err
+		}
+		search := workrepo.ItemSearch{
+			Anchor: workrepo.Anchor{Kind: workrepo.AnchorCollection, CollectionID: collectionID},
+			Spec:   view.Spec{Filter: filter, Sort: sort, Size: size, Cursor: cursor},
+		}
+		answer.ItemQueryResult, err = h.Portal.Items.Query(ctx, search)
 		return err
 	})
-	return result, err
+	return answer, err
+}
+
+// raisedBy is the filter of the entries these people raised: one IN of up to view.MaxValues per
+// leaf, joined by OR, within the query's bounds for MaxOrganisationMembers.
+func raisedBy(accounts []shared.ID) map[string]any {
+	leaves := make([]any, 0, len(accounts)/view.MaxValues+1)
+	for start := 0; start < len(accounts); start += view.MaxValues {
+		chunk := accounts[start:min(start+view.MaxValues, len(accounts))]
+		values := make([]any, 0, len(chunk))
+		for _, id := range chunk {
+			values = append(values, id.String())
+		}
+		leaves = append(leaves, map[string]any{"field": view.FieldCreatedBy, "op": "IN", "value": values})
+	}
+	if len(leaves) == 1 {
+		return leaves[0].(map[string]any)
+	}
+	return map[string]any{"op": "OR", "nodes": leaves}
 }
 
 // Descriptor is the catalogue entry.
 func (h ListMyRequests) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListMyRequestsName, Permission: service.PermissionRequest,
-		Summary:     "The requests the caller raised in a collection, newest first, as the requester reads them.",
+		Summary: "The requests the caller raised in a collection, newest first, as the requester reads them; " +
+			"with scope ORGANISATION those of everybody of the caller's organisation, where it shares them.",
 		SideEffects: "None. Reads only.", TokenScope: deskRead, ReadOnly: true,
 		Input: []usecase.Field{
 			{Name: "collection_id", Kind: usecase.KindID, Required: true, Description: "The collection serving as the service."},
+			{Name: "scope", Kind: usecase.KindString, Enum: []string{RequestsMine, RequestsOrganisation}, Description: "MINE, the default, or ORGANISATION."},
 			{Name: "cursor", Kind: usecase.KindString, Description: "Continues a previous page."},
 			{Name: "size", Kind: usecase.KindInt, Description: "At most 100; 50 when left out."},
 		},
@@ -379,17 +510,23 @@ func (h ListMyRequests) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			result, err := h.Execute(ctx, actor, collectionID, in.String("cursor"), in.Int("size"))
+			result, err := h.Execute(ctx, actor, collectionID, in.String("scope"), in.String("cursor"), in.Int("size"))
 			if err != nil {
 				return nil, err
 			}
 			data := make([]usecase.Output, 0, len(result.Items))
 			for _, item := range result.Items {
-				data = append(data, RequestOutput(item))
+				data = append(data, requestOutputFor(item, actor.AccountID))
 			}
-			return usecase.Output{"data": data, "page_info": usecase.Output{
+			out := usecase.Output{"data": data, "page_info": usecase.Output{
 				"has_more": result.Info.HasMore, "next_cursor": result.Info.NextCursor,
-			}}, nil
+			}, "organisation": nil}
+			if result.Organisation != nil {
+				out["organisation"] = usecase.Output{
+					"name": result.Organisation.Name, "shares_requests": result.Organisation.SharesRequests,
+				}
+			}
+			return out, nil
 		}),
 	}, requestTarget)
 }
@@ -409,7 +546,7 @@ type ReadMyRequest struct{ Portal Portal }
 
 // Execute answers the request.
 func (h ReadMyRequest) Execute(ctx context.Context, actor appshared.ActorContext, itemID shared.ID) (MyRequest, error) {
-	item, err := h.Portal.ownRequest(ctx, actor, itemID)
+	item, err := h.Portal.visibleRequest(ctx, actor, itemID)
 	if err != nil {
 		return MyRequest{}, err
 	}
@@ -433,7 +570,8 @@ func (h ReadMyRequest) Execute(ctx context.Context, actor appshared.ActorContext
 		if answer.Goals, err = h.Portal.Desk.Records.OfItem(ctx, itemID); err != nil {
 			return err
 		}
-		if h.Portal.Desk.Ratings == nil {
+		// The score is its requester's own; a colleague reads the request without it.
+		if h.Portal.Desk.Ratings == nil || item.CreatedBy != actor.AccountID {
 			return nil
 		}
 		rating, err := h.Portal.Desk.Ratings.OfItem(ctx, itemID)
@@ -465,8 +603,9 @@ func PublicComments(comments []workdomain.Comment) []workdomain.Comment {
 func (h ReadMyRequest) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadMyRequestName, Permission: service.PermissionRequest,
-		Summary: "One request the caller raised: where it stands, the public replies - never an " +
-			"internal note -, how its SLA goals stand and the caller's own satisfaction score.",
+		Summary: "One request the caller raised, or a colleague's where their organisation shares its requests: " +
+			"where it stands, the public replies - never an internal note -, how its SLA goals stand and the " +
+			"caller's own satisfaction score.",
 		SideEffects: "None. Reads only.", TokenScope: deskRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The request."}},
 		Audit: usecase.AuditDeclaration{Action: RequestsReadAction},
@@ -479,7 +618,7 @@ func (h ReadMyRequest) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			out := RequestOutput(answer.Item)
+			out := requestOutputFor(answer.Item, actor.AccountID)
 			comments := make([]usecase.Output, 0, len(answer.Comments))
 			for _, comment := range answer.Comments {
 				body := any(nil)
@@ -489,7 +628,7 @@ func (h ReadMyRequest) Descriptor() usecase.Descriptor {
 				reply := usecase.Output{
 					"id": comment.ID.String(), "author_id": comment.AuthorID.String(), "body": body,
 					"created_at": comment.CreatedAt.UTC(), "parent_comment_id": nil,
-					"mine": comment.AuthorID == actor.AccountID,
+					"mine": comment.AuthorID == actor.AccountID, "by_requester": comment.AuthorID == answer.Item.CreatedBy,
 				}
 				if !comment.ParentCommentID.IsZero() {
 					reply["parent_comment_id"] = comment.ParentCommentID.String()

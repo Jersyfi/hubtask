@@ -10681,6 +10681,24 @@ func (e ReportPortfolioStatusJSONBodyStatus) Valid() bool {
 	}
 }
 
+// Defines values for ListMyRequestsParamsScope.
+const (
+	MINE         ListMyRequestsParamsScope = "MINE"
+	ORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
+)
+
+// Valid indicates whether the value is a known member of the ListMyRequestsParamsScope enum.
+func (e ListMyRequestsParamsScope) Valid() bool {
+	switch e {
+	case MINE:
+		return true
+	case ORGANISATION:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateSprintJSONBodyUnit.
 const (
 	UpdateSprintJSONBodyUnitHOURS  UpdateSprintJSONBodyUnit = "HOURS"
@@ -19794,6 +19812,12 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PortalOrganisation The organisation a requester belongs to, as the portal names it.
+type PortalOrganisation struct {
+	Name           string `json:"name"`
+	SharesRequests bool   `json:"shares_requests"`
+}
+
 // PortalRequest A request as the person who raised it reads it - never the team's fields.
 type PortalRequest struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -19802,11 +19826,14 @@ type PortalRequest struct {
 	EntryType    string             `json:"entry_type"`
 	Id           openapi_types.UUID `json:"id"`
 	IsCompleted  bool               `json:"is_completed"`
-	Notes        *string            `json:"notes"`
-	Number       int64              `json:"number"`
-	Status       *string            `json:"status"`
-	Title        string             `json:"title"`
-	UpdatedAt    time.Time          `json:"updated_at"`
+
+	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
+	IsOwn     *bool     `json:"is_own,omitempty"`
+	Notes     *string   `json:"notes"`
+	Number    int64     `json:"number"`
+	Status    *string   `json:"status"`
+	Title     string    `json:"title"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // PortalRequestDetail defines model for PortalRequestDetail.
@@ -19815,8 +19842,11 @@ type PortalRequestDetail struct {
 
 	// Comments The public replies, oldest first; at most 200, the newest.
 	Comments []struct {
-		AuthorId        openapi_types.UUID  `json:"author_id"`
-		Body            *string             `json:"body"`
+		AuthorId openapi_types.UUID `json:"author_id"`
+		Body     *string            `json:"body"`
+
+		// ByRequester Whether whoever raised the request wrote it; false for the team.
+		ByRequester     *bool               `json:"by_requester,omitempty"`
 		CreatedAt       time.Time           `json:"created_at"`
 		Id              openapi_types.UUID  `json:"id"`
 		Mine            bool                `json:"mine"`
@@ -19827,8 +19857,11 @@ type PortalRequestDetail struct {
 	EntryType   string             `json:"entry_type"`
 	Id          openapi_types.UUID `json:"id"`
 	IsCompleted bool               `json:"is_completed"`
-	Notes       *string            `json:"notes"`
-	Number      int64              `json:"number"`
+
+	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
+	IsOwn  *bool   `json:"is_own,omitempty"`
+	Notes  *string `json:"notes"`
+	Number int64   `json:"number"`
 
 	// Satisfaction The caller's own score of the resolved request; null while they gave none.
 	Satisfaction *RequestSatisfaction `json:"satisfaction"`
@@ -19840,8 +19873,11 @@ type PortalRequestDetail struct {
 
 // PortalRequestPage defines model for PortalRequestPage.
 type PortalRequestPage struct {
-	Data     []PortalRequest `json:"data"`
-	PageInfo PageInfo        `json:"page_info"`
+	Data []PortalRequest `json:"data"`
+
+	// Organisation The caller's organisation, `null` for none.
+	Organisation *PortalOrganisation `json:"organisation,omitempty"`
+	PageInfo     PageInfo            `json:"page_info"`
 }
 
 // Portfolio defines model for Portfolio.
@@ -20599,6 +20635,28 @@ type RequestCatalogue struct {
 type RequestSatisfaction struct {
 	RatedAt time.Time `json:"rated_at"`
 	Score   int       `json:"score"`
+}
+
+// RequesterOrganisation defines model for RequesterOrganisation.
+type RequesterOrganisation struct {
+	Domains        []string `json:"domains"`
+	Key            string   `json:"key"`
+	Name           string   `json:"name"`
+	SharesRequests bool     `json:"shares_requests"`
+	Version        int      `json:"version"`
+}
+
+// RequesterOrganisationDefine defines model for RequesterOrganisationDefine.
+type RequesterOrganisationDefine struct {
+	// Domains Mail domains such as `example.org`, small letters, without `@`.
+	Domains        []string `json:"domains"`
+	Name           string   `json:"name"`
+	SharesRequests *bool    `json:"shares_requests,omitempty"`
+}
+
+// RequesterOrganisationList defines model for RequesterOrganisationList.
+type RequesterOrganisationList struct {
+	Data []RequesterOrganisation `json:"data"`
 }
 
 // ResealAccepted defines model for ResealAccepted.
@@ -26407,12 +26465,24 @@ type ListRequestCatalogueParams struct {
 	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
 }
 
+// DefineRequesterOrganisationParams defines parameters for DefineRequesterOrganisation.
+type DefineRequesterOrganisationParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListMyRequestsParams defines parameters for ListMyRequests.
 type ListMyRequestsParams struct {
 	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
 	Cursor       *Cursor      `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size         *PageSize    `form:"size,omitempty" json:"size,omitempty"`
+
+	// Scope `MINE`, the default, or `ORGANISATION`.
+	Scope *ListMyRequestsParamsScope `form:"scope,omitempty" json:"scope,omitempty"`
 }
+
+// ListMyRequestsParamsScope defines parameters for ListMyRequests.
+type ListMyRequestsParamsScope string
 
 // RaiseRequestJSONBody defines parameters for RaiseRequest.
 type RaiseRequestJSONBody struct {
@@ -27821,6 +27891,9 @@ type PublishReleaseJSONRequestBody PublishReleaseJSONBody
 
 // DefineReplyTemplateJSONRequestBody defines body for DefineReplyTemplate for application/json ContentType.
 type DefineReplyTemplateJSONRequestBody = ReplyTemplateDefine
+
+// DefineRequesterOrganisationJSONRequestBody defines body for DefineRequesterOrganisation for application/json ContentType.
+type DefineRequesterOrganisationJSONRequestBody = RequesterOrganisationDefine
 
 // RaiseRequestJSONRequestBody defines body for RaiseRequest for application/json ContentType.
 type RaiseRequestJSONRequestBody RaiseRequestJSONBody
@@ -36614,9 +36687,42 @@ type ClientInterface interface {
 	// Corresponds with GET /request-catalogue (the `ListRequestCatalogue` operationId).
 	ListRequestCatalogue(ctx context.Context, params *ListRequestCatalogueParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListRequesterOrganisations The portal's organisations
+	//
+	// Every organisation of the workspace, by key: its name, the mail domains its people are assigned by and whether they see each other's requests in the portal. Needs READ at the workspace and the service desk switched on.
+	//
+	// Corresponds with GET /requester-organisations (the `ListRequesterOrganisations` operationId).
+	ListRequesterOrganisations(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteRequesterOrganisation Delete an organisation
+	//
+	// Deletes the organisation; its people keep their own requests and see only those again. Needs STRUCTURE at the workspace.
+	//
+	// Corresponds with DELETE /requester-organisations/{organisationKey} (the `DeleteRequesterOrganisation` operationId).
+	DeleteRequesterOrganisation(ctx context.Context, organisationKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineRequesterOrganisationWithBody Add or replace an organisation
+	//
+	// Creates the organisation under the key, or replaces the one there. Every person whose address is at one of its domains belongs to it - exactly that domain, never a subdomain. A domain is in at most one organisation (`organisations.domain_taken`). Its people see each other's requests only with `shares_requests`, which is off unless set. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /requester-organisations/{organisationKey} (the `DefineRequesterOrganisation` operationId).
+	DefineRequesterOrganisationWithBody(ctx context.Context, organisationKey string, params *DefineRequesterOrganisationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineRequesterOrganisation Add or replace an organisation
+	//
+	// Creates the organisation under the key, or replaces the one there. Every person whose address is at one of its domains belongs to it - exactly that domain, never a subdomain. A domain is in at most one organisation (`organisations.domain_taken`). Its people see each other's requests only with `shares_requests`, which is off unless set. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /requester-organisations/{organisationKey} (the `DefineRequesterOrganisation` operationId).
+	DefineRequesterOrganisation(ctx context.Context, organisationKey string, params *DefineRequesterOrganisationParams, body DefineRequesterOrganisationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListMyRequests The requests I raised
 	//
 	// The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.
+	// With `scope=ORGANISATION`, the requests of every person of the caller's organisation - the one their address's mail domain belongs to - where that organisation shares its requests; otherwise refused with `requests.organisation_not_shared`. The answer names the caller's organisation either way, `null` for none.
 	//
 	// Corresponds with GET /requests (the `ListMyRequests` operationId).
 	ListMyRequests(ctx context.Context, params *ListMyRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -36641,7 +36747,7 @@ type ClientInterface interface {
 
 	// ReadMyRequest One request I raised
 	//
-	// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found. Needs REQUEST at its collection.
+	// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found, unless they are of the caller's organisation and it shares its requests. Needs REQUEST at its collection.
 	//
 	// Corresponds with GET /requests/{itemId} (the `ReadMyRequest` operationId).
 	ReadMyRequest(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -55669,9 +55775,82 @@ func (c *Client) ListRequestCatalogue(ctx context.Context, params *ListRequestCa
 	return c.Client.Do(req)
 }
 
+// ListRequesterOrganisations The portal's organisations
+//
+// Every organisation of the workspace, by key: its name, the mail domains its people are assigned by and whether they see each other's requests in the portal. Needs READ at the workspace and the service desk switched on.
+//
+// Corresponds with GET /requester-organisations (the `ListRequesterOrganisations` operationId).
+func (c *Client) ListRequesterOrganisations(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRequesterOrganisationsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteRequesterOrganisation Delete an organisation
+//
+// Deletes the organisation; its people keep their own requests and see only those again. Needs STRUCTURE at the workspace.
+//
+// Corresponds with DELETE /requester-organisations/{organisationKey} (the `DeleteRequesterOrganisation` operationId).
+func (c *Client) DeleteRequesterOrganisation(ctx context.Context, organisationKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteRequesterOrganisationRequest(c.Server, organisationKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineRequesterOrganisationWithBody Add or replace an organisation
+//
+// Creates the organisation under the key, or replaces the one there. Every person whose address is at one of its domains belongs to it - exactly that domain, never a subdomain. A domain is in at most one organisation (`organisations.domain_taken`). Its people see each other's requests only with `shares_requests`, which is off unless set. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /requester-organisations/{organisationKey} (the `DefineRequesterOrganisation` operationId).
+func (c *Client) DefineRequesterOrganisationWithBody(ctx context.Context, organisationKey string, params *DefineRequesterOrganisationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineRequesterOrganisationRequestWithBody(c.Server, organisationKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineRequesterOrganisation Add or replace an organisation
+//
+// Creates the organisation under the key, or replaces the one there. Every person whose address is at one of its domains belongs to it - exactly that domain, never a subdomain. A domain is in at most one organisation (`organisations.domain_taken`). Its people see each other's requests only with `shares_requests`, which is off unless set. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /requester-organisations/{organisationKey} (the `DefineRequesterOrganisation` operationId).
+func (c *Client) DefineRequesterOrganisation(ctx context.Context, organisationKey string, params *DefineRequesterOrganisationParams, body DefineRequesterOrganisationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineRequesterOrganisationRequest(c.Server, organisationKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListMyRequests The requests I raised
 //
 // The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.
+// With `scope=ORGANISATION`, the requests of every person of the caller's organisation - the one their address's mail domain belongs to - where that organisation shares its requests; otherwise refused with `requests.organisation_not_shared`. The answer names the caller's organisation either way, `null` for none.
 //
 // Corresponds with GET /requests (the `ListMyRequests` operationId).
 func (c *Client) ListMyRequests(ctx context.Context, params *ListMyRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -55726,7 +55905,7 @@ func (c *Client) RaiseRequest(ctx context.Context, params *RaiseRequestParams, b
 
 // ReadMyRequest One request I raised
 //
-// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found. Needs REQUEST at its collection.
+// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found, unless they are of the caller's organisation and it shares its requests. Needs REQUEST at its collection.
 //
 // Corresponds with GET /requests/{itemId} (the `ReadMyRequest` operationId).
 func (c *Client) ReadMyRequest(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -88921,6 +89100,129 @@ func NewListRequestCatalogueRequest(server string, params *ListRequestCatalogueP
 	return req, nil
 }
 
+// NewListRequesterOrganisationsRequest constructs an http.Request for the ListRequesterOrganisations method
+func NewListRequesterOrganisationsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/requester-organisations")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteRequesterOrganisationRequest constructs an http.Request for the DeleteRequesterOrganisation method
+func NewDeleteRequesterOrganisationRequest(server string, organisationKey string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "organisationKey", organisationKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/requester-organisations/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineRequesterOrganisationRequest calls the generic DefineRequesterOrganisation builder with application/json body
+func NewDefineRequesterOrganisationRequest(server string, organisationKey string, params *DefineRequesterOrganisationParams, body DefineRequesterOrganisationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineRequesterOrganisationRequestWithBody(server, organisationKey, params, "application/json", bodyReader)
+}
+
+// NewDefineRequesterOrganisationRequestWithBody constructs an http.Request for the DefineRequesterOrganisation method, with any body, and a specified content type
+func NewDefineRequesterOrganisationRequestWithBody(server string, organisationKey string, params *DefineRequesterOrganisationParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "organisationKey", organisationKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/requester-organisations/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListMyRequestsRequest constructs an http.Request for the ListMyRequests method
 func NewListMyRequestsRequest(server string, params *ListMyRequestsParams) (*http.Request, error) {
 	var err error
@@ -88972,6 +89274,18 @@ func NewListMyRequestsRequest(server string, params *ListMyRequestsParams) (*htt
 		if params.Size != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Scope != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "scope", *params.Scope, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -104552,9 +104866,46 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /request-catalogue (the `ListRequestCatalogue` operationId).
 	ListRequestCatalogueWithResponse(ctx context.Context, params *ListRequestCatalogueParams, reqEditors ...RequestEditorFn) (*ListRequestCatalogueResult, error)
 
+	// ListRequesterOrganisationsWithResponse The portal's organisations
+	//
+	// Every organisation of the workspace, by key: its name, the mail domains its people are assigned by and whether they see each other's requests in the portal. Needs READ at the workspace and the service desk switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /requester-organisations (the `ListRequesterOrganisations` operationId).
+	ListRequesterOrganisationsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListRequesterOrganisationsResult, error)
+
+	// DeleteRequesterOrganisationWithResponse Delete an organisation
+	//
+	// Deletes the organisation; its people keep their own requests and see only those again. Needs STRUCTURE at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /requester-organisations/{organisationKey} (the `DeleteRequesterOrganisation` operationId).
+	DeleteRequesterOrganisationWithResponse(ctx context.Context, organisationKey string, reqEditors ...RequestEditorFn) (*DeleteRequesterOrganisationResult, error)
+
+	// DefineRequesterOrganisationWithBodyWithResponse Add or replace an organisation
+	//
+	// Creates the organisation under the key, or replaces the one there. Every person whose address is at one of its domains belongs to it - exactly that domain, never a subdomain. A domain is in at most one organisation (`organisations.domain_taken`). Its people see each other's requests only with `shares_requests`, which is off unless set. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /requester-organisations/{organisationKey} (the `DefineRequesterOrganisation` operationId).
+	DefineRequesterOrganisationWithBodyWithResponse(ctx context.Context, organisationKey string, params *DefineRequesterOrganisationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineRequesterOrganisationResult, error)
+
+	// DefineRequesterOrganisationWithResponse Add or replace an organisation
+	//
+	// Creates the organisation under the key, or replaces the one there. Every person whose address is at one of its domains belongs to it - exactly that domain, never a subdomain. A domain is in at most one organisation (`organisations.domain_taken`). Its people see each other's requests only with `shares_requests`, which is off unless set. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /requester-organisations/{organisationKey} (the `DefineRequesterOrganisation` operationId).
+	DefineRequesterOrganisationWithResponse(ctx context.Context, organisationKey string, params *DefineRequesterOrganisationParams, body DefineRequesterOrganisationJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineRequesterOrganisationResult, error)
+
 	// ListMyRequestsWithResponse The requests I raised
 	//
 	// The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.
+	// With `scope=ORGANISATION`, the requests of every person of the caller's organisation - the one their address's mail domain belongs to - where that organisation shares its requests; otherwise refused with `requests.organisation_not_shared`. The answer names the caller's organisation either way, `null` for none.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -104581,7 +104932,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadMyRequestWithResponse One request I raised
 	//
-	// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found. Needs REQUEST at its collection.
+	// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found, unless they are of the caller's organisation and it shares its requests. Needs REQUEST at its collection.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -136707,6 +137058,143 @@ func (r ListRequestCatalogueResult) ContentType() string {
 	return ""
 }
 
+type ListRequesterOrganisationsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RequesterOrganisationList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListRequesterOrganisationsResult) GetJSON200() *RequesterOrganisationList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListRequesterOrganisationsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListRequesterOrganisationsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListRequesterOrganisationsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListRequesterOrganisationsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListRequesterOrganisationsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteRequesterOrganisationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteRequesterOrganisationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteRequesterOrganisationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteRequesterOrganisationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteRequesterOrganisationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteRequesterOrganisationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineRequesterOrganisationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RequesterOrganisation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineRequesterOrganisationResult) GetJSON200() *RequesterOrganisation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineRequesterOrganisationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineRequesterOrganisationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineRequesterOrganisationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineRequesterOrganisationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineRequesterOrganisationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListMyRequestsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -157794,9 +158282,70 @@ func (c *ClientWithResponses) ListRequestCatalogueWithResponse(ctx context.Conte
 	return ParseListRequestCatalogueResult(rsp)
 }
 
+// ListRequesterOrganisationsWithResponse The portal's organisations
+//
+// Every organisation of the workspace, by key: its name, the mail domains its people are assigned by and whether they see each other's requests in the portal. Needs READ at the workspace and the service desk switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /requester-organisations (the `ListRequesterOrganisations` operationId).
+func (c *ClientWithResponses) ListRequesterOrganisationsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListRequesterOrganisationsResult, error) {
+	rsp, err := c.ListRequesterOrganisations(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRequesterOrganisationsResult(rsp)
+}
+
+// DeleteRequesterOrganisationWithResponse Delete an organisation
+//
+// Deletes the organisation; its people keep their own requests and see only those again. Needs STRUCTURE at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /requester-organisations/{organisationKey} (the `DeleteRequesterOrganisation` operationId).
+func (c *ClientWithResponses) DeleteRequesterOrganisationWithResponse(ctx context.Context, organisationKey string, reqEditors ...RequestEditorFn) (*DeleteRequesterOrganisationResult, error) {
+	rsp, err := c.DeleteRequesterOrganisation(ctx, organisationKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteRequesterOrganisationResult(rsp)
+}
+
+// DefineRequesterOrganisationWithBodyWithResponse Add or replace an organisation
+//
+// Creates the organisation under the key, or replaces the one there. Every person whose address is at one of its domains belongs to it - exactly that domain, never a subdomain. A domain is in at most one organisation (`organisations.domain_taken`). Its people see each other's requests only with `shares_requests`, which is off unless set. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /requester-organisations/{organisationKey} (the `DefineRequesterOrganisation` operationId).
+func (c *ClientWithResponses) DefineRequesterOrganisationWithBodyWithResponse(ctx context.Context, organisationKey string, params *DefineRequesterOrganisationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineRequesterOrganisationResult, error) {
+	rsp, err := c.DefineRequesterOrganisationWithBody(ctx, organisationKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineRequesterOrganisationResult(rsp)
+}
+
+// DefineRequesterOrganisationWithResponse Add or replace an organisation
+//
+// Creates the organisation under the key, or replaces the one there. Every person whose address is at one of its domains belongs to it - exactly that domain, never a subdomain. A domain is in at most one organisation (`organisations.domain_taken`). Its people see each other's requests only with `shares_requests`, which is off unless set. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /requester-organisations/{organisationKey} (the `DefineRequesterOrganisation` operationId).
+func (c *ClientWithResponses) DefineRequesterOrganisationWithResponse(ctx context.Context, organisationKey string, params *DefineRequesterOrganisationParams, body DefineRequesterOrganisationJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineRequesterOrganisationResult, error) {
+	rsp, err := c.DefineRequesterOrganisation(ctx, organisationKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineRequesterOrganisationResult(rsp)
+}
+
 // ListMyRequestsWithResponse The requests I raised
 //
 // The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.
+// With `scope=ORGANISATION`, the requests of every person of the caller's organisation - the one their address's mail domain belongs to - where that organisation shares its requests; otherwise refused with `requests.organisation_not_shared`. The answer names the caller's organisation either way, `null` for none.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -157841,7 +158390,7 @@ func (c *ClientWithResponses) RaiseRequestWithResponse(ctx context.Context, para
 
 // ReadMyRequestWithResponse One request I raised
 //
-// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found. Needs REQUEST at its collection.
+// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found, unless they are of the caller's organisation and it shares its requests. Needs REQUEST at its collection.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -182475,6 +183024,101 @@ func ParseListRequestCatalogueResult(rsp *http.Response) (*ListRequestCatalogueR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest RequestCatalogue
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListRequesterOrganisationsResult parses an HTTP response from a ListRequesterOrganisationsWithResponse call
+func ParseListRequesterOrganisationsResult(rsp *http.Response) (*ListRequesterOrganisationsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListRequesterOrganisationsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RequesterOrganisationList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteRequesterOrganisationResult parses an HTTP response from a DeleteRequesterOrganisationWithResponse call
+func ParseDeleteRequesterOrganisationResult(rsp *http.Response) (*DeleteRequesterOrganisationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteRequesterOrganisationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineRequesterOrganisationResult parses an HTTP response from a DefineRequesterOrganisationWithResponse call
+func ParseDefineRequesterOrganisationResult(rsp *http.Response) (*DefineRequesterOrganisationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineRequesterOrganisationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RequesterOrganisation
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

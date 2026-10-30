@@ -157,6 +157,7 @@ var restDoors = map[string]restDoor{
 	"defineGoalPeriod":                  {UseCase: "DefineGoalPeriod", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"defineHubCalendar":                 {UseCase: "DefineHubCalendar", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"defineReplyTemplate":               {UseCase: "DefineReplyTemplate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"defineRequesterOrganisation":       {UseCase: "DefineRequesterOrganisation", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"defineSlaPolicy":                   {UseCase: "DefineSlaPolicy", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"defineSoftwareAlias":               {UseCase: "DefineSoftwareAlias", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"defineWorkType":                    {UseCase: "DefineWorkType", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
@@ -186,6 +187,7 @@ var restDoors = map[string]restDoor{
 	"deleteRelease":                     {UseCase: "DeleteRelease", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteReminder":                    {UseCase: "DeleteReminder", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteReplyTemplate":               {UseCase: "DeleteReplyTemplate", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteRequesterOrganisation":       {UseCase: "DeleteRequesterOrganisation", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteRetentionPolicy":             {UseCase: "DeleteRetentionPolicy", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteRole":                        {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteRule":                        {UseCase: "DeleteRule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -334,7 +336,7 @@ var restDoors = map[string]restDoor{
 	"listMailboxes":                     {UseCase: "ListMailboxes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listModules":                       {UseCase: "ListModules", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listMyApprovals":                   {UseCase: "ListMyApprovals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listMyRequests":                    {UseCase: "ListMyRequests", Status: 200, Query: []string{"collection_id", "cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listMyRequests":                    {UseCase: "ListMyRequests", Status: 200, Query: []string{"collection_id", "cursor", "scope", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listNotificationPreferences":       {UseCase: "ListNotificationPreferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listOauthClients":                  {UseCase: "ListOauthClients", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listOauthGrants":                   {UseCase: "ListOauthGrants", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -358,6 +360,7 @@ var restDoors = map[string]restDoor{
 	"listReminders":                     {UseCase: "ListReminders", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listReplyTemplates":                {UseCase: "ListReplyTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRequestCatalogue":              {UseCase: "ListRequestCatalogue", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listRequesterOrganisations":        {UseCase: "ListRequesterOrganisations", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRetentionPolicies":             {UseCase: "ListRetentionPolicies", Status: 200, Query: []string{"container_id", "effective"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRoles":                         {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRuleRuns":                      {UseCase: "ListRuleRuns", Status: 200, Query: []string{"cursor", "from", "rule_id", "size", "status", "to", "trigger"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
@@ -1613,6 +1616,13 @@ func (c *RestController) DefineReplyTemplate(w http.ResponseWriter, r *http.Requ
 	c.door(w, r, restDoors["defineReplyTemplate"], usecase.Input{"key": templateKey}, params, &body, &answer)
 }
 
+// DefineRequesterOrganisation answers PUT /requester-organisations/{organisationKey} by the generated mapping.
+func (c *RestController) DefineRequesterOrganisation(w http.ResponseWriter, r *http.Request, organisationKey string, params openapi.DefineRequesterOrganisationParams) {
+	var body openapi.DefineRequesterOrganisationJSONRequestBody
+	var answer openapi.RequesterOrganisation
+	c.door(w, r, restDoors["defineRequesterOrganisation"], usecase.Input{"key": organisationKey}, params, &body, &answer)
+}
+
 // DefineSlaPolicy answers PUT /sla-policies/{policyKey} by the generated mapping.
 func (c *RestController) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, policyKey string, params openapi.DefineSlaPolicyParams) {
 	var body openapi.DefineSlaPolicyJSONRequestBody
@@ -1763,6 +1773,11 @@ func (c *RestController) DeleteReminder(w http.ResponseWriter, r *http.Request, 
 // DeleteReplyTemplate answers DELETE /reply-templates/{templateKey} by the generated mapping.
 func (c *RestController) DeleteReplyTemplate(w http.ResponseWriter, r *http.Request, templateKey string) {
 	c.door(w, r, restDoors["deleteReplyTemplate"], usecase.Input{"key": templateKey}, nil, nil, nil)
+}
+
+// DeleteRequesterOrganisation answers DELETE /requester-organisations/{organisationKey} by the generated mapping.
+func (c *RestController) DeleteRequesterOrganisation(w http.ResponseWriter, r *http.Request, organisationKey string) {
+	c.door(w, r, restDoors["deleteRequesterOrganisation"], usecase.Input{"key": organisationKey}, nil, nil, nil)
 }
 
 // DeleteRetentionPolicy answers DELETE /retention-policies/{policyId} by the generated mapping.
@@ -2727,6 +2742,12 @@ func (c *RestController) ListReplyTemplates(w http.ResponseWriter, r *http.Reque
 func (c *RestController) ListRequestCatalogue(w http.ResponseWriter, r *http.Request, params openapi.ListRequestCatalogueParams) {
 	var answer openapi.RequestCatalogue
 	c.door(w, r, restDoors["listRequestCatalogue"], usecase.Input{}, params, nil, &answer)
+}
+
+// ListRequesterOrganisations answers GET /requester-organisations by the generated mapping.
+func (c *RestController) ListRequesterOrganisations(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.RequesterOrganisationList
+	c.door(w, r, restDoors["listRequesterOrganisations"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListRetentionPolicies answers GET /retention-policies by the generated mapping.

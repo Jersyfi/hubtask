@@ -10675,6 +10675,24 @@ func (e ReportPortfolioStatusJSONBodyStatus) Valid() bool {
 	}
 }
 
+// Defines values for ListMyRequestsParamsScope.
+const (
+	MINE         ListMyRequestsParamsScope = "MINE"
+	ORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
+)
+
+// Valid indicates whether the value is a known member of the ListMyRequestsParamsScope enum.
+func (e ListMyRequestsParamsScope) Valid() bool {
+	switch e {
+	case MINE:
+		return true
+	case ORGANISATION:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateSprintJSONBodyUnit.
 const (
 	UpdateSprintJSONBodyUnitHOURS  UpdateSprintJSONBodyUnit = "HOURS"
@@ -19788,6 +19806,12 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PortalOrganisation The organisation a requester belongs to, as the portal names it.
+type PortalOrganisation struct {
+	Name           string `json:"name"`
+	SharesRequests bool   `json:"shares_requests"`
+}
+
 // PortalRequest A request as the person who raised it reads it - never the team's fields.
 type PortalRequest struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -19796,11 +19820,14 @@ type PortalRequest struct {
 	EntryType    string             `json:"entry_type"`
 	Id           openapi_types.UUID `json:"id"`
 	IsCompleted  bool               `json:"is_completed"`
-	Notes        *string            `json:"notes"`
-	Number       int64              `json:"number"`
-	Status       *string            `json:"status"`
-	Title        string             `json:"title"`
-	UpdatedAt    time.Time          `json:"updated_at"`
+
+	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
+	IsOwn     *bool     `json:"is_own,omitempty"`
+	Notes     *string   `json:"notes"`
+	Number    int64     `json:"number"`
+	Status    *string   `json:"status"`
+	Title     string    `json:"title"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // PortalRequestDetail defines model for PortalRequestDetail.
@@ -19809,8 +19836,11 @@ type PortalRequestDetail struct {
 
 	// Comments The public replies, oldest first; at most 200, the newest.
 	Comments []struct {
-		AuthorId        openapi_types.UUID  `json:"author_id"`
-		Body            *string             `json:"body"`
+		AuthorId openapi_types.UUID `json:"author_id"`
+		Body     *string            `json:"body"`
+
+		// ByRequester Whether whoever raised the request wrote it; false for the team.
+		ByRequester     *bool               `json:"by_requester,omitempty"`
 		CreatedAt       time.Time           `json:"created_at"`
 		Id              openapi_types.UUID  `json:"id"`
 		Mine            bool                `json:"mine"`
@@ -19821,8 +19851,11 @@ type PortalRequestDetail struct {
 	EntryType   string             `json:"entry_type"`
 	Id          openapi_types.UUID `json:"id"`
 	IsCompleted bool               `json:"is_completed"`
-	Notes       *string            `json:"notes"`
-	Number      int64              `json:"number"`
+
+	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
+	IsOwn  *bool   `json:"is_own,omitempty"`
+	Notes  *string `json:"notes"`
+	Number int64   `json:"number"`
 
 	// Satisfaction The caller's own score of the resolved request; null while they gave none.
 	Satisfaction *RequestSatisfaction `json:"satisfaction"`
@@ -19834,8 +19867,11 @@ type PortalRequestDetail struct {
 
 // PortalRequestPage defines model for PortalRequestPage.
 type PortalRequestPage struct {
-	Data     []PortalRequest `json:"data"`
-	PageInfo PageInfo        `json:"page_info"`
+	Data []PortalRequest `json:"data"`
+
+	// Organisation The caller's organisation, `null` for none.
+	Organisation *PortalOrganisation `json:"organisation,omitempty"`
+	PageInfo     PageInfo            `json:"page_info"`
 }
 
 // Portfolio defines model for Portfolio.
@@ -20593,6 +20629,28 @@ type RequestCatalogue struct {
 type RequestSatisfaction struct {
 	RatedAt time.Time `json:"rated_at"`
 	Score   int       `json:"score"`
+}
+
+// RequesterOrganisation defines model for RequesterOrganisation.
+type RequesterOrganisation struct {
+	Domains        []string `json:"domains"`
+	Key            string   `json:"key"`
+	Name           string   `json:"name"`
+	SharesRequests bool     `json:"shares_requests"`
+	Version        int      `json:"version"`
+}
+
+// RequesterOrganisationDefine defines model for RequesterOrganisationDefine.
+type RequesterOrganisationDefine struct {
+	// Domains Mail domains such as `example.org`, small letters, without `@`.
+	Domains        []string `json:"domains"`
+	Name           string   `json:"name"`
+	SharesRequests *bool    `json:"shares_requests,omitempty"`
+}
+
+// RequesterOrganisationList defines model for RequesterOrganisationList.
+type RequesterOrganisationList struct {
+	Data []RequesterOrganisation `json:"data"`
 }
 
 // ResealAccepted defines model for ResealAccepted.
@@ -26401,12 +26459,24 @@ type ListRequestCatalogueParams struct {
 	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
 }
 
+// DefineRequesterOrganisationParams defines parameters for DefineRequesterOrganisation.
+type DefineRequesterOrganisationParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListMyRequestsParams defines parameters for ListMyRequests.
 type ListMyRequestsParams struct {
 	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
 	Cursor       *Cursor      `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size         *PageSize    `form:"size,omitempty" json:"size,omitempty"`
+
+	// Scope `MINE`, the default, or `ORGANISATION`.
+	Scope *ListMyRequestsParamsScope `form:"scope,omitempty" json:"scope,omitempty"`
 }
+
+// ListMyRequestsParamsScope defines parameters for ListMyRequests.
+type ListMyRequestsParamsScope string
 
 // RaiseRequestJSONBody defines parameters for RaiseRequest.
 type RaiseRequestJSONBody struct {
@@ -27815,6 +27885,9 @@ type PublishReleaseJSONRequestBody PublishReleaseJSONBody
 
 // DefineReplyTemplateJSONRequestBody defines body for DefineReplyTemplate for application/json ContentType.
 type DefineReplyTemplateJSONRequestBody = ReplyTemplateDefine
+
+// DefineRequesterOrganisationJSONRequestBody defines body for DefineRequesterOrganisation for application/json ContentType.
+type DefineRequesterOrganisationJSONRequestBody = RequesterOrganisationDefine
 
 // RaiseRequestJSONRequestBody defines body for RaiseRequest for application/json ContentType.
 type RaiseRequestJSONRequestBody RaiseRequestJSONBody
@@ -30299,6 +30372,15 @@ type ServerInterface interface {
 	// ListRequestCatalogue The kinds of request a service offers
 	// (GET /request-catalogue)
 	ListRequestCatalogue(w http.ResponseWriter, r *http.Request, params ListRequestCatalogueParams)
+	// ListRequesterOrganisations The portal's organisations
+	// (GET /requester-organisations)
+	ListRequesterOrganisations(w http.ResponseWriter, r *http.Request)
+	// DeleteRequesterOrganisation Delete an organisation
+	// (DELETE /requester-organisations/{organisationKey})
+	DeleteRequesterOrganisation(w http.ResponseWriter, r *http.Request, organisationKey string)
+	// DefineRequesterOrganisation Add or replace an organisation
+	// (PUT /requester-organisations/{organisationKey})
+	DefineRequesterOrganisation(w http.ResponseWriter, r *http.Request, organisationKey string, params DefineRequesterOrganisationParams)
 	// ListMyRequests The requests I raised
 	// (GET /requests)
 	ListMyRequests(w http.ResponseWriter, r *http.Request, params ListMyRequestsParams)
@@ -51719,6 +51801,96 @@ func (siw *ServerInterfaceWrapper) ListRequestCatalogue(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ListRequesterOrganisations operation middleware
+func (siw *ServerInterfaceWrapper) ListRequesterOrganisations(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRequesterOrganisations(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteRequesterOrganisation operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRequesterOrganisation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "organisationKey" -------------
+	var organisationKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "organisationKey", r.PathValue("organisationKey"), &organisationKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "organisationKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRequesterOrganisation(w, r, organisationKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineRequesterOrganisation operation middleware
+func (siw *ServerInterfaceWrapper) DefineRequesterOrganisation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "organisationKey" -------------
+	var organisationKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "organisationKey", r.PathValue("organisationKey"), &organisationKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "organisationKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineRequesterOrganisationParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineRequesterOrganisation(w, r, organisationKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListMyRequests operation middleware
 func (siw *ServerInterfaceWrapper) ListMyRequests(w http.ResponseWriter, r *http.Request) {
 
@@ -51763,6 +51935,19 @@ func (siw *ServerInterfaceWrapper) ListMyRequests(w http.ResponseWriter, r *http
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "scope" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scope", r.URL.Query(), &params.Scope, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "scope"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scope", Err: err})
 		}
 		return
 	}
@@ -56547,6 +56732,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DefineSlaPolicy)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-report", wrapper.ReportSla)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/sla", wrapper.ReadEntrySla)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requester-organisations", wrapper.ListRequesterOrganisations)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/requester-organisations/{organisationKey}", wrapper.DeleteRequesterOrganisation)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/requester-organisations/{organisationKey}", wrapper.DefineRequesterOrganisation)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/reply-templates", wrapper.ListReplyTemplates)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/reply-templates/{templateKey}", wrapper.DeleteReplyTemplate)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/reply-templates/{templateKey}", wrapper.DefineReplyTemplate)

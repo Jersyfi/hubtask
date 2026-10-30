@@ -671,6 +671,18 @@ class Client:
         """How an entry's SLA goals stand"""
         return self._call("GET", "/items/{itemId}/sla", {"itemId": item_id}, None, {}, None, "none", None, "json")
 
+    def list_requester_organisations(self) -> "RequesterOrganisationList":
+        """The portal's organisations"""
+        return self._call("GET", "/requester-organisations", {}, None, {}, None, "none", None, "json")
+
+    def define_requester_organisation(self, organisation_key: str, body: "RequesterOrganisationDefine", *, if_match: str | None = None) -> "RequesterOrganisation":
+        """Add or replace an organisation"""
+        return self._call("PUT", "/requester-organisations/{organisationKey}", {"organisationKey": organisation_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_requester_organisation(self, organisation_key: str) -> None:
+        """Delete an organisation"""
+        return self._call("DELETE", "/requester-organisations/{organisationKey}", {"organisationKey": organisation_key}, None, {}, None, "none", None, "void")
+
     def list_reply_templates(self) -> "ReplyTemplateList":
         """The workspace's canned replies"""
         return self._call("GET", "/reply-templates", {}, None, {}, None, "none", None, "json")

@@ -1222,6 +1222,23 @@ var generatedCommands = []door{
 			{Name: "switch", Kind: "string", Help: "OFF, the default, or INHERIT to leave the module to the level above", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id", "module", "on", "people"}},
+	{Group: "organisation", Verb: "define", OperationID: "defineRequesterOrganisation", Method: "PUT", Path: "/requester-organisations/{organisationKey}", Summary: "Add or replace an organisation",
+		PathParams: []doorParam{
+			{Name: "organisationKey", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "domains", Kind: "strings", Help: "Mail domains such as `example.org`, small letters, without `@`", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "shares_requests", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "organisation", Verb: "ls", OperationID: "listRequesterOrganisations", Method: "GET", Path: "/requester-organisations", Summary: "The portal's organisations",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
+	{Group: "organisation", Verb: "rm", OperationID: "deleteRequesterOrganisation", Method: "DELETE", Path: "/requester-organisations/{organisationKey}", Summary: "Delete an organisation",
+		PathParams: []doorParam{
+			{Name: "organisationKey", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "page", Verb: "access", OperationID: "readPageAccess", Method: "GET", Path: "/pages/{pageId}/access", Summary: "Who reads a page beyond its hub",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
@@ -1717,6 +1734,7 @@ var generatedCommands = []door{
 		Query: []doorParam{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
 			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "scope", Kind: "string", Help: "`MINE`, the default, or `ORGANISATION`", Required: false},
 			{Name: "size", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "status"}},
