@@ -16,7 +16,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-type replyStore struct{ rows map[string]domain.ReplyTemplate }
+type replyStore struct {
+	rows map[string]domain.ReplyTemplate
+}
 
 func (s *replyStore) Insert(_ context.Context, t domain.ReplyTemplate) error {
 	s.rows[t.Key] = t

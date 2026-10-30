@@ -36,7 +36,7 @@ const (
 	createEntryUseCase = "CreateWorkItem"
 	addCommentUseCase  = "AddComment"
 	// MaxPortalComments bounds the discussion one read answers; a longer one reads its newest.
-	MaxPortalComments = 200
+	MaxPortalComments  = 200
 	defaultRequestPage = 50
 	maxRequestPage     = 100
 )
@@ -289,7 +289,7 @@ func (h RaiseRequest) Descriptor() usecase.Descriptor {
 			{Name: "notes", Kind: usecase.KindString, Description: "The request's description."},
 			{Name: "custom_fields", Kind: usecase.KindObject, Description: "The form's answers by field key."},
 		},
-		Audit: usecase.AuditDeclaration{Action: RequestRaisedAction},
+		Audit:    usecase.AuditDeclaration{Action: RequestRaisedAction},
 		Activity: usecase.ActivityDeclaration{Exempt: "the entry use case records the creation in the entry's history."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			collectionID, err := in.ID("collection_id")
@@ -524,4 +524,3 @@ func (h CommentOnMyRequest) Descriptor() usecase.Descriptor {
 		}),
 	}, requestTarget)
 }
-
