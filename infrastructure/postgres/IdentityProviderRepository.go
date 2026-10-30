@@ -528,7 +528,7 @@ func (r OidcFlowRepository) Consume(
 		// When the flow left for the provider: a connection by mail counts only a sign-in made
 		// after it (ADR-0078 §1).
 		PendingID: pendingID, CreatedAt: timeFrom(row.CreatedAt),
-		Terms: identity.TermsAgreement{URL: stringFrom(row.TermsUrl), Version: stringFrom(row.TermsVersion)},
+		Terms:        identity.TermsAgreement{URL: stringFrom(row.TermsUrl), Version: stringFrom(row.TermsVersion)},
 		SAMLResponse: stringFrom(row.SamlResponse), SAMLHandoffHash: row.SamlHandoffHash,
 	}, true, nil
 }

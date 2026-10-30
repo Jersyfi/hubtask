@@ -10,8 +10,8 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/servicedesk"
 	"github.com/Jersyfi/hubtask/core/application/service/workflow"
-	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	automationmodel "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	desk "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	viewmodel "github.com/Jersyfi/hubtask/core/domain/model/view"

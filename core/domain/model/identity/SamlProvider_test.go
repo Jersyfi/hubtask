@@ -65,7 +65,9 @@ func TestASAMLProviderIsConfiguredWhole(t *testing.T) {
 		{name: "an entity id that is no URI", change: func(in *identity.NewIdentityProviderInput) { in.Issuer = "idp example" }, code: "identity_provider.issuer_invalid"},
 		{name: "a plain-http sign-on address", change: func(in *identity.NewIdentityProviderInput) { in.SAMLSSOURL = "http://idp.example.org/sso" }, code: "identity_provider.saml_sso_url_invalid"},
 		{name: "no certificate", change: func(in *identity.NewIdentityProviderInput) { in.SAMLCertificate = "" }, code: "identity_provider.saml_certificate_invalid"},
-		{name: "not a certificate", change: func(in *identity.NewIdentityProviderInput) { in.SAMLCertificate = "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n" }, code: "identity_provider.saml_certificate_invalid"},
+		{name: "not a certificate", change: func(in *identity.NewIdentityProviderInput) {
+			in.SAMLCertificate = "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n"
+		}, code: "identity_provider.saml_certificate_invalid"},
 		{name: "three certificates", change: func(in *identity.NewIdentityProviderInput) { in.SAMLCertificate = valid + valid + valid }, code: "identity_provider.saml_certificate_invalid"},
 		{name: "an expired certificate", change: func(in *identity.NewIdentityProviderInput) { in.SAMLCertificate = expired }, code: "identity_provider.saml_certificate_expired"},
 		{name: "offered by the installation", change: func(in *identity.NewIdentityProviderInput) { in.TenantID = ""; in.Provisioning = "INVITED_ONLY" }, code: "identity_provider.saml_workspace_only"},

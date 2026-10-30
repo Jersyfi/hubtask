@@ -66,8 +66,6 @@ func (c *changeSink) Record(_ context.Context, change changelog.Change) error {
 	return nil
 }
 
-
-
 func docID(n int) shared.ID {
 	return shared.MustParseID("0192f000-0000-7000-8000-0000000d00" + string(rune('0'+n/10)) + string(rune('0'+n%10)))
 }
