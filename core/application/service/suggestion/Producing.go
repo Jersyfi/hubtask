@@ -155,6 +155,16 @@ type Question struct {
 	// never from the job's payload. Empty for every question that reads its material from the
 	// target.
 	Words string
+	// Case is a text to classify that is no entry - a case of an agent's evaluation set. Nil for
+	// every question about a target.
+	Case *CaseText
+}
+
+// CaseText is a text classified as an entry of a collection would be: the labels offered are the
+// collection's.
+type CaseText struct {
+	CollectionID shared.ID
+	Title, Notes string
 }
 
 // Produce asks a provider and records what it answered.
