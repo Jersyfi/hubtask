@@ -53,8 +53,7 @@ pages.
 
 ## Where it ends
 
-* No lag or lead on a dependency and no scheduling that moves dates by it - that is the Gantt
-  (`PLN-02` in the suite plan's planning module, S-19).
+* A dependency's lag or lead and the scheduling that moves dates by it are UC-PLN-02.
 * Links run between entries. References to pages, whiteboards, dashboards, goals and sprints are
   valid and resolve once those modules exist; until then they show "not available".
 * A link does not change who may see either entry.

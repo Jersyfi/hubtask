@@ -33,7 +33,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`sync/`](./sync/) | `UC-SYN` | Working offline and merging | `service/sync` |
 | [`importer/`](./importer/) | `UC-IMP` | Bringing work in from elsewhere | `service/importer` |
 | [`workflow/`](./workflow/) | `UC-FLW` | A workspace's own entry types and how its work moves | `service/workflow` |
-| [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and, later, the plan they make | `service/work` (links) |
+| [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and the plan they make: schedule, critical path, baselines, milestones | `service/work` (links), `service/planning` |
 | [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
 | [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history | `service/whiteboard` |
 | [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
@@ -251,6 +251,10 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-FLW-04](./workflow/UC-FLW-04-ask-for-what-a-step-needs.md) | Ask for what a step needs, and act when it is taken | workflow |
 | [UC-FLW-05](./workflow/UC-FLW-05-change-a-workflow-in-use.md) | Change a workflow that is already in use | workflow |
 | [UC-PLN-01](./planning/UC-PLN-01-say-that-one-piece-of-work-waits-for-another.md) | Say that one piece of work waits for another | planning |
+| [UC-PLN-02](./planning/UC-PLN-02-see-the-plan-as-a-gantt-chart-and-move-it.md) | See the plan as a Gantt chart and move it by hand | planning |
+| [UC-PLN-03](./planning/UC-PLN-03-know-which-chain-decides-the-end-date.md) | Know which chain decides the end date | planning |
+| [UC-PLN-04](./planning/UC-PLN-04-keep-the-agreed-plan-and-compare-it-with-today.md) | Keep the agreed plan and compare it with today | planning |
+| [UC-PLN-05](./planning/UC-PLN-05-mark-the-dates-that-matter-as-milestones.md) | Mark the dates that matter as milestones | planning |
 | [UC-DOC-01](./knowledge/UC-DOC-01-write-a-page-in-a-hub-and-find-it-again.md) | Write a page in a hub and find it again | knowledge |
 | [UC-DOC-02](./knowledge/UC-DOC-02-write-a-page-together-at-the-same-time.md) | Write a page together at the same time | knowledge |
 | [UC-DOC-03](./knowledge/UC-DOC-03-turn-a-line-of-a-page-into-a-task-and-keep-them-linked.md) | Turn a line of a page into a task and keep them linked | knowledge |

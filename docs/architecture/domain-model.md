@@ -717,6 +717,20 @@ deadline and a change's effectiveness check.
   breached -, the record the archive carries and a report counts; the timer is only its clock. A
   warning timer running out announces `item.sla_at_risk`, the goal's `item.sla_breached`, once each;
   an escalation is a rule on them.
+* **Planning** (`core/domain/model/planning`, M2, UC-PLN-02 … 05): a **plan** is a hub or a
+  collection, its entries those neither trashed nor archived. A waiting link (`work.EntryLink`)
+  carries its **`Timing`** - `FS`, `SS`, `FF` or `SF` and a lag in working days, negative for a lead,
+  at most 999 - which only a dependency takes. An entry's **`EntrySchedule`** (`entry_schedule`) is
+  its mode, `MANUAL` (no row) or `AUTOMATIC`, and its milestone mark. **`Schedule`** is a pure
+  function on a plan and a calendar's working days (a business calendar, or Monday to Friday): a
+  forward pass puts automatic entries as early as their predecessors allow, duration kept, and names
+  as a `Conflict` the dependency a manual or finished entry breaks; a backward pass counts total and
+  free float; the critical path is the entries without float; an automatic parent spans its
+  children, and a dependency on a parent is drawn, not scheduled; a milestone is the end of its
+  day. A loop is `planning.cycle`. It proposes; ApplyPlanSchedule moves only what a person accepted,
+  through UpdateWorkItem (P-04). A **`Baseline`** (`plan_baseline`, `plan_baseline_entry`) is a
+  named copy of a plan's starts and dues at one moment, at most 20 a plan, never changed; `Compare`
+  answers each entry's slip in calendar days.
 * **The portal** (UC-SVC-05): a requester holds `REQUEST` at a collection serving as a service. Its
   catalogue is the top-level types the collection offers whose form names the `PORTAL` channel and
   leaves it open (opt-in per type); a request is an entry raised through `CreateWorkItem` on the
