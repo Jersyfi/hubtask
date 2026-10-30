@@ -63,6 +63,19 @@ func TestAnAggregationIsReadFromTheClosedVocabulary(t *testing.T) {
 			"query.aggregate_links_count_only"},
 		{"entries per link type", map[string]any{"function": "COUNT", "group_by": "link_type"},
 			"query.field_unknown"},
+		{"the minutes recorded", map[string]any{"source": "time", "function": "SUM", "field": "minutes"}, ""},
+		{"the records per person and week of their day", map[string]any{"source": "time", "function": "COUNT",
+			"group_by": "person", "bucket": map[string]any{"field": "day", "period": "week"}}, ""},
+		{"the minutes per kind of work", map[string]any{"source": "time", "function": "AVG", "field": "minutes",
+			"group_by": "work_type"}, ""},
+		{"the minutes per status of their entry", map[string]any{"source": "time", "function": "SUM",
+			"field": "minutes", "group_by": "status"}, ""},
+		{"an entry's measure over time", map[string]any{"source": "time", "function": "SUM", "field": "lead_time"},
+			"query.aggregate_time_minutes_only"},
+		{"minutes of entries", map[string]any{"function": "SUM", "field": "minutes"}, "query.field_unknown"},
+		{"entries per person", map[string]any{"function": "COUNT", "group_by": "person"}, "query.field_unknown"},
+		{"entries per record day", map[string]any{"function": "COUNT",
+			"bucket": map[string]any{"field": "day", "period": "day"}}, "query.field_unknown"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

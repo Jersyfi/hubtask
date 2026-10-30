@@ -9,8 +9,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
-// Aggregate compiles a summary over the entries the search keeps, or over the links between them:
-// one row per group and period, each carrying the group key, the period's first day, the count and
+// Aggregate compiles a summary over the entries the search keeps, over the links between them or
+// over the time recorded on them: one row per group and period, each carrying the group key, the period's first day, the count and
 // the function's value.
 //
 // The four columns are always there - a NULL::text where nothing groups or buckets, a
@@ -35,8 +35,20 @@ func Aggregate(
 	if aggregation.CountsLinks() {
 		b.write(` JOIN entry_link lk ON lk.tenant_id = wi.tenant_id AND lk.source_id = wi.id`)
 	}
+	if aggregation.CountsTime() {
+		b.write(` JOIN time_record tr ON tr.tenant_id = wi.tenant_id AND tr.entry_id = wi.id`)
+	}
 	b.write(` WHERE `)
 	b.predicates(search)
+	if aggregation.CountsTime() {
+		// The reader's own records, and other people's only on entries of the collections the use
+		// case found the reader sees them in (rule 2): the decision is bound, never made here.
+		b.write(` AND (tr.account_id = `)
+		b.param(aggregation.Sight.Reader.String())
+		b.write(`::uuid OR wi.collection_id = ANY(`)
+		b.param(identifiers(aggregation.Sight.Shown))
+		b.write(`::uuid[]))`)
+	}
 	if aggregation.CountsLinks() {
 		// The target is held to the same predicates by an inner `wi` that shadows the outer one,
 		// so a link counts only where the query keeps both its ends - an end the reader cannot see
@@ -46,8 +58,19 @@ func Aggregate(
 		b.write(`)`)
 	}
 	// A plain total is not grouped, so an empty scope answers one row of zero rather than none.
-	if aggregation.IsGrouped() || aggregation.IsBucketed() {
-		b.write(` GROUP BY 1, 2 ORDER BY 1 ASC NULLS LAST, 2 ASC NULLS LAST`)
+	grouped := aggregation.IsGrouped() || aggregation.IsBucketed()
+	if grouped {
+		b.write(` GROUP BY 1, 2`)
+	}
+	if aggregation.CountsTime() && aggregation.Sight.Withhold {
+		// A group of fewer than three people names them by its sum (UC-TIM-04 check 4); the
+		// reader's own time alone is theirs to see.
+		b.write(` HAVING count(DISTINCT tr.account_id) >= 3 OR bool_and(tr.account_id = `)
+		b.param(aggregation.Sight.Reader.String())
+		b.write(`::uuid)`)
+	}
+	if grouped {
+		b.write(` ORDER BY 1 ASC NULLS LAST, 2 ASC NULLS LAST`)
 	}
 	b.write(` LIMIT `)
 	b.param(int64(probe))
@@ -62,6 +85,17 @@ func (b *builder) aggregateGroupKey(aggregation view.Aggregation) {
 	}
 	if aggregation.ByLinkType {
 		b.write(`lk.link_type`)
+		return
+	}
+	switch aggregation.TimeGroup {
+	case view.TimeByWorkType:
+		b.write(`tr.work_type`)
+		return
+	case view.TimeByBillable:
+		b.write(`tr.billable::text`)
+		return
+	case view.TimeByPerson:
+		b.write(`tr.account_id::text`)
 		return
 	}
 	if _, custom := view.CustomField(aggregation.GroupBy.Name); custom {
@@ -97,6 +131,11 @@ func (b *builder) aggregateBucket(aggregation view.Aggregation, timeZone string)
 		return
 	}
 	b.write(opening)
+	if aggregation.ByDay {
+		// A day is a calendar date already: no zone moves it.
+		b.write(`tr.day::timestamp)`, closing, `::date::text`)
+		return
+	}
 	if _, custom := view.CustomField(aggregation.BucketField.Name); custom {
 		if shape := aggregation.BucketField.Custom; shape.Resolved && !shape.Defined {
 			b.write(`NULL::timestamptz`)
@@ -135,6 +174,10 @@ func (b *builder) aggregateValue(aggregation view.Aggregation) {
 		return
 	}
 	b.write(function)
+	if aggregation.Minutes {
+		b.write(`tr.minutes)::numeric`)
+		return
+	}
 	if aggregation.Quantity != "" {
 		b.quantity(aggregation)
 		b.write(`)::numeric`)

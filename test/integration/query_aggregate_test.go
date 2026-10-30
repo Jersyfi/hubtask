@@ -205,3 +205,60 @@ func TestAFlowQuantityReadsTheStatusHistory(t *testing.T) {
 		}
 	}
 }
+
+// A time summary sums the records on the kept entries that the reader sees - their own, and
+// another person's only in a shown collection - and withholds a small group where asked (F-9).
+func TestATimeSummarySumsTheRecordsTheReaderSees(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	entry := seedTask(ctx, t, tenantA, authorA, collection)
+	other := freshID(t)
+	pool := adminPool(ctx, t)
+	for _, record := range []struct {
+		account shared.ID
+		minutes int
+	}{{authorA, 30}, {other, 45}} {
+		if _, err := pool.Exec(ctx, `INSERT INTO time_record (id, tenant_id, account_id, entry_id, day, minutes, source,
+			created_at, updated_at) VALUES ($1, $2, $3, $4, '2026-11-02', $5, 'MANUAL', now(), now())`,
+			freshID(t).String(), tenantA.String(), record.account.String(), entry.String(), record.minutes); err != nil {
+			t.Fatalf("recording: %v", err)
+		}
+	}
+	sum := func(tenant shared.ID, sight view.TimeSight) repository.ItemAggregateResult {
+		t.Helper()
+		aggregation, err := view.ParseAggregation(map[string]any{"source": "time", "function": "SUM", "field": "minutes",
+			"bucket": map[string]any{"field": "day", "period": "week"}}, "/aggregate")
+		if err != nil {
+			t.Fatal(err)
+		}
+		aggregation.Sight = sight
+		var result repository.ItemAggregateResult
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			result, err = itemRepo().Aggregate(ctx, searchIn(t, collection, nil, view.Spec{}), aggregation, "UTC")
+			return err
+		}); err != nil {
+			t.Fatalf("aggregating: %v", err)
+		}
+		return result
+	}
+	value := func(result repository.ItemAggregateResult) string {
+		if len(result.Rows) != 1 || result.Rows[0].Value == nil {
+			return ""
+		}
+		return *result.Rows[0].Value
+	}
+
+	if own := sum(tenantA, view.TimeSight{Reader: authorA}); value(own) != "30" || own.Rows[0].Period != "2026-11-02" {
+		t.Errorf("the reader's own time answered %+v, want 30 minutes in the week of 2 November", own)
+	}
+	if all := sum(tenantA, view.TimeSight{Reader: authorA, Shown: []shared.ID{collection}}); value(all) != "75" {
+		t.Errorf("the shown collection's time answered %+v, want 75", all)
+	}
+	if few := sum(tenantA, view.TimeSight{Reader: authorA, Shown: []shared.ID{collection}, Withhold: true}); len(few.Rows) != 0 {
+		t.Errorf("a group of two people answered %+v, want it withheld", few)
+	}
+	if foreign := sum(tenantB, view.TimeSight{Reader: authorA, Shown: []shared.ID{collection}}); len(foreign.Rows) != 0 {
+		t.Errorf("another tenant counted %+v", foreign)
+	}
+}

@@ -487,3 +487,28 @@ func (h ExportTimeRecords) Descriptor() usecase.Descriptor {
 		}),
 	}, recordTarget)
 }
+
+// TimeReach answers a query's time summary whose time it counts (F-9): per collection, whether the
+// reader approves time there and so sees other people's, and whether the workspace shows that
+// only as sums - the question ReadTimeReport asks of its own lines, asked of the summary's places.
+type TimeReach struct{ Keeper Keeper }
+
+// Reach answers, per collection, whether other people's time on its entries is the reader's to see.
+func (r TimeReach) Reach(ctx context.Context, actor appshared.ActorContext, collections []work.Container) ([]bool, bool, error) {
+	if err := person(actor); err != nil {
+		return nil, false, err
+	}
+	policy, err := r.Keeper.policy(ctx, actor)
+	if err != nil {
+		return nil, false, err
+	}
+	places := make([]place, len(collections))
+	for i, c := range collections {
+		places[i] = place{hub: c.ParentID, collection: c.ID}
+	}
+	shown, err := r.Keeper.approves(ctx, actor, places, ReportReadAction, itemsRead)
+	if err != nil {
+		return nil, false, err
+	}
+	return shown, policy.Visibility == domain.VisibilityAggregated, nil
+}

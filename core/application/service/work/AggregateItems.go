@@ -45,6 +45,15 @@ type AggregateItems struct {
 	// Workflows answers the statuses a flow quantity counts as started (cycle time, WIP age);
 	// unwired, none is, and those measures hold nothing.
 	Workflows repository.Workflows
+	// Time decides whose time a time summary counts; unwired, the reader's own alone.
+	Time TimeReach
+}
+
+// TimeReach decides whose time a time summary counts (UC-TIM-04): per collection, whether the
+// reader sees other people's time on its entries - the time module's question, not the query's -,
+// and whether the workspace shows other people's time only as sums.
+type TimeReach interface {
+	Reach(ctx context.Context, actor appshared.ActorContext, collections []domain.Container) (shown []bool, sumsOnly bool, err error)
 }
 
 // MaxSummaryCollections bounds the collections a workspace summary reads: the bound list is one
@@ -66,12 +75,13 @@ func (h AggregateItems) Execute(
 	}
 
 	var (
-		anchor repository.Anchor
-		path   = []identity.Scope{identity.TenantScope()}
-		scope  shared.ID
+		anchor      repository.Anchor
+		path        = []identity.Scope{identity.TenantScope()}
+		scope       shared.ID
+		collections []domain.Container
 	)
 	if resolved.Scope.Workspace {
-		if anchor, err = h.workspace(ctx, actor, resolved.IncludeArchived); err != nil {
+		if anchor, collections, err = h.workspace(ctx, actor, resolved.IncludeArchived); err != nil {
 			return repository.ItemAggregateResult{}, err
 		}
 	} else {
@@ -94,6 +104,13 @@ func (h AggregateItems) Execute(
 		scope = anchor.CollectionID
 		if anchor.Kind == repository.AnchorHub {
 			scope = anchor.HubID
+		} else {
+			collections = []domain.Container{container}
+		}
+	}
+	if aggregation.CountsTime() {
+		if aggregation.Sight, err = h.timeSight(ctx, actor, anchor, collections, aggregation); err != nil {
+			return repository.ItemAggregateResult{}, err
 		}
 	}
 	// A field hidden from the reader is no more summed than it is filtered by (UC-ID-27 check 3).
@@ -147,12 +164,12 @@ func (h AggregateItems) Execute(
 // refusal, so nothing is recorded per row (audit.md §4).
 func (h AggregateItems) workspace(
 	ctx context.Context, actor appshared.ActorContext, includeArchived bool,
-) (repository.Anchor, error) {
+) (repository.Anchor, []domain.Container, error) {
 	if err := actor.RequireScope(itemsRead); err != nil {
-		return repository.Anchor{}, err
+		return repository.Anchor{}, nil, err
 	}
 	if h.Collections == nil || h.Reader == nil {
-		return repository.Anchor{}, shared.ErrInternal.WithDetail("query.workspace_unwired")
+		return repository.Anchor{}, nil, shared.ErrInternal.WithDetail("query.workspace_unwired")
 	}
 
 	var (
@@ -193,16 +210,18 @@ func (h AggregateItems) workspace(
 		}
 	})
 	if err != nil {
-		return repository.Anchor{}, err
+		return repository.Anchor{}, nil, err
 	}
 
 	anchor := repository.Anchor{Kind: repository.AnchorCollections, IncludeDescendants: true}
 	if len(rows) == 0 {
-		return anchor, nil
+		return anchor, nil, nil
 	}
 	paths := make([][]identity.Scope, 0, len(rows))
+	collections := make([]domain.Container, 0, len(rows))
 	for _, row := range rows {
 		paths = append(paths, containerPath(row.Collection))
+		collections = append(collections, row.Collection)
 	}
 	allowed, err := h.Reader.Permitted(ctx, actor, access.Request{
 		Permission: service.PermissionRead,
@@ -211,7 +230,7 @@ func (h AggregateItems) workspace(
 		TargetType: containerTarget,
 	}, paths)
 	if err != nil {
-		return repository.Anchor{}, err
+		return repository.Anchor{}, nil, err
 	}
 	unread := make(map[shared.ID]domain.Container, len(rows))
 	for i, row := range rows {
@@ -222,7 +241,61 @@ func (h AggregateItems) workspace(
 		unread[row.Collection.ID] = row.Collection
 	}
 	anchor.ItemIDs, err = h.sharedReached(ctx, actor, shares, unread)
-	return anchor, err
+	return anchor, collections, err
+}
+
+// timeSight decides whose records a time summary counts: the reader's own, and other people's on
+// the entries of each collection where the time module says the reader sees them - a hub's
+// collections read one by one. Where the workspace shows other people's time only as sums, a
+// grouping by person is refused and a small group withheld (UC-TIM-04 check 4).
+func (h AggregateItems) timeSight(
+	ctx context.Context, actor appshared.ActorContext, anchor repository.Anchor,
+	collections []domain.Container, aggregation view.Aggregation,
+) (view.TimeSight, error) {
+	if !actor.IsAuthenticated() || actor.AccountID.IsZero() {
+		return view.TimeSight{}, shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	sight := view.TimeSight{Reader: actor.AccountID, Shown: []shared.ID{}}
+	if h.Time == nil {
+		return sight, nil
+	}
+	if anchor.Kind == repository.AnchorHub {
+		err := h.Query.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			page := repository.Page{Size: 200}
+			for {
+				read, err := h.Query.Containers.List(ctx, repository.ContainerQuery{
+					ParentID: anchor.HubID, Type: domain.ContainerCollection, IncludeArchived: true, Page: page,
+				})
+				if err != nil {
+					return err
+				}
+				collections = append(collections, read.Containers...)
+				if len(collections) > MaxSummaryCollections || !read.Info.HasMore {
+					return nil
+				}
+				page.Cursor = read.Info.NextCursor
+			}
+		})
+		if err != nil {
+			return view.TimeSight{}, err
+		}
+	}
+	shown, sumsOnly, err := h.Time.Reach(ctx, actor, collections)
+	if err != nil {
+		return view.TimeSight{}, err
+	}
+	for i, collection := range collections {
+		if i < len(shown) && shown[i] {
+			sight.Shown = append(sight.Shown, collection.ID)
+		}
+	}
+	if sumsOnly && len(sight.Shown) > 0 {
+		if aggregation.TimeGroup == view.TimeByPerson {
+			return view.TimeSight{}, shared.ErrForbidden.WithDetail("time.aggregated_only")
+		}
+		sight.Withhold = true
+	}
+	return sight, nil
 }
 
 // sharedReached keeps the entries shared with the actor alone that lie in a live collection the
@@ -310,7 +383,11 @@ func (h AggregateItems) Descriptor() usecase.Descriptor {
 		Name: "aggregate", Kind: usecase.KindObject, Required: true,
 		Description: "The summary: source (entries, the default, or links - the links whose " +
 			"two ends the scope and filter both keep, counted only, grouped by link_type or a " +
-			"field of the source end), function (COUNT, SUM, AVG, MIN or MAX), field (a custom field " +
+			"field of the source end -, or time - the time records on the kept entries, the " +
+			"caller's own and other people's where the caller approves time, measured by minutes, " +
+			"grouped by work_type, billable, person or a field of the entry, bucketed by day or an " +
+			"entry's timestamp; where the workspace shows others' time only as sums, person is " +
+			"refused and a group of fewer than three people left out), function (COUNT, SUM, AVG, MIN or MAX), field (a custom field " +
 			"holding a number, money or a duration, or lead_time - creation to completion - or " +
 			"scheduled_span - start to due -, both in minutes; not for COUNT), group_by (a field a " +
 			"query may group by), and bucket (field, a timestamp, and period: day, week or month, " +

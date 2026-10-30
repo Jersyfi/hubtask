@@ -245,3 +245,45 @@ func TestAFlowQuantityReadsTheStatusHistory(t *testing.T) {
 		})
 	}
 }
+
+func TestATimeSummaryCountsTheRecordsTheReaderSees(t *testing.T) {
+	reader := shared.ID("0192f000-0000-7000-8000-0000000000bb")
+	tests := []struct {
+		name     string
+		raw      map[string]any
+		withhold bool
+		want     []string
+	}{
+		{"the minutes", map[string]any{"source": "time", "function": "SUM", "field": "minutes"}, false,
+			[]string{` JOIN time_record tr ON tr.tenant_id = wi.tenant_id AND tr.entry_id = wi.id`,
+				`sum(tr.minutes)::numeric`, `AND (tr.account_id = $`, `::uuid OR wi.collection_id = ANY($`}},
+		{"per kind of work and week of the day", map[string]any{"source": "time", "function": "COUNT",
+			"group_by": "work_type", "bucket": map[string]any{"field": "day", "period": "week"}}, false,
+			[]string{`SELECT tr.work_type, date_trunc('week', (tr.day::timestamp))::date::text`, ` GROUP BY 1, 2 ORDER BY`}},
+		{"a small group withheld", map[string]any{"source": "time", "function": "SUM", "field": "minutes",
+			"group_by": "billable"}, true,
+			[]string{`tr.billable::text`, ` GROUP BY 1, 2 HAVING count(DISTINCT tr.account_id) >= 3 OR bool_and(tr.account_id = $`,
+				`::uuid) ORDER BY 1`}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			aggregation := aggregationOf(t, test.raw, nil)
+			aggregation.Sight = view.TimeSight{Reader: reader, Shown: []shared.ID{collection}, Withhold: test.withhold}
+			statement, err := Aggregate(searchOf(t, nil, view.Spec{}), aggregation, "UTC", 10)
+			if err != nil {
+				t.Fatalf("compilation failed: %v", err)
+			}
+			for _, fragment := range test.want {
+				if !strings.Contains(statement.SQL, fragment) {
+					t.Errorf("missing %q in\n%s", fragment, statement.SQL)
+				}
+			}
+			if strings.Contains(statement.SQL, reader.String()) || strings.Contains(statement.SQL, collection.String()) {
+				t.Errorf("the sight is statement text:\n%s", statement.SQL)
+			}
+			if strings.Count(statement.SQL, "$") != len(statement.Args) {
+				t.Errorf("placeholders and arguments disagree:\n%s", statement.SQL)
+			}
+		})
+	}
+}

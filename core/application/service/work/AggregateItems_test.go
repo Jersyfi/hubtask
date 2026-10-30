@@ -180,3 +180,76 @@ func TestAFlowQuantityIsHandedTheStartedStatusesAndTheMoment(t *testing.T) {
 		t.Fatalf("the adapter was handed %v at %v", got.Started, got.Now)
 	}
 }
+
+// timeReach answers the time module's sight, recording the collections it was asked about.
+type timeReach struct {
+	shown    map[shared.ID]bool
+	sumsOnly bool
+	asked    []shared.ID
+}
+
+func (r *timeReach) Reach(
+	_ context.Context, _ appshared.ActorContext, collections []domain.Container,
+) ([]bool, bool, error) {
+	out := make([]bool, len(collections))
+	for i, c := range collections {
+		r.asked = append(r.asked, c.ID)
+		out[i] = r.shown[c.ID]
+	}
+	return out, r.sumsOnly, nil
+}
+
+// A time summary counts the reader's own records and other people's where the time module says the
+// reader sees them; where the workspace shows sums only, a grouping by person is refused and a
+// small group withheld (UC-TIM-04 check 4, F-9).
+func TestATimeSummaryCountsWhatTheReaderSeesOfOtherPeoplesTime(t *testing.T) {
+	_, open, closed := destinationsFixture()
+	workspace := view.Spec{Scope: view.Scope{Workspace: true}}
+	minutes := view.Aggregation{Source: view.SourceTime, Function: view.AggregateSum, Minutes: true}
+
+	t.Run("the shown collections are bound", func(t *testing.T) {
+		h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true, closed: true}})
+		reach := &timeReach{shown: map[shared.ID]bool{open: true}}
+		h.Time = reach
+		if _, err := h.Execute(t.Context(), summaryActor(), workspace, minutes); err != nil {
+			t.Fatal(err)
+		}
+		sight := adapter.aggregation.Sight
+		if sight.Reader != summaryActor().AccountID || !slices.Equal(sight.Shown, []shared.ID{open}) || sight.Withhold {
+			t.Errorf("the sight is %+v", sight)
+		}
+		if !slices.Contains(reach.asked, closed) {
+			t.Errorf("the time module was not asked about %s: %v", closed, reach.asked)
+		}
+	})
+	t.Run("unwired, the reader's own alone", func(t *testing.T) {
+		h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true}})
+		if _, err := h.Execute(t.Context(), summaryActor(), workspace, minutes); err != nil {
+			t.Fatal(err)
+		}
+		if sight := adapter.aggregation.Sight; len(sight.Shown) != 0 || sight.Reader.IsZero() {
+			t.Errorf("the sight is %+v", sight)
+		}
+	})
+	t.Run("sums only withholds a small group", func(t *testing.T) {
+		h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true}})
+		h.Time = &timeReach{shown: map[shared.ID]bool{open: true}, sumsOnly: true}
+		if _, err := h.Execute(t.Context(), summaryActor(), workspace, minutes); err != nil {
+			t.Fatal(err)
+		}
+		if !adapter.aggregation.Sight.Withhold {
+			t.Error("a small group is not withheld")
+		}
+	})
+	t.Run("sums only refuses a person", func(t *testing.T) {
+		h, _, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true}})
+		h.Time = &timeReach{shown: map[shared.ID]bool{open: true}, sumsOnly: true}
+		byPerson := minutes
+		byPerson.TimeGroup = view.TimeByPerson
+		_, err := h.Execute(t.Context(), summaryActor(), workspace, byPerson)
+		var refusal *shared.Error
+		if !errors.As(err, &refusal) || refusal.DetailCode != "time.aggregated_only" {
+			t.Fatalf("got %v, want time.aggregated_only", err)
+		}
+	})
+}

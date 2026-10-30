@@ -4744,6 +4744,7 @@ func (e ItemAggregateQueryAggregateFunction) Valid() bool {
 const (
 	Entries ItemAggregateQueryAggregateSource = "entries"
 	Links   ItemAggregateQueryAggregateSource = "links"
+	Time    ItemAggregateQueryAggregateSource = "time"
 )
 
 // Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateSource enum.
@@ -4752,6 +4753,8 @@ func (e ItemAggregateQueryAggregateSource) Valid() bool {
 	case Entries:
 		return true
 	case Links:
+		return true
+	case Time:
 		return true
 	default:
 		return false
@@ -15142,7 +15145,7 @@ type ItemAccess string
 type ItemAggregateQuery struct {
 	Aggregate struct {
 		Bucket *struct {
-			// Field A timestamp field, or `custom_fields.<key>` of a date.
+			// Field A timestamp field, `custom_fields.<key>` of a date, or `day` for a `time` summary.
 			Field  string                                  `json:"field"`
 			Period ItemAggregateQueryAggregateBucketPeriod `json:"period"`
 
@@ -15150,14 +15153,14 @@ type ItemAggregateQuery struct {
 			WeekStart *ItemAggregateQueryAggregateBucketWeekStart `json:"week_start,omitempty"`
 		} `json:"bucket,omitempty"`
 
-		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none. Required for every function but `COUNT`, refused for `COUNT`.
+		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none. For a `time` summary, `minutes` alone. Required for every function but `COUNT`, refused for `COUNT`.
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
-		// GroupBy A field a query may group by, or `link_type` for a `links` summary; one row per value.
+		// GroupBy A field a query may group by, `link_type` for a `links` summary, or `work_type`, `billable` or `person` for a `time` summary; one row per value.
 		GroupBy *string `json:"group_by,omitempty"`
 
-		// Source What is counted: the entries the scope and filter keep, or the links whose two ends they both keep - an end the caller may not see is never counted. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too.
+		// Source What is counted: the entries the scope and filter keep, the links whose two ends they both keep - an end the caller may not see is never counted -, or the time recorded on the kept entries. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too. A `time` summary counts the caller's own records and other people's where the caller approves time; its measure is `minutes`, it may group by `work_type`, `billable` or `person` besides a field of the entry and bucket by `day`, the day the time was spent on, besides a timestamp of the entry. Where the workspace shows other people's time only as sums, `person` is refused (`time.aggregated_only`) and a group of fewer than three people is left out.
 		Source *ItemAggregateQueryAggregateSource `json:"source,omitempty"`
 	} `json:"aggregate"`
 
@@ -15189,7 +15192,7 @@ type ItemAggregateQueryAggregateBucketWeekStart string
 // ItemAggregateQueryAggregateFunction defines model for ItemAggregateQuery.Aggregate.Function.
 type ItemAggregateQueryAggregateFunction string
 
-// ItemAggregateQueryAggregateSource What is counted: the entries the scope and filter keep, or the links whose two ends they both keep - an end the caller may not see is never counted. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too.
+// ItemAggregateQueryAggregateSource What is counted: the entries the scope and filter keep, the links whose two ends they both keep - an end the caller may not see is never counted -, or the time recorded on the kept entries. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too. A `time` summary counts the caller's own records and other people's where the caller approves time; its measure is `minutes`, it may group by `work_type`, `billable` or `person` besides a field of the entry and bucket by `day`, the day the time was spent on, besides a timestamp of the entry. Where the workspace shows other people's time only as sums, `person` is refused (`time.aggregated_only`) and a group of fewer than three people is left out.
 type ItemAggregateQueryAggregateSource string
 
 // ItemAggregateResult defines model for ItemAggregateResult.

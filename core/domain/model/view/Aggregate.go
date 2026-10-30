@@ -6,6 +6,8 @@ package view
 import (
 	"slices"
 	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 // AggregateFunction is what an aggregation computes over the entries a query keeps. A closed
@@ -78,8 +80,8 @@ func (q Quantity) ReadsFlow() bool {
 	return q == QuantityCycleTime || q == QuantityWipAge || q == QuantityTimeInStatus
 }
 
-// AggregateSource is what an aggregation counts: the entries a query keeps, or the links between
-// them (F-9). Records are entries; time records and pages have no store yet.
+// AggregateSource is what an aggregation counts: the entries a query keeps, the links between
+// them, or the time recorded on them (F-9). Records are entries.
 type AggregateSource string
 
 const (
@@ -87,10 +89,40 @@ const (
 	// SourceLinks counts the links whose two ends the query both keeps - the links a view of those
 	// entries draws (`POST /links:query`), so an end the reader cannot see is never counted.
 	SourceLinks AggregateSource = "links"
+	// SourceTime counts the time records on the entries the query keeps (UC-TIM-04): the reader's
+	// own, and other people's only where the use case says the reader sees them.
+	SourceTime AggregateSource = "time"
 )
 
 // GroupByLinkType is the one grouping a links summary has beside its source end's fields.
 const GroupByLinkType = "link_type"
+
+// TimeGroup is a grouping a time summary has beside its entry's fields: the record's own.
+type TimeGroup string
+
+const (
+	TimeByWorkType TimeGroup = "work_type"
+	TimeByBillable TimeGroup = "billable"
+	// TimeByPerson names who recorded it; refused where the workspace shows others' time only as
+	// sums (UC-TIM-04 check 4).
+	TimeByPerson TimeGroup = "person"
+)
+
+// TimeMeasure is a time summary's one measure, the record's minutes; TimeDay its one bucket of its
+// own, the day the time was spent on.
+const (
+	TimeMeasure = "minutes"
+	TimeDay     = "day"
+)
+
+// TimeSight is who a time summary counts, decided by the use case and never parsed: the reader's
+// own records, other people's on entries of the Shown collections, and whether a group of fewer
+// than three people (the reader alone aside) is withheld.
+type TimeSight struct {
+	Reader   shared.ID
+	Shown    []shared.ID
+	Withhold bool
+}
 
 // MaxAggregateRows bounds the rows one aggregation answers: groups times buckets. A year of days
 // over a dozen statuses fits; past it the answer says it was cut rather than growing without end.
@@ -115,6 +147,13 @@ type Aggregation struct {
 	GroupBy Field
 	// ByLinkType splits a links summary by the link's type instead of a field.
 	ByLinkType bool
+	// TimeGroup splits a time summary by the record's own field instead of the entry's.
+	TimeGroup TimeGroup
+	// Minutes is a time summary's measure; ByDay buckets it by the record's day.
+	Minutes bool
+	ByDay   bool
+	// Sight is a time summary's reach, set by the use case.
+	Sight TimeSight
 	// Bucket and BucketField cut the rows by period; both or neither.
 	Bucket      TimeBucket
 	BucketField Field
@@ -128,17 +167,23 @@ type Aggregation struct {
 }
 
 // IsGrouped reports whether the aggregation is split by a field.
-func (a Aggregation) IsGrouped() bool { return a.GroupBy.Name != "" || a.ByLinkType }
+func (a Aggregation) IsGrouped() bool {
+	return a.GroupBy.Name != "" || a.ByLinkType || a.TimeGroup != ""
+}
 
 // CountsLinks reports whether the aggregation counts links rather than entries.
 func (a Aggregation) CountsLinks() bool { return a.Source == SourceLinks }
+
+// CountsTime reports whether the aggregation counts time records rather than entries.
+func (a Aggregation) CountsTime() bool { return a.Source == SourceTime }
 
 // IsBucketed reports whether the aggregation is split by period.
 func (a Aggregation) IsBucketed() bool { return a.Bucket != "" }
 
 // ParseAggregation reads `{source?, function, field?, group_by?, bucket?: {field, period,
 // week_start?}}`. The field is a custom field or a built-in Quantity; a links summary is a COUNT
-// and may group by GroupByLinkType.
+// and may group by GroupByLinkType; a time summary measures TimeMeasure alone, may group by a
+// TimeGroup and bucket by TimeDay.
 func ParseAggregation(raw any, path string) (Aggregation, error) {
 	document, ok := raw.(map[string]any)
 	if !ok {
@@ -149,7 +194,7 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 	switch {
 	case source == "":
 		source = SourceEntries
-	case !slices.Contains([]AggregateSource{SourceEntries, SourceLinks}, source):
+	case !slices.Contains([]AggregateSource{SourceEntries, SourceLinks, SourceTime}, source):
 		return Aggregation{}, fieldError(path+"/source", "query.aggregate_source_unknown", nil)
 	}
 
@@ -170,6 +215,13 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 	switch {
 	case function == AggregateCount && present && measure != nil:
 		return Aggregation{}, fieldError(path+"/field", "query.aggregate_field_unexpected", nil)
+	case function != AggregateCount && source == SourceTime:
+		// A record's minutes are its one quantity; an entry's measure would count it once per
+		// record.
+		if stringOf(measure) != TimeMeasure {
+			return Aggregation{}, fieldError(path+"/field", "query.aggregate_time_minutes_only", nil)
+		}
+		result.Minutes = true
 	case function != AggregateCount && slices.Contains(Quantities(), Quantity(stringOf(measure))):
 		result.Quantity = Quantity(stringOf(measure))
 	case function != AggregateCount:
@@ -186,7 +238,11 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 		result.Measure = target
 	}
 
-	if name := stringOf(document["group_by"]); name == GroupByLinkType && source == SourceLinks {
+	name := stringOf(document["group_by"])
+	if group := TimeGroup(name); source == SourceTime &&
+		slices.Contains([]TimeGroup{TimeByWorkType, TimeByBillable, TimeByPerson}, group) {
+		result.TimeGroup = group
+	} else if name == GroupByLinkType && source == SourceLinks {
 		result.ByLinkType = true
 	} else if name != "" {
 		target, err := field(name, path+"/group_by")
@@ -209,15 +265,19 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 		if !slices.Contains([]TimeBucket{BucketDay, BucketWeek, BucketMonth}, period) {
 			return Aggregation{}, fieldError(path+"/bucket/period", "query.bucket_period_unknown", nil)
 		}
-		target, err := field(stringOf(bucket["field"]), path+"/bucket/field")
-		if err != nil {
-			return Aggregation{}, err
+		if source == SourceTime && stringOf(bucket["field"]) == TimeDay {
+			result.Bucket, result.ByDay = period, true
+		} else {
+			target, err := field(stringOf(bucket["field"]), path+"/bucket/field")
+			if err != nil {
+				return Aggregation{}, err
+			}
+			if _, custom := CustomField(target.Name); !custom && target.Kind != KindTimestamp {
+				return Aggregation{}, fieldError(path+"/bucket/field", "query.field_not_bucketable",
+					map[string]string{"field": target.Name})
+			}
+			result.Bucket, result.BucketField = period, target
 		}
-		if _, custom := CustomField(target.Name); !custom && target.Kind != KindTimestamp {
-			return Aggregation{}, fieldError(path+"/bucket/field", "query.field_not_bucketable",
-				map[string]string{"field": target.Name})
-		}
-		result.Bucket, result.BucketField = period, target
 		start, present := bucket["week_start"]
 		switch {
 		case !present || start == nil:
