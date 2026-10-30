@@ -11,6 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -45,5 +46,6 @@ func Catalogue() (domain.Catalogue, error) {
 	definitions = append(definitions, config.AgentApplyDefinition())
 	definitions = append(definitions, agent.RegisteredOnlyDefinition())
 	definitions = append(definitions, knowledge.PublicLinksDefinition())
+	definitions = append(definitions, planning.TimeToleranceDefinition())
 	return domain.NewCatalogue(definitions...)
 }

@@ -18,6 +18,7 @@ import (
 
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
 	deskrepo "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
+	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -83,10 +84,12 @@ type Catalogue interface {
 
 // Planner is what every planning use case shares.
 type Planner struct {
-	Plans      planrepo.Plans
-	Baselines  planrepo.Baselines
-	Sprints    planrepo.Sprints
-	Releases   planrepo.Releases
+	Plans     planrepo.Plans
+	Baselines planrepo.Baselines
+	Sprints   planrepo.Sprints
+	Releases  planrepo.Releases
+	// Settings holds a plan's tolerances (standards.md P12); nil leaves every plan without one.
+	Settings   settingrepo.Settings
 	Items      workrepo.Items
 	Containers workrepo.Containers
 	LinkTypes  workrepo.LinkTypes

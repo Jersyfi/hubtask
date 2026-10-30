@@ -1888,7 +1888,7 @@ func run() error {
 	planMoves := &deferredCatalogue{}
 	planningStore := postgres.NewPlanningRepository()
 	planner := planningservice.Planner{
-		Plans: planningStore, Baselines: planningStore.Baselines(), Sprints: planningStore.Sprints(), Releases: planningStore.Releases(), Items: items, Containers: containers,
+		Plans: planningStore, Baselines: planningStore.Baselines(), Sprints: planningStore.Sprints(), Releases: planningStore.Releases(), Settings: postgres.SettingRepository{}, Items: items, Containers: containers,
 		LinkTypes: linkTypeRegistry.Types, Links: entryLinks, References: entryLinks,
 		Calendars: serviceDeskStore.Calendars(), Catalogue: planMoves, Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
@@ -2088,6 +2088,8 @@ func run() error {
 		planningservice.ListBaselines{Planner: planner}.Descriptor(),
 		planningservice.CompareBaseline{Planner: planner}.Descriptor(),
 		planningservice.DeleteBaseline{Planner: planner}.Descriptor(),
+		planningservice.ReadPlanTolerance{Planner: planner}.Descriptor(),
+		planningservice.SetPlanTolerance{Planner: planner}.Descriptor(),
 		planningservice.CreateRelease{Planner: planner}.Descriptor(),
 		planningservice.UpdateRelease{Planner: planner}.Descriptor(),
 		planningservice.ListReleases{Planner: planner}.Descriptor(),
