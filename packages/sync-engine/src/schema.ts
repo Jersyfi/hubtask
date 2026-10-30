@@ -271,6 +271,9 @@ export type PersonalSpace = components['schemas']['PersonalSpace'];
 export type PagePublicLink = components['schemas']['PagePublicLink'];
 export type PagePublicLinkMinted = components['schemas']['PagePublicLinkMinted'];
 export type PublicLinksPolicy = components['schemas']['PublicLinksPolicy'];
+export type PageArticle = components['schemas']['PageArticle'];
+export type ArticleSuggestionList = components['schemas']['ArticleSuggestionList'];
+export type Article = components['schemas']['Article'];
 /** A hub's whiteboards and the objects on them (M4). */
 export type Whiteboard = components['schemas']['Whiteboard'];
 export type WhiteboardRead = components['schemas']['WhiteboardRead'];
