@@ -66,7 +66,7 @@ type Portal struct {
 	// each question is; nil asks none.
 	Fields workrepo.CustomFields
 	Gate   work.EntryGate
-	Desk       Desk
+	Desk   Desk
 }
 
 // portal marks the act as the portal's door, which the entry use cases read as REQUEST.
