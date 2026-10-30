@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
 state: built
 tasks: []
-checked_by: [core/application/service/suggestion/Provenance_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
+checked_by: [core/application/service/suggestion/Provenance_test.go, core/application/service/suggestion/Producing_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
 ---
 
 # See where a value that came from AI came from
@@ -27,8 +27,8 @@ version, Ben accepted it; the notes are not marked.
 ## How to check
 
 1. Accepting a suggestion marks each object it wrote with the names of the fields the model
-   proposed, the suggestion, the model, the prompt and version, who accepted it and when - never a
-   value; a field the person overrode is not marked.
+   proposed, the suggestion, the model, the prompt and version, the agent that asked where one did,
+   who accepted it and when - never a value; a field the person overrode is not marked.
 2. An entry's provenance is read by whoever may read the entry; one they may not read answers not
    found.
 3. The marks outlive the suggestion's retention and join the archive and the access export.
