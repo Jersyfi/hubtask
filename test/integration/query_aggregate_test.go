@@ -167,7 +167,7 @@ func TestAFlowQuantityReadsTheStatusHistory(t *testing.T) {
 		if completed {
 			completedAt = at
 		}
-		if _, err := pool.Exec(ctx, `UPDATE work_item SET status = $1, updated_at = $2, completed_at = $3
+		if _, err := pool.Exec(ctx, `UPDATE work_item SET status = $1, updated_at = $2, completed_at = $3::timestamptz, is_completed = $3::timestamptz IS NOT NULL
 			WHERE tenant_id = $4 AND id = $5`, status, at, completedAt, tenantA.String(), entry.String()); err != nil {
 			t.Fatalf("stepping: %v", err)
 		}
@@ -216,7 +216,7 @@ func TestAPercentileReadsTheMeasuresDistribution(t *testing.T) {
 	pool := adminPool(ctx, t)
 	for _, hours := range []int{1, 2, 4} {
 		entry := seedTask(ctx, t, tenantA, authorA, collection)
-		if _, err := pool.Exec(ctx, `UPDATE work_item SET created_at = $1, completed_at = $2, status = 'done'
+		if _, err := pool.Exec(ctx, `UPDATE work_item SET created_at = $1, completed_at = $2, is_completed = true, status = 'done'
 			WHERE tenant_id = $3 AND id = $4`, created, created.Add(time.Duration(hours)*time.Hour),
 			tenantA.String(), entry.String()); err != nil {
 			t.Fatalf("completing: %v", err)
