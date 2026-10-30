@@ -2896,6 +2896,107 @@ func (q *Queries) ExportNotificationPreferences(ctx context.Context, arg ExportN
 	return items, nil
 }
 
+const exportPageArticleRatings = `-- name: ExportPageArticleRatings :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.page_id::text || '/' || r.collection_id::text || '/' || r.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.page_id AS key_1,
+         r.collection_id AS key_2,
+         r.account_id AS key_3
+  FROM page_article_rating r
+) s
+  WHERE (s.key_1, s.key_2, s.key_3) > ($1::uuid, $2::uuid, $3::uuid)
+  ORDER BY s.key_1, s.key_2, s.key_3
+  LIMIT $4::int
+`
+
+type ExportPageArticleRatingsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	AfterThird  pgtype.UUID
+	Batch       int32
+}
+
+type ExportPageArticleRatingsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPageArticleRatings(ctx context.Context, arg ExportPageArticleRatingsParams) ([]ExportPageArticleRatingsRow, error) {
+	rows, err := q.db.Query(ctx, exportPageArticleRatings,
+		arg.AfterID,
+		arg.AfterSecond,
+		arg.AfterThird,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPageArticleRatingsRow{}
+	for rows.Next() {
+		var i ExportPageArticleRatingsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPageArticles = `-- name: ExportPageArticles :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (a.page_id::text || '/' || a.collection_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(a) - 'tenant_id')::jsonb AS payload,
+         a.page_id AS key_1,
+         a.collection_id AS key_2
+  FROM page_article a
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPageArticlesParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportPageArticlesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPageArticles(ctx context.Context, arg ExportPageArticlesParams) ([]ExportPageArticlesRow, error) {
+	rows, err := q.db.Query(ctx, exportPageArticles, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPageArticlesRow{}
+	for rows.Next() {
+		var i ExportPageArticlesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPageComments = `-- name: ExportPageComments :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

@@ -2222,6 +2222,49 @@ SELECT EXISTS (
 -- name: ClearPagePublicLink :execrows
 DELETE FROM page_public_link;
 
+-- name: ImportPageArticle :execrows
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, views)
+SELECT r.tenant_id, r.page_id, r.collection_id, r.published_by, r.published_at, coalesce(r.views, 0)
+FROM jsonb_populate_record(
+  NULL::page_article,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, collection_id) DO UPDATE SET
+  published_by = EXCLUDED.published_by, published_at = EXCLUDED.published_at, views = EXCLUDED.views
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPageArticle :one
+SELECT EXISTS (
+  SELECT 1 FROM page_article
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND collection_id = (sqlc.arg('payload')::jsonb->>'collection_id')::uuid
+) AS held;
+
+-- name: ClearPageArticle :execrows
+DELETE FROM page_article;
+
+-- name: ImportPageArticleRating :execrows
+INSERT INTO page_article_rating (tenant_id, page_id, collection_id, account_id, helpful, rated_at)
+SELECT r.tenant_id, r.page_id, r.collection_id, r.account_id, r.helpful, r.rated_at
+FROM jsonb_populate_record(
+  NULL::page_article_rating,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, collection_id, account_id) DO UPDATE SET
+  helpful = EXCLUDED.helpful, rated_at = EXCLUDED.rated_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPageArticleRating :one
+SELECT EXISTS (
+  SELECT 1 FROM page_article_rating
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND collection_id = (sqlc.arg('payload')::jsonb->>'collection_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPageArticleRating :execrows
+DELETE FROM page_article_rating;
+
 -- name: ImportRealtimeDocument :execrows
 -- A live document's head, log and snapshots (migration 0230): written once each, so an overwrite
 -- has only the head's places to bring back.

@@ -759,6 +759,30 @@ func (q *Queries) ClearPage(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPageArticle = `-- name: ClearPageArticle :execrows
+DELETE FROM page_article
+`
+
+func (q *Queries) ClearPageArticle(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageArticle)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPageArticleRating = `-- name: ClearPageArticleRating :execrows
+DELETE FROM page_article_rating
+`
+
+func (q *Queries) ClearPageArticleRating(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageArticleRating)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPageComment = `-- name: ClearPageComment :execrows
 DELETE FROM page_comment
 `
@@ -1988,6 +2012,37 @@ SELECT EXISTS (SELECT 1 FROM page WHERE id = ($1::jsonb->>'id')::uuid) AS held
 
 func (q *Queries) HoldsPage(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPage, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPageArticle = `-- name: HoldsPageArticle :one
+SELECT EXISTS (
+  SELECT 1 FROM page_article
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND collection_id = ($1::jsonb->>'collection_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPageArticle(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPageArticle, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPageArticleRating = `-- name: HoldsPageArticleRating :one
+SELECT EXISTS (
+  SELECT 1 FROM page_article_rating
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND collection_id = ($1::jsonb->>'collection_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPageArticleRating(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPageArticleRating, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4898,6 +4953,56 @@ type ImportPageParams struct {
 // The search document and the references are the triggers' to build.
 func (q *Queries) ImportPage(ctx context.Context, arg ImportPageParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPage, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPageArticle = `-- name: ImportPageArticle :execrows
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, views)
+SELECT r.tenant_id, r.page_id, r.collection_id, r.published_by, r.published_at, coalesce(r.views, 0)
+FROM jsonb_populate_record(
+  NULL::page_article,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, collection_id) DO UPDATE SET
+  published_by = EXCLUDED.published_by, published_at = EXCLUDED.published_at, views = EXCLUDED.views
+WHERE $2::boolean
+`
+
+type ImportPageArticleParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPageArticle(ctx context.Context, arg ImportPageArticleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPageArticle, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPageArticleRating = `-- name: ImportPageArticleRating :execrows
+INSERT INTO page_article_rating (tenant_id, page_id, collection_id, account_id, helpful, rated_at)
+SELECT r.tenant_id, r.page_id, r.collection_id, r.account_id, r.helpful, r.rated_at
+FROM jsonb_populate_record(
+  NULL::page_article_rating,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, collection_id, account_id) DO UPDATE SET
+  helpful = EXCLUDED.helpful, rated_at = EXCLUDED.rated_at
+WHERE $2::boolean
+`
+
+type ImportPageArticleRatingParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPageArticleRating(ctx context.Context, arg ImportPageArticleRatingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPageArticleRating, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

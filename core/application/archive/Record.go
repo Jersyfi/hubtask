@@ -652,6 +652,24 @@ var entities = []Entity{
 			{Field: "created_by", Table: "account"},
 		},
 	},
+	// A page published to a service's portal, and its requesters' ratings (migration 0264).
+	{
+		Name: "page_articles", Table: "page_article", Whole: true, Later: true, Keys: []string{"page_id", "collection_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "collection_id", Table: "container"},
+			{Field: "published_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "page_article_ratings", Table: "page_article_rating", Whole: true, Later: true,
+		Keys: []string{"page_id", "collection_id", "account_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "collection_id", Table: "container"},
+			{Field: "account_id", Table: "account"},
+		},
+	},
 	// The whiteboard module's boards (migration 0233, M4). Whole and unmarked, as a page is: a
 	// board leaves without a marker when its hub is purged. Its scene is JSON in the contract's
 	// shape; where it points is rebuilt by the trigger.

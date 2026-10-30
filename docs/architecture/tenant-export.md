@@ -222,6 +222,8 @@ re-mints identities must rewrite exactly these).
 | 104 | `page_shares` | `page_share` | `page_id/account_id` | `page_id`→pages, `account_id`→accounts, `granted_by`→accounts (cleared when absent) (a page shared read-only with one person beside its hub, UC-DOC-08) |
 | 105 | `personal_spaces` | `personal_space` | `account_id` | `account_id`→accounts, `hub_id`→containers (the private hub that is a person's own notes, UC-DOC-07) |
 | 106 | `page_public_links` | `page_public_link` | `page_id` | `page_id`→pages, `created_by`→accounts (a page opened read-only by a link, UC-DOC-08; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
+| 107 | `page_articles` | `page_article` | `page_id/collection_id` | `page_id`→pages, `collection_id`→containers, `published_by`→accounts (cleared when absent) (a page published to a service's portal with its count of openings, UC-DOC-13) |
+| 108 | `page_article_ratings` | `page_article_rating` | `page_id/collection_id/account_id` | `page_id`→pages, `collection_id`→containers, `account_id`→accounts (a requester's "was this helpful?") |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

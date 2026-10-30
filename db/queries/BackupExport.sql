@@ -831,6 +831,35 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportPageArticles :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (a.page_id::text || '/' || a.collection_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(a) - 'tenant_id')::jsonb AS payload,
+         a.page_id AS key_1,
+         a.collection_id AS key_2
+  FROM page_article a
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPageArticleRatings :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.page_id::text || '/' || r.collection_id::text || '/' || r.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.page_id AS key_1,
+         r.collection_id AS key_2,
+         r.account_id AS key_3
+  FROM page_article_rating r
+) s
+  WHERE (s.key_1, s.key_2, s.key_3) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid, sqlc.arg('after_third')::uuid)
+  ORDER BY s.key_1, s.key_2, s.key_3
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportWhiteboards :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
