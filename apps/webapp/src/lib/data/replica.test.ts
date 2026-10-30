@@ -436,3 +436,18 @@ test('a hub\'s configuration items, a CI and its impact are answered from the co
   assert.equal(classes.data.length, 3);
   assert.equal(await storeFor({ path: '/cis/ci-9' }, storage), undefined);
 });
+
+// UC-PLN-06 offline: a collection's sprints are answered from the copy, the latest start first,
+// narrowed to a state when one is asked for, and never another collection's.
+test('a collection\'s sprints are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const sprint = (id: string, fields: Record<string, unknown>) => storage.put('sprints', id, record({ id, collection_id: COLLECTION, ...fields }));
+  await sprint('s-1', { name: 'One', start_on: '2026-11-02', state: 'CLOSED' });
+  await sprint('s-2', { name: 'Two', start_on: '2026-11-16', state: 'ACTIVE' });
+  await sprint('s-other', { name: 'Elsewhere', start_on: '2026-11-30', state: 'PLANNED', collection_id: 'c-other' });
+
+  const all = await storeFor({ path: `/collections/${COLLECTION}/sprints` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(all.data.map((row) => row.id), ['s-2', 's-1']);
+  const active = await storeFor({ path: `/collections/${COLLECTION}/sprints?state=ACTIVE` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(active.data.map((row) => row.id), ['s-2']);
+});

@@ -388,6 +388,23 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   const inventory = await cmdbFor(pathname, query, storage);
   if (inventory !== NOT_CMDB) return inventory;
 
+  // A collection's sprints read while the server is away (M2), in the server's order - the latest
+  // start first. The burndown and the velocity are computed by the server and wait for it.
+  match = /^\/collections\/([^/:]+)\/sprints$/.exec(pathname);
+  if (match?.[1]) {
+    const collectionId = match[1];
+    const state = query.get('state');
+    const rows = (await documents(storage, 'sprints'))
+      .filter((row) => row.collection_id === collectionId && (!state || row.state === state))
+      .sort((a, b) => {
+        const x = String(a.start_on ?? '');
+        const y = String(b.start_on ?? '');
+        if (x !== y) return x < y ? 1 : -1;
+        return String(a.id) < String(b.id) ? -1 : 1;
+      });
+    return { data: rows };
+  }
+
   if (pathname === '/entry-types') {
     // The server's order: by level as the levels run, then position, then key.
     const levels = ['TASK', 'WORK_PACKAGE', 'ACTIVITY'];
