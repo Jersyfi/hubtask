@@ -722,6 +722,12 @@ var entities = []Entity{
 		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 	},
 	{
+		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		Unique:     []UniqueField{{Field: "item_id", Rule: UniqueSkip}},
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
+	{
 		Name: "reply_templates", Table: "reply_template", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 	},

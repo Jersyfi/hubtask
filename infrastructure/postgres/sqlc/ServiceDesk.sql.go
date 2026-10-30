@@ -89,6 +89,25 @@ func (q *Queries) FindReplyTemplate(ctx context.Context, key string) (ReplyTempl
 	return i, err
 }
 
+const findSatisfactionRating = `-- name: FindSatisfactionRating :one
+SELECT id, tenant_id, item_id, score, rated_at, version
+FROM satisfaction_rating WHERE item_id = $1
+`
+
+func (q *Queries) FindSatisfactionRating(ctx context.Context, itemID pgtype.UUID) (SatisfactionRating, error) {
+	row := q.db.QueryRow(ctx, findSatisfactionRating, itemID)
+	var i SatisfactionRating
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ItemID,
+		&i.Score,
+		&i.RatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const findSlaPolicy = `-- name: FindSlaPolicy :one
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
        created_at, updated_at, version
@@ -408,6 +427,43 @@ func (q *Queries) ReportEntrySla(ctx context.Context, arg ReportEntrySlaParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const saveSatisfactionRating = `-- name: SaveSatisfactionRating :one
+INSERT INTO satisfaction_rating (id, tenant_id, item_id, score, rated_at, version)
+VALUES ($1, $2, $3, $4, $5, 1)
+ON CONFLICT (tenant_id, item_id) DO UPDATE SET
+  score = EXCLUDED.score, rated_at = EXCLUDED.rated_at, version = satisfaction_rating.version + 1
+RETURNING id, tenant_id, item_id, score, rated_at, version
+`
+
+type SaveSatisfactionRatingParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	ItemID   pgtype.UUID
+	Score    int16
+	RatedAt  pgtype.Timestamptz
+}
+
+// One per request: rating again replaces the score and moves the version on.
+func (q *Queries) SaveSatisfactionRating(ctx context.Context, arg SaveSatisfactionRatingParams) (SatisfactionRating, error) {
+	row := q.db.QueryRow(ctx, saveSatisfactionRating,
+		arg.ID,
+		arg.TenantID,
+		arg.ItemID,
+		arg.Score,
+		arg.RatedAt,
+	)
+	var i SatisfactionRating
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ItemID,
+		&i.Score,
+		&i.RatedAt,
+		&i.Version,
+	)
+	return i, err
 }
 
 const slaDueOf = `-- name: SlaDueOf :many

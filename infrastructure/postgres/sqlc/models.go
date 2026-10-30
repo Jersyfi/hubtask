@@ -2068,6 +2068,15 @@ type RuleRun struct {
 	Occasion         *string
 }
 
+type SatisfactionRating struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	ItemID   pgtype.UUID
+	Score    int16
+	RatedAt  pgtype.Timestamptz
+	Version  int32
+}
+
 type SavedView struct {
 	ID            pgtype.UUID
 	TenantID      pgtype.UUID

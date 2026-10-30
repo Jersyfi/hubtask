@@ -59,3 +59,11 @@ type ReplyTemplates interface {
 	List(ctx context.Context) ([]servicedesk.ReplyTemplate, error)
 	Delete(ctx context.Context, key string) error
 }
+
+// Ratings stores how satisfied requesters were, one per request (migration 0243).
+type Ratings interface {
+	// Save writes the request's rating, replacing an earlier one, and answers it as stored.
+	Save(ctx context.Context, rating servicedesk.Rating) (servicedesk.Rating, error)
+	// OfItem answers the request's rating; shared.ErrNotFound when it has none.
+	OfItem(ctx context.Context, itemID shared.ID) (servicedesk.Rating, error)
+}

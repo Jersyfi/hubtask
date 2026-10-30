@@ -687,6 +687,18 @@ func (q *Queries) ClearRetentionPolicy(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearSatisfactionRating = `-- name: ClearSatisfactionRating :execrows
+DELETE FROM satisfaction_rating
+`
+
+func (q *Queries) ClearSatisfactionRating(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearSatisfactionRating)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearSavedView = `-- name: ClearSavedView :execrows
 DELETE FROM saved_view
 `
@@ -1476,6 +1488,17 @@ SELECT EXISTS (SELECT 1 FROM retention_policy WHERE data_kind = ($1::jsonb->>'da
 
 func (q *Queries) HoldsRetentionPolicy(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsRetentionPolicy, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsSatisfactionRating = `-- name: HoldsSatisfactionRating :one
+SELECT EXISTS (SELECT 1 FROM satisfaction_rating WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsSatisfactionRating(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsSatisfactionRating, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4011,6 +4034,31 @@ type ImportRetentionPolicyParams struct {
 
 func (q *Queries) ImportRetentionPolicy(ctx context.Context, arg ImportRetentionPolicyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importRetentionPolicy, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importSatisfactionRating = `-- name: ImportSatisfactionRating :execrows
+INSERT INTO satisfaction_rating (id, tenant_id, item_id, score, rated_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.score, r.rated_at, r.version
+FROM jsonb_populate_record(
+  NULL::satisfaction_rating,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  score = EXCLUDED.score, rated_at = EXCLUDED.rated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportSatisfactionRatingParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportSatisfactionRating(ctx context.Context, arg ImportSatisfactionRatingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importSatisfactionRating, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

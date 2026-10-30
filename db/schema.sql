@@ -5460,4 +5460,24 @@ CREATE POLICY tenant_isolation ON reply_template
 GRANT SELECT, INSERT, UPDATE, DELETE ON reply_template TO hubtask_app;
 
 
+-- How satisfied a requester was with a resolved request (migration 0243, M5).
+CREATE TABLE satisfaction_rating (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id    uuid NOT NULL,
+  score      smallint NOT NULL CHECK (score BETWEEN 1 AND 5),
+  rated_at   timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT satisfaction_rating_item_uq UNIQUE (tenant_id, item_id),
+  CONSTRAINT satisfaction_rating_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE satisfaction_rating ENABLE ROW LEVEL SECURITY;
+ALTER TABLE satisfaction_rating FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON satisfaction_rating
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON satisfaction_rating TO hubtask_app;
+
+
 COMMIT;

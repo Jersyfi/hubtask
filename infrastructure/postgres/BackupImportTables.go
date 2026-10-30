@@ -238,6 +238,17 @@ var importers = map[string]importer{
 			return queries.ClearReplyTemplate(ctx)
 		},
 	},
+	"satisfaction_rating": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportSatisfactionRating(ctx, sqlc.ImportSatisfactionRatingParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsSatisfactionRating(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearSatisfactionRating(ctx)
+		},
+	},
 	"entry_sla": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportEntrySla(ctx, sqlc.ImportEntrySlaParams{Payload: payload, Overwrite: overwrite})

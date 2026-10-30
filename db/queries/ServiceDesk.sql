@@ -110,3 +110,15 @@ FROM reply_template ORDER BY key;
 
 -- name: DeleteReplyTemplate :execrows
 DELETE FROM reply_template WHERE key = sqlc.arg('key');
+
+-- name: SaveSatisfactionRating :one
+-- One per request: rating again replaces the score and moves the version on.
+INSERT INTO satisfaction_rating (id, tenant_id, item_id, score, rated_at, version)
+VALUES (sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('item_id'), sqlc.arg('score'), sqlc.arg('rated_at'), 1)
+ON CONFLICT (tenant_id, item_id) DO UPDATE SET
+  score = EXCLUDED.score, rated_at = EXCLUDED.rated_at, version = satisfaction_rating.version + 1
+RETURNING id, tenant_id, item_id, score, rated_at, version;
+
+-- name: FindSatisfactionRating :one
+SELECT id, tenant_id, item_id, score, rated_at, version
+FROM satisfaction_rating WHERE item_id = sqlc.arg('item_id');

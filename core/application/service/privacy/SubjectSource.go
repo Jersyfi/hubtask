@@ -138,6 +138,7 @@ var notThePersons = map[string]string{
 	"sla_policy":              "the workspace's promised response and resolution times",
 	"entry_sla":               "how an entry's promised times stood, which names nobody; the entry is the entry's",
 	"reply_template":          "the workspace's canned replies, text the team wrote once for many requests",
+	"satisfaction_rating":     "a score of a resolved request, which names nobody; the rater is who raised the entry, and their words are a comment of theirs",
 }
 
 // SubjectTables answers which tables a subject export reads and which it deliberately leaves out,

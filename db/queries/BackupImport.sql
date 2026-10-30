@@ -2607,3 +2607,20 @@ SELECT EXISTS (SELECT 1 FROM reply_template WHERE id = (sqlc.arg('payload')::jso
 
 -- name: ClearReplyTemplate :execrows
 DELETE FROM reply_template;
+
+-- name: ImportSatisfactionRating :execrows
+INSERT INTO satisfaction_rating (id, tenant_id, item_id, score, rated_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.score, r.rated_at, r.version
+FROM jsonb_populate_record(
+  NULL::satisfaction_rating,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  score = EXCLUDED.score, rated_at = EXCLUDED.rated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsSatisfactionRating :one
+SELECT EXISTS (SELECT 1 FROM satisfaction_rating WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearSatisfactionRating :execrows
+DELETE FROM satisfaction_rating;
