@@ -1714,6 +1714,32 @@ type FileLink struct {
 	AddedAt  pgtype.Timestamptz
 }
 
+type FileStoreAuthorization struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	AccountID    pgtype.UUID
+	Kind         string
+	Server       string
+	PollEndpoint string
+	StateHash    []byte
+	SecretEnc    []byte
+	SecretKeyID  string
+	ExpiresAt    pgtype.Timestamptz
+}
+
+type FileStoreConnection struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	AccountID   pgtype.UUID
+	Kind        string
+	Server      string
+	Login       string
+	SecretEnc   []byte
+	SecretKeyID string
+	CreatedAt   pgtype.Timestamptz
+	UsedAt      pgtype.Timestamptz
+}
+
 type Goal struct {
 	ID          pgtype.UUID
 	TenantID    pgtype.UUID
