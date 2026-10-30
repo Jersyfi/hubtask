@@ -27,6 +27,7 @@
   import {
     MAX_WIDGETS, csvOf, dashboardPath, digestPath, figureRows, figuresPath, goals, moved, nextBox, readingOrder, resized, widgetWrite,
   } from '../lib/data/goals.svelte.ts';
+  import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
   import { views } from '../lib/data/views.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
@@ -201,10 +202,19 @@
   // --- Figures ----------------------------------------------------------------------------------
 
   const figureOf = (id: string | undefined) => (id ? figures?.widgets.find((each) => each.id === id) : undefined);
-  function exportWidget(title: string, id: string | undefined) {
+  function exportWidget(title: string, id: string | undefined, asSheet = false) {
     const rows = figureRows(figureOf(id)?.data ?? []);
-    const csv = csvOf([t('app.dashboards.col_group'), t('app.dashboards.col_period'), t('app.dashboards.col_value')], rows.map((row) => [row.label, row.column ?? '', row.text]));
-    platform.saveFile(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${title.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 60) || 'widget'}.csv`);
+    const heads = [t('app.dashboards.col_group'), t('app.dashboards.col_period'), t('app.dashboards.col_value')];
+    const name = title.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 60) || 'widget';
+    if (asSheet) {
+      // A number stays a number in a sheet, so the value is the row's own, not its text.
+      const sheet = xlsxOf('Widget', heads, rows.map((row) => [row.label, row.column ?? '', row.text === '' ? '' : row.value]));
+      platform.saveFile(new Blob([sheet as BlobPart], { type: SPREADSHEET_TYPE }), `${name}.xlsx`);
+      toast.show({ text: t('app.dashboards.exported_sheet', { title }), tone: 'success' });
+      return;
+    }
+    const csv = csvOf(heads, rows.map((row) => [row.label, row.column ?? '', row.text]));
+    platform.saveFile(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${name}.csv`);
     toast.show({ text: t('app.dashboards.exported', { title }), tone: 'success' });
   }
 </script>
@@ -266,6 +276,7 @@
               <h2 class="heading">{each.widget.title}</h2>
               {#if !isEditing && figure && !figure.error}
                 <IconButton icon="file-text" size="sm" tone="subtle" label={t('app.dashboards.export', { title: each.widget.title })} onclick={() => exportWidget(each.widget.title, each.widget.id)} />
+                <IconButton icon="layout-template" size="sm" tone="subtle" label={t('app.dashboards.export_sheet', { title: each.widget.title })} onclick={() => exportWidget(each.widget.title, each.widget.id, true)} />
               {/if}
             </header>
             {#if isEditing}

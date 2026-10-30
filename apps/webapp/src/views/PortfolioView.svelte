@@ -22,6 +22,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { PORTFOLIOS, csvOf, goals, percentOf, percentText, portfolioPath, portfolioWrite, updatesPath } from '../lib/data/goals.svelte.ts';
+  import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -105,10 +106,15 @@
   }
   const projectPath = (kind: string, id: string) => (kind === 'HUB' ? `/hubs/${id}` : `/collections/${id}`);
 
-  function exportTable() {
+  function exportTable(asSheet = false) {
     if (!portfolio) return;
     const heads = [t('app.portfolios.col_project'), t('app.portfolios.col_start'), t('app.portfolios.col_end'), t('app.portfolios.col_health'), t('app.portfolios.col_entries'), t('app.portfolios.col_done'), t('app.goals.col_progress')];
     const rows = portfolio.items.map((item) => [item.name, item.start_on ?? '', item.end_on ?? '', item.status, item.entries ?? '', item.done ?? '', percentText(item.progress)]);
+    if (asSheet) {
+      platform.saveFile(new Blob([xlsxOf('Portfolio', heads, rows) as BlobPart], { type: SPREADSHEET_TYPE }), `portfolio-${portfolio.id}.xlsx`);
+      toast.show({ text: t('app.portfolios.exported_sheet'), tone: 'success' });
+      return;
+    }
     platform.saveFile(new Blob([csvOf(heads, rows)], { type: 'text/csv;charset=utf-8' }), `portfolio-${portfolio.id}.csv`);
     toast.show({ text: t('app.portfolios.exported'), tone: 'success' });
   }
@@ -206,6 +212,7 @@
       label: t('app.goals.more'),
       items: [
         { id: 'export', label: t('app.portfolios.export'), icon: 'file-text' },
+        { id: 'export_sheet', label: t('app.portfolios.export_sheet'), icon: 'layout-template' },
         { id: 'roadmap', label: t('app.roadmap.title'), icon: 'calendar' },
         ...(mayWrite ? [
           { id: 'change', label: t('app.portfolios.change'), icon: 'pencil' as const },
@@ -214,6 +221,7 @@
       ],
       onselect: (id: string) => {
         if (id === 'export') exportTable();
+        if (id === 'export_sheet') exportTable(true);
         if (id === 'roadmap') onnavigate(`/portfolios/${portfolioId}/roadmap`);
         if (id === 'change' && portfolio) { draft.name = portfolio.name; draft.description = portfolio.description; draft.parent = portfolio.parent_id ?? ''; isChanging = true; }
         if (id === 'delete') isDeleting = true;
