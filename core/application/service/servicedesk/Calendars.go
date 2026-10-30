@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
@@ -116,9 +117,9 @@ func CalendarOutput(c domain.Calendar) usecase.Output {
 // ListBusinessCalendars reads the workspace's calendars (UC-SVC-01).
 type ListBusinessCalendars struct{ Desk Desk }
 
-// Execute answers every calendar by key. Any member may read them: an SLA shows which it runs on.
+// Execute answers every calendar by key. Any member of the workspace may read them.
 func (h ListBusinessCalendars) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.Calendar, error) {
-	if err := actor.RequireScope(deskRead); err != nil {
+	if err := h.Desk.authorizeRead(ctx, actor, CalendarsReadAction, calendarTarget); err != nil {
 		return nil, err
 	}
 	var out []domain.Calendar
@@ -133,7 +134,7 @@ func (h ListBusinessCalendars) Execute(ctx context.Context, actor appshared.Acto
 // Descriptor is the catalogue entry.
 func (h ListBusinessCalendars) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name:        ListBusinessCalendarsName,
+		Name: ListBusinessCalendarsName, Permission: service.PermissionRead,
 		Summary:     "Lists the workspace's business calendars: each one's working hours per weekday, holidays and time zone.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  deskRead, ReadOnly: true,

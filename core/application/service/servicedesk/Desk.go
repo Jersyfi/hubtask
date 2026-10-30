@@ -80,6 +80,15 @@ func (d Desk) authorizeWrite(ctx context.Context, actor appshared.ActorContext, 
 	})
 }
 
+// authorizeRead asks READ at the workspace: the calendars and policies are the workspace's
+// configuration, read by its members and not by a requester (service.IsRequester).
+func (d Desk) authorizeRead(ctx context.Context, actor appshared.ActorContext, action audit.Action, target string) error {
+	return d.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionRead, Path: []identity.Scope{identity.TenantScope()},
+		Action: action, TokenScope: deskRead, TargetType: target, TargetID: actor.TenantID,
+	})
+}
+
 func (d Desk) record(
 	ctx context.Context, actor appshared.ActorContext, action audit.Action, target string, id shared.ID,
 	now time.Time, changes ...audit.Change,

@@ -73,6 +73,8 @@ var readScopes = map[Type]string{
 	ItemDueChanged:    itemsRead,
 	ItemDueSoon:       itemsRead,
 	ItemOverdue:       itemsRead,
+	ItemSlaAtRisk:     itemsRead,
+	ItemSlaBreached:   itemsRead,
 	ItemArchived:      itemsRead,
 	ItemUnarchived:    itemsRead,
 	ItemTrashed:       itemsRead,

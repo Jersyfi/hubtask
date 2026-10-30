@@ -140,7 +140,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "business-calendar ls",
         "summary": "The workspace's business calendars",
-        "description": "Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.\n",
+        "description": "Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.\n",
         "responses": {
           "200": {
             "description": "The calendars",
@@ -244,7 +244,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "sla ls",
         "summary": "The workspace's SLA policies",
-        "description": "Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.\n",
+        "description": "Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.\n",
         "responses": {
           "200": {
             "description": "The policies",

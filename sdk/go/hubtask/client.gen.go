@@ -23567,7 +23567,7 @@ type ClientInterface interface {
 
 	// ListBusinessCalendars The workspace's business calendars
 	//
-	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.
+	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
 	//
 	// Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
 	ListBusinessCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -27249,7 +27249,7 @@ type ClientInterface interface {
 
 	// ListSlaPolicies The workspace's SLA policies
 	//
-	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.
+	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.
 	//
 	// Corresponds with GET /sla-policies (the `ListSlaPolicies` operationId).
 	ListSlaPolicies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -33208,7 +33208,7 @@ func (c *Client) VerifyBackup(ctx context.Context, backupId openapi_types.UUID, 
 
 // ListBusinessCalendars The workspace's business calendars
 //
-// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.
+// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
 //
 // Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
 func (c *Client) ListBusinessCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -41140,7 +41140,7 @@ func (c *Client) ReadSettingsCatalogue(ctx context.Context, reqEditors ...Reques
 
 // ListSlaPolicies The workspace's SLA policies
 //
-// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.
+// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.
 //
 // Corresponds with GET /sla-policies (the `ListSlaPolicies` operationId).
 func (c *Client) ListSlaPolicies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -70524,7 +70524,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListBusinessCalendarsWithResponse The workspace's business calendars
 	//
-	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.
+	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -74588,7 +74588,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListSlaPoliciesWithResponse The workspace's SLA policies
 	//
-	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.
+	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -105281,7 +105281,7 @@ func (c *ClientWithResponses) VerifyBackupWithResponse(ctx context.Context, back
 
 // ListBusinessCalendarsWithResponse The workspace's business calendars
 //
-// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.
+// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -111895,7 +111895,7 @@ func (c *ClientWithResponses) ReadSettingsCatalogueWithResponse(ctx context.Cont
 
 // ListSlaPoliciesWithResponse The workspace's SLA policies
 //
-// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.
+// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.
 //
 // Returns a wrapper object for the known response body format(s).
 //

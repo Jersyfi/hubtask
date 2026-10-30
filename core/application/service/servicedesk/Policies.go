@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
@@ -102,9 +103,9 @@ func PolicyOutput(p domain.SlaPolicy) usecase.Output {
 // ListSlaPolicies reads the workspace's SLA policies (UC-SVC-02).
 type ListSlaPolicies struct{ Desk Desk }
 
-// Execute answers every policy by position and key. Any member may read them.
+// Execute answers every policy by position and key, to any member of the workspace.
 func (h ListSlaPolicies) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.SlaPolicy, error) {
-	if err := actor.RequireScope(deskRead); err != nil {
+	if err := h.Desk.authorizeRead(ctx, actor, PoliciesReadAction, policyTarget); err != nil {
 		return nil, err
 	}
 	var out []domain.SlaPolicy
@@ -119,7 +120,7 @@ func (h ListSlaPolicies) Execute(ctx context.Context, actor appshared.ActorConte
 // Descriptor is the catalogue entry.
 func (h ListSlaPolicies) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name: ListSlaPoliciesName,
+		Name: ListSlaPoliciesName, Permission: service.PermissionRead,
 		Summary: "Lists the workspace's SLA policies: the types each measures, its goals with targets per " +
 			"priority, the statuses that pause them and the share at which they are at risk, and its calendar.",
 		SideEffects: "None. Reads only.",
