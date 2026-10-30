@@ -1033,6 +1033,14 @@ the grant revoked, the feed gone - makes it `FAILED`. A **`PushedEvent`** is wha
 entry, the provider's event and a digest, so a run writes only what changed (`PlanPush`)
 (UC-INT-16, migration 0278, not archived: the grant opens on one installation).
 
+### 3.16 A person's own file store (context: Integration, M10)
+
+A **`filelink.Connection`** is a person's own sign-in to a file store - a Nextcloud by its login
+flow and an app password, or Microsoft's OneDrive and SharePoint by a refresh token - at most ten
+per person, one per store and login. *Link a file* walks its folders as **`filelink.Item`**s and
+keeps a picked one as an ordinary file link (UC-INT-17, migration 0279, not archived: the grant
+opens on one installation).
+
 ## 4. Domain events
 
 Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,

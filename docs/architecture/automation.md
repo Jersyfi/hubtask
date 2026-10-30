@@ -594,6 +594,29 @@ A person's calendar feed is written into their own calendar at Microsoft 365 (Gr
 * **Retention**: disconnecting removes the push and what it wrote is forgotten here; the events
   stay in the calendar. Not archived: the grant opens on one installation only.
 
+### 3.7 A person's own file store
+
+A person connects their own Nextcloud or Microsoft's OneDrive and SharePoint, and *Link a file*
+offers its folders
+([UC-INT-17](../usecases/integration/UC-INT-17-pick-a-file-from-my-own-file-store.md)).
+
+* **Consent**: a Nextcloud by its login flow v2 (`/index.php/login/v2`), needing no app: the person
+  grants an app password named *Hubtask* on the Nextcloud's page, which `:complete` polls once per
+  try; the poll and login addresses must stay on the Nextcloud's origin. Microsoft by the
+  mailboxes' installation app with PKCE and `Files.Read.All`, `Sites.Read.All`; the browser comes
+  back to `/profile/files`, a third redirect URI. The grant is sealed under the connection's own
+  purpose label.
+* **Reach**: every call goes through the guarded client; a Nextcloud on a private network is
+  refused until the operator releases the guard (`HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS`), the same
+  decision a backup target on a NAS needs.
+* **Folders**: a Nextcloud by WebDAV `PROPFIND` (depth 1) under `/remote.php/dav/files/<login>/`, a
+  file's address `/index.php/f/<fileid>`; Microsoft by Graph - `/me/drive`, `/me/followedSites`, a
+  site's `/drives`, a folder's `/children` - each folder at most 500 items, names only.
+* **Share**: a Nextcloud's OCS share API, a public link with read permission alone, made in the
+  person's name when they ask for it on *Link a file*.
+* **Retention**: disconnecting removes the connection and gives a Nextcloud's app password back;
+  the links stay. Not archived: the grant opens on one installation only.
+
 ---
 
 ## 4. Why automation is its own service

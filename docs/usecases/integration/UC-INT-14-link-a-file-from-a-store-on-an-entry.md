@@ -43,10 +43,9 @@ off and links the new address.
 
 ## Where it ends
 
-* The store is never called: no file is fetched, previewed, uploaded or copied, and no folder is
-  browsed; a store's own picker (Nextcloud's file picker, Microsoft's OneDrive and SharePoint
-  picker) and a share made through Nextcloud's OCS share API wait on a connection to the store
-  with its own consent.
+* A link never calls the store: no file is fetched, previewed, uploaded or copied. Picking a file
+  from a store's folders and a share made through Nextcloud's OCS share API go through the
+  person's own connection with its own consent (UC-INT-17).
 * A link does not open a file for a person the store refuses; the store's permissions are its
   own.
 * No folder of a hub is linked to a store as a whole; a link is one file or folder on one entry.
