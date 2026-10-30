@@ -4212,6 +4212,8 @@ func run() error {
 			Max:      24 * time.Hour,
 		}.Delay,
 		Signals: metrics,
+		// A chat room's sentence, from the catalogue in the subscription's language (UC-INT-12).
+		Texts: renderer,
 	}
 	// The installation's deliveries to a purchase platform (UC-INS-14): the same signature, client
 	// and ladder, and no switching off.

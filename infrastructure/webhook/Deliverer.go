@@ -28,6 +28,7 @@ import (
 	httpport "github.com/Jersyfi/hubtask/core/port/httpclient"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
@@ -115,6 +116,8 @@ type Deliverer struct {
 	// Signals carries each settled attempt into the metrics. Nil skips; the composition root
 	// always wires it.
 	Signals Signals
+	// Texts renders a chat room's sentence (UC-INT-12); Source is the base of its link.
+	Texts ChatTexts
 }
 
 var (
@@ -209,35 +212,26 @@ func (d Deliverer) Run(ctx context.Context, job queue.Job) (queue.Result, error)
 		})
 	}
 
-	body, err := json.Marshal(eventbus.ToCloudEvent(envelope, d.Source))
-	if err != nil {
-		return queue.Result{}, shared.ErrInternal.
-			WithDetail("webhooks.body_unrenderable").
-			WithCause(err)
-	}
-
-	signing, err := d.Encryptor.Open(ctx, crypto.Sealed{
+	opened, err := d.Encryptor.Open(ctx, crypto.Sealed{
 		KeyID: stored.Secret.KeyID, Ciphertext: stored.Secret.Ciphertext,
 	}, crypto.Purpose(domain.SecretPurposeFor(subscriptionID)))
 	if err != nil {
 		return queue.Result{}, err
 	}
 
+	request, err := d.request(stored.Subscription, opened.Reveal(), envelope, delivery)
+	if err != nil {
+		if errors.Is(err, shared.ErrForbidden) {
+			// A sealed address that left its target's origin: nothing is sent, and it ends here.
+			return queue.Result{}, d.write(ctx, scope, func(ctx context.Context) error {
+				return d.settle(ctx, stored.Subscription, delivery, 0, "webhooks.target_mismatch", true)
+			})
+		}
+		return queue.Result{}, err
+	}
+
 	// The call itself, outside every transaction.
-	now := d.Clock.Now()
-	response, callErr := d.Client.Do(ctx, httpport.Request{
-		Method: http.MethodPost,
-		URL:    stored.Subscription.TargetURL,
-		Header: map[string][]string{
-			"Content-Type":           {"application/cloudevents+json; charset=utf-8"},
-			security.SignatureHeader: {d.Signer.Sign(signing, now, body)},
-			EventIDHeader:            {envelope.ID.String()},
-			EventTypeHeader:          {envelope.Type.String()},
-			AttemptHeader:            {itoa(delivery.Attempt)},
-		},
-		Body:        body,
-		TargetClass: targetClass,
-	})
+	response, callErr := d.Client.Do(ctx, request)
 
 	// And a second short transaction for what became of it.
 	return queue.Result{}, d.write(ctx, scope, func(ctx context.Context) error {
@@ -257,6 +251,47 @@ func (d Deliverer) Run(ctx context.Context, job queue.Job) (queue.Result, error)
 		return d.retryOrStop(ctx, stored.Subscription, delivery,
 			response.Status, statusCode(response.Status))
 	})
+}
+
+// request is the call one attempt makes: the signed CloudEvent, or a chat room's sentence in its
+// format with the room's credential (UC-INT-12), which is never signed.
+func (d Deliverer) request(
+	subscription domain.WebhookSubscription, opened string, envelope event.Envelope,
+	delivery domain.WebhookDelivery,
+) (httpport.Request, error) {
+	if subscription.Format.IsChat() {
+		if d.Texts == nil {
+			return httpport.Request{}, shared.ErrInternal.WithDetail("webhooks.chat_unwired")
+		}
+		message := chatMessageOf(d.Texts, subscription.Locale, d.Source, envelope)
+		method, target, header, body, err := chatRequest(subscription, opened, envelope, message)
+		if err != nil {
+			return httpport.Request{}, err
+		}
+		return httpport.Request{
+			Method: method, URL: target, Header: header, Body: body, TargetClass: targetClass,
+		}, nil
+	}
+
+	body, err := json.Marshal(eventbus.ToCloudEvent(envelope, d.Source))
+	if err != nil {
+		return httpport.Request{}, shared.ErrInternal.
+			WithDetail("webhooks.body_unrenderable").
+			WithCause(err)
+	}
+	return httpport.Request{
+		Method: http.MethodPost,
+		URL:    subscription.TargetURL,
+		Header: map[string][]string{
+			"Content-Type":           {"application/cloudevents+json; charset=utf-8"},
+			security.SignatureHeader: {d.Signer.Sign(secret.New(opened), d.Clock.Now(), body)},
+			EventIDHeader:            {envelope.ID.String()},
+			EventTypeHeader:          {envelope.Type.String()},
+			AttemptHeader:            {itoa(delivery.Attempt)},
+		},
+		Body:        body,
+		TargetClass: targetClass,
+	}, nil
 }
 
 // write runs one short transaction for the bookkeeping either side of the call.
