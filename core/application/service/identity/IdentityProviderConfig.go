@@ -842,6 +842,10 @@ func presetOutputAt(preset domain.ProviderPreset, redirectURL, acsURL, metadataU
 // INVITED_ONLY is on every list since ADR-0071's addendum (E2): what keeps an address from handing
 // over an account is the account's own proof, not the provider kind.
 func provisioningOf(preset domain.ProviderPreset, installation bool) []any {
+	// A SAML provider is a workspace's own: the installation offers it in no mode (identity.md §26).
+	if installation && preset.Kind == domain.KindSAML {
+		return []any{}
+	}
 	if installation && preset.DirectoryClaim == "" {
 		return []any{string(domain.ProvisionInvitedOnly)}
 	}

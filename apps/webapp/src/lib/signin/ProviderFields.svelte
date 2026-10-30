@@ -28,6 +28,7 @@
     isPersonalIssuer,
     isSharedIssuer,
     issuerAfterChoosing,
+    isSaml,
     offeredModes,
     type ProviderDraft,
   } from './issuer.ts';
@@ -71,9 +72,18 @@
   <Select
     label={t('app.identity_provider.kind_label')}
     hint={t('app.identity_provider.kind_hint')}
-    options={presets.map((each) => ({ value: each.kind, label: t(`app.identity_provider.kind.${each.kind.toLowerCase()}`) }))}
+    options={presets
+      .filter((each) => level === 'workspace' || each.installation_provisioning.length > 0)
+      .map((each) => ({ value: each.kind, label: t(`app.identity_provider.kind.${each.kind.toLowerCase()}`) }))}
     bind:value={draft.kind}
-    onchange={(event) => (draft.issuer = issuerAfterChoosing(presets, (event.currentTarget as HTMLSelectElement).value, draft.issuer))}
+    onchange={(event) => {
+      const chosen = (event.currentTarget as HTMLSelectElement).value;
+      draft.issuer = issuerAfterChoosing(presets, chosen, draft.issuer);
+      // A SAML provider's client ID is this installation's entity ID, its metadata address unless
+      // the provider wants another.
+      const metadata = presets.find((each) => each.kind === chosen)?.metadata_url;
+      if (metadata && draft.clientId.trim() === '') draft.clientId = metadata;
+    }}
   />
   {#if preset}
     <!-- The server's message code rendered with this installation's own callback: the one value
@@ -85,6 +95,11 @@
       {/if}
     </Banner>
     <RedirectAddress address={preset.redirect_uri} />
+    {#if preset.metadata_url}
+      <!-- A SAML provider is registered from this installation's metadata; its address is also
+           the entity ID the client ID suggests. -->
+      <RedirectAddress address={preset.metadata_url} />
+    {/if}
   {/if}
   <Input
     label={t('app.identity_provider.issuer_label')}
@@ -114,15 +129,37 @@
     spellcheck={false}
     isRequired
   />
-  <Input
-    label={t('app.identity_provider.client_secret_label')}
-    hint={isNew ? t('app.identity_provider.client_secret_hint') : t('app.identity_provider.client_secret_kept')}
-    bind:value={draft.clientSecret}
-    type="password"
-    autocomplete="off"
-    spellcheck={false}
-    isRequired={isNew}
-  />
+  {#if isSaml(draft)}
+    <!-- A SAML provider holds no secret: its single sign-on address and the certificates its
+         assertions are signed with take the secret's place (identity.md §26). -->
+    <Input
+      label={t('app.identity_provider.saml_sso_url_label')}
+      hint={t('app.identity_provider.saml_sso_url_hint')}
+      bind:value={draft.samlSsoUrl}
+      type="url"
+      autocomplete="off"
+      spellcheck={false}
+      isRequired
+    />
+    <Textarea
+      label={t('app.identity_provider.saml_certificate_label')}
+      hint={t('app.identity_provider.saml_certificate_hint')}
+      bind:value={draft.samlCertificate}
+      rows={6}
+      spellcheck={false}
+      isRequired
+    />
+  {:else}
+    <Input
+      label={t('app.identity_provider.client_secret_label')}
+      hint={isNew ? t('app.identity_provider.client_secret_hint') : t('app.identity_provider.client_secret_kept')}
+      bind:value={draft.clientSecret}
+      type="password"
+      autocomplete="off"
+      spellcheck={false}
+      isRequired={isNew}
+    />
+  {/if}
   <Select
     label={t('app.identity_provider.provisioning_label')}
     hint={t('app.identity_provider.provisioning_hint')}

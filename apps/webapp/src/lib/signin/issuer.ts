@@ -125,11 +125,14 @@ export interface ProviderDraft {
   /** One per line or separated by commas - whichever somebody pastes. */
   domains: string;
   directories: string;
+  /** A SAML provider's single sign-on address and signing certificates (PEM); empty otherwise. */
+  samlSsoUrl: string;
+  samlCertificate: string;
 }
 
 /** An empty form, admitting as strictly as the level asks for a new provider. */
 export function emptyDraft(provisioning: string): ProviderDraft {
-  return { kind: 'GENERIC', issuer: '', clientId: '', clientSecret: '', displayName: '', provisioning, domains: '', directories: '' };
+  return { kind: 'GENERIC', issuer: '', clientId: '', clientSecret: '', displayName: '', provisioning, domains: '', directories: '', samlSsoUrl: '', samlCertificate: '' };
 }
 
 /** The form opened on a stored provider. The secret stays empty, because nothing can read it. */
@@ -143,7 +146,14 @@ export function draftOf(provider: IdentityProvider): ProviderDraft {
     provisioning: provider.provisioning,
     domains: (provider.allowed_email_domains ?? []).join('\n'),
     directories: (provider.allowed_directories ?? []).join('\n'),
+    samlSsoUrl: provider.saml_sso_url ?? '',
+    samlCertificate: provider.saml_certificate ?? '',
   };
+}
+
+/** Whether the form is a SAML provider's: no secret, the address and certificate instead. */
+export function isSaml(draft: ProviderDraft): boolean {
+  return draft.kind === 'SAML';
 }
 
 /** A list as written: one per line or separated by commas, blanks dropped. */
@@ -173,7 +183,8 @@ export function draftBody(
   return {
     issuer: draft.issuer.trim(),
     client_id: draft.clientId.trim(),
-    ...(draft.clientSecret === '' ? {} : { client_secret: draft.clientSecret }),
+    ...(draft.clientSecret === '' || isSaml(draft) ? {} : { client_secret: draft.clientSecret }),
+    ...(isSaml(draft) ? { saml_sso_url: draft.samlSsoUrl.trim(), saml_certificate: draft.samlCertificate.trim() } : {}),
     ...(draft.displayName.trim() === '' ? {} : { display_name: draft.displayName.trim() }),
     kind: draft.kind as IdentityProvider['kind'],
     provisioning: draft.provisioning as IdentityProvider['provisioning'],
