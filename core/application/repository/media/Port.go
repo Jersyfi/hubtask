@@ -103,6 +103,10 @@ type Objects interface {
 	// bounded, for the authorisation question (UC-CNV-08).
 	ReferencingBoards(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)
 
+	// ReferencingPages returns the pages that hold the object and are not trashed, bounded, for
+	// the authorisation question the knowledge module answers (UC-DOC-14).
+	ReferencingPages(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)
+
 	// ServesAvatar answers whether some account shows the object as its picture - which makes it
 	// readable by every member, as the name beside it is.
 	ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error)

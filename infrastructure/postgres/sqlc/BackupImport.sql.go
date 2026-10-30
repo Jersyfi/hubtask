@@ -795,6 +795,18 @@ func (q *Queries) ClearPageComment(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPageMedia = `-- name: ClearPageMedia :execrows
+DELETE FROM page_media
+`
+
+func (q *Queries) ClearPageMedia(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageMedia)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPagePublicLink = `-- name: ClearPagePublicLink :execrows
 DELETE FROM page_public_link
 `
@@ -2054,6 +2066,21 @@ SELECT EXISTS (SELECT 1 FROM page_comment WHERE id = ($1::jsonb->>'id')::uuid) A
 
 func (q *Queries) HoldsPageComment(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPageComment, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPageMedia = `-- name: HoldsPageMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM page_media
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND media_id = ($1::jsonb->>'media_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPageMedia(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPageMedia, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -5038,6 +5065,24 @@ type ImportPageCommentParams struct {
 
 func (q *Queries) ImportPageComment(ctx context.Context, arg ImportPageCommentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPageComment, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPageMedia = `-- name: ImportPageMedia :execrows
+INSERT INTO page_media (tenant_id, page_id, media_id)
+SELECT r.tenant_id, r.page_id, r.media_id
+FROM jsonb_populate_record(
+  NULL::page_media,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, media_id) DO NOTHING
+`
+
+func (q *Queries) ImportPageMedia(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPageMedia, payload)
 	if err != nil {
 		return 0, err
 	}

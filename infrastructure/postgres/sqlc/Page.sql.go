@@ -11,6 +11,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const attachPageMedia = `-- name: AttachPageMedia :exec
+INSERT INTO page_media (tenant_id, page_id, media_id)
+VALUES (current_tenant_id(), $1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type AttachPageMediaParams struct {
+	PageID  pgtype.UUID
+	MediaID pgtype.UUID
+}
+
+// A media object a page holds; holding it twice is once.
+func (q *Queries) AttachPageMedia(ctx context.Context, arg AttachPageMediaParams) error {
+	_, err := q.db.Exec(ctx, attachPageMedia, arg.PageID, arg.MediaID)
+	return err
+}
+
 const claimPersonalSpace = `-- name: ClaimPersonalSpace :one
 INSERT INTO personal_space (tenant_id, account_id, hub_id, created_at)
 VALUES (current_tenant_id(), $1, $2, $3)
@@ -64,6 +81,18 @@ func (q *Queries) CountPageArticleView(ctx context.Context, arg CountPageArticle
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const countPageMedia = `-- name: CountPageMedia :one
+SELECT count(*)::int FROM page_media
+WHERE tenant_id = current_tenant_id() AND page_id = $1
+`
+
+func (q *Queries) CountPageMedia(ctx context.Context, pageID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countPageMedia, pageID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const deletePagePublicLink = `-- name: DeletePagePublicLink :execrows

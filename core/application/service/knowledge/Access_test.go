@@ -107,6 +107,19 @@ func (s *store) DailyNote(_ context.Context, hub shared.ID, day time.Time) (shar
 	return "", false, nil
 }
 
+func (s *store) AttachMedia(_ context.Context, page, object shared.ID) error {
+	if s.media == nil {
+		s.media = map[shared.ID][]shared.ID{}
+	}
+	if !slices.Contains(s.media[page], object) {
+		s.media[page] = append(s.media[page], object)
+	}
+	return nil
+}
+func (s *store) CountMedia(_ context.Context, page shared.ID) (int, error) {
+	return len(s.media[page]), nil
+}
+
 // changes keeps what the change log was told.
 type changes struct{ recorded []changelog.Change }
 

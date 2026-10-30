@@ -81,7 +81,9 @@ FROM (
     -- A person's picture: reclaimed only once nobody shows it any more.
     + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id)
     -- A board's pictures and files, trashed boards included: they may come back.
-    + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id) AS total
+    + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
+    -- A page's pictures and files, trashed pages included, for the same reason.
+    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c
@@ -138,6 +140,15 @@ LIMIT 50;
 SELECT DISTINCT w.hub_id
 FROM whiteboard_media b JOIN whiteboard w ON w.tenant_id = b.tenant_id AND w.id = b.whiteboard_id
 WHERE b.media_id = sqlc.arg('media_id')::uuid AND w.deleted_at IS NULL
+LIMIT 50;
+
+-- name: ListMediaReferencingPages :many
+-- The pages that hold an object, for GetMedia's authorisation: whoever may read one of those pages
+-- may read the object, which the knowledge module decides. A trashed page serves nothing until it
+-- is restored.
+SELECT DISTINCT g.page_id
+FROM page_media g JOIN page p ON p.tenant_id = g.tenant_id AND p.id = g.page_id
+WHERE g.media_id = sqlc.arg('media_id')::uuid AND p.deleted_at IS NULL
 LIMIT 50;
 
 -- name: MediaServesAvatar :one

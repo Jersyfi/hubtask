@@ -2155,6 +2155,23 @@ ALTER TABLE whiteboard_media FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON whiteboard_media
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON whiteboard_media TO hubtask_app;
+-- A page's pictures and files (migration 0265, UC-DOC-14).
+CREATE TABLE page_media (
+  tenant_id uuid NOT NULL,
+  page_id   uuid NOT NULL,
+  media_id  uuid NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, media_id),
+  CONSTRAINT page_media_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+  CONSTRAINT page_media_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX page_media_object_idx ON page_media (tenant_id, media_id);
+ALTER TABLE page_media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE page_media FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON page_media
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON page_media TO hubtask_app;
 -- Cleared rather than refused when the picture goes: a replace-restore and an erasure both remove
 -- media before the account row is done with (migration 0199).
 ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey

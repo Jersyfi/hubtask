@@ -116,6 +116,8 @@ type store struct {
 	restrictedTo map[shared.ID][]shared.ID
 	shares       map[shared.ID][]domain.Share
 	personal     map[shared.ID]shared.ID
+	// media is what AttachMedia keeps, by page.
+	media map[shared.ID][]shared.ID
 }
 
 func newStore() *store {

@@ -354,6 +354,36 @@ func (q *Queries) ListMediaReferencingItems(ctx context.Context, mediaID pgtype.
 	return items, nil
 }
 
+const listMediaReferencingPages = `-- name: ListMediaReferencingPages :many
+SELECT DISTINCT g.page_id
+FROM page_media g JOIN page p ON p.tenant_id = g.tenant_id AND p.id = g.page_id
+WHERE g.media_id = $1::uuid AND p.deleted_at IS NULL
+LIMIT 50
+`
+
+// The pages that hold an object, for GetMedia's authorisation: whoever may read one of those pages
+// may read the object, which the knowledge module decides. A trashed page serves nothing until it
+// is restored.
+func (q *Queries) ListMediaReferencingPages(ctx context.Context, mediaID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listMediaReferencingPages, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var page_id pgtype.UUID
+		if err := rows.Scan(&page_id); err != nil {
+			return nil, err
+		}
+		items = append(items, page_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markMediaOrphans = `-- name: MarkMediaOrphans :execrows
 UPDATE media_object SET deleted_at = $1
 WHERE deleted_at IS NULL
@@ -421,7 +451,9 @@ FROM (
     -- A person's picture: reclaimed only once nobody shows it any more.
     + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id)
     -- A board's pictures and files, trashed boards included: they may come back.
-    + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id) AS total
+    + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
+    -- A page's pictures and files, trashed pages included, for the same reason.
+    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c

@@ -148,6 +148,11 @@ type Pages interface {
 	ClaimPersonalSpace(ctx context.Context, accountID, hubID shared.ID, at time.Time) (shared.ID, error)
 	// DailyNote answers the living daily note of a space for a day, found false when there is none.
 	DailyNote(ctx context.Context, hubID shared.ID, day time.Time) (shared.ID, bool, error)
+
+	// AttachMedia makes a media object one of a page's pictures and files (UC-DOC-14); holding it
+	// twice is once. CountMedia answers how many a page holds.
+	AttachMedia(ctx context.Context, pageID, mediaID shared.ID) error
+	CountMedia(ctx context.Context, pageID shared.ID) (int, error)
 }
 
 // PublicLinks stores a page's public link (UC-DOC-08). It is the only place that knows how a

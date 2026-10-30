@@ -3042,6 +3042,53 @@ func (q *Queries) ExportPageComments(ctx context.Context, arg ExportPageComments
 	return items, nil
 }
 
+const exportPageMedia = `-- name: ExportPageMedia :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (g.page_id::text || '/' || g.media_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(g) - 'tenant_id')::jsonb AS payload,
+         g.page_id AS key_1,
+         g.media_id AS key_2
+  FROM page_media g
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPageMediaParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportPageMediaRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPageMedia(ctx context.Context, arg ExportPageMediaParams) ([]ExportPageMediaRow, error) {
+	rows, err := q.db.Query(ctx, exportPageMedia, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPageMediaRow{}
+	for rows.Next() {
+		var i ExportPageMediaRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPagePublicLinks = `-- name: ExportPagePublicLinks :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

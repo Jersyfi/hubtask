@@ -1010,3 +1010,36 @@ func (PageRepository) DailyNote(ctx context.Context, hubID shared.ID, day time.T
 	page, err := optionalID(id)
 	return page, err == nil, err
 }
+
+// AttachMedia makes a media object one of a page's files; holding it twice is once.
+func (PageRepository) AttachMedia(ctx context.Context, pageID, mediaID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	ids, err := pageUUIDs(pageID, mediaID)
+	if err != nil {
+		return err
+	}
+	if err := queries.AttachPageMedia(ctx, sqlc.AttachPageMediaParams{PageID: ids[0], MediaID: ids[1]}); err != nil {
+		return pageFailed("holding a file", err)
+	}
+	return nil
+}
+
+// CountMedia answers how many media objects a page holds.
+func (PageRepository) CountMedia(ctx context.Context, pageID shared.ID) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	id, err := uuidOf(pageID)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.CountPageMedia(ctx, id)
+	if err != nil {
+		return 0, pageFailed("counting the files", err)
+	}
+	return int(count), nil
+}

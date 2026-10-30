@@ -68,6 +68,9 @@ func (r *reclaimable) ServesAvatar(context.Context, shared.ID) (bool, error) { r
 func (r *reclaimable) ReferencingBoards(context.Context, shared.ID) ([]shared.ID, error) {
 	return nil, nil
 }
+func (r *reclaimable) ReferencingPages(context.Context, shared.ID) ([]shared.ID, error) {
+	return nil, nil
+}
 func (r *reclaimable) ListForItem(
 	context.Context, shared.ID, workrepo.Page,
 ) (mediarepo.ObjectPage, error) {

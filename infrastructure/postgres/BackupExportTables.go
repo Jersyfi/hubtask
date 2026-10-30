@@ -869,6 +869,18 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"page_media": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPageMedia(ctx, sqlc.ExportPageMediaParams{
+				AfterID: cursorUUID(page.After, 0), AfterSecond: cursorUUID(page.After, 1), Batch: page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPageMediaRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"page_article_rating": {
 		delta: false,
 		keys:  3,

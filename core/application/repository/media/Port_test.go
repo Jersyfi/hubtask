@@ -43,6 +43,9 @@ func (objectDouble) ServesAvatar(context.Context, shared.ID) (bool, error) { ret
 func (objectDouble) ReferencingBoards(context.Context, shared.ID) ([]shared.ID, error) {
 	return nil, nil
 }
+func (objectDouble) ReferencingPages(context.Context, shared.ID) ([]shared.ID, error) {
+	return nil, nil
+}
 func (objectDouble) ListForItem(context.Context, shared.ID, repository.Page) (ObjectPage, error) {
 	return ObjectPage{}, nil
 }

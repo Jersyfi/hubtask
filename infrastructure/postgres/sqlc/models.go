@@ -2042,6 +2042,12 @@ type PageComment struct {
 	Version    int32
 }
 
+type PageMedium struct {
+	TenantID pgtype.UUID
+	PageID   pgtype.UUID
+	MediaID  pgtype.UUID
+}
+
 type PagePublicLink struct {
 	TenantID  pgtype.UUID
 	PageID    pgtype.UUID

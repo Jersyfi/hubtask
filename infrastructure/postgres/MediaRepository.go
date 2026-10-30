@@ -320,6 +320,33 @@ func (r MediaRepository) ReferencingBoards(ctx context.Context, mediaID shared.I
 	return hubs, nil
 }
 
+// ReferencingPages returns the pages that hold the object.
+func (r MediaRepository) ReferencingPages(ctx context.Context, mediaID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(mediaID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListMediaReferencingPages(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the pages of %s: %w", mediaID, err))
+	}
+	pages := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		page, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		pages = append(pages, page)
+	}
+	return pages, nil
+}
+
 // ServesAvatar answers whether some account shows the object as its picture.
 func (r MediaRepository) ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error) {
 	queries, err := queriesFrom(ctx)

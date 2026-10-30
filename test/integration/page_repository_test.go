@@ -380,3 +380,53 @@ func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A picture a page holds is counted once and found through the page, a trashed page serves it no
+// more, and the workspace next door neither attaches nor finds it (migration 0265, UC-DOC-14
+// check 4).
+func TestAPagesPicturesStayInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	_, root, _ := seedSpace(ctx, t)
+	picture := freshID(t)
+	if _, err := adminPool(ctx, t).Exec(ctx, `INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status)
+		VALUES ($1, $2, $3, 'image/png', 12, 'ATTACHMENT', 'READY')`,
+		picture.String(), tenantA.String(), "test/"+picture.String()); err != nil {
+		t.Fatalf("the picture: %v", err)
+	}
+	repo := postgres.NewPageRepository()
+	media := postgres.NewMediaRepository(pageCursors())
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for range 2 {
+			if err := repo.AttachMedia(ctx, root, picture); err != nil {
+				return err
+			}
+		}
+		if n, err := repo.CountMedia(ctx, root); err != nil || n != 1 {
+			t.Errorf("held %d, %v", n, err)
+		}
+		pages, err := media.ReferencingPages(ctx, picture)
+		if err != nil || len(pages) != 1 || pages[0] != root {
+			t.Errorf("pages %v, %v", pages, err)
+		}
+		if _, err := repo.Trash(ctx, root, authorA, time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)); err != nil {
+			return err
+		}
+		if pages, _ := media.ReferencingPages(ctx, picture); len(pages) != 0 {
+			t.Errorf("a trashed page served the picture: %v", pages)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := repo.AttachMedia(ctx, root, picture); err == nil {
+			t.Error("the workspace next door attached a picture to the page")
+		}
+		if pages, _ := media.ReferencingPages(ctx, picture); len(pages) != 0 {
+			t.Error("the workspace next door found the page holding the picture")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -3350,3 +3350,22 @@ SELECT EXISTS (SELECT 1 FROM agent_job WHERE id = (sqlc.arg('payload')::jsonb->>
 
 -- name: ClearAgentJob :execrows
 DELETE FROM agent_job;
+
+-- name: ImportPageMedia :execrows
+INSERT INTO page_media (tenant_id, page_id, media_id)
+SELECT r.tenant_id, r.page_id, r.media_id
+FROM jsonb_populate_record(
+  NULL::page_media,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, media_id) DO NOTHING;
+
+-- name: HoldsPageMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM page_media
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND media_id = (sqlc.arg('payload')::jsonb->>'media_id')::uuid
+) AS held;
+
+-- name: ClearPageMedia :execrows
+DELETE FROM page_media;

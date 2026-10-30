@@ -378,3 +378,13 @@ WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND coll
 INSERT INTO page_article_rating (tenant_id, page_id, collection_id, account_id, helpful, rated_at)
 VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('collection_id'), sqlc.arg('account_id'), sqlc.arg('helpful'), sqlc.arg('at'))
 ON CONFLICT (tenant_id, page_id, collection_id, account_id) DO UPDATE SET helpful = EXCLUDED.helpful, rated_at = EXCLUDED.rated_at;
+
+-- name: AttachPageMedia :exec
+-- A media object a page holds; holding it twice is once.
+INSERT INTO page_media (tenant_id, page_id, media_id)
+VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('media_id'))
+ON CONFLICT DO NOTHING;
+
+-- name: CountPageMedia :one
+SELECT count(*)::int FROM page_media
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
