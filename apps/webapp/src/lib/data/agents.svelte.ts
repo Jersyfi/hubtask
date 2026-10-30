@@ -5,8 +5,10 @@
  * The governed agents' writes, so every press invalidates the same set (UC-AGT-01 … UC-AGT-04,
  * UC-AGT-07). The reads are subscriptions at the call sites, through `resource`.
  *
- * **Online only.** Agents, their models, held acts and evaluation are not in the replica: each
- * write goes to the server and a refusal is said where it was made.
+ * **Written online.** Agents, their models, held acts and evaluation reach the replica - an agent's
+ * own rows for its owner, every row for an administrator - and their lists are answered from it while
+ * the server is away (`replica.ts`); each write goes to the server and a refusal is said where it
+ * was made.
  */
 
 import type {

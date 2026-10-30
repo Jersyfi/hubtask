@@ -479,6 +479,46 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   match = /^\/dashboards\/([^/:]+)$/.exec(pathname);
   if (match?.[1]) return one(storage, 'dashboards', match[1]);
 
+  // The agents' registry while the server is away (UC-AGT-01 … 04): the copy holds an agent, its
+  // held acts and its runs for its owner, and every row for whoever administers agents. One agent's
+  // spending, the ledger, the jobs and the metering are the server's.
+  if (pathname === '/agents') {
+    const owner = query.get('owner_id');
+    const model = query.get('model_id');
+    const rows = (await documents(storage, 'agents'))
+      .filter((row) => (!owner || row.owner_id === owner) && (!model || row.model_id === model))
+      .sort((a, b) => (String(a.name) < String(b.name) ? -1 : String(a.name) > String(b.name) ? 1 : String(a.id).localeCompare(String(b.id))));
+    return { data: rows };
+  }
+  if (pathname === '/agent-models') {
+    const rows = (await documents(storage, 'agent_models')).sort((a, b) => String(a.key).localeCompare(String(b.key)));
+    return { data: rows };
+  }
+  if (pathname === '/agent-requests') {
+    const status = query.get('status') ?? 'PENDING';
+    const agent = query.get('agent_id');
+    const rows = (await documents(storage, 'agent_requests'))
+      .filter((row) => row.status === status && (!agent || row.agent_id === agent))
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || String(a.id).localeCompare(String(b.id)))
+      .map(({ owner_id: _owner, ...row }) => row);
+    return { data: rows };
+  }
+  match = /^\/agents\/([^/:]+)\/(cases|evaluations)$/.exec(pathname);
+  if (match?.[1] && match[2]) {
+    const agentId = match[1];
+    if (match[2] === 'cases') {
+      const rows = (await documents(storage, 'agent_cases'))
+        .filter((row) => row.agent_id === agentId)
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || String(a.id).localeCompare(String(b.id)));
+      return { data: rows };
+    }
+    const rows = (await documents(storage, 'agent_runs'))
+      .filter((row) => row.agent_id === agentId)
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)) || String(a.id).localeCompare(String(b.id)))
+      .map(({ owner_id: _owner, ...row }) => row);
+    return { data: rows };
+  }
+
   // The portfolios while the server is away (UC-GOL-03): the copy holds each with the projects
   // the reader may read, named from the reader's own copy of the containers; the roll-up - counts,
   // progress, budgets - and the latest status update are the server's.

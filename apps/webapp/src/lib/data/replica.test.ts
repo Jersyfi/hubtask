@@ -605,3 +605,34 @@ test('the periods, the goals and the dashboards are answered from the copy', asy
   assert.deepEqual(dashboards.data.map((row) => row.id), ['d-1']);
   assert.equal((await storeFor({ path: '/dashboards/d-2' }, storage) as Record<string, unknown>).name, 'Mine');
 });
+
+// UC-AGT-01 … 04 offline: the agents, the models, the held acts of a status and an agent's cases
+// and runs are answered from the copy, in the server's order and without the owner a record names
+// only to reach its devices.
+test("the agents' registry is answered from the copy", async () => {
+  const storage = new MemoryStorage();
+  await storage.put('agents', 'a-2', record({ id: 'a-2', name: 'Triage', owner_id: 'me', model_id: 'm-1' }));
+  await storage.put('agents', 'a-1', record({ id: 'a-1', name: 'Drafts', owner_id: 'ben', model_id: null }));
+  await storage.put('agent_models', 'm-1', record({ id: 'm-1', key: 'local' }));
+  await storage.put('agent_requests', 'r-1', record({ id: 'r-1', agent_id: 'a-2', status: 'PENDING', created_at: '2026-11-02T09:00:00Z', owner_id: 'me' }));
+  await storage.put('agent_requests', 'r-2', record({ id: 'r-2', agent_id: 'a-2', status: 'PENDING', created_at: '2026-11-02T10:00:00Z', owner_id: 'me' }));
+  await storage.put('agent_requests', 'r-3', record({ id: 'r-3', agent_id: 'a-2', status: 'APPROVED', created_at: '2026-11-02T11:00:00Z', owner_id: 'me' }));
+  await storage.put('agent_cases', 'c-1', record({ id: 'c-1', agent_id: 'a-2', created_at: '2026-11-01T09:00:00Z' }));
+  await storage.put('agent_runs', 'u-1', record({ id: 'u-1', agent_id: 'a-2', at: '2026-11-01T09:00:00Z', owner_id: 'me' }));
+
+  const agents = await storeFor({ path: '/agents' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(agents.data.map((row) => row.id), ['a-1', 'a-2'], 'by name');
+  const mine = await storeFor({ path: '/agents?owner_id=me' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(mine.data.map((row) => row.id), ['a-2']);
+  const models = await storeFor({ path: '/agent-models' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(models.data.map((row) => row.id), ['m-1']);
+  const pending = await storeFor({ path: '/agent-requests?status=PENDING' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(pending.data.map((row) => row.id), ['r-2', 'r-1'], 'the latest first');
+  assert.equal('owner_id' in pending.data[0]!, false);
+  const cases = await storeFor({ path: '/agents/a-2/cases' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(cases.data.map((row) => row.id), ['c-1']);
+  const runs = await storeFor({ path: '/agents/a-2/evaluations' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(runs.data.map((row) => row.id), ['u-1']);
+  assert.equal('owner_id' in runs.data[0]!, false);
+  assert.equal(await storeFor({ path: '/agents/a-2' }, storage), undefined, "one agent's spending is the server's");
+});
