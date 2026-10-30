@@ -197,6 +197,16 @@ var providerPresets = []ProviderPreset{
 		Public:            false,
 		Instructions:      "identity_provider.preset.generic.instructions",
 	},
+	{
+		// A SAML 2.0 provider (identity.md §26): any entity ID, no scopes, no directory claim and
+		// never authoritative - admitted on `allowed_email_domains` like GENERIC.
+		Kind:              KindSAML,
+		IssuerSuffixes:    nil,
+		Scopes:            []string{},
+		AddressesVerified: false,
+		Public:            false,
+		Instructions:      "identity_provider.preset.saml.instructions",
+	},
 }
 
 // ProviderPresets answers the table. A copy: a caller that sorted it would sort everybody's.
@@ -292,7 +302,7 @@ func (p ProviderPreset) SpeaksFor(issuerHost string) bool {
 // configuration checks a stated kind against.
 func KindOfIssuer(issuerHost string) ProviderKind {
 	for _, preset := range providerPresets {
-		if len(preset.IssuerSuffixes) > 0 && preset.SpeaksFor(issuerHost) {
+		if len(preset.IssuerSuffixes) > 0 && preset.Kind != KindSAML && preset.SpeaksFor(issuerHost) {
 			return preset.Kind
 		}
 	}
