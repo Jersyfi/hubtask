@@ -1860,7 +1860,8 @@ func run() error {
 	serviceDesk := servicedeskservice.Desk{
 		Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
 		Records: slaRecords, Replies: serviceDeskStore.Replies(),
-		Ratings: deskAnnouncer.Ratings(serviceDeskStore.Ratings()), Authorizer: authorizer, Audit: auditSink,
+		Ratings:      deskAnnouncer.Ratings(serviceDeskStore.Ratings()),
+		HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the
@@ -2053,6 +2054,9 @@ func run() error {
 		servicedeskservice.ListBusinessCalendars{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DefineBusinessCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteBusinessCalendar{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ListHubCalendars{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineHubCalendar{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteHubCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ListSlaPolicies{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DefineSlaPolicy{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteSlaPolicy{Desk: serviceDesk}.Descriptor(),
@@ -3947,6 +3951,7 @@ func run() error {
 			// entry, in the dispatcher's transaction; never on a replay.
 			servicedeskservice.SlaClocks{
 				Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
+				HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers,
 				Records: slaRecords, Items: items, IDs: ids,
 				Timers: calendarservice.Clocks{Timers: postgres.NewTimerRepository(), Jobs: jobs, IDs: ids},
 			},

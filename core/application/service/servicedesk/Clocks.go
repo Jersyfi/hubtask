@@ -43,11 +43,15 @@ const SlaClocksConsumer = "servicedesk-sla-clocks"
 // covered. It never takes a replay (eventbus.TakesReplays): a restore's events are old states.
 type SlaClocks struct {
 	Calendars repository.Calendars
-	Policies  repository.Policies
-	Records   repository.Records
-	Items     workrepo.Items
-	Timers    calendarservice.Clocks
-	IDs       clock.IDGenerator
+	// HubCalendars and Containers find the entry's hub's own version of the policy's calendar;
+	// either nil counts on the workspace's alone.
+	HubCalendars repository.HubCalendars
+	Containers   workrepo.Containers
+	Policies     repository.Policies
+	Records      repository.Records
+	Items        workrepo.Items
+	Timers       calendarservice.Clocks
+	IDs          clock.IDGenerator
 }
 
 var _ eventbus.Subscriber = SlaClocks{}
@@ -147,9 +151,26 @@ func changed(envelope event.Envelope, field string) bool {
 	return ok
 }
 
-func (s SlaClocks) calendarOf(ctx context.Context, policy domain.SlaPolicy) (calendar.BusinessCalendar, error) {
+// calendarOf answers the calendar the policy counts on for the entry: its hub's own version of the
+// policy's calendar where the hub keeps one (UC-SVC-01 check 5), the workspace's otherwise.
+func (s SlaClocks) calendarOf(ctx context.Context, policy domain.SlaPolicy, item work.WorkItem) (calendar.BusinessCalendar, error) {
 	if policy.CalendarKey == "" {
 		return calendar.Continuous(), nil
+	}
+	if s.HubCalendars != nil && s.Containers != nil {
+		collection, err := s.Containers.Find(ctx, item.CollectionID)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return calendar.BusinessCalendar{}, err
+		}
+		if err == nil && !collection.ParentID.IsZero() {
+			own, err := s.HubCalendars.Find(ctx, collection.ParentID, policy.CalendarKey)
+			if err == nil {
+				return own.Calendar, nil
+			}
+			if !errors.Is(err, shared.ErrNotFound) {
+				return calendar.BusinessCalendar{}, err
+			}
+		}
 	}
 	found, err := s.Calendars.Find(ctx, policy.CalendarKey)
 	if err != nil {
@@ -185,7 +206,7 @@ func (s SlaClocks) arm(
 	if !covered {
 		return nil
 	}
-	cal, err := s.calendarOf(ctx, policy)
+	cal, err := s.calendarOf(ctx, policy, item)
 	if err != nil {
 		return err
 	}

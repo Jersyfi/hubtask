@@ -15,6 +15,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -67,17 +68,20 @@ type Authorizer interface {
 
 // Desk is what every calendar and policy use case shares.
 type Desk struct {
-	Calendars  repository.Calendars
-	Policies   repository.Policies
-	Records    repository.Records
-	Replies    repository.ReplyTemplates
-	Ratings    repository.Ratings
-	Authorizer Authorizer
-	Audit      audit.Sink
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
-	IDs        clock.IDGenerator
-	Text       text.Normalizer
+	Calendars repository.Calendars
+	Policies  repository.Policies
+	Records   repository.Records
+	Replies   repository.ReplyTemplates
+	Ratings   repository.Ratings
+	// HubCalendars and Containers serve a hub's own calendars: the hub is read to ask there.
+	HubCalendars repository.HubCalendars
+	Containers   workrepo.Containers
+	Authorizer   Authorizer
+	Audit        audit.Sink
+	UnitOfWork   persistence.UnitOfWork
+	Clock        clock.Clock
+	IDs          clock.IDGenerator
+	Text         text.Normalizer
 }
 
 func (d Desk) authorizeWrite(ctx context.Context, actor appshared.ActorContext, action audit.Action, target string) error {
