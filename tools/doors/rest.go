@@ -71,6 +71,8 @@ type RESTDoor struct {
 	// sign-in answers its session, or the second step it still owes.
 	AlternateWhen, AlternateBy string
 	AlternateStatus            int
+	// NothingFound says the contract declares 204 beside the answer: an empty output answers it.
+	NothingFound bool
 }
 
 // requestInputs are the inputs a door can draw from the request rather than from its members.
@@ -300,6 +302,9 @@ func restDoor(
 	if door.Status == 0 {
 		return door, fmt.Errorf("no successful answer")
 	}
+	if _, ok := op.Responses["204"]; ok && door.Status != 204 {
+		door.NothingFound = true
+	}
 	if op.Alternate != nil {
 		if op.Alternate.When == "" || op.Alternate.Answer == "" {
 			return door, fmt.Errorf("x-hubtask-rest-alternate needs when and answer")
@@ -428,6 +433,9 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 		}
 		if d.Empty {
 			extra += ", Empty: true"
+		}
+		if d.NothingFound {
+			extra += ", NothingFound: true"
 		}
 		if d.AlternateWhen != "" {
 			extra += fmt.Sprintf(", AlternateWhen: %q, AlternateStatus: %d, AlternateBy: answerBy(%s)", d.AlternateWhen, d.AlternateStatus, d.AlternateBy)

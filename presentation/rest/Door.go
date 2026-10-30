@@ -65,6 +65,9 @@ type restDoor struct {
 	AlternateWhen   string
 	AlternateStatus int
 	AlternateBy     answerer
+	// NothingFound answers 204 for an empty output, where the contract declares it beside the
+	// answer (a suggestion that found nothing).
+	NothingFound bool
 }
 
 // input is the name the use case reads a query parameter by.
@@ -168,6 +171,10 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set(ShownOnceHeader, d.ShownOnce)
 	}
+	if d.NothingFound && len(out) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if d.Status == http.StatusNoContent || d.Empty {
 		w.WriteHeader(d.Status)
 		return
@@ -185,8 +192,16 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 	if d.Location != "" {
 		location := d.Location
 		for name, value := range out {
-			if text, ok := value.(string); ok {
-				location = strings.ReplaceAll(location, "{"+name+"}", text)
+			switch value := value.(type) {
+			case string:
+				location = strings.ReplaceAll(location, "{"+name+"}", value)
+			case usecase.Output:
+				// A member of a nested part: a managed account's place is its account's.
+				for member, nested := range value {
+					if text, ok := nested.(string); ok {
+						location = strings.ReplaceAll(location, "{"+name+"."+member+"}", text)
+					}
+				}
 			}
 		}
 		w.Header().Set("Location", APIBasePath+location)

@@ -421,3 +421,42 @@ func TestAGeneratedSignInAnswersTheChallengeItStillOwes(t *testing.T) {
 		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
 	}
 }
+
+// An operation that declares 204 beside its answer answers it when the use case found nothing.
+func TestAGeneratedOperationAnswersNothingFoundWith204(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{}}
+	item := "0192f000-0000-7000-8000-0000000000b1"
+
+	recorder := callDoor(t, registry, http.MethodPost, "/items/"+item+":duplicates", "", nil)
+
+	if recorder.Code != http.StatusNoContent || recorder.Body.Len() != 0 {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "SuggestDuplicates" || registry.in["item_id"] != item {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+}
+
+// A created resource's place can be a member of a nested part, and a secret shown once is marked.
+func TestAGeneratedCreationPlacesANestedResource(t *testing.T) {
+	account := "0192f000-0000-7000-8000-0000000000c1"
+	registry := &catalogue{out: usecase.Output{
+		"account":        usecase.Output{"id": account, "display_name": "Maria"},
+		"membership":     usecase.Output{"account_id": account, "role": "MEMBER", "scope_type": "WORKSPACE"},
+		"start_password": "s3cret-start",
+	}}
+
+	recorder := callDoor(t, registry, http.MethodPost, "/accounts:create-managed",
+		`{"display_name":"Maria","sign_in_name":"maria","role":"MEMBER","scope_type":"WORKSPACE"}`,
+		map[string]string{"Content-Type": "application/json"})
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if location := recorder.Header().Get("Location"); location != APIBasePath+"/accounts/"+account {
+		t.Errorf("Location %q", location)
+	}
+	if recorder.Header().Get(ShownOnceHeader) != "start_password" || recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Errorf("the start password is not marked shown once: %v", recorder.Header())
+	}
+}

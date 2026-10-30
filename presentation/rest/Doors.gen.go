@@ -109,6 +109,7 @@ var restDoors = map[string]restDoor{
 	"createInstanceIdentityProvider":    {UseCase: "ConfigureInstanceIdentityProvider", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"createLabel":                       {UseCase: "CreateLabel", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/labels/{id}", NullClears: false, Integers: []string(nil)},
 	"createLinkType":                    {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
+	"createManagedAccount":              {UseCase: "CreateManagedAccount", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/accounts/{account.id}", NullClears: false, Integers: []string(nil), ShownOnce: "start_password"},
 	"createPage":                        {UseCase: "CreatePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/pages/{id}", NullClears: false, Integers: []string(nil)},
 	"createPlatformSubscription":        {UseCase: "CreatePlatformSubscription", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createPortfolio":                   {UseCase: "CreatePortfolio", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -543,6 +544,7 @@ var restDoors = map[string]restDoor{
 	"submitJumbleEntry":                 {UseCase: "SubmitJumbleEntry", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"submitTimesheet":                   {UseCase: "SubmitTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suggestDecomposition":              {UseCase: "SuggestDecomposition", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"suggestDuplicates":                 {UseCase: "SuggestDuplicates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), NothingFound: true},
 	"suggestFromJumbleEntry":            {UseCase: "SuggestFromJumbleEntry", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suspendAgent":                      {UseCase: "SuspendAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suspendTenant":                     {UseCase: "SuspendTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1187,6 +1189,12 @@ func (c *RestController) CreateLinkType(w http.ResponseWriter, r *http.Request) 
 	var body openapi.CreateLinkTypeJSONRequestBody
 	var answer openapi.LinkType
 	c.door(w, r, restDoors["createLinkType"], usecase.Input{}, nil, &body, &answer)
+}
+
+// CreateManagedAccount answers POST /accounts:create-managed by the generated mapping.
+func (c *RestController) CreateManagedAccount(w http.ResponseWriter, r *http.Request, params openapi.CreateManagedAccountParams) {
+	var body openapi.CreateManagedAccountJSONRequestBody
+	c.door(w, r, restDoors["createManagedAccount"], usecase.Input{}, params, &body, answerBy(managedAccountCreatedResponse))
 }
 
 // CreatePage answers POST /hubs/{hubId}/pages by the generated mapping.
@@ -3710,6 +3718,11 @@ func (c *RestController) SubmitTimesheet(w http.ResponseWriter, r *http.Request,
 // SuggestDecomposition answers POST /items/{itemId}:decompose by the generated mapping.
 func (c *RestController) SuggestDecomposition(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SuggestDecompositionParams) {
 	c.door(w, r, restDoors["suggestDecomposition"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(acceptedAsk))
+}
+
+// SuggestDuplicates answers POST /items/{itemId}:duplicates by the generated mapping.
+func (c *RestController) SuggestDuplicates(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	c.door(w, r, restDoors["suggestDuplicates"], usecase.Input{"item_id": itemId.String()}, nil, nil, answerBy(suggestionResponse))
 }
 
 // SuggestFromJumbleEntry answers POST /jumble/entries/{entryId}:suggest by the generated mapping.

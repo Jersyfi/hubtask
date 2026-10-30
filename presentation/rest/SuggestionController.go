@@ -4,13 +4,11 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -18,38 +16,7 @@ import (
 const (
 	acceptSuggestionUseCase  = "AcceptSuggestion"
 	dismissSuggestionUseCase = "DismissSuggestion"
-	suggestDuplicatesUseCase = "SuggestDuplicates"
 )
-
-// SuggestDuplicates answers POST /items/{itemId}:duplicates.
-//
-// 200 with the suggestion, or 204 when there is nothing to propose - which is also the answer with
-// no pgvector, with no provider that can embed, and for an entry the embedding pass has not
-// reached. The adapter cannot tell those apart and does not try: they are one answer to the caller,
-// and which one it is is `/meta/capabilities`' business.
-func (c *RestController) SuggestDuplicates(
-	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(
-		r.Context(), suggestDuplicatesUseCase, actorOf(r),
-		usecase.Input{"item_id": itemID.String()},
-	)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if len(out) == 0 {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, suggestionResponse(out))
-}
 
 // suggestionPageResponse draws a page of suggestions, which carries its rows as `items`.
 func suggestionPageResponse(out usecase.Output) openapi.SuggestionPage {

@@ -7551,6 +7551,10 @@ paths:
     post:
       tags: [identity]
       operationId: createManagedAccount
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: managedAccountCreatedResponse
+      x-hubtask-rest-shown-once: start_password
+      x-hubtask-rest-location: /accounts/{account.id}
       summary: Give somebody an account without a mail address
       description: |
         Creates a managed account: a person who signs in with a sign-in name instead of an address,
@@ -12132,6 +12136,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: suggestDuplicates
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: suggestionResponse
       summary: Which entries look like this one
       description: >
         Answers the entries that sit near this one in the embedding space. **No provider is asked

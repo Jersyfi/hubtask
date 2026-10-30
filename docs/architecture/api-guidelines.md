@@ -31,7 +31,9 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    and a successful answer the contract declares without content is written without a body;
    `x-hubtask-rest-alternate: { when, answer }` answers the contract's other successful status,
    drawn by the named mapper, when the output's boolean member `when` is true (a sign-in's
-   session, or the second step it still owes).
+   session, or the second step it still owes); an operation that declares `204` beside its answer
+   answers it for an empty output, and a `Location` may name a nested part's member
+   (`{account.id}`).
    The use case's input therefore uses
    the contract's names; a test holds each mapping's query, version and proof to the descriptor's
    declared input. An answer drawn by one of the adapter's shared mappers (an entry, by
