@@ -2731,6 +2731,26 @@ class Client:
         """Take a page's share away"""
         return self._call("DELETE", "/pages/{pageId}/shares/{accountId}", {"pageId": page_id, "accountId": account_id}, None, {}, None, "none", None, "void")
 
+    def create_page_public_link(self, page_id: str) -> "PagePublicLinkMinted":
+        """Make a page's public link"""
+        return self._call("POST", "/pages/{pageId}/public-link", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def delete_page_public_link(self, page_id: str) -> None:
+        """Take a page's public link away"""
+        return self._call("DELETE", "/pages/{pageId}/public-link", {"pageId": page_id}, None, {}, None, "none", None, "void")
+
+    def read_public_links_policy(self) -> "PublicLinksPolicy":
+        """Whether pages may be opened by a public link"""
+        return self._call("GET", "/pages:public-links", {}, None, {}, None, "none", None, "json")
+
+    def set_public_links_policy(self, body: dict[str, Any]) -> "PublicLinksPolicy":
+        """Allow public links to pages, or not"""
+        return self._call("PUT", "/pages:public-links", {}, None, {}, body, "json", "application/json", "json")
+
+    def get_public_page(self, token: str) -> bytes:
+        """A page opened by its public link"""
+        return self._call("GET", "/public/pages/{token}", {"token": token}, None, {}, None, "none", None, "raw")
+
     def list_shared_pages(self) -> "SharedPageList":
         """The pages shared with me"""
         return self._call("GET", "/pages:shared", {}, None, {}, None, "none", None, "json")

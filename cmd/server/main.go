@@ -1826,6 +1826,12 @@ func run() error {
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms, Reviews: reviewClocks, Changes: changes, HLC: hybrid,
 		PersonalHubs: privateHubMaker{catalogue: personalHubs}, Words: renderer,
+		// A page's public link, where the workspace allows it (UC-DOC-08).
+		Public: knowledgeservice.PublicLinking{
+			Links:    postgres.NewPagePublicLinkRepository(security.NewPageLinkHasher(cfg.SecretKey)),
+			Settings: postgres.SettingRepository{}, Entropy: clockadapter.CryptoRandom{},
+			Accounts: accounts, Modules: modules,
+		},
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
@@ -1984,6 +1990,10 @@ func run() error {
 		knowledgeservice.ReadPageAccess{Space: pageSpace}.Descriptor(),
 		knowledgeservice.SharePage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.UnsharePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.CreatePagePublicLink{Space: pageSpace}.Descriptor(),
+		knowledgeservice.DeletePagePublicLink{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPublicLinksPolicy{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SetPublicLinksPolicy{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListSharedPages{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPersonalSpace{Space: pageSpace}.Descriptor(),
 		knowledgeservice.OpenDailyNote{Space: pageSpace}.Descriptor(),
@@ -3302,6 +3312,8 @@ func run() error {
 		controller.BaseURL = cfg.BaseURL
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
 		// system holds, and every question it asks is asked inwards of the controller.
+		// A page's public link: not a catalogue entry, for the feed's reason.
+		controller.PublicPages = knowledgeservice.ReadPublicPage{Space: pageSpace}
 		controller.CalendarFeeds = work.ReadCalendarFeed{
 			Feeds: calendarFeeds, Accounts: accounts,
 			Export: work.ExportView{

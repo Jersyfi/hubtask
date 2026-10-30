@@ -16770,6 +16770,12 @@ type PageAccess struct {
 	MayShare bool               `json:"may_share"`
 	PageId   openapi_types.UUID `json:"page_id"`
 
+	// PublicLink The page's public link, never its token; null when it has none.
+	PublicLink *PagePublicLink `json:"public_link"`
+
+	// PublicLinksAllowed Whether the workspace allows public links.
+	PublicLinksAllowed bool `json:"public_links_allowed"`
+
 	// Readers The people every restriction on the way up names; null for an unrestricted page.
 	Readers *[]openapi_types.UUID `json:"readers"`
 
@@ -16943,6 +16949,23 @@ type PageMove struct {
 
 	// ParentId The page it moves under; absent for the top of the space.
 	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+}
+
+// PagePublicLink defines model for PagePublicLink.
+type PagePublicLink struct {
+	CreatedAt time.Time           `json:"created_at"`
+	CreatedBy *openapi_types.UUID `json:"created_by"`
+	PageId    openapi_types.UUID  `json:"page_id"`
+}
+
+// PagePublicLinkMinted A page's public link with its token, answered once.
+type PagePublicLinkMinted struct {
+	CreatedAt time.Time           `json:"created_at"`
+	CreatedBy *openapi_types.UUID `json:"created_by"`
+	PageId    openapi_types.UUID  `json:"page_id"`
+
+	// Token The credential; the address is /api/v1/public/pages/{token}.
+	Token string `json:"token"`
 }
 
 // PageRead A page with its body, its breadcrumb and whether the reader may write it.
@@ -18232,6 +18255,17 @@ type ProvisionedTenant struct {
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
 type ProvisionedTenantStatus string
+
+// PublicLinksPolicy defines model for PublicLinksPolicy.
+type PublicLinksPolicy struct {
+	Allowed bool `json:"allowed"`
+
+	// LockedBy The level that locked it
+	LockedBy *string `json:"locked_by,omitempty"`
+
+	// Source The level whose value is in force.
+	Source string `json:"source"`
+}
 
 // PurgeSummary What one pass of a removal did.
 type PurgeSummary struct {
@@ -23729,6 +23763,11 @@ type MovePageParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetPublicLinksPolicyJSONBody defines parameters for SetPublicLinksPolicy.
+type SetPublicLinksPolicyJSONBody struct {
+	Allowed bool `json:"allowed"`
+}
+
 // TakeBaselineJSONBody defines parameters for TakeBaseline.
 type TakeBaselineJSONBody struct {
 	Name string `json:"name"`
@@ -25110,6 +25149,9 @@ type RestrictPageJSONRequestBody = PageRestrict
 
 // VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
 type VerifyPageJSONRequestBody = PageVerify
+
+// SetPublicLinksPolicyJSONRequestBody defines body for SetPublicLinksPolicy for application/json ContentType.
+type SetPublicLinksPolicyJSONRequestBody SetPublicLinksPolicyJSONBody
 
 // SearchPagesJSONRequestBody defines body for SearchPages for application/json ContentType.
 type SearchPagesJSONRequestBody = PageSearch
@@ -32227,6 +32269,20 @@ type ClientInterface interface {
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeletePagePublicLink Take a page's public link away
+	//
+	// The link answers nothing from then on. Needs MANAGE_MEMBERS on the hub.
+	//
+	// Corresponds with DELETE /pages/{pageId}/public-link (the `DeletePagePublicLink` operationId).
+	DeletePagePublicLink(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePagePublicLink Make a page's public link
+	//
+	// Makes the page's public link and answers its token - once; only a hash of it is kept. Whoever holds the link reads the page alone without signing in, never the pages under it, its comments or its history. A new link replaces the previous one, which stops answering. Refused with `pages.public_links_off` unless the workspace allows public links, and with `pages.public_link_restricted` for a page behind a restriction. The link reads as the person who made it: once they no longer read the page, it answers nothing. Needs MANAGE_MEMBERS on the hub.
+	//
+	// Corresponds with POST /pages/{pageId}/public-link (the `CreatePagePublicLink` operationId).
+	CreatePagePublicLink(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SharePageWithBody Share a page with one person, read-only
 	//
 	// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
@@ -32376,6 +32432,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /pages:personal (the `ReadPersonalSpace` operationId).
 	ReadPersonalSpace(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPublicLinksPolicy Whether pages may be opened by a public link
+	//
+	// Whether the workspace lets a page be opened by a public link, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /pages:public-links (the `ReadPublicLinksPolicy` operationId).
+	ReadPublicLinksPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPublicLinksPolicyWithBody Allow public links to pages, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /pages:public-links (the `SetPublicLinksPolicy` operationId).
+	SetPublicLinksPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPublicLinksPolicy Allow public links to pages, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /pages:public-links (the `SetPublicLinksPolicy` operationId).
+	SetPublicLinksPolicy(ctx context.Context, body SetPublicLinksPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SearchPagesWithBody Find pages by their words
 	//
@@ -32898,6 +32979,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
 	OpenPrivateHub(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPublicPage A page opened by its public link
+	//
+	// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.
+	//
+	// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
+	GetPublicPage(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadQuotas The workspace's quota standing
 	//
@@ -48281,6 +48369,40 @@ func (c *Client) AddPageComment(ctx context.Context, pageId PageId, body AddPage
 	return c.Client.Do(req)
 }
 
+// DeletePagePublicLink Take a page's public link away
+//
+// The link answers nothing from then on. Needs MANAGE_MEMBERS on the hub.
+//
+// Corresponds with DELETE /pages/{pageId}/public-link (the `DeletePagePublicLink` operationId).
+func (c *Client) DeletePagePublicLink(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePagePublicLinkRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePagePublicLink Make a page's public link
+//
+// Makes the page's public link and answers its token - once; only a hash of it is kept. Whoever holds the link reads the page alone without signing in, never the pages under it, its comments or its history. A new link replaces the previous one, which stops answering. Refused with `pages.public_links_off` unless the workspace allows public links, and with `pages.public_link_restricted` for a page behind a restriction. The link reads as the person who made it: once they no longer read the page, it answers nothing. Needs MANAGE_MEMBERS on the hub.
+//
+// Corresponds with POST /pages/{pageId}/public-link (the `CreatePagePublicLink` operationId).
+func (c *Client) CreatePagePublicLink(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePagePublicLinkRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // SharePageWithBody Share a page with one person, read-only
 //
 // Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
@@ -48601,6 +48723,61 @@ func (c *Client) VerifyPage(ctx context.Context, pageId PageId, body VerifyPageJ
 // Corresponds with GET /pages:personal (the `ReadPersonalSpace` operationId).
 func (c *Client) ReadPersonalSpace(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadPersonalSpaceRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPublicLinksPolicy Whether pages may be opened by a public link
+//
+// Whether the workspace lets a page be opened by a public link, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /pages:public-links (the `ReadPublicLinksPolicy` operationId).
+func (c *Client) ReadPublicLinksPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPublicLinksPolicyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPublicLinksPolicyWithBody Allow public links to pages, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /pages:public-links (the `SetPublicLinksPolicy` operationId).
+func (c *Client) SetPublicLinksPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPublicLinksPolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPublicLinksPolicy Allow public links to pages, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /pages:public-links (the `SetPublicLinksPolicy` operationId).
+func (c *Client) SetPublicLinksPolicy(ctx context.Context, body SetPublicLinksPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPublicLinksPolicyRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -49643,6 +49820,23 @@ func (c *Client) OpenPrivateHubWithBody(ctx context.Context, hubId HubId, params
 // Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
 func (c *Client) OpenPrivateHub(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewOpenPrivateHubRequest(c.Server, hubId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetPublicPage A page opened by its public link
+//
+// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.
+//
+// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
+func (c *Client) GetPublicPage(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPublicPageRequest(c.Server, token)
 	if err != nil {
 		return nil, err
 	}
@@ -76496,6 +76690,74 @@ func NewAddPageCommentRequestWithBody(server string, pageId PageId, contentType 
 	return req, nil
 }
 
+// NewDeletePagePublicLinkRequest constructs an http.Request for the DeletePagePublicLink method
+func NewDeletePagePublicLinkRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/public-link", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePagePublicLinkRequest constructs an http.Request for the CreatePagePublicLink method
+func NewCreatePagePublicLinkRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/public-link", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewSharePageRequest calls the generic SharePage builder with application/json body
 func NewSharePageRequest(server string, pageId PageId, body SharePageJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -77068,6 +77330,73 @@ func NewReadPersonalSpaceRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewReadPublicLinksPolicyRequest constructs an http.Request for the ReadPublicLinksPolicy method
+func NewReadPublicLinksPolicyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:public-links")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetPublicLinksPolicyRequest calls the generic SetPublicLinksPolicy builder with application/json body
+func NewSetPublicLinksPolicyRequest(server string, body SetPublicLinksPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPublicLinksPolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetPublicLinksPolicyRequestWithBody constructs an http.Request for the SetPublicLinksPolicy method, with any body, and a specified content type
+func NewSetPublicLinksPolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:public-links")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -78749,6 +79078,40 @@ func NewOpenPrivateHubRequestWithBody(server string, hubId HubId, params *OpenPr
 			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewGetPublicPageRequest constructs an http.Request for the GetPublicPage method
+func NewGetPublicPageRequest(server string, token string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/public/pages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -92480,6 +92843,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageCommentWithResponse(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error)
 
+	// DeletePagePublicLinkWithResponse Take a page's public link away
+	//
+	// The link answers nothing from then on. Needs MANAGE_MEMBERS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /pages/{pageId}/public-link (the `DeletePagePublicLink` operationId).
+	DeletePagePublicLinkWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*DeletePagePublicLinkResult, error)
+
+	// CreatePagePublicLinkWithResponse Make a page's public link
+	//
+	// Makes the page's public link and answers its token - once; only a hash of it is kept. Whoever holds the link reads the page alone without signing in, never the pages under it, its comments or its history. A new link replaces the previous one, which stops answering. Refused with `pages.public_links_off` unless the workspace allows public links, and with `pages.public_link_restricted` for a page behind a restriction. The link reads as the person who made it: once they no longer read the page, it answers nothing. Needs MANAGE_MEMBERS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/public-link (the `CreatePagePublicLink` operationId).
+	CreatePagePublicLinkWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*CreatePagePublicLinkResult, error)
+
 	// SharePageWithBodyWithResponse Share a page with one person, read-only
 	//
 	// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
@@ -92641,6 +93022,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /pages:personal (the `ReadPersonalSpace` operationId).
 	ReadPersonalSpaceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadPersonalSpaceResult, error)
+
+	// ReadPublicLinksPolicyWithResponse Whether pages may be opened by a public link
+	//
+	// Whether the workspace lets a page be opened by a public link, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages:public-links (the `ReadPublicLinksPolicy` operationId).
+	ReadPublicLinksPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadPublicLinksPolicyResult, error)
+
+	// SetPublicLinksPolicyWithBodyWithResponse Allow public links to pages, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /pages:public-links (the `SetPublicLinksPolicy` operationId).
+	SetPublicLinksPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPublicLinksPolicyResult, error)
+
+	// SetPublicLinksPolicyWithResponse Allow public links to pages, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /pages:public-links (the `SetPublicLinksPolicy` operationId).
+	SetPublicLinksPolicyWithResponse(ctx context.Context, body SetPublicLinksPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPublicLinksPolicyResult, error)
 
 	// SearchPagesWithBodyWithResponse Find pages by their words
 	//
@@ -93203,6 +93611,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
 	OpenPrivateHubWithResponse(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenPrivateHubResult, error)
+
+	// GetPublicPageWithResponse A page opened by its public link
+	//
+	// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
+	GetPublicPageWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetPublicPageResult, error)
 
 	// ReadQuotasWithResponse The workspace's quota standing
 	//
@@ -118825,6 +119242,95 @@ func (r AddPageCommentResult) ContentType() string {
 	return ""
 }
 
+type DeletePagePublicLinkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeletePagePublicLinkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePagePublicLinkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePagePublicLinkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePagePublicLinkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePagePublicLinkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePagePublicLinkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PagePublicLinkMinted
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePagePublicLinkResult) GetJSON201() *PagePublicLinkMinted {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreatePagePublicLinkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePagePublicLinkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePagePublicLinkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePagePublicLinkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePagePublicLinkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SharePageResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -119388,6 +119894,102 @@ func (r ReadPersonalSpaceResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadPersonalSpaceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPublicLinksPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PublicLinksPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPublicLinksPolicyResult) GetJSON200() *PublicLinksPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPublicLinksPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPublicLinksPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPublicLinksPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPublicLinksPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPublicLinksPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetPublicLinksPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PublicLinksPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetPublicLinksPolicyResult) GetJSON200() *PublicLinksPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetPublicLinksPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPublicLinksPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPublicLinksPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPublicLinksPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPublicLinksPolicyResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -121119,6 +121721,47 @@ func (r OpenPrivateHubResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r OpenPrivateHubResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetPublicPageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetPublicPageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetPublicPageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPublicPageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPublicPageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetPublicPageResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -139166,6 +139809,36 @@ func (c *ClientWithResponses) AddPageCommentWithResponse(ctx context.Context, pa
 	return ParseAddPageCommentResult(rsp)
 }
 
+// DeletePagePublicLinkWithResponse Take a page's public link away
+//
+// The link answers nothing from then on. Needs MANAGE_MEMBERS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /pages/{pageId}/public-link (the `DeletePagePublicLink` operationId).
+func (c *ClientWithResponses) DeletePagePublicLinkWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*DeletePagePublicLinkResult, error) {
+	rsp, err := c.DeletePagePublicLink(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePagePublicLinkResult(rsp)
+}
+
+// CreatePagePublicLinkWithResponse Make a page's public link
+//
+// Makes the page's public link and answers its token - once; only a hash of it is kept. Whoever holds the link reads the page alone without signing in, never the pages under it, its comments or its history. A new link replaces the previous one, which stops answering. Refused with `pages.public_links_off` unless the workspace allows public links, and with `pages.public_link_restricted` for a page behind a restriction. The link reads as the person who made it: once they no longer read the page, it answers nothing. Needs MANAGE_MEMBERS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/public-link (the `CreatePagePublicLink` operationId).
+func (c *ClientWithResponses) CreatePagePublicLinkWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*CreatePagePublicLinkResult, error) {
+	rsp, err := c.CreatePagePublicLink(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePagePublicLinkResult(rsp)
+}
+
 // SharePageWithBodyWithResponse Share a page with one person, read-only
 //
 // Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
@@ -139434,6 +140107,51 @@ func (c *ClientWithResponses) ReadPersonalSpaceWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseReadPersonalSpaceResult(rsp)
+}
+
+// ReadPublicLinksPolicyWithResponse Whether pages may be opened by a public link
+//
+// Whether the workspace lets a page be opened by a public link, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages:public-links (the `ReadPublicLinksPolicy` operationId).
+func (c *ClientWithResponses) ReadPublicLinksPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadPublicLinksPolicyResult, error) {
+	rsp, err := c.ReadPublicLinksPolicy(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPublicLinksPolicyResult(rsp)
+}
+
+// SetPublicLinksPolicyWithBodyWithResponse Allow public links to pages, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /pages:public-links (the `SetPublicLinksPolicy` operationId).
+func (c *ClientWithResponses) SetPublicLinksPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPublicLinksPolicyResult, error) {
+	rsp, err := c.SetPublicLinksPolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPublicLinksPolicyResult(rsp)
+}
+
+// SetPublicLinksPolicyWithResponse Allow public links to pages, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /pages:public-links (the `SetPublicLinksPolicy` operationId).
+func (c *ClientWithResponses) SetPublicLinksPolicyWithResponse(ctx context.Context, body SetPublicLinksPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPublicLinksPolicyResult, error) {
+	rsp, err := c.SetPublicLinksPolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPublicLinksPolicyResult(rsp)
 }
 
 // SearchPagesWithBodyWithResponse Find pages by their words
@@ -140308,6 +141026,21 @@ func (c *ClientWithResponses) OpenPrivateHubWithResponse(ctx context.Context, hu
 		return nil, err
 	}
 	return ParseOpenPrivateHubResult(rsp)
+}
+
+// GetPublicPageWithResponse A page opened by its public link
+//
+// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
+func (c *ClientWithResponses) GetPublicPageWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetPublicPageResult, error) {
+	rsp, err := c.GetPublicPage(ctx, token, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPublicPageResult(rsp)
 }
 
 // ReadQuotasWithResponse The workspace's quota standing
@@ -160472,6 +161205,68 @@ func ParseAddPageCommentResult(rsp *http.Response) (*AddPageCommentResult, error
 	return response, nil
 }
 
+// ParseDeletePagePublicLinkResult parses an HTTP response from a DeletePagePublicLinkWithResponse call
+func ParseDeletePagePublicLinkResult(rsp *http.Response) (*DeletePagePublicLinkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePagePublicLinkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePagePublicLinkResult parses an HTTP response from a CreatePagePublicLinkWithResponse call
+func ParseCreatePagePublicLinkResult(rsp *http.Response) (*CreatePagePublicLinkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePagePublicLinkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PagePublicLinkMinted
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseSharePageResult parses an HTTP response from a SharePageWithResponse call
 func ParseSharePageResult(rsp *http.Response) (*SharePageResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -160847,6 +161642,72 @@ func ParseReadPersonalSpaceResult(rsp *http.Response) (*ReadPersonalSpaceResult,
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PersonalSpace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPublicLinksPolicyResult parses an HTTP response from a ReadPublicLinksPolicyWithResponse call
+func ParseReadPublicLinksPolicyResult(rsp *http.Response) (*ReadPublicLinksPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPublicLinksPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicLinksPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetPublicLinksPolicyResult parses an HTTP response from a SetPublicLinksPolicyWithResponse call
+func ParseSetPublicLinksPolicyResult(rsp *http.Response) (*SetPublicLinksPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPublicLinksPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicLinksPolicy
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -162059,6 +162920,32 @@ func ParseOpenPrivateHubResult(rsp *http.Response) (*OpenPrivateHubResult, error
 		}
 		response.JSON201 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPublicPageResult parses an HTTP response from a GetPublicPageWithResponse call
+func ParseGetPublicPageResult(rsp *http.Response) (*GetPublicPageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPublicPageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

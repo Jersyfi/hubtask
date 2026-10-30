@@ -638,6 +638,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.created` | OpenDailyNote | `page` | INFO | When refused |
 | `page.exported` | ExportPage | `page` | INFO | Every time |
 | `page.moved` | MovePage | `page` | INFO | Every time |
+| `page.public_link_created` | CreatePagePublicLink | `page` | NOTICE | Every time |
+| `page.public_link_deleted` | DeletePagePublicLink | `page` | NOTICE | Every time |
 | `page.read` | ListPageBacklinks | `page` | INFO | When refused |
 | `page.read` | ListPageComments | `page_comment` | INFO | When refused |
 | `page.read` | ListPageVersions | `page` | INFO | When refused |
@@ -665,6 +667,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page_comment.added` | AddPageComment | `page_comment` | INFO | Every time |
 | `page_comment.changed` | ChangePageComment | `page_comment` | INFO | Every time |
 | `page_comment.deleted` | DeletePageComment | `page_comment` | INFO | Every time |
+
+## Page_public_links
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_public_links.policy_read` | ReadPublicLinksPolicy | `page_public_links` | INFO | When refused |
+| `page_public_links.policy_set` | SetPublicLinksPolicy | `page_public_links` | NOTICE | Every time |
 
 ## Permissions
 

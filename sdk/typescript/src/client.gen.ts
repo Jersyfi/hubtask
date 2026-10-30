@@ -3431,6 +3431,32 @@ export class HubtaskClient {
     return this.call("DELETE", "/pages/{pageId}/shares/{accountId}", { "pageId": pageId, "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Make a page's public link */
+  createPagePublicLink(pageId: string, options: CallOptions = {}): Promise<operations["createPagePublicLink"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}/public-link", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Take a page's public link away */
+  deletePagePublicLink(pageId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/pages/{pageId}/public-link", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Whether pages may be opened by a public link */
+  readPublicLinksPolicy(options: CallOptions = {}): Promise<operations["readPublicLinksPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages:public-links", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Allow public links to pages, or not */
+  setPublicLinksPolicy(body: NonNullable<operations["setPublicLinksPolicy"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setPublicLinksPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/pages:public-links", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A page opened by its public link
+   * Public: sent without a bearer where the client holds none. */
+  getPublicPage(token: string, options: CallOptions = {}): Promise<Response> {
+    return this.call("GET", "/public/pages/{token}", { "token": token }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
+  }
+
   /** The pages shared with me */
   listSharedPages(options: CallOptions = {}): Promise<operations["listSharedPages"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/pages:shared", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

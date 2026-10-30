@@ -5039,6 +5039,25 @@ class PageAccess(TypedDict, total=False):
     readers: Required[list[str] | None]
     shares: Required[list["PageShare"]]
     may_share: Required[bool]
+    public_link: Required["PagePublicLink" | Any]
+    public_links_allowed: Required[bool]
+
+class PagePublicLink(TypedDict, total=False):
+    page_id: Required[str]
+    created_by: Required[str | None]
+    created_at: Required[str]
+
+class PagePublicLinkMinted(TypedDict, total=False):
+    """A page's public link with its token, answered once."""
+    page_id: Required[str]
+    created_by: Required[str | None]
+    created_at: Required[str]
+    token: Required[str]
+
+class PublicLinksPolicy(TypedDict, total=False):
+    allowed: Required[bool]
+    source: Required[str]
+    locked_by: str
 
 class PageShareCreate(TypedDict, total=False):
     account_id: Required[str]

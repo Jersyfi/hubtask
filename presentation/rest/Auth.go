@@ -102,6 +102,9 @@ var PublicRoutes = map[string]bool{
 	// bearer header. The token is the whole of the authorisation, and the route validates it
 	// itself (security.md §4 T-21).
 	http.MethodGet + " " + APIBasePath + "/calendar/{token}.ics": true,
+	// A page's public link, on the same trust model: the token is the whole authorisation, and
+	// the route validates it itself (UC-DOC-08).
+	http.MethodGet + " " + APIBasePath + "/public/pages/{token}": true,
 	// The inbound webhook carries its credential in the URL for the same reasons, and it
 	// authenticates the *rule* rather than a person: there is no account behind the token, so
 	// there is nothing for this middleware to resolve. The route validates it itself, and what

@@ -16765,6 +16765,12 @@ type PageAccess struct {
 	MayShare bool               `json:"may_share"`
 	PageId   openapi_types.UUID `json:"page_id"`
 
+	// PublicLink The page's public link, never its token; null when it has none.
+	PublicLink *PagePublicLink `json:"public_link"`
+
+	// PublicLinksAllowed Whether the workspace allows public links.
+	PublicLinksAllowed bool `json:"public_links_allowed"`
+
 	// Readers The people every restriction on the way up names; null for an unrestricted page.
 	Readers *[]openapi_types.UUID `json:"readers"`
 
@@ -16938,6 +16944,23 @@ type PageMove struct {
 
 	// ParentId The page it moves under; absent for the top of the space.
 	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+}
+
+// PagePublicLink defines model for PagePublicLink.
+type PagePublicLink struct {
+	CreatedAt time.Time           `json:"created_at"`
+	CreatedBy *openapi_types.UUID `json:"created_by"`
+	PageId    openapi_types.UUID  `json:"page_id"`
+}
+
+// PagePublicLinkMinted A page's public link with its token, answered once.
+type PagePublicLinkMinted struct {
+	CreatedAt time.Time           `json:"created_at"`
+	CreatedBy *openapi_types.UUID `json:"created_by"`
+	PageId    openapi_types.UUID  `json:"page_id"`
+
+	// Token The credential; the address is /api/v1/public/pages/{token}.
+	Token string `json:"token"`
 }
 
 // PageRead A page with its body, its breadcrumb and whether the reader may write it.
@@ -18227,6 +18250,17 @@ type ProvisionedTenant struct {
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
 type ProvisionedTenantStatus string
+
+// PublicLinksPolicy defines model for PublicLinksPolicy.
+type PublicLinksPolicy struct {
+	Allowed bool `json:"allowed"`
+
+	// LockedBy The level that locked it
+	LockedBy *string `json:"locked_by,omitempty"`
+
+	// Source The level whose value is in force.
+	Source string `json:"source"`
+}
 
 // PurgeSummary What one pass of a removal did.
 type PurgeSummary struct {
@@ -23724,6 +23758,11 @@ type MovePageParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetPublicLinksPolicyJSONBody defines parameters for SetPublicLinksPolicy.
+type SetPublicLinksPolicyJSONBody struct {
+	Allowed bool `json:"allowed"`
+}
+
 // TakeBaselineJSONBody defines parameters for TakeBaseline.
 type TakeBaselineJSONBody struct {
 	Name string `json:"name"`
@@ -25105,6 +25144,9 @@ type RestrictPageJSONRequestBody = PageRestrict
 
 // VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
 type VerifyPageJSONRequestBody = PageVerify
+
+// SetPublicLinksPolicyJSONRequestBody defines body for SetPublicLinksPolicy for application/json ContentType.
+type SetPublicLinksPolicyJSONRequestBody SetPublicLinksPolicyJSONBody
 
 // SearchPagesJSONRequestBody defines body for SearchPages for application/json ContentType.
 type SearchPagesJSONRequestBody = PageSearch
@@ -27220,6 +27262,12 @@ type ServerInterface interface {
 	// AddPageComment Comment on a page
 	// (POST /pages/{pageId}/comments)
 	AddPageComment(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// DeletePagePublicLink Take a page's public link away
+	// (DELETE /pages/{pageId}/public-link)
+	DeletePagePublicLink(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// CreatePagePublicLink Make a page's public link
+	// (POST /pages/{pageId}/public-link)
+	CreatePagePublicLink(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// SharePage Share a page with one person, read-only
 	// (POST /pages/{pageId}/shares)
 	SharePage(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -27256,6 +27304,12 @@ type ServerInterface interface {
 	// ReadPersonalSpace My own notes' space
 	// (GET /pages:personal)
 	ReadPersonalSpace(w http.ResponseWriter, r *http.Request)
+	// ReadPublicLinksPolicy Whether pages may be opened by a public link
+	// (GET /pages:public-links)
+	ReadPublicLinksPolicy(w http.ResponseWriter, r *http.Request)
+	// SetPublicLinksPolicy Allow public links to pages, or not
+	// (PUT /pages:public-links)
+	SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request)
 	// SearchPages Find pages by their words
 	// (POST /pages:search)
 	SearchPages(w http.ResponseWriter, r *http.Request)
@@ -27364,6 +27418,9 @@ type ServerInterface interface {
 	// OpenPrivateHub Open a private hub through the emergency access
 	// (POST /private-hubs/{hubId}/accesses)
 	OpenPrivateHub(w http.ResponseWriter, r *http.Request, hubId HubId, params OpenPrivateHubParams)
+	// GetPublicPage A page opened by its public link
+	// (GET /public/pages/{token})
+	GetPublicPage(w http.ResponseWriter, r *http.Request, token string)
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
@@ -44216,6 +44273,58 @@ func (siw *ServerInterfaceWrapper) AddPageComment(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// DeletePagePublicLink operation middleware
+func (siw *ServerInterfaceWrapper) DeletePagePublicLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePagePublicLink(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePagePublicLink operation middleware
+func (siw *ServerInterfaceWrapper) CreatePagePublicLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePagePublicLink(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SharePage operation middleware
 func (siw *ServerInterfaceWrapper) SharePage(w http.ResponseWriter, r *http.Request) {
 
@@ -44620,6 +44729,34 @@ func (siw *ServerInterfaceWrapper) ReadPersonalSpace(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadPersonalSpace(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPublicLinksPolicy operation middleware
+func (siw *ServerInterfaceWrapper) ReadPublicLinksPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPublicLinksPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetPublicLinksPolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPublicLinksPolicy(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -45774,6 +45911,32 @@ func (siw *ServerInterfaceWrapper) OpenPrivateHub(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.OpenPrivateHub(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicPage operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicPage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicPage(w, r, token)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -51090,6 +51253,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/access", wrapper.ReadPageAccess)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/shares", wrapper.SharePage)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/shares/{accountId}", wrapper.UnsharePage)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.DeletePagePublicLink)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.CreatePagePublicLink)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:public-links", wrapper.ReadPublicLinksPolicy)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/pages:public-links", wrapper.SetPublicLinksPolicy)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/pages/{token}", wrapper.GetPublicPage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:shared", wrapper.ListSharedPages)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:personal", wrapper.ReadPersonalSpace)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages:today", wrapper.OpenDailyNote)

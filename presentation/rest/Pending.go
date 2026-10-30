@@ -2644,3 +2644,17 @@ func (pending) ListSharedPages(w http.ResponseWriter, r *http.Request) { notAvai
 func (pending) ReadPersonalSpace(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) OpenDailyNote(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreatePagePublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePagePublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetPublicPage(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }

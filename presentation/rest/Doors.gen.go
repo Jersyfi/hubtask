@@ -113,6 +113,7 @@ var restDoors = map[string]restDoor{
 	"createLinkType":                    {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"createManagedAccount":              {UseCase: "CreateManagedAccount", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/accounts/{account.id}", NullClears: false, Integers: []string(nil), ShownOnce: "start_password"},
 	"createPage":                        {UseCase: "CreatePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/pages/{id}", NullClears: false, Integers: []string(nil)},
+	"createPagePublicLink":              {UseCase: "CreatePagePublicLink", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createPlan":                        {UseCase: "CreatePlan", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createPlatformSubscription":        {UseCase: "CreatePlatformSubscription", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createPortfolio":                   {UseCase: "CreatePortfolio", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -157,6 +158,7 @@ var restDoors = map[string]restDoor{
 	"deleteMedia":                       {UseCase: "DeleteMedia", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteOauthClient":                 {UseCase: "DeleteOauthClient", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deletePageComment":                 {UseCase: "DeletePageComment", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deletePagePublicLink":              {UseCase: "DeletePagePublicLink", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deletePlatformSubscription":        {UseCase: "DeletePlatformSubscription", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deletePortfolio":                   {UseCase: "DeletePortfolio", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteReminder":                    {UseCase: "DeleteReminder", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -407,6 +409,7 @@ var restDoors = map[string]restDoor{
 	"readPlanSchedule":                  {UseCase: "ReadPlanSchedule", Status: 200, Query: []string{"calendar", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlatformSubscription":          {UseCase: "ReadPlatformSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPortfolio":                     {UseCase: "ReadPortfolio", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readPublicLinksPolicy":             {UseCase: "ReadPublicLinksPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readQuotas":                        {UseCase: "ReadQuotas", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSettingsCatalogue":             {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSprint":                        {UseCase: "ReadSprint", Status: 200, Query: []string{"calendar", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -531,6 +534,7 @@ var restDoors = map[string]restDoor{
 	"setOwnAiBudget":                    {UseCase: "SetOwnAiBudget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"own_tokens_per_day"}},
 	"setOwnAvatar":                      {UseCase: "SetOwnAvatar", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setPasswordAndSignIn":              {UseCase: "SetPasswordAndSignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
+	"setPublicLinksPolicy":              {UseCase: "SetPublicLinksPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setRecurrence":                     {UseCase: "SetRecurrence", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"horizon_days", "max_count"}},
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"setUpInstallation":                 {UseCase: "SetUpInstallation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), Request: []string{"user_agent", "remote_addr"}},
@@ -1235,6 +1239,12 @@ func (c *RestController) CreatePage(w http.ResponseWriter, r *http.Request, hubI
 	c.door(w, r, restDoors["createPage"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
 }
 
+// CreatePagePublicLink answers POST /pages/{pageId}/public-link by the generated mapping.
+func (c *RestController) CreatePagePublicLink(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var answer openapi.PagePublicLinkMinted
+	c.door(w, r, restDoors["createPagePublicLink"], usecase.Input{"page_id": pageId.String()}, nil, nil, &answer)
+}
+
 // CreatePlan answers POST /admin/plans by the generated mapping.
 func (c *RestController) CreatePlan(w http.ResponseWriter, r *http.Request, params openapi.CreatePlanParams) {
 	var body openapi.CreatePlanJSONRequestBody
@@ -1497,6 +1507,11 @@ func (c *RestController) DeleteOauthClient(w http.ResponseWriter, r *http.Reques
 // DeletePageComment answers DELETE /page-comments/{commentId} by the generated mapping.
 func (c *RestController) DeletePageComment(w http.ResponseWriter, r *http.Request, commentId openapi_types.UUID) {
 	c.door(w, r, restDoors["deletePageComment"], usecase.Input{"comment_id": commentId.String()}, nil, nil, nil)
+}
+
+// DeletePagePublicLink answers DELETE /pages/{pageId}/public-link by the generated mapping.
+func (c *RestController) DeletePagePublicLink(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	c.door(w, r, restDoors["deletePagePublicLink"], usecase.Input{"page_id": pageId.String()}, nil, nil, nil)
 }
 
 // DeletePlatformSubscription answers DELETE /admin/subscriptions/{subscriptionId} by the generated mapping.
@@ -2921,6 +2936,12 @@ func (c *RestController) ReadPortfolio(w http.ResponseWriter, r *http.Request, p
 	c.door(w, r, restDoors["readPortfolio"], usecase.Input{"portfolio_id": portfolioId.String()}, nil, nil, &answer)
 }
 
+// ReadPublicLinksPolicy answers GET /pages:public-links by the generated mapping.
+func (c *RestController) ReadPublicLinksPolicy(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.PublicLinksPolicy
+	c.door(w, r, restDoors["readPublicLinksPolicy"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ReadQuotas answers GET /quotas by the generated mapping.
 func (c *RestController) ReadQuotas(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["readQuotas"], usecase.Input{}, nil, nil, answerRows(quotaStandingResponse))
@@ -3657,6 +3678,13 @@ func (c *RestController) SetOwnAvatar(w http.ResponseWriter, r *http.Request) {
 func (c *RestController) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) {
 	var body openapi.SetPasswordAndSignInJSONRequestBody
 	c.door(w, r, restDoors["setPasswordAndSignIn"], usecase.Input{}, nil, &body, answerBy(sessionTokensResponse))
+}
+
+// SetPublicLinksPolicy answers PUT /pages:public-links by the generated mapping.
+func (c *RestController) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetPublicLinksPolicyJSONRequestBody
+	var answer openapi.PublicLinksPolicy
+	c.door(w, r, restDoors["setPublicLinksPolicy"], usecase.Input{}, nil, &body, &answer)
 }
 
 // SetRecurrence answers PUT /items/{itemId}/recurrence by the generated mapping.

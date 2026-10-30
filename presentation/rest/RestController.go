@@ -74,6 +74,10 @@ type RestController struct {
 	// automation rule to call. Nil leaves the route answering the pending 404.
 	CalendarFeeds CalendarFeedReader
 
+	// PublicPages serves a page's public link (UC-DOC-08), not a catalogue entry for the calendar
+	// feed's reason. Nil leaves the route answering the pending 404.
+	PublicPages PublicPageReader
+
 	// InboundRuns serves the public inbound-webhook route, which is not a catalogue entry either:
 	// it answers a credential nobody in this system holds, and there is nothing for MCP or an
 	// automation rule to call. Nil leaves the route answering the pending 404.

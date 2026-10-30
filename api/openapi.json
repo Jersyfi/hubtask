@@ -26887,6 +26887,164 @@
         }
       }
     },
+    "/pages/{pageId}/public-link": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "createPagePublicLink",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page link",
+        "summary": "Make a page's public link",
+        "description": "Makes the page's public link and answers its token - once; only a hash of it is kept. Whoever holds the link reads the page alone without signing in, never the pages under it, its comments or its history. A new link replaces the previous one, which stops answering. Refused with `pages.public_links_off` unless the workspace allows public links, and with `pages.public_link_restricted` for a page behind a restriction. The link reads as the person who made it: once they no longer read the page, it answers nothing. Needs MANAGE_MEMBERS on the hub.\n",
+        "responses": {
+          "201": {
+            "description": "Made",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagePublicLinkMinted"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "deletePagePublicLink",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page unlink",
+        "summary": "Take a page's public link away",
+        "description": "The link answers nothing from then on. Needs MANAGE_MEMBERS on the hub.",
+        "responses": {
+          "204": {
+            "description": "Taken away"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages:public-links": {
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "readPublicLinksPolicy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page links-policy",
+        "summary": "Whether pages may be opened by a public link",
+        "description": "Whether the workspace lets a page be opened by a public link, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.\n",
+        "responses": {
+          "200": {
+            "description": "The policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicLinksPolicy"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "setPublicLinksPolicy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page links-policy set",
+        "summary": "Allow public links to pages, or not",
+        "description": "Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "allowed"
+                ],
+                "properties": {
+                  "allowed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicLinksPolicy"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/public/pages/{token}": {
+      "parameters": [
+        {
+          "name": "token",
+          "in": "path",
+          "required": true,
+          "description": "The link's token, which is the whole credential: this route carries no bearer authentication. It names the workspace inside itself because the lookup needs one before it can happen.\n",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "getPublicPage",
+        "security": [],
+        "summary": "A page opened by its public link",
+        "description": "The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.\n",
+        "responses": {
+          "200": {
+            "description": "The page",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/pages:shared": {
       "get": {
         "tags": [
@@ -54296,7 +54454,9 @@
           "restricted_above",
           "readers",
           "shares",
-          "may_share"
+          "may_share",
+          "public_link",
+          "public_links_allowed"
         ],
         "properties": {
           "page_id": {
@@ -54338,6 +54498,87 @@
           },
           "may_share": {
             "type": "boolean"
+          },
+          "public_link": {
+            "description": "The page's public link, never its token; null when it has none.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PagePublicLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "public_links_allowed": {
+            "type": "boolean",
+            "description": "Whether the workspace allows public links."
+          }
+        }
+      },
+      "PagePublicLink": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "created_by",
+          "created_at"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PagePublicLinkMinted": {
+        "description": "A page's public link with its token, answered once.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PagePublicLink"
+          },
+          {
+            "type": "object",
+            "required": [
+              "token"
+            ],
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "The credential; the address is /api/v1/public/pages/{token}."
+              }
+            }
+          }
+        ]
+      },
+      "PublicLinksPolicy": {
+        "type": "object",
+        "required": [
+          "allowed",
+          "source"
+        ],
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "description": "The level whose value is in force."
+          },
+          "locked_by": {
+            "type": "string",
+            "description": "The level that locked it",
+            "where one did.": null
           }
         }
       },

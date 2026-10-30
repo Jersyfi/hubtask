@@ -903,7 +903,7 @@ var generatedCommands = []door{
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
 		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"may_share", "page_id", "restricted", "restricted_above"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"may_share", "page_id", "public_links_allowed", "restricted", "restricted_above"}},
 	{Group: "page", Verb: "backlinks", OperationID: "listPageBacklinks", Method: "GET", Path: "/pages/{pageId}/backlinks", Summary: "What links to a page",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
@@ -968,6 +968,18 @@ var generatedCommands = []door{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "page", Verb: "link", OperationID: "createPagePublicLink", Method: "POST", Path: "/pages/{pageId}/public-link", Summary: "Make a page's public link",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "page", Verb: "links-policy", OperationID: "readPublicLinksPolicy", Method: "GET", Path: "/pages:public-links", Summary: "Whether pages may be opened by a public link",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"allowed", "locked_by", "source"}},
+	{Group: "page", Verb: "links-policy set", OperationID: "setPublicLinksPolicy", Method: "PUT", Path: "/pages:public-links", Summary: "Allow public links to pages, or not",
+		Body: []doorParam{
+			{Name: "allowed", Kind: "boolean", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"allowed", "locked_by", "source"}},
 	{Group: "page", Verb: "ls", OperationID: "listPages", Method: "GET", Path: "/hubs/{hubId}/pages", Summary: "A hub's pages",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
@@ -1047,6 +1059,11 @@ var generatedCommands = []door{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "unlink", OperationID: "deletePagePublicLink", Method: "DELETE", Path: "/pages/{pageId}/public-link", Summary: "Take a page's public link away",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "page", Verb: "unshare", OperationID: "unsharePage", Method: "DELETE", Path: "/pages/{pageId}/shares/{accountId}", Summary: "Take a page's share away",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
