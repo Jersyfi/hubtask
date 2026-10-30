@@ -204,7 +204,9 @@ var restDoors = map[string]restDoor{
 	"giveKudos":                         {UseCase: "GiveKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"grantMembership":                   {UseCase: "GrantMembership", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/memberships/{id}", NullClears: false, Integers: []string(nil)},
 	"grantRole":                         {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"httpRequest":                       {UseCase: "HttpRequest", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"importCiFile":                      {UseCase: "ImportCiFile", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"importEntries":                     {UseCase: "ImportEntries", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"instantiateTemplate":               {UseCase: "InstantiateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"inviteAccount":                     {UseCase: "InviteAccount", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/accounts/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "invitation_link"},
 	"issueStartPassword":                {UseCase: "IssueStartPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "start_password"},
@@ -1703,11 +1705,23 @@ func (c *RestController) GrantRole(w http.ResponseWriter, r *http.Request, param
 	c.door(w, r, restDoors["grantRole"], usecase.Input{}, params, &body, &answer)
 }
 
+// HttpRequest answers POST /integrations/http-requests by the generated mapping.
+func (c *RestController) HttpRequest(w http.ResponseWriter, r *http.Request) {
+	var body openapi.HttpRequestJSONRequestBody
+	c.door(w, r, restDoors["httpRequest"], usecase.Input{}, nil, &body, answerBy(acceptedJob))
+}
+
 // ImportCiFile answers POST /hubs/{hubId}/cis:import by the generated mapping.
 func (c *RestController) ImportCiFile(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
 	var body openapi.ImportCiFileJSONRequestBody
 	var answer openapi.CiRun
 	c.door(w, r, restDoors["importCiFile"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
+}
+
+// ImportEntries answers POST /imports by the generated mapping.
+func (c *RestController) ImportEntries(w http.ResponseWriter, r *http.Request, params openapi.ImportEntriesParams) {
+	var body openapi.ImportEntriesJSONRequestBody
+	c.door(w, r, restDoors["importEntries"], usecase.Input{}, params, &body, answerBy(importJobResponse))
 }
 
 // InstantiateTemplate answers POST /templates/{templateId}:instantiate by the generated mapping.

@@ -6162,6 +6162,8 @@ paths:
     post:
       tags: [automation]
       operationId: httpRequest
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedJob
       summary: Call an external HTTP address
       description: >
         One outbound call, through the guarded client: private and link-local ranges are refused
@@ -6993,6 +6995,8 @@ paths:
     post:
       tags: [imports]
       operationId: importEntries
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: importJobResponse
       summary: Import entries from another system into a hub or one of its collections
       description: |
         Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,

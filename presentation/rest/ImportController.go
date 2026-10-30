@@ -4,11 +4,9 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -17,42 +15,16 @@ import (
 // job pointer whose result_url names the import, and the import read back as the contract's
 // ImportRun.
 
-const (
-	importEntriesUseCase = "ImportEntries"
-)
+const ()
 
-// ImportEntries answers POST /imports.
-func (c *RestController) ImportEntries(w http.ResponseWriter, r *http.Request, _ openapi.ImportEntriesParams) {
-	var body openapi.ImportRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-	in := usecase.Input{
-		"media_id": body.MediaId.String(),
-		"kind":     string(body.Kind),
-		"hub_id":   body.HubId.String(),
-	}
-	if body.CollectionId != nil {
-		in["collection_id"] = body.CollectionId.String()
-	}
-	if body.Mapping != nil {
-		mapping := map[string]any{}
-		for key, value := range *body.Mapping {
-			mapping[key] = value
-		}
-		in["mapping"] = mapping
-	}
-	out, ok := c.read(w, r, importEntriesUseCase, in)
-	if !ok {
-		return
-	}
+// importJobResponse maps an accepted import: the job and where its report will be.
+func importJobResponse(out usecase.Output) openapi.JobRef {
 	resultURL := out.String("result_url")
-	writeJSON(w, r, http.StatusAccepted, openapi.JobRef{
+	return openapi.JobRef{
 		JobId:     uuidValue(out.String("job_id")),
 		Status:    openapi.JobStatusQUEUED,
 		ResultUrl: &resultURL,
-	})
+	}
 }
 
 func importRunResponse(out usecase.Output) openapi.ImportRun {
