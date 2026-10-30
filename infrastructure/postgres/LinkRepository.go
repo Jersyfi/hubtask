@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -207,9 +208,13 @@ func (r EntryLinkRepository) Insert(ctx context.Context, link work.EntryLink) er
 	if err != nil {
 		return err
 	}
+	if link.Timing.Kind == "" {
+		link.Timing.Kind = planning.FinishToStart
+	}
 	err = queries.InsertEntryLink(ctx, sqlc.InsertEntryLinkParams{
 		ID: ids[0], LinkType: link.Type, SourceID: ids[1], TargetID: ids[2],
 		CreatedBy: createdBy, CreatedAt: timestampOf(link.CreatedAt),
+		DependencyKind: string(link.Timing.Kind), LagDays: int32(link.Timing.LagDays), //nolint:gosec // G115: bounded by planning.MaxLagDays
 	})
 	if err == nil {
 		return nil
@@ -501,6 +506,7 @@ func entryLinkFrom(row sqlc.FindEntryLinkRow) (work.EntryLink, error) {
 	return work.EntryLink{
 		ID: ids[0], TenantID: ids[1], Type: row.LinkType, SourceID: ids[2], TargetID: ids[3],
 		CreatedBy: createdBy, CreatedAt: timeFrom(row.CreatedAt),
+		Timing: planning.Timing{Kind: planning.DependencyKind(row.DependencyKind), LagDays: int(row.LagDays)},
 	}, nil
 }
 

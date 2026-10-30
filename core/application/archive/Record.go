@@ -721,6 +721,31 @@ var entities = []Entity{
 		Name: "sla_policies", Table: "sla_policy", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 	},
+	// The planning module (migration 0244, M2): an entry's scheduling mode, and a plan's baselines
+	// with the dates they hold. Whole: a mode is removed with its entry without a marker, and a
+	// baseline cannot say when it changed. A baseline's entry names its entry, remapped with it; one whose entry a restore
+	// withholds stays out with it.
+	{
+		Name: "entry_schedules", Table: "entry_schedule", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"entry_id"}, Duplicable: true,
+		References: []Reference{{Field: "entry_id", Table: "work_item"}},
+	},
+	{
+		Name: "plan_baselines", Table: "plan_baseline", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "plan_id", Table: "container"},
+			{Field: "taken_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "plan_baseline_entries", Table: "plan_baseline_entry", Whole: true, Later: true,
+		Keys: []string{"baseline_id", "entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "baseline_id", Table: "plan_baseline"},
+			{Field: "entry_id", Table: "work_item"},
+		},
+	},
 	{
 		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,

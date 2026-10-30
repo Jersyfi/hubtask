@@ -1980,14 +1980,17 @@ DELETE FROM link_type;
 
 -- name: ImportEntryLink :execrows
 -- A link is drawn and removed, never changed: an overwrite has nothing to replace but its moment.
-INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at)
-SELECT r.id, r.tenant_id, r.link_type, r.source_id, r.target_id, r.created_by, r.created_at
+-- An archive written before migration 0244 holds no timing: the columns' defaults stand.
+INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at,
+  dependency_kind, lag_days)
+SELECT r.id, r.tenant_id, r.link_type, r.source_id, r.target_id, r.created_by, r.created_at,
+  coalesce(r.dependency_kind, 'FS'), coalesce(r.lag_days, 0)
 FROM jsonb_populate_record(
   NULL::entry_link,
   (sqlc.arg('payload')::jsonb - 'own_type') || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
-  created_at = EXCLUDED.created_at
+  created_at = EXCLUDED.created_at, dependency_kind = EXCLUDED.dependency_kind, lag_days = EXCLUDED.lag_days
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsEntryLink :one
@@ -2624,3 +2627,62 @@ SELECT EXISTS (SELECT 1 FROM satisfaction_rating WHERE id = (sqlc.arg('payload')
 
 -- name: ClearSatisfactionRating :execrows
 DELETE FROM satisfaction_rating;
+
+-- name: ImportEntrySchedule :execrows
+INSERT INTO entry_schedule (tenant_id, entry_id, mode, milestone, updated_at, version)
+SELECT r.tenant_id, r.entry_id, r.mode, r.milestone, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::entry_schedule,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, entry_id) DO UPDATE SET
+  mode = EXCLUDED.mode, milestone = EXCLUDED.milestone, updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsEntrySchedule :one
+SELECT EXISTS (
+  SELECT 1 FROM entry_schedule WHERE entry_id = (sqlc.arg('payload')::jsonb->>'entry_id')::uuid
+) AS held;
+
+-- name: ClearEntrySchedule :execrows
+DELETE FROM entry_schedule;
+
+-- name: ImportPlanBaseline :execrows
+-- A baseline is taken and deleted, never changed: an overwrite has nothing to replace.
+INSERT INTO plan_baseline (id, tenant_id, plan_id, name, taken_at, taken_by, entry_count)
+SELECT r.id, r.tenant_id, r.plan_id, r.name, r.taken_at, r.taken_by, r.entry_count
+FROM jsonb_populate_record(
+  NULL::plan_baseline,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPlanBaseline :one
+SELECT EXISTS (SELECT 1 FROM plan_baseline WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearPlanBaseline :execrows
+DELETE FROM plan_baseline;
+
+-- name: ImportPlanBaselineEntry :execrows
+INSERT INTO plan_baseline_entry (tenant_id, baseline_id, entry_id, start_at, due_at)
+SELECT r.tenant_id, r.baseline_id, r.entry_id, r.start_at, r.due_at
+FROM jsonb_populate_record(
+  NULL::plan_baseline_entry,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, baseline_id, entry_id) DO UPDATE SET
+  start_at = EXCLUDED.start_at, due_at = EXCLUDED.due_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPlanBaselineEntry :one
+SELECT EXISTS (
+  SELECT 1 FROM plan_baseline_entry
+  WHERE baseline_id = (sqlc.arg('payload')::jsonb->>'baseline_id')::uuid
+    AND entry_id = (sqlc.arg('payload')::jsonb->>'entry_id')::uuid
+) AS held;
+
+-- name: ClearPlanBaselineEntry :execrows
+DELETE FROM plan_baseline_entry;

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -336,6 +337,9 @@ type EntryLink struct {
 	TargetID  shared.ID
 	CreatedBy shared.ID
 	CreatedAt time.Time
+	// Timing is how the waiting end hangs on the other (M2): finish-to-start without a lag unless
+	// a planner says otherwise. Only a dependency carries another.
+	Timing planning.Timing
 }
 
 // NewEntryLinkInput is what a link is made of.
@@ -347,6 +351,7 @@ type NewEntryLinkInput struct {
 	TargetID  shared.ID
 	CreatedBy shared.ID
 	Now       time.Time
+	Timing    planning.Timing
 }
 
 // NewEntryLink checks a link's own invariants. The ones that need the graph - the cardinality and
@@ -367,14 +372,31 @@ func NewEntryLink(in NewEntryLinkInput) (EntryLink, error) {
 	if in.Type.IsArchived() {
 		return EntryLink{}, linkInvalid("/type", "links.type_archived")
 	}
+	timing, err := in.Type.TimingOf(in.Timing)
+	if err != nil {
+		return EntryLink{}, err
+	}
 	source, target := in.SourceID, in.TargetID
 	if in.Type.Direction == LinkSymmetric && target.String() < source.String() {
 		source, target = target, source
 	}
 	return EntryLink{
 		ID: in.ID, TenantID: in.TenantID, Type: in.Type.Key, SourceID: source, TargetID: target,
-		CreatedBy: in.CreatedBy, CreatedAt: in.Now,
+		CreatedBy: in.CreatedBy, CreatedAt: in.Now, Timing: timing,
 	}, nil
+}
+
+// TimingOf checks a timing for a link of the type: a dependency takes any the planning module
+// accepts, a link nobody waits on only the default - a lag on "duplicates" would mean nothing.
+func (t LinkType) TimingOf(timing planning.Timing) (planning.Timing, error) {
+	checked, err := planning.NewTiming(timing.Kind, timing.LagDays)
+	if err != nil {
+		return planning.Timing{}, err
+	}
+	if !t.Schedules() && checked != (planning.Timing{Kind: planning.FinishToStart}) {
+		return planning.Timing{}, linkInvalid("/dependency_kind", "links.timing_without_dependency")
+	}
+	return checked, nil
 }
 
 // Other is the end of the link that is not the entry, and whether the entry is its source.

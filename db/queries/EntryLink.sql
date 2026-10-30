@@ -52,12 +52,14 @@ SELECT EXISTS (
 SELECT pg_advisory_xact_lock(hashtextextended('entry_link/' || current_tenant_id()::text, 0));
 
 -- name: InsertEntryLink :exec
-INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at)
+INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at,
+  dependency_kind, lag_days)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('link_type'), sqlc.arg('source_id'),
-  sqlc.arg('target_id'), sqlc.narg('created_by'), sqlc.arg('created_at'));
+  sqlc.arg('target_id'), sqlc.narg('created_by'), sqlc.arg('created_at'), sqlc.arg('dependency_kind'),
+  sqlc.arg('lag_days'));
 
 -- name: FindEntryLink :one
-SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at
+SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at, dependency_kind, lag_days
 FROM entry_link
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
 
@@ -66,7 +68,7 @@ DELETE FROM entry_link WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('
 
 -- name: ListEntryLinksOf :many
 -- An entry's links from both ends, oldest first, bounded.
-SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at
+SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at, dependency_kind, lag_days
 FROM entry_link
 WHERE tenant_id = current_tenant_id()
   AND (source_id = sqlc.arg('entry_id')::uuid OR target_id = sqlc.arg('entry_id')::uuid)
@@ -75,7 +77,7 @@ LIMIT sqlc.arg('max')::int;
 
 -- name: ListEntryLinksTouching :many
 -- The links with at least one end among the entries, for a timeline or a rule's `item.links`.
-SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at
+SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at, dependency_kind, lag_days
 FROM entry_link
 WHERE tenant_id = current_tenant_id()
   AND (source_id = ANY(sqlc.arg('entry_ids')::uuid[]) OR target_id = ANY(sqlc.arg('entry_ids')::uuid[]))

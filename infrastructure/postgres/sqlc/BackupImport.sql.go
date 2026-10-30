@@ -399,6 +399,18 @@ func (q *Queries) ClearEntryLink(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearEntrySchedule = `-- name: ClearEntrySchedule :execrows
+DELETE FROM entry_schedule
+`
+
+func (q *Queries) ClearEntrySchedule(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearEntrySchedule)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearEntrySla = `-- name: ClearEntrySla :execrows
 DELETE FROM entry_sla
 `
@@ -585,6 +597,30 @@ DELETE FROM webauthn_credential
 
 func (q *Queries) ClearPasskeys(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearPasskeys)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPlanBaseline = `-- name: ClearPlanBaseline :execrows
+DELETE FROM plan_baseline
+`
+
+func (q *Queries) ClearPlanBaseline(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPlanBaseline)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPlanBaselineEntry = `-- name: ClearPlanBaselineEntry :execrows
+DELETE FROM plan_baseline_entry
+`
+
+func (q *Queries) ClearPlanBaselineEntry(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPlanBaselineEntry)
 	if err != nil {
 		return 0, err
 	}
@@ -1211,6 +1247,19 @@ func (q *Queries) HoldsEntryLink(ctx context.Context, payload []byte) (bool, err
 	return held, err
 }
 
+const holdsEntrySchedule = `-- name: HoldsEntrySchedule :one
+SELECT EXISTS (
+  SELECT 1 FROM entry_schedule WHERE entry_id = ($1::jsonb->>'entry_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsEntrySchedule(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsEntrySchedule, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsEntrySla = `-- name: HoldsEntrySla :one
 SELECT EXISTS (SELECT 1 FROM entry_sla WHERE id = ($1::jsonb->>'id')::uuid) AS held
 `
@@ -1386,6 +1435,32 @@ SELECT EXISTS (SELECT 1 FROM webauthn_credential WHERE id = ($1::jsonb->>'id')::
 
 func (q *Queries) HoldsPasskey(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPasskey, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPlanBaseline = `-- name: HoldsPlanBaseline :one
+SELECT EXISTS (SELECT 1 FROM plan_baseline WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPlanBaseline(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPlanBaseline, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPlanBaselineEntry = `-- name: HoldsPlanBaselineEntry :one
+SELECT EXISTS (
+  SELECT 1 FROM plan_baseline_entry
+  WHERE baseline_id = ($1::jsonb->>'baseline_id')::uuid
+    AND entry_id = ($1::jsonb->>'entry_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPlanBaselineEntry(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPlanBaselineEntry, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -2971,14 +3046,16 @@ func (q *Queries) ImportCustomRoleGrant(ctx context.Context, payload []byte) (in
 }
 
 const importEntryLink = `-- name: ImportEntryLink :execrows
-INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at)
-SELECT r.id, r.tenant_id, r.link_type, r.source_id, r.target_id, r.created_by, r.created_at
+INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at,
+  dependency_kind, lag_days)
+SELECT r.id, r.tenant_id, r.link_type, r.source_id, r.target_id, r.created_by, r.created_at,
+  coalesce(r.dependency_kind, 'FS'), coalesce(r.lag_days, 0)
 FROM jsonb_populate_record(
   NULL::entry_link,
   ($1::jsonb - 'own_type') || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
-  created_at = EXCLUDED.created_at
+  created_at = EXCLUDED.created_at, dependency_kind = EXCLUDED.dependency_kind, lag_days = EXCLUDED.lag_days
 WHERE $2::boolean
 `
 
@@ -2988,8 +3065,35 @@ type ImportEntryLinkParams struct {
 }
 
 // A link is drawn and removed, never changed: an overwrite has nothing to replace but its moment.
+// An archive written before migration 0244 holds no timing: the columns' defaults stand.
 func (q *Queries) ImportEntryLink(ctx context.Context, arg ImportEntryLinkParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importEntryLink, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importEntrySchedule = `-- name: ImportEntrySchedule :execrows
+INSERT INTO entry_schedule (tenant_id, entry_id, mode, milestone, updated_at, version)
+SELECT r.tenant_id, r.entry_id, r.mode, r.milestone, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::entry_schedule,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, entry_id) DO UPDATE SET
+  mode = EXCLUDED.mode, milestone = EXCLUDED.milestone, updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportEntryScheduleParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportEntrySchedule(ctx context.Context, arg ImportEntryScheduleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importEntrySchedule, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
@@ -3716,6 +3820,57 @@ type ImportPasskeyParams struct {
 // export, which carries no identifier or key (tenant-export.md §9) and so is no credential.
 func (q *Queries) ImportPasskey(ctx context.Context, arg ImportPasskeyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPasskey, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPlanBaseline = `-- name: ImportPlanBaseline :execrows
+INSERT INTO plan_baseline (id, tenant_id, plan_id, name, taken_at, taken_by, entry_count)
+SELECT r.id, r.tenant_id, r.plan_id, r.name, r.taken_at, r.taken_by, r.entry_count
+FROM jsonb_populate_record(
+  NULL::plan_baseline,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name
+WHERE $2::boolean
+`
+
+type ImportPlanBaselineParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// A baseline is taken and deleted, never changed: an overwrite has nothing to replace.
+func (q *Queries) ImportPlanBaseline(ctx context.Context, arg ImportPlanBaselineParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPlanBaseline, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPlanBaselineEntry = `-- name: ImportPlanBaselineEntry :execrows
+INSERT INTO plan_baseline_entry (tenant_id, baseline_id, entry_id, start_at, due_at)
+SELECT r.tenant_id, r.baseline_id, r.entry_id, r.start_at, r.due_at
+FROM jsonb_populate_record(
+  NULL::plan_baseline_entry,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, baseline_id, entry_id) DO UPDATE SET
+  start_at = EXCLUDED.start_at, due_at = EXCLUDED.due_at
+WHERE $2::boolean
+`
+
+type ImportPlanBaselineEntryParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPlanBaselineEntry(ctx context.Context, arg ImportPlanBaselineEntryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPlanBaselineEntry, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

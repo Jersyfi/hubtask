@@ -1203,14 +1203,16 @@ type EntryFieldValue struct {
 }
 
 type EntryLink struct {
-	ID        pgtype.UUID
-	TenantID  pgtype.UUID
-	LinkType  string
-	OwnType   *string
-	SourceID  pgtype.UUID
-	TargetID  pgtype.UUID
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	LinkType       string
+	OwnType        *string
+	SourceID       pgtype.UUID
+	TargetID       pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	DependencyKind string
+	LagDays        int32
 }
 
 type EntryReference struct {
@@ -1222,6 +1224,15 @@ type EntryReference struct {
 	TargetID   pgtype.UUID
 	Anchor     string
 	Strength   string
+}
+
+type EntrySchedule struct {
+	TenantID  pgtype.UUID
+	EntryID   pgtype.UUID
+	Mode      string
+	Milestone bool
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
 }
 
 type EntrySla struct {
@@ -1798,6 +1809,24 @@ type Plan struct {
 	UpdatedAt   pgtype.Timestamptz
 	UpdatedBy   pgtype.UUID
 	RemovedAt   pgtype.Timestamptz
+}
+
+type PlanBaseline struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	PlanID     pgtype.UUID
+	Name       string
+	TakenAt    pgtype.Timestamptz
+	TakenBy    pgtype.UUID
+	EntryCount int32
+}
+
+type PlanBaselineEntry struct {
+	TenantID   pgtype.UUID
+	BaselineID pgtype.UUID
+	EntryID    pgtype.UUID
+	StartAt    pgtype.Timestamptz
+	DueAt      pgtype.Timestamptz
 }
 
 type PlanSetting struct {

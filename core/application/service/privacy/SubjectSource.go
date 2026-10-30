@@ -64,6 +64,8 @@ var subjectColumns = map[string][]string{
 	// The configuration they published, linked, proposed, decided or wrote a template of.
 	"workflow":   {"published_by"},
 	"entry_link": {"created_by"},
+	// The baselines of a plan they took (M2).
+	"plan_baseline": {"taken_by"},
 	// The pages they wrote, own or checked, their versions and their comments (M3).
 	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},
 	"page_version": {"author_id"},
@@ -138,6 +140,8 @@ var notThePersons = map[string]string{
 	"sla_policy":              "the workspace's promised response and resolution times",
 	"entry_sla":               "how an entry's promised times stood, which names nobody; the entry is the entry's",
 	"reply_template":          "the workspace's canned replies, text the team wrote once for many requests",
+	"entry_schedule":          "whether the scheduler may move an entry, which names nobody; the entry is the entry's",
+	"plan_baseline_entry":     "an entry's dates as a baseline holds them, which name nobody; the baseline names who took it",
 	"satisfaction_rating":     "a score of a resolved request, which names nobody; the rater is who raised the entry, and their words are a comment of theirs",
 }
 

@@ -1561,6 +1561,51 @@ func (q *Queries) ExportEntryLinks(ctx context.Context, arg ExportEntryLinksPara
 	return items, nil
 }
 
+const exportEntrySchedules = `-- name: ExportEntrySchedules :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.entry_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.entry_id AS key_1
+  FROM entry_schedule x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportEntrySchedulesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportEntrySchedulesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportEntrySchedules(ctx context.Context, arg ExportEntrySchedulesParams) ([]ExportEntrySchedulesRow, error) {
+	rows, err := q.db.Query(ctx, exportEntrySchedules, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportEntrySchedulesRow{}
+	for rows.Next() {
+		var i ExportEntrySchedulesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportEntrySlas = `-- name: ExportEntrySlas :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
@@ -2302,6 +2347,98 @@ func (q *Queries) ExportPasskeys(ctx context.Context, arg ExportPasskeysParams) 
 	items := []ExportPasskeysRow{}
 	for rows.Next() {
 		var i ExportPasskeysRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPlanBaselineEntries = `-- name: ExportPlanBaselineEntries :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.baseline_id::text || '/' || x.entry_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.baseline_id AS key_1,
+         x.entry_id AS key_2
+  FROM plan_baseline_entry x
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPlanBaselineEntriesParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportPlanBaselineEntriesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPlanBaselineEntries(ctx context.Context, arg ExportPlanBaselineEntriesParams) ([]ExportPlanBaselineEntriesRow, error) {
+	rows, err := q.db.Query(ctx, exportPlanBaselineEntries, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPlanBaselineEntriesRow{}
+	for rows.Next() {
+		var i ExportPlanBaselineEntriesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPlanBaselines = `-- name: ExportPlanBaselines :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM plan_baseline x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPlanBaselinesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPlanBaselinesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPlanBaselines(ctx context.Context, arg ExportPlanBaselinesParams) ([]ExportPlanBaselinesRow, error) {
+	rows, err := q.db.Query(ctx, exportPlanBaselines, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPlanBaselinesRow{}
+	for rows.Next() {
+		var i ExportPlanBaselinesRow
 		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
 			return nil, err
 		}

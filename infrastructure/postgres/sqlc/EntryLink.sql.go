@@ -95,19 +95,21 @@ func (q *Queries) EntryLinkPathExists(ctx context.Context, arg EntryLinkPathExis
 }
 
 const findEntryLink = `-- name: FindEntryLink :one
-SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at
+SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at, dependency_kind, lag_days
 FROM entry_link
 WHERE tenant_id = current_tenant_id() AND id = $1::uuid
 `
 
 type FindEntryLinkRow struct {
-	ID        pgtype.UUID
-	TenantID  pgtype.UUID
-	LinkType  string
-	SourceID  pgtype.UUID
-	TargetID  pgtype.UUID
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	LinkType       string
+	SourceID       pgtype.UUID
+	TargetID       pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	DependencyKind string
+	LagDays        int32
 }
 
 func (q *Queries) FindEntryLink(ctx context.Context, id pgtype.UUID) (FindEntryLinkRow, error) {
@@ -121,6 +123,8 @@ func (q *Queries) FindEntryLink(ctx context.Context, id pgtype.UUID) (FindEntryL
 		&i.TargetID,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.DependencyKind,
+		&i.LagDays,
 	)
 	return i, err
 }
@@ -155,18 +159,22 @@ func (q *Queries) FindLinkType(ctx context.Context, key string) (LinkType, error
 }
 
 const insertEntryLink = `-- name: InsertEntryLink :exec
-INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at)
+INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at,
+  dependency_kind, lag_days)
 VALUES ($1, current_tenant_id(), $2, $3,
-  $4, $5, $6)
+  $4, $5, $6, $7,
+  $8)
 `
 
 type InsertEntryLinkParams struct {
-	ID        pgtype.UUID
-	LinkType  string
-	SourceID  pgtype.UUID
-	TargetID  pgtype.UUID
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	LinkType       string
+	SourceID       pgtype.UUID
+	TargetID       pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	DependencyKind string
+	LagDays        int32
 }
 
 func (q *Queries) InsertEntryLink(ctx context.Context, arg InsertEntryLinkParams) error {
@@ -177,6 +185,8 @@ func (q *Queries) InsertEntryLink(ctx context.Context, arg InsertEntryLinkParams
 		arg.TargetID,
 		arg.CreatedBy,
 		arg.CreatedAt,
+		arg.DependencyKind,
+		arg.LagDays,
 	)
 	return err
 }
@@ -331,7 +341,7 @@ func (q *Queries) ListContainerSummaries(ctx context.Context, ids []pgtype.UUID)
 }
 
 const listEntryLinksOf = `-- name: ListEntryLinksOf :many
-SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at
+SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at, dependency_kind, lag_days
 FROM entry_link
 WHERE tenant_id = current_tenant_id()
   AND (source_id = $1::uuid OR target_id = $1::uuid)
@@ -345,13 +355,15 @@ type ListEntryLinksOfParams struct {
 }
 
 type ListEntryLinksOfRow struct {
-	ID        pgtype.UUID
-	TenantID  pgtype.UUID
-	LinkType  string
-	SourceID  pgtype.UUID
-	TargetID  pgtype.UUID
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	LinkType       string
+	SourceID       pgtype.UUID
+	TargetID       pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	DependencyKind string
+	LagDays        int32
 }
 
 // An entry's links from both ends, oldest first, bounded.
@@ -372,6 +384,8 @@ func (q *Queries) ListEntryLinksOf(ctx context.Context, arg ListEntryLinksOfPara
 			&i.TargetID,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.DependencyKind,
+			&i.LagDays,
 		); err != nil {
 			return nil, err
 		}
@@ -384,7 +398,7 @@ func (q *Queries) ListEntryLinksOf(ctx context.Context, arg ListEntryLinksOfPara
 }
 
 const listEntryLinksTouching = `-- name: ListEntryLinksTouching :many
-SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at
+SELECT id, tenant_id, link_type, source_id, target_id, created_by, created_at, dependency_kind, lag_days
 FROM entry_link
 WHERE tenant_id = current_tenant_id()
   AND (source_id = ANY($1::uuid[]) OR target_id = ANY($1::uuid[]))
@@ -398,13 +412,15 @@ type ListEntryLinksTouchingParams struct {
 }
 
 type ListEntryLinksTouchingRow struct {
-	ID        pgtype.UUID
-	TenantID  pgtype.UUID
-	LinkType  string
-	SourceID  pgtype.UUID
-	TargetID  pgtype.UUID
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	LinkType       string
+	SourceID       pgtype.UUID
+	TargetID       pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	DependencyKind string
+	LagDays        int32
 }
 
 // The links with at least one end among the entries, for a timeline or a rule's `item.links`.
@@ -425,6 +441,8 @@ func (q *Queries) ListEntryLinksTouching(ctx context.Context, arg ListEntryLinks
 			&i.TargetID,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.DependencyKind,
+			&i.LagDays,
 		); err != nil {
 			return nil, err
 		}

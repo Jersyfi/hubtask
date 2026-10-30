@@ -153,7 +153,7 @@ re-mints identities must rewrite exactly these).
 | 35 | `structure_presets` | `structure_preset` | `id` | `owner_id`→accounts (the workspace's presets and each person's own; an own preset whose account is not restored is skipped) |
 | 36 | `setting_values` | `setting_value` | `id` | — (the settings catalogue's entries of the workspace, its hubs, collections and people, the module switches among them; `scope_id` names the workspace, a container or an account by `level`, and a workspace's own entries follow the workspace written into) |
 | 37 | `link_types` | `link_type` | `id` | — (the workspace's own link types, migration 0213; the six shipped ones have no row; a link names one by `key`, so they precede the links; a duplicate skips a key the workspace holds) |
-| 38 | `entry_links` | `entry_link` | `id` | `source_id`→work_items, `target_id`→work_items, `created_by`→accounts (`link_type` names a shipped type or one of `link_types` by key) |
+| 38 | `entry_links` | `entry_link` | `id` | `source_id`→work_items, `target_id`→work_items, `created_by`→accounts (`link_type` names a shipped type or one of `link_types` by key; a waiting link carries its `dependency_kind` and `lag_days`, migration 0244) |
 | 39 | `custom_roles` | `custom_role` | `id` | — (the workspace's own roles from the permission catalogue, migration 0219; restored right after `memberships`, before their grants; the seven built-in roles have no row) |
 | 40 | `custom_role_grants` | `custom_role_grant` | `id` | `account_id`→accounts, `group_id`→account_groups, `role_id`→custom_roles (`scope_id` names the workspace's container as a membership's does) |
 | 41 | `config_revisions` | `config_revision` | `version` | — (the configuration document's versions, migration 0221, a hub's with its `hub_id` since 0223; written once, so a version the workspace holds is kept) |
@@ -185,6 +185,9 @@ re-mints identities must rewrite exactly these).
 | 67 | `entry_slas` | `entry_sla` | `id` | `item_id`→work_items (what became of each goal on an entry: target, at risk, met, breached; the clock is a timer, not archived) |
 | 68 | `reply_templates` | `reply_template` | `id` | — (the workspace's canned replies under a key, with their placeholders, migration 0242) |
 | 69 | `satisfaction_ratings` | `satisfaction_rating` | `id` | `item_id`→work_items (how satisfied the requester was with a resolved request, one score from 1 to 5, migration 0243) |
+| 70 | `entry_schedules` | `entry_schedule` | `entry_id` | `entry_id`→work_items (whether the scheduler may move an entry, and whether it is a milestone, migration 0244) |
+| 71 | `plan_baselines` | `plan_baseline` | `id` | `plan_id`→containers, `taken_by`→accounts (a hub's or a collection's agreed plan under a name, migration 0244) |
+| 72 | `plan_baseline_entries` | `plan_baseline_entry` | `baseline_id`, `entry_id` | `baseline_id`→plan_baselines, `entry_id`→work_items (one entry's start and due as the baseline holds them) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
