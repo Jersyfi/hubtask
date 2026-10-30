@@ -20,48 +20,11 @@ import (
 
 const (
 	createDataSubjectRequestUseCase = "CreateDataSubjectRequest"
-	listDataSubjectRequestsUseCase  = "ListDataSubjectRequests"
 	updateDataSubjectRequestUseCase = "UpdateDataSubjectRequest"
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
 	listConsentsUseCase             = "ListConsents"
 )
-
-// ListDataSubjectRequests answers GET /privacy/requests.
-func (c *RestController) ListDataSubjectRequests(
-	w http.ResponseWriter, r *http.Request, params openapi.ListDataSubjectRequestsParams,
-) {
-	in := usecase.Input{
-		"cursor": optionalStringField(params.Cursor),
-		"size":   optionalIntField(params.Size),
-	}
-	if params.Status != nil {
-		in["status"] = string(*params.Status)
-	}
-	if params.Kind != nil {
-		in["kind"] = string(*params.Kind)
-	}
-	if params.DueWithinDays != nil {
-		in["due_within_days"] = *params.DueWithinDays
-	}
-	if params.IncludeClosed != nil {
-		in["include_closed"] = *params.IncludeClosed
-	}
-
-	out, ok := c.read(w, r, listDataSubjectRequestsUseCase, in)
-	if !ok {
-		return
-	}
-
-	page := struct {
-		Data []openapi.DataSubjectRequest `json:"data"`
-		Page openapi.PageInfo             `json:"page"`
-	}{Data: []openapi.DataSubjectRequest{}, Page: pageResponse(out)}
-	for _, row := range rowsOf(out) {
-		page.Data = append(page.Data, dataSubjectRequestResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, page)
-}
 
 // CreateDataSubjectRequest answers POST /privacy/requests.
 func (c *RestController) CreateDataSubjectRequest(
@@ -101,43 +64,6 @@ func (c *RestController) CreateDataSubjectRequest(
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, dataSubjectRequestResponse(out))
-}
-
-// UpdateDataSubjectRequest answers PATCH /privacy/requests/{requestId}.
-func (c *RestController) UpdateDataSubjectRequest(
-	w http.ResponseWriter, r *http.Request, requestID openapi_types.UUID,
-) {
-	var body openapi.DataSubjectRequestUpdate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"request_id": requestID.String()}
-	if body.Status != nil {
-		in["status"] = string(*body.Status)
-	}
-	if body.ErasureMode != nil {
-		in["erasure_mode"] = string(*body.ErasureMode)
-	}
-	if body.HandledBy != nil {
-		in["handled_by"] = body.HandledBy.String()
-	}
-	if body.RejectionReason != nil {
-		in["rejection_reason"] = *body.RejectionReason
-	}
-	if body.TargetId != nil {
-		in["target_id"] = body.TargetId.String()
-	}
-	if body.Notes != nil {
-		in["notes"] = *body.Notes
-	}
-
-	out, ok := c.read(w, r, updateDataSubjectRequestUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, dataSubjectRequestResponse(out))
 }
 
 // dataSubjectRequestResponse maps one case onto the contract's schema.

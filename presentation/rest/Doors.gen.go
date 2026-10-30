@@ -73,6 +73,7 @@ var restDoors = map[string]restDoor{
 	"completeMailboxAuthorization":      {UseCase: "CompleteMailboxAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeProviderConnect":           {UseCase: "CompleteProviderConnect", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeWorkItem":                  {UseCase: "CompleteWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"configureAuditAnchoring":           {UseCase: "ConfigureAuditAnchoring", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"configureFirstIdentityProvider":    {UseCase: "ConfigureFirstIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"configureIdentityProvider":         {UseCase: "ConfigureIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"configureInstanceAiProvider":       {UseCase: "ConfigureInstanceAiProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -171,6 +172,7 @@ var restDoors = map[string]restDoor{
 	"explainConfig":                     {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportConfig":                      {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportPage":                        {UseCase: "ExportPage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"exportTenant":                      {UseCase: "ExportTenant", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportWhiteboard":                  {UseCase: "ExportWhiteboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"extendDataSubjectRequest":          {UseCase: "ExtendDataSubjectRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"forgetSyncDevice":                  {UseCase: "ForgetSyncDevice", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -238,6 +240,7 @@ var restDoors = map[string]restDoor{
 	"listCostRates":                     {UseCase: "ListCostRates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCustomFields":                  {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listDashboards":                    {UseCase: "ListDashboards", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listDataSubjectRequests":           {UseCase: "ListDataSubjectRequests", Status: 200, Query: []string{"cursor", "due_within_days", "include_closed", "kind", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"due_within_days", "size"}},
 	"listEmergencyNotices":              {UseCase: "ListEmergencyNotices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryGoals":                    {UseCase: "ListEntryGoals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryLinks":                    {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -317,6 +320,7 @@ var restDoors = map[string]restDoor{
 	"namePageVersion":                   {UseCase: "NamePageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"nameWhiteboardVersion":             {UseCase: "NameWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"openPrivateHub":                    {UseCase: "OpenPrivateHub", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"openTenantPassword":                {UseCase: "OpenTenantPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hours"}},
 	"planConfig":                        {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"planConfigTemplate":                {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
 	"previewCustomFieldReach":           {UseCase: "PreviewCustomFieldReach", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -424,6 +428,7 @@ var restDoors = map[string]restDoor{
 	"reportPortfolioStatus":             {UseCase: "ReportPortfolioStatus", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reportSla":                         {UseCase: "ReportSla", Status: 200, Query: []string{"from", "to"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"requestAddress":                    {UseCase: "RequestAddress", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"requestTenantDeletion":             {UseCase: "RequestTenantDeletion", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resealSecrets":                     {UseCase: "ResealSecrets", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resolveCiDuplicate":                {UseCase: "ResolveCiDuplicate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resolveReferences":                 {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -527,6 +532,7 @@ var restDoors = map[string]restDoor{
 	"updateCi":                          {UseCase: "UpdateCi", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateCustomField":                 {UseCase: "UpdateCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateDashboard":                   {UseCase: "UpdateDashboard", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateDataSubjectRequest":          {UseCase: "UpdateDataSubjectRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateGoal":                        {UseCase: "UpdateGoal", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateGroup":                       {UseCase: "UpdateGroup", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateLabel":                       {UseCase: "UpdateLabel", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
@@ -917,6 +923,13 @@ func (c *RestController) CompleteProviderConnect(w http.ResponseWriter, r *http.
 func (c *RestController) CompleteWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.CompleteWorkItemParams) {
 	var body openapi.CompleteWorkItemJSONRequestBody
 	c.door(w, r, restDoors["completeWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
+// ConfigureAuditAnchoring answers PUT /audit/anchoring by the generated mapping.
+func (c *RestController) ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ConfigureAuditAnchoringJSONRequestBody
+	var answer openapi.AuditAnchoring
+	c.door(w, r, restDoors["configureAuditAnchoring"], usecase.Input{}, nil, &body, &answer)
 }
 
 // ConfigureFirstIdentityProvider answers PUT /identity-provider by the generated mapping.
@@ -1495,6 +1508,12 @@ func (c *RestController) ExportPage(w http.ResponseWriter, r *http.Request, page
 	c.door(w, r, restDoors["exportPage"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
 }
 
+// ExportTenant answers POST /admin/tenants/{tenantId}:export by the generated mapping.
+func (c *RestController) ExportTenant(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId) {
+	var body openapi.ExportTenantJSONRequestBody
+	c.door(w, r, restDoors["exportTenant"], usecase.Input{"tenant_id": tenantId.String()}, nil, &body, answerBy(acceptedJob))
+}
+
 // ExportWhiteboard answers POST /whiteboards/{whiteboardId}:export by the generated mapping.
 func (c *RestController) ExportWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId) {
 	var body openapi.ExportWhiteboardJSONRequestBody
@@ -1870,6 +1889,11 @@ func (c *RestController) ListCustomFields(w http.ResponseWriter, r *http.Request
 func (c *RestController) ListDashboards(w http.ResponseWriter, r *http.Request, params openapi.ListDashboardsParams) {
 	var answer openapi.DashboardList
 	c.door(w, r, restDoors["listDashboards"], usecase.Input{}, params, nil, &answer)
+}
+
+// ListDataSubjectRequests answers GET /privacy/requests by the generated mapping.
+func (c *RestController) ListDataSubjectRequests(w http.ResponseWriter, r *http.Request, params openapi.ListDataSubjectRequestsParams) {
+	c.door(w, r, restDoors["listDataSubjectRequests"], usecase.Input{}, params, nil, answerPage(dataSubjectRequestResponse))
 }
 
 // ListEmergencyNotices answers GET /accounts/me/emergency-notices by the generated mapping.
@@ -2312,6 +2336,12 @@ func (c *RestController) NameWhiteboardVersion(w http.ResponseWriter, r *http.Re
 func (c *RestController) OpenPrivateHub(w http.ResponseWriter, r *http.Request, hubId openapi.HubId, params openapi.OpenPrivateHubParams) {
 	var body openapi.OpenPrivateHubJSONRequestBody
 	c.door(w, r, restDoors["openPrivateHub"], usecase.Input{"hub_id": hubId.String()}, params, &body, answerBy(privateHubAccessResponse))
+}
+
+// OpenTenantPassword answers POST /admin/tenants/{tenantId}:open-password by the generated mapping.
+func (c *RestController) OpenTenantPassword(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId, params openapi.OpenTenantPasswordParams) {
+	var body openapi.OpenTenantPasswordJSONRequestBody
+	c.door(w, r, restDoors["openTenantPassword"], usecase.Input{"tenant_id": tenantId.String()}, params, &body, answerBy(adminTenantResponse))
 }
 
 // PlanConfig answers POST /config:plan by the generated mapping.
@@ -2939,6 +2969,13 @@ func (c *RestController) RequestAddress(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["requestAddress"], usecase.Input{"account_id": accountId.String()}, nil, &body, answerBy(addressRequestedResponse))
 }
 
+// RequestTenantDeletion answers POST /admin/tenants/{tenantId}:delete by the generated mapping.
+func (c *RestController) RequestTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId, params openapi.RequestTenantDeletionParams) {
+	var body openapi.RequestTenantDeletionJSONRequestBody
+	var answer openapi.TenantDeletionScheduled
+	c.door(w, r, restDoors["requestTenantDeletion"], usecase.Input{"tenant_id": tenantId.String()}, params, &body, &answer)
+}
+
 // ResealSecrets answers POST /admin/encryption:reseal by the generated mapping.
 func (c *RestController) ResealSecrets(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.ResealAccepted
@@ -3560,6 +3597,12 @@ func (c *RestController) UpdateDashboard(w http.ResponseWriter, r *http.Request,
 	var body openapi.UpdateDashboardJSONRequestBody
 	var answer openapi.Dashboard
 	c.door(w, r, restDoors["updateDashboard"], usecase.Input{"dashboard_id": dashboardId.String()}, params, &body, &answer)
+}
+
+// UpdateDataSubjectRequest answers PATCH /privacy/requests/{requestId} by the generated mapping.
+func (c *RestController) UpdateDataSubjectRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID) {
+	var body openapi.UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody
+	c.door(w, r, restDoors["updateDataSubjectRequest"], usecase.Input{"request_id": requestId.String()}, nil, &body, answerBy(dataSubjectRequestResponse))
 }
 
 // UpdateGoal answers PUT /goals/{goalId} by the generated mapping.

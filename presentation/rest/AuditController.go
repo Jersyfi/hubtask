@@ -10,7 +10,6 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -20,10 +19,9 @@ import (
 // would be an adapter deciding a permission (ADR-0005).
 
 const (
-	listAuditEntriesUseCase        = "ListAuditEntries"
-	verifyAuditChainUseCase        = "VerifyAuditChain"
-	configureAuditAnchoringUseCase = "ConfigureAuditAnchoring"
-	exportAuditTrailUseCase        = "ExportAuditTrail"
+	listAuditEntriesUseCase = "ListAuditEntries"
+	verifyAuditChainUseCase = "VerifyAuditChain"
+	exportAuditTrailUseCase = "ExportAuditTrail"
 )
 
 // ListAuditEntries answers GET /audit.
@@ -113,40 +111,6 @@ func (c *RestController) VerifyAuditChain(w http.ResponseWriter, r *http.Request
 	}
 	if code, ok := out["anchor_error_code"].(string); ok && code != "" {
 		answer.AnchorErrorCode = &code
-	}
-	writeJSON(w, r, http.StatusOK, answer)
-}
-
-// ConfigureAuditAnchoring answers PUT /audit/anchoring.
-func (c *RestController) ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.AuditAnchoringConfiguration
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{}
-	if body.TargetId != nil {
-		in["target_id"] = body.TargetId.String()
-	}
-	out, err := c.UseCases.Invoke(r.Context(), configureAuditAnchoringUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	answer := openapi.AuditAnchoring{}
-	if at, ok := out["configured_at"].(time.Time); ok {
-		answer.ConfiguredAt = at
-	}
-	if id := out.String("target_id"); id != "" {
-		answer.TargetId = uuidPointer(shared.ID(id))
-	}
-	if id := out.String("configured_by"); id != "" {
-		answer.ConfiguredBy = uuidPointer(shared.ID(id))
 	}
 	writeJSON(w, r, http.StatusOK, answer)
 }

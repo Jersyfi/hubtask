@@ -16,10 +16,7 @@ import (
 // ListServiceAccounts' reason: the identity helper's closure gives the linter nothing to trace
 // the context through.
 const (
-	provisionTenantUseCase       = "ProvisionTenant"
-	requestTenantDeletionUseCase = "RequestTenantDeletion"
-	exportTenantUseCase          = "ExportTenant"
-	openTenantPasswordUseCase    = "OpenTenantPassword"
+	provisionTenantUseCase = "ProvisionTenant"
 )
 
 // ProvisionTenant answers POST /admin/tenants.
@@ -113,103 +110,6 @@ func passwordOpeningResponse(opening usecase.Output) *openapi.PasswordOpening {
 		Requester: opening.String("requester"),
 		Reason:    opening.String("reason"),
 	}
-}
-
-// OpenTenantPassword answers POST /admin/tenants/{tenantId}:open-password. Written out longhand for
-// the same reason as its siblings above.
-func (c *RestController) OpenTenantPassword(
-	w http.ResponseWriter, r *http.Request,
-	tenantID openapi.AdminTenantId, params openapi.OpenTenantPasswordParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.PasswordOpeningRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), openTenantPasswordUseCase, actorOf(r), usecase.Input{
-		"tenant_id":     tenantID.String(),
-		"hours":         optionalIntField(body.Hours),
-		"requester":     body.Requester,
-		"reason":        body.Reason,
-		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, adminTenantResponse(out))
-}
-
-// RequestTenantDeletion answers POST /admin/tenants/{tenantId}:delete. Written out longhand for
-// the same reason as its siblings above.
-func (c *RestController) RequestTenantDeletion(
-	w http.ResponseWriter, r *http.Request,
-	tenantID openapi.AdminTenantId, params openapi.RequestTenantDeletionParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.TenantDeletionRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), requestTenantDeletionUseCase, actorOf(r), usecase.Input{
-		"tenant_id":     tenantID.String(),
-		"confirmation":  body.Confirmation,
-		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusAccepted, openapi.TenantDeletionScheduled{
-		TenantId:   uuidValue(out.String("tenant_id")),
-		PurgeAfter: timeValue(out["purge_after"]),
-	})
-}
-
-// ExportTenant answers POST /admin/tenants/{tenantId}:export. Written out longhand for the same
-// reason as its siblings above.
-func (c *RestController) ExportTenant(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.TenantExportRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), exportTenantUseCase, actorOf(r), usecase.Input{
-		"tenant_id": tenantID.String(),
-		"target_id": body.TargetId.String(),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	// No result_url: the archive is at somebody else's machine (the audit export's reasoning).
-	writeJSON(w, r, http.StatusAccepted, openapi.JobRef{
-		JobId:  uuidValue(out.String("job_id")),
-		Status: openapi.JobStatusQUEUED,
-	})
 }
 
 // UpdateTenantQuotas answers PATCH /admin/tenants/{tenantId}/quotas. The body is read as a raw

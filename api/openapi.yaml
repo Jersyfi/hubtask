@@ -6537,6 +6537,7 @@ paths:
     put:
       tags: [audit]
       operationId: configureAuditAnchoring
+      x-hubtask-rest: generated
       summary: Name where the audit chain's end is anchored, or switch anchoring off
       description: >
         External anchoring: once a day a job reads this workspace's chain end
@@ -9606,6 +9607,7 @@ paths:
     post:
       tags: [admin]
       operationId: requestTenantDeletion
+      x-hubtask-rest: generated
       summary: Request a workspace's deletion
       description: >
         The most irreversible act this API has, and it behaves like it: it demands a fresh
@@ -9643,6 +9645,8 @@ paths:
     post:
       tags: [admin]
       operationId: openTenantPassword
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: adminTenantResponse
       summary: Open the password for one workspace
       description: >
         For a provider that is switched on but broken - unreachable, or admitting nobody - the
@@ -9774,6 +9778,8 @@ paths:
     post:
       tags: [admin]
       operationId: exportTenant
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedJob
       summary: Export a workspace whole
       description: >
         A complete, documented archive of one workspace - JSON Lines per entity, media by
@@ -12726,6 +12732,8 @@ paths:
     get:
       tags: [privacy]
       operationId: listDataSubjectRequests
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: dataSubjectRequestResponse
       summary: The data subject requests this workspace is handling
       description: |
         Soonest deadline first, the open ones by default. A right somebody exercised is a case
@@ -12792,6 +12800,8 @@ paths:
     patch:
       tags: [privacy]
       operationId: updateDataSubjectRequest
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: dataSubjectRequestResponse
       summary: Move a case along
       description: |
         The state machine is `RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`, and an illegitimate

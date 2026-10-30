@@ -10689,6 +10689,7 @@
           "audit"
         ],
         "operationId": "configureAuditAnchoring",
+        "x-hubtask-rest": "generated",
         "summary": "Name where the audit chain's end is anchored, or switch anchoring off",
         "description": "External anchoring: once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.\nNeeds `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.\n",
         "requestBody": {
@@ -14331,6 +14332,7 @@
           "admin"
         ],
         "operationId": "requestTenantDeletion",
+        "x-hubtask-rest": "generated",
         "summary": "Request a workspace's deletion",
         "description": "The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "requestBody": {
@@ -14374,6 +14376,8 @@
           "admin"
         ],
         "operationId": "openTenantPassword",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "Open the password for one workspace",
         "description": "For a provider that is switched on but broken - unreachable, or admitting nobody - the operator opens the password for this one workspace, for a limited time: 24 hours unless `hours` says otherwise, at most 168. Every account there that holds a password signs in with it, under the workspace's own rules and second factor, whatever the workspace's own switch and any installation lock say; an account without one is mailed a link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at `password_opening.until`, and `:close-password` ends it early.\nDemands `admin:tenants`, the operator register and a fresh step-up in the `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the workspace's trail (`tenant.password_opened`) and in the installation's journal, and the workspace's administrators are told. A second opening replaces the first. It reads and changes nothing of the workspace's content. Only an active workspace is opened: a suspended one refuses its people before any password is asked for (`admin.password_opening_suspended`), and one pending deletion is leaving (`admin.tenant_leaving`).\n",
         "requestBody": {
@@ -14529,6 +14533,8 @@
           "admin"
         ],
         "operationId": "exportTenant",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedJob",
         "summary": "Export a workspace whole",
         "description": "A complete, documented archive of one workspace - JSON Lines per entity, media by reference with checksums, a manifest naming counts and the product version - written as a job to a configured backup target. It is the Hubtask archive format, documented well enough to build an importer against the documentation alone: the basis for access requests, provider migration, and the \"no lock-in\" promise. It works for ACTIVE, SUSPENDED and PENDING_DELETION workspaces alike - the suspended and the leaving are exactly who needs it - and it is audited with its target, never its content. The export runs through the same row-level-security path as the API, and the answer is a JobRef; the archive itself is at the target, so there is no result_url.\n",
         "requestBody": {
@@ -18188,6 +18194,8 @@
           "privacy"
         ],
         "operationId": "listDataSubjectRequests",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "dataSubjectRequestResponse",
         "summary": "The data subject requests this workspace is handling",
         "description": "Soonest deadline first, the open ones by default. A right somebody exercised is a case\nwith a statutory deadline, and this is the list whoever answers for it reads - which is why\nthe overdue ones can be asked for on their own.\n",
         "parameters": [
@@ -18325,6 +18333,8 @@
           "privacy"
         ],
         "operationId": "updateDataSubjectRequest",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "dataSubjectRequestResponse",
         "summary": "Move a case along",
         "description": "The state machine is `RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`, and an illegitimate\ntransition is refused by name rather than ignored. Moving an `ACCESS`, `PORTABILITY` or\n`ERASURE` case to `IN_PROGRESS` is what starts the work: the archive or the erasure runs as\na job, and the case is completed by that job rather than by a second call.\n\nAn erasure needs its mode before it can start - `ANONYMIZE` keeps the authorship as a\nformer user and the workspace's content with it, `FULL_DELETE` takes the person's own\ncontributions too. The choice rests with the controller, because tenant data touches third\nparties' rights.\n",
         "requestBody": {
