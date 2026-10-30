@@ -2658,3 +2658,21 @@ func (pending) ReadPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { n
 func (pending) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) GetPublicPage(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) PublishPageToPortal(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnpublishPageFromPortal(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) SuggestArticles(w http.ResponseWriter, r *http.Request, _ openapi.SuggestArticlesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadArticle(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.ReadArticleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RateArticle(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }

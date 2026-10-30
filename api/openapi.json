@@ -5698,6 +5698,140 @@
         }
       }
     },
+    "/articles": {
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "suggestArticles",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "article suggest",
+        "summary": "The articles a service's portal offers for what a requester types",
+        "description": "At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CollectionId"
+          },
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The suggestions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticleSuggestionList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/articles/{pageId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "readArticle",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "article read",
+        "summary": "Open an article of a service's portal",
+        "description": "The article's page alone with its Markdown body, as it stands now; the opening is counted. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CollectionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The article",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Article"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/articles/{pageId}:rate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "rateArticle",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "article rate",
+        "summary": "Say whether an article helped",
+        "description": "One answer per person and service; a second replaces the first. The publisher sees the counts, never who said what. Needs REQUEST at the collection.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "collection_id",
+                  "helpful"
+                ],
+                "properties": {
+                  "collection_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "helpful": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticleRating"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/requests": {
       "get": {
         "tags": [
@@ -26930,6 +27064,92 @@
         "responses": {
           "204": {
             "description": "Taken away"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}/articles": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "publishPageToPortal",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page publish",
+        "summary": "Publish a page to a service's portal",
+        "description": "Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "collection_id"
+                ],
+                "properties": {
+                  "collection_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageArticle"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}/articles/{collectionId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        },
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "unpublishPageFromPortal",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page unpublish",
+        "summary": "Take a page back from a service's portal",
+        "description": "Its openings and ratings go with it. Needs MANAGE_MEMBERS on the page's hub.",
+        "responses": {
+          "204": {
+            "description": "Taken back"
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -54456,7 +54676,8 @@
           "shares",
           "may_share",
           "public_link",
-          "public_links_allowed"
+          "public_links_allowed",
+          "articles"
         ],
         "properties": {
           "page_id": {
@@ -54513,6 +54734,13 @@
           "public_links_allowed": {
             "type": "boolean",
             "description": "Whether the workspace allows public links."
+          },
+          "articles": {
+            "type": "array",
+            "description": "The services' portals the page is published to, with its openings and ratings.",
+            "items": {
+              "$ref": "#/components/schemas/PageArticle"
+            }
           }
         }
       },
@@ -54560,6 +54788,156 @@
             }
           }
         ]
+      },
+      "PageArticle": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "collection_id",
+          "published_by",
+          "published_at",
+          "views",
+          "helpful",
+          "unhelpful"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "published_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Openings in the portal."
+          },
+          "helpful": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unhelpful": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ArticleSuggestionList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "page_id",
+                "title",
+                "icon",
+                "excerpt",
+                "updated_at"
+              ],
+              "properties": {
+                "page_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "excerpt": {
+                  "type": "string",
+                  "description": "The passage the words found, marked « »; empty without words."
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Article": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "collection_id",
+          "title",
+          "icon",
+          "body",
+          "content_language",
+          "updated_at"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown."
+          },
+          "content_language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ArticleRating": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "collection_id",
+          "helpful"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "helpful": {
+            "type": "boolean"
+          }
+        }
       },
       "PublicLinksPolicy": {
         "type": "object",

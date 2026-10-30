@@ -252,6 +252,29 @@ var generatedCommands = []door{
 			{Name: "source", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "key", "name", "version"}},
+	{Group: "article", Verb: "rate", OperationID: "rateArticle", Method: "POST", Path: "/articles/{pageId}:rate", Summary: "Say whether an article helped",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
+			{Name: "helpful", Kind: "boolean", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"collection_id", "helpful", "page_id"}},
+	{Group: "article", Verb: "read", OperationID: "readArticle", Method: "GET", Path: "/articles/{pageId}", Summary: "Open an article of a service's portal",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"title"}},
+	{Group: "article", Verb: "suggest", OperationID: "suggestArticles", Method: "GET", Path: "/articles", Summary: "The articles a service's portal offers for what a requester types",
+		Query: []doorParam{
+			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
+			{Name: "text", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
 	{Group: "baseline", Verb: "compare", OperationID: "compareBaseline", Method: "GET", Path: "/baselines/{baselineId}", Summary: "A baseline beside today's plan",
 		PathParams: []doorParam{
 			{Name: "baselineId", Kind: "uuid", Help: "", Required: true},
@@ -1000,6 +1023,14 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
 	{Group: "page", Verb: "personal", OperationID: "readPersonalSpace", Method: "GET", Path: "/pages:personal", Summary: "My own notes' space",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id"}},
+	{Group: "page", Verb: "publish", OperationID: "publishPageToPortal", Method: "POST", Path: "/pages/{pageId}/articles", Summary: "Publish a page to a service's portal",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"collection_id", "helpful", "page_id", "published_at", "published_by"}},
 	{Group: "page", Verb: "restore", OperationID: "restorePage", Method: "POST", Path: "/pages/{pageId}:restore", Summary: "Bring a page back from the trash",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
@@ -1062,6 +1093,12 @@ var generatedCommands = []door{
 	{Group: "page", Verb: "unlink", OperationID: "deletePagePublicLink", Method: "DELETE", Path: "/pages/{pageId}/public-link", Summary: "Take a page's public link away",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "page", Verb: "unpublish", OperationID: "unpublishPageFromPortal", Method: "DELETE", Path: "/pages/{pageId}/articles/{collectionId}", Summary: "Take a page back from a service's portal",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "collectionId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "page", Verb: "unshare", OperationID: "unsharePage", Method: "DELETE", Path: "/pages/{pageId}/shares/{accountId}", Summary: "Take a page's share away",

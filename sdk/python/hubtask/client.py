@@ -623,6 +623,18 @@ class Client:
         """The kinds of request a service offers"""
         return self._call("GET", "/request-catalogue", {}, query, {}, None, "none", None, "json")
 
+    def suggest_articles(self, *, query: dict[str, Any] | None = None) -> "ArticleSuggestionList":
+        """The articles a service's portal offers for what a requester types"""
+        return self._call("GET", "/articles", {}, query, {}, None, "none", None, "json")
+
+    def read_article(self, page_id: str, *, query: dict[str, Any] | None = None) -> "Article":
+        """Open an article of a service's portal"""
+        return self._call("GET", "/articles/{pageId}", {"pageId": page_id}, query, {}, None, "none", None, "json")
+
+    def rate_article(self, page_id: str, body: dict[str, Any]) -> "ArticleRating":
+        """Say whether an article helped"""
+        return self._call("POST", "/articles/{pageId}:rate", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
     def list_my_requests(self, *, query: dict[str, Any] | None = None) -> "PortalRequestPage":
         """The requests I raised"""
         return self._call("GET", "/requests", {}, query, {}, None, "none", None, "json")
@@ -2738,6 +2750,14 @@ class Client:
     def delete_page_public_link(self, page_id: str) -> None:
         """Take a page's public link away"""
         return self._call("DELETE", "/pages/{pageId}/public-link", {"pageId": page_id}, None, {}, None, "none", None, "void")
+
+    def publish_page_to_portal(self, page_id: str, body: dict[str, Any]) -> "PageArticle":
+        """Publish a page to a service's portal"""
+        return self._call("POST", "/pages/{pageId}/articles", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def unpublish_page_from_portal(self, page_id: str, collection_id: str) -> None:
+        """Take a page back from a service's portal"""
+        return self._call("DELETE", "/pages/{pageId}/articles/{collectionId}", {"pageId": page_id, "collectionId": collection_id}, None, {}, None, "none", None, "void")
 
     def read_public_links_policy(self) -> "PublicLinksPolicy":
         """Whether pages may be opened by a public link"""

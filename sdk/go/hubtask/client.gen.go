@@ -10922,6 +10922,37 @@ type AiTranslation struct {
 // AiTranslationSource defines model for AiTranslation.Source.
 type AiTranslationSource string
 
+// Article defines model for Article.
+type Article struct {
+	// Body Markdown.
+	Body            string             `json:"body"`
+	CollectionId    openapi_types.UUID `json:"collection_id"`
+	ContentLanguage *string            `json:"content_language"`
+	Icon            string             `json:"icon"`
+	PageId          openapi_types.UUID `json:"page_id"`
+	Title           string             `json:"title"`
+	UpdatedAt       time.Time          `json:"updated_at"`
+}
+
+// ArticleRating defines model for ArticleRating.
+type ArticleRating struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	Helpful      bool               `json:"helpful"`
+	PageId       openapi_types.UUID `json:"page_id"`
+}
+
+// ArticleSuggestionList defines model for ArticleSuggestionList.
+type ArticleSuggestionList struct {
+	Data []struct {
+		// Excerpt The passage the words found, marked « »; empty without words.
+		Excerpt   string             `json:"excerpt"`
+		Icon      string             `json:"icon"`
+		PageId    openapi_types.UUID `json:"page_id"`
+		Title     string             `json:"title"`
+		UpdatedAt time.Time          `json:"updated_at"`
+	} `json:"data"`
+}
+
 // Assignment Who the entry is assigned to.
 type Assignment struct {
 	// AccountId The account to assign. It has to hold a membership on the path above the entry; one that does not is refused with the same answer as an account that does not exist.
@@ -16767,6 +16798,8 @@ type Page struct {
 
 // PageAccess defines model for PageAccess.
 type PageAccess struct {
+	// Articles The services' portals the page is published to, with its openings and ratings.
+	Articles []PageArticle      `json:"articles"`
 	MayShare bool               `json:"may_share"`
 	PageId   openapi_types.UUID `json:"page_id"`
 
@@ -16788,6 +16821,19 @@ type PageAccess struct {
 	// RestrictedTo The people the page's own restriction names.
 	RestrictedTo []openapi_types.UUID `json:"restricted_to"`
 	Shares       []PageShare          `json:"shares"`
+}
+
+// PageArticle defines model for PageArticle.
+type PageArticle struct {
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+	Helpful      int64               `json:"helpful"`
+	PageId       openapi_types.UUID  `json:"page_id"`
+	PublishedAt  time.Time           `json:"published_at"`
+	PublishedBy  *openapi_types.UUID `json:"published_by"`
+	Unhelpful    int64               `json:"unhelpful"`
+
+	// Views Openings in the portal.
+	Views int64 `json:"views"`
 }
 
 // PageBacklinkList defines model for PageBacklinkList.
@@ -22401,6 +22447,23 @@ type SetAgentPolicyJSONBody struct {
 	RegisteredOnly bool `json:"registered_only"`
 }
 
+// SuggestArticlesParams defines parameters for SuggestArticles.
+type SuggestArticlesParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
+	Text         *string      `form:"text,omitempty" json:"text,omitempty"`
+}
+
+// ReadArticleParams defines parameters for ReadArticle.
+type ReadArticleParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
+}
+
+// RateArticleJSONBody defines parameters for RateArticle.
+type RateArticleJSONBody struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	Helpful      bool               `json:"helpful"`
+}
+
 // AskWorkspaceParams defines parameters for AskWorkspace.
 type AskWorkspaceParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -23745,6 +23808,11 @@ type UpdatePageParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// PublishPageToPortalJSONBody defines parameters for PublishPageToPortal.
+type PublishPageToPortalJSONBody struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+}
+
 // ListPageVersionsParams defines parameters for ListPageVersions.
 type ListPageVersionsParams struct {
 	Before *int `form:"before,omitempty" json:"before,omitempty"`
@@ -24619,6 +24687,9 @@ type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 // ChooseAiSourceJSONRequestBody defines body for ChooseAiSource for application/json ContentType.
 type ChooseAiSourceJSONRequestBody = AiSourceChoice
 
+// RateArticleJSONRequestBody defines body for RateArticle for application/json ContentType.
+type RateArticleJSONRequestBody RateArticleJSONBody
+
 // AskWorkspaceJSONRequestBody defines body for AskWorkspace for application/json ContentType.
 type AskWorkspaceJSONRequestBody = WorkspaceQuestion
 
@@ -25128,6 +25199,9 @@ type ChangePageCommentApplicationMergePatchPlusJSONRequestBody = PageCommentChan
 
 // UpdatePageApplicationMergePatchPlusJSONRequestBody defines body for UpdatePage for application/merge-patch+json ContentType.
 type UpdatePageApplicationMergePatchPlusJSONRequestBody = PageChange
+
+// PublishPageToPortalJSONRequestBody defines body for PublishPageToPortal for application/json ContentType.
+type PublishPageToPortalJSONRequestBody PublishPageToPortalJSONBody
 
 // AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
 type AddPageCommentJSONRequestBody = PageCommentCreate
@@ -27652,6 +27726,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
 	ChooseAiSource(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SuggestArticles The articles a service's portal offers for what a requester types
+	//
+	// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
+	//
+	// Corresponds with GET /articles (the `SuggestArticles` operationId).
+	SuggestArticles(ctx context.Context, params *SuggestArticlesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadArticle Open an article of a service's portal
+	//
+	// The article's page alone with its Markdown body, as it stands now; the opening is counted. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
+	//
+	// Corresponds with GET /articles/{pageId} (the `ReadArticle` operationId).
+	ReadArticle(ctx context.Context, pageId PageId, params *ReadArticleParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RateArticleWithBody Say whether an article helped
+	//
+	// One answer per person and service; a second replaces the first. The publisher sees the counts, never who said what. Needs REQUEST at the collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /articles/{pageId}:rate (the `RateArticle` operationId).
+	RateArticleWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RateArticle Say whether an article helped
+	//
+	// One answer per person and service; a second replaces the first. The publisher sees the counts, never who said what. Needs REQUEST at the collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /articles/{pageId}:rate (the `RateArticle` operationId).
+	RateArticle(ctx context.Context, pageId PageId, body RateArticleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AskWorkspaceWithBody Ask the workspace a question
 	//
@@ -32236,6 +32342,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /pages/{pageId}/access (the `ReadPageAccess` operationId).
 	ReadPageAccess(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishPageToPortalWithBody Publish a page to a service's portal
+	//
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}/articles (the `PublishPageToPortal` operationId).
+	PublishPageToPortalWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishPageToPortal Publish a page to a service's portal
+	//
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}/articles (the `PublishPageToPortal` operationId).
+	PublishPageToPortal(ctx context.Context, pageId PageId, body PublishPageToPortalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnpublishPageFromPortal Take a page back from a service's portal
+	//
+	// Its openings and ratings go with it. Needs MANAGE_MEMBERS on the page's hub.
+	//
+	// Corresponds with DELETE /pages/{pageId}/articles/{collectionId} (the `UnpublishPageFromPortal` operationId).
+	UnpublishPageFromPortal(ctx context.Context, pageId PageId, collectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPageBacklinks What links to a page
 	//
@@ -38403,6 +38534,78 @@ func (c *Client) ChooseAiSourceWithBody(ctx context.Context, contentType string,
 // Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
 func (c *Client) ChooseAiSource(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewChooseAiSourceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SuggestArticles The articles a service's portal offers for what a requester types
+//
+// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
+//
+// Corresponds with GET /articles (the `SuggestArticles` operationId).
+func (c *Client) SuggestArticles(ctx context.Context, params *SuggestArticlesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSuggestArticlesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadArticle Open an article of a service's portal
+//
+// The article's page alone with its Markdown body, as it stands now; the opening is counted. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
+//
+// Corresponds with GET /articles/{pageId} (the `ReadArticle` operationId).
+func (c *Client) ReadArticle(ctx context.Context, pageId PageId, params *ReadArticleParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadArticleRequest(c.Server, pageId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RateArticleWithBody Say whether an article helped
+//
+// One answer per person and service; a second replaces the first. The publisher sees the counts, never who said what. Needs REQUEST at the collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /articles/{pageId}:rate (the `RateArticle` operationId).
+func (c *Client) RateArticleWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRateArticleRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RateArticle Say whether an article helped
+//
+// One answer per person and service; a second replaces the first. The publisher sees the counts, never who said what. Needs REQUEST at the collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /articles/{pageId}:rate (the `RateArticle` operationId).
+func (c *Client) RateArticle(ctx context.Context, pageId PageId, body RateArticleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRateArticleRequest(c.Server, pageId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -48287,6 +48490,61 @@ func (c *Client) UpdatePageWithApplicationMergePatchPlusJSONBody(ctx context.Con
 // Corresponds with GET /pages/{pageId}/access (the `ReadPageAccess` operationId).
 func (c *Client) ReadPageAccess(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadPageAccessRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishPageToPortalWithBody Publish a page to a service's portal
+//
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}/articles (the `PublishPageToPortal` operationId).
+func (c *Client) PublishPageToPortalWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishPageToPortalRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishPageToPortal Publish a page to a service's portal
+//
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}/articles (the `PublishPageToPortal` operationId).
+func (c *Client) PublishPageToPortal(ctx context.Context, pageId PageId, body PublishPageToPortalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishPageToPortalRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnpublishPageFromPortal Take a page back from a service's portal
+//
+// Its openings and ratings go with it. Needs MANAGE_MEMBERS on the page's hub.
+//
+// Corresponds with DELETE /pages/{pageId}/articles/{collectionId} (the `UnpublishPageFromPortal` operationId).
+func (c *Client) UnpublishPageFromPortal(ctx context.Context, pageId PageId, collectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnpublishPageFromPortalRequest(c.Server, pageId, collectionId)
 	if err != nil {
 		return nil, err
 	}
@@ -59174,6 +59432,172 @@ func NewChooseAiSourceRequestWithBody(server string, contentType string, body io
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSuggestArticlesRequest constructs an http.Request for the SuggestArticles method
+func NewSuggestArticlesRequest(server string, params *SuggestArticlesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/articles")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collection_id", params.CollectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.Text != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "text", *params.Text, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadArticleRequest constructs an http.Request for the ReadArticle method
+func NewReadArticleRequest(server string, pageId PageId, params *ReadArticleParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/articles/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collection_id", params.CollectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRateArticleRequest calls the generic RateArticle builder with application/json body
+func NewRateArticleRequest(server string, pageId PageId, body RateArticleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRateArticleRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewRateArticleRequestWithBody constructs an http.Request for the RateArticle method, with any body, and a specified content type
+func NewRateArticleRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/articles/%s:rate", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -76575,6 +76999,94 @@ func NewReadPageAccessRequest(server string, pageId PageId) (*http.Request, erro
 	return req, nil
 }
 
+// NewPublishPageToPortalRequest calls the generic PublishPageToPortal builder with application/json body
+func NewPublishPageToPortalRequest(server string, pageId PageId, body PublishPageToPortalJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPublishPageToPortalRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewPublishPageToPortalRequestWithBody constructs an http.Request for the PublishPageToPortal method, with any body, and a specified content type
+func NewPublishPageToPortalRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/articles", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewUnpublishPageFromPortalRequest constructs an http.Request for the UnpublishPageFromPortal method
+func NewUnpublishPageFromPortalRequest(server string, pageId PageId, collectionId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionId", collectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/articles/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListPageBacklinksRequest constructs an http.Request for the ListPageBacklinks method
 func NewListPageBacklinksRequest(server string, pageId PageId) (*http.Request, error) {
 	var err error
@@ -87775,6 +88287,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
 	ChooseAiSourceWithResponse(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*ChooseAiSourceResult, error)
 
+	// SuggestArticlesWithResponse The articles a service's portal offers for what a requester types
+	//
+	// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /articles (the `SuggestArticles` operationId).
+	SuggestArticlesWithResponse(ctx context.Context, params *SuggestArticlesParams, reqEditors ...RequestEditorFn) (*SuggestArticlesResult, error)
+
+	// ReadArticleWithResponse Open an article of a service's portal
+	//
+	// The article's page alone with its Markdown body, as it stands now; the opening is counted. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /articles/{pageId} (the `ReadArticle` operationId).
+	ReadArticleWithResponse(ctx context.Context, pageId PageId, params *ReadArticleParams, reqEditors ...RequestEditorFn) (*ReadArticleResult, error)
+
+	// RateArticleWithBodyWithResponse Say whether an article helped
+	//
+	// One answer per person and service; a second replaces the first. The publisher sees the counts, never who said what. Needs REQUEST at the collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /articles/{pageId}:rate (the `RateArticle` operationId).
+	RateArticleWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RateArticleResult, error)
+
+	// RateArticleWithResponse Say whether an article helped
+	//
+	// One answer per person and service; a second replaces the first. The publisher sees the counts, never who said what. Needs REQUEST at the collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /articles/{pageId}:rate (the `RateArticle` operationId).
+	RateArticleWithResponse(ctx context.Context, pageId PageId, body RateArticleJSONRequestBody, reqEditors ...RequestEditorFn) (*RateArticleResult, error)
+
 	// AskWorkspaceWithBodyWithResponse Ask the workspace a question
 	//
 	// Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
@@ -92806,6 +93354,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /pages/{pageId}/access (the `ReadPageAccess` operationId).
 	ReadPageAccessWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPageAccessResult, error)
+
+	// PublishPageToPortalWithBodyWithResponse Publish a page to a service's portal
+	//
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/articles (the `PublishPageToPortal` operationId).
+	PublishPageToPortalWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishPageToPortalResult, error)
+
+	// PublishPageToPortalWithResponse Publish a page to a service's portal
+	//
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/articles (the `PublishPageToPortal` operationId).
+	PublishPageToPortalWithResponse(ctx context.Context, pageId PageId, body PublishPageToPortalJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishPageToPortalResult, error)
+
+	// UnpublishPageFromPortalWithResponse Take a page back from a service's portal
+	//
+	// Its openings and ratings go with it. Needs MANAGE_MEMBERS on the page's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /pages/{pageId}/articles/{collectionId} (the `UnpublishPageFromPortal` operationId).
+	UnpublishPageFromPortalWithResponse(ctx context.Context, pageId PageId, collectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnpublishPageFromPortalResult, error)
 
 	// ListPageBacklinksWithResponse What links to a page
 	//
@@ -101376,6 +101951,150 @@ func (r ChooseAiSourceResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ChooseAiSourceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SuggestArticlesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ArticleSuggestionList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SuggestArticlesResult) GetJSON200() *ArticleSuggestionList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SuggestArticlesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SuggestArticlesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SuggestArticlesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SuggestArticlesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SuggestArticlesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadArticleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Article
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadArticleResult) GetJSON200() *Article {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadArticleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadArticleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadArticleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadArticleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadArticleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RateArticleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ArticleRating
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RateArticleResult) GetJSON200() *ArticleRating {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RateArticleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RateArticleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RateArticleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RateArticleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RateArticleResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -119098,6 +119817,95 @@ func (r ReadPageAccessResult) ContentType() string {
 	return ""
 }
 
+type PublishPageToPortalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PageArticle
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r PublishPageToPortalResult) GetJSON201() *PageArticle {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PublishPageToPortalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PublishPageToPortalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PublishPageToPortalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PublishPageToPortalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PublishPageToPortalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnpublishPageFromPortalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnpublishPageFromPortalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnpublishPageFromPortalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnpublishPageFromPortalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnpublishPageFromPortalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnpublishPageFromPortalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPageBacklinksResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -131537,6 +132345,66 @@ func (c *ClientWithResponses) ChooseAiSourceWithResponse(ctx context.Context, bo
 	return ParseChooseAiSourceResult(rsp)
 }
 
+// SuggestArticlesWithResponse The articles a service's portal offers for what a requester types
+//
+// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /articles (the `SuggestArticles` operationId).
+func (c *ClientWithResponses) SuggestArticlesWithResponse(ctx context.Context, params *SuggestArticlesParams, reqEditors ...RequestEditorFn) (*SuggestArticlesResult, error) {
+	rsp, err := c.SuggestArticles(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSuggestArticlesResult(rsp)
+}
+
+// ReadArticleWithResponse Open an article of a service's portal
+//
+// The article's page alone with its Markdown body, as it stands now; the opening is counted. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /articles/{pageId} (the `ReadArticle` operationId).
+func (c *ClientWithResponses) ReadArticleWithResponse(ctx context.Context, pageId PageId, params *ReadArticleParams, reqEditors ...RequestEditorFn) (*ReadArticleResult, error) {
+	rsp, err := c.ReadArticle(ctx, pageId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadArticleResult(rsp)
+}
+
+// RateArticleWithBodyWithResponse Say whether an article helped
+//
+// One answer per person and service; a second replaces the first. The publisher sees the counts, never who said what. Needs REQUEST at the collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /articles/{pageId}:rate (the `RateArticle` operationId).
+func (c *ClientWithResponses) RateArticleWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RateArticleResult, error) {
+	rsp, err := c.RateArticleWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRateArticleResult(rsp)
+}
+
+// RateArticleWithResponse Say whether an article helped
+//
+// One answer per person and service; a second replaces the first. The publisher sees the counts, never who said what. Needs REQUEST at the collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /articles/{pageId}:rate (the `RateArticle` operationId).
+func (c *ClientWithResponses) RateArticleWithResponse(ctx context.Context, pageId PageId, body RateArticleJSONRequestBody, reqEditors ...RequestEditorFn) (*RateArticleResult, error) {
+	rsp, err := c.RateArticle(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRateArticleResult(rsp)
+}
+
 // AskWorkspaceWithBodyWithResponse Ask the workspace a question
 //
 // Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
@@ -139747,6 +140615,51 @@ func (c *ClientWithResponses) ReadPageAccessWithResponse(ctx context.Context, pa
 		return nil, err
 	}
 	return ParseReadPageAccessResult(rsp)
+}
+
+// PublishPageToPortalWithBodyWithResponse Publish a page to a service's portal
+//
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/articles (the `PublishPageToPortal` operationId).
+func (c *ClientWithResponses) PublishPageToPortalWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishPageToPortalResult, error) {
+	rsp, err := c.PublishPageToPortalWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishPageToPortalResult(rsp)
+}
+
+// PublishPageToPortalWithResponse Publish a page to a service's portal
+//
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/articles (the `PublishPageToPortal` operationId).
+func (c *ClientWithResponses) PublishPageToPortalWithResponse(ctx context.Context, pageId PageId, body PublishPageToPortalJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishPageToPortalResult, error) {
+	rsp, err := c.PublishPageToPortal(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishPageToPortalResult(rsp)
+}
+
+// UnpublishPageFromPortalWithResponse Take a page back from a service's portal
+//
+// Its openings and ratings go with it. Needs MANAGE_MEMBERS on the page's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /pages/{pageId}/articles/{collectionId} (the `UnpublishPageFromPortal` operationId).
+func (c *ClientWithResponses) UnpublishPageFromPortalWithResponse(ctx context.Context, pageId PageId, collectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnpublishPageFromPortalResult, error) {
+	rsp, err := c.UnpublishPageFromPortal(ctx, pageId, collectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnpublishPageFromPortalResult(rsp)
 }
 
 // ListPageBacklinksWithResponse What links to a page
@@ -148395,6 +149308,105 @@ func ParseChooseAiSourceResult(rsp *http.Response) (*ChooseAiSourceResult, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AiSource
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSuggestArticlesResult parses an HTTP response from a SuggestArticlesWithResponse call
+func ParseSuggestArticlesResult(rsp *http.Response) (*SuggestArticlesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SuggestArticlesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ArticleSuggestionList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadArticleResult parses an HTTP response from a ReadArticleWithResponse call
+func ParseReadArticleResult(rsp *http.Response) (*ReadArticleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadArticleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Article
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRateArticleResult parses an HTTP response from a RateArticleWithResponse call
+func ParseRateArticleResult(rsp *http.Response) (*RateArticleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RateArticleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ArticleRating
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -161093,6 +162105,68 @@ func ParseReadPageAccessResult(rsp *http.Response) (*ReadPageAccessResult, error
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePublishPageToPortalResult parses an HTTP response from a PublishPageToPortalWithResponse call
+func ParsePublishPageToPortalResult(rsp *http.Response) (*PublishPageToPortalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PublishPageToPortalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PageArticle
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnpublishPageFromPortalResult parses an HTTP response from a UnpublishPageFromPortalWithResponse call
+func ParseUnpublishPageFromPortalResult(rsp *http.Response) (*UnpublishPageFromPortalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnpublishPageFromPortalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

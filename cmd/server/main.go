@@ -1832,6 +1832,8 @@ func run() error {
 			Settings: postgres.SettingRepository{}, Entropy: clockadapter.CryptoRandom{},
 			Accounts: accounts, Modules: modules,
 		},
+		// A page published to a service's portal (UC-DOC-13).
+		Articles: postgres.NewPageArticleRepository(),
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
@@ -1994,6 +1996,11 @@ func run() error {
 		knowledgeservice.DeletePagePublicLink{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPublicLinksPolicy{Space: pageSpace}.Descriptor(),
 		knowledgeservice.SetPublicLinksPolicy{Space: pageSpace}.Descriptor(),
+		knowledgeservice.PublishPageToPortal{Space: pageSpace}.Descriptor(),
+		knowledgeservice.UnpublishPageFromPortal{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SuggestArticles{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadArticle{Space: pageSpace}.Descriptor(),
+		knowledgeservice.RateArticle{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListSharedPages{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPersonalSpace{Space: pageSpace}.Descriptor(),
 		knowledgeservice.OpenDailyNote{Space: pageSpace}.Descriptor(),

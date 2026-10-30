@@ -10917,6 +10917,37 @@ type AiTranslation struct {
 // AiTranslationSource defines model for AiTranslation.Source.
 type AiTranslationSource string
 
+// Article defines model for Article.
+type Article struct {
+	// Body Markdown.
+	Body            string             `json:"body"`
+	CollectionId    openapi_types.UUID `json:"collection_id"`
+	ContentLanguage *string            `json:"content_language"`
+	Icon            string             `json:"icon"`
+	PageId          openapi_types.UUID `json:"page_id"`
+	Title           string             `json:"title"`
+	UpdatedAt       time.Time          `json:"updated_at"`
+}
+
+// ArticleRating defines model for ArticleRating.
+type ArticleRating struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	Helpful      bool               `json:"helpful"`
+	PageId       openapi_types.UUID `json:"page_id"`
+}
+
+// ArticleSuggestionList defines model for ArticleSuggestionList.
+type ArticleSuggestionList struct {
+	Data []struct {
+		// Excerpt The passage the words found, marked « »; empty without words.
+		Excerpt   string             `json:"excerpt"`
+		Icon      string             `json:"icon"`
+		PageId    openapi_types.UUID `json:"page_id"`
+		Title     string             `json:"title"`
+		UpdatedAt time.Time          `json:"updated_at"`
+	} `json:"data"`
+}
+
 // Assignment Who the entry is assigned to.
 type Assignment struct {
 	// AccountId The account to assign. It has to hold a membership on the path above the entry; one that does not is refused with the same answer as an account that does not exist.
@@ -16762,6 +16793,8 @@ type Page struct {
 
 // PageAccess defines model for PageAccess.
 type PageAccess struct {
+	// Articles The services' portals the page is published to, with its openings and ratings.
+	Articles []PageArticle      `json:"articles"`
 	MayShare bool               `json:"may_share"`
 	PageId   openapi_types.UUID `json:"page_id"`
 
@@ -16783,6 +16816,19 @@ type PageAccess struct {
 	// RestrictedTo The people the page's own restriction names.
 	RestrictedTo []openapi_types.UUID `json:"restricted_to"`
 	Shares       []PageShare          `json:"shares"`
+}
+
+// PageArticle defines model for PageArticle.
+type PageArticle struct {
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+	Helpful      int64               `json:"helpful"`
+	PageId       openapi_types.UUID  `json:"page_id"`
+	PublishedAt  time.Time           `json:"published_at"`
+	PublishedBy  *openapi_types.UUID `json:"published_by"`
+	Unhelpful    int64               `json:"unhelpful"`
+
+	// Views Openings in the portal.
+	Views int64 `json:"views"`
 }
 
 // PageBacklinkList defines model for PageBacklinkList.
@@ -22396,6 +22442,23 @@ type SetAgentPolicyJSONBody struct {
 	RegisteredOnly bool `json:"registered_only"`
 }
 
+// SuggestArticlesParams defines parameters for SuggestArticles.
+type SuggestArticlesParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
+	Text         *string      `form:"text,omitempty" json:"text,omitempty"`
+}
+
+// ReadArticleParams defines parameters for ReadArticle.
+type ReadArticleParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
+}
+
+// RateArticleJSONBody defines parameters for RateArticle.
+type RateArticleJSONBody struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	Helpful      bool               `json:"helpful"`
+}
+
 // AskWorkspaceParams defines parameters for AskWorkspace.
 type AskWorkspaceParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -23740,6 +23803,11 @@ type UpdatePageParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// PublishPageToPortalJSONBody defines parameters for PublishPageToPortal.
+type PublishPageToPortalJSONBody struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+}
+
 // ListPageVersionsParams defines parameters for ListPageVersions.
 type ListPageVersionsParams struct {
 	Before *int `form:"before,omitempty" json:"before,omitempty"`
@@ -24614,6 +24682,9 @@ type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 // ChooseAiSourceJSONRequestBody defines body for ChooseAiSource for application/json ContentType.
 type ChooseAiSourceJSONRequestBody = AiSourceChoice
 
+// RateArticleJSONRequestBody defines body for RateArticle for application/json ContentType.
+type RateArticleJSONRequestBody RateArticleJSONBody
+
 // AskWorkspaceJSONRequestBody defines body for AskWorkspace for application/json ContentType.
 type AskWorkspaceJSONRequestBody = WorkspaceQuestion
 
@@ -25123,6 +25194,9 @@ type ChangePageCommentApplicationMergePatchPlusJSONRequestBody = PageCommentChan
 
 // UpdatePageApplicationMergePatchPlusJSONRequestBody defines body for UpdatePage for application/merge-patch+json ContentType.
 type UpdatePageApplicationMergePatchPlusJSONRequestBody = PageChange
+
+// PublishPageToPortalJSONRequestBody defines body for PublishPageToPortal for application/json ContentType.
+type PublishPageToPortalJSONRequestBody PublishPageToPortalJSONBody
 
 // AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
 type AddPageCommentJSONRequestBody = PageCommentCreate
@@ -26170,6 +26244,15 @@ type ServerInterface interface {
 	// ChooseAiSource Choose which AI answers this workspace
 	// (PUT /ai-source)
 	ChooseAiSource(w http.ResponseWriter, r *http.Request)
+	// SuggestArticles The articles a service's portal offers for what a requester types
+	// (GET /articles)
+	SuggestArticles(w http.ResponseWriter, r *http.Request, params SuggestArticlesParams)
+	// ReadArticle Open an article of a service's portal
+	// (GET /articles/{pageId})
+	ReadArticle(w http.ResponseWriter, r *http.Request, pageId PageId, params ReadArticleParams)
+	// RateArticle Say whether an article helped
+	// (POST /articles/{pageId}:rate)
+	RateArticle(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// AskWorkspace Ask the workspace a question
 	// (POST /ask)
 	AskWorkspace(w http.ResponseWriter, r *http.Request, params AskWorkspaceParams)
@@ -27253,6 +27336,12 @@ type ServerInterface interface {
 	// ReadPageAccess Who reads a page beyond its hub
 	// (GET /pages/{pageId}/access)
 	ReadPageAccess(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// PublishPageToPortal Publish a page to a service's portal
+	// (POST /pages/{pageId}/articles)
+	PublishPageToPortal(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// UnpublishPageFromPortal Take a page back from a service's portal
+	// (DELETE /pages/{pageId}/articles/{collectionId})
+	UnpublishPageFromPortal(w http.ResponseWriter, r *http.Request, pageId PageId, collectionId openapi_types.UUID)
 	// ListPageBacklinks What links to a page
 	// (GET /pages/{pageId}/backlinks)
 	ListPageBacklinks(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -31441,6 +31530,120 @@ func (siw *ServerInterfaceWrapper) ChooseAiSource(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChooseAiSource(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SuggestArticles operation middleware
+func (siw *ServerInterfaceWrapper) SuggestArticles(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SuggestArticlesParams
+
+	// ------------- Required query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "text" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "text", r.URL.Query(), &params.Text, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "text"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "text", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SuggestArticles(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadArticle operation middleware
+func (siw *ServerInterfaceWrapper) ReadArticle(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadArticleParams
+
+	// ------------- Required query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadArticle(w, r, pageId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RateArticle operation middleware
+func (siw *ServerInterfaceWrapper) RateArticle(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RateArticle(w, r, pageId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -44195,6 +44398,67 @@ func (siw *ServerInterfaceWrapper) ReadPageAccess(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// PublishPageToPortal operation middleware
+func (siw *ServerInterfaceWrapper) PublishPageToPortal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PublishPageToPortal(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnpublishPageFromPortal operation middleware
+func (siw *ServerInterfaceWrapper) UnpublishPageFromPortal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "collectionId" -------------
+	var collectionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionId", r.PathValue("collectionId"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnpublishPageFromPortal(w, r, pageId, collectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPageBacklinks operation middleware
 func (siw *ServerInterfaceWrapper) ListPageBacklinks(w http.ResponseWriter, r *http.Request) {
 
@@ -50726,6 +50990,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/reply-templates/{templateKey}", wrapper.DefineReplyTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/reply-templates/{templateKey}", wrapper.RenderReplyTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/request-catalogue", wrapper.ListRequestCatalogue)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/articles", wrapper.SuggestArticles)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/articles/{pageId}", wrapper.ReadArticle)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/articles/{pageId}:rate", wrapper.RateArticle)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requests", wrapper.ListMyRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/requests", wrapper.RaiseRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requests/{itemId}", wrapper.ReadMyRequest)
@@ -51255,6 +51522,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/shares/{accountId}", wrapper.UnsharePage)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.DeletePagePublicLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.CreatePagePublicLink)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/articles", wrapper.PublishPageToPortal)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/articles/{collectionId}", wrapper.UnpublishPageFromPortal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:public-links", wrapper.ReadPublicLinksPolicy)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/pages:public-links", wrapper.SetPublicLinksPolicy)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/pages/{token}", wrapper.GetPublicPage)

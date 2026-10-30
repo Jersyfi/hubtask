@@ -761,6 +761,21 @@ export class HubtaskClient {
     return this.call("GET", "/request-catalogue", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The articles a service's portal offers for what a requester types */
+  suggestArticles(options: CallOptions & { readonly query?: NonNullable<operations["suggestArticles"]['parameters']['query']> } = {}): Promise<operations["suggestArticles"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/articles", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Open an article of a service's portal */
+  readArticle(pageId: string, options: CallOptions & { readonly query?: NonNullable<operations["readArticle"]['parameters']['query']> } = {}): Promise<operations["readArticle"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/articles/{pageId}", { "pageId": pageId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Say whether an article helped */
+  rateArticle(pageId: string, body: NonNullable<operations["rateArticle"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["rateArticle"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/articles/{pageId}:rate", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The requests I raised */
   listMyRequests(options: CallOptions & { readonly query?: NonNullable<operations["listMyRequests"]['parameters']['query']> } = {}): Promise<operations["listMyRequests"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/requests", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
@@ -3439,6 +3454,16 @@ export class HubtaskClient {
   /** Take a page's public link away */
   deletePagePublicLink(pageId: string, options: CallOptions = {}): Promise<void> {
     return this.call("DELETE", "/pages/{pageId}/public-link", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Publish a page to a service's portal */
+  publishPageToPortal(pageId: string, body: NonNullable<operations["publishPageToPortal"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["publishPageToPortal"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}/articles", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take a page back from a service's portal */
+  unpublishPageFromPortal(pageId: string, collectionId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/pages/{pageId}/articles/{collectionId}", { "pageId": pageId, "collectionId": collectionId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** Whether pages may be opened by a public link */

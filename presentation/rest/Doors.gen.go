@@ -367,10 +367,12 @@ var restDoors = map[string]restDoor{
 	"proposeConfig":                     {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"provisionTenant":                   {UseCase: "ProvisionTenant", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/admin/tenants", NullClears: false, Integers: []string(nil), ShownOnce: "owner_redemption_token"},
 	"publishConfigTemplate":             {UseCase: "PublishConfigTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"publishPageToPortal":               {UseCase: "PublishPageToPortal", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"publishWorkflow":                   {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"purgeWorkItem":                     {UseCase: "PurgeWorkItem", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"queryTenants":                      {UseCase: "QueryTenants", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"raiseRequest":                      {UseCase: "RaiseRequest", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"rateArticle":                       {UseCase: "RateArticle", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"rateMyRequest":                     {UseCase: "RateMyRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"score"}},
 	"readAgent":                         {UseCase: "ReadAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAgentHalt":                     {UseCase: "ReadAgentHalt", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -379,6 +381,7 @@ var restDoors = map[string]restDoor{
 	"readAiBudgetState":                 {UseCase: "ReadAiBudgetState", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAiProvider":                    {UseCase: "ReadAiProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAiSource":                      {UseCase: "ReadAiSource", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readArticle":                       {UseCase: "ReadArticle", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readBudget":                        {UseCase: "ReadBudget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readCi":                            {UseCase: "ReadCi", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readCiImpact":                      {UseCase: "ReadCiImpact", Status: 200, Query: []string{"depth", "direction"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"depth"}},
@@ -562,6 +565,7 @@ var restDoors = map[string]restDoor{
 	"stopTimer":                         {UseCase: "StopTimer", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"submitJumbleEntry":                 {UseCase: "SubmitJumbleEntry", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"submitTimesheet":                   {UseCase: "SubmitTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"suggestArticles":                   {UseCase: "SuggestArticles", Status: 200, Query: []string{"collection_id", "text"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suggestDecomposition":              {UseCase: "SuggestDecomposition", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suggestDuplicates":                 {UseCase: "SuggestDuplicates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), NothingFound: true},
 	"suggestFromJumbleEntry":            {UseCase: "SuggestFromJumbleEntry", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -584,6 +588,7 @@ var restDoors = map[string]restDoor{
 	"unassignWorkItem":                  {UseCase: "UnassignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkEntries":                     {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkGoalEntry":                   {UseCase: "UnlinkGoalEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unpublishPageFromPortal":           {UseCase: "UnpublishPageFromPortal", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unrelateCis":                       {UseCase: "UnrelateCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unsharePage":                       {UseCase: "UnsharePage", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateAbsence":                     {UseCase: "UpdateAbsence", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
@@ -2691,6 +2696,13 @@ func (c *RestController) PublishConfigTemplate(w http.ResponseWriter, r *http.Re
 	c.door(w, r, restDoors["publishConfigTemplate"], usecase.Input{}, nil, &body, &answer)
 }
 
+// PublishPageToPortal answers POST /pages/{pageId}/articles by the generated mapping.
+func (c *RestController) PublishPageToPortal(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var body openapi.PublishPageToPortalJSONRequestBody
+	var answer openapi.PageArticle
+	c.door(w, r, restDoors["publishPageToPortal"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
+}
+
 // PublishWorkflow answers POST /workflows/{key}:publish by the generated mapping.
 func (c *RestController) PublishWorkflow(w http.ResponseWriter, r *http.Request, key string, params openapi.PublishWorkflowParams) {
 	var body openapi.PublishWorkflowJSONRequestBody
@@ -2714,6 +2726,13 @@ func (c *RestController) RaiseRequest(w http.ResponseWriter, r *http.Request, pa
 	var body openapi.RaiseRequestJSONRequestBody
 	var answer openapi.PortalRequest
 	c.door(w, r, restDoors["raiseRequest"], usecase.Input{}, params, &body, &answer)
+}
+
+// RateArticle answers POST /articles/{pageId}:rate by the generated mapping.
+func (c *RestController) RateArticle(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var body openapi.RateArticleJSONRequestBody
+	var answer openapi.ArticleRating
+	c.door(w, r, restDoors["rateArticle"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
 }
 
 // RateMyRequest answers PUT /requests/{itemId}/satisfaction by the generated mapping.
@@ -2760,6 +2779,12 @@ func (c *RestController) ReadAiProvider(w http.ResponseWriter, r *http.Request) 
 // ReadAiSource answers GET /ai-source by the generated mapping.
 func (c *RestController) ReadAiSource(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["readAiSource"], usecase.Input{}, nil, nil, answerBy(aiSourceResponse))
+}
+
+// ReadArticle answers GET /articles/{pageId} by the generated mapping.
+func (c *RestController) ReadArticle(w http.ResponseWriter, r *http.Request, pageId openapi.PageId, params openapi.ReadArticleParams) {
+	var answer openapi.Article
+	c.door(w, r, restDoors["readArticle"], usecase.Input{"page_id": pageId.String()}, params, nil, &answer)
 }
 
 // ReadBudget answers GET /plans/{planId}/budget by the generated mapping.
@@ -3856,6 +3881,12 @@ func (c *RestController) SubmitTimesheet(w http.ResponseWriter, r *http.Request,
 	c.door(w, r, restDoors["submitTimesheet"], usecase.Input{"week": week.String()}, nil, nil, &answer)
 }
 
+// SuggestArticles answers GET /articles by the generated mapping.
+func (c *RestController) SuggestArticles(w http.ResponseWriter, r *http.Request, params openapi.SuggestArticlesParams) {
+	var answer openapi.ArticleSuggestionList
+	c.door(w, r, restDoors["suggestArticles"], usecase.Input{}, params, nil, &answer)
+}
+
 // SuggestDecomposition answers POST /items/{itemId}:decompose by the generated mapping.
 func (c *RestController) SuggestDecomposition(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SuggestDecompositionParams) {
 	c.door(w, r, restDoors["suggestDecomposition"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(acceptedAsk))
@@ -3975,6 +4006,11 @@ func (c *RestController) UnlinkEntries(w http.ResponseWriter, r *http.Request, l
 func (c *RestController) UnlinkGoalEntry(w http.ResponseWriter, r *http.Request, goalId openapi.GoalId, entryId openapi_types.UUID) {
 	var answer openapi.Goal
 	c.door(w, r, restDoors["unlinkGoalEntry"], usecase.Input{"goal_id": goalId.String(), "entry_id": entryId.String()}, nil, nil, &answer)
+}
+
+// UnpublishPageFromPortal answers DELETE /pages/{pageId}/articles/{collectionId} by the generated mapping.
+func (c *RestController) UnpublishPageFromPortal(w http.ResponseWriter, r *http.Request, pageId openapi.PageId, collectionId openapi_types.UUID) {
+	c.door(w, r, restDoors["unpublishPageFromPortal"], usecase.Input{"page_id": pageId.String(), "collection_id": collectionId.String()}, nil, nil, nil)
 }
 
 // UnrelateCis answers DELETE /ci-relations/{relationId} by the generated mapping.

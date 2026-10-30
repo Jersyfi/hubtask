@@ -633,6 +633,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `page.article_published` | PublishPageToPortal | `page` | INFO | Every time |
+| `page.article_unpublished` | UnpublishPageFromPortal | `page` | INFO | Every time |
 | `page.changed` | UpdatePage | `page` | INFO | Every time |
 | `page.created` | CreatePage | `page` | INFO | Every time |
 | `page.created` | OpenDailyNote | `page` | INFO | When refused |
@@ -659,6 +661,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.verified` | VerifyPage | `page` | INFO | Every time |
 | `page.version_named` | NamePageVersion | `page` | INFO | Every time |
 | `page.version_restored` | RestorePageVersion | `page` | INFO | Every time |
+
+## Page_article
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_article.rated` | RateArticle | `page_article` | INFO | When refused |
+| `page_article.read` | ReadArticle | `page_article` | INFO | When refused |
+| `page_article.read` | SuggestArticles | `page_article` | INFO | When refused |
 
 ## Page_comment
 

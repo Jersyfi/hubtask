@@ -5041,6 +5041,7 @@ class PageAccess(TypedDict, total=False):
     may_share: Required[bool]
     public_link: Required["PagePublicLink" | Any]
     public_links_allowed: Required[bool]
+    articles: Required[list["PageArticle"]]
 
 class PagePublicLink(TypedDict, total=False):
     page_id: Required[str]
@@ -5053,6 +5054,32 @@ class PagePublicLinkMinted(TypedDict, total=False):
     created_by: Required[str | None]
     created_at: Required[str]
     token: Required[str]
+
+class PageArticle(TypedDict, total=False):
+    page_id: Required[str]
+    collection_id: Required[str]
+    published_by: Required[str | None]
+    published_at: Required[str]
+    views: Required[int]
+    helpful: Required[int]
+    unhelpful: Required[int]
+
+class ArticleSuggestionList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
+class Article(TypedDict, total=False):
+    page_id: Required[str]
+    collection_id: Required[str]
+    title: Required[str]
+    icon: Required[str]
+    body: Required[str]
+    content_language: Required[str | None]
+    updated_at: Required[str]
+
+class ArticleRating(TypedDict, total=False):
+    page_id: Required[str]
+    collection_id: Required[str]
+    helpful: Required[bool]
 
 class PublicLinksPolicy(TypedDict, total=False):
     allowed: Required[bool]
