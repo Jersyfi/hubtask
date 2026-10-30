@@ -5718,4 +5718,88 @@ CREATE POLICY tenant_isolation ON time_policy
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON time_policy TO hubtask_app;
 
+-- Time's capacity, absences, cost rates and budgets (migration 0247, M7).
+CREATE TABLE time_capacity (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id   uuid NOT NULL,
+  from_day     date NOT NULL,
+  week_minutes integer[] NOT NULL CHECK (cardinality(week_minutes) = 7
+    AND 0 <= ALL (week_minutes) AND 1440 >= ALL (week_minutes)),
+  updated_at   timestamptz NOT NULL,
+  updated_by   uuid,
+  version      integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, account_id, from_day)
+);
+ALTER TABLE time_capacity ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_capacity FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_capacity
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_capacity TO hubtask_app;
+
+CREATE TABLE time_absence (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  from_day   date NOT NULL,
+  to_day     date NOT NULL,
+  kind       text NOT NULL CHECK (kind IN ('LEAVE', 'TRAINING', 'OTHER')),
+  half       boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL,
+  created_by uuid,
+  updated_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  CHECK (to_day >= from_day AND to_day - from_day < 366)
+);
+CREATE INDEX time_absence_person_idx ON time_absence (tenant_id, account_id, from_day);
+CREATE INDEX time_absence_day_idx ON time_absence (tenant_id, to_day, from_day);
+ALTER TABLE time_absence ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_absence FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_absence
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_absence TO hubtask_app;
+
+CREATE TABLE time_cost_rate (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid,
+  role       text CHECK (char_length(role) BETWEEN 1 AND 64),
+  hour_minor bigint NOT NULL CHECK (hour_minor BETWEEN 0 AND 1000000000),
+  currency   text NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+  from_day   date NOT NULL,
+  to_day     date,
+  updated_at timestamptz NOT NULL,
+  updated_by uuid,
+  version    integer NOT NULL DEFAULT 1,
+  CHECK ((account_id IS NULL) <> (role IS NULL)),
+  CHECK (to_day IS NULL OR to_day >= from_day)
+);
+CREATE INDEX time_cost_rate_subject_idx ON time_cost_rate (tenant_id, account_id, role, from_day);
+ALTER TABLE time_cost_rate ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_cost_rate FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_cost_rate
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_cost_rate TO hubtask_app;
+
+CREATE TABLE time_budget (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  plan_id      uuid NOT NULL,
+  minutes      bigint NOT NULL DEFAULT 0 CHECK (minutes BETWEEN 0 AND 60000000),
+  amount_minor bigint NOT NULL DEFAULT 0 CHECK (amount_minor BETWEEN 0 AND 10000000000000),
+  currency     text NOT NULL DEFAULT '' CHECK (currency = '' OR currency ~ '^[A-Z]{3}$'),
+  updated_at   timestamptz NOT NULL,
+  updated_by   uuid,
+  version      integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, plan_id),
+  CHECK (amount_minor = 0 OR currency <> ''),
+  CONSTRAINT time_budget_plan_fkey
+    FOREIGN KEY (tenant_id, plan_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE time_budget ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_budget FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_budget
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_budget TO hubtask_app;
+
 COMMIT;

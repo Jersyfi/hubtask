@@ -3408,6 +3408,186 @@ func (q *Queries) ExportTenants(ctx context.Context, arg ExportTenantsParams) ([
 	return items, nil
 }
 
+const exportTimeAbsences = `-- name: ExportTimeAbsences :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM time_absence x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportTimeAbsencesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportTimeAbsencesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportTimeAbsences(ctx context.Context, arg ExportTimeAbsencesParams) ([]ExportTimeAbsencesRow, error) {
+	rows, err := q.db.Query(ctx, exportTimeAbsences, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportTimeAbsencesRow{}
+	for rows.Next() {
+		var i ExportTimeAbsencesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportTimeBudgets = `-- name: ExportTimeBudgets :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM time_budget x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportTimeBudgetsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportTimeBudgetsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportTimeBudgets(ctx context.Context, arg ExportTimeBudgetsParams) ([]ExportTimeBudgetsRow, error) {
+	rows, err := q.db.Query(ctx, exportTimeBudgets, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportTimeBudgetsRow{}
+	for rows.Next() {
+		var i ExportTimeBudgetsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportTimeCapacities = `-- name: ExportTimeCapacities :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM time_capacity x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportTimeCapacitiesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportTimeCapacitiesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportTimeCapacities(ctx context.Context, arg ExportTimeCapacitiesParams) ([]ExportTimeCapacitiesRow, error) {
+	rows, err := q.db.Query(ctx, exportTimeCapacities, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportTimeCapacitiesRow{}
+	for rows.Next() {
+		var i ExportTimeCapacitiesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportTimeCostRates = `-- name: ExportTimeCostRates :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM time_cost_rate x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportTimeCostRatesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportTimeCostRatesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportTimeCostRates(ctx context.Context, arg ExportTimeCostRatesParams) ([]ExportTimeCostRatesRow, error) {
+	rows, err := q.db.Query(ctx, exportTimeCostRates, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportTimeCostRatesRow{}
+	for rows.Next() {
+		var i ExportTimeCostRatesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportTimePolicies = `-- name: ExportTimePolicies :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

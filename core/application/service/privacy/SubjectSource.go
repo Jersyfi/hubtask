@@ -74,6 +74,12 @@ var subjectColumns = map[string][]string{
 	"time_timer":     {"account_id"},
 	"timesheet":      {"account_id", "decided_by"},
 	"time_policy":    {"updated_by"},
+	// Their capacity and absences, the ones they recorded for others, and the rates and budgets
+	// they set or that price them (M7).
+	"time_capacity":  {"account_id", "updated_by"},
+	"time_absence":   {"account_id", "created_by"},
+	"time_cost_rate": {"account_id", "updated_by"},
+	"time_budget":    {"updated_by"},
 	"entry_estimate": {"updated_by"},
 	// The pages they wrote, own or checked, their versions and their comments (M3).
 	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},

@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package timekeeping is the time module's storage port (M7): kinds of work, time records with the
-// place of their entry, running timers, a person's weeks and the workspace's time policy.
+// place of their entry, running timers, a person's weeks, the workspace's time policy, and the
+// resources and costs - capacity, absences, cost rates and budgets.
 package timekeeping
 
 import (
@@ -75,4 +76,39 @@ type Store interface {
 	Policy(ctx context.Context) (domain.Policy, error)
 	// PutPolicy writes the policy: a new row when expected is 0, else held to the version read.
 	PutPolicy(ctx context.Context, id shared.ID, p domain.Policy, expected int) error
+}
+
+// Resources reads and writes a person's capacity and absences, the cost rates and the budgets of
+// hubs and collections (migration 0247), inside the caller's transaction.
+type Resources interface {
+	// Capacities answers the capacities of the people named, or of everybody for none, at most max.
+	Capacities(ctx context.Context, accounts []shared.ID, max int) ([]domain.Capacity, error)
+	// PutCapacity writes a person's capacity from its day on; id is used for a new one.
+	PutCapacity(ctx context.Context, id shared.ID, c domain.Capacity, by shared.ID, at time.Time) error
+	// RemoveCapacity removes the capacity a person has from a day, and reports whether one was.
+	RemoveCapacity(ctx context.Context, account shared.ID, from domain.Day) (bool, error)
+
+	// Absences answers the absences sharing a day with a range, of one person or everybody, at
+	// most max.
+	Absences(ctx context.Context, account shared.ID, from, to domain.Day, max int) ([]domain.Absence, error)
+	FindAbsence(ctx context.Context, id shared.ID) (domain.Absence, error)
+	// PutAbsence writes an absence: a new row when expected is 0, else held to the version read.
+	PutAbsence(ctx context.Context, a domain.Absence, expected int, by shared.ID, at time.Time) error
+	// RemoveAbsence removes an absence held to the version read.
+	RemoveAbsence(ctx context.Context, id shared.ID, expected int) error
+
+	// Rates answers the workspace's cost rates, at most max.
+	Rates(ctx context.Context, max int) ([]domain.CostRate, error)
+	FindRate(ctx context.Context, id shared.ID) (domain.CostRate, error)
+	// PutRate writes a rate: a new row when expected is 0, else held to the version read.
+	PutRate(ctx context.Context, r domain.CostRate, expected int, by shared.ID, at time.Time) error
+	// RemoveRate removes a rate held to the version read.
+	RemoveRate(ctx context.Context, id shared.ID, expected int) error
+
+	// Budget answers a plan's budget, and whether it has one.
+	Budget(ctx context.Context, plan shared.ID) (domain.Budget, bool, error)
+	// PutBudget writes a plan's budget: a new row when expected is 0, else held to the version read.
+	PutBudget(ctx context.Context, id shared.ID, b domain.Budget, expected int, by shared.ID, at time.Time) error
+	// RemoveBudget removes a plan's budget held to the version read.
+	RemoveBudget(ctx context.Context, plan shared.ID, expected int) error
 }

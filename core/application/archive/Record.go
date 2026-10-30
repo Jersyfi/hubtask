@@ -810,6 +810,41 @@ var entities = []Entity{
 		Keys:       []string{"id"},
 		References: []Reference{{Field: "updated_by", Table: "account", Clearable: true}},
 	},
+	// Time's resources and costs (migration 0247, M7): capacity, absences, cost rates and budgets.
+	// Whole and unmarked: each is removed without a tombstone.
+	{
+		Name: "time_capacities", Table: "time_capacity", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+		Unique: []UniqueField{{Field: "from_day", Rule: UniqueSkip, Within: []string{"account_id"}}},
+	},
+	{
+		Name: "time_absences", Table: "time_absence", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "time_cost_rates", Table: "time_cost_rate", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account", Clearable: true},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "time_budgets", Table: "time_budget", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"},
+		References: []Reference{
+			{Field: "plan_id", Table: "container"},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
 	{
 		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,

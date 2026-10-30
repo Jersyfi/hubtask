@@ -2321,6 +2321,57 @@ type TenantHost struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+type TimeAbsence struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	Kind      string
+	Half      bool
+	CreatedAt pgtype.Timestamptz
+	CreatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type TimeBudget struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	PlanID      pgtype.UUID
+	Minutes     int64
+	AmountMinor int64
+	Currency    string
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	Version     int32
+}
+
+type TimeCapacity struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	AccountID   pgtype.UUID
+	FromDay     pgtype.Date
+	WeekMinutes []int32
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	Version     int32
+}
+
+type TimeCostRate struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	Role      *string
+	HourMinor int64
+	Currency  string
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	UpdatedAt pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+	Version   int32
+}
+
 type TimePolicy struct {
 	ID            pgtype.UUID
 	TenantID      pgtype.UUID

@@ -2838,3 +2838,71 @@ SELECT EXISTS (SELECT 1 FROM time_policy WHERE id = (sqlc.arg('payload')::jsonb-
 
 -- name: ClearTimePolicy :execrows
 DELETE FROM time_policy;
+
+-- name: ImportTimeCapacity :execrows
+INSERT INTO time_capacity (id, tenant_id, account_id, from_day, week_minutes, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.account_id, r.from_day, r.week_minutes, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::time_capacity,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  week_minutes = EXCLUDED.week_minutes, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsTimeCapacity :one
+SELECT EXISTS (SELECT 1 FROM time_capacity WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearTimeCapacity :execrows
+DELETE FROM time_capacity;
+
+-- name: ImportTimeAbsence :execrows
+INSERT INTO time_absence (id, tenant_id, account_id, from_day, to_day, kind, half, created_at, created_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.account_id, r.from_day, r.to_day, r.kind, r.half, r.created_at, r.created_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::time_absence,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  from_day = EXCLUDED.from_day, to_day = EXCLUDED.to_day, kind = EXCLUDED.kind, half = EXCLUDED.half, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsTimeAbsence :one
+SELECT EXISTS (SELECT 1 FROM time_absence WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearTimeAbsence :execrows
+DELETE FROM time_absence;
+
+-- name: ImportTimeCostRate :execrows
+INSERT INTO time_cost_rate (id, tenant_id, account_id, role, hour_minor, currency, from_day, to_day, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.account_id, r.role, r.hour_minor, r.currency, r.from_day, r.to_day, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::time_cost_rate,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  hour_minor = EXCLUDED.hour_minor, currency = EXCLUDED.currency, from_day = EXCLUDED.from_day, to_day = EXCLUDED.to_day, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsTimeCostRate :one
+SELECT EXISTS (SELECT 1 FROM time_cost_rate WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearTimeCostRate :execrows
+DELETE FROM time_cost_rate;
+
+-- name: ImportTimeBudget :execrows
+INSERT INTO time_budget (id, tenant_id, plan_id, minutes, amount_minor, currency, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.plan_id, r.minutes, r.amount_minor, r.currency, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::time_budget,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  minutes = EXCLUDED.minutes, amount_minor = EXCLUDED.amount_minor, currency = EXCLUDED.currency, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsTimeBudget :one
+SELECT EXISTS (SELECT 1 FROM time_budget WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearTimeBudget :execrows
+DELETE FROM time_budget;
