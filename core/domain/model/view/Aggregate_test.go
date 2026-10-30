@@ -26,6 +26,9 @@ func TestAnAggregationIsReadFromTheClosedVocabulary(t *testing.T) {
 		{"a lead time per month", map[string]any{"function": "AVG", "field": "lead_time",
 			"bucket": map[string]any{"field": "completed_at", "period": "month"}}, ""},
 		{"a scheduled span", map[string]any{"function": "SUM", "field": "scheduled_span"}, ""},
+		// UC-GOL-04 check 12: the percentiles beside the mean.
+		{"a cycle time's 85th percentile", map[string]any{"function": "P85", "field": "cycle_time"}, ""},
+		{"a percentile of nothing", map[string]any{"function": "P50"}, "query.field_required"},
 		{"a week from Sunday", map[string]any{"function": "COUNT",
 			"bucket": map[string]any{"field": "created_at", "period": "week", "week_start": "sunday"}}, ""},
 		{"a week start on a month", map[string]any{"function": "COUNT",

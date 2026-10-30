@@ -20,7 +20,25 @@ const (
 	AggregateAvg   AggregateFunction = "AVG"
 	AggregateMin   AggregateFunction = "MIN"
 	AggregateMax   AggregateFunction = "MAX"
+	// AggregateP50, AggregateP85 and AggregateP95 are continuous percentiles: a flow metric reads
+	// a cycle time's median and its 85th percentile, not only its mean.
+	AggregateP50 AggregateFunction = "P50"
+	AggregateP85 AggregateFunction = "P85"
+	AggregateP95 AggregateFunction = "P95"
 )
+
+// Percentile answers the fraction a percentile function reads; false for every other function.
+func (f AggregateFunction) Percentile() (float64, bool) {
+	switch f {
+	case AggregateP50:
+		return 0.5, true
+	case AggregateP85:
+		return 0.85, true
+	case AggregateP95:
+		return 0.95, true
+	}
+	return 0, false
+}
 
 // TimeBucket is the period a time-bucketed aggregation cuts a timestamp into.
 type TimeBucket string
@@ -225,6 +243,7 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 	function := AggregateFunction(stringOf(document["function"]))
 	if !slices.Contains([]AggregateFunction{
 		AggregateCount, AggregateSum, AggregateAvg, AggregateMin, AggregateMax,
+		AggregateP50, AggregateP85, AggregateP95,
 	}, function) {
 		return Aggregation{}, fieldError(path+"/function", "query.aggregate_function_unknown", nil)
 	}

@@ -157,7 +157,8 @@ needs no backend change.
 
 `POST /items:aggregate` takes the same scope and filter, with the same limits, cost estimate and
 permission, and an `aggregate` instead of a sort, page or grouping: `function` (`COUNT`, `SUM`,
-`AVG`, `MIN`, `MAX`), `field` (a `custom_fields.<key>` holding a number, money or a duration, or a
+`AVG`, `MIN`, `MAX`, and the continuous percentiles `P50`, `P85`, `P95` - one constant fraction each
+in the statement, never a parameter), `field` (a `custom_fields.<key>` holding a number, money or a duration, or a
 built-in quantity in whole minutes - `lead_time`, `created_at` to `completed_at`, and
 `scheduled_span`, `start_at` to `due_at`, none where a stamp is missing; and from the status history
 migration 0250 writes, `cycle_time`, the first entry into a status of the `IN_PROGRESS` category to

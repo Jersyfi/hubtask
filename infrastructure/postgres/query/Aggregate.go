@@ -218,7 +218,7 @@ func (b *builder) aggregateBucket(aggregation view.Aggregation, timeZone string)
 }
 
 func (b *builder) aggregateValue(aggregation view.Aggregation) {
-	var function string
+	function, closing := "", `)::numeric`
 	switch aggregation.Function {
 	case view.AggregateCount:
 		b.write(`NULL::numeric`)
@@ -231,26 +231,29 @@ func (b *builder) aggregateValue(aggregation view.Aggregation) {
 		function = `min(`
 	case view.AggregateMax:
 		function = `max(`
+	case view.AggregateP50:
+		// One constant per function, as for the others: the fraction is never a parameter.
+		function, closing = `(percentile_cont(0.5) WITHIN GROUP (ORDER BY (`, `)::float8))::numeric`
+	case view.AggregateP85:
+		function, closing = `(percentile_cont(0.85) WITHIN GROUP (ORDER BY (`, `)::float8))::numeric`
+	case view.AggregateP95:
+		function, closing = `(percentile_cont(0.95) WITHIN GROUP (ORDER BY (`, `)::float8))::numeric`
 	default:
 		b.fail(errFieldNotCompilable(aggregation.Measure))
 		return
 	}
 	b.write(function)
-	if aggregation.Minutes {
-		b.write(`tr.minutes)::numeric`)
-		return
-	}
-	if aggregation.Quantity != "" {
+	switch {
+	case aggregation.Minutes:
+		b.write(`tr.minutes`)
+	case aggregation.Quantity != "":
 		b.quantity(aggregation)
-		b.write(`)::numeric`)
-		return
-	}
-	if shape := aggregation.Measure.Custom; shape.Resolved && !shape.Defined {
+	case aggregation.Measure.Custom.Resolved && !aggregation.Measure.Custom.Defined:
 		b.write(`NULL::numeric`)
-	} else {
+	default:
 		b.customValue(aggregation.Measure)
 	}
-	b.write(`)::numeric`)
+	b.write(closing)
 }
 
 // quantity writes a built-in measure: the span between two of the row's stamps in whole minutes,

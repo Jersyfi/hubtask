@@ -481,7 +481,7 @@ func (h AggregateItems) Descriptor() usecase.Descriptor {
 			"refused and a group of fewer than three people left out -, or pages - the pages of a " +
 			"hub's space or of every readable space for the workspace, counted only, without a " +
 			"filter, grouped by owner, template or verification, bucketed by created_at or " +
-			"updated_at), function (COUNT, SUM, AVG, MIN or MAX), field (a custom field " +
+			"updated_at), function (COUNT, SUM, AVG, MIN, MAX, or the percentiles P50, P85, P95), field (a custom field " +
 			"holding a number, money or a duration, or lead_time - creation to completion - or " +
 			"scheduled_span - start to due -, both in minutes; not for COUNT), group_by (a field a " +
 			"query may group by), and bucket (field, a timestamp, and period: day, week or month, " +

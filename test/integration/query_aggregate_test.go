@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -202,6 +203,39 @@ func TestAFlowQuantityReadsTheStatusHistory(t *testing.T) {
 	for quantity, want := range map[string]string{"cycle_time": "120", "wip_age": "120", "time_in_status": "90"} {
 		if got := measure(quantity); got == nil || *got != want {
 			t.Errorf("%s = %v, want %s", quantity, got, want)
+		}
+	}
+}
+
+// The percentiles read the measure's distribution, not its mean: lead times of one, two and four
+// hours have a median of two and an 85th percentile between the two longer (UC-GOL-04 check 12).
+func TestAPercentileReadsTheMeasuresDistribution(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	created := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	pool := adminPool(ctx, t)
+	for _, hours := range []int{1, 2, 4} {
+		entry := seedTask(ctx, t, tenantA, authorA, collection)
+		if _, err := pool.Exec(ctx, `UPDATE work_item SET created_at = $1, completed_at = $2, status = 'done'
+			WHERE tenant_id = $3 AND id = $4`, created, created.Add(time.Duration(hours)*time.Hour),
+			tenantA.String(), entry.String()); err != nil {
+			t.Fatalf("completing: %v", err)
+		}
+	}
+	for function, want := range map[string]string{"P50": "120", "P85": "204", "AVG": "140"} {
+		aggregation, err := view.ParseAggregation(map[string]any{"function": function, "field": "lead_time"}, "/aggregate")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var result repository.ItemAggregateResult
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			result, err = itemRepo().Aggregate(ctx, searchIn(t, collection, nil, view.Spec{}), aggregation, "UTC")
+			return err
+		}); err != nil || len(result.Rows) != 1 || result.Rows[0].Value == nil {
+			t.Fatalf("%s: %+v %v", function, result, err)
+		}
+		if got := *result.Rows[0].Value; !strings.HasPrefix(got, want) {
+			t.Errorf("%s of the lead times = %s, want %s", function, got, want)
 		}
 	}
 }
