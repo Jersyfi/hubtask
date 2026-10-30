@@ -238,9 +238,9 @@ func TestARequestInputIsOneARequestCarries(t *testing.T) {
 func TestACacheAndAWholeAnswerAreDeclaredMarks(t *testing.T) {
 	server := []byte("package openapi\ntype ChangeThingApplicationMergePatchPlusJSONRequestBody = ThingChange\ntype ServerInterface interface {\n\tChangeThing(w http.ResponseWriter, r *http.Request, thingId string)\n}\n")
 	for mark, fails := range map[string]bool{
-		"x-hubtask-rest-cache: no-store": false,
-		"x-hubtask-rest-cache: private":  true,
-		"x-hubtask-rest-list: whole":     true,
+		"x-hubtask-rest-cache: no-store":                                         false,
+		"x-hubtask-rest-cache: private":                                          true,
+		"x-hubtask-rest-list: whole":                                             true,
 		"x-hubtask-rest-list: whole\n      x-hubtask-rest-answer: thingResponse": false,
 	} {
 		marked := strings.Replace(contract, `      x-hubtask-cli: "thing set"`, `      x-hubtask-cli: "thing set"
