@@ -718,7 +718,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.article_unpublished` | UnpublishPageFromPortal | `page` | INFO | Every time |
 | `page.changed` | UpdatePage | `page` | INFO | Every time |
 | `page.created` | CreatePage | `page` | INFO | Every time |
-| `page.created` | OpenDailyNote | `page` | INFO | When refused |
+| `page.created` | OpenDailyNote | `page` | INFO | Every time |
 | `page.exported` | ExportPage | `page` | INFO | Every time |
 | `page.media_attached` | AttachPageMedia | `page` | INFO | Every time |
 | `page.moved` | MovePage | `page` | INFO | Every time |
@@ -748,8 +748,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
-| `page_article.rated` | RateArticle | `page_article` | INFO | When refused |
-| `page_article.read` | ReadArticle | `page_article` | INFO | When refused |
+| `page_article.rated` | RateArticle | `page_article` | INFO | Every time |
+| `page_article.read` | ReadArticle | `page_article` | INFO | Every time |
 | `page_article.read` | SuggestArticles | `page_article` | INFO | When refused |
 
 ## Page_comment

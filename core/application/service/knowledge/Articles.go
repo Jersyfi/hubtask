@@ -329,7 +329,10 @@ func (h ReadArticle) Execute(ctx context.Context, actor appshared.ActorContext, 
 		if page, err = h.Space.article(ctx, pageID, collectionID); err != nil {
 			return err
 		}
-		return h.Space.Articles.CountView(ctx, page.ID, collectionID)
+		if err := h.Space.Articles.CountView(ctx, page.ID, collectionID); err != nil {
+			return err
+		}
+		return h.Space.record(ctx, actor, ArticleReadAction, articleTarget, page.ID, nil, h.Space.Clock.Now())
 	})
 	return page, err
 }
@@ -341,13 +344,13 @@ func (h ReadArticle) Descriptor() usecase.Descriptor {
 		Summary: "Opens an article of a service's portal - the page alone, with its Markdown body, " +
 			"as it stands now - and counts the opening. Unpublished, trashed, archived or restricted " +
 			"since, it is not found.",
-		SideEffects: "Counts one opening.",
+		SideEffects: "Counts one opening, with an audit entry.",
 		TokenScope:  pagesRead,
 		Input: []usecase.Field{
 			{Name: "collection_id", Kind: usecase.KindID, Required: true, Description: "The service."},
 			{Name: "page_id", Kind: usecase.KindID, Required: true, Description: "The article's page."},
 		},
-		Audit:    usecase.AuditDeclaration{Action: ArticleReadAction, TargetType: articleTarget, Severity: audit.SeverityInfo},
+		Audit:    usecase.AuditDeclaration{Action: ArticleReadAction, TargetType: articleTarget, Severity: audit.SeverityInfo, Required: true},
 		Activity: usecase.ActivityDeclaration{Exempt: "an opening is counted, not recorded; a page is not an entry."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			ids, err := twoIDs(in, "collection_id", "page_id")
@@ -387,7 +390,11 @@ func (h RateArticle) Execute(ctx context.Context, actor appshared.ActorContext, 
 		if err != nil {
 			return err
 		}
-		return h.Space.Articles.Rate(ctx, page.ID, collectionID, actor.AccountID, helpful, now)
+		if err := h.Space.Articles.Rate(ctx, page.ID, collectionID, actor.AccountID, helpful, now); err != nil {
+			return err
+		}
+		// The trail names the rating, never the answer: nobody learns who said what (UC-DOC-13/3).
+		return h.Space.record(ctx, actor, ArticleRatedAction, articleTarget, page.ID, nil, now)
 	})
 }
 
@@ -397,14 +404,14 @@ func (h RateArticle) Descriptor() usecase.Descriptor {
 		Name: RateArticleName, Permission: service.PermissionRequest,
 		Summary: "Keeps whether an article of a service's portal helped the requester, one answer " +
 			"per person - a second replaces the first. Its publisher sees the counts, never who said what.",
-		SideEffects: "Writes or replaces the rating.",
+		SideEffects: "Writes or replaces the rating, with an audit entry that does not say what was answered.",
 		TokenScope:  pagesRead,
 		Input: []usecase.Field{
 			{Name: "collection_id", Kind: usecase.KindID, Required: true, Description: "The service."},
 			{Name: "page_id", Kind: usecase.KindID, Required: true, Description: "The article's page."},
 			{Name: "helpful", Kind: usecase.KindBool, Required: true, Description: "Whether it helped."},
 		},
-		Audit:    usecase.AuditDeclaration{Action: ArticleRatedAction, TargetType: articleTarget, Severity: audit.SeverityInfo},
+		Audit:    usecase.AuditDeclaration{Action: ArticleRatedAction, TargetType: articleTarget, Severity: audit.SeverityInfo, Required: true},
 		Activity: usecase.ActivityDeclaration{Exempt: "a rating is counted on the article; a page is not an entry."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			ids, err := twoIDs(in, "collection_id", "page_id")

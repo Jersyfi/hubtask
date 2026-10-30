@@ -685,7 +685,7 @@ func (h OpenDailyNote) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "day", Kind: usecase.KindString, Description: "The day, YYYY-MM-DD; empty for today."},
 		},
-		Audit: usecase.AuditDeclaration{Action: PageCreatedAction, TargetType: pageTarget, Severity: audit.SeverityInfo},
+		Audit: usecase.AuditDeclaration{Action: PageCreatedAction, TargetType: pageTarget, Severity: audit.SeverityInfo, Required: true},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			page, err := h.Execute(ctx, actor, in.String("day"))
 			if err != nil {

@@ -144,9 +144,16 @@ func TestAnArticleReachesTheRequestersOfItsServiceAlone(t *testing.T) {
 	if err != nil || read.Body != "how to reset the password" {
 		t.Fatalf("ReadArticle: %+v %v", read, err)
 	}
+	if last := f.trail.entries[len(f.trail.entries)-1]; last.Action != ArticleReadAction || last.TargetID != page.ID {
+		t.Fatalf("the opening reached the trail as %+v", last)
+	}
 	for _, helpful := range []bool{true, false} {
 		if err := (RateArticle{Space: f.space}).Execute(ctx, as(visitor), desk, page.ID, helpful); err != nil {
 			t.Fatal(err)
+		}
+		// The trail names the rating, never what was said (check 3).
+		if last := f.trail.entries[len(f.trail.entries)-1]; last.Action != ArticleRatedAction || len(last.Changes) != 0 {
+			t.Fatalf("the rating reached the trail as %+v", last)
 		}
 	}
 	access, err := (ReadPageAccess{Space: f.space}).Execute(ctx, as(anna), page.ID)
