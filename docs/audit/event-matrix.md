@@ -236,8 +236,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `business_calendar.defined` | DefineBusinessCalendar | `business_calendar` | INFO | Every time |
+| `business_calendar.defined` | DefineHubCalendar | `hub_business_calendar` | INFO | Every time |
 | `business_calendar.deleted` | DeleteBusinessCalendar | `business_calendar` | INFO | Every time |
+| `business_calendar.deleted` | DeleteHubCalendar | `hub_business_calendar` | INFO | Every time |
 | `business_calendar.read` | ListBusinessCalendars | `business_calendar` | INFO | When refused |
+| `business_calendar.read` | ListHubCalendars | `hub_business_calendar` | INFO | When refused |
 
 ## Cmdb
 
