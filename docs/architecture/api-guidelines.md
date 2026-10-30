@@ -42,7 +42,9 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    declared input. An answer drawn by one of the adapter's shared mappers (an entry, by
    `workItemResponse`) names it with `x-hubtask-rest-answer`; for a bare-array or paged answer
    the named mapper draws one row, and `x-hubtask-rest-list: whole` has it draw the whole answer
-   instead (a page with members beside its rows, a list spelled otherwise). `x-hubtask-rest-cache:
+   instead (a page with members beside its rows, a list spelled otherwise). `x-hubtask-rest-drop: [member]` accepts and drops a body member the contract
+   declares and the use case does not, as its hand-written door did, until the owner decides it
+   (a schedule's `enabled`). `x-hubtask-rest-cache:
    no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be
    stored. `x-hubtask-cli` names
    the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`; a hand-written

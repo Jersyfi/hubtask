@@ -14213,6 +14213,17 @@
           "backup"
         ],
         "operationId": "createBackupSchedule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-flatten": {
+          "scope": {
+            "kind": "scope",
+            "id": "scope_id"
+          }
+        },
+        "x-hubtask-rest-drop": [
+          "enabled"
+        ],
+        "x-hubtask-rest-answer": "backupScheduleResponse",
         "summary": "Create a backup schedule",
         "description": "RRULE-based (RFC 5545), with generational retention and a `min_keep` floor.",
         "requestBody": {

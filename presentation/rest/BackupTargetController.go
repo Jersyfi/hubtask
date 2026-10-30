@@ -8,10 +8,6 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-const (
-	createBackupTargetUseCase = "CreateBackupTarget"
-)
-
 // backupProbeResponse maps a probe.
 func backupProbeResponse(out usecase.Output) openapi.BackupTargetProbe {
 	writable, _ := out["writable"].(bool)

@@ -4,89 +4,13 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
-
-const (
-	createBackupScheduleUseCase = "CreateBackupSchedule"
-)
-
-// CreateBackupSchedule answers POST /backup-schedules.
-func (c *RestController) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	var body openapi.BackupSchedule
-	if err := decodeFrom(r.Body, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{"target_id": body.TargetId.String(), "rrule": body.Rrule}
-	if body.Timezone != nil {
-		in["timezone"] = *body.Timezone
-	}
-	if body.Scope.Kind != nil {
-		in["scope"] = string(*body.Scope.Kind)
-	}
-	if body.Scope.Id != nil {
-		in["scope_id"] = body.Scope.Id.String()
-	}
-	if body.Mode != nil {
-		in["mode"] = string(*body.Mode)
-	}
-	if body.FullRrule != nil {
-		in["full_rrule"] = *body.FullRrule
-	}
-	if body.IncludeMedia != nil {
-		in["include_media"] = *body.IncludeMedia
-	}
-	if body.IncludeAudit != nil {
-		in["include_audit"] = *body.IncludeAudit
-	}
-	if body.TrialRestore != nil {
-		in["trial_restore"] = *body.TrialRestore
-	}
-	if body.NotifyOn != nil {
-		occasions := make([]any, 0, len(*body.NotifyOn))
-		for _, occasion := range *body.NotifyOn {
-			occasions = append(occasions, string(occasion))
-		}
-		in["notify_on"] = occasions
-	}
-	if body.Retention != nil {
-		in["retention"] = retentionInput(*body.Retention)
-	}
-
-	out, ok := c.read(w, r, createBackupScheduleUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, backupScheduleResponse(out))
-}
-
-// retentionInput carries only the numbers a caller actually named. The use case keeps its defaults
-// for the rest, so "min_keep: 5" means "the usual plan with a higher floor" rather than "keep
-// nothing but five".
-func retentionInput(plan openapi.BackupRetention) map[string]any {
-	out := map[string]any{}
-	for name, value := range map[string]*int{
-		"keep_last": plan.KeepLast, "keep_daily": plan.KeepDaily,
-		"keep_weekly": plan.KeepWeekly, "keep_monthly": plan.KeepMonthly,
-		"keep_yearly": plan.KeepYearly, "min_keep": plan.MinKeep,
-	} {
-		if value != nil {
-			out[name] = float64(*value)
-		}
-	}
-	return out
-}
 
 // acceptedJob is the pointer a 202 hands back.
 func acceptedJob(out usecase.Output) openapi.JobRef {

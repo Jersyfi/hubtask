@@ -16,7 +16,6 @@ import (
 // application layer, and a refusal is recorded there - an adapter that narrowed the filter itself
 // would be an adapter deciding a permission (ADR-0005).
 
-
 // auditPageResponse draws GET /audit's page (x-hubtask-rest-list: whole).
 //
 // The page is spelled `items` and `next_cursor` here rather than the `data`/`page` shape every

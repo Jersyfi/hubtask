@@ -9,7 +9,6 @@ import (
 
 // The reads a person meets before asking AI anything: which entries look like the title being
 // typed (UC-AI-04 check 7).
-const findDuplicatesByTitleUseCase = "FindDuplicatesByTitle"
 
 // aiBudgetStateResponse writes the moment as null for OFF rather than leaving it out, which the
 // generated type's omitempty would.

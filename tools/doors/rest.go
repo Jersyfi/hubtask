@@ -82,6 +82,10 @@ type RESTDoor struct {
 	// AnswerWhole says the named mapper draws the whole answer, a list or a page with members
 	// beside its rows included (`x-hubtask-rest-list: whole`).
 	AnswerWhole bool
+	// Dropped are body members the contract declares and the use case does not
+	// (`x-hubtask-rest-drop`): accepted and dropped, as the door did before it was generated, until
+	// the owner decides the member's fate. Never a member the use case reads.
+	Dropped []string
 	// NoStore marks the answer `Cache-Control: no-store` (`x-hubtask-rest-cache: no-store`): a
 	// read sent as a POST whose answer is made of the caller's words.
 	NoStore bool
@@ -109,6 +113,7 @@ type restOperation struct {
 	Request     []string                     `yaml:"x-hubtask-rest-request"`
 	Flatten     map[string]map[string]string `yaml:"x-hubtask-rest-flatten"`
 	Cache       string                       `yaml:"x-hubtask-rest-cache"`
+	Drop        []string                     `yaml:"x-hubtask-rest-drop"`
 	Alternate   *struct {
 		When   string `yaml:"when"`
 		Answer string `yaml:"answer"`
@@ -294,6 +299,16 @@ func restDoor(
 			}
 		}
 		door.Flatten = op.Flatten
+		for _, name := range op.Drop {
+			held := false
+			for _, content := range op.RequestBody.Content {
+				_, held = doc.composed(content.Schema).Properties[name]
+			}
+			if !held {
+				return door, fmt.Errorf("x-hubtask-rest-drop names %s, which the body does not hold", name)
+			}
+		}
+		door.Dropped = op.Drop
 	}
 
 	for _, status := range []string{"200", "201", "202", "204"} {
@@ -501,6 +516,9 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 				parts = append(parts, fmt.Sprintf("%q: {%s}", name, strings.Join(pairs, ", ")))
 			}
 			extra += ", Flatten: map[string]map[string]string{" + strings.Join(parts, ", ") + "}"
+		}
+		if len(d.Dropped) > 0 {
+			extra += fmt.Sprintf(", Dropped: %#v", d.Dropped)
 		}
 		if d.NoStore {
 			extra += ", NoStore: true"

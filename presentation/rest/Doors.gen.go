@@ -110,6 +110,7 @@ var restDoors = map[string]restDoor{
 	"correctTimeRecord":                 {UseCase: "CorrectTimeRecord", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
 	"countAccountsWithoutProvider":      {UseCase: "CountAccountsWithoutProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createAccessToken":                 {UseCase: "CreateAccessToken", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/auth/tokens/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "token"},
+	"createBackupSchedule":              {UseCase: "CreateBackupSchedule", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ReadOnly: []string{"id", "next_run_at"}, Flatten: map[string]map[string]string{"scope": {"id": "scope_id", "kind": "scope"}}, Dropped: []string{"enabled"}},
 	"createBackupTarget":                {UseCase: "CreateBackupTarget", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createBucket":                      {UseCase: "CreateBucket", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/buckets/{id}", NullClears: false, Integers: []string{"wip_limit"}},
 	"createChatBot":                     {UseCase: "CreateChatBot", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1313,6 +1314,12 @@ func (c *RestController) CreateAccessToken(w http.ResponseWriter, r *http.Reques
 	var body openapi.CreateAccessTokenJSONRequestBody
 	var answer openapi.AccessTokenSecret
 	c.door(w, r, restDoors["createAccessToken"], usecase.Input{}, params, &body, &answer)
+}
+
+// CreateBackupSchedule answers POST /backup-schedules by the generated mapping.
+func (c *RestController) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) {
+	var body openapi.CreateBackupScheduleJSONRequestBody
+	c.door(w, r, restDoors["createBackupSchedule"], usecase.Input{}, nil, &body, answerBy(backupScheduleResponse))
 }
 
 // CreateBackupTarget answers POST /backup-targets by the generated mapping.

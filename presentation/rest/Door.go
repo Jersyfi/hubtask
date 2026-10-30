@@ -74,6 +74,9 @@ type restDoor struct {
 	// ReadOnly are the body's read-only members: the answer's, sent back by a client that saves
 	// what it read, and dropped rather than refused as an input nobody declares.
 	ReadOnly []string
+	// Dropped are body members the contract declares and the use case does not: accepted and
+	// dropped, as before the door was generated, until the owner decides them.
+	Dropped []string
 	// NoStore marks the answer no-store: a read sent as a POST, made of the caller's words.
 	NoStore bool
 }
@@ -127,7 +130,7 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 				sent = nil
 			}
 			for name, value := range sent {
-				if slices.Contains(d.ReadOnly, name) {
+				if slices.Contains(d.ReadOnly, name) || slices.Contains(d.Dropped, name) {
 					continue
 				}
 				if inputs, flat := d.Flatten[name]; flat {

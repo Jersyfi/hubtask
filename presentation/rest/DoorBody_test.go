@@ -106,6 +106,12 @@ func TestEveryGeneratedBodyMemberIsADeclaredInput(t *testing.T) {
 						}
 						continue
 					}
+					if slices.Contains(door.Dropped, name) {
+						if fields[name] {
+							t.Errorf("%s: %s is dropped, but %s reads it", op.OperationID, name, door.UseCase)
+						}
+						continue
+					}
 					if !fields[name] && !refused[op.OperationID+"."+name] {
 						t.Errorf("%s: the body member %s is not an input %s declares", op.OperationID, name, door.UseCase)
 					}
