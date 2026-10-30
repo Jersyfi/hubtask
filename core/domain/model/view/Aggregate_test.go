@@ -249,3 +249,20 @@ func TestTheSetAndPrefixOperatorsAreHeldToTheShape(t *testing.T) {
 		})
 	}
 }
+
+// UC-GOL-04 check 11: cycle time, WIP age and time in status are built-in quantities read from the
+// status history; a count of one is refused like any quantity's.
+func TestAFlowQuantityIsReadFromTheStatusHistory(t *testing.T) {
+	for _, q := range []Quantity{QuantityCycleTime, QuantityWipAge, QuantityTimeInStatus} {
+		aggregation, err := ParseAggregation(map[string]any{"function": "AVG", "field": string(q)}, "/a")
+		if err != nil || aggregation.Quantity != q || !q.ReadsFlow() {
+			t.Fatalf("%s: %+v %v", q, aggregation, err)
+		}
+		if _, err := ParseAggregation(map[string]any{"function": "COUNT", "field": string(q)}, "/a"); err == nil {
+			t.Fatalf("%s: a count of a quantity was kept", q)
+		}
+	}
+	if QuantityLeadTime.ReadsFlow() {
+		t.Fatal("lead time is the entry's own stamps, not the history")
+	}
+}

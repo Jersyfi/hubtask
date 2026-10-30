@@ -5,6 +5,7 @@ package view
 
 import (
 	"slices"
+	"time"
 )
 
 // AggregateFunction is what an aggregation computes over the entries a query keeps. A closed
@@ -51,11 +52,30 @@ const (
 	// QuantitySatisfaction is the requester's score of the resolved entry, 1 to 5 (UC-SVC-07):
 	// AVG over a queue's view is that queue's satisfaction. An entry nobody rated holds none.
 	QuantitySatisfaction Quantity = "satisfaction"
+	// QuantityCycleTime is the first entry into a status of the IN_PROGRESS category to completion.
+	// Read from the status history, which is written from migration 0250 on: an entry that never
+	// entered such a status since then, or is open, holds none.
+	QuantityCycleTime Quantity = "cycle_time"
+	// QuantityWipAge is how long an open entry has been in progress: its first entry into an
+	// IN_PROGRESS status to now. A completed entry, or one never started since then, holds none.
+	QuantityWipAge Quantity = "wip_age"
+	// QuantityTimeInStatus is how long an open entry has stood in its current status: its latest
+	// entry into it to now. A completed entry, or one without history, holds none.
+	QuantityTimeInStatus Quantity = "time_in_status"
 )
 
 // Quantities lists the built-in measures, for a door that offers them.
 func Quantities() []Quantity {
-	return []Quantity{QuantityLeadTime, QuantityScheduledSpan, QuantitySatisfaction}
+	return []Quantity{
+		QuantityLeadTime, QuantityScheduledSpan, QuantitySatisfaction,
+		QuantityCycleTime, QuantityWipAge, QuantityTimeInStatus,
+	}
+}
+
+// ReadsFlow reports whether a quantity is read from the status history, so the use case hands
+// the compiler the started statuses and the moment it asks.
+func (q Quantity) ReadsFlow() bool {
+	return q == QuantityCycleTime || q == QuantityWipAge || q == QuantityTimeInStatus
 }
 
 // AggregateSource is what an aggregation counts: the entries a query keeps, or the links between
@@ -100,6 +120,11 @@ type Aggregation struct {
 	BucketField Field
 	// WeekStart is the first day of a weekly bucket; empty for every other period.
 	WeekStart WeekStart
+	// Started and Now are set by the use case for a flow quantity, never parsed from a request:
+	// the status keys of the IN_PROGRESS category in the workspace's workflows, and the moment of
+	// asking, from its clock (rule 4).
+	Started []string
+	Now     time.Time
 }
 
 // IsGrouped reports whether the aggregation is split by a field.

@@ -6,6 +6,7 @@ package query
 import (
 	"strings"
 	"testing"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -207,5 +208,40 @@ func TestALinksSummaryCountsLinksWithBothEndsKept(t *testing.T) {
 	}
 	if strings.Contains(entries.SQL, "entry_link") {
 		t.Errorf("an entries summary reads links:\n%s", entries.SQL)
+	}
+}
+
+// UC-GOL-04 check 11: cycle time, WIP age and time in status read the status history, with the
+// started statuses and the moment bound - never statement text.
+func TestAFlowQuantityReadsTheStatusHistory(t *testing.T) {
+	now := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		quantity string
+		want     []string
+	}{
+		{"cycle_time", []string{`avg(div(extract(epoch FROM timestamptz_mi(wi.completed_at, (SELECT min(sc.entered_at) FROM entry_status_change sc WHERE sc.tenant_id = wi.tenant_id AND sc.item_id = wi.id AND sc.status = ANY($`}},
+		{"wip_age", []string{`CASE WHEN wi.completed_at IS NULL THEN div(extract(epoch FROM timestamptz_mi($`, `::timestamptz, (SELECT min(sc.entered_at)`}},
+		{"time_in_status", []string{`(SELECT max(sc.entered_at) FROM entry_status_change sc WHERE sc.tenant_id = wi.tenant_id AND sc.item_id = wi.id AND sc.status = wi.status)`}},
+	}
+	for _, test := range tests {
+		t.Run(test.quantity, func(t *testing.T) {
+			aggregation := aggregationOf(t, map[string]any{"function": "AVG", "field": test.quantity}, nil)
+			aggregation.Started, aggregation.Now = []string{"in_progress", "x'); DROP TABLE work_item; --"}, now
+			statement, err := Aggregate(searchOf(t, nil, view.Spec{}), aggregation, "UTC", 10)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, fragment := range test.want {
+				if !strings.Contains(statement.SQL, fragment) {
+					t.Errorf("missing %q in\n%s", fragment, statement.SQL)
+				}
+			}
+			if strings.Contains(statement.SQL, "in_progress") || strings.Contains(statement.SQL, "DROP") {
+				t.Errorf("a status reached the text:\n%s", statement.SQL)
+			}
+			if strings.Count(statement.SQL, "$") != len(statement.Args) {
+				t.Errorf("placeholders and arguments disagree:\n%s", statement.SQL)
+			}
+		})
 	}
 }

@@ -136,7 +136,7 @@ func (b *builder) aggregateValue(aggregation view.Aggregation) {
 	}
 	b.write(function)
 	if aggregation.Quantity != "" {
-		b.quantity(aggregation.Quantity)
+		b.quantity(aggregation)
 		b.write(`)::numeric`)
 		return
 	}
@@ -151,9 +151,13 @@ func (b *builder) aggregateValue(aggregation view.Aggregation) {
 // quantity writes a built-in measure: the span between two of the row's stamps in whole minutes,
 // NULL where either is missing, or the requester's score. timestamptz_mi is the subtraction operator's own function, spelled
 // as a name for the reason customText spells jsonb_extract_path_text.
-func (b *builder) quantity(quantity view.Quantity) {
+func (b *builder) quantity(aggregation view.Aggregation) {
+	if aggregation.Quantity.ReadsFlow() {
+		b.flowQuantity(aggregation)
+		return
+	}
 	var from, to string
-	switch quantity {
+	switch aggregation.Quantity {
 	case view.QuantityLeadTime:
 		from, to = `wi.created_at`, `wi.completed_at`
 	case view.QuantityScheduledSpan:
@@ -167,4 +171,45 @@ func (b *builder) quantity(quantity view.Quantity) {
 		return
 	}
 	b.write(`div(extract(epoch FROM timestamptz_mi(`, to, `, `, from, `)), 60)`)
+}
+
+// flowQuantity writes a measure read from the status history (migration 0250): the first entry
+// into a started status to completion (cycle time) or to the moment of asking (WIP age), or the
+// latest entry into the current status to that moment (time in status), in whole minutes. The
+// started keys and the moment are bound; an entry without the rows, or the wrong side of
+// completion, holds NULL.
+func (b *builder) flowQuantity(aggregation view.Aggregation) {
+	started := aggregation.Started
+	if started == nil {
+		started = []string{}
+	}
+	firstStart := func() {
+		b.write(`(SELECT min(sc.entered_at) FROM entry_status_change sc WHERE sc.tenant_id = wi.tenant_id `,
+			`AND sc.item_id = wi.id AND sc.status = ANY(`)
+		b.param(started)
+		b.write(`::text[]))`)
+	}
+	now := func() {
+		b.param(aggregation.Now.UTC())
+		b.write(`::timestamptz`)
+	}
+	switch aggregation.Quantity {
+	case view.QuantityCycleTime:
+		b.write(`div(extract(epoch FROM timestamptz_mi(wi.completed_at, `)
+		firstStart()
+		b.write(`)), 60)`)
+	case view.QuantityWipAge:
+		b.write(`CASE WHEN wi.completed_at IS NULL THEN div(extract(epoch FROM timestamptz_mi(`)
+		now()
+		b.write(`, `)
+		firstStart()
+		b.write(`)), 60) END`)
+	case view.QuantityTimeInStatus:
+		b.write(`CASE WHEN wi.completed_at IS NULL THEN div(extract(epoch FROM timestamptz_mi(`)
+		now()
+		b.write(`, (SELECT max(sc.entered_at) FROM entry_status_change sc WHERE sc.tenant_id = wi.tenant_id `,
+			`AND sc.item_id = wi.id AND sc.status = wi.status))), 60) END`)
+	default:
+		b.fail(shared.ErrInternal.WithDetail("query.quantity_unknown"))
+	}
 }

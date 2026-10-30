@@ -272,6 +272,22 @@ func NewWorkflows(rows []Workflow) Workflows {
 	return out
 }
 
+// Started answers the keys of the statuses of the IN_PROGRESS category in any of the workflows,
+// in order and once each: where a flow metric counts work as begun. A key in progress in one
+// workflow and not in another counts as begun in both - the history records the key alone.
+func (ws Workflows) Started() []string {
+	out := []string{}
+	for _, w := range ws {
+		for _, status := range w.Published.Statuses {
+			if status.Category == CategoryInProgress && !slices.Contains(out, status.Key) {
+				out = append(out, status.Key)
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Find answers a workflow by key.
 func (ws Workflows) Find(key string) (Workflow, bool) {
 	for _, w := range ws {
