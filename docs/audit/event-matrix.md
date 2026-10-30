@@ -780,11 +780,44 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `tenant.resumed` | ResumeTenant | `tenant` | INFO | Every time |
 | `tenant.suspended` | SuspendTenant | `tenant` | WARNING | Every time |
 
+## Time_absence
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_absence.read` | ListAbsences | `time_absence` | INFO | When refused |
+| `time_absence.recorded` | RecordAbsence | `time_absence` | INFO | Every time |
+| `time_absence.removed` | RemoveAbsence | `time_absence` | INFO | Every time |
+| `time_absence.updated` | UpdateAbsence | `time_absence` | INFO | Every time |
+
 ## Time_actuals
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `time_actuals.read` | ReadEstimatesVsActuals | `plan` | INFO | When refused |
+
+## Time_budget
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_budget.read` | ReadBudget | `time_budget` | INFO | When refused |
+| `time_budget.removed` | RemoveBudget | `time_budget` | INFO | Every time |
+| `time_budget.set` | SetBudget | `time_budget` | INFO | Every time |
+
+## Time_capacity
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_capacity.read` | ListCapacities | `time_capacity` | INFO | When refused |
+| `time_capacity.removed` | RemoveCapacity | `time_capacity` | INFO | Every time |
+| `time_capacity.set` | SetCapacity | `time_capacity` | INFO | Every time |
+
+## Time_cost_rate
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_cost_rate.read` | ListCostRates | `time_cost_rate` | INFO | When refused |
+| `time_cost_rate.removed` | RemoveCostRate | `time_cost_rate` | INFO | Every time |
+| `time_cost_rate.set` | SetCostRate | `time_cost_rate` | INFO | Every time |
 
 ## Time_policy
 
@@ -824,6 +857,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `time_work_type.defined` | DefineWorkType | `time_work_type` | INFO | Every time |
 | `time_work_type.read` | ListWorkTypes | `time_work_type` | INFO | When refused |
+
+## Time_workload
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_workload.read` | ReadWorkload | `plan` | INFO | When refused |
 
 ## Timesheet
 

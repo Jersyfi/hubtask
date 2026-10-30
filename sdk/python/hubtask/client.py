@@ -279,6 +279,66 @@ class Client:
         """Estimates against the time recorded"""
         return self._call("GET", "/plans/{planId}/actuals", {"planId": plan_id}, None, {}, None, "none", None, "json")
 
+    def read_workload(self, plan_id: str, *, query: dict[str, Any] | None = None) -> "Workload":
+        """Who has room in a plan"""
+        return self._call("GET", "/plans/{planId}/workload", {"planId": plan_id}, query, {}, None, "none", None, "json")
+
+    def read_budget(self, plan_id: str) -> "BudgetBurn":
+        """A plan's budget and its burn"""
+        return self._call("GET", "/plans/{planId}/budget", {"planId": plan_id}, None, {}, None, "none", None, "json")
+
+    def set_budget(self, plan_id: str, body: dict[str, Any]) -> "BudgetBurn":
+        """Set a plan's budget"""
+        return self._call("PUT", "/plans/{planId}/budget", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_budget(self, plan_id: str, *, if_match: str | None = None) -> None:
+        """Remove a plan's budget"""
+        return self._call("DELETE", "/plans/{planId}/budget", {"planId": plan_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def list_capacities(self, *, query: dict[str, Any] | None = None) -> "CapacityList":
+        """A person's capacities"""
+        return self._call("GET", "/time-capacities", {}, query, {}, None, "none", None, "json")
+
+    def set_capacity(self, from_: str, body: dict[str, Any]) -> "Capacity":
+        """Set a person's capacity from a day on"""
+        return self._call("PUT", "/time-capacities/{from}", {"from": from_}, None, {}, body, "json", "application/json", "json")
+
+    def remove_capacity(self, from_: str, *, query: dict[str, Any] | None = None) -> None:
+        """Remove a person's capacity from a day"""
+        return self._call("DELETE", "/time-capacities/{from}", {"from": from_}, query, {}, None, "none", None, "void")
+
+    def list_absences(self, *, query: dict[str, Any] | None = None) -> "AbsenceList":
+        """The shared calendar of absences"""
+        return self._call("GET", "/time-absences", {}, query, {}, None, "none", None, "json")
+
+    def record_absence(self, body: dict[str, Any]) -> "Absence":
+        """Record an absence once"""
+        return self._call("POST", "/time-absences", {}, None, {}, body, "json", "application/json", "json")
+
+    def update_absence(self, absence_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "Absence":
+        """Change an absence"""
+        return self._call("PATCH", "/time-absences/{absenceId}", {"absenceId": absence_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_absence(self, absence_id: str, *, if_match: str | None = None) -> None:
+        """Remove an absence"""
+        return self._call("DELETE", "/time-absences/{absenceId}", {"absenceId": absence_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def list_cost_rates(self) -> "CostRateList":
+        """The hourly cost rates"""
+        return self._call("GET", "/cost-rates", {}, None, {}, None, "none", None, "json")
+
+    def set_cost_rate(self, body: dict[str, Any]) -> "CostRate":
+        """Add an hourly cost rate"""
+        return self._call("POST", "/cost-rates", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_cost_rate(self, rate_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "CostRate":
+        """Change an hourly cost rate"""
+        return self._call("PATCH", "/cost-rates/{rateId}", {"rateId": rate_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_cost_rate(self, rate_id: str, *, if_match: str | None = None) -> None:
+        """Remove an hourly cost rate"""
+        return self._call("DELETE", "/cost-rates/{rateId}", {"rateId": rate_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
     def list_business_calendars(self) -> "BusinessCalendarList":
         """The workspace's business calendars"""
         return self._call("GET", "/business-calendars", {}, None, {}, None, "none", None, "json")

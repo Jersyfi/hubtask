@@ -27,6 +27,39 @@ var generatedGroups = map[string]string{
 
 // generatedCommands is every operation the contract names a command for, in a stable order.
 var generatedCommands = []door{
+	{Group: "absence", Verb: "add", OperationID: "recordAbsence", Method: "POST", Path: "/time-absences", Summary: "Record an absence once",
+		Body: []doorParam{
+			{Name: "account_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "from", Kind: "string", Help: "", Required: true},
+			{Name: "half", Kind: "boolean", Help: "", Required: false},
+			{Name: "kind", Kind: "string", Help: "", Required: true},
+			{Name: "to", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "kind", "version"}},
+	{Group: "absence", Verb: "ls", OperationID: "listAbsences", Method: "GET", Path: "/time-absences", Summary: "The shared calendar of absences",
+		Query: []doorParam{
+			{Name: "account_id", Kind: "uuid", Help: "One person; everybody without", Required: false},
+			{Name: "from", Kind: "string", Help: "The first day, YYYY-MM-DD", Required: true},
+			{Name: "to", Kind: "string", Help: "The last day, YYYY-MM-DD; at most 366 days after the first", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "kind", "version"}},
+	{Group: "absence", Verb: "rm", OperationID: "removeAbsence", Method: "DELETE", Path: "/time-absences/{absenceId}", Summary: "Remove an absence",
+		PathParams: []doorParam{
+			{Name: "absenceId", Kind: "uuid", Help: "An absence", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "absence", Verb: "update", OperationID: "updateAbsence", Method: "PATCH", Path: "/time-absences/{absenceId}", Summary: "Change an absence",
+		PathParams: []doorParam{
+			{Name: "absenceId", Kind: "uuid", Help: "An absence", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "expected_version", Kind: "integer", Help: "", Required: false},
+			{Name: "from", Kind: "string", Help: "", Required: true},
+			{Name: "half", Kind: "boolean", Help: "", Required: false},
+			{Name: "kind", Kind: "string", Help: "", Required: true},
+			{Name: "to", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "kind", "version"}},
 	{Group: "baseline", Verb: "compare", OperationID: "compareBaseline", Method: "GET", Path: "/baselines/{baselineId}", Summary: "A baseline beside today's plan",
 		PathParams: []doorParam{
 			{Name: "baselineId", Kind: "uuid", Help: "", Required: true},
@@ -68,6 +101,28 @@ var generatedCommands = []door{
 			{Name: "calendarKey", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "capacity", Verb: "ls", OperationID: "listCapacities", Method: "GET", Path: "/time-capacities", Summary: "A person's capacities",
+		Query: []doorParam{
+			{Name: "account_id", Kind: "uuid", Help: "The person; the caller without", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"version"}},
+	{Group: "capacity", Verb: "rm", OperationID: "removeCapacity", Method: "DELETE", Path: "/time-capacities/{from}", Summary: "Remove a person's capacity from a day",
+		PathParams: []doorParam{
+			{Name: "from", Kind: "string", Help: "The first day the capacity holds, YYYY-MM-DD", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "account_id", Kind: "uuid", Help: "The person; the caller without", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "capacity", Verb: "set", OperationID: "setCapacity", Method: "PUT", Path: "/time-capacities/{from}", Summary: "Set a person's capacity from a day on",
+		PathParams: []doorParam{
+			{Name: "from", Kind: "string", Help: "The first day the capacity holds, YYYY-MM-DD", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "account_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "week_minutes", Kind: "json", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
 	{Group: "ci", Verb: "alert ls", OperationID: "listCiAlerts", Method: "GET", Path: "/hubs/{hubId}/ci-alerts", Summary: "A hub's alerts",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
@@ -337,6 +392,35 @@ var generatedCommands = []door{
 			{Name: "settings", Kind: "json", Help: "How much structure a hub or collection has: nine settings", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"narrows"}},
+	{Group: "cost-rate", Verb: "add", OperationID: "setCostRate", Method: "POST", Path: "/cost-rates", Summary: "Add an hourly cost rate",
+		Body: []doorParam{
+			{Name: "account_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "currency", Kind: "string", Help: "", Required: true},
+			{Name: "from", Kind: "string", Help: "", Required: true},
+			{Name: "hour_minor", Kind: "integer", Help: "", Required: true},
+			{Name: "role", Kind: "string", Help: "", Required: false},
+			{Name: "to", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "version"}},
+	{Group: "cost-rate", Verb: "ls", OperationID: "listCostRates", Method: "GET", Path: "/cost-rates", Summary: "The hourly cost rates",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "version"}},
+	{Group: "cost-rate", Verb: "rm", OperationID: "removeCostRate", Method: "DELETE", Path: "/cost-rates/{rateId}", Summary: "Remove an hourly cost rate",
+		PathParams: []doorParam{
+			{Name: "rateId", Kind: "uuid", Help: "A cost rate", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "cost-rate", Verb: "update", OperationID: "changeCostRate", Method: "PATCH", Path: "/cost-rates/{rateId}", Summary: "Change an hourly cost rate",
+		PathParams: []doorParam{
+			{Name: "rateId", Kind: "uuid", Help: "A cost rate", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "currency", Kind: "string", Help: "", Required: true},
+			{Name: "expected_version", Kind: "integer", Help: "", Required: false},
+			{Name: "from", Kind: "string", Help: "", Required: true},
+			{Name: "hour_minor", Kind: "integer", Help: "", Required: true},
+			{Name: "to", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "version"}},
 	{Group: "item", Verb: "aggregate", OperationID: "aggregateItems", Method: "POST", Path: "/items:aggregate", Summary: "A summary of what a query keeps",
 		Body: []doorParam{
 			{Name: "aggregate", Kind: "json", Help: "", Required: true},
@@ -623,6 +707,11 @@ var generatedCommands = []door{
 			{Name: "zone", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "plan", Verb: "budget", OperationID: "readBudget", Method: "GET", Path: "/plans/{planId}/budget", Summary: "A plan's budget and its burn",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
 	{Group: "plan", Verb: "mode", OperationID: "setEntryScheduling", Method: "PUT", Path: "/items/{itemId}/scheduling", Summary: "Whether the scheduler may move an entry, and whether it is a milestone",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -632,6 +721,11 @@ var generatedCommands = []door{
 			{Name: "mode", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id", "milestone", "mode"}},
+	{Group: "plan", Verb: "rm-budget", OperationID: "removeBudget", Method: "DELETE", Path: "/plans/{planId}/budget", Summary: "Remove a plan's budget",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "plan", Verb: "schedule", OperationID: "readPlanSchedule", Method: "GET", Path: "/plans/{planId}/schedule", Summary: "A plan as the scheduler places it",
 		PathParams: []doorParam{
 			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
@@ -641,6 +735,28 @@ var generatedCommands = []door{
 			{Name: "zone", Kind: "string", Help: "An IANA time zone, when no calendar names one; UTC without", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"finish", "zone"}},
+	{Group: "plan", Verb: "set-budget", OperationID: "setBudget", Method: "PUT", Path: "/plans/{planId}/budget", Summary: "Set a plan's budget",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "amount_minor", Kind: "integer", Help: "", Required: false},
+			{Name: "currency", Kind: "string", Help: "", Required: false},
+			{Name: "expected_version", Kind: "integer", Help: "", Required: true},
+			{Name: "minutes", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
+	{Group: "plan", Verb: "workload", OperationID: "readWorkload", Method: "GET", Path: "/plans/{planId}/workload", Summary: "Who has room in a plan",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "calendar", Kind: "string", Help: "A business calendar's key, whose holidays nobody works", Required: false},
+			{Name: "from", Kind: "string", Help: "A day of the first week", Required: true},
+			{Name: "weeks", Kind: "integer", Help: "How many weeks; 26 without", Required: false},
+			{Name: "zone", Kind: "string", Help: "The time zone the entries' dates are days in; UTC without", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"aggregated", "plan_id", "unscheduled_minutes"}},
 	{Group: "reply", Verb: "define", OperationID: "defineReplyTemplate", Method: "PUT", Path: "/reply-templates/{templateKey}", Summary: "Add or replace a canned reply",
 		PathParams: []doorParam{
 			{Name: "templateKey", Kind: "string", Help: "", Required: true},

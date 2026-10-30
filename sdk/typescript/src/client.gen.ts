@@ -331,6 +331,81 @@ export class HubtaskClient {
     return this.call("GET", "/plans/{planId}/actuals", { "planId": planId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Who has room in a plan */
+  readWorkload(planId: string, options: CallOptions & { readonly query?: NonNullable<operations["readWorkload"]['parameters']['query']> } = {}): Promise<operations["readWorkload"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/plans/{planId}/workload", { "planId": planId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A plan's budget and its burn */
+  readBudget(planId: string, options: CallOptions = {}): Promise<operations["readBudget"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/plans/{planId}/budget", { "planId": planId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set a plan's budget */
+  setBudget(planId: string, body: NonNullable<operations["setBudget"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setBudget"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/plans/{planId}/budget", { "planId": planId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a plan's budget */
+  removeBudget(planId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/plans/{planId}/budget", { "planId": planId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** A person's capacities */
+  listCapacities(options: CallOptions & { readonly query?: NonNullable<operations["listCapacities"]['parameters']['query']> } = {}): Promise<operations["listCapacities"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/time-capacities", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set a person's capacity from a day on */
+  setCapacity(from: string, body: NonNullable<operations["setCapacity"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setCapacity"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/time-capacities/{from}", { "from": from }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a person's capacity from a day */
+  removeCapacity(from: string, options: CallOptions & { readonly query?: NonNullable<operations["removeCapacity"]['parameters']['query']> } = {}): Promise<void> {
+    return this.call("DELETE", "/time-capacities/{from}", { "from": from }, options.query, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** The shared calendar of absences */
+  listAbsences(options: CallOptions & { readonly query?: NonNullable<operations["listAbsences"]['parameters']['query']> } = {}): Promise<operations["listAbsences"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/time-absences", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Record an absence once */
+  recordAbsence(body: NonNullable<operations["recordAbsence"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["recordAbsence"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/time-absences", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change an absence */
+  updateAbsence(absenceId: string, body: NonNullable<operations["updateAbsence"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateAbsence"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/time-absences/{absenceId}", { "absenceId": absenceId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove an absence */
+  removeAbsence(absenceId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/time-absences/{absenceId}", { "absenceId": absenceId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** The hourly cost rates */
+  listCostRates(options: CallOptions = {}): Promise<operations["listCostRates"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cost-rates", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add an hourly cost rate */
+  setCostRate(body: NonNullable<operations["setCostRate"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setCostRate"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/cost-rates", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change an hourly cost rate */
+  changeCostRate(rateId: string, body: NonNullable<operations["changeCostRate"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeCostRate"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/cost-rates/{rateId}", { "rateId": rateId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove an hourly cost rate */
+  removeCostRate(rateId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/cost-rates/{rateId}", { "rateId": rateId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The workspace's business calendars */
   listBusinessCalendars(options: CallOptions = {}): Promise<operations["listBusinessCalendars"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/business-calendars", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

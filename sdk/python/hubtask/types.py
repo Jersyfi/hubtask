@@ -1442,6 +1442,64 @@ class TimePolicy(TypedDict, total=False):
     visibility: Required[Literal["FULL", "AGGREGATED"]]
     version: Required[int]
 
+Capacity = TypedDict("Capacity", {
+    "account_id": Required[str],
+    "from": Required[str],
+    "week_minutes": Required[list[int]],
+    "version": Required[int],
+}, total=False)
+
+class CapacityList(TypedDict, total=False):
+    data: Required[list["Capacity"]]
+
+Absence = TypedDict("Absence", {
+    "id": Required[str],
+    "account_id": Required[str],
+    "from": Required[str],
+    "to": Required[str],
+    "kind": Required[Literal["LEAVE", "TRAINING", "OTHER"]],
+    "half": Required[bool],
+    "version": Required[int],
+}, total=False)
+
+class AbsenceList(TypedDict, total=False):
+    data: Required[list["Absence"]]
+
+class Workload(TypedDict, total=False):
+    plan_id: Required[str]
+    aggregated: Required[bool]
+    unscheduled_minutes: Required[int]
+    cells: Required[list[dict[str, Any]]]
+    team: Required[list[dict[str, Any]]]
+
+CostRate = TypedDict("CostRate", {
+    "id": Required[str],
+    "account_id": Required[str | None],
+    "role": Required[str | None],
+    "hour_minor": Required[int],
+    "currency": Required[str],
+    "from": Required[str],
+    "to": Required[str | None],
+    "version": Required[int],
+}, total=False)
+
+class CostRateList(TypedDict, total=False):
+    data: Required[list["CostRate"]]
+
+class BudgetBurn(TypedDict, total=False):
+    plan_id: Required[str]
+    budgeted: Required[bool]
+    budget_minutes: Required[int]
+    budget_amount_minor: Required[int]
+    currency: Required[str]
+    version: Required[int]
+    minutes: Required[int]
+    amount_minor: Required[int]
+    unpriced_minutes: Required[int]
+    over_time: Required[bool]
+    over_money: Required[bool]
+    weeks: Required[list[dict[str, Any]]]
+
 class EstimatesVsActuals(TypedDict, total=False):
     plan_id: Required[str]
     estimate_hours: Required[float]

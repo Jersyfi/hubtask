@@ -21,6 +21,27 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AbsenceKind.
+const (
+	AbsenceKindLEAVE    AbsenceKind = "LEAVE"
+	AbsenceKindOTHER    AbsenceKind = "OTHER"
+	AbsenceKindTRAINING AbsenceKind = "TRAINING"
+)
+
+// Valid indicates whether the value is a known member of the AbsenceKind enum.
+func (e AbsenceKind) Valid() bool {
+	switch e {
+	case AbsenceKindLEAVE:
+		return true
+	case AbsenceKindOTHER:
+		return true
+	case AbsenceKindTRAINING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AcceptedSuggestionSource.
 const (
 	AcceptedSuggestionSourceAI AcceptedSuggestionSource = "AI"
@@ -8661,6 +8682,48 @@ func (e PreviewModuleReachParamsSwitch) Valid() bool {
 	}
 }
 
+// Defines values for RecordAbsenceJSONBodyKind.
+const (
+	RecordAbsenceJSONBodyKindLEAVE    RecordAbsenceJSONBodyKind = "LEAVE"
+	RecordAbsenceJSONBodyKindOTHER    RecordAbsenceJSONBodyKind = "OTHER"
+	RecordAbsenceJSONBodyKindTRAINING RecordAbsenceJSONBodyKind = "TRAINING"
+)
+
+// Valid indicates whether the value is a known member of the RecordAbsenceJSONBodyKind enum.
+func (e RecordAbsenceJSONBodyKind) Valid() bool {
+	switch e {
+	case RecordAbsenceJSONBodyKindLEAVE:
+		return true
+	case RecordAbsenceJSONBodyKindOTHER:
+		return true
+	case RecordAbsenceJSONBodyKindTRAINING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateAbsenceJSONBodyKind.
+const (
+	UpdateAbsenceJSONBodyKindLEAVE    UpdateAbsenceJSONBodyKind = "LEAVE"
+	UpdateAbsenceJSONBodyKindOTHER    UpdateAbsenceJSONBodyKind = "OTHER"
+	UpdateAbsenceJSONBodyKindTRAINING UpdateAbsenceJSONBodyKind = "TRAINING"
+)
+
+// Valid indicates whether the value is a known member of the UpdateAbsenceJSONBodyKind enum.
+func (e UpdateAbsenceJSONBodyKind) Valid() bool {
+	switch e {
+	case UpdateAbsenceJSONBodyKindLEAVE:
+		return true
+	case UpdateAbsenceJSONBodyKindOTHER:
+		return true
+	case UpdateAbsenceJSONBodyKindTRAINING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetTimePolicyJSONBodyVisibility.
 const (
 	SetTimePolicyJSONBodyVisibilityAGGREGATED SetTimePolicyJSONBodyVisibility = "AGGREGATED"
@@ -8761,6 +8824,25 @@ func (e ShowAlexaModelParamsLocale) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// Absence defines model for Absence.
+type Absence struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	From      openapi_types.Date `json:"from"`
+	Half      bool               `json:"half"`
+	Id        openapi_types.UUID `json:"id"`
+	Kind      AbsenceKind        `json:"kind"`
+	To        openapi_types.Date `json:"to"`
+	Version   int                `json:"version"`
+}
+
+// AbsenceKind defines model for Absence.Kind.
+type AbsenceKind string
+
+// AbsenceList defines model for AbsenceList.
+type AbsenceList struct {
+	Data []Absence `json:"data"`
 }
 
 // AcceptedSuggestion The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only.
@@ -10007,6 +10089,29 @@ type BucketUpdate struct {
 	WipLimit *int `json:"wip_limit,omitempty"`
 }
 
+// BudgetBurn defines model for BudgetBurn.
+type BudgetBurn struct {
+	AmountMinor       int64              `json:"amount_minor"`
+	BudgetAmountMinor int64              `json:"budget_amount_minor"`
+	BudgetMinutes     int64              `json:"budget_minutes"`
+	Budgeted          bool               `json:"budgeted"`
+	Currency          string             `json:"currency"`
+	Minutes           int64              `json:"minutes"`
+	OverMoney         bool               `json:"over_money"`
+	OverTime          bool               `json:"over_time"`
+	PlanId            openapi_types.UUID `json:"plan_id"`
+	UnpricedMinutes   int64              `json:"unpriced_minutes"`
+	Version           int                `json:"version"`
+	Weeks             []struct {
+		// AmountMinor Cumulative.
+		AmountMinor int64 `json:"amount_minor"`
+
+		// Minutes Cumulative.
+		Minutes int64              `json:"minutes"`
+		Week    openapi_types.Date `json:"week"`
+	} `json:"weeks"`
+}
+
 // BulkOperation One operation of a bulk: which of the single-entry operations to carry out, on which entry, with the body that operation takes on its own.
 type BulkOperation struct {
 	// ItemId The entry the operation is about. Required by every operation except CREATE_ITEM, which has no entry yet.
@@ -10254,6 +10359,21 @@ type CapabilitiesTenancyMode string
 
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
+
+// Capacity defines model for Capacity.
+type Capacity struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	From      openapi_types.Date `json:"from"`
+	Version   int                `json:"version"`
+
+	// WeekMinutes Monday first.
+	WeekMinutes []int `json:"week_minutes"`
+}
+
+// CapacityList defines model for CapacityList.
+type CapacityList struct {
+	Data []Capacity `json:"data"`
+}
 
 // CiAlert defines model for CiAlert.
 type CiAlert struct {
@@ -11588,6 +11708,23 @@ type ContainerUpdate struct {
 	Description *string `json:"description,omitempty"`
 	Icon        *string `json:"icon,omitempty"`
 	Name        *string `json:"name,omitempty"`
+}
+
+// CostRate defines model for CostRate.
+type CostRate struct {
+	AccountId *openapi_types.UUID `json:"account_id"`
+	Currency  string              `json:"currency"`
+	From      openapi_types.Date  `json:"from"`
+	HourMinor int64               `json:"hour_minor"`
+	Id        openapi_types.UUID  `json:"id"`
+	Role      *string             `json:"role"`
+	To        *openapi_types.Date `json:"to"`
+	Version   int                 `json:"version"`
+}
+
+// CostRateList defines model for CostRateList.
+type CostRateList struct {
+	Data []CostRate `json:"data"`
 }
 
 // Cover defines model for Cover.
@@ -19378,6 +19515,35 @@ type WorkflowStep struct {
 // WorkflowStepChecksMessageCode A shipped message picked instead of writing one, rendered in the reader's language; another is refused with `workflows.message_code_unknown`.
 type WorkflowStepChecksMessageCode string
 
+// Workload defines model for Workload.
+type Workload struct {
+	// Aggregated Only the team's sums, naming nobody.
+	Aggregated bool `json:"aggregated"`
+	Cells      []struct {
+		AccountId        openapi_types.UUID `json:"account_id"`
+		AllocatedMinutes int                `json:"allocated_minutes"`
+		AvailableMinutes int                `json:"available_minutes"`
+
+		// Known False where the person's capacity is not known.
+		Known bool `json:"known"`
+		Over  bool `json:"over"`
+
+		// Under At least a fifth of what the person can give is unasked.
+		Under bool               `json:"under"`
+		Week  openapi_types.Date `json:"week"`
+	} `json:"cells"`
+	PlanId openapi_types.UUID `json:"plan_id"`
+	Team   []struct {
+		AllocatedMinutes int                `json:"allocated_minutes"`
+		AvailableMinutes int                `json:"available_minutes"`
+		People           int                `json:"people"`
+		Week             openapi_types.Date `json:"week"`
+	} `json:"team"`
+
+	// UnscheduledMinutes Remaining minutes of assigned open entries with neither a start nor a due day.
+	UnscheduledMinutes int `json:"unscheduled_minutes"`
+}
+
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
 	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off. Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
@@ -20423,6 +20589,37 @@ type UnarchiveContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetCostRateJSONBody defines parameters for SetCostRate.
+type SetCostRateJSONBody struct {
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+	Currency  string              `json:"currency"`
+	From      openapi_types.Date  `json:"from"`
+	HourMinor int                 `json:"hour_minor"`
+	Role      *string             `json:"role,omitempty"`
+	To        *openapi_types.Date `json:"to,omitempty"`
+}
+
+// RemoveCostRateParams defines parameters for RemoveCostRate.
+type RemoveCostRateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeCostRateJSONBody defines parameters for ChangeCostRate.
+type ChangeCostRateJSONBody struct {
+	Currency        string              `json:"currency"`
+	ExpectedVersion *int                `json:"expected_version,omitempty"`
+	From            openapi_types.Date  `json:"from"`
+	HourMinor       int                 `json:"hour_minor"`
+	To              *openapi_types.Date `json:"to,omitempty"`
+}
+
+// ChangeCostRateParams defines parameters for ChangeCostRate.
+type ChangeCostRateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListCustomFieldsParams defines parameters for ListCustomFields.
 type ListCustomFieldsParams struct {
 	// CollectionId The collection whose definitions are wanted, together with the workspace-wide ones. Omitted answers the workspace-wide ones alone.
@@ -21195,6 +21392,20 @@ type TakeBaselineJSONBody struct {
 	Name string `json:"name"`
 }
 
+// RemoveBudgetParams defines parameters for RemoveBudget.
+type RemoveBudgetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetBudgetJSONBody defines parameters for SetBudget.
+type SetBudgetJSONBody struct {
+	AmountMinor     *int    `json:"amount_minor,omitempty"`
+	Currency        *string `json:"currency,omitempty"`
+	ExpectedVersion int     `json:"expected_version"`
+	Minutes         *int    `json:"minutes,omitempty"`
+}
+
 // ReadPlanScheduleParams defines parameters for ReadPlanSchedule.
 type ReadPlanScheduleParams struct {
 	// Calendar A business calendar's key.
@@ -21209,6 +21420,21 @@ type ApplyPlanScheduleJSONBody struct {
 	Calendar *string              `json:"calendar,omitempty"`
 	ItemIds  []openapi_types.UUID `json:"item_ids"`
 	Zone     *string              `json:"zone,omitempty"`
+}
+
+// ReadWorkloadParams defines parameters for ReadWorkload.
+type ReadWorkloadParams struct {
+	// From A day of the first week.
+	From openapi_types.Date `form:"from" json:"from"`
+
+	// Weeks How many weeks; 26 without.
+	Weeks *int `form:"weeks,omitempty" json:"weeks,omitempty"`
+
+	// Calendar A business calendar's key, whose holidays nobody works.
+	Calendar *string `form:"calendar,omitempty" json:"calendar,omitempty"`
+
+	// Zone The time zone the entries' dates are days in; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
 }
 
 // WithdrawPresetParams defines parameters for WithdrawPreset.
@@ -21493,6 +21719,72 @@ type PreviewModuleReachParamsSwitch string
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListAbsencesParams defines parameters for ListAbsences.
+type ListAbsencesParams struct {
+	// From The first day, YYYY-MM-DD.
+	From TimeFrom `form:"from" json:"from"`
+
+	// To The last day, YYYY-MM-DD; at most 366 days after the first.
+	To TimeTo `form:"to" json:"to"`
+
+	// AccountId One person; everybody without.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// RecordAbsenceJSONBody defines parameters for RecordAbsence.
+type RecordAbsenceJSONBody struct {
+	AccountId *openapi_types.UUID       `json:"account_id,omitempty"`
+	From      openapi_types.Date        `json:"from"`
+	Half      *bool                     `json:"half,omitempty"`
+	Kind      RecordAbsenceJSONBodyKind `json:"kind"`
+	To        openapi_types.Date        `json:"to"`
+}
+
+// RecordAbsenceJSONBodyKind defines parameters for RecordAbsence.
+type RecordAbsenceJSONBodyKind string
+
+// RemoveAbsenceParams defines parameters for RemoveAbsence.
+type RemoveAbsenceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateAbsenceJSONBody defines parameters for UpdateAbsence.
+type UpdateAbsenceJSONBody struct {
+	ExpectedVersion *int                      `json:"expected_version,omitempty"`
+	From            openapi_types.Date        `json:"from"`
+	Half            *bool                     `json:"half,omitempty"`
+	Kind            UpdateAbsenceJSONBodyKind `json:"kind"`
+	To              openapi_types.Date        `json:"to"`
+}
+
+// UpdateAbsenceParams defines parameters for UpdateAbsence.
+type UpdateAbsenceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateAbsenceJSONBodyKind defines parameters for UpdateAbsence.
+type UpdateAbsenceJSONBodyKind string
+
+// ListCapacitiesParams defines parameters for ListCapacities.
+type ListCapacitiesParams struct {
+	// AccountId The person; the caller without.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// RemoveCapacityParams defines parameters for RemoveCapacity.
+type RemoveCapacityParams struct {
+	// AccountId The person; the caller without.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// SetCapacityJSONBody defines parameters for SetCapacity.
+type SetCapacityJSONBody struct {
+	AccountId   *openapi_types.UUID `json:"account_id,omitempty"`
+	WeekMinutes []int               `json:"week_minutes"`
 }
 
 // SetTimePolicyJSONBody defines parameters for SetTimePolicy.
@@ -22103,6 +22395,12 @@ type ReorderContainerJSONRequestBody ReorderContainerJSONBody
 // AiSummarizeContainerJSONRequestBody defines body for AiSummarizeContainer for application/json ContentType.
 type AiSummarizeContainerJSONRequestBody = AiAsk
 
+// SetCostRateJSONRequestBody defines body for SetCostRate for application/json ContentType.
+type SetCostRateJSONRequestBody SetCostRateJSONBody
+
+// ChangeCostRateJSONRequestBody defines body for ChangeCostRate for application/json ContentType.
+type ChangeCostRateJSONRequestBody ChangeCostRateJSONBody
+
 // DefineCustomFieldJSONRequestBody defines body for DefineCustomField for application/json ContentType.
 type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 
@@ -22358,6 +22656,9 @@ type SearchPagesJSONRequestBody = PageSearch
 // TakeBaselineJSONRequestBody defines body for TakeBaseline for application/json ContentType.
 type TakeBaselineJSONRequestBody TakeBaselineJSONBody
 
+// SetBudgetJSONRequestBody defines body for SetBudget for application/json ContentType.
+type SetBudgetJSONRequestBody SetBudgetJSONBody
+
 // ApplyPlanScheduleJSONRequestBody defines body for ApplyPlanSchedule for application/json ContentType.
 type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
 
@@ -22471,6 +22772,15 @@ type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
 
 // PreviewWorkspaceStructureJSONRequestBody defines body for PreviewWorkspaceStructure for application/json ContentType.
 type PreviewWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
+
+// RecordAbsenceJSONRequestBody defines body for RecordAbsence for application/json ContentType.
+type RecordAbsenceJSONRequestBody RecordAbsenceJSONBody
+
+// UpdateAbsenceJSONRequestBody defines body for UpdateAbsence for application/json ContentType.
+type UpdateAbsenceJSONRequestBody UpdateAbsenceJSONBody
+
+// SetCapacityJSONRequestBody defines body for SetCapacity for application/json ContentType.
+type SetCapacityJSONRequestBody SetCapacityJSONBody
 
 // SetTimePolicyJSONRequestBody defines body for SetTimePolicy for application/json ContentType.
 type SetTimePolicyJSONRequestBody SetTimePolicyJSONBody
@@ -26128,6 +26438,56 @@ type ClientInterface interface {
 	// Makes the container writable again. A collection that was archived in its own right stays archived when its hub is unarchived - unarchiving restores what was archived, not what was merely covered by it. Idempotent.
 	UnarchiveContainer(ctx context.Context, containerId ContainerId, params *UnarchiveContainerParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListCostRates The hourly cost rates
+	//
+	// Of a person or of a role, in a currency's minor unit, from a day to a day or on. What a person earns is read by nobody without MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /cost-rates (the `ListCostRates` operationId).
+	ListCostRates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCostRateWithBody Add an hourly cost rate
+	//
+	// Of a person or of a role - an amount in a currency's minor unit and an ISO 4217 code - from a day to a day or on; a person's rate comes before their role's, and the days of two rates of one subject never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /cost-rates (the `SetCostRate` operationId).
+	SetCostRateWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCostRate Add an hourly cost rate
+	//
+	// Of a person or of a role - an amount in a currency's minor unit and an ISO 4217 code - from a day to a day or on; a person's rate comes before their role's, and the days of two rates of one subject never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /cost-rates (the `SetCostRate` operationId).
+	SetCostRate(ctx context.Context, body SetCostRateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveCostRate Remove an hourly cost rate
+	//
+	// The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with DELETE /cost-rates/{rateId} (the `RemoveCostRate` operationId).
+	RemoveCostRate(ctx context.Context, rateId openapi_types.UUID, params *RemoveCostRateParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeCostRateWithBody Change an hourly cost rate
+	//
+	// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its person or role stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /cost-rates/{rateId} (the `ChangeCostRate` operationId).
+	ChangeCostRateWithBody(ctx context.Context, rateId openapi_types.UUID, params *ChangeCostRateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeCostRate Change an hourly cost rate
+	//
+	// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its person or role stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /cost-rates/{rateId} (the `ChangeCostRate` operationId).
+	ChangeCostRate(ctx context.Context, rateId openapi_types.UUID, params *ChangeCostRateParams, body ChangeCostRateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListCustomFields performs a GET /custom-fields (the `ListCustomFields` operationId) request.
 	//
 	// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
@@ -28492,6 +28852,38 @@ type ClientInterface interface {
 	// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
 	TakeBaseline(ctx context.Context, planId PlanId, body TakeBaselineJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RemoveBudget Remove a plan's budget
+	//
+	// Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Corresponds with DELETE /plans/{planId}/budget (the `RemoveBudget` operationId).
+	RemoveBudget(ctx context.Context, planId PlanId, params *RemoveBudgetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadBudget A plan's budget and its burn
+	//
+	// Minutes, money in one currency, or both, against every minute recorded on the plan's entries and what they cost by each day's rate in the budget's currency (a rate in another currency is not converted; its minutes are unpriced), with the cumulative burn week by week. A plan without a budget answers its burn with `budgeted` false. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Corresponds with GET /plans/{planId}/budget (the `ReadBudget` operationId).
+	ReadBudget(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetBudgetWithBody Set a plan's budget
+	//
+	// Minutes, money in a currency's minor unit with its ISO 4217 code, or both; 0 for none. Held to the version read, 0 before the first. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /plans/{planId}/budget (the `SetBudget` operationId).
+	SetBudgetWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetBudget Set a plan's budget
+	//
+	// Minutes, money in a currency's minor unit with its ISO 4217 code, or both; 0 for none. Held to the version read, 0 before the first. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /plans/{planId}/budget (the `SetBudget` operationId).
+	SetBudget(ctx context.Context, planId PlanId, body SetBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadPlanSchedule A plan as the scheduler places it
 	//
 	// Every visible entry of the hub or collection with its start and finish as the scheduler places it: automatic entries as early as their predecessors allow, manual ones where they stand, with the dependencies they break. Each entry's total and free float in working days, the critical path, and the entries without a date. Counts a business calendar's working days, or Monday to Friday. Changes nothing. Needs READ at the plan and the planning module switched on.
@@ -28516,6 +28908,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
 	ApplyPlanSchedule(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadWorkload Who has room in a plan
+	//
+	// Week by week from a Monday, up to 26 weeks: each person's available minutes (their capacity, less the business calendar's holidays and their absences) against the minutes their assigned open entries' remaining estimates in hours ask, spread over the entries' scheduled days, with over and under allocation marked. The people are those the plan's open entries are assigned to and everybody whose capacity is known. Needs READ at the plan; where the workspace shows only sums, a reader without APPROVE_TIME or MANAGE_MEMBERS there reads the team's weeks only.
+	//
+	// Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
+	ReadWorkload(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPresets The presets a hub or collection can start from
 	//
@@ -29796,6 +30195,88 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
 	PreviewWorkspaceStructure(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAbsences The shared calendar of absences
+	//
+	// The absences sharing a day with a range of at most a year: who is away, from when to when, wholly or half of each day, and only the kind (LEAVE, TRAINING, OTHER), never a reason.
+	//
+	// Corresponds with GET /time-absences (the `ListAbsences` operationId).
+	ListAbsences(ctx context.Context, params *ListAbsencesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RecordAbsenceWithBody Record an absence once
+	//
+	// A span of at most a year a person is away - leave, training or other (an illness is OTHER), wholly or half of each day - once, for every plan and the workload. A span sharing a day with another of the person's is refused (`time.absence_overlaps`). One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /time-absences (the `RecordAbsence` operationId).
+	RecordAbsenceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RecordAbsence Record an absence once
+	//
+	// A span of at most a year a person is away - leave, training or other (an illness is OTHER), wholly or half of each day - once, for every plan and the workload. A span sharing a day with another of the person's is refused (`time.absence_overlaps`). One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /time-absences (the `RecordAbsence` operationId).
+	RecordAbsence(ctx context.Context, body RecordAbsenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveAbsence Remove an absence
+	//
+	// The version read goes as If-Match. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with DELETE /time-absences/{absenceId} (the `RemoveAbsence` operationId).
+	RemoveAbsence(ctx context.Context, absenceId openapi_types.UUID, params *RemoveAbsenceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateAbsenceWithBody Change an absence
+	//
+	// Its days, kind or half days, held to the version read, as If-Match or `expected_version`. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /time-absences/{absenceId} (the `UpdateAbsence` operationId).
+	UpdateAbsenceWithBody(ctx context.Context, absenceId openapi_types.UUID, params *UpdateAbsenceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateAbsence Change an absence
+	//
+	// Its days, kind or half days, held to the version read, as If-Match or `expected_version`. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /time-absences/{absenceId} (the `UpdateAbsence` operationId).
+	UpdateAbsence(ctx context.Context, absenceId openapi_types.UUID, params *UpdateAbsenceParams, body UpdateAbsenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCapacities A person's capacities
+	//
+	// The minutes of each weekday, Monday first, from a day on until the next capacity begins, the earliest first. One's own to everybody; another person's needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /time-capacities (the `ListCapacities` operationId).
+	ListCapacities(ctx context.Context, params *ListCapacitiesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveCapacity Remove a person's capacity from a day
+	//
+	// The capacity before it holds on. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with DELETE /time-capacities/{from} (the `RemoveCapacity` operationId).
+	RemoveCapacity(ctx context.Context, from string, params *RemoveCapacityParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCapacityWithBody Set a person's capacity from a day on
+	//
+	// Seven numbers of minutes, Monday first, each 0 to 1440 - a part-time person's four days of six hours. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /time-capacities/{from} (the `SetCapacity` operationId).
+	SetCapacityWithBody(ctx context.Context, from string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCapacity Set a person's capacity from a day on
+	//
+	// Seven numbers of minutes, Monday first, each 0 to 1440 - a part-time person's four days of six hours. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /time-capacities/{from} (the `SetCapacity` operationId).
+	SetCapacity(ctx context.Context, from string, body SetCapacityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadTimePolicy The workspace's time policy
 	//
@@ -37556,6 +38037,116 @@ func (c *Client) UnarchiveContainer(ctx context.Context, containerId ContainerId
 	return c.Client.Do(req)
 }
 
+// ListCostRates The hourly cost rates
+//
+// Of a person or of a role, in a currency's minor unit, from a day to a day or on. What a person earns is read by nobody without MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /cost-rates (the `ListCostRates` operationId).
+func (c *Client) ListCostRates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCostRatesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCostRateWithBody Add an hourly cost rate
+//
+// Of a person or of a role - an amount in a currency's minor unit and an ISO 4217 code - from a day to a day or on; a person's rate comes before their role's, and the days of two rates of one subject never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /cost-rates (the `SetCostRate` operationId).
+func (c *Client) SetCostRateWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCostRateRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCostRate Add an hourly cost rate
+//
+// Of a person or of a role - an amount in a currency's minor unit and an ISO 4217 code - from a day to a day or on; a person's rate comes before their role's, and the days of two rates of one subject never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /cost-rates (the `SetCostRate` operationId).
+func (c *Client) SetCostRate(ctx context.Context, body SetCostRateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCostRateRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveCostRate Remove an hourly cost rate
+//
+// The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with DELETE /cost-rates/{rateId} (the `RemoveCostRate` operationId).
+func (c *Client) RemoveCostRate(ctx context.Context, rateId openapi_types.UUID, params *RemoveCostRateParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveCostRateRequest(c.Server, rateId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeCostRateWithBody Change an hourly cost rate
+//
+// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its person or role stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /cost-rates/{rateId} (the `ChangeCostRate` operationId).
+func (c *Client) ChangeCostRateWithBody(ctx context.Context, rateId openapi_types.UUID, params *ChangeCostRateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeCostRateRequestWithBody(c.Server, rateId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeCostRate Change an hourly cost rate
+//
+// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its person or role stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /cost-rates/{rateId} (the `ChangeCostRate` operationId).
+func (c *Client) ChangeCostRate(ctx context.Context, rateId openapi_types.UUID, params *ChangeCostRateParams, body ChangeCostRateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeCostRateRequest(c.Server, rateId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListCustomFields performs a GET /custom-fields (the `ListCustomFields` operationId) request.
 //
 // The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
@@ -42730,6 +43321,78 @@ func (c *Client) TakeBaseline(ctx context.Context, planId PlanId, body TakeBasel
 	return c.Client.Do(req)
 }
 
+// RemoveBudget Remove a plan's budget
+//
+// Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Corresponds with DELETE /plans/{planId}/budget (the `RemoveBudget` operationId).
+func (c *Client) RemoveBudget(ctx context.Context, planId PlanId, params *RemoveBudgetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveBudgetRequest(c.Server, planId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadBudget A plan's budget and its burn
+//
+// Minutes, money in one currency, or both, against every minute recorded on the plan's entries and what they cost by each day's rate in the budget's currency (a rate in another currency is not converted; its minutes are unpriced), with the cumulative burn week by week. A plan without a budget answers its burn with `budgeted` false. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Corresponds with GET /plans/{planId}/budget (the `ReadBudget` operationId).
+func (c *Client) ReadBudget(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadBudgetRequest(c.Server, planId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetBudgetWithBody Set a plan's budget
+//
+// Minutes, money in a currency's minor unit with its ISO 4217 code, or both; 0 for none. Held to the version read, 0 before the first. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /plans/{planId}/budget (the `SetBudget` operationId).
+func (c *Client) SetBudgetWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetBudgetRequestWithBody(c.Server, planId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetBudget Set a plan's budget
+//
+// Minutes, money in a currency's minor unit with its ISO 4217 code, or both; 0 for none. Held to the version read, 0 before the first. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /plans/{planId}/budget (the `SetBudget` operationId).
+func (c *Client) SetBudget(ctx context.Context, planId PlanId, body SetBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetBudgetRequest(c.Server, planId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadPlanSchedule A plan as the scheduler places it
 //
 // Every visible entry of the hub or collection with its start and finish as the scheduler places it: automatic entries as early as their predecessors allow, manual ones where they stand, with the dependencies they break. Each entry's total and free float in working days, the critical path, and the entries without a date. Counts a business calendar's working days, or Monday to Friday. Changes nothing. Needs READ at the plan and the planning module switched on.
@@ -42775,6 +43438,23 @@ func (c *Client) ApplyPlanScheduleWithBody(ctx context.Context, planId PlanId, c
 // Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
 func (c *Client) ApplyPlanSchedule(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewApplyPlanScheduleRequest(c.Server, planId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadWorkload Who has room in a plan
+//
+// Week by week from a Monday, up to 26 weeks: each person's available minutes (their capacity, less the business calendar's holidays and their absences) against the minutes their assigned open entries' remaining estimates in hours ask, spread over the entries' scheduled days, with over and under allocation marked. The people are those the plan's open entries are assigned to and everybody whose capacity is known. Needs READ at the plan; where the workspace shows only sums, a reader without APPROVE_TIME or MANAGE_MEMBERS there reads the team's weeks only.
+//
+// Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
+func (c *Client) ReadWorkload(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadWorkloadRequest(c.Server, planId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -45235,6 +45915,188 @@ func (c *Client) PreviewWorkspaceStructureWithBody(ctx context.Context, contentT
 // Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
 func (c *Client) PreviewWorkspaceStructure(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPreviewWorkspaceStructureRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAbsences The shared calendar of absences
+//
+// The absences sharing a day with a range of at most a year: who is away, from when to when, wholly or half of each day, and only the kind (LEAVE, TRAINING, OTHER), never a reason.
+//
+// Corresponds with GET /time-absences (the `ListAbsences` operationId).
+func (c *Client) ListAbsences(ctx context.Context, params *ListAbsencesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAbsencesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RecordAbsenceWithBody Record an absence once
+//
+// A span of at most a year a person is away - leave, training or other (an illness is OTHER), wholly or half of each day - once, for every plan and the workload. A span sharing a day with another of the person's is refused (`time.absence_overlaps`). One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /time-absences (the `RecordAbsence` operationId).
+func (c *Client) RecordAbsenceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRecordAbsenceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RecordAbsence Record an absence once
+//
+// A span of at most a year a person is away - leave, training or other (an illness is OTHER), wholly or half of each day - once, for every plan and the workload. A span sharing a day with another of the person's is refused (`time.absence_overlaps`). One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /time-absences (the `RecordAbsence` operationId).
+func (c *Client) RecordAbsence(ctx context.Context, body RecordAbsenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRecordAbsenceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveAbsence Remove an absence
+//
+// The version read goes as If-Match. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with DELETE /time-absences/{absenceId} (the `RemoveAbsence` operationId).
+func (c *Client) RemoveAbsence(ctx context.Context, absenceId openapi_types.UUID, params *RemoveAbsenceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveAbsenceRequest(c.Server, absenceId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateAbsenceWithBody Change an absence
+//
+// Its days, kind or half days, held to the version read, as If-Match or `expected_version`. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /time-absences/{absenceId} (the `UpdateAbsence` operationId).
+func (c *Client) UpdateAbsenceWithBody(ctx context.Context, absenceId openapi_types.UUID, params *UpdateAbsenceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAbsenceRequestWithBody(c.Server, absenceId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateAbsence Change an absence
+//
+// Its days, kind or half days, held to the version read, as If-Match or `expected_version`. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /time-absences/{absenceId} (the `UpdateAbsence` operationId).
+func (c *Client) UpdateAbsence(ctx context.Context, absenceId openapi_types.UUID, params *UpdateAbsenceParams, body UpdateAbsenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAbsenceRequest(c.Server, absenceId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCapacities A person's capacities
+//
+// The minutes of each weekday, Monday first, from a day on until the next capacity begins, the earliest first. One's own to everybody; another person's needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /time-capacities (the `ListCapacities` operationId).
+func (c *Client) ListCapacities(ctx context.Context, params *ListCapacitiesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCapacitiesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveCapacity Remove a person's capacity from a day
+//
+// The capacity before it holds on. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with DELETE /time-capacities/{from} (the `RemoveCapacity` operationId).
+func (c *Client) RemoveCapacity(ctx context.Context, from string, params *RemoveCapacityParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveCapacityRequest(c.Server, from, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCapacityWithBody Set a person's capacity from a day on
+//
+// Seven numbers of minutes, Monday first, each 0 to 1440 - a part-time person's four days of six hours. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /time-capacities/{from} (the `SetCapacity` operationId).
+func (c *Client) SetCapacityWithBody(ctx context.Context, from string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCapacityRequestWithBody(c.Server, from, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCapacity Set a person's capacity from a day on
+//
+// Seven numbers of minutes, Monday first, each 0 to 1440 - a part-time person's four days of six hours. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /time-capacities/{from} (the `SetCapacity` operationId).
+func (c *Client) SetCapacity(ctx context.Context, from string, body SetCapacityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCapacityRequest(c.Server, from, body)
 	if err != nil {
 		return nil, err
 	}
@@ -57796,6 +58658,184 @@ func NewUnarchiveContainerRequest(server string, containerId ContainerId, params
 	return req, nil
 }
 
+// NewListCostRatesRequest constructs an http.Request for the ListCostRates method
+func NewListCostRatesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cost-rates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetCostRateRequest calls the generic SetCostRate builder with application/json body
+func NewSetCostRateRequest(server string, body SetCostRateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetCostRateRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetCostRateRequestWithBody constructs an http.Request for the SetCostRate method, with any body, and a specified content type
+func NewSetCostRateRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cost-rates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveCostRateRequest constructs an http.Request for the RemoveCostRate method
+func NewRemoveCostRateRequest(server string, rateId openapi_types.UUID, params *RemoveCostRateParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "rateId", rateId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cost-rates/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewChangeCostRateRequest calls the generic ChangeCostRate builder with application/json body
+func NewChangeCostRateRequest(server string, rateId openapi_types.UUID, params *ChangeCostRateParams, body ChangeCostRateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeCostRateRequestWithBody(server, rateId, params, "application/json", bodyReader)
+}
+
+// NewChangeCostRateRequestWithBody constructs an http.Request for the ChangeCostRate method, with any body, and a specified content type
+func NewChangeCostRateRequestWithBody(server string, rateId openapi_types.UUID, params *ChangeCostRateParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "rateId", rateId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cost-rates/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListCustomFieldsRequest constructs an http.Request for the ListCustomFields method
 func NewListCustomFieldsRequest(server string, params *ListCustomFieldsParams) (*http.Request, error) {
 	var err error
@@ -67494,6 +68534,136 @@ func NewTakeBaselineRequestWithBody(server string, planId PlanId, contentType st
 	return req, nil
 }
 
+// NewRemoveBudgetRequest constructs an http.Request for the RemoveBudget method
+func NewRemoveBudgetRequest(server string, planId PlanId, params *RemoveBudgetParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/budget", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReadBudgetRequest constructs an http.Request for the ReadBudget method
+func NewReadBudgetRequest(server string, planId PlanId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/budget", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetBudgetRequest calls the generic SetBudget builder with application/json body
+func NewSetBudgetRequest(server string, planId PlanId, body SetBudgetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetBudgetRequestWithBody(server, planId, "application/json", bodyReader)
+}
+
+// NewSetBudgetRequestWithBody constructs an http.Request for the SetBudget method, with any body, and a specified content type
+func NewSetBudgetRequestWithBody(server string, planId PlanId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/budget", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReadPlanScheduleRequest constructs an http.Request for the ReadPlanSchedule method
 func NewReadPlanScheduleRequest(server string, planId PlanId, params *ReadPlanScheduleParams) (*http.Request, error) {
 	var err error
@@ -67610,6 +68780,99 @@ func NewApplyPlanScheduleRequestWithBody(server string, planId PlanId, contentTy
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadWorkloadRequest constructs an http.Request for the ReadWorkload method
+func NewReadWorkloadRequest(server string, planId PlanId, params *ReadWorkloadParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/workload", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "from", params.From, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.Weeks != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "weeks", *params.Weeks, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Calendar != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "calendar", *params.Calendar, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Zone != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "zone", *params.Zone, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -71387,6 +72650,389 @@ func NewPreviewWorkspaceStructureRequestWithBody(server string, contentType stri
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAbsencesRequest constructs an http.Request for the ListAbsences method
+func NewListAbsencesRequest(server string, params *ListAbsencesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-absences")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "from", params.From, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "to", params.To, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.AccountId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "account_id", *params.AccountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRecordAbsenceRequest calls the generic RecordAbsence builder with application/json body
+func NewRecordAbsenceRequest(server string, body RecordAbsenceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRecordAbsenceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRecordAbsenceRequestWithBody constructs an http.Request for the RecordAbsence method, with any body, and a specified content type
+func NewRecordAbsenceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-absences")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveAbsenceRequest constructs an http.Request for the RemoveAbsence method
+func NewRemoveAbsenceRequest(server string, absenceId openapi_types.UUID, params *RemoveAbsenceParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "absenceId", absenceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-absences/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewUpdateAbsenceRequest calls the generic UpdateAbsence builder with application/json body
+func NewUpdateAbsenceRequest(server string, absenceId openapi_types.UUID, params *UpdateAbsenceParams, body UpdateAbsenceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateAbsenceRequestWithBody(server, absenceId, params, "application/json", bodyReader)
+}
+
+// NewUpdateAbsenceRequestWithBody constructs an http.Request for the UpdateAbsence method, with any body, and a specified content type
+func NewUpdateAbsenceRequestWithBody(server string, absenceId openapi_types.UUID, params *UpdateAbsenceParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "absenceId", absenceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-absences/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCapacitiesRequest constructs an http.Request for the ListCapacities method
+func NewListCapacitiesRequest(server string, params *ListCapacitiesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-capacities")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.AccountId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "account_id", *params.AccountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRemoveCapacityRequest constructs an http.Request for the RemoveCapacity method
+func NewRemoveCapacityRequest(server string, from string, params *RemoveCapacityParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "from", from, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-capacities/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.AccountId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "account_id", *params.AccountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetCapacityRequest calls the generic SetCapacity builder with application/json body
+func NewSetCapacityRequest(server string, from string, body SetCapacityJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetCapacityRequestWithBody(server, from, "application/json", bodyReader)
+}
+
+// NewSetCapacityRequestWithBody constructs an http.Request for the SetCapacity method, with any body, and a specified content type
+func NewSetCapacityRequestWithBody(server string, from string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "from", from, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-capacities/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -77832,6 +79478,60 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	UnarchiveContainerWithResponse(ctx context.Context, containerId ContainerId, params *UnarchiveContainerParams, reqEditors ...RequestEditorFn) (*UnarchiveContainerResult, error)
 
+	// ListCostRatesWithResponse The hourly cost rates
+	//
+	// Of a person or of a role, in a currency's minor unit, from a day to a day or on. What a person earns is read by nobody without MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cost-rates (the `ListCostRates` operationId).
+	ListCostRatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCostRatesResult, error)
+
+	// SetCostRateWithBodyWithResponse Add an hourly cost rate
+	//
+	// Of a person or of a role - an amount in a currency's minor unit and an ISO 4217 code - from a day to a day or on; a person's rate comes before their role's, and the days of two rates of one subject never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cost-rates (the `SetCostRate` operationId).
+	SetCostRateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCostRateResult, error)
+
+	// SetCostRateWithResponse Add an hourly cost rate
+	//
+	// Of a person or of a role - an amount in a currency's minor unit and an ISO 4217 code - from a day to a day or on; a person's rate comes before their role's, and the days of two rates of one subject never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cost-rates (the `SetCostRate` operationId).
+	SetCostRateWithResponse(ctx context.Context, body SetCostRateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCostRateResult, error)
+
+	// RemoveCostRateWithResponse Remove an hourly cost rate
+	//
+	// The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /cost-rates/{rateId} (the `RemoveCostRate` operationId).
+	RemoveCostRateWithResponse(ctx context.Context, rateId openapi_types.UUID, params *RemoveCostRateParams, reqEditors ...RequestEditorFn) (*RemoveCostRateResult, error)
+
+	// ChangeCostRateWithBodyWithResponse Change an hourly cost rate
+	//
+	// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its person or role stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /cost-rates/{rateId} (the `ChangeCostRate` operationId).
+	ChangeCostRateWithBodyWithResponse(ctx context.Context, rateId openapi_types.UUID, params *ChangeCostRateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeCostRateResult, error)
+
+	// ChangeCostRateWithResponse Change an hourly cost rate
+	//
+	// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its person or role stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /cost-rates/{rateId} (the `ChangeCostRate` operationId).
+	ChangeCostRateWithResponse(ctx context.Context, rateId openapi_types.UUID, params *ChangeCostRateParams, body ChangeCostRateJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeCostRateResult, error)
+
 	// ListCustomFieldsWithResponse performs a GET /custom-fields (the `ListCustomFields` operationId) request.
 	//
 	// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
@@ -80460,6 +82160,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
 	TakeBaselineWithResponse(ctx context.Context, planId PlanId, body TakeBaselineJSONRequestBody, reqEditors ...RequestEditorFn) (*TakeBaselineResult, error)
 
+	// RemoveBudgetWithResponse Remove a plan's budget
+	//
+	// Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /plans/{planId}/budget (the `RemoveBudget` operationId).
+	RemoveBudgetWithResponse(ctx context.Context, planId PlanId, params *RemoveBudgetParams, reqEditors ...RequestEditorFn) (*RemoveBudgetResult, error)
+
+	// ReadBudgetWithResponse A plan's budget and its burn
+	//
+	// Minutes, money in one currency, or both, against every minute recorded on the plan's entries and what they cost by each day's rate in the budget's currency (a rate in another currency is not converted; its minutes are unpriced), with the cumulative burn week by week. A plan without a budget answers its burn with `budgeted` false. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /plans/{planId}/budget (the `ReadBudget` operationId).
+	ReadBudgetWithResponse(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*ReadBudgetResult, error)
+
+	// SetBudgetWithBodyWithResponse Set a plan's budget
+	//
+	// Minutes, money in a currency's minor unit with its ISO 4217 code, or both; 0 for none. Held to the version read, 0 before the first. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /plans/{planId}/budget (the `SetBudget` operationId).
+	SetBudgetWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetBudgetResult, error)
+
+	// SetBudgetWithResponse Set a plan's budget
+	//
+	// Minutes, money in a currency's minor unit with its ISO 4217 code, or both; 0 for none. Held to the version read, 0 before the first. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /plans/{planId}/budget (the `SetBudget` operationId).
+	SetBudgetWithResponse(ctx context.Context, planId PlanId, body SetBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetBudgetResult, error)
+
 	// ReadPlanScheduleWithResponse A plan as the scheduler places it
 	//
 	// Every visible entry of the hub or collection with its start and finish as the scheduler places it: automatic entries as early as their predecessors allow, manual ones where they stand, with the dependencies they break. Each entry's total and free float in working days, the critical path, and the entries without a date. Counts a business calendar's working days, or Monday to Friday. Changes nothing. Needs READ at the plan and the planning module switched on.
@@ -80486,6 +82222,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
 	ApplyPlanScheduleWithResponse(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyPlanScheduleResult, error)
+
+	// ReadWorkloadWithResponse Who has room in a plan
+	//
+	// Week by week from a Monday, up to 26 weeks: each person's available minutes (their capacity, less the business calendar's holidays and their absences) against the minutes their assigned open entries' remaining estimates in hours ask, spread over the entries' scheduled days, with over and under allocation marked. The people are those the plan's open entries are assigned to and everybody whose capacity is known. Needs READ at the plan; where the workspace shows only sums, a reader without APPROVE_TIME or MANAGE_MEMBERS there reads the team's weeks only.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
+	ReadWorkloadWithResponse(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*ReadWorkloadResult, error)
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
@@ -81862,6 +83607,96 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
 	PreviewWorkspaceStructureWithResponse(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewWorkspaceStructureResult, error)
+
+	// ListAbsencesWithResponse The shared calendar of absences
+	//
+	// The absences sharing a day with a range of at most a year: who is away, from when to when, wholly or half of each day, and only the kind (LEAVE, TRAINING, OTHER), never a reason.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /time-absences (the `ListAbsences` operationId).
+	ListAbsencesWithResponse(ctx context.Context, params *ListAbsencesParams, reqEditors ...RequestEditorFn) (*ListAbsencesResult, error)
+
+	// RecordAbsenceWithBodyWithResponse Record an absence once
+	//
+	// A span of at most a year a person is away - leave, training or other (an illness is OTHER), wholly or half of each day - once, for every plan and the workload. A span sharing a day with another of the person's is refused (`time.absence_overlaps`). One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-absences (the `RecordAbsence` operationId).
+	RecordAbsenceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RecordAbsenceResult, error)
+
+	// RecordAbsenceWithResponse Record an absence once
+	//
+	// A span of at most a year a person is away - leave, training or other (an illness is OTHER), wholly or half of each day - once, for every plan and the workload. A span sharing a day with another of the person's is refused (`time.absence_overlaps`). One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-absences (the `RecordAbsence` operationId).
+	RecordAbsenceWithResponse(ctx context.Context, body RecordAbsenceJSONRequestBody, reqEditors ...RequestEditorFn) (*RecordAbsenceResult, error)
+
+	// RemoveAbsenceWithResponse Remove an absence
+	//
+	// The version read goes as If-Match. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /time-absences/{absenceId} (the `RemoveAbsence` operationId).
+	RemoveAbsenceWithResponse(ctx context.Context, absenceId openapi_types.UUID, params *RemoveAbsenceParams, reqEditors ...RequestEditorFn) (*RemoveAbsenceResult, error)
+
+	// UpdateAbsenceWithBodyWithResponse Change an absence
+	//
+	// Its days, kind or half days, held to the version read, as If-Match or `expected_version`. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /time-absences/{absenceId} (the `UpdateAbsence` operationId).
+	UpdateAbsenceWithBodyWithResponse(ctx context.Context, absenceId openapi_types.UUID, params *UpdateAbsenceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAbsenceResult, error)
+
+	// UpdateAbsenceWithResponse Change an absence
+	//
+	// Its days, kind or half days, held to the version read, as If-Match or `expected_version`. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /time-absences/{absenceId} (the `UpdateAbsence` operationId).
+	UpdateAbsenceWithResponse(ctx context.Context, absenceId openapi_types.UUID, params *UpdateAbsenceParams, body UpdateAbsenceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAbsenceResult, error)
+
+	// ListCapacitiesWithResponse A person's capacities
+	//
+	// The minutes of each weekday, Monday first, from a day on until the next capacity begins, the earliest first. One's own to everybody; another person's needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /time-capacities (the `ListCapacities` operationId).
+	ListCapacitiesWithResponse(ctx context.Context, params *ListCapacitiesParams, reqEditors ...RequestEditorFn) (*ListCapacitiesResult, error)
+
+	// RemoveCapacityWithResponse Remove a person's capacity from a day
+	//
+	// The capacity before it holds on. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /time-capacities/{from} (the `RemoveCapacity` operationId).
+	RemoveCapacityWithResponse(ctx context.Context, from string, params *RemoveCapacityParams, reqEditors ...RequestEditorFn) (*RemoveCapacityResult, error)
+
+	// SetCapacityWithBodyWithResponse Set a person's capacity from a day on
+	//
+	// Seven numbers of minutes, Monday first, each 0 to 1440 - a part-time person's four days of six hours. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /time-capacities/{from} (the `SetCapacity` operationId).
+	SetCapacityWithBodyWithResponse(ctx context.Context, from string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCapacityResult, error)
+
+	// SetCapacityWithResponse Set a person's capacity from a day on
+	//
+	// Seven numbers of minutes, Monday first, each 0 to 1440 - a part-time person's four days of six hours. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /time-capacities/{from} (the `SetCapacity` operationId).
+	SetCapacityWithResponse(ctx context.Context, from string, body SetCapacityJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCapacityResult, error)
 
 	// ReadTimePolicyWithResponse The workspace's time policy
 	//
@@ -94234,6 +96069,191 @@ func (r UnarchiveContainerResult) ContentType() string {
 	return ""
 }
 
+type ListCostRatesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CostRateList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCostRatesResult) GetJSON200() *CostRateList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCostRatesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCostRatesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCostRatesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCostRatesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCostRatesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetCostRateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *CostRate
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r SetCostRateResult) GetJSON201() *CostRate {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetCostRateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetCostRateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetCostRateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetCostRateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetCostRateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveCostRateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveCostRateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveCostRateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveCostRateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveCostRateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveCostRateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeCostRateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CostRate
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeCostRateResult) GetJSON200() *CostRate {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeCostRateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeCostRateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeCostRateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeCostRateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeCostRateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListCustomFieldsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -103884,6 +105904,143 @@ func (r TakeBaselineResult) ContentType() string {
 	return ""
 }
 
+type RemoveBudgetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveBudgetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveBudgetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveBudgetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveBudgetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveBudgetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadBudgetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BudgetBurn
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadBudgetResult) GetJSON200() *BudgetBurn {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadBudgetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadBudgetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadBudgetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadBudgetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadBudgetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetBudgetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BudgetBurn
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetBudgetResult) GetJSON200() *BudgetBurn {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetBudgetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetBudgetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetBudgetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetBudgetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetBudgetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadPlanScheduleResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -103974,6 +106131,54 @@ func (r ApplyPlanScheduleResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ApplyPlanScheduleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadWorkloadResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Workload
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadWorkloadResult) GetJSON200() *Workload {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadWorkloadResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadWorkloadResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadWorkloadResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadWorkloadResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadWorkloadResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -107900,6 +110105,328 @@ func (r PreviewWorkspaceStructureResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r PreviewWorkspaceStructureResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAbsencesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AbsenceList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAbsencesResult) GetJSON200() *AbsenceList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAbsencesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAbsencesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAbsencesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAbsencesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAbsencesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RecordAbsenceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Absence
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r RecordAbsenceResult) GetJSON201() *Absence {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RecordAbsenceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RecordAbsenceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RecordAbsenceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RecordAbsenceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RecordAbsenceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveAbsenceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveAbsenceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveAbsenceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveAbsenceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveAbsenceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveAbsenceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateAbsenceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Absence
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateAbsenceResult) GetJSON200() *Absence {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateAbsenceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateAbsenceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateAbsenceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateAbsenceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateAbsenceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCapacitiesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CapacityList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCapacitiesResult) GetJSON200() *CapacityList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCapacitiesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCapacitiesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCapacitiesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCapacitiesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCapacitiesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveCapacityResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveCapacityResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveCapacityResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveCapacityResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveCapacityResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveCapacityResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetCapacityResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Capacity
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetCapacityResult) GetJSON200() *Capacity {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetCapacityResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetCapacityResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetCapacityResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetCapacityResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetCapacityResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -116540,6 +119067,96 @@ func (c *ClientWithResponses) UnarchiveContainerWithResponse(ctx context.Context
 	return ParseUnarchiveContainerResult(rsp)
 }
 
+// ListCostRatesWithResponse The hourly cost rates
+//
+// Of a person or of a role, in a currency's minor unit, from a day to a day or on. What a person earns is read by nobody without MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cost-rates (the `ListCostRates` operationId).
+func (c *ClientWithResponses) ListCostRatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCostRatesResult, error) {
+	rsp, err := c.ListCostRates(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCostRatesResult(rsp)
+}
+
+// SetCostRateWithBodyWithResponse Add an hourly cost rate
+//
+// Of a person or of a role - an amount in a currency's minor unit and an ISO 4217 code - from a day to a day or on; a person's rate comes before their role's, and the days of two rates of one subject never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cost-rates (the `SetCostRate` operationId).
+func (c *ClientWithResponses) SetCostRateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCostRateResult, error) {
+	rsp, err := c.SetCostRateWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCostRateResult(rsp)
+}
+
+// SetCostRateWithResponse Add an hourly cost rate
+//
+// Of a person or of a role - an amount in a currency's minor unit and an ISO 4217 code - from a day to a day or on; a person's rate comes before their role's, and the days of two rates of one subject never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cost-rates (the `SetCostRate` operationId).
+func (c *ClientWithResponses) SetCostRateWithResponse(ctx context.Context, body SetCostRateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCostRateResult, error) {
+	rsp, err := c.SetCostRate(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCostRateResult(rsp)
+}
+
+// RemoveCostRateWithResponse Remove an hourly cost rate
+//
+// The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /cost-rates/{rateId} (the `RemoveCostRate` operationId).
+func (c *ClientWithResponses) RemoveCostRateWithResponse(ctx context.Context, rateId openapi_types.UUID, params *RemoveCostRateParams, reqEditors ...RequestEditorFn) (*RemoveCostRateResult, error) {
+	rsp, err := c.RemoveCostRate(ctx, rateId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveCostRateResult(rsp)
+}
+
+// ChangeCostRateWithBodyWithResponse Change an hourly cost rate
+//
+// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its person or role stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /cost-rates/{rateId} (the `ChangeCostRate` operationId).
+func (c *ClientWithResponses) ChangeCostRateWithBodyWithResponse(ctx context.Context, rateId openapi_types.UUID, params *ChangeCostRateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeCostRateResult, error) {
+	rsp, err := c.ChangeCostRateWithBody(ctx, rateId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeCostRateResult(rsp)
+}
+
+// ChangeCostRateWithResponse Change an hourly cost rate
+//
+// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its person or role stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /cost-rates/{rateId} (the `ChangeCostRate` operationId).
+func (c *ClientWithResponses) ChangeCostRateWithResponse(ctx context.Context, rateId openapi_types.UUID, params *ChangeCostRateParams, body ChangeCostRateJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeCostRateResult, error) {
+	rsp, err := c.ChangeCostRate(ctx, rateId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeCostRateResult(rsp)
+}
+
 // ListCustomFieldsWithResponse performs a GET /custom-fields (the `ListCustomFields` operationId) request.
 //
 // The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
@@ -120854,6 +123471,66 @@ func (c *ClientWithResponses) TakeBaselineWithResponse(ctx context.Context, plan
 	return ParseTakeBaselineResult(rsp)
 }
 
+// RemoveBudgetWithResponse Remove a plan's budget
+//
+// Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /plans/{planId}/budget (the `RemoveBudget` operationId).
+func (c *ClientWithResponses) RemoveBudgetWithResponse(ctx context.Context, planId PlanId, params *RemoveBudgetParams, reqEditors ...RequestEditorFn) (*RemoveBudgetResult, error) {
+	rsp, err := c.RemoveBudget(ctx, planId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveBudgetResult(rsp)
+}
+
+// ReadBudgetWithResponse A plan's budget and its burn
+//
+// Minutes, money in one currency, or both, against every minute recorded on the plan's entries and what they cost by each day's rate in the budget's currency (a rate in another currency is not converted; its minutes are unpriced), with the cumulative burn week by week. A plan without a budget answers its burn with `budgeted` false. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /plans/{planId}/budget (the `ReadBudget` operationId).
+func (c *ClientWithResponses) ReadBudgetWithResponse(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*ReadBudgetResult, error) {
+	rsp, err := c.ReadBudget(ctx, planId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadBudgetResult(rsp)
+}
+
+// SetBudgetWithBodyWithResponse Set a plan's budget
+//
+// Minutes, money in a currency's minor unit with its ISO 4217 code, or both; 0 for none. Held to the version read, 0 before the first. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /plans/{planId}/budget (the `SetBudget` operationId).
+func (c *ClientWithResponses) SetBudgetWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetBudgetResult, error) {
+	rsp, err := c.SetBudgetWithBody(ctx, planId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetBudgetResult(rsp)
+}
+
+// SetBudgetWithResponse Set a plan's budget
+//
+// Minutes, money in a currency's minor unit with its ISO 4217 code, or both; 0 for none. Held to the version read, 0 before the first. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /plans/{planId}/budget (the `SetBudget` operationId).
+func (c *ClientWithResponses) SetBudgetWithResponse(ctx context.Context, planId PlanId, body SetBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetBudgetResult, error) {
+	rsp, err := c.SetBudget(ctx, planId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetBudgetResult(rsp)
+}
+
 // ReadPlanScheduleWithResponse A plan as the scheduler places it
 //
 // Every visible entry of the hub or collection with its start and finish as the scheduler places it: automatic entries as early as their predecessors allow, manual ones where they stand, with the dependencies they break. Each entry's total and free float in working days, the critical path, and the entries without a date. Counts a business calendar's working days, or Monday to Friday. Changes nothing. Needs READ at the plan and the planning module switched on.
@@ -120897,6 +123574,21 @@ func (c *ClientWithResponses) ApplyPlanScheduleWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseApplyPlanScheduleResult(rsp)
+}
+
+// ReadWorkloadWithResponse Who has room in a plan
+//
+// Week by week from a Monday, up to 26 weeks: each person's available minutes (their capacity, less the business calendar's holidays and their absences) against the minutes their assigned open entries' remaining estimates in hours ask, spread over the entries' scheduled days, with over and under allocation marked. The people are those the plan's open entries are assigned to and everybody whose capacity is known. Needs READ at the plan; where the workspace shows only sums, a reader without APPROVE_TIME or MANAGE_MEMBERS there reads the team's weeks only.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
+func (c *ClientWithResponses) ReadWorkloadWithResponse(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*ReadWorkloadResult, error) {
+	rsp, err := c.ReadWorkload(ctx, planId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadWorkloadResult(rsp)
 }
 
 // ListPresetsWithResponse The presets a hub or collection can start from
@@ -122981,6 +125673,156 @@ func (c *ClientWithResponses) PreviewWorkspaceStructureWithResponse(ctx context.
 		return nil, err
 	}
 	return ParsePreviewWorkspaceStructureResult(rsp)
+}
+
+// ListAbsencesWithResponse The shared calendar of absences
+//
+// The absences sharing a day with a range of at most a year: who is away, from when to when, wholly or half of each day, and only the kind (LEAVE, TRAINING, OTHER), never a reason.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /time-absences (the `ListAbsences` operationId).
+func (c *ClientWithResponses) ListAbsencesWithResponse(ctx context.Context, params *ListAbsencesParams, reqEditors ...RequestEditorFn) (*ListAbsencesResult, error) {
+	rsp, err := c.ListAbsences(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAbsencesResult(rsp)
+}
+
+// RecordAbsenceWithBodyWithResponse Record an absence once
+//
+// A span of at most a year a person is away - leave, training or other (an illness is OTHER), wholly or half of each day - once, for every plan and the workload. A span sharing a day with another of the person's is refused (`time.absence_overlaps`). One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-absences (the `RecordAbsence` operationId).
+func (c *ClientWithResponses) RecordAbsenceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RecordAbsenceResult, error) {
+	rsp, err := c.RecordAbsenceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRecordAbsenceResult(rsp)
+}
+
+// RecordAbsenceWithResponse Record an absence once
+//
+// A span of at most a year a person is away - leave, training or other (an illness is OTHER), wholly or half of each day - once, for every plan and the workload. A span sharing a day with another of the person's is refused (`time.absence_overlaps`). One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-absences (the `RecordAbsence` operationId).
+func (c *ClientWithResponses) RecordAbsenceWithResponse(ctx context.Context, body RecordAbsenceJSONRequestBody, reqEditors ...RequestEditorFn) (*RecordAbsenceResult, error) {
+	rsp, err := c.RecordAbsence(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRecordAbsenceResult(rsp)
+}
+
+// RemoveAbsenceWithResponse Remove an absence
+//
+// The version read goes as If-Match. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /time-absences/{absenceId} (the `RemoveAbsence` operationId).
+func (c *ClientWithResponses) RemoveAbsenceWithResponse(ctx context.Context, absenceId openapi_types.UUID, params *RemoveAbsenceParams, reqEditors ...RequestEditorFn) (*RemoveAbsenceResult, error) {
+	rsp, err := c.RemoveAbsence(ctx, absenceId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveAbsenceResult(rsp)
+}
+
+// UpdateAbsenceWithBodyWithResponse Change an absence
+//
+// Its days, kind or half days, held to the version read, as If-Match or `expected_version`. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /time-absences/{absenceId} (the `UpdateAbsence` operationId).
+func (c *ClientWithResponses) UpdateAbsenceWithBodyWithResponse(ctx context.Context, absenceId openapi_types.UUID, params *UpdateAbsenceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAbsenceResult, error) {
+	rsp, err := c.UpdateAbsenceWithBody(ctx, absenceId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAbsenceResult(rsp)
+}
+
+// UpdateAbsenceWithResponse Change an absence
+//
+// Its days, kind or half days, held to the version read, as If-Match or `expected_version`. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /time-absences/{absenceId} (the `UpdateAbsence` operationId).
+func (c *ClientWithResponses) UpdateAbsenceWithResponse(ctx context.Context, absenceId openapi_types.UUID, params *UpdateAbsenceParams, body UpdateAbsenceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAbsenceResult, error) {
+	rsp, err := c.UpdateAbsence(ctx, absenceId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAbsenceResult(rsp)
+}
+
+// ListCapacitiesWithResponse A person's capacities
+//
+// The minutes of each weekday, Monday first, from a day on until the next capacity begins, the earliest first. One's own to everybody; another person's needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /time-capacities (the `ListCapacities` operationId).
+func (c *ClientWithResponses) ListCapacitiesWithResponse(ctx context.Context, params *ListCapacitiesParams, reqEditors ...RequestEditorFn) (*ListCapacitiesResult, error) {
+	rsp, err := c.ListCapacities(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCapacitiesResult(rsp)
+}
+
+// RemoveCapacityWithResponse Remove a person's capacity from a day
+//
+// The capacity before it holds on. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /time-capacities/{from} (the `RemoveCapacity` operationId).
+func (c *ClientWithResponses) RemoveCapacityWithResponse(ctx context.Context, from string, params *RemoveCapacityParams, reqEditors ...RequestEditorFn) (*RemoveCapacityResult, error) {
+	rsp, err := c.RemoveCapacity(ctx, from, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveCapacityResult(rsp)
+}
+
+// SetCapacityWithBodyWithResponse Set a person's capacity from a day on
+//
+// Seven numbers of minutes, Monday first, each 0 to 1440 - a part-time person's four days of six hours. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /time-capacities/{from} (the `SetCapacity` operationId).
+func (c *ClientWithResponses) SetCapacityWithBodyWithResponse(ctx context.Context, from string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCapacityResult, error) {
+	rsp, err := c.SetCapacityWithBody(ctx, from, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCapacityResult(rsp)
+}
+
+// SetCapacityWithResponse Set a person's capacity from a day on
+//
+// Seven numbers of minutes, Monday first, each 0 to 1440 - a part-time person's four days of six hours. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /time-capacities/{from} (the `SetCapacity` operationId).
+func (c *ClientWithResponses) SetCapacityWithResponse(ctx context.Context, from string, body SetCapacityJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCapacityResult, error) {
+	rsp, err := c.SetCapacity(ctx, from, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCapacityResult(rsp)
 }
 
 // ReadTimePolicyWithResponse The workspace's time policy
@@ -132492,6 +135334,134 @@ func ParseUnarchiveContainerResult(rsp *http.Response) (*UnarchiveContainerResul
 	return response, nil
 }
 
+// ParseListCostRatesResult parses an HTTP response from a ListCostRatesWithResponse call
+func ParseListCostRatesResult(rsp *http.Response) (*ListCostRatesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCostRatesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CostRateList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetCostRateResult parses an HTTP response from a SetCostRateWithResponse call
+func ParseSetCostRateResult(rsp *http.Response) (*SetCostRateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetCostRateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CostRate
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveCostRateResult parses an HTTP response from a RemoveCostRateWithResponse call
+func ParseRemoveCostRateResult(rsp *http.Response) (*RemoveCostRateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveCostRateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeCostRateResult parses an HTTP response from a ChangeCostRateWithResponse call
+func ParseChangeCostRateResult(rsp *http.Response) (*ChangeCostRateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeCostRateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CostRate
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListCustomFieldsResult parses an HTTP response from a ListCustomFieldsWithResponse call
 func ParseListCustomFieldsResult(rsp *http.Response) (*ListCustomFieldsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -139452,6 +142422,101 @@ func ParseTakeBaselineResult(rsp *http.Response) (*TakeBaselineResult, error) {
 	return response, nil
 }
 
+// ParseRemoveBudgetResult parses an HTTP response from a RemoveBudgetWithResponse call
+func ParseRemoveBudgetResult(rsp *http.Response) (*RemoveBudgetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveBudgetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadBudgetResult parses an HTTP response from a ReadBudgetWithResponse call
+func ParseReadBudgetResult(rsp *http.Response) (*ReadBudgetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadBudgetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BudgetBurn
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetBudgetResult parses an HTTP response from a SetBudgetWithResponse call
+func ParseSetBudgetResult(rsp *http.Response) (*SetBudgetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetBudgetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BudgetBurn
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadPlanScheduleResult parses an HTTP response from a ReadPlanScheduleWithResponse call
 func ParseReadPlanScheduleResult(rsp *http.Response) (*ReadPlanScheduleResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -139501,6 +142566,39 @@ func ParseApplyPlanScheduleResult(rsp *http.Response) (*ApplyPlanScheduleResult,
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PlanMoves
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadWorkloadResult parses an HTTP response from a ReadWorkloadWithResponse call
+func ParseReadWorkloadResult(rsp *http.Response) (*ReadWorkloadResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadWorkloadResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Workload
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -142274,6 +145372,229 @@ func ParsePreviewWorkspaceStructureResult(rsp *http.Response) (*PreviewWorkspace
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest StructurePreview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAbsencesResult parses an HTTP response from a ListAbsencesWithResponse call
+func ParseListAbsencesResult(rsp *http.Response) (*ListAbsencesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAbsencesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AbsenceList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRecordAbsenceResult parses an HTTP response from a RecordAbsenceWithResponse call
+func ParseRecordAbsenceResult(rsp *http.Response) (*RecordAbsenceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RecordAbsenceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Absence
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveAbsenceResult parses an HTTP response from a RemoveAbsenceWithResponse call
+func ParseRemoveAbsenceResult(rsp *http.Response) (*RemoveAbsenceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveAbsenceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateAbsenceResult parses an HTTP response from a UpdateAbsenceWithResponse call
+func ParseUpdateAbsenceResult(rsp *http.Response) (*UpdateAbsenceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateAbsenceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Absence
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCapacitiesResult parses an HTTP response from a ListCapacitiesWithResponse call
+func ParseListCapacitiesResult(rsp *http.Response) (*ListCapacitiesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCapacitiesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CapacityList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveCapacityResult parses an HTTP response from a RemoveCapacityWithResponse call
+func ParseRemoveCapacityResult(rsp *http.Response) (*RemoveCapacityResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveCapacityResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetCapacityResult parses an HTTP response from a SetCapacityWithResponse call
+func ParseSetCapacityResult(rsp *http.Response) (*SetCapacityResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetCapacityResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Capacity
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

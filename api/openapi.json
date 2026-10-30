@@ -2220,6 +2220,737 @@
         }
       }
     },
+    "/plans/{planId}/workload": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PlanId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "readWorkload",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan workload",
+        "summary": "Who has room in a plan",
+        "description": "Week by week from a Monday, up to 26 weeks: each person's available minutes (their capacity, less the business calendar's holidays and their absences) against the minutes their assigned open entries' remaining estimates in hours ask, spread over the entries' scheduled days, with over and under allocation marked. The people are those the plan's open entries are assigned to and everybody whose capacity is known. Needs READ at the plan; where the workspace shows only sums, a reader without APPROVE_TIME or MANAGE_MEMBERS there reads the team's weeks only.\n",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "A day of the first week."
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 26
+            },
+            "description": "How many weeks; 26 without."
+          },
+          {
+            "name": "calendar",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "A business calendar's key, whose holidays nobody works."
+          },
+          {
+            "name": "zone",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "The time zone the entries' dates are days in; UTC without."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workload"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/plans/{planId}/budget": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PlanId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "readBudget",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan budget",
+        "summary": "A plan's budget and its burn",
+        "description": "Minutes, money in one currency, or both, against every minute recorded on the plan's entries and what they cost by each day's rate in the budget's currency (a rate in another currency is not converted; its minutes are unpriced), with the cumulative burn week by week. A plan without a budget answers its burn with `budgeted` false. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.\n",
+        "responses": {
+          "200": {
+            "description": "The budget and its burn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetBurn"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "setBudget",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan set-budget",
+        "summary": "Set a plan's budget",
+        "description": "Minutes, money in a currency's minor unit with its ISO 4217 code, or both; 0 for none. Held to the version read, 0 before the first. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "expected_version"
+                ],
+                "properties": {
+                  "minutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 60000000
+                  },
+                  "amount_minor": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetBurn"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "removeBudget",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan rm-budget",
+        "summary": "Remove a plan's budget",
+        "description": "Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/time-capacities": {
+      "get": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "listCapacities",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "capacity ls",
+        "summary": "A person's capacities",
+        "description": "The minutes of each weekday, Monday first, from a day on until the next capacity begins, the earliest first. One's own to everybody; another person's needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.\n",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The person; the caller without."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The capacities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapacityList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/time-capacities/{from}": {
+      "parameters": [
+        {
+          "name": "from",
+          "in": "path",
+          "required": true,
+          "description": "The first day the capacity holds, YYYY-MM-DD.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "setCapacity",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "capacity set",
+        "summary": "Set a person's capacity from a day on",
+        "description": "Seven numbers of minutes, Monday first, each 0 to 1440 - a part-time person's four days of six hours. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "week_minutes"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "week_minutes": {
+                    "type": "array",
+                    "minItems": 7,
+                    "maxItems": 7,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1440
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capacity"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "removeCapacity",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "capacity rm",
+        "summary": "Remove a person's capacity from a day",
+        "description": "The capacity before it holds on. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The person; the caller without."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/time-absences": {
+      "get": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "listAbsences",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "absence ls",
+        "summary": "The shared calendar of absences",
+        "description": "The absences sharing a day with a range of at most a year: who is away, from when to when, wholly or half of each day, and only the kind (LEAVE, TRAINING, OTHER), never a reason.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TimeFrom"
+          },
+          {
+            "$ref": "#/components/parameters/TimeTo"
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "One person; everybody without."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The absences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbsenceList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "recordAbsence",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "absence add",
+        "summary": "Record an absence once",
+        "description": "A span of at most a year a person is away - leave, training or other (an illness is OTHER), wholly or half of each day - once, for every plan and the workload. A span sharing a day with another of the person's is refused (`time.absence_overlaps`). One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to",
+                  "kind"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "LEAVE",
+                      "TRAINING",
+                      "OTHER"
+                    ]
+                  },
+                  "half": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Absence"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/time-absences/{absenceId}": {
+      "parameters": [
+        {
+          "name": "absenceId",
+          "in": "path",
+          "required": true,
+          "description": "An absence.",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "updateAbsence",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "absence update",
+        "summary": "Change an absence",
+        "description": "Its days, kind or half days, held to the version read, as If-Match or `expected_version`. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to",
+                  "kind"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "LEAVE",
+                      "TRAINING",
+                      "OTHER"
+                    ]
+                  },
+                  "half": {
+                    "type": "boolean"
+                  },
+                  "expected_version": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Absence"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "removeAbsence",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "absence rm",
+        "summary": "Remove an absence",
+        "description": "The version read goes as If-Match. One's own needs nothing more; another person's needs MANAGE_MEMBERS at the workspace.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/cost-rates": {
+      "get": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "listCostRates",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cost-rate ls",
+        "summary": "The hourly cost rates",
+        "description": "Of a person or of a role, in a currency's minor unit, from a day to a day or on. What a person earns is read by nobody without MANAGE_COSTS or MANAGE_MEMBERS at the workspace.\n",
+        "responses": {
+          "200": {
+            "description": "The rates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostRateList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "setCostRate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cost-rate add",
+        "summary": "Add an hourly cost rate",
+        "description": "Of a person or of a role - an amount in a currency's minor unit and an ISO 4217 code - from a day to a day or on; a person's rate comes before their role's, and the days of two rates of one subject never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hour_minor",
+                  "currency",
+                  "from"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "role": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "hour_minor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostRate"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/cost-rates/{rateId}": {
+      "parameters": [
+        {
+          "name": "rateId",
+          "in": "path",
+          "required": true,
+          "description": "A cost rate.",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "changeCostRate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-use-case": "SetCostRate",
+        "x-hubtask-cli": "cost-rate update",
+        "summary": "Change an hourly cost rate",
+        "description": "Its amount, currency and days, held to the version read as If-Match or `expected_version`; its person or role stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hour_minor",
+                  "currency",
+                  "from"
+                ],
+                "properties": {
+                  "hour_minor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "expected_version": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostRate"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "removeCostRate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cost-rate rm",
+        "summary": "Remove an hourly cost rate",
+        "description": "The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the workspace.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/business-calendars": {
       "get": {
         "tags": [
@@ -30676,6 +31407,352 @@
           },
           "version": {
             "type": "integer"
+          }
+        }
+      },
+      "Capacity": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "from",
+          "week_minutes",
+          "version"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "week_minutes": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Monday first."
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "CapacityList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Capacity"
+            }
+          }
+        }
+      },
+      "Absence": {
+        "type": "object",
+        "required": [
+          "id",
+          "account_id",
+          "from",
+          "to",
+          "kind",
+          "half",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "LEAVE",
+              "TRAINING",
+              "OTHER"
+            ]
+          },
+          "half": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "AbsenceList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Absence"
+            }
+          }
+        }
+      },
+      "Workload": {
+        "type": "object",
+        "required": [
+          "plan_id",
+          "aggregated",
+          "cells",
+          "team",
+          "unscheduled_minutes"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "aggregated": {
+            "type": "boolean",
+            "description": "Only the team's sums, naming nobody."
+          },
+          "unscheduled_minutes": {
+            "type": "integer",
+            "description": "Remaining minutes of assigned open entries with neither a start nor a due day."
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "account_id",
+                "week",
+                "available_minutes",
+                "allocated_minutes",
+                "known",
+                "over",
+                "under"
+              ],
+              "properties": {
+                "account_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "week": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "available_minutes": {
+                  "type": "integer"
+                },
+                "allocated_minutes": {
+                  "type": "integer"
+                },
+                "known": {
+                  "type": "boolean",
+                  "description": "False where the person's capacity is not known."
+                },
+                "over": {
+                  "type": "boolean"
+                },
+                "under": {
+                  "type": "boolean",
+                  "description": "At least a fifth of what the person can give is unasked."
+                }
+              }
+            }
+          },
+          "team": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "week",
+                "available_minutes",
+                "allocated_minutes",
+                "people"
+              ],
+              "properties": {
+                "week": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "available_minutes": {
+                  "type": "integer"
+                },
+                "allocated_minutes": {
+                  "type": "integer"
+                },
+                "people": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "CostRate": {
+        "type": "object",
+        "required": [
+          "id",
+          "account_id",
+          "role",
+          "hour_minor",
+          "currency",
+          "from",
+          "to",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hour_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "CostRateList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostRate"
+            }
+          }
+        }
+      },
+      "BudgetBurn": {
+        "type": "object",
+        "required": [
+          "plan_id",
+          "budgeted",
+          "budget_minutes",
+          "budget_amount_minor",
+          "currency",
+          "version",
+          "minutes",
+          "amount_minor",
+          "unpriced_minutes",
+          "over_time",
+          "over_money",
+          "weeks"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "budgeted": {
+            "type": "boolean"
+          },
+          "budget_minutes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "budget_amount_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "minutes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unpriced_minutes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "over_time": {
+            "type": "boolean"
+          },
+          "over_money": {
+            "type": "boolean"
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "week",
+                "minutes",
+                "amount_minor"
+              ],
+              "properties": {
+                "week": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "minutes": {
+                  "type": "integer",
+                  "format": "int64",
+                  "description": "Cumulative."
+                },
+                "amount_minor": {
+                  "type": "integer",
+                  "format": "int64",
+                  "description": "Cumulative."
+                }
+              }
+            }
           }
         }
       },

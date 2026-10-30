@@ -15,6 +15,27 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AbsenceKind.
+const (
+	AbsenceKindLEAVE    AbsenceKind = "LEAVE"
+	AbsenceKindOTHER    AbsenceKind = "OTHER"
+	AbsenceKindTRAINING AbsenceKind = "TRAINING"
+)
+
+// Valid indicates whether the value is a known member of the AbsenceKind enum.
+func (e AbsenceKind) Valid() bool {
+	switch e {
+	case AbsenceKindLEAVE:
+		return true
+	case AbsenceKindOTHER:
+		return true
+	case AbsenceKindTRAINING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AcceptedSuggestionSource.
 const (
 	AcceptedSuggestionSourceAI AcceptedSuggestionSource = "AI"
@@ -8655,6 +8676,48 @@ func (e PreviewModuleReachParamsSwitch) Valid() bool {
 	}
 }
 
+// Defines values for RecordAbsenceJSONBodyKind.
+const (
+	RecordAbsenceJSONBodyKindLEAVE    RecordAbsenceJSONBodyKind = "LEAVE"
+	RecordAbsenceJSONBodyKindOTHER    RecordAbsenceJSONBodyKind = "OTHER"
+	RecordAbsenceJSONBodyKindTRAINING RecordAbsenceJSONBodyKind = "TRAINING"
+)
+
+// Valid indicates whether the value is a known member of the RecordAbsenceJSONBodyKind enum.
+func (e RecordAbsenceJSONBodyKind) Valid() bool {
+	switch e {
+	case RecordAbsenceJSONBodyKindLEAVE:
+		return true
+	case RecordAbsenceJSONBodyKindOTHER:
+		return true
+	case RecordAbsenceJSONBodyKindTRAINING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateAbsenceJSONBodyKind.
+const (
+	UpdateAbsenceJSONBodyKindLEAVE    UpdateAbsenceJSONBodyKind = "LEAVE"
+	UpdateAbsenceJSONBodyKindOTHER    UpdateAbsenceJSONBodyKind = "OTHER"
+	UpdateAbsenceJSONBodyKindTRAINING UpdateAbsenceJSONBodyKind = "TRAINING"
+)
+
+// Valid indicates whether the value is a known member of the UpdateAbsenceJSONBodyKind enum.
+func (e UpdateAbsenceJSONBodyKind) Valid() bool {
+	switch e {
+	case UpdateAbsenceJSONBodyKindLEAVE:
+		return true
+	case UpdateAbsenceJSONBodyKindOTHER:
+		return true
+	case UpdateAbsenceJSONBodyKindTRAINING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetTimePolicyJSONBodyVisibility.
 const (
 	SetTimePolicyJSONBodyVisibilityAGGREGATED SetTimePolicyJSONBodyVisibility = "AGGREGATED"
@@ -8755,6 +8818,25 @@ func (e ShowAlexaModelParamsLocale) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// Absence defines model for Absence.
+type Absence struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	From      openapi_types.Date `json:"from"`
+	Half      bool               `json:"half"`
+	Id        openapi_types.UUID `json:"id"`
+	Kind      AbsenceKind        `json:"kind"`
+	To        openapi_types.Date `json:"to"`
+	Version   int                `json:"version"`
+}
+
+// AbsenceKind defines model for Absence.Kind.
+type AbsenceKind string
+
+// AbsenceList defines model for AbsenceList.
+type AbsenceList struct {
+	Data []Absence `json:"data"`
 }
 
 // AcceptedSuggestion The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only.
@@ -10001,6 +10083,29 @@ type BucketUpdate struct {
 	WipLimit *int `json:"wip_limit,omitempty"`
 }
 
+// BudgetBurn defines model for BudgetBurn.
+type BudgetBurn struct {
+	AmountMinor       int64              `json:"amount_minor"`
+	BudgetAmountMinor int64              `json:"budget_amount_minor"`
+	BudgetMinutes     int64              `json:"budget_minutes"`
+	Budgeted          bool               `json:"budgeted"`
+	Currency          string             `json:"currency"`
+	Minutes           int64              `json:"minutes"`
+	OverMoney         bool               `json:"over_money"`
+	OverTime          bool               `json:"over_time"`
+	PlanId            openapi_types.UUID `json:"plan_id"`
+	UnpricedMinutes   int64              `json:"unpriced_minutes"`
+	Version           int                `json:"version"`
+	Weeks             []struct {
+		// AmountMinor Cumulative.
+		AmountMinor int64 `json:"amount_minor"`
+
+		// Minutes Cumulative.
+		Minutes int64              `json:"minutes"`
+		Week    openapi_types.Date `json:"week"`
+	} `json:"weeks"`
+}
+
 // BulkOperation One operation of a bulk: which of the single-entry operations to carry out, on which entry, with the body that operation takes on its own.
 type BulkOperation struct {
 	// ItemId The entry the operation is about. Required by every operation except CREATE_ITEM, which has no entry yet.
@@ -10248,6 +10353,21 @@ type CapabilitiesTenancyMode string
 
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
+
+// Capacity defines model for Capacity.
+type Capacity struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	From      openapi_types.Date `json:"from"`
+	Version   int                `json:"version"`
+
+	// WeekMinutes Monday first.
+	WeekMinutes []int `json:"week_minutes"`
+}
+
+// CapacityList defines model for CapacityList.
+type CapacityList struct {
+	Data []Capacity `json:"data"`
+}
 
 // CiAlert defines model for CiAlert.
 type CiAlert struct {
@@ -11582,6 +11702,23 @@ type ContainerUpdate struct {
 	Description *string `json:"description,omitempty"`
 	Icon        *string `json:"icon,omitempty"`
 	Name        *string `json:"name,omitempty"`
+}
+
+// CostRate defines model for CostRate.
+type CostRate struct {
+	AccountId *openapi_types.UUID `json:"account_id"`
+	Currency  string              `json:"currency"`
+	From      openapi_types.Date  `json:"from"`
+	HourMinor int64               `json:"hour_minor"`
+	Id        openapi_types.UUID  `json:"id"`
+	Role      *string             `json:"role"`
+	To        *openapi_types.Date `json:"to"`
+	Version   int                 `json:"version"`
+}
+
+// CostRateList defines model for CostRateList.
+type CostRateList struct {
+	Data []CostRate `json:"data"`
 }
 
 // Cover defines model for Cover.
@@ -19372,6 +19509,35 @@ type WorkflowStep struct {
 // WorkflowStepChecksMessageCode A shipped message picked instead of writing one, rendered in the reader's language; another is refused with `workflows.message_code_unknown`.
 type WorkflowStepChecksMessageCode string
 
+// Workload defines model for Workload.
+type Workload struct {
+	// Aggregated Only the team's sums, naming nobody.
+	Aggregated bool `json:"aggregated"`
+	Cells      []struct {
+		AccountId        openapi_types.UUID `json:"account_id"`
+		AllocatedMinutes int                `json:"allocated_minutes"`
+		AvailableMinutes int                `json:"available_minutes"`
+
+		// Known False where the person's capacity is not known.
+		Known bool `json:"known"`
+		Over  bool `json:"over"`
+
+		// Under At least a fifth of what the person can give is unasked.
+		Under bool               `json:"under"`
+		Week  openapi_types.Date `json:"week"`
+	} `json:"cells"`
+	PlanId openapi_types.UUID `json:"plan_id"`
+	Team   []struct {
+		AllocatedMinutes int                `json:"allocated_minutes"`
+		AvailableMinutes int                `json:"available_minutes"`
+		People           int                `json:"people"`
+		Week             openapi_types.Date `json:"week"`
+	} `json:"team"`
+
+	// UnscheduledMinutes Remaining minutes of assigned open entries with neither a start nor a due day.
+	UnscheduledMinutes int `json:"unscheduled_minutes"`
+}
+
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
 	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off. Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
@@ -20417,6 +20583,37 @@ type UnarchiveContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetCostRateJSONBody defines parameters for SetCostRate.
+type SetCostRateJSONBody struct {
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+	Currency  string              `json:"currency"`
+	From      openapi_types.Date  `json:"from"`
+	HourMinor int                 `json:"hour_minor"`
+	Role      *string             `json:"role,omitempty"`
+	To        *openapi_types.Date `json:"to,omitempty"`
+}
+
+// RemoveCostRateParams defines parameters for RemoveCostRate.
+type RemoveCostRateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeCostRateJSONBody defines parameters for ChangeCostRate.
+type ChangeCostRateJSONBody struct {
+	Currency        string              `json:"currency"`
+	ExpectedVersion *int                `json:"expected_version,omitempty"`
+	From            openapi_types.Date  `json:"from"`
+	HourMinor       int                 `json:"hour_minor"`
+	To              *openapi_types.Date `json:"to,omitempty"`
+}
+
+// ChangeCostRateParams defines parameters for ChangeCostRate.
+type ChangeCostRateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListCustomFieldsParams defines parameters for ListCustomFields.
 type ListCustomFieldsParams struct {
 	// CollectionId The collection whose definitions are wanted, together with the workspace-wide ones. Omitted answers the workspace-wide ones alone.
@@ -21189,6 +21386,20 @@ type TakeBaselineJSONBody struct {
 	Name string `json:"name"`
 }
 
+// RemoveBudgetParams defines parameters for RemoveBudget.
+type RemoveBudgetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetBudgetJSONBody defines parameters for SetBudget.
+type SetBudgetJSONBody struct {
+	AmountMinor     *int    `json:"amount_minor,omitempty"`
+	Currency        *string `json:"currency,omitempty"`
+	ExpectedVersion int     `json:"expected_version"`
+	Minutes         *int    `json:"minutes,omitempty"`
+}
+
 // ReadPlanScheduleParams defines parameters for ReadPlanSchedule.
 type ReadPlanScheduleParams struct {
 	// Calendar A business calendar's key.
@@ -21203,6 +21414,21 @@ type ApplyPlanScheduleJSONBody struct {
 	Calendar *string              `json:"calendar,omitempty"`
 	ItemIds  []openapi_types.UUID `json:"item_ids"`
 	Zone     *string              `json:"zone,omitempty"`
+}
+
+// ReadWorkloadParams defines parameters for ReadWorkload.
+type ReadWorkloadParams struct {
+	// From A day of the first week.
+	From openapi_types.Date `form:"from" json:"from"`
+
+	// Weeks How many weeks; 26 without.
+	Weeks *int `form:"weeks,omitempty" json:"weeks,omitempty"`
+
+	// Calendar A business calendar's key, whose holidays nobody works.
+	Calendar *string `form:"calendar,omitempty" json:"calendar,omitempty"`
+
+	// Zone The time zone the entries' dates are days in; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
 }
 
 // WithdrawPresetParams defines parameters for WithdrawPreset.
@@ -21487,6 +21713,72 @@ type PreviewModuleReachParamsSwitch string
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListAbsencesParams defines parameters for ListAbsences.
+type ListAbsencesParams struct {
+	// From The first day, YYYY-MM-DD.
+	From TimeFrom `form:"from" json:"from"`
+
+	// To The last day, YYYY-MM-DD; at most 366 days after the first.
+	To TimeTo `form:"to" json:"to"`
+
+	// AccountId One person; everybody without.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// RecordAbsenceJSONBody defines parameters for RecordAbsence.
+type RecordAbsenceJSONBody struct {
+	AccountId *openapi_types.UUID       `json:"account_id,omitempty"`
+	From      openapi_types.Date        `json:"from"`
+	Half      *bool                     `json:"half,omitempty"`
+	Kind      RecordAbsenceJSONBodyKind `json:"kind"`
+	To        openapi_types.Date        `json:"to"`
+}
+
+// RecordAbsenceJSONBodyKind defines parameters for RecordAbsence.
+type RecordAbsenceJSONBodyKind string
+
+// RemoveAbsenceParams defines parameters for RemoveAbsence.
+type RemoveAbsenceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateAbsenceJSONBody defines parameters for UpdateAbsence.
+type UpdateAbsenceJSONBody struct {
+	ExpectedVersion *int                      `json:"expected_version,omitempty"`
+	From            openapi_types.Date        `json:"from"`
+	Half            *bool                     `json:"half,omitempty"`
+	Kind            UpdateAbsenceJSONBodyKind `json:"kind"`
+	To              openapi_types.Date        `json:"to"`
+}
+
+// UpdateAbsenceParams defines parameters for UpdateAbsence.
+type UpdateAbsenceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateAbsenceJSONBodyKind defines parameters for UpdateAbsence.
+type UpdateAbsenceJSONBodyKind string
+
+// ListCapacitiesParams defines parameters for ListCapacities.
+type ListCapacitiesParams struct {
+	// AccountId The person; the caller without.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// RemoveCapacityParams defines parameters for RemoveCapacity.
+type RemoveCapacityParams struct {
+	// AccountId The person; the caller without.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// SetCapacityJSONBody defines parameters for SetCapacity.
+type SetCapacityJSONBody struct {
+	AccountId   *openapi_types.UUID `json:"account_id,omitempty"`
+	WeekMinutes []int               `json:"week_minutes"`
 }
 
 // SetTimePolicyJSONBody defines parameters for SetTimePolicy.
@@ -22097,6 +22389,12 @@ type ReorderContainerJSONRequestBody ReorderContainerJSONBody
 // AiSummarizeContainerJSONRequestBody defines body for AiSummarizeContainer for application/json ContentType.
 type AiSummarizeContainerJSONRequestBody = AiAsk
 
+// SetCostRateJSONRequestBody defines body for SetCostRate for application/json ContentType.
+type SetCostRateJSONRequestBody SetCostRateJSONBody
+
+// ChangeCostRateJSONRequestBody defines body for ChangeCostRate for application/json ContentType.
+type ChangeCostRateJSONRequestBody ChangeCostRateJSONBody
+
 // DefineCustomFieldJSONRequestBody defines body for DefineCustomField for application/json ContentType.
 type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 
@@ -22352,6 +22650,9 @@ type SearchPagesJSONRequestBody = PageSearch
 // TakeBaselineJSONRequestBody defines body for TakeBaseline for application/json ContentType.
 type TakeBaselineJSONRequestBody TakeBaselineJSONBody
 
+// SetBudgetJSONRequestBody defines body for SetBudget for application/json ContentType.
+type SetBudgetJSONRequestBody SetBudgetJSONBody
+
 // ApplyPlanScheduleJSONRequestBody defines body for ApplyPlanSchedule for application/json ContentType.
 type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
 
@@ -22465,6 +22766,15 @@ type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
 
 // PreviewWorkspaceStructureJSONRequestBody defines body for PreviewWorkspaceStructure for application/json ContentType.
 type PreviewWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
+
+// RecordAbsenceJSONRequestBody defines body for RecordAbsence for application/json ContentType.
+type RecordAbsenceJSONRequestBody RecordAbsenceJSONBody
+
+// UpdateAbsenceJSONRequestBody defines body for UpdateAbsence for application/json ContentType.
+type UpdateAbsenceJSONRequestBody UpdateAbsenceJSONBody
+
+// SetCapacityJSONRequestBody defines body for SetCapacity for application/json ContentType.
+type SetCapacityJSONRequestBody SetCapacityJSONBody
 
 // SetTimePolicyJSONRequestBody defines body for SetTimePolicy for application/json ContentType.
 type SetTimePolicyJSONRequestBody SetTimePolicyJSONBody
@@ -23269,6 +23579,18 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}:unarchive)
 	UnarchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UnarchiveContainerParams)
+	// ListCostRates The hourly cost rates
+	// (GET /cost-rates)
+	ListCostRates(w http.ResponseWriter, r *http.Request)
+	// SetCostRate Add an hourly cost rate
+	// (POST /cost-rates)
+	SetCostRate(w http.ResponseWriter, r *http.Request)
+	// RemoveCostRate Remove an hourly cost rate
+	// (DELETE /cost-rates/{rateId})
+	RemoveCostRate(w http.ResponseWriter, r *http.Request, rateId openapi_types.UUID, params RemoveCostRateParams)
+	// ChangeCostRate Change an hourly cost rate
+	// (PATCH /cost-rates/{rateId})
+	ChangeCostRate(w http.ResponseWriter, r *http.Request, rateId openapi_types.UUID, params ChangeCostRateParams)
 
 	// (GET /custom-fields)
 	ListCustomFields(w http.ResponseWriter, r *http.Request, params ListCustomFieldsParams)
@@ -23860,12 +24182,24 @@ type ServerInterface interface {
 	// TakeBaseline Keep the plan as it is agreed now
 	// (POST /plans/{planId}/baselines)
 	TakeBaseline(w http.ResponseWriter, r *http.Request, planId PlanId)
+	// RemoveBudget Remove a plan's budget
+	// (DELETE /plans/{planId}/budget)
+	RemoveBudget(w http.ResponseWriter, r *http.Request, planId PlanId, params RemoveBudgetParams)
+	// ReadBudget A plan's budget and its burn
+	// (GET /plans/{planId}/budget)
+	ReadBudget(w http.ResponseWriter, r *http.Request, planId PlanId)
+	// SetBudget Set a plan's budget
+	// (PUT /plans/{planId}/budget)
+	SetBudget(w http.ResponseWriter, r *http.Request, planId PlanId)
 	// ReadPlanSchedule A plan as the scheduler places it
 	// (GET /plans/{planId}/schedule)
 	ReadPlanSchedule(w http.ResponseWriter, r *http.Request, planId PlanId, params ReadPlanScheduleParams)
 	// ApplyPlanSchedule Apply the moves a person accepted
 	// (POST /plans/{planId}/schedule:apply)
 	ApplyPlanSchedule(w http.ResponseWriter, r *http.Request, planId PlanId)
+	// ReadWorkload Who has room in a plan
+	// (GET /plans/{planId}/workload)
+	ReadWorkload(w http.ResponseWriter, r *http.Request, planId PlanId, params ReadWorkloadParams)
 	// ListPresets The presets a hub or collection can start from
 	// (GET /presets)
 	ListPresets(w http.ResponseWriter, r *http.Request)
@@ -24109,6 +24443,27 @@ type ServerInterface interface {
 	// PreviewWorkspaceStructure What a change of the workspace's structure would stop showing
 	// (POST /tenant/structure:preview)
 	PreviewWorkspaceStructure(w http.ResponseWriter, r *http.Request)
+	// ListAbsences The shared calendar of absences
+	// (GET /time-absences)
+	ListAbsences(w http.ResponseWriter, r *http.Request, params ListAbsencesParams)
+	// RecordAbsence Record an absence once
+	// (POST /time-absences)
+	RecordAbsence(w http.ResponseWriter, r *http.Request)
+	// RemoveAbsence Remove an absence
+	// (DELETE /time-absences/{absenceId})
+	RemoveAbsence(w http.ResponseWriter, r *http.Request, absenceId openapi_types.UUID, params RemoveAbsenceParams)
+	// UpdateAbsence Change an absence
+	// (PATCH /time-absences/{absenceId})
+	UpdateAbsence(w http.ResponseWriter, r *http.Request, absenceId openapi_types.UUID, params UpdateAbsenceParams)
+	// ListCapacities A person's capacities
+	// (GET /time-capacities)
+	ListCapacities(w http.ResponseWriter, r *http.Request, params ListCapacitiesParams)
+	// RemoveCapacity Remove a person's capacity from a day
+	// (DELETE /time-capacities/{from})
+	RemoveCapacity(w http.ResponseWriter, r *http.Request, from string, params RemoveCapacityParams)
+	// SetCapacity Set a person's capacity from a day on
+	// (PUT /time-capacities/{from})
+	SetCapacity(w http.ResponseWriter, r *http.Request, from string)
 	// ReadTimePolicy The workspace's time policy
 	// (GET /time-policy)
 	ReadTimePolicy(w http.ResponseWriter, r *http.Request)
@@ -31965,6 +32320,134 @@ func (siw *ServerInterfaceWrapper) UnarchiveContainer(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// ListCostRates operation middleware
+func (siw *ServerInterfaceWrapper) ListCostRates(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCostRates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetCostRate operation middleware
+func (siw *ServerInterfaceWrapper) SetCostRate(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetCostRate(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveCostRate operation middleware
+func (siw *ServerInterfaceWrapper) RemoveCostRate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "rateId" -------------
+	var rateId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "rateId", r.PathValue("rateId"), &rateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rateId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveCostRateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveCostRate(w, r, rateId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeCostRate operation middleware
+func (siw *ServerInterfaceWrapper) ChangeCostRate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "rateId" -------------
+	var rateId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "rateId", r.PathValue("rateId"), &rateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rateId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeCostRateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeCostRate(w, r, rateId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListCustomFields operation middleware
 func (siw *ServerInterfaceWrapper) ListCustomFields(w http.ResponseWriter, r *http.Request) {
 
@@ -39365,6 +39848,108 @@ func (siw *ServerInterfaceWrapper) TakeBaseline(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// RemoveBudget operation middleware
+func (siw *ServerInterfaceWrapper) RemoveBudget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveBudgetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveBudget(w, r, planId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadBudget operation middleware
+func (siw *ServerInterfaceWrapper) ReadBudget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadBudget(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetBudget operation middleware
+func (siw *ServerInterfaceWrapper) SetBudget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetBudget(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadPlanSchedule operation middleware
 func (siw *ServerInterfaceWrapper) ReadPlanSchedule(w http.ResponseWriter, r *http.Request) {
 
@@ -39437,6 +40022,87 @@ func (siw *ServerInterfaceWrapper) ApplyPlanSchedule(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ApplyPlanSchedule(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadWorkload operation middleware
+func (siw *ServerInterfaceWrapper) ReadWorkload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadWorkloadParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "weeks" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "weeks", r.URL.Query(), &params.Weeks, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "weeks"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "weeks", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "calendar" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "calendar", r.URL.Query(), &params.Calendar, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "calendar"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "calendar", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "zone" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "zone", r.URL.Query(), &params.Zone, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "zone"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "zone", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadWorkload(w, r, planId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -42059,6 +42725,280 @@ func (siw *ServerInterfaceWrapper) PreviewWorkspaceStructure(w http.ResponseWrit
 	handler.ServeHTTP(w, r)
 }
 
+// ListAbsences operation middleware
+func (siw *ServerInterfaceWrapper) ListAbsences(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAbsencesParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "account_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "account_id", r.URL.Query(), &params.AccountId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "account_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "account_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAbsences(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecordAbsence operation middleware
+func (siw *ServerInterfaceWrapper) RecordAbsence(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecordAbsence(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAbsence operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAbsence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "absenceId" -------------
+	var absenceId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "absenceId", r.PathValue("absenceId"), &absenceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "absenceId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveAbsenceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAbsence(w, r, absenceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAbsence operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAbsence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "absenceId" -------------
+	var absenceId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "absenceId", r.PathValue("absenceId"), &absenceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "absenceId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateAbsenceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAbsence(w, r, absenceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCapacities operation middleware
+func (siw *ServerInterfaceWrapper) ListCapacities(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCapacitiesParams
+
+	// ------------- Optional query parameter "account_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "account_id", r.URL.Query(), &params.AccountId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "account_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "account_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCapacities(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveCapacity operation middleware
+func (siw *ServerInterfaceWrapper) RemoveCapacity(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "from" -------------
+	var from string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "from", r.PathValue("from"), &from, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveCapacityParams
+
+	// ------------- Optional query parameter "account_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "account_id", r.URL.Query(), &params.AccountId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "account_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "account_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveCapacity(w, r, from, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetCapacity operation middleware
+func (siw *ServerInterfaceWrapper) SetCapacity(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "from" -------------
+	var from string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "from", r.PathValue("from"), &from, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetCapacity(w, r, from)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadTimePolicy operation middleware
 func (siw *ServerInterfaceWrapper) ReadTimePolicy(w http.ResponseWriter, r *http.Request) {
 
@@ -44005,6 +44945,21 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-policy", wrapper.ReadTimePolicy)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/time-policy", wrapper.SetTimePolicy)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/actuals", wrapper.ReadEstimatesVsActuals)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/workload", wrapper.ReadWorkload)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/plans/{planId}/budget", wrapper.RemoveBudget)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/budget", wrapper.ReadBudget)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/plans/{planId}/budget", wrapper.SetBudget)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-capacities", wrapper.ListCapacities)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/time-capacities/{from}", wrapper.RemoveCapacity)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/time-capacities/{from}", wrapper.SetCapacity)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-absences", wrapper.ListAbsences)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/time-absences", wrapper.RecordAbsence)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/time-absences/{absenceId}", wrapper.RemoveAbsence)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/time-absences/{absenceId}", wrapper.UpdateAbsence)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cost-rates", wrapper.ListCostRates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cost-rates", wrapper.SetCostRate)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/cost-rates/{rateId}", wrapper.RemoveCostRate)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/cost-rates/{rateId}", wrapper.ChangeCostRate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/business-calendars", wrapper.ListBusinessCalendars)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DeleteBusinessCalendar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DefineBusinessCalendar)

@@ -2294,3 +2294,48 @@ func (pending) SetTimePolicy(w http.ResponseWriter, r *http.Request) {
 func (pending) ReadEstimatesVsActuals(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
 	notAvailable(w, r)
 }
+func (pending) ReadWorkload(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi.ReadWorkloadParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadBudget(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) SetBudget(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) RemoveBudget(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi.RemoveBudgetParams) {
+	notAvailable(w, r)
+}
+func (pending) ListCapacities(w http.ResponseWriter, r *http.Request, _ openapi.ListCapacitiesParams) {
+	notAvailable(w, r)
+}
+func (pending) SetCapacity(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) RemoveCapacity(w http.ResponseWriter, r *http.Request, _ string, _ openapi.RemoveCapacityParams) {
+	notAvailable(w, r)
+}
+func (pending) ListAbsences(w http.ResponseWriter, r *http.Request, _ openapi.ListAbsencesParams) {
+	notAvailable(w, r)
+}
+func (pending) RecordAbsence(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) UpdateAbsence(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdateAbsenceParams) {
+	notAvailable(w, r)
+}
+func (pending) RemoveAbsence(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RemoveAbsenceParams) {
+	notAvailable(w, r)
+}
+func (pending) ListCostRates(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) SetCostRate(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ChangeCostRate(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ChangeCostRateParams) {
+	notAvailable(w, r)
+}
+func (pending) RemoveCostRate(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RemoveCostRateParams) {
+	notAvailable(w, r)
+}
