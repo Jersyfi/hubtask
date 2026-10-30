@@ -148,7 +148,14 @@ an agent, a held act and a run reach the agent's owner, whom a held act's and a 
 `owner_id`, and every row reaches whoever administers agents (`MANAGE_MEMBERS` at the workspace), as
 the registry's lists answer. An agent's record says whether its approval covers its model's revision
 when it was written; a changed model records its agents again. The ledger, the jobs and the
-spending are read online. A
+spending are read online. The service desk's records about an entry - an approval with its trail
+(`approval`), one goal's SLA record (`entry_sla`) and a request's score (`satisfaction_rating`) -
+are filed under the entry's collection and reach whoever reads the entry, as `ReadEntryApprovals`
+and `ReadEntrySla` ask; every write of one records it as now stored, the stores themselves
+announcing it, so the clocks and the timers do too. An approval's record grants nobody the leave to
+decide: who may is asked online, and a decision needs the server; the reader's own waiting list
+(`/approvals`) is read online for the same reason. While the server is away the web app answers an
+entry's goals and approvals from the copy. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 
