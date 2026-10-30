@@ -139,7 +139,7 @@ func (b *builder) field(collection shared.ID, in Field) shared.ID {
 }
 
 // classify sets an entry's type and status and its custom field values, after item added it.
-// A status of a DONE category completes the entry, as a workflow collection does (D-02).
+// A status of a DONE category completes the entry, as a workflow collection does (UC-IMP-04/1).
 func (b *builder) classify(item shared.ID, entryType, status string, done bool, values map[string]any, refs map[string]shared.ID) {
 	data, ok := b.itemData[item.String()]
 	if !ok {
