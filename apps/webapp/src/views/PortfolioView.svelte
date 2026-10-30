@@ -206,6 +206,7 @@
       label: t('app.goals.more'),
       items: [
         { id: 'export', label: t('app.portfolios.export'), icon: 'file-text' },
+        { id: 'roadmap', label: t('app.roadmap.title'), icon: 'calendar' },
         ...(mayWrite ? [
           { id: 'change', label: t('app.portfolios.change'), icon: 'pencil' as const },
           { id: 'delete', label: t('app.portfolios.delete'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
@@ -213,6 +214,7 @@
       ],
       onselect: (id: string) => {
         if (id === 'export') exportTable();
+        if (id === 'roadmap') onnavigate(`/portfolios/${portfolioId}/roadmap`);
         if (id === 'change' && portfolio) { draft.name = portfolio.name; draft.description = portfolio.description; draft.parent = portfolio.parent_id ?? ''; isChanging = true; }
         if (id === 'delete') isDeleting = true;
       },

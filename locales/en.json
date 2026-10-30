@@ -10423,5 +10423,19 @@
   "releases.released": "This release is out and no longer changes.",
   "releases.state_unknown": "A release is PLANNED or RELEASED.",
   "releases.too_many_entries": "A release holds at most {maximum} entries.",
-  "releases.version_conflict": "Someone changed this release in the meantime. Reload it and try again."
+  "releases.version_conflict": "Someone changed this release in the meantime. Reload it and try again.",
+  "app.roadmap.title": "Roadmap",
+  "app.roadmap.title_of": "Roadmap of {portfolio}",
+  "app.roadmap.chart": "Roadmap chart",
+  "app.roadmap.table": "Roadmap as a table",
+  "app.roadmap.empty": "No project of this portfolio has dates yet.",
+  "app.roadmap.reach": "From {from} to {to}",
+  "app.roadmap.no_dates": "Nothing on the roadmap has dates yet.",
+  "app.roadmap.unseen_hub": "A hub you cannot open",
+  "app.roadmap.col_what": "Hub, project or entry",
+  "app.roadmap.col_state": "State",
+  "app.roadmap.level_lane": "Hub",
+  "app.roadmap.level_project": "Project",
+  "app.roadmap.done": "Done",
+  "app.roadmap.milestone": "Milestone"
 }

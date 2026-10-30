@@ -129,6 +129,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'goals', pattern: '/goals' },
   { name: 'goal', pattern: '/goals/:id' },
   { name: 'portfolio', pattern: '/portfolios/:id' },
+  // A portfolio's roadmap (M2): a lane per hub, a bar per top-level entry.
+  { name: 'portfolio-roadmap', pattern: '/portfolios/:id/roadmap' },
   { name: 'dashboard', pattern: '/dashboards/:id' },
   { name: 'trash', pattern: '/trash' },
   { name: 'archive', pattern: '/archive' },

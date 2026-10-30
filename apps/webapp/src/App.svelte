@@ -92,6 +92,7 @@
     GoalsView: () => import('./views/GoalsView.svelte'),
     GoalView: () => import('./views/GoalView.svelte'),
     PortfolioView: () => import('./views/PortfolioView.svelte'),
+    RoadmapView: () => import('./views/RoadmapView.svelte'),
     DashboardView: () => import('./views/DashboardView.svelte'),
     ActualsView: () => import('./views/ActualsView.svelte'),
     WorkloadView: () => import('./views/WorkloadView.svelte'),
@@ -469,6 +470,10 @@
   {:else if route.name === 'portfolio'}
     {#key route.path}
       <LazyView load={views.PortfolioView} props={{ portfolioId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'portfolio-roadmap'}
+    {#key route.path}
+      <LazyView load={views.RoadmapView} props={{ portfolioId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'dashboard'}
     {#key route.path}

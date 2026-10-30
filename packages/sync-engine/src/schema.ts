@@ -894,6 +894,7 @@ export type EntryScheduling = components['schemas']['EntryScheduling'];
 export type PlanBaseline = components['schemas']['PlanBaseline'];
 export type PlanBaselineList = components['schemas']['PlanBaselineList'];
 export type PlanTolerance = components['schemas']['PlanTolerance'];
+export type PortfolioRoadmap = components['schemas']['PortfolioRoadmap'];
 export type BaselineVariance = components['schemas']['BaselineVariance'];
 export type BaselineComparison = components['schemas']['BaselineComparison'];
 
