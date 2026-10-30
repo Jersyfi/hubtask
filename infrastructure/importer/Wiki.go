@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/url"
 	"path"
 	"regexp"
 	"sort"
@@ -447,7 +448,7 @@ func (w *markdownWriter) inlineNode(n *html.Node) string {
 		if address, ok := w.resolve(href); ok {
 			return "[" + inner + "](" + address + ")"
 		}
-		if strings.HasPrefix(href, "http://") || strings.HasPrefix(href, "https://") || strings.HasPrefix(href, "mailto:") {
+		if external(href) {
 			return "[" + inner + "](" + href + ")"
 		}
 		return inner
@@ -455,6 +456,22 @@ func (w *markdownWriter) inlineNode(n *html.Node) string {
 		return ""
 	}
 	return inner
+}
+
+// external reports whether a link leaves the space for the web or a mail address, which a page keeps
+// as written; any other link the space could not resolve becomes its text.
+func external(href string) bool {
+	address, err := url.Parse(href)
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(address.Scheme) {
+	case "http", "https":
+		return address.Host != ""
+	case "mailto":
+		return address.Opaque != ""
+	}
+	return false
 }
 
 func wrap(text, marker string) string {
