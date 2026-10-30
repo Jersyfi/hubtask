@@ -131,6 +131,8 @@ export const ROUTES: readonly Route[] = [
   // A hub's or a collection's plan (M2): the schedule as a Gantt chart and as a table.
   { name: 'hub-plan', pattern: '/hubs/:id/plan' },
   { name: 'collection-plan', pattern: '/collections/:id/plan' },
+  // A collection's sprints (M2): the sprints, the backlog, the burndown and the velocity.
+  { name: 'collection-sprints', pattern: '/collections/:id/sprints' },
   // A hub's assets (M6) by section, and one configuration item, addressed by itself because an
   // impact, a duplicate or a health problem links it without its hub.
   { name: 'hub-assets', pattern: '/hubs/:id/assets' },

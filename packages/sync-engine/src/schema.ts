@@ -828,3 +828,15 @@ export type PlanBaseline = components['schemas']['PlanBaseline'];
 export type PlanBaselineList = components['schemas']['PlanBaselineList'];
 export type BaselineVariance = components['schemas']['BaselineVariance'];
 export type BaselineComparison = components['schemas']['BaselineComparison'];
+
+/** A collection's sprints, their entries and burndown, the backlog, the velocity and an estimate (M2). */
+export type Sprint = components['schemas']['Sprint'];
+export type SprintList = components['schemas']['SprintList'];
+export type SprintDetail = components['schemas']['SprintDetail'];
+export type SprintEntry = components['schemas']['SprintEntry'];
+export type SprintClosure = components['schemas']['SprintClosure'];
+export type SprintBacklog = components['schemas']['SprintBacklog'];
+export type BurndownPoint = components['schemas']['BurndownPoint'];
+export type Velocity = components['schemas']['Velocity'];
+export type Estimate = components['schemas']['Estimate'];
+export type EntryEstimate = components['schemas']['EntryEstimate'];

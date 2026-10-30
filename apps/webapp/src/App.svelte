@@ -76,6 +76,7 @@
     PagesView: () => import('./views/PagesView.svelte'),
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     PlanView: () => import('./views/PlanView.svelte'),
+    SprintView: () => import('./views/SprintView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
     ChangesView: () => import('./views/ChangesView.svelte'),
     WorkflowsView: () => import('./views/WorkflowsView.svelte'),
@@ -408,6 +409,10 @@
   {:else if route.name === 'hub-plan' || route.name === 'collection-plan'}
     {#key route.path}
       <LazyView load={views.PlanView} props={{ planId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'collection-sprints'}
+    {#key route.path}
+      <LazyView load={views.SprintView} props={{ collectionId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'hub-assets' || route.name === 'hub-assets-section' || route.name === 'ci'}
     {#key route.name === 'ci' ? route.path : route.params.id}

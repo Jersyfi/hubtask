@@ -863,6 +863,7 @@
     if (on.includes('PLANNING')) {
       const base = container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`;
       actions.push({ label: t('app.planning.title'), icon: 'calendar', onclick: () => onnavigate(`${base}/plan`) });
+      if (container.type !== 'HUB') actions.push({ label: t('app.sprints.title'), icon: 'repeat', onclick: () => onnavigate(`/collections/${id}/sprints`) });
     }
     if (container.type !== 'HUB') return actions;
     if (on.includes('KNOWLEDGE')) actions.push({ label: t('app.pages.title'), icon: 'book-open', onclick: () => onnavigate(`/hubs/${id}/pages`) });
