@@ -59,9 +59,13 @@ test('chromium: panning and zooming a board of 5,000 objects keeps its frames co
     if (path.endsWith(`/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: [] } });
     return stub(route);
   });
+  const opening = Date.now();
   await page.goto(`${served.origin}/whiteboards/${BOARD_ID}`);
   const canvas = page.getByRole('application');
-  await canvas.waitFor({ timeout: 20_000 });
+  await canvas.locator('g.object').first().waitFor({ timeout: 20_000 });
+  const opened = Date.now() - opening;
+  t.diagnostic(`opened with its objects drawn in ${opened} ms`);
+  assert.ok(opened < 3000, `the board took ${opened} ms to open`);
   await page.waitForTimeout(500);
 
   const box = await canvas.boundingBox();
@@ -106,9 +110,9 @@ test('chromium: panning and zooming a board of 5,000 objects keeps its frames co
   const close = await measured();
   said('At 100 %', near, close);
   assert.ok(close.frames >= 20, `only ${close.frames} frames were painted while the board moved`);
-  // Smooth is a frame at least every 33 ms in the middle of the gesture (30 fps), with no stall of
+  // Smooth is a frame at least every 20 ms in the middle of the gesture (50 fps), with no stall of
   // more than a tenth of a second in its slowest twentieth.
-  assert.ok(close.median <= 1000 / 30, `the median frame took ${close.median.toFixed(1)} ms`);
+  assert.ok(close.median <= 1000 / 50, `the median frame took ${close.median.toFixed(1)} ms`);
   assert.ok(close.worst <= 100, `the slowest frames took ${close.worst.toFixed(1)} ms`);
 
   // The board zoomed out as far as the view goes: the most of it drawn at once, the worst a board of
@@ -120,6 +124,7 @@ test('chromium: panning and zooming a board of 5,000 objects keeps its frames co
   const far = await measured();
   said('Zoomed out', whole, far);
   assert.ok(far.frames >= 10, `only ${far.frames} frames were painted while the whole board moved`);
-  assert.ok(far.median <= 1000 / 20, `the median frame of the whole board took ${far.median.toFixed(1)} ms`);
+  assert.ok(far.median <= 1000 / 50, `the median frame zoomed out took ${far.median.toFixed(1)} ms`);
+  assert.ok(far.worst <= 100, `the slowest frames zoomed out took ${far.worst.toFixed(1)} ms`);
   assert.deepEqual(failures, []);
 });
