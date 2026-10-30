@@ -12,7 +12,7 @@
  */
 
 import type {
-  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageMove, PageTrashed, PageVersionNamed,
+  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageMove, PageShare, PageTrashed, PageVersionNamed,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -28,6 +28,9 @@ export const versionsPath = (pageId: string) => `/pages/${pageId}/versions`;
 export const versionPath = (pageId: string, seq: number) => `/pages/${pageId}/versions/${seq}`;
 export const pageCommentsPath = (pageId: string) => `/pages/${pageId}/comments`;
 export const backlinksPath = (pageId: string) => `/pages/${pageId}/backlinks`;
+export const accessPath = (pageId: string) => `/pages/${pageId}/access`;
+export const sharedPagesPath = '/pages:shared';
+export const personalSpacePath = '/pages:personal';
 
 /** What a write to one page makes stale: the page, its space, and its history. */
 const touched = (hubId: string, pageId: string) => [pagePath(pageId), `/hubs/${hubId}/pages`, `/hubs/${hubId}/trashed-pages`, versionsPath(pageId)];
@@ -127,6 +130,35 @@ class Pages {
     const state = await engine.refresh<PageHitList>({ path: '/pages:search', body: { text, limit, ...(hubId ? { hub_id: hubId } : {}) } });
     if (state.status === 'failed') throw state.error;
     return state.status === 'ready' ? state.data.data : [];
+  }
+
+  /**
+   * Restricts who of the hub's readers may read the page to the people named - the reader among
+   * them - or, without anybody, lifts the page's own restriction (UC-DOC-07).
+   */
+  restrict(page: Page, accountIds: readonly string[] | undefined): Promise<Page> {
+    return engine.mutate<Page>('POST', `${pagePath(page.id)}:restrict`, accountIds ? { account_ids: [...accountIds] } : { lift: true }, {
+      invalidates: [...touched(page.hub_id, page.id), accessPath(page.id)],
+    });
+  }
+
+  /** Shares the page read-only with one person beside its hub (UC-DOC-08). */
+  share(pageId: string, accountId: string): Promise<PageShare> {
+    return engine.mutate<PageShare>('POST', `${pagePath(pageId)}/shares`, { account_id: accountId }, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [accessPath(pageId)],
+    });
+  }
+
+  unshare(pageId: string, accountId: string): Promise<unknown> {
+    return engine.mutate<unknown>('DELETE', `${pagePath(pageId)}/shares/${accountId}`, undefined, {
+      invalidates: [accessPath(pageId), sharedPagesPath],
+    });
+  }
+
+  /** Today's note in the reader's personal space, made with the space on first use (UC-DOC-07). */
+  today(): Promise<Page> {
+    return engine.mutate<Page>('POST', '/pages:today', {}, { invalidates: [personalSpacePath] });
   }
 
   /** The page's live document socket; the editor asks for a new one on every reconnect. */

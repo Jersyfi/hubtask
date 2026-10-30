@@ -38,6 +38,7 @@
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import PageAccess from '../lib/pages/PageAccess.svelte';
   import PageEditor from '../lib/pages/PageEditor.svelte';
   import { levelThreads } from '../lib/pages/margin.ts';
   import { platform } from '../lib/platform/index.ts';
@@ -460,6 +461,7 @@
                 {#if node.page.icon}<span aria-hidden="true">{node.page.icon}</span>{/if}
                 {node.page.title}
               </a>
+              {#if node.page.restricted}<Badge size="sm" icon="lock">{t('app.pages.access_restricted_badge')}</Badge>{/if}
               {#if node.page.due_for_review}<Badge tone="warning" size="sm">{t('app.pages.due_for_review')}</Badge>{/if}
             </li>
           {/each}
@@ -524,6 +526,8 @@
               <h2 class="title">{current.title}</h2>
             {/if}
             {#if current.template}<Badge size="sm">{t('app.pages.is_template')}</Badge>{/if}
+            {#if current.restricted}<Badge size="sm" icon="lock">{t('app.pages.access_restricted_badge')}</Badge>{/if}
+            {#if current.shared}<Badge size="sm" tone="info">{t('app.pages.shared_with_you')}</Badge>{/if}
             {#if current.due_for_review}
               <Badge tone="warning" size="sm">{t('app.pages.due_for_review')}</Badge>
             {:else if current.verified_until}
@@ -653,6 +657,7 @@
                 </ul>
               {:else}
                 <Stack gap="150">
+                  {#if !current.shared && hubId}<PageAccess page={current} {hubId} />{/if}
                   <section>
                     <h3 class="heading">{t('app.pages.verification')}</h3>
                     {#if current.verified_until}

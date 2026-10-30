@@ -94,6 +94,10 @@ export const DESTINATIONS: readonly Destination[] = [
   // behind the avatar, because it is about the reader rather than a place of the workspace; drawn
   // only where the time module is on.
   { id: 'time', group: 'account', icon: 'clock', code: 'app.nav.time', target: { kind: 'route', path: '/time' }, routes: ['time'], module: 'TIME' },
+  // The reader's own notes (M3, UC-DOC-07): today's note in their personal space and the pages
+  // shared with them. The account's, behind the avatar, as their time is; drawn only where the
+  // knowledge module is on.
+  { id: 'notes', group: 'account', icon: 'file-text', code: 'app.nav.notes', target: { kind: 'route', path: '/notes' }, routes: ['notes'], module: 'KNOWLEDGE' },
   // Goals, portfolios and dashboards (M8): the workspace's view of whether the work adds up. Behind
   // the avatar beside the reader's time rather than in the primary group, whose three spaces are
   // the work itself; drawn only where the goals module is on.

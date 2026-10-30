@@ -10,7 +10,7 @@ import { SHIPPED_TEMPLATES, ancestorsOf, caretOf, exportFileName, pageTree, ship
 
 const page = (id: string, parent: string | null, position: string, title = id): Page => ({
   id, hub_id: 'hub', parent_id: parent, title, icon: null, position, template: false, content_language: null, owner_id: null,
-  verified_until: null, verified_at: null, verified_by: null, due_for_review: false, archived: false, trashed_at: null,
+  verified_until: null, verified_at: null, verified_by: null, due_for_review: false, archived: false, restricted: false, daily_for: null, trashed_at: null,
   created_by: 'a', created_at: '', updated_by: 'a', updated_at: '', version: 1,
 });
 

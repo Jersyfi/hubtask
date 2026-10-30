@@ -138,6 +138,8 @@ export const ROUTES: readonly Route[] = [
   // from a mention, a search hit or a backlink, which know the page and not its hub.
   { name: 'hub-pages', pattern: '/hubs/:id/pages' },
   { name: 'page', pattern: '/pages/:id' },
+  // The reader's own notes and the pages shared with them (UC-DOC-07, UC-DOC-08).
+  { name: 'notes', pattern: '/notes' },
   // A hub's whiteboards and one of them (M4), addressed as a page is.
   { name: 'hub-whiteboards', pattern: '/hubs/:id/whiteboards' },
   { name: 'whiteboard', pattern: '/whiteboards/:id' },

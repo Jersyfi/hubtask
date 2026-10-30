@@ -78,6 +78,7 @@
     LinkTypesView: () => import('./views/LinkTypesView.svelte'),
     CmdbView: () => import('./views/CmdbView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
+    NotesView: () => import('./views/NotesView.svelte'),
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     PlanView: () => import('./views/PlanView.svelte'),
     SprintView: () => import('./views/SprintView.svelte'),
@@ -407,6 +408,8 @@
     {#key route.params.id}
       <ItemView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
     {/key}
+  {:else if route.name === 'notes'}
+    <LazyView load={views.NotesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'hub-pages' || route.name === 'page'}
     {#key route.path}
       <LazyView
