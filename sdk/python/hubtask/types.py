@@ -2997,6 +2997,9 @@ class InboundTriggerToken(TypedDict, total=False):
     token: Required[str]
     rotated_at: Required[str]
 
+class RuleTriggerPress(TypedDict, total=False):
+    item_id: str
+
 class RuleRunAccepted(TypedDict, total=False):
     """A run that has been queued and has not started. The identifier is the one the run will carry, so a caller can watch for it - `GET /automation/runs/{runId}` answers `404` until a worker claims the job."""
     run_id: Required[str]

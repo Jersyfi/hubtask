@@ -491,9 +491,9 @@ class Client:
         """Dry-run a rule against a sample event"""
         return self._call("POST", "/automation/rules:test", {}, None, {}, body, "json", "application/json", "json")
 
-    def trigger_rule_manually(self, rule_id: str, *, idempotency_key: str | None = None) -> "RuleRunAccepted":
+    def trigger_rule_manually(self, rule_id: str, body: "RuleTriggerPress", *, idempotency_key: str | None = None) -> "RuleRunAccepted":
         """Run a rule now"""
-        return self._call("POST", "/automation/rules/{ruleId}:trigger", {"ruleId": rule_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/automation/rules/{ruleId}:trigger", {"ruleId": rule_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def rotate_inbound_trigger(self, rule_id: str, *, idempotency_key: str | None = None) -> "InboundTriggerToken":
         """Mint the address an inbound-webhook rule answers on"""

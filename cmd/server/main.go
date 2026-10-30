@@ -2348,7 +2348,8 @@ func run() error {
 		automationservice.DisableRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.DeleteRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.TriggerRuleManually{
-			Rules: postgres.NewAutomationRuleRepository(cursors),
+			Rules:   postgres.NewAutomationRuleRepository(cursors),
+			Entries: items, Containers: containers,
 			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),

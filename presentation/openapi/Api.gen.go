@@ -15954,6 +15954,12 @@ type RuleTriggerAnchor string
 // RuleTriggerKind defines model for RuleTrigger.Kind.
 type RuleTriggerKind string
 
+// RuleTriggerPress defines model for RuleTriggerPress.
+type RuleTriggerPress struct {
+	// ItemId The entry a macro is pressed on.
+	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+}
+
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
 type SavedView struct {
 	CreatedAt *time.Time             `json:"created_at,omitempty"`
@@ -20463,6 +20469,9 @@ type CreateRuleJSONRequestBody = AutomationRuleCreate
 
 // UpdateRuleApplicationMergePatchPlusJSONRequestBody defines body for UpdateRule for application/merge-patch+json ContentType.
 type UpdateRuleApplicationMergePatchPlusJSONRequestBody = AutomationRuleUpdate
+
+// TriggerRuleManuallyJSONRequestBody defines body for TriggerRuleManually for application/json ContentType.
+type TriggerRuleManuallyJSONRequestBody = RuleTriggerPress
 
 // DescribeRuleJSONRequestBody defines body for DescribeRule for application/json ContentType.
 type DescribeRuleJSONRequestBody = RuleDescription

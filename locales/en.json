@@ -1269,6 +1269,8 @@
   "automation.http_target_refused": "The target answered {status} and refused the call.",
   "automation.http_target_unavailable": "The target answered {status}. The call will be tried again.",
   "automation.trigger_not_manual": "This rule is started by {kind}, not by hand. Only a rule with a MANUAL trigger can be run this way.",
+  "automation.subject_outside_scope": "This entry lies outside the place the rule works in.",
+  "automation.subject_unavailable": "This installation cannot run a rule on an entry. Please try again later.",
   "automation.rule_not_enabled": "This rule is switched off. Switch it on before running it.",
   "automation.trigger_not_inbound": "This rule is started by {kind}, not by an address. Only a rule with an INBOUND_WEBHOOK trigger has one.",
   "automation.inbound_not_found": "There is no rule at that address.",

@@ -15960,6 +15960,12 @@ type RuleTriggerAnchor string
 // RuleTriggerKind defines model for RuleTrigger.Kind.
 type RuleTriggerKind string
 
+// RuleTriggerPress defines model for RuleTriggerPress.
+type RuleTriggerPress struct {
+	// ItemId The entry a macro is pressed on.
+	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+}
+
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
 type SavedView struct {
 	CreatedAt *time.Time             `json:"created_at,omitempty"`
@@ -20470,6 +20476,9 @@ type CreateRuleJSONRequestBody = AutomationRuleCreate
 // UpdateRuleApplicationMergePatchPlusJSONRequestBody defines body for UpdateRule for application/merge-patch+json ContentType.
 type UpdateRuleApplicationMergePatchPlusJSONRequestBody = AutomationRuleUpdate
 
+// TriggerRuleManuallyJSONRequestBody defines body for TriggerRuleManually for application/json ContentType.
+type TriggerRuleManuallyJSONRequestBody = RuleTriggerPress
+
 // DescribeRuleJSONRequestBody defines body for DescribeRule for application/json ContentType.
 type DescribeRuleJSONRequestBody = RuleDescription
 
@@ -23482,15 +23491,31 @@ type ClientInterface interface {
 	// Corresponds with POST /automation/rules/{ruleId}:rotate-inbound-token (the `RotateInboundTrigger` operationId).
 	RotateInboundTrigger(ctx context.Context, ruleId RuleId, params *RotateInboundTriggerParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// TriggerRuleManuallyWithBody Run a rule now
+	//
+	// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
+	// The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
+	// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
+	// The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
+	// With `item_id` the rule is a **macro**: the run is about that entry - the conditions read it as `item` and every action that names no entry takes it. The caller must be allowed to change the entry, and an entry outside the rule's scope is refused with `automation.subject_outside_scope`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
+	TriggerRuleManuallyWithBody(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// TriggerRuleManually Run a rule now
 	//
 	// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
 	// The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
 	// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
 	// The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
+	// With `item_id` the rule is a **macro**: the run is about that entry - the conditions read it as `item` and every action that names no entry takes it. The caller must be allowed to change the entry, and an entry outside the rule's scope is refused with `automation.subject_outside_scope`.
+	//
+	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
-	TriggerRuleManually(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	TriggerRuleManually(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, body TriggerRuleManuallyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CheckRules Check every rule of the workspace against what exists now
 	//
@@ -32969,16 +32994,42 @@ func (c *Client) RotateInboundTrigger(ctx context.Context, ruleId RuleId, params
 	return c.Client.Do(req)
 }
 
+// TriggerRuleManuallyWithBody Run a rule now
+//
+// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
+// The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
+// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
+// The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
+// With `item_id` the rule is a **macro**: the run is about that entry - the conditions read it as `item` and every action that names no entry takes it. The caller must be allowed to change the entry, and an entry outside the rule's scope is refused with `automation.subject_outside_scope`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
+func (c *Client) TriggerRuleManuallyWithBody(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTriggerRuleManuallyRequestWithBody(c.Server, ruleId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // TriggerRuleManually Run a rule now
 //
 // The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
 // The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
 // Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
 // The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
+// With `item_id` the rule is a **macro**: the run is about that entry - the conditions read it as `item` and every action that names no entry takes it. The caller must be allowed to change the entry, and an entry outside the rule's scope is refused with `automation.subject_outside_scope`.
+//
+// Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
-func (c *Client) TriggerRuleManually(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewTriggerRuleManuallyRequest(c.Server, ruleId, params)
+func (c *Client) TriggerRuleManually(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, body TriggerRuleManuallyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTriggerRuleManuallyRequest(c.Server, ruleId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -49835,8 +49886,19 @@ func NewRotateInboundTriggerRequest(server string, ruleId RuleId, params *Rotate
 	return req, nil
 }
 
-// NewTriggerRuleManuallyRequest constructs an http.Request for the TriggerRuleManually method
-func NewTriggerRuleManuallyRequest(server string, ruleId RuleId, params *TriggerRuleManuallyParams) (*http.Request, error) {
+// NewTriggerRuleManuallyRequest calls the generic TriggerRuleManually builder with application/json body
+func NewTriggerRuleManuallyRequest(server string, ruleId RuleId, params *TriggerRuleManuallyParams, body TriggerRuleManuallyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTriggerRuleManuallyRequestWithBody(server, ruleId, params, "application/json", bodyReader)
+}
+
+// NewTriggerRuleManuallyRequestWithBody constructs an http.Request for the TriggerRuleManually method, with any body, and a specified content type
+func NewTriggerRuleManuallyRequestWithBody(server string, ruleId RuleId, params *TriggerRuleManuallyParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -49861,10 +49923,12 @@ func NewTriggerRuleManuallyRequest(server string, ruleId RuleId, params *Trigger
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	if params != nil {
 
@@ -71164,17 +71228,31 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /automation/rules/{ruleId}:rotate-inbound-token (the `RotateInboundTrigger` operationId).
 	RotateInboundTriggerWithResponse(ctx context.Context, ruleId RuleId, params *RotateInboundTriggerParams, reqEditors ...RequestEditorFn) (*RotateInboundTriggerResult, error)
 
+	// TriggerRuleManuallyWithBodyWithResponse Run a rule now
+	//
+	// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
+	// The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
+	// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
+	// The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
+	// With `item_id` the rule is a **macro**: the run is about that entry - the conditions read it as `item` and every action that names no entry takes it. The caller must be allowed to change the entry, and an entry outside the rule's scope is refused with `automation.subject_outside_scope`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
+	TriggerRuleManuallyWithBodyWithResponse(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TriggerRuleManuallyResult, error)
+
 	// TriggerRuleManuallyWithResponse Run a rule now
 	//
 	// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
 	// The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
 	// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
 	// The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
+	// With `item_id` the rule is a **macro**: the run is about that entry - the conditions read it as `item` and every action that names no entry takes it. The caller must be allowed to change the entry, and an entry outside the rule's scope is refused with `automation.subject_outside_scope`.
 	//
-	// Returns a wrapper object for the known response body format(s).
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
-	TriggerRuleManuallyWithResponse(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, reqEditors ...RequestEditorFn) (*TriggerRuleManuallyResult, error)
+	TriggerRuleManuallyWithResponse(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, body TriggerRuleManuallyJSONRequestBody, reqEditors ...RequestEditorFn) (*TriggerRuleManuallyResult, error)
 
 	// CheckRulesWithResponse Check every rule of the workspace against what exists now
 	//
@@ -106304,18 +106382,38 @@ func (c *ClientWithResponses) RotateInboundTriggerWithResponse(ctx context.Conte
 	return ParseRotateInboundTriggerResult(rsp)
 }
 
+// TriggerRuleManuallyWithBodyWithResponse Run a rule now
+//
+// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
+// The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
+// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
+// The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
+// With `item_id` the rule is a **macro**: the run is about that entry - the conditions read it as `item` and every action that names no entry takes it. The caller must be allowed to change the entry, and an entry outside the rule's scope is refused with `automation.subject_outside_scope`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
+func (c *ClientWithResponses) TriggerRuleManuallyWithBodyWithResponse(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TriggerRuleManuallyResult, error) {
+	rsp, err := c.TriggerRuleManuallyWithBody(ctx, ruleId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTriggerRuleManuallyResult(rsp)
+}
+
 // TriggerRuleManuallyWithResponse Run a rule now
 //
 // The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
 // The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
 // Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
 // The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
+// With `item_id` the rule is a **macro**: the run is about that entry - the conditions read it as `item` and every action that names no entry takes it. The caller must be allowed to change the entry, and an entry outside the rule's scope is refused with `automation.subject_outside_scope`.
 //
-// Returns a wrapper object for the known response body format(s).
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
-func (c *ClientWithResponses) TriggerRuleManuallyWithResponse(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, reqEditors ...RequestEditorFn) (*TriggerRuleManuallyResult, error) {
-	rsp, err := c.TriggerRuleManually(ctx, ruleId, params, reqEditors...)
+func (c *ClientWithResponses) TriggerRuleManuallyWithResponse(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, body TriggerRuleManuallyJSONRequestBody, reqEditors ...RequestEditorFn) (*TriggerRuleManuallyResult, error) {
+	rsp, err := c.TriggerRuleManually(ctx, ruleId, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

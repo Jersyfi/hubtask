@@ -2440,7 +2440,8 @@ func (c *RestController) TrashWorkItem(w http.ResponseWriter, r *http.Request, i
 
 // TriggerRuleManually answers POST /automation/rules/{ruleId}:trigger by the generated mapping.
 func (c *RestController) TriggerRuleManually(w http.ResponseWriter, r *http.Request, ruleId openapi.RuleId, params openapi.TriggerRuleManuallyParams) {
-	c.door(w, r, restDoors["triggerRuleManually"], usecase.Input{"rule_id": ruleId.String()}, params, nil, answerBy(ruleRunAcceptedResponse))
+	var body openapi.TriggerRuleManuallyJSONRequestBody
+	c.door(w, r, restDoors["triggerRuleManually"], usecase.Input{"rule_id": ruleId.String()}, params, &body, answerBy(ruleRunAcceptedResponse))
 }
 
 // TryWorkflowStep answers POST /workflows/{key}/steps/{step}:try by the generated mapping.

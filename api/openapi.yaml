@@ -2752,8 +2752,18 @@ paths:
         The answer carries the identifier the run will have. It is a `202`: the run happens on a
         worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log
         afterwards.
+
+        With `item_id` the rule is a **macro**: the run is about that entry - the conditions read
+        it as `item` and every action that names no entry takes it. The caller must be allowed to
+        change the entry, and an entry outside the rule's scope is refused with
+        `automation.subject_outside_scope`.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RuleTriggerPress" }
       responses:
         "202":
           description: Queued, with the identifier the run will carry
@@ -24394,6 +24404,14 @@ components:
             The credential, prefixed `hbt_hook_`. The prefix is public by design, so that secret
             scanning finds a leaked URL before somebody else does.
         rotated_at: { type: string, format: date-time }
+
+    RuleTriggerPress:
+      type: object
+      properties:
+        item_id:
+          type: string
+          format: uuid
+          description: The entry a macro is pressed on.
 
     RuleRunAccepted:
       type: object

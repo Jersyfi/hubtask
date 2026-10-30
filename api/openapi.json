@@ -4253,12 +4253,22 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "ruleRunAcceptedResponse",
         "summary": "Run a rule now",
-        "description": "The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.\nThe run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.\nOnly a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.\nThe answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.\n",
+        "description": "The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.\nThe run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.\nOnly a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.\nThe answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.\nWith `item_id` the rule is a **macro**: the run is about that entry - the conditions read it as `item` and every action that names no entry takes it. The caller must be allowed to change the entry, and an entry outside the rule's scope is refused with `automation.subject_outside_scope`.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleTriggerPress"
+              }
+            }
+          }
+        },
         "responses": {
           "202": {
             "description": "Queued, with the identifier the run will carry",
@@ -36321,6 +36331,16 @@
           "rotated_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "RuleTriggerPress": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The entry a macro is pressed on."
           }
         }
       },

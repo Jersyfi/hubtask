@@ -601,8 +601,8 @@ export class HubtaskClient {
   }
 
   /** Run a rule now */
-  triggerRuleManually(ruleId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["triggerRuleManually"]['responses'][202]['content']["application/json"]> {
-    return this.call("POST", "/automation/rules/{ruleId}:trigger", { "ruleId": ruleId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
+  triggerRuleManually(ruleId: string, body: NonNullable<operations["triggerRuleManually"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["triggerRuleManually"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/automation/rules/{ruleId}:trigger", { "ruleId": ruleId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Mint the address an inbound-webhook rule answers on */

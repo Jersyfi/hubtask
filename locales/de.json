@@ -252,6 +252,8 @@
   "automation.http_target_refused": "Das Ziel hat mit {status} geantwortet und den Aufruf abgelehnt.",
   "automation.http_target_unavailable": "Das Ziel hat mit {status} geantwortet. Der Aufruf wird noch einmal versucht.",
   "automation.trigger_not_manual": "Diese Regel wird durch {kind} gestartet, nicht von Hand. Nur eine Regel mit einem MANUAL-Auslöser lässt sich so ausführen.",
+  "automation.subject_outside_scope": "Dieser Eintrag liegt außerhalb des Bereichs, in dem die Regel wirkt.",
+  "automation.subject_unavailable": "Diese Installation kann gerade keine Regel auf einem Eintrag ausführen. Bitte versuche es später erneut.",
   "automation.rule_not_enabled": "Diese Regel ist ausgeschaltet. Schalte sie ein, bevor du sie ausführst.",
   "automation.trigger_not_inbound": "Diese Regel wird durch {kind} gestartet, nicht über eine Adresse. Nur eine Regel mit einem INBOUND_WEBHOOK-Auslöser hat eine.",
   "automation.inbound_not_found": "Unter dieser Adresse gibt es keine Regel.",

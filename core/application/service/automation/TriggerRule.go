@@ -5,13 +5,17 @@ package automation
 
 import (
 	"context"
+	"errors"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -40,7 +44,11 @@ const (
 // account, and a caller holding an HTTP connection open while a rule restructures a hub is a
 // request whose timeout decides how much of the rule happened.
 type TriggerRuleManually struct {
-	Rules      repository.Rules
+	Rules repository.Rules
+	// Entries and Containers locate the entry a macro is pressed on (UC-SVC-06 check 4); without
+	// them a press naming an entry is refused.
+	Entries    Entries
+	Containers Containers
 	Jobs       Queue
 	Authorizer Authorizer
 	Audit      audit.Sink
@@ -63,6 +71,16 @@ type TriggerRuleResult struct {
 func (h TriggerRuleManually) Execute(
 	ctx context.Context, actor appshared.ActorContext, ruleID shared.ID,
 ) (TriggerRuleResult, error) {
+	return h.ExecuteOn(ctx, actor, ruleID, "")
+}
+
+// ExecuteOn queues the run about one entry - a macro (UC-SVC-06): the rule's conditions read it as
+// `item` and its actions take it where they name no entry. The presser must be allowed to change
+// the entry and the entry must lie in the rule's scope, so a macro is no way to reach an entry the
+// presser could not change by hand.
+func (h TriggerRuleManually) ExecuteOn(
+	ctx context.Context, actor appshared.ActorContext, ruleID, itemID shared.ID,
+) (TriggerRuleResult, error) {
 	var rule domain.Rule
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var findErr error
@@ -81,6 +99,11 @@ func (h TriggerRuleManually) Execute(
 	if err := h.authorize(ctx, actor, rule); err != nil {
 		return TriggerRuleResult{}, err
 	}
+	if !itemID.IsZero() {
+		if err := h.authorizeSubject(ctx, actor, rule, itemID); err != nil {
+			return TriggerRuleResult{}, err
+		}
+	}
 
 	if rule.Trigger.Kind != domain.TriggerManual {
 		// Refused by name rather than queued to do nothing. The engine would drop the job on the
@@ -97,20 +120,24 @@ func (h TriggerRuleManually) Execute(
 	}
 
 	runID := h.IDs.NewID()
+	payload := map[string]any{
+		"rule_id":      rule.ID.String(),
+		"trigger":      string(domain.TriggerManual),
+		"run_id":       runID.String(),
+		"triggered_by": actor.AccountID.String(),
+		// Each press is its own occasion, so two presses are two sets of idempotency keys
+		// and the second really acts. The run identifier is what makes them distinct, and
+		// it is already unique per press.
+		"occasion": "manual:" + runID.String(),
+	}
+	if !itemID.IsZero() {
+		payload["subject_id"] = itemID.String()
+	}
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		_, enqueueErr := h.Jobs.Enqueue(ctx, queue.Request{
 			Kind:     queue.KindAutomationRun,
 			TenantID: actor.TenantID,
-			Payload: map[string]any{
-				"rule_id":      rule.ID.String(),
-				"trigger":      string(domain.TriggerManual),
-				"run_id":       runID.String(),
-				"triggered_by": actor.AccountID.String(),
-				// Each press is its own occasion, so two presses are two sets of idempotency keys
-				// and the second really acts. The run identifier is what makes them distinct, and
-				// it is already unique per press.
-				"occasion": "manual:" + runID.String(),
-			},
+			Payload:  payload,
 			// The same key, so that a client that retries the call while the first job is still
 			// pending gets the one run it asked for rather than two.
 			DedupeKey: ConsumerName + ":manual:" + runID.String(),
@@ -123,6 +150,47 @@ func (h TriggerRuleManually) Execute(
 
 	h.record(ctx, actor, rule, runID)
 	return TriggerRuleResult{RunID: runID, RuleID: rule.ID}, nil
+}
+
+// authorizeSubject asks what changing the entry by hand asks, at its collection, and refuses an
+// entry outside the rule's scope by name.
+func (h TriggerRuleManually) authorizeSubject(
+	ctx context.Context, actor appshared.ActorContext, rule domain.Rule, itemID shared.ID,
+) error {
+	if h.Entries == nil || h.Containers == nil {
+		return shared.ErrInternal.WithDetail("automation.subject_unavailable")
+	}
+	var (
+		item       work.WorkItem
+		collection work.Container
+	)
+	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		if item, err = h.Entries.Find(ctx, itemID); err != nil {
+			return err
+		}
+		collection, err = h.Containers.Find(ctx, item.CollectionID)
+		return err
+	})
+	if errors.Is(err, shared.ErrNotFound) || (err == nil && item.DeletedAt != nil) {
+		return appshared.ItemNotFound(itemID)
+	}
+	if err != nil {
+		return err
+	}
+	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionWriteItems, Path: service.ContainerScopes(collection),
+		Action: RuleTriggeredAction, TokenScope: automationScope, TargetType: "work_item", TargetID: itemID,
+		On: access.ItemSubject{Does: service.ItemChange, ID: itemID, Assignee: item.AssigneeID},
+	}); err != nil {
+		return err
+	}
+	at := condition.Location{CollectionID: collection.ID, HubID: collection.ParentID}
+	if !covers(rule.Scope, at) {
+		return shared.ErrValidation.WithDetail("automation.subject_outside_scope").
+			WithFields(shared.FieldError{Path: "/item_id", Code: "automation.subject_outside_scope"})
+	}
+	return nil
 }
 
 func (h TriggerRuleManually) authorize(
@@ -173,6 +241,9 @@ func (h TriggerRuleManually) Descriptor() usecase.Descriptor {
 		TokenScope: automationScope,
 		Input: []usecase.Field{
 			{Name: "rule_id", Kind: usecase.KindID, Required: true, Description: "Which rule."},
+			{Name: "item_id", Kind: usecase.KindID, Description: "The entry the run is about, for a macro: " +
+				"the conditions read it as item and the actions take it where they name no entry. The " +
+				"presser must be allowed to change it, and it must lie in the rule's scope."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: RuleTriggeredAction, TargetType: ruleTarget,
@@ -192,7 +263,11 @@ func (h TriggerRuleManually) invoke(
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.Execute(ctx, actor, id)
+	itemID, err := in.ID("item_id")
+	if err != nil {
+		return nil, err
+	}
+	result, err := h.ExecuteOn(ctx, actor, id, itemID)
 	if err != nil {
 		return nil, err
 	}
