@@ -2504,6 +2504,12 @@ CREATE TABLE webhook_subscription (
   -- Where it listens (migration 0156): a hub or a collection, both NULL for the whole workspace.
   scope_type    text,
   scope_id      uuid,
+  -- What the target receives (UC-INT-12, migration 0257): the CloudEvent or a chat room's
+  -- sentence. A chat room's credential - a Matrix token, an incoming webhook address - is sealed in
+  -- secret_enc; chat_room is the Matrix room, chat_locale the sentence's language.
+  format        text NOT NULL DEFAULT 'CLOUDEVENTS',
+  chat_room     text,
+  chat_locale   text,
   secret_enc    bytea NOT NULL,
   state         text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE','PAUSED','DISABLED')),
   failure_count integer NOT NULL DEFAULT 0,
@@ -2527,6 +2533,12 @@ CREATE TABLE webhook_subscription (
   CONSTRAINT webhook_subscription_scope_check CHECK (
     (scope_type IS NULL AND scope_id IS NULL)
     OR (scope_type IN ('HUB','COLLECTION') AND scope_id IS NOT NULL)
+  ),
+  CONSTRAINT webhook_subscription_format_check CHECK (
+    format IN ('CLOUDEVENTS','MATRIX','SLACK','MATTERMOST','TEAMS')
+    AND (chat_room IS NULL OR char_length(chat_room) BETWEEN 1 AND 255)
+    AND (chat_locale IS NULL OR char_length(chat_locale) BETWEEN 2 AND 16)
+    AND ((format = 'MATRIX') = (chat_room IS NOT NULL))
   )
 );
 CREATE UNIQUE INDEX webhook_subscription_tenant_id_uq ON webhook_subscription (tenant_id, id);
