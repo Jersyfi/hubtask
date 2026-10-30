@@ -80,7 +80,9 @@ func (s *releaseStore) Entries(_ context.Context, id shared.ID, _ int) ([]planre
 	return out, nil
 }
 
-func (s *releaseStore) Count(_ context.Context, id shared.ID) (int, error) { return len(s.members[id]), nil }
+func (s *releaseStore) Count(_ context.Context, id shared.ID) (int, error) {
+	return len(s.members[id]), nil
+}
 
 func (s *releaseStore) Of(_ context.Context, entries []shared.ID) ([]planrepo.EntryRelease, error) {
 	var out []planrepo.EntryRelease

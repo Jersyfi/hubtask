@@ -800,7 +800,7 @@ func TestAWidgetDrawsCreatedBesideResolvedAndWhatIsLeft(t *testing.T) {
 	}
 	widget := func(chart string, cumulative bool, function string) map[string]any {
 		return map[string]any{"title": "Flow", "chart": chart, "source": "QUERY", "cumulative": cumulative,
-			"query": byDay("created_at", "COUNT"),
+			"query":   byDay("created_at", "COUNT"),
 			"compare": map[string]any{"first_title": "Created", "title": "Resolved", "query": byDay("completed_at", function)}}
 	}
 	if _, err := call(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "x", "widgets": []any{widget("PIE", false, "COUNT")}}); code(err) != "dashboards.series_chart" {
