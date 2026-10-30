@@ -1979,8 +1979,10 @@ SELECT EXISTS (SELECT 1 FROM link_type WHERE id = (sqlc.arg('payload')::jsonb->>
 DELETE FROM link_type;
 
 -- name: ImportEntryLink :execrows
--- A link is drawn and removed, never changed: an overwrite has nothing to replace but its moment.
--- An archive written before migration 0244 holds no timing: the columns' defaults stand.
+-- A link is drawn and removed, never changed: an overwrite replaces only its timing - the one
+-- part the application may update (migration 0244's grant); naming any other column in the SET
+-- makes every write of a link a permission refusal. An archive written before migration 0244
+-- holds no timing: the columns' defaults stand.
 INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at,
   dependency_kind, lag_days)
 SELECT r.id, r.tenant_id, r.link_type, r.source_id, r.target_id, r.created_by, r.created_at,
@@ -1990,7 +1992,7 @@ FROM jsonb_populate_record(
   (sqlc.arg('payload')::jsonb - 'own_type') || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
-  created_at = EXCLUDED.created_at, dependency_kind = EXCLUDED.dependency_kind, lag_days = EXCLUDED.lag_days
+  dependency_kind = EXCLUDED.dependency_kind, lag_days = EXCLUDED.lag_days
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsEntryLink :one

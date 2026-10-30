@@ -4064,7 +4064,7 @@ FROM jsonb_populate_record(
   ($1::jsonb - 'own_type') || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
-  created_at = EXCLUDED.created_at, dependency_kind = EXCLUDED.dependency_kind, lag_days = EXCLUDED.lag_days
+  dependency_kind = EXCLUDED.dependency_kind, lag_days = EXCLUDED.lag_days
 WHERE $2::boolean
 `
 
@@ -4073,8 +4073,10 @@ type ImportEntryLinkParams struct {
 	Overwrite bool
 }
 
-// A link is drawn and removed, never changed: an overwrite has nothing to replace but its moment.
-// An archive written before migration 0244 holds no timing: the columns' defaults stand.
+// A link is drawn and removed, never changed: an overwrite replaces only its timing - the one
+// part the application may update (migration 0244's grant); naming any other column in the SET
+// makes every write of a link a permission refusal. An archive written before migration 0244
+// holds no timing: the columns' defaults stand.
 func (q *Queries) ImportEntryLink(ctx context.Context, arg ImportEntryLinkParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importEntryLink, arg.Payload, arg.Overwrite)
 	if err != nil {
