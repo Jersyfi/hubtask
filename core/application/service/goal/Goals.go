@@ -1019,8 +1019,8 @@ func (h CheckInGoal) Descriptor() usecase.Descriptor {
 					return err
 				}
 				return s.record(ctx, actor, GoalCheckedInAction, goalTarget, id, now,
-					audit.Change{Field: "status", To: string(c.Status)},
-					audit.Change{Field: "confidence", To: itoa(c.Confidence)})
+					audit.Change{Field: "status", Classification: audit.Open, To: string(c.Status)},
+					audit.Change{Field: "confidence", Classification: audit.Open, To: itoa(c.Confidence)})
 			}); err != nil {
 				return nil, err
 			}
