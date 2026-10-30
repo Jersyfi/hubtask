@@ -674,3 +674,22 @@ JOIN work_item wi ON wi.tenant_id = sr.tenant_id AND wi.id = sr.item_id AND wi.d
 WHERE sr.tenant_id = current_tenant_id() AND sr.id > sqlc.arg('after')
 ORDER BY sr.id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotReleases :many
+-- The workspace's releases (migration 0272), each filed under its hub.
+SELECT id, hub_id, name, description, release_on, state, released_at, notes_page_id, created_at,
+  created_by, updated_at, version
+FROM release
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotReleaseEntries :many
+-- Every live entry's release, by the entry, with the release's hub.
+SELECT re.entry_id, re.release_id, r.hub_id
+FROM release_entry re
+JOIN release r ON r.tenant_id = re.tenant_id AND r.id = re.release_id
+JOIN work_item wi ON wi.tenant_id = re.tenant_id AND wi.id = re.entry_id AND wi.deleted_at IS NULL
+WHERE re.tenant_id = current_tenant_id() AND re.entry_id > sqlc.arg('after')
+ORDER BY re.entry_id
+LIMIT sqlc.arg('batch');

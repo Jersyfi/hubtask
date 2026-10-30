@@ -73,6 +73,10 @@ export function collectionOf(entity: string): string {
       return 'sprint_entries';
     case 'entry_estimate':
       return 'entry_estimates';
+    case 'release':
+      return 'releases';
+    case 'release_entry':
+      return 'release_entries';
     case 'custom_field':
       return 'custom_fields';
     case 'time_record':

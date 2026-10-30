@@ -193,6 +193,10 @@ type Snapshot interface {
 	TimeAbsences(ctx context.Context, after shared.ID, batch int) ([]timekeeping.Absence, error)
 	TimeCostRates(ctx context.Context, max int) ([]timekeeping.CostRate, error)
 	TimeBudgets(ctx context.Context, after shared.ID, batch int) ([]timekeeping.Budget, error)
+	// Releases pages the workspace's releases; ReleaseEntries every live entry's release, by the
+	// entry (M2).
+	Releases(ctx context.Context, after shared.ID, batch int) ([]planning.Release, error)
+	ReleaseEntries(ctx context.Context, after shared.ID, batch int) ([]ReleaseEntryOf, error)
 	// CustomRoles pages the workspace's own roles (UC-ID-26).
 	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
 	// Pages pages the workspace's living pages with their bodies, for reading offline (M3).
@@ -278,6 +282,13 @@ type EntrySlaOf struct {
 type RatingOf struct {
 	Rating       servicedesk.Rating
 	CollectionID shared.ID
+}
+
+// ReleaseEntryOf is an entry's release, with the release's hub.
+type ReleaseEntryOf struct {
+	EntryID   shared.ID
+	ReleaseID shared.ID
+	HubID     shared.ID
 }
 
 // EstimateOf is an entry's estimate with its collection.

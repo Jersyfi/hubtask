@@ -43,7 +43,7 @@ var walkKinds = []string{
 	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage, entityWhiteboard,
 	entityCI, entityCIRelation, entityCIAffected, entityCIGroup, entityCIAsset, entityCICatalogue, entityEntrySchedule,
 	entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard,
-	entitySprint, entitySprintEntry, entityEstimate, entityCustomField,
+	entitySprint, entitySprintEntry, entityEstimate, entityRelease, entityReleaseEntry, entityCustomField,
 	entityTimeRecord, entityTimer, entityWorkTypes, entityTimePolicy,
 	entityTimesheet, entityCapacities, entityAbsence, entityCostRates, entityBudget,
 	entityPortfolio,
@@ -115,6 +115,10 @@ const (
 	entitySprint      = planningservice.SprintEntity
 	entitySprintEntry = planningservice.SprintEntryEntity
 	entityEstimate    = planningservice.EstimateEntity
+	// entityRelease is a release and entityReleaseEntry an entry's release, filed under the hub
+	// (M2).
+	entityRelease      = planningservice.ReleaseEntity
+	entityReleaseEntry = planningservice.ReleaseEntryEntity
 	// entityCustomField is a custom field definition, filed under its collection - none for a
 	// workspace-wide one, which reaches every member as the types do: a definition draws a form,
 	// a read-restricted field narrows its values, never its definition.
@@ -839,6 +843,32 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entitySprint, entityID: s.ID, containerID: s.CollectionID,
 				payload: planningservice.SprintOutput(s), key: s.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityRelease:
+		releases, err := p.Snapshot.Releases(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(releases))
+		for _, r := range releases {
+			rows = append(rows, walkRow{
+				entity: entityRelease, entityID: r.ID, containerID: r.HubID,
+				payload: planningservice.ReleaseOutput(r), key: r.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityReleaseEntry:
+		members, err := p.Snapshot.ReleaseEntries(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(members))
+		for _, m := range members {
+			rows = append(rows, walkRow{
+				entity: entityReleaseEntry, entityID: m.EntryID, containerID: m.HubID,
+				payload: planningservice.ReleaseEntryRecord(m.EntryID, m.ReleaseID, m.HubID), key: m.EntryID.String(),
 			})
 		}
 		return rows, nil

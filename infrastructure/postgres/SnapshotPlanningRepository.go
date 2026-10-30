@@ -106,3 +106,49 @@ func (SnapshotRepository) CustomFields(ctx context.Context, after shared.ID, bat
 		return customFieldFrom(sqlc.FindCustomFieldRow(row))
 	})
 }
+
+// Releases pages the workspace's releases.
+func (SnapshotRepository) Releases(ctx context.Context, after shared.ID, batch int) ([]planning.Release, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotReleases(ctx, sqlc.SnapshotReleasesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("releases", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotReleasesRow) (planning.Release, error) {
+		return releaseFrom(sqlc.FindReleaseRow(row))
+	})
+}
+
+// ReleaseEntries pages every live entry's release.
+func (SnapshotRepository) ReleaseEntries(ctx context.Context, after shared.ID, batch int) ([]repository.ReleaseEntryOf, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotReleaseEntries(ctx, sqlc.SnapshotReleaseEntriesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("release entries", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotReleaseEntriesRow) (repository.ReleaseEntryOf, error) {
+		entry, err := idFrom(row.EntryID)
+		if err != nil {
+			return repository.ReleaseEntryOf{}, err
+		}
+		release, err := idFrom(row.ReleaseID)
+		if err != nil {
+			return repository.ReleaseEntryOf{}, err
+		}
+		hub, err := idFrom(row.HubID)
+		if err != nil {
+			return repository.ReleaseEntryOf{}, err
+		}
+		return repository.ReleaseEntryOf{EntryID: entry, ReleaseID: release, HubID: hub}, nil
+	})
+}

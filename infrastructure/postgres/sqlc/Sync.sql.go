@@ -2676,6 +2676,111 @@ func (q *Queries) SnapshotRecurrenceRules(ctx context.Context, arg SnapshotRecur
 	return items, nil
 }
 
+const snapshotReleaseEntries = `-- name: SnapshotReleaseEntries :many
+SELECT re.entry_id, re.release_id, r.hub_id
+FROM release_entry re
+JOIN release r ON r.tenant_id = re.tenant_id AND r.id = re.release_id
+JOIN work_item wi ON wi.tenant_id = re.tenant_id AND wi.id = re.entry_id AND wi.deleted_at IS NULL
+WHERE re.tenant_id = current_tenant_id() AND re.entry_id > $1
+ORDER BY re.entry_id
+LIMIT $2
+`
+
+type SnapshotReleaseEntriesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotReleaseEntriesRow struct {
+	EntryID   pgtype.UUID
+	ReleaseID pgtype.UUID
+	HubID     pgtype.UUID
+}
+
+// Every live entry's release, by the entry, with the release's hub.
+func (q *Queries) SnapshotReleaseEntries(ctx context.Context, arg SnapshotReleaseEntriesParams) ([]SnapshotReleaseEntriesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotReleaseEntries, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotReleaseEntriesRow{}
+	for rows.Next() {
+		var i SnapshotReleaseEntriesRow
+		if err := rows.Scan(&i.EntryID, &i.ReleaseID, &i.HubID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotReleases = `-- name: SnapshotReleases :many
+SELECT id, hub_id, name, description, release_on, state, released_at, notes_page_id, created_at,
+  created_by, updated_at, version
+FROM release
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotReleasesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotReleasesRow struct {
+	ID          pgtype.UUID
+	HubID       pgtype.UUID
+	Name        string
+	Description string
+	ReleaseOn   pgtype.Date
+	State       string
+	ReleasedAt  pgtype.Timestamptz
+	NotesPageID pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+// The workspace's releases (migration 0272), each filed under its hub.
+func (q *Queries) SnapshotReleases(ctx context.Context, arg SnapshotReleasesParams) ([]SnapshotReleasesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotReleases, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotReleasesRow{}
+	for rows.Next() {
+		var i SnapshotReleasesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.Name,
+			&i.Description,
+			&i.ReleaseOn,
+			&i.State,
+			&i.ReleasedAt,
+			&i.NotesPageID,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotReminders = `-- name: SnapshotReminders :many
 SELECT r.id, r.tenant_id, r.item_id, r.offset_spec, r.channels, r.recipients, r.state, r.fire_at,
        r.created_at, r.updated_at, r.version, wi.collection_id

@@ -224,3 +224,32 @@ func TestAReleaseShipsItsDoneEntriesAndWritesItsNotes(t *testing.T) {
 		t.Errorf("a released release was deleted: %v", err)
 	}
 }
+
+// UC-PLN-08 offline: a release and the release an entry is in reach the change log under the
+// hub as each write leaves them - a released one's open entry in the next release.
+func TestReleasesAreToldToOfflineDevices(t *testing.T) {
+	f, store := releaseFixture()
+	log := &changes{}
+	f.planner.Changes, f.planner.HLC = log, hlc{}
+	ctx := context.Background()
+	release, next := planRelease(t, f, "2.4"), planRelease(t, f, "2.5")
+	if got, ok := log.last(ReleaseEntity, release.ID); !ok || got.ContainerID != hubID || got.Payload["state"] != "PLANNED" {
+		t.Fatalf("release change = %+v", got)
+	}
+	if _, err := (AddReleaseEntries{Planner: f.planner}).Execute(ctx, actor(), release.ID, []shared.ID{design, build}); err != nil {
+		t.Fatal(err)
+	}
+	store.done[design] = true
+	if _, err := (PublishRelease{Planner: f.planner}).Execute(ctx, actor(), PublishReleaseCommand{ReleaseID: release.ID, CarryTo: next.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := log.last(ReleaseEntity, release.ID); got.Payload["state"] != "RELEASED" {
+		t.Errorf("released change = %+v", got)
+	}
+	if got, _ := log.last(ReleaseEntryEntity, build); got.ContainerID != hubID || got.Payload["release_id"] != next.ID.String() {
+		t.Errorf("the carried entry's change = %+v", got)
+	}
+	if got, _ := log.last(ReleaseEntryEntity, design); got.Payload["release_id"] != release.ID.String() {
+		t.Errorf("the shipped entry's change = %+v", got)
+	}
+}
