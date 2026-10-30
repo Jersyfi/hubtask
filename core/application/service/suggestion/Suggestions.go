@@ -14,6 +14,7 @@ package suggestion
 import (
 	"context"
 	"errors"
+	agentdomain "github.com/Jersyfi/hubtask/core/domain/model/agent"
 	"sort"
 	"strings"
 	"time"
@@ -109,6 +110,14 @@ type Cases struct {
 	// Containers is how a listing checks that a proposed destination is still in the shared set.
 	// Nil answers a proposal's destination as it was stored.
 	Containers ContainerFinder
+	// Marks keeps the provenance of what an acceptance wrote beyond the suggestion's own retention
+	// (ai-first.md §2.1, AI-2); nil keeps none.
+	Marks MarkWriter
+}
+
+// MarkWriter writes an accepted AI value's mark inside the acceptance's transaction.
+type MarkWriter interface {
+	InsertMark(ctx context.Context, m agentdomain.Mark) error
 }
 
 // ContainerFinder reads one container inside the caller's transaction, judging no permission.
@@ -515,6 +524,9 @@ func (c Cases) decideAs(
 			if err := c.apply(ctx, actor, proposal, overrides, taken); err != nil {
 				return err
 			}
+			if err := c.mark(ctx, actor, proposal, overrides, taken); err != nil {
+				return err
+			}
 		}
 		if taken != nil && taken.Left != nil {
 			// Part of a list was taken: the rest stays proposed, for the person to take or turn
@@ -550,6 +562,62 @@ func (c Cases) decideAs(
 		return domain.Suggestion{}, err
 	}
 	return answered, nil
+}
+
+// mark keeps, for each object an acceptance wrote, which of its fields came from AI, the model
+// and prompt behind them, and who accepted them when - never a value. What the person overrode
+// is theirs, not the model's, and is left out of the fields.
+func (c Cases) mark(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion, overrides map[string]any, taken *taking,
+) error {
+	if c.Marks == nil || c.IDs == nil {
+		return nil
+	}
+	fields := make([]string, 0, len(proposal.Payload))
+	for key := range proposal.Payload {
+		if _, overridden := overrides[key]; !overridden {
+			fields = append(fields, key)
+		}
+	}
+	targets := []struct {
+		kind string
+		id   shared.ID
+	}{{string(proposal.TargetType), proposal.TargetID}}
+	if taken != nil {
+		if !taken.Created.IsZero() {
+			targets = append(targets, struct {
+				kind string
+				id   shared.ID
+			}{string(proposal.Kind), taken.Created})
+		}
+		for _, id := range taken.CreatedIDs {
+			targets = append(targets, struct {
+				kind string
+				id   shared.ID
+			}{string(domain.TargetWorkItem), id})
+		}
+	}
+	model := proposal.Model
+	if model == "" {
+		model = "unknown"
+	}
+	for _, target := range targets {
+		if target.id.IsZero() {
+			continue
+		}
+		m, err := agentdomain.NewMark(agentdomain.Mark{
+			ID: c.IDs.NewID(), TargetType: target.kind, TargetID: target.id, Fields: fields, SuggestionID: proposal.ID,
+			Model: model, PromptID: proposal.PromptID, PromptVersion: proposal.PromptVersion,
+			AcceptedBy: actor.AccountID, AcceptedAt: c.Clock.Now(),
+		})
+		if err != nil {
+			return err
+		}
+		if err := c.Marks.InsertMark(ctx, m); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // accepted is what accepting one shape of proposal does.
