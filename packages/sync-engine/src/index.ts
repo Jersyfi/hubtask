@@ -573,4 +573,6 @@ export type {
   FileStoreItem,
   FileStoreFolder,
   FileStoreShare,
+  ChatBot,
+  ChatBotList,
 } from './schema.ts';

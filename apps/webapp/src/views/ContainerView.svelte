@@ -136,6 +136,7 @@
     HubCalendars: () => import('../lib/servicedesk/HubCalendars.svelte'),
     TemplatesGallery: () => import('../lib/settings/TemplatesGallery.svelte'),
     CodeHooks: () => import('../lib/code/CodeHooks.svelte'),
+    ChatBots: () => import('../lib/chat/ChatBots.svelte'),
   };
 
   interface Props {
@@ -1240,6 +1241,9 @@
         {#snippet codeTab()}
           <LazyView load={settingsParts.CodeHooks} props={{ hubId: container.id }} />
         {/snippet}
+        {#snippet chatTab()}
+          <LazyView load={settingsParts.ChatBots} props={{ hubId: container.id, collections }} />
+        {/snippet}
         {#snippet peopleTab()}
           <MembersDialog isEmbedded isOpen title={t('app.people.title')} scope={memberScope} path={memberPath} />
         {/snippet}
@@ -1269,6 +1273,8 @@
                     : []),
                   // The forges that post its code (UC-INT-13 check 1).
                   { id: 'code', label: t('app.code.section'), body: codeTab },
+                  // The Matrix bots in its rooms (UC-INT-18 check 1).
+                  { id: 'chat', label: t('app.chatbots.section'), body: chatTab },
                   { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
                 ],
           }}
