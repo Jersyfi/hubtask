@@ -497,7 +497,7 @@ const listDashboards = `-- name: ListDashboards :many
 SELECT id, hub_id, owner_id, name, sharing, widgets, version
 FROM dashboard
 WHERE tenant_id = current_tenant_id()
-ORDER BY name, id
+ORDER BY name COLLATE hubtask_name, id
 LIMIT $1::int
 `
 
@@ -876,7 +876,7 @@ const listPortfolios = `-- name: ListPortfolios :many
 SELECT id, parent_id, name, description, owner_id, status, version
 FROM portfolio
 WHERE tenant_id = current_tenant_id()
-ORDER BY name, id
+ORDER BY name COLLATE hubtask_name, id
 LIMIT $1::int
 `
 
