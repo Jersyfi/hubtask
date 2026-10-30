@@ -46,7 +46,27 @@ func settingAreas() []settingArea {
 		{read: ReadWorkspaceName, prefixes: []string{signInPrefix, legalPrefix, localisationKey}, rows: workspaceSettingRows, write: workspaceSettingOp},
 		{read: "ReadAiSource", prefixes: []string{aiPrefix}, rows: aiSettingRows, write: aiSettingOp},
 		{read: "ReadAgentPolicy", prefixes: []string{agentPolicyPrefix}, rows: agentPolicyRows, write: agentPolicyOp},
+		{read: "ReadPublicLinksPolicy", prefixes: []string{publicLinksKey}, rows: publicLinksRows, write: publicLinksOp},
 	}
+}
+
+// publicLinksKey is the knowledge module's switch for a page's public link (UC-DOC-08 check 4).
+const publicLinksKey = "knowledge.public_links"
+
+func publicLinksRows(answer map[string]any) map[string]map[string]any {
+	return map[string]map[string]any{publicLinksKey: {
+		settingValueField: answer["allowed"], "source": answer["source"], "locked_by": answer["locked_by"],
+	}}
+}
+
+// publicLinksOp switches public links; like the agents' policy, the switch has no "inherit".
+func publicLinksOp(change domain.BlockChange, _ map[string]any) (operation, error) {
+	if change.Op != domain.OpChange && change.Op != domain.OpAdd {
+		return operation{}, shared.ErrValidation.WithDetail("config.not_removable").
+			WithFields(domain.Refusal("config.not_removable", change.Path(), nil))
+	}
+	on, _ := change.After[settingValueField].(bool)
+	return operation{UseCase: "SetPublicLinksPolicy", Path: change.Path(), Input: usecase.Input{"allowed": on}}, nil
 }
 
 // agentPolicyPrefix is the agents' policy: whether MCP takes registered agents only.
