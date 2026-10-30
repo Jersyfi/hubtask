@@ -30,5 +30,5 @@ Mehmet holds the requester role on the collection *IT help*. The portal shows hi
 
 ## Where it ends
 
-* Visibility of the requests of a whole organisation and approvals from the portal are the next parts of the service desk; the portal's screens and knowledge deflection are built (`/portal/:id`).
+* The requests of a whole organisation are UC-SVC-11; approvals from the portal are UC-SVC-09.
 

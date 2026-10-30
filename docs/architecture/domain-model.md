@@ -811,6 +811,10 @@ deadline and a change's effectiveness check.
   `AddComment` on the same door - public only, only on the requester's own entry. The portal's
   reads answer the requester's own entries without the team's fields, internal notes or system
   comments.
+* **An `Organisation`** (UC-SVC-11, migration 0287) groups a workspace's requesters by the mail
+  domains of their addresses - read when asked, never stored per person; a domain is in at most one
+  organisation of a workspace. Where it `sharesRequests` (off by default), its people list and read
+  each other's requests in the portal; answering and rating stay the requester's own.
 
 ---
 
