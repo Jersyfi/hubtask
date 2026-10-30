@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -84,5 +86,62 @@ func TestTheWalkCarriesTheGoalsAndDashboardsTheReaderSees(t *testing.T) {
 		if !slices.Equal(got[entity], want) {
 			t.Errorf("%s delivered %v, want %v", entity, got[entity], want)
 		}
+	}
+}
+
+type modulesOn struct {
+	on    module.Set
+	asked int
+}
+
+func (m *modulesOn) On(context.Context, appshared.ActorContext, shared.ID) (module.Set, error) {
+	m.asked++
+	return m.on, nil
+}
+
+// Off at the workspace, the goals module's kinds reach no device, by the walk or the stream, and
+// an entry still does (UC-INS-21 check 5, offline-sync.md §8); on, they reach it again. The
+// question is asked once a page.
+func TestTheGoalsReachADeviceOnlyWhileTheModuleIsOn(t *testing.T) {
+	pull, f, store := walking(t)
+	period, shown := idAt('9', 1), idAt('9', 2)
+	store.periods = []goal.Period{{ID: period, Name: "Q4", Version: 1}}
+	store.goals = []goal.Goal{{ID: shown, PeriodID: period, HubID: hub, Title: "Ship", Confidence: -1, Version: 1}}
+	store.dashboards = []goal.Dashboard{{ID: idAt('9', 3), HubID: hub, OwnerID: account, Name: "Mine", Sharing: goal.SharingPrivate, Version: 1}}
+	f.auth.workspace = true
+	switches := &modulesOn{}
+	pull.Stream.Modules = switches
+
+	kinds := func() map[string]int {
+		records, _ := wholeWalk(t, pull, 100)
+		got := map[string]int{}
+		for _, record := range records {
+			got[record.Entity]++
+		}
+		return got
+	}
+	if got := kinds(); got["goal_period"]+got["goal"]+got["dashboard"] != 0 {
+		t.Errorf("the module off, the walk carried %v", got)
+	}
+	switches.on = module.Set{module.Goals}
+	if got := kinds(); got["goal_period"] != 1 || got["goal"] != 1 || got["dashboard"] != 1 {
+		t.Errorf("the module on, the walk carried %v", got)
+	}
+
+	switches.on, switches.asked = nil, 0
+	change := entry(1, hub)
+	change.Entity, change.EntityID = "goal", shown
+	item := entry(2, hub)
+	item.Entity = "item"
+	f.changes.entries = []repository.Recorded{change, item}
+	batch, err := pull.Stream.Next(t.Context(), actor(), Position{IssuedAt: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(batch.Records) != 1 || batch.Records[0].Entity != "item" {
+		t.Errorf("the module off, the stream sent %+v, want the entry alone", batch.Records)
+	}
+	if switches.asked != 1 {
+		t.Errorf("the switch was asked %d times a page, want once", switches.asked)
 	}
 }

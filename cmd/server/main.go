@@ -1778,6 +1778,8 @@ func run() error {
 	modules := settingservice.Modules{
 		Settings: postgres.SettingRepository{}, Containers: containers, Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		// A switch of the goals at the workspace resynchronises its devices (offline-sync.md §8).
+		Epochs: postgres.NewEpochRepository(),
 	}
 	// The configuration document (F-6): read and written through the registry it is part of, so
 	// every block it changes goes through the use case every other door reaches.
@@ -3500,7 +3502,9 @@ func run() error {
 			// The maximum offline window, which is also the minimum tombstone period: beyond
 			// it the log no longer holds everything that happened (offline-sync.md §7).
 			Window: cfg.Retention.TombstoneWindow,
-			Batch:  cfg.Queue.OutboxBatch,
+			// The goals reach a device only while the module is on at the workspace.
+			Modules: modules,
+			Batch:   cfg.Queue.OutboxBatch,
 		}
 		controller.Stream = &rest.StreamController{
 			Stream:   changeStream,

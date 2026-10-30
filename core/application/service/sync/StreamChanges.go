@@ -24,6 +24,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -131,9 +132,17 @@ type StreamChanges struct {
 	// Groups answers whether the reader is in the group a grant of a custom role names. Nil
 	// withholds every group's grant, the answer that does not leak one.
 	Groups GroupMembers
+	// Modules answers the modules on at the workspace: a module that narrows the replica reaches
+	// a device only while on (offline-sync.md §8). Nil narrows nothing.
+	Modules ModulesOn
 	// Batch is how many entries one round reads. A bound rather than a tuning knob: a round is a
 	// read inside one transaction, and an unbounded one would hold it open across a backlog.
 	Batch int
+}
+
+// ModulesOn answers the modules on at the workspace, or at a hub when one is named.
+type ModulesOn interface {
+	On(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (module.Set, error)
 }
 
 // GroupMembers answers whether an account is a member of a group.
@@ -583,6 +592,12 @@ func (s StreamChanges) mayReadBeyond(
 	ctx context.Context, actor appshared.ActorContext, entity string, seen visibility, payload map[string]any,
 	costed map[shared.ID]bool,
 ) (bool, error) {
+	if key := moduleOf(entity); key != "" {
+		on, err := s.moduleOn(ctx, actor, key, costed)
+		if err != nil || !on {
+			return false, err
+		}
+	}
 	switch entity {
 	case entityAgent, entityAgentRequest, entityAgentRun:
 		if owner, _ := payload["owner_id"].(string); owner != "" && shared.ID(owner) == actor.AccountID {
@@ -607,6 +622,33 @@ func (s StreamChanges) mayReadBeyond(
 	}
 	costed[seen.container.ID] = allowed
 	return allowed, nil
+}
+
+// moduleOf is the module whose switch narrows a kind's records in the replica; empty for the rest.
+func moduleOf(entity string) module.Key {
+	switch entity {
+	case entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard, entityPortfolio:
+		return module.Goals
+	}
+	return ""
+}
+
+// moduleOn answers whether the module is on at the workspace, once a page, as the registry's gate
+// asks it. A removal is withheld alike: the walk that follows the switch drops what it names.
+func (s StreamChanges) moduleOn(ctx context.Context, actor appshared.ActorContext, key module.Key, decided map[shared.ID]bool) (bool, error) {
+	if s.Modules == nil {
+		return true, nil
+	}
+	remembered := shared.ID("module." + string(key))
+	if on, known := decided[remembered]; known {
+		return on, nil
+	}
+	set, err := s.Modules.On(ctx, actor, "")
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return false, err
+	}
+	decided[remembered] = set.Has(key)
+	return set.Has(key), nil
 }
 
 // administers answers whether the reader administers agents, once a page.
