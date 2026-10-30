@@ -263,6 +263,7 @@ var restDoors = map[string]restDoor{
 	"listInstanceAiProviders":           {UseCase: "ListInstanceAiProviders", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listInstanceBackupTargets":         {UseCase: "ListInstanceBackupTargets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listInstanceIdentityProviders":     {UseCase: "ListInstanceIdentityProviders", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listInstanceJournal":               {UseCase: "ListInstanceJournal", Status: 200, Query: []string{"action", "cursor", "size", "workspace"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, QueryAs: map[string]string{"size": "limit"}},
 	"listJumbleDestinations":            {UseCase: "ListJumbleDestinations", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listJumbleEntries":                 {UseCase: "ListJumbleEntries", Status: 200, Query: []string{"channel", "cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listLabels":                        {UseCase: "ListLabels", Status: 200, Query: []string{"include_deleted"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -404,6 +405,7 @@ var restDoors = map[string]restDoor{
 	"regenerateRecoveryCodes":           {UseCase: "RegenerateRecoveryCodes", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"registerAgent":                     {UseCase: "RegisterAgent", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"min_accuracy"}},
 	"registerAgentModel":                {UseCase: "RegisterAgentModel", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"retention_days"}},
+	"registerOauthClient":               {UseCase: "RegisterOauthClient", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/oauth/clients/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "client_secret"},
 	"reindexSearch":                     {UseCase: "ReindexSearch", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"rejectTimesheet":                   {UseCase: "RejectTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"relateCis":                         {UseCase: "RelateCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2037,6 +2039,11 @@ func (c *RestController) ListInstanceIdentityProviders(w http.ResponseWriter, r 
 	c.door(w, r, restDoors["listInstanceIdentityProviders"], usecase.Input{}, nil, nil, answerRows(identityProvidersResponse))
 }
 
+// ListInstanceJournal answers GET /admin/journal by the generated mapping.
+func (c *RestController) ListInstanceJournal(w http.ResponseWriter, r *http.Request, params openapi.ListInstanceJournalParams) {
+	c.door(w, r, restDoors["listInstanceJournal"], usecase.Input{}, params, nil, answerPage(instanceJournalEntryResponse))
+}
+
 // ListJumbleDestinations answers GET /jumble/destinations by the generated mapping.
 func (c *RestController) ListJumbleDestinations(w http.ResponseWriter, r *http.Request, params openapi.ListJumbleDestinationsParams) {
 	c.door(w, r, restDoors["listJumbleDestinations"], usecase.Input{}, params, nil, answerPage(jumbleDestinationResponse))
@@ -2857,6 +2864,12 @@ func (c *RestController) RegisterAgentModel(w http.ResponseWriter, r *http.Reque
 	var body openapi.RegisterAgentModelJSONRequestBody
 	var answer openapi.AgentModel
 	c.door(w, r, restDoors["registerAgentModel"], usecase.Input{}, nil, &body, &answer)
+}
+
+// RegisterOauthClient answers POST /oauth/clients by the generated mapping.
+func (c *RestController) RegisterOauthClient(w http.ResponseWriter, r *http.Request, params openapi.RegisterOauthClientParams) {
+	var body openapi.RegisterOauthClientJSONRequestBody
+	c.door(w, r, restDoors["registerOauthClient"], usecase.Input{}, params, &body, answerBy(oauthClientSecretResponse))
 }
 
 // ReindexSearch answers POST /search:reindex by the generated mapping.

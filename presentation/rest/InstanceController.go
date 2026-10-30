@@ -21,7 +21,6 @@ import (
 
 const (
 	writeInstanceSettingsUseCase = "WriteInstanceSettings"
-	listInstanceJournalUseCase   = "ListInstanceJournal"
 )
 
 // The four operations below are written out rather than taken through the identity helper, for the
@@ -204,63 +203,27 @@ func instanceSettingsOf(value any) map[string]openapi.InstanceSetting {
 	return settings
 }
 
-// ListInstanceJournal answers GET /admin/journal.
-func (c *RestController) ListInstanceJournal(
-	w http.ResponseWriter, r *http.Request, params openapi.ListInstanceJournalParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
+// instanceJournalEntryResponse maps one entry of the installation's journal.
+func instanceJournalEntryResponse(row usecase.Output) openapi.InstanceJournalEntry {
+	entry := openapi.InstanceJournalEntry{
+		Id:         uuidValue(row.String("id")),
+		OccurredAt: timeValue(row["occurred_at"]),
+		Action:     row.String("action"),
 	}
-
-	in := usecase.Input{}
-	if params.Cursor != nil {
-		in["cursor"] = *params.Cursor
+	if tenantID := row.String("tenant_id"); tenantID != "" {
+		id := uuidValue(tenantID)
+		entry.TenantId = &id
 	}
-	if params.Size != nil {
-		in["limit"] = *params.Size
+	if slug := row.String("tenant_slug"); slug != "" {
+		entry.TenantSlug = &slug
 	}
-	if params.Action != nil {
-		in["action"] = *params.Action
+	if label := row.String("actor_label"); label != "" {
+		entry.ActorLabel = &label
 	}
-	if params.Workspace != nil {
-		in["workspace"] = *params.Workspace
+	if details, held := row["details"].(map[string]any); held && len(details) > 0 {
+		entry.Details = &details
 	}
-
-	out, err := c.UseCases.Invoke(r.Context(), listInstanceJournalUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	rows, _ := out["data"].([]usecase.Output)
-	entries := make([]openapi.InstanceJournalEntry, 0, len(rows))
-	for _, row := range rows {
-		entry := openapi.InstanceJournalEntry{
-			Id:         uuidValue(row.String("id")),
-			OccurredAt: timeValue(row["occurred_at"]),
-			Action:     row.String("action"),
-		}
-		if tenantID := row.String("tenant_id"); tenantID != "" {
-			id := uuidValue(tenantID)
-			entry.TenantId = &id
-		}
-		if slug := row.String("tenant_slug"); slug != "" {
-			entry.TenantSlug = &slug
-		}
-		if label := row.String("actor_label"); label != "" {
-			entry.ActorLabel = &label
-		}
-		if details, held := row["details"].(map[string]any); held && len(details) > 0 {
-			entry.Details = &details
-		}
-		entries = append(entries, entry)
-	}
-	writeJSON(w, r, http.StatusOK, openapi.InstanceJournalPage{
-		Data: entries,
-		Page: pageResponse(out),
-	})
+	return entry
 }
 
 // censusCount narrows one of the census's numbers. The catalogue is untyped by construction - it is

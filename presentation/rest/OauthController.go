@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"time"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -21,40 +20,18 @@ import (
 
 // The use case names of the OAuth2 provider.
 const (
-	registerOauthClientUseCase  = "RegisterOauthClient"
 	authorizeOauthClientUseCase = "AuthorizeOauthClient"
 	exchangeOauthCodeUseCase    = "ExchangeOauthCode"
 )
 
-// RegisterOauthClient answers POST /oauth/clients.
-func (c *RestController) RegisterOauthClient(
-	w http.ResponseWriter, r *http.Request, _ openapi.RegisterOauthClientParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.OauthClientCreate
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		uris := make([]any, 0, len(body.RedirectUris))
-		for _, uri := range body.RedirectUris {
-			uris = append(uris, uri)
-		}
-		return c.UseCases.Invoke(r.Context(), registerOauthClientUseCase, actor, usecase.Input{
-			"name":          body.Name,
-			"redirect_uris": uris,
-			"confidential":  body.Confidential,
-		})
-	}, func(out usecase.Output) {
-		client := oauthClientResponse(out)
-		registered := openapi.OauthClientSecret{
-			Id: client.Id, Name: client.Name, RedirectUris: client.RedirectUris,
-			Confidential: client.Confidential, CreatedAt: client.CreatedAt,
-			// The one response the secret ever appears in (T-18's "shown once").
-			ClientSecret: optionalTextField(out["client_secret"]),
-		}
-		w.Header().Set("Location", APIBasePath+"/oauth/clients/"+client.Id.String())
-		writeJSON(w, r, http.StatusCreated, registered)
-	})
+// oauthClientSecretResponse maps a registered client with the one answer its secret ever appears in (T-18's shown once).
+func oauthClientSecretResponse(out usecase.Output) openapi.OauthClientSecret {
+	client := oauthClientResponse(out)
+	return openapi.OauthClientSecret{
+		Id: client.Id, Name: client.Name, RedirectUris: client.RedirectUris,
+		Confidential: client.Confidential, CreatedAt: client.CreatedAt,
+		ClientSecret: optionalTextField(out["client_secret"]),
+	}
 }
 
 // AuthorizeOauthClient answers POST /oauth/authorize. Written out for ListServiceAccounts'

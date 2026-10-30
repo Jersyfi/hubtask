@@ -15313,6 +15313,11 @@
           "admin"
         ],
         "operationId": "listInstanceJournal",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "instanceJournalEntryResponse",
+        "x-hubtask-rest-query": {
+          "size": "limit"
+        },
         "summary": "The installation's own record",
         "description": "What was provisioned, suspended, resumed and deleted, and what the operator changed - newest first. Evidence of acts whose per-tenant trail cannot hold them: after a hard delete the workspace's own audit chain is gone by design, which is the reason this record exists.\nIdentifiers, slugs, counts and moments. **Never anybody's content**, which is what makes it readable at all after the workspace it names is gone.\nNarrowed by what happened (`action`, a prefix) and by the workspace it was about (`workspace`, its address); a cursor walks on under the same narrowing.\n",
         "parameters": [
@@ -17996,6 +18001,10 @@
           "oauth"
         ],
         "operationId": "registerOauthClient",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "oauthClientSecretResponse",
+        "x-hubtask-rest-shown-once": "client_secret",
+        "x-hubtask-rest-location": "/oauth/clients/{id}",
         "summary": "Register a third-party app",
         "description": "A name, the exact redirect URIs it may be sent back to, and whether it can keep a secret. A public client - a native or single-page app - gets no secret and must bring PKCE to every authorization (RFC 7636); a confidential client gets one, in clear, for the only time, stored as a hash under its own purpose label.\nRedirect URIs match exactly, byte for byte: a prefix or wildcard match is how authorization codes end up on attacker-controlled pages.\n",
         "parameters": [

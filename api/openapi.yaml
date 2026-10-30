@@ -10361,6 +10361,9 @@ paths:
     get:
       tags: [admin]
       operationId: listInstanceJournal
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: instanceJournalEntryResponse
+      x-hubtask-rest-query: { size: limit }
       summary: The installation's own record
       description: >
         What was provisioned, suspended, resumed and deleted, and what the operator changed - newest
@@ -12567,6 +12570,10 @@ paths:
     post:
       tags: [oauth]
       operationId: registerOauthClient
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: oauthClientSecretResponse
+      x-hubtask-rest-shown-once: client_secret
+      x-hubtask-rest-location: /oauth/clients/{id}
       summary: Register a third-party app
       description: >
         A name, the exact redirect URIs it may be sent back to, and whether it can keep a
