@@ -1874,7 +1874,7 @@ func run() error {
 		}.Descriptor().Handler,
 		Budgets:    timeservice.ReadBudget{Keeper: keeper}.Descriptor().Handler,
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms, Jobs: jobs,
 	}
 	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
 	// goes through the inventory's reconciliation.
@@ -2038,6 +2038,9 @@ func run() error {
 		goalservice.UpdateDashboard{Steward: steward}.Descriptor(),
 		goalservice.DeleteDashboard{Steward: steward}.Descriptor(),
 		goalservice.ReadDashboardFigures{Steward: steward}.Descriptor(),
+		goalservice.ReadDashboardDigest{Steward: steward}.Descriptor(),
+		goalservice.SetDashboardDigest{Steward: steward}.Descriptor(),
+		goalservice.DeleteDashboardDigest{Steward: steward}.Descriptor(),
 		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),
@@ -4328,6 +4331,12 @@ func run() error {
 			Fallback: cfg.Retention.Interval,
 		},
 		queueport.KindCmdbConnectorPull:    worker.CmdbConnectorPull{Connectors: connectors},
+		// A dashboard's digest by mail, computed as its subscriber (UC-GOL-04).
+		queueport.KindDashboardDigest: worker.DashboardDigest{Digests: goalservice.DashboardDigests{
+			Steward: steward, Accounts: accounts, Preferences: notificationPreferences,
+			Addresses: workspaceAddress(cfg), Mail: mailSender, Renderer: renderer,
+			Background: backgroundWork, FallbackLocale: cfg.Locale.DefaultLocale,
+		}},
 		queueport.KindAutomationCheck:      worker.AutomationCheck{Check: ruleCheck},
 		queueport.KindAuditExport:          worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindImport:               importJob,

@@ -1632,6 +1632,21 @@ class Dashboard(TypedDict, total=False):
 class DashboardList(TypedDict, total=False):
     data: Required[list["Dashboard"]]
 
+class DashboardDigest(TypedDict, total=False):
+    dashboard_id: Required[str]
+    cadence: Required[Literal["DAILY", "WEEKLY"]]
+    weekday: Required[int | None]
+    hour: Required[int]
+    time_zone: Required[str]
+    next_at: Required[str]
+    last_sent_at: Required[str | None]
+
+class DashboardDigestWrite(TypedDict, total=False):
+    cadence: Required[Literal["DAILY", "WEEKLY"]]
+    weekday: int
+    hour: Required[int]
+    time_zone: str
+
 class DashboardFigures(TypedDict, total=False):
     dashboard_id: Required[str]
     computed_at: Required[str]

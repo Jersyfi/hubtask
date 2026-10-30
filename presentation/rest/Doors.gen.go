@@ -118,6 +118,7 @@ var restDoors = map[string]restDoor{
 	"deleteComment":                     {UseCase: "DeleteComment", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteCustomField":                 {UseCase: "DeleteCustomField", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteDashboard":                   {UseCase: "DeleteDashboard", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteDashboardDigest":             {UseCase: "DeleteDashboardDigest", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteEntryType":                   {UseCase: "DeleteEntryType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteGoal":                        {UseCase: "DeleteGoal", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteGroup":                       {UseCase: "DeleteGroup", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -308,6 +309,7 @@ var restDoors = map[string]restDoor{
 	"readConfigSchema":                  {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigVersion":                 {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readDashboard":                     {UseCase: "ReadDashboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readDashboardDigest":               {UseCase: "ReadDashboardDigest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readDashboardFigures":              {UseCase: "ReadDashboardFigures", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readEntrySla":                      {UseCase: "ReadEntrySla", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readEstimatesVsActuals":            {UseCase: "ReadEstimatesVsActuals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -413,6 +415,7 @@ var restDoors = map[string]restDoor{
 	"setCostRate":                       {UseCase: "SetCostRate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hour_minor"}},
 	"setCover":                          {UseCase: "SetCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCustomField":                    {UseCase: "SetCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setDashboardDigest":                {UseCase: "SetDashboardDigest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hour", "weekday"}},
 	"setDependencyTiming":               {UseCase: "SetDependencyTiming", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"lag_days"}},
 	"setDueDate":                        {UseCase: "SetDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setEntryEstimate":                  {UseCase: "SetEntryEstimate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1132,6 +1135,11 @@ func (c *RestController) DeleteCustomField(w http.ResponseWriter, r *http.Reques
 // DeleteDashboard answers DELETE /dashboards/{dashboardId} by the generated mapping.
 func (c *RestController) DeleteDashboard(w http.ResponseWriter, r *http.Request, dashboardId openapi.DashboardId, params openapi.DeleteDashboardParams) {
 	c.door(w, r, restDoors["deleteDashboard"], usecase.Input{"dashboard_id": dashboardId.String()}, params, nil, nil)
+}
+
+// DeleteDashboardDigest answers DELETE /dashboards/{dashboardId}/digest by the generated mapping.
+func (c *RestController) DeleteDashboardDigest(w http.ResponseWriter, r *http.Request, dashboardId openapi.DashboardId) {
+	c.door(w, r, restDoors["deleteDashboardDigest"], usecase.Input{"dashboard_id": dashboardId.String()}, nil, nil, nil)
 }
 
 // DeleteEntryType answers DELETE /entry-types/{key} by the generated mapping.
@@ -2204,6 +2212,12 @@ func (c *RestController) ReadDashboard(w http.ResponseWriter, r *http.Request, d
 	c.door(w, r, restDoors["readDashboard"], usecase.Input{"dashboard_id": dashboardId.String()}, nil, nil, &answer)
 }
 
+// ReadDashboardDigest answers GET /dashboards/{dashboardId}/digest by the generated mapping.
+func (c *RestController) ReadDashboardDigest(w http.ResponseWriter, r *http.Request, dashboardId openapi.DashboardId) {
+	var answer openapi.DashboardDigest
+	c.door(w, r, restDoors["readDashboardDigest"], usecase.Input{"dashboard_id": dashboardId.String()}, nil, nil, &answer)
+}
+
 // ReadDashboardFigures answers GET /dashboards/{dashboardId}/figures by the generated mapping.
 func (c *RestController) ReadDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId openapi.DashboardId) {
 	var answer openapi.DashboardFigures
@@ -2806,6 +2820,13 @@ func (c *RestController) SetCover(w http.ResponseWriter, r *http.Request, itemId
 func (c *RestController) SetCustomField(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, key openapi.CustomFieldKey, params openapi.SetCustomFieldParams) {
 	var body openapi.SetCustomFieldJSONRequestBody
 	c.door(w, r, restDoors["setCustomField"], usecase.Input{"item_id": itemId.String(), "key": string(key)}, params, &body, answerBy(workItemResponse))
+}
+
+// SetDashboardDigest answers PUT /dashboards/{dashboardId}/digest by the generated mapping.
+func (c *RestController) SetDashboardDigest(w http.ResponseWriter, r *http.Request, dashboardId openapi.DashboardId) {
+	var body openapi.SetDashboardDigestJSONRequestBody
+	var answer openapi.DashboardDigest
+	c.door(w, r, restDoors["setDashboardDigest"], usecase.Input{"dashboard_id": dashboardId.String()}, nil, &body, &answer)
 }
 
 // SetDependencyTiming answers PUT /links/{linkId}/timing by the generated mapping.

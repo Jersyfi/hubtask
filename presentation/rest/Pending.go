@@ -2448,3 +2448,15 @@ func (pending) DeleteDashboard(w http.ResponseWriter, r *http.Request, _ openapi
 func (pending) ReadDashboardFigures(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
 	notAvailable(w, r)
 }
+
+func (pending) ReadDashboardDigest(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) SetDashboardDigest(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteDashboardDigest(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}

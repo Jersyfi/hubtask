@@ -433,6 +433,27 @@ var generatedCommands = []door{
 			{Name: "widgets", Kind: "json", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "version"}},
+	{Group: "dashboard", Verb: "digest", OperationID: "readDashboardDigest", Method: "GET", Path: "/dashboards/{dashboardId}/digest", Summary: "The caller's digest of a dashboard",
+		PathParams: []doorParam{
+			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"cadence", "dashboard_id", "hour", "last_sent_at", "next_at"}},
+	{Group: "dashboard", Verb: "digest-rm", OperationID: "deleteDashboardDigest", Method: "DELETE", Path: "/dashboards/{dashboardId}/digest", Summary: "End the caller's digest of a dashboard",
+		PathParams: []doorParam{
+			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "dashboard", Verb: "digest-set", OperationID: "setDashboardDigest", Method: "PUT", Path: "/dashboards/{dashboardId}/digest", Summary: "Send the caller a dashboard by mail",
+		PathParams: []doorParam{
+			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "cadence", Kind: "string", Help: "", Required: true},
+			{Name: "hour", Kind: "integer", Help: "The hour in the zone", Required: true},
+			{Name: "time_zone", Kind: "string", Help: "An IANA zone; the caller's own without", Required: false},
+			{Name: "weekday", Kind: "integer", Help: "WEEKLY's day, ISO: 1 Monday … 7 Sunday", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"cadence", "dashboard_id", "hour", "last_sent_at", "next_at"}},
 	{Group: "dashboard", Verb: "figures", OperationID: "readDashboardFigures", Method: "GET", Path: "/dashboards/{dashboardId}/figures", Summary: "A dashboard's numbers, for the caller",
 		PathParams: []doorParam{
 			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},

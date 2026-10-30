@@ -351,6 +351,21 @@ export class HubtaskClient {
     return this.call("GET", "/dashboards/{dashboardId}/figures", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The caller's digest of a dashboard */
+  readDashboardDigest(dashboardId: string, options: CallOptions = {}): Promise<operations["readDashboardDigest"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/dashboards/{dashboardId}/digest", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Send the caller a dashboard by mail */
+  setDashboardDigest(dashboardId: string, body: NonNullable<operations["setDashboardDigest"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setDashboardDigest"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/dashboards/{dashboardId}/digest", { "dashboardId": dashboardId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** End the caller's digest of a dashboard */
+  deleteDashboardDigest(dashboardId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/dashboards/{dashboardId}/digest", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Time records of a range of days */
   listTimeRecords(options: CallOptions & { readonly query?: NonNullable<operations["listTimeRecords"]['parameters']['query']> } = {}): Promise<operations["listTimeRecords"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/time-records", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

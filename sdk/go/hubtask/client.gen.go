@@ -2757,6 +2757,42 @@ func (e DashboardCreateSharing) Valid() bool {
 	}
 }
 
+// Defines values for DashboardDigestCadence.
+const (
+	DashboardDigestCadenceDAILY  DashboardDigestCadence = "DAILY"
+	DashboardDigestCadenceWEEKLY DashboardDigestCadence = "WEEKLY"
+)
+
+// Valid indicates whether the value is a known member of the DashboardDigestCadence enum.
+func (e DashboardDigestCadence) Valid() bool {
+	switch e {
+	case DashboardDigestCadenceDAILY:
+		return true
+	case DashboardDigestCadenceWEEKLY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardDigestWriteCadence.
+const (
+	DashboardDigestWriteCadenceDAILY  DashboardDigestWriteCadence = "DAILY"
+	DashboardDigestWriteCadenceWEEKLY DashboardDigestWriteCadence = "WEEKLY"
+)
+
+// Valid indicates whether the value is a known member of the DashboardDigestWriteCadence enum.
+func (e DashboardDigestWriteCadence) Valid() bool {
+	switch e {
+	case DashboardDigestWriteCadenceDAILY:
+		return true
+	case DashboardDigestWriteCadenceWEEKLY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DashboardWidgetChart.
 const (
 	DashboardWidgetChartBAR      DashboardWidgetChart = "BAR"
@@ -12483,6 +12519,41 @@ type DashboardCreate struct {
 
 // DashboardCreateSharing defines model for DashboardCreate.Sharing.
 type DashboardCreateSharing string
+
+// DashboardDigest defines model for DashboardDigest.
+type DashboardDigest struct {
+	Cadence     DashboardDigestCadence `json:"cadence"`
+	DashboardId openapi_types.UUID     `json:"dashboard_id"`
+	Hour        int                    `json:"hour"`
+	LastSentAt  *time.Time             `json:"last_sent_at"`
+	NextAt      time.Time              `json:"next_at"`
+
+	// TimeZone An IANA zone.
+	TimeZone string `json:"time_zone"`
+
+	// Weekday WEEKLY's day, ISO: 1 Monday … 7 Sunday.
+	Weekday *int `json:"weekday"`
+}
+
+// DashboardDigestCadence defines model for DashboardDigest.Cadence.
+type DashboardDigestCadence string
+
+// DashboardDigestWrite defines model for DashboardDigestWrite.
+type DashboardDigestWrite struct {
+	Cadence DashboardDigestWriteCadence `json:"cadence"`
+
+	// Hour The hour in the zone.
+	Hour int `json:"hour"`
+
+	// TimeZone An IANA zone; the caller's own without.
+	TimeZone *string `json:"time_zone,omitempty"`
+
+	// Weekday WEEKLY's day, ISO: 1 Monday … 7 Sunday.
+	Weekday *int `json:"weekday,omitempty"`
+}
+
+// DashboardDigestWriteCadence defines model for DashboardDigestWrite.Cadence.
+type DashboardDigestWriteCadence string
 
 // DashboardFigures defines model for DashboardFigures.
 type DashboardFigures struct {
@@ -23487,6 +23558,9 @@ type CreateDashboardJSONRequestBody = DashboardCreate
 // UpdateDashboardJSONRequestBody defines body for UpdateDashboard for application/json ContentType.
 type UpdateDashboardJSONRequestBody = DashboardWrite
 
+// SetDashboardDigestJSONRequestBody defines body for SetDashboardDigest for application/json ContentType.
+type SetDashboardDigestJSONRequestBody = DashboardDigestWrite
+
 // CreateEntryTypeJSONRequestBody defines body for CreateEntryType for application/json ContentType.
 type CreateEntryTypeJSONRequestBody = EntryTypeCreate
 
@@ -27695,6 +27769,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
 	UpdateDashboard(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, body UpdateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteDashboardDigest End the caller's digest of a dashboard
+	//
+	// Its scheduled mail finds nothing and stops.
+	//
+	// Corresponds with DELETE /dashboards/{dashboardId}/digest (the `DeleteDashboardDigest` operationId).
+	DeleteDashboardDigest(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadDashboardDigest The caller's digest of a dashboard
+	//
+	// Its cadence, weekday, hour, zone and the next moment it is sent. Not found where the caller has none.
+	//
+	// Corresponds with GET /dashboards/{dashboardId}/digest (the `ReadDashboardDigest` operationId).
+	ReadDashboardDigest(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDashboardDigestWithBody Send the caller a dashboard by mail
+	//
+	// Daily, or weekly on one weekday, at an hour of the caller's zone: a link to the dashboard and the totals of its NUMBER widgets, computed as the caller when the mail is sent. Replaces the caller's digest of the dashboard. Only a dashboard the caller sees.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /dashboards/{dashboardId}/digest (the `SetDashboardDigest` operationId).
+	SetDashboardDigestWithBody(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDashboardDigest Send the caller a dashboard by mail
+	//
+	// Daily, or weekly on one weekday, at an hour of the caller's zone: a link to the dashboard and the totals of its NUMBER widgets, computed as the caller when the mail is sent. Replaces the caller's digest of the dashboard. Only a dashboard the caller sees.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /dashboards/{dashboardId}/digest (the `SetDashboardDigest` operationId).
+	SetDashboardDigest(ctx context.Context, dashboardId DashboardId, body SetDashboardDigestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadDashboardFigures A dashboard's numbers, for the caller
 	//
@@ -39806,6 +39912,78 @@ func (c *Client) UpdateDashboardWithBody(ctx context.Context, dashboardId Dashbo
 // Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
 func (c *Client) UpdateDashboard(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, body UpdateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateDashboardRequest(c.Server, dashboardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteDashboardDigest End the caller's digest of a dashboard
+//
+// Its scheduled mail finds nothing and stops.
+//
+// Corresponds with DELETE /dashboards/{dashboardId}/digest (the `DeleteDashboardDigest` operationId).
+func (c *Client) DeleteDashboardDigest(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteDashboardDigestRequest(c.Server, dashboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadDashboardDigest The caller's digest of a dashboard
+//
+// Its cadence, weekday, hour, zone and the next moment it is sent. Not found where the caller has none.
+//
+// Corresponds with GET /dashboards/{dashboardId}/digest (the `ReadDashboardDigest` operationId).
+func (c *Client) ReadDashboardDigest(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadDashboardDigestRequest(c.Server, dashboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetDashboardDigestWithBody Send the caller a dashboard by mail
+//
+// Daily, or weekly on one weekday, at an hour of the caller's zone: a link to the dashboard and the totals of its NUMBER widgets, computed as the caller when the mail is sent. Replaces the caller's digest of the dashboard. Only a dashboard the caller sees.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /dashboards/{dashboardId}/digest (the `SetDashboardDigest` operationId).
+func (c *Client) SetDashboardDigestWithBody(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDashboardDigestRequestWithBody(c.Server, dashboardId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetDashboardDigest Send the caller a dashboard by mail
+//
+// Daily, or weekly on one weekday, at an hour of the caller's zone: a link to the dashboard and the totals of its NUMBER widgets, computed as the caller when the mail is sent. Replaces the caller's digest of the dashboard. Only a dashboard the caller sees.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /dashboards/{dashboardId}/digest (the `SetDashboardDigest` operationId).
+func (c *Client) SetDashboardDigest(ctx context.Context, dashboardId DashboardId, body SetDashboardDigestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDashboardDigestRequest(c.Server, dashboardId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -61471,6 +61649,121 @@ func NewUpdateDashboardRequestWithBody(server string, dashboardId DashboardId, p
 	return req, nil
 }
 
+// NewDeleteDashboardDigestRequest constructs an http.Request for the DeleteDashboardDigest method
+func NewDeleteDashboardDigestRequest(server string, dashboardId DashboardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dashboardId", dashboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards/%s/digest", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadDashboardDigestRequest constructs an http.Request for the ReadDashboardDigest method
+func NewReadDashboardDigestRequest(server string, dashboardId DashboardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dashboardId", dashboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards/%s/digest", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetDashboardDigestRequest calls the generic SetDashboardDigest builder with application/json body
+func NewSetDashboardDigestRequest(server string, dashboardId DashboardId, body SetDashboardDigestJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetDashboardDigestRequestWithBody(server, dashboardId, "application/json", bodyReader)
+}
+
+// NewSetDashboardDigestRequestWithBody constructs an http.Request for the SetDashboardDigest method, with any body, and a specified content type
+func NewSetDashboardDigestRequestWithBody(server string, dashboardId DashboardId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dashboardId", dashboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards/%s/digest", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReadDashboardFiguresRequest constructs an http.Request for the ReadDashboardFigures method
 func NewReadDashboardFiguresRequest(server string, dashboardId DashboardId) (*http.Request, error) {
 	var err error
@@ -83035,6 +83328,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
 	UpdateDashboardWithResponse(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, body UpdateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDashboardResult, error)
 
+	// DeleteDashboardDigestWithResponse End the caller's digest of a dashboard
+	//
+	// Its scheduled mail finds nothing and stops.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /dashboards/{dashboardId}/digest (the `DeleteDashboardDigest` operationId).
+	DeleteDashboardDigestWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*DeleteDashboardDigestResult, error)
+
+	// ReadDashboardDigestWithResponse The caller's digest of a dashboard
+	//
+	// Its cadence, weekday, hour, zone and the next moment it is sent. Not found where the caller has none.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /dashboards/{dashboardId}/digest (the `ReadDashboardDigest` operationId).
+	ReadDashboardDigestWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardDigestResult, error)
+
+	// SetDashboardDigestWithBodyWithResponse Send the caller a dashboard by mail
+	//
+	// Daily, or weekly on one weekday, at an hour of the caller's zone: a link to the dashboard and the totals of its NUMBER widgets, computed as the caller when the mail is sent. Replaces the caller's digest of the dashboard. Only a dashboard the caller sees.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /dashboards/{dashboardId}/digest (the `SetDashboardDigest` operationId).
+	SetDashboardDigestWithBodyWithResponse(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDashboardDigestResult, error)
+
+	// SetDashboardDigestWithResponse Send the caller a dashboard by mail
+	//
+	// Daily, or weekly on one weekday, at an hour of the caller's zone: a link to the dashboard and the totals of its NUMBER widgets, computed as the caller when the mail is sent. Replaces the caller's digest of the dashboard. Only a dashboard the caller sees.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /dashboards/{dashboardId}/digest (the `SetDashboardDigest` operationId).
+	SetDashboardDigestWithResponse(ctx context.Context, dashboardId DashboardId, body SetDashboardDigestJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDashboardDigestResult, error)
+
 	// ReadDashboardFiguresWithResponse A dashboard's numbers, for the caller
 	//
 	// Every widget computed now: a VIEW or QUERY widget's rows exactly as POST /views/{viewId}:aggregate or POST /items:aggregate answers the caller, a GOALS widget's goals with their progress. A widget the caller cannot run carries its error code, and the others still draw.
@@ -100468,6 +100797,143 @@ func (r UpdateDashboardResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateDashboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteDashboardDigestResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteDashboardDigestResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteDashboardDigestResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteDashboardDigestResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteDashboardDigestResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteDashboardDigestResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadDashboardDigestResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DashboardDigest
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadDashboardDigestResult) GetJSON200() *DashboardDigest {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadDashboardDigestResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadDashboardDigestResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadDashboardDigestResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadDashboardDigestResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadDashboardDigestResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetDashboardDigestResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DashboardDigest
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetDashboardDigestResult) GetJSON200() *DashboardDigest {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetDashboardDigestResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetDashboardDigestResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetDashboardDigestResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetDashboardDigestResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetDashboardDigestResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -124377,6 +124843,66 @@ func (c *ClientWithResponses) UpdateDashboardWithResponse(ctx context.Context, d
 	return ParseUpdateDashboardResult(rsp)
 }
 
+// DeleteDashboardDigestWithResponse End the caller's digest of a dashboard
+//
+// Its scheduled mail finds nothing and stops.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /dashboards/{dashboardId}/digest (the `DeleteDashboardDigest` operationId).
+func (c *ClientWithResponses) DeleteDashboardDigestWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*DeleteDashboardDigestResult, error) {
+	rsp, err := c.DeleteDashboardDigest(ctx, dashboardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDashboardDigestResult(rsp)
+}
+
+// ReadDashboardDigestWithResponse The caller's digest of a dashboard
+//
+// Its cadence, weekday, hour, zone and the next moment it is sent. Not found where the caller has none.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /dashboards/{dashboardId}/digest (the `ReadDashboardDigest` operationId).
+func (c *ClientWithResponses) ReadDashboardDigestWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardDigestResult, error) {
+	rsp, err := c.ReadDashboardDigest(ctx, dashboardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadDashboardDigestResult(rsp)
+}
+
+// SetDashboardDigestWithBodyWithResponse Send the caller a dashboard by mail
+//
+// Daily, or weekly on one weekday, at an hour of the caller's zone: a link to the dashboard and the totals of its NUMBER widgets, computed as the caller when the mail is sent. Replaces the caller's digest of the dashboard. Only a dashboard the caller sees.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /dashboards/{dashboardId}/digest (the `SetDashboardDigest` operationId).
+func (c *ClientWithResponses) SetDashboardDigestWithBodyWithResponse(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDashboardDigestResult, error) {
+	rsp, err := c.SetDashboardDigestWithBody(ctx, dashboardId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDashboardDigestResult(rsp)
+}
+
+// SetDashboardDigestWithResponse Send the caller a dashboard by mail
+//
+// Daily, or weekly on one weekday, at an hour of the caller's zone: a link to the dashboard and the totals of its NUMBER widgets, computed as the caller when the mail is sent. Replaces the caller's digest of the dashboard. Only a dashboard the caller sees.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /dashboards/{dashboardId}/digest (the `SetDashboardDigest` operationId).
+func (c *ClientWithResponses) SetDashboardDigestWithResponse(ctx context.Context, dashboardId DashboardId, body SetDashboardDigestJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDashboardDigestResult, error) {
+	rsp, err := c.SetDashboardDigest(ctx, dashboardId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDashboardDigestResult(rsp)
+}
+
 // ReadDashboardFiguresWithResponse A dashboard's numbers, for the caller
 //
 // Every widget computed now: a VIEW or QUERY widget's rows exactly as POST /views/{viewId}:aggregate or POST /items:aggregate answers the caller, a GOALS widget's goals with their progress. A widget the caller cannot run carries its error code, and the others still draw.
@@ -141400,6 +141926,101 @@ func ParseUpdateDashboardResult(rsp *http.Response) (*UpdateDashboardResult, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Dashboard
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteDashboardDigestResult parses an HTTP response from a DeleteDashboardDigestWithResponse call
+func ParseDeleteDashboardDigestResult(rsp *http.Response) (*DeleteDashboardDigestResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteDashboardDigestResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadDashboardDigestResult parses an HTTP response from a ReadDashboardDigestWithResponse call
+func ParseReadDashboardDigestResult(rsp *http.Response) (*ReadDashboardDigestResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadDashboardDigestResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DashboardDigest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetDashboardDigestResult parses an HTTP response from a SetDashboardDigestWithResponse call
+func ParseSetDashboardDigestResult(rsp *http.Response) (*SetDashboardDigestResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetDashboardDigestResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DashboardDigest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

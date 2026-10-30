@@ -295,6 +295,18 @@ class Client:
         """A dashboard's numbers, for the caller"""
         return self._call("GET", "/dashboards/{dashboardId}/figures", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
 
+    def read_dashboard_digest(self, dashboard_id: str) -> "DashboardDigest":
+        """The caller's digest of a dashboard"""
+        return self._call("GET", "/dashboards/{dashboardId}/digest", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
+
+    def set_dashboard_digest(self, dashboard_id: str, body: "DashboardDigestWrite") -> "DashboardDigest":
+        """Send the caller a dashboard by mail"""
+        return self._call("PUT", "/dashboards/{dashboardId}/digest", {"dashboardId": dashboard_id}, None, {}, body, "json", "application/json", "json")
+
+    def delete_dashboard_digest(self, dashboard_id: str) -> None:
+        """End the caller's digest of a dashboard"""
+        return self._call("DELETE", "/dashboards/{dashboardId}/digest", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "void")
+
     def list_time_records(self, *, query: dict[str, Any] | None = None) -> "TimeRecordList":
         """Time records of a range of days"""
         return self._call("GET", "/time-records", {}, query, {}, None, "none", None, "json")

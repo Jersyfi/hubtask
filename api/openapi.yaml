@@ -1196,6 +1196,59 @@ paths:
               schema: { $ref: "#/components/schemas/DashboardFigures" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /dashboards/{dashboardId}/digest:
+    parameters:
+      - $ref: "#/components/parameters/DashboardId"
+    get:
+      tags: [goals]
+      operationId: readDashboardDigest
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard digest"
+      summary: The caller's digest of a dashboard
+      description: Its cadence, weekday, hour, zone and the next moment it is sent. Not found where the caller has none.
+      responses:
+        "200":
+          description: The digest
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardDigest" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [goals]
+      operationId: setDashboardDigest
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard digest-set"
+      summary: Send the caller a dashboard by mail
+      description: >
+        Daily, or weekly on one weekday, at an hour of the caller's zone: a link to the dashboard and the
+        totals of its NUMBER widgets, computed as the caller when the mail is sent. Replaces the caller's
+        digest of the dashboard. Only a dashboard the caller sees.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardDigestWrite" }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardDigest" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [goals]
+      operationId: deleteDashboardDigest
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard digest-rm"
+      summary: End the caller's digest of a dashboard
+      description: Its scheduled mail finds nothing and stops.
+      responses:
+        "204":
+          description: Ended
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /time-records:
     get:
       tags: [time]
@@ -22603,6 +22656,26 @@ components:
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/Dashboard" } }
 
+    DashboardDigest:
+      type: object
+      required: [dashboard_id, cadence, weekday, hour, time_zone, next_at, last_sent_at]
+      properties:
+        dashboard_id: { type: string, format: uuid }
+        cadence: { type: string, enum: [DAILY, WEEKLY] }
+        weekday: { type: [integer, "null"], minimum: 1, maximum: 7, description: "WEEKLY's day, ISO: 1 Monday … 7 Sunday." }
+        hour: { type: integer, minimum: 0, maximum: 23 }
+        time_zone: { type: string, description: An IANA zone. }
+        next_at: { type: string, format: date-time }
+        last_sent_at: { type: [string, "null"], format: date-time }
+    DashboardDigestWrite:
+      type: object
+      additionalProperties: false
+      required: [cadence, hour]
+      properties:
+        cadence: { type: string, enum: [DAILY, WEEKLY] }
+        weekday: { type: integer, minimum: 1, maximum: 7, description: "WEEKLY's day, ISO: 1 Monday … 7 Sunday." }
+        hour: { type: integer, minimum: 0, maximum: 23, description: The hour in the zone. }
+        time_zone: { type: string, maxLength: 64, description: "An IANA zone; the caller's own without." }
     DashboardFigures:
       type: object
       required: [dashboard_id, computed_at, widgets]

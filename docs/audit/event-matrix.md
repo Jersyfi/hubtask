@@ -243,8 +243,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `dashboard.created` | CreateDashboard | `dashboard` | INFO | Every time |
 | `dashboard.deleted` | DeleteDashboard | `dashboard` | INFO | Every time |
+| `dashboard.digest_removed` | DeleteDashboardDigest | `dashboard` | INFO | Every time |
+| `dashboard.digest_set` | SetDashboardDigest | `dashboard` | INFO | Every time |
 | `dashboard.read` | ListDashboards | `dashboard` | INFO | When refused |
 | `dashboard.read` | ReadDashboard | `dashboard` | INFO | When refused |
+| `dashboard.read` | ReadDashboardDigest | `dashboard` | INFO | When refused |
 | `dashboard.read` | ReadDashboardFigures | `dashboard` | INFO | When refused |
 | `dashboard.updated` | UpdateDashboard | `dashboard` | INFO | Every time |
 

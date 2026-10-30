@@ -2751,6 +2751,42 @@ func (e DashboardCreateSharing) Valid() bool {
 	}
 }
 
+// Defines values for DashboardDigestCadence.
+const (
+	DashboardDigestCadenceDAILY  DashboardDigestCadence = "DAILY"
+	DashboardDigestCadenceWEEKLY DashboardDigestCadence = "WEEKLY"
+)
+
+// Valid indicates whether the value is a known member of the DashboardDigestCadence enum.
+func (e DashboardDigestCadence) Valid() bool {
+	switch e {
+	case DashboardDigestCadenceDAILY:
+		return true
+	case DashboardDigestCadenceWEEKLY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardDigestWriteCadence.
+const (
+	DashboardDigestWriteCadenceDAILY  DashboardDigestWriteCadence = "DAILY"
+	DashboardDigestWriteCadenceWEEKLY DashboardDigestWriteCadence = "WEEKLY"
+)
+
+// Valid indicates whether the value is a known member of the DashboardDigestWriteCadence enum.
+func (e DashboardDigestWriteCadence) Valid() bool {
+	switch e {
+	case DashboardDigestWriteCadenceDAILY:
+		return true
+	case DashboardDigestWriteCadenceWEEKLY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DashboardWidgetChart.
 const (
 	DashboardWidgetChartBAR      DashboardWidgetChart = "BAR"
@@ -12477,6 +12513,41 @@ type DashboardCreate struct {
 
 // DashboardCreateSharing defines model for DashboardCreate.Sharing.
 type DashboardCreateSharing string
+
+// DashboardDigest defines model for DashboardDigest.
+type DashboardDigest struct {
+	Cadence     DashboardDigestCadence `json:"cadence"`
+	DashboardId openapi_types.UUID     `json:"dashboard_id"`
+	Hour        int                    `json:"hour"`
+	LastSentAt  *time.Time             `json:"last_sent_at"`
+	NextAt      time.Time              `json:"next_at"`
+
+	// TimeZone An IANA zone.
+	TimeZone string `json:"time_zone"`
+
+	// Weekday WEEKLY's day, ISO: 1 Monday … 7 Sunday.
+	Weekday *int `json:"weekday"`
+}
+
+// DashboardDigestCadence defines model for DashboardDigest.Cadence.
+type DashboardDigestCadence string
+
+// DashboardDigestWrite defines model for DashboardDigestWrite.
+type DashboardDigestWrite struct {
+	Cadence DashboardDigestWriteCadence `json:"cadence"`
+
+	// Hour The hour in the zone.
+	Hour int `json:"hour"`
+
+	// TimeZone An IANA zone; the caller's own without.
+	TimeZone *string `json:"time_zone,omitempty"`
+
+	// Weekday WEEKLY's day, ISO: 1 Monday … 7 Sunday.
+	Weekday *int `json:"weekday,omitempty"`
+}
+
+// DashboardDigestWriteCadence defines model for DashboardDigestWrite.Cadence.
+type DashboardDigestWriteCadence string
 
 // DashboardFigures defines model for DashboardFigures.
 type DashboardFigures struct {
@@ -23481,6 +23552,9 @@ type CreateDashboardJSONRequestBody = DashboardCreate
 // UpdateDashboardJSONRequestBody defines body for UpdateDashboard for application/json ContentType.
 type UpdateDashboardJSONRequestBody = DashboardWrite
 
+// SetDashboardDigestJSONRequestBody defines body for SetDashboardDigest for application/json ContentType.
+type SetDashboardDigestJSONRequestBody = DashboardDigestWrite
+
 // CreateEntryTypeJSONRequestBody defines body for CreateEntryType for application/json ContentType.
 type CreateEntryTypeJSONRequestBody = EntryTypeCreate
 
@@ -24731,6 +24805,15 @@ type ServerInterface interface {
 	// UpdateDashboard Replace a dashboard
 	// (PUT /dashboards/{dashboardId})
 	UpdateDashboard(w http.ResponseWriter, r *http.Request, dashboardId DashboardId, params UpdateDashboardParams)
+	// DeleteDashboardDigest End the caller's digest of a dashboard
+	// (DELETE /dashboards/{dashboardId}/digest)
+	DeleteDashboardDigest(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
+	// ReadDashboardDigest The caller's digest of a dashboard
+	// (GET /dashboards/{dashboardId}/digest)
+	ReadDashboardDigest(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
+	// SetDashboardDigest Send the caller a dashboard by mail
+	// (PUT /dashboards/{dashboardId}/digest)
+	SetDashboardDigest(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
 	// ReadDashboardFigures A dashboard's numbers, for the caller
 	// (GET /dashboards/{dashboardId}/figures)
 	ReadDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
@@ -34003,6 +34086,84 @@ func (siw *ServerInterfaceWrapper) UpdateDashboard(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateDashboard(w, r, dashboardId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDashboardDigest operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDashboardDigest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "dashboardId" -------------
+	var dashboardId DashboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboardId", r.PathValue("dashboardId"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDashboardDigest(w, r, dashboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadDashboardDigest operation middleware
+func (siw *ServerInterfaceWrapper) ReadDashboardDigest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "dashboardId" -------------
+	var dashboardId DashboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboardId", r.PathValue("dashboardId"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadDashboardDigest(w, r, dashboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetDashboardDigest operation middleware
+func (siw *ServerInterfaceWrapper) SetDashboardDigest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "dashboardId" -------------
+	var dashboardId DashboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboardId", r.PathValue("dashboardId"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetDashboardDigest(w, r, dashboardId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -47037,6 +47198,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}", wrapper.ReadDashboard)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/dashboards/{dashboardId}", wrapper.UpdateDashboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}/figures", wrapper.ReadDashboardFigures)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.DeleteDashboardDigest)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.ReadDashboardDigest)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.SetDashboardDigest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-records", wrapper.ListTimeRecords)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/time-records", wrapper.LogTime)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/time-records/{recordId}", wrapper.DeleteTimeRecord)
