@@ -85,6 +85,7 @@ type Catalogue interface {
 type Planner struct {
 	Plans      planrepo.Plans
 	Baselines  planrepo.Baselines
+	Sprints    planrepo.Sprints
 	Items      workrepo.Items
 	Containers workrepo.Containers
 	LinkTypes  workrepo.LinkTypes
