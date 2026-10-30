@@ -28,7 +28,10 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    record (T-18); `x-hubtask-rest-list: data` draws a list under `data` without a page row by row;
    `x-hubtask-rest-request` names what the request itself carries that the use case reads (`host`,
    `tenant_header`, `user_agent`, `remote_addr` - a sign-in's workspace and a session's record),
-   and a successful answer the contract declares without content is written without a body.
+   and a successful answer the contract declares without content is written without a body;
+   `x-hubtask-rest-alternate: { when, answer }` answers the contract's other successful status,
+   drawn by the named mapper, when the output's boolean member `when` is true (a sign-in's
+   session, or the second step it still owes).
    The use case's input therefore uses
    the contract's names; a test holds each mapping's query, version and proof to the descriptor's
    declared input. An answer drawn by one of the adapter's shared mappers (an entry, by

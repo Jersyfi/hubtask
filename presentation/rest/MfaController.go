@@ -5,87 +5,13 @@ package rest
 
 import (
 	"encoding/json"
-	"net/http"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 // The use case names of the second factor.
-const (
-	completeSignInUseCase = "CompleteSignIn"
-	completeLinkUseCase   = "CompleteLink"
-)
-
-// CompleteSignIn answers POST /auth/sessions:verify. Written out for SignIn's reason: the route
-// is public, and the pending credential in the body is what authenticates the call.
-func (c *RestController) CompleteSignIn(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.SignInCompletion
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), completeSignInUseCase, actorOf(r), usecase.Input{
-		"pending_token":      body.PendingToken,
-		"code":               optionalStringField(body.Code),
-		"recovery_code":      optionalStringField(body.RecoveryCode),
-		"raw_id":             optionalStringField(body.RawId),
-		"client_data_json":   optionalStringField(body.ClientDataJson),
-		"authenticator_data": optionalStringField(body.AuthenticatorData),
-		"signature":          optionalStringField(body.Signature),
-		"tenant_header":      r.Header.Get(TenantHeader),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if required, _ := out["mfa_required"].(bool); required {
-		// The code was right and the password still owes the change step.
-		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
-
-// CompleteLink answers POST /auth/sessions:link: the account's password before a provider is
-// connected to it (ADR-0071's addendum). A pair, or the second factor's step with the link carried.
-func (c *RestController) CompleteLink(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.LinkCompletion
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), completeLinkUseCase, actorOf(r), usecase.Input{
-		"pending_token": body.PendingToken,
-		"password":      body.Password,
-		"tenant_header": r.Header.Get(TenantHeader),
-		"host":          r.Host,
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if required, _ := out["mfa_required"].(bool); required {
-		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
+const ()
 
 // totpConfirmedResponse maps an armed authenticator: the session pair, or the change step the sign-in still owes standing where the pair would.
 func totpConfirmedResponse(out usecase.Output) openapi.TotpConfirmed {

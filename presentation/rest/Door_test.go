@@ -394,3 +394,30 @@ func TestAGeneratedOperationReadsTheRequestAndCanAnswerWithoutABody(t *testing.T
 		t.Errorf("an input the door does not name arrived: %v", registry.in)
 	}
 }
+
+// A sign-in answers its session, or - when the output says a second step is owed - the contract's
+// other successful answer, the challenge.
+func TestAGeneratedSignInAnswersTheChallengeItStillOwes(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"mfa_required": true, "pending_token": "p-1", "methods": []any{"totp"}}}
+
+	recorder := callDoor(t, registry, http.MethodPost, "/auth/sessions", `{"email":"maria@example.org","password":"correct horse"}`,
+		map[string]string{"Content-Type": "application/json", "User-Agent": "test"})
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	var answer map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answer); err != nil || answer["pending_token"] != "p-1" {
+		t.Errorf("the answer is %s", recorder.Body)
+	}
+	if registry.in["user_agent"] != "test" || registry.in["host"] != "example.com" {
+		t.Errorf("the request's own inputs arrived as %v", registry.in)
+	}
+
+	registry.out = usecase.Output{"access_token": "a", "refresh_token": "r"}
+	recorder = callDoor(t, registry, http.MethodPost, "/auth/sessions", `{"email":"maria@example.org","password":"correct horse"}`,
+		map[string]string{"Content-Type": "application/json"})
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+}

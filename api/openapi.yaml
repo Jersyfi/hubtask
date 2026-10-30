@@ -7928,6 +7928,10 @@ paths:
     post:
       tags: [auth]
       operationId: signIn
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-request: [user_agent, remote_addr, tenant_header, host]
+      x-hubtask-rest-alternate: { when: mfa_required,  answer: mfaChallengeResponse }
       security: []
       summary: Sign in with email and password
       description: >
@@ -8047,6 +8051,9 @@ paths:
     post:
       tags: [auth]
       operationId: refreshSession
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-request: [tenant_header]
       security: []
       summary: Exchange a refresh token for the next pair
       description: >
@@ -8097,6 +8104,10 @@ paths:
     post:
       tags: [auth]
       operationId: redeemInvitation
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-request: [user_agent, remote_addr, tenant_header, host]
+      x-hubtask-rest-alternate: { when: mfa_required,  answer: mfaChallengeResponse }
       security: []
       summary: Redeem an invitation and set the first password
       description: >
@@ -8219,6 +8230,10 @@ paths:
     post:
       tags: [auth]
       operationId: completeSignIn
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-request: [tenant_header]
+      x-hubtask-rest-alternate: { when: mfa_required,  answer: mfaChallengeResponse }
       security: []
       summary: Present the second factor and receive the pair
       description: >
@@ -8330,6 +8345,10 @@ paths:
     post:
       tags: [auth]
       operationId: completeLink
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-request: [tenant_header, host]
+      x-hubtask-rest-alternate: { when: mfa_required,  answer: mfaChallengeResponse }
       security: []
       summary: Prove the account before a provider is connected to it
       description: >
@@ -8482,6 +8501,10 @@ paths:
     post:
       tags: [auth]
       operationId: resetPassword
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-request: [user_agent, remote_addr, tenant_header, host]
+      x-hubtask-rest-alternate: { when: mfa_required,  answer: mfaChallengeResponse }
       security: []
       summary: Spend a reset link and set the password
       description: >
@@ -8592,6 +8615,10 @@ paths:
     post:
       tags: [auth]
       operationId: setPasswordAndSignIn
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-request: [tenant_header]
+      x-hubtask-rest-alternate: { when: mfa_required,  answer: mfaChallengeResponse }
       security: []
       summary: Set a new password and finish the sign-in
       description: >

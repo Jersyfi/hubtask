@@ -60,6 +60,11 @@ type restDoor struct {
 	// Empty answers the status without a body: the contract declares none (an accepted request
 	// that has nothing to say that would be true for one caller and not another).
 	Empty bool
+	// AlternateWhen is the output's boolean member that answers AlternateStatus drawn by
+	// AlternateBy instead: a sign-in's session, or the second step it still owes.
+	AlternateWhen   string
+	AlternateStatus int
+	AlternateBy     answerer
 }
 
 // input is the name the use case reads a query parameter by.
@@ -153,6 +158,10 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 
 	out, ok := c.read(w, r, d.UseCase, in)
 	if !ok {
+		return
+	}
+	if d.AlternateWhen != "" && out[d.AlternateWhen] == true {
+		writeJSON(w, r, d.AlternateStatus, d.AlternateBy(out))
 		return
 	}
 	if d.ShownOnce != "" && out.String(d.ShownOnce) != "" {

@@ -66,6 +66,11 @@ type RESTDoor struct {
 	Request []string
 	// Empty says the successful answer has no body, whatever its status.
 	Empty bool
+	// AlternateWhen is the output's boolean member that turns the answer into the contract's
+	// other successful one, AlternateStatus drawn by AlternateBy (`x-hubtask-rest-alternate`): a
+	// sign-in answers its session, or the second step it still owes.
+	AlternateWhen, AlternateBy string
+	AlternateStatus            int
 }
 
 // requestInputs are the inputs a door can draw from the request rather than from its members.
@@ -88,6 +93,10 @@ type restOperation struct {
 	List        string            `yaml:"x-hubtask-rest-list"`
 	UseCase     string            `yaml:"x-hubtask-rest-use-case"`
 	Request     []string          `yaml:"x-hubtask-rest-request"`
+	Alternate   *struct {
+		When   string `yaml:"when"`
+		Answer string `yaml:"answer"`
+	} `yaml:"x-hubtask-rest-alternate"`
 	Parameters  []parameter       `yaml:"parameters"`
 	RequestBody *struct {
 		Required bool                 `yaml:"required"`
@@ -291,6 +300,21 @@ func restDoor(
 	if door.Status == 0 {
 		return door, fmt.Errorf("no successful answer")
 	}
+	if op.Alternate != nil {
+		if op.Alternate.When == "" || op.Alternate.Answer == "" {
+			return door, fmt.Errorf("x-hubtask-rest-alternate needs when and answer")
+		}
+		for _, status := range []string{"200", "201", "202"} {
+			if _, ok := op.Responses[status]; ok && status != fmt.Sprint(door.Status) {
+				fmt.Sscan(status, &door.AlternateStatus)
+				break
+			}
+		}
+		if door.AlternateStatus == 0 {
+			return door, fmt.Errorf("x-hubtask-rest-alternate needs a second successful answer")
+		}
+		door.AlternateWhen, door.AlternateBy = op.Alternate.When, op.Alternate.Answer
+	}
 	return door, nil
 }
 
@@ -404,6 +428,9 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 		}
 		if d.Empty {
 			extra += ", Empty: true"
+		}
+		if d.AlternateWhen != "" {
+			extra += fmt.Sprintf(", AlternateWhen: %q, AlternateStatus: %d, AlternateBy: answerBy(%s)", d.AlternateWhen, d.AlternateStatus, d.AlternateBy)
 		}
 		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q, Location: %q, NullClears: %t, Integers: %#v%s},\n",
 			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs, d.Location, d.NullClears, d.Integers, extra)

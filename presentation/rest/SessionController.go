@@ -6,8 +6,6 @@ package rest
 import (
 	"net/http"
 
-	openapi_types "github.com/oapi-codegen/runtime/types"
-
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -16,119 +14,12 @@ import (
 // The use case names of the session surface. Constants for the reason the token ones are:
 // a name spelled twice is a name that eventually drifts.
 const (
-	signInUseCase         = "SignIn"
 	refreshSessionUseCase = "RefreshSession"
 	// revokeOtherSessionsUseCase is *Sign out everywhere else* (UC-ID-06 check 4).
 	revokeOtherSessionsUseCase = "RevokeOtherSessions"
 	redeemInvitationUseCase    = "RedeemInvitation"
 	setUpInstallationUseCase   = "SetUpInstallation"
 )
-
-// SignIn answers POST /auth/sessions.
-//
-// Written out rather than through the identity helper: the route is public, so there is no actor
-// to resolve - the whole call exists to produce one.
-func (c *RestController) SignIn(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.SignIn
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), signInUseCase, actorOf(r), usecase.Input{
-		"identifier": optionalStringField(body.Identifier),
-		"email":      emailOf(body.Email),
-		"password":   body.Password,
-		// The client hints and the tenant sources are the request's, and only this adapter has
-		// the request - which is why they travel as declared inputs rather than being re-derived
-		// somewhere that never saw the connection.
-		"user_agent":    r.UserAgent(),
-		"remote_addr":   r.RemoteAddr,
-		"tenant_header": r.Header.Get(TenantHeader),
-		"host":          r.Host,
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if required, _ := out["mfa_required"].(bool); required {
-		// The password was right and a second step is owed.
-		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
-
-// RefreshSession answers POST /auth/sessions:refresh.
-func (c *RestController) RefreshSession(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.SessionRefresh
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), refreshSessionUseCase, actorOf(r), usecase.Input{
-		"refresh_token": body.RefreshToken,
-		"tenant_header": r.Header.Get(TenantHeader),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, sessionTokensResponse(out))
-}
-
-// RedeemInvitation answers POST /auth/invitations:redeem.
-//
-// Written out for SignIn's reason: the route is public, and the token in the body is the whole
-// of what authenticates the call.
-func (c *RestController) RedeemInvitation(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.InvitationRedemption
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), redeemInvitationUseCase, actorOf(r), usecase.Input{
-		"token":         body.Token,
-		"password":      body.Password,
-		"user_agent":    r.UserAgent(),
-		"remote_addr":   r.RemoteAddr,
-		"tenant_header": r.Header.Get(TenantHeader),
-		"host":          r.Host,
-		"terms_url":     optionalStringField(body.TermsUrl),
-		"terms_version": optionalStringField(body.TermsVersion),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if required, _ := out["mfa_required"].(bool); required {
-		// The invitation is accepted and the workspace demands a factor before the first session
-		// (identity.md §12).
-		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
 
 // SetUpInstallation answers POST /auth/installation:set-up.
 //
@@ -211,13 +102,4 @@ func optionalTextField(value any) *string {
 		return nil
 	}
 	return &text
-}
-
-// emailOf reads the optional address of a sign-in body: absent is the empty string, which the use
-// case meets as an identifier nobody holds.
-func emailOf(email *openapi_types.Email) string {
-	if email == nil {
-		return ""
-	}
-	return string(*email)
 }

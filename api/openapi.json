@@ -12563,6 +12563,18 @@
           "auth"
         ],
         "operationId": "signIn",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-request": [
+          "user_agent",
+          "remote_addr",
+          "tenant_header",
+          "host"
+        ],
+        "x-hubtask-rest-alternate": {
+          "when": "mfa_required",
+          "answer": "mfaChallengeResponse"
+        },
         "security": [],
         "summary": "Sign in with email and password",
         "description": "The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.\nWhere the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.\nThe tenant is resolved before the credential is checked - in multi mode from the workspace's address the request arrived at, or, only at the installation's own address, from the `X-Hubtask-Tenant` header; in single mode there is only one - never from the request body. A host that is neither names no workspace, header or not. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.\nEvery failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.\nAfter the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.\n",
@@ -12673,6 +12685,11 @@
           "auth"
         ],
         "operationId": "refreshSession",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-request": [
+          "tenant_header"
+        ],
         "security": [],
         "summary": "Exchange a refresh token for the next pair",
         "description": "Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.\nThe route is public the way sign-in is: the refresh token in the body is the whole credential, and demanding a bearer header beside it would demand the very thing this call exists to replace.\n",
@@ -12733,6 +12750,18 @@
           "auth"
         ],
         "operationId": "redeemInvitation",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-request": [
+          "user_agent",
+          "remote_addr",
+          "tenant_header",
+          "host"
+        ],
+        "x-hubtask-rest-alternate": {
+          "when": "mfa_required",
+          "answer": "mfaChallengeResponse"
+        },
         "security": [],
         "summary": "Redeem an invitation and set the first password",
         "description": "The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.\nWhere the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.\nThe token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.\nA redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.\n",
@@ -12855,6 +12884,15 @@
           "auth"
         ],
         "operationId": "completeSignIn",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-request": [
+          "tenant_header"
+        ],
+        "x-hubtask-rest-alternate": {
+          "when": "mfa_required",
+          "answer": "mfaChallengeResponse"
+        },
         "security": [],
         "summary": "Present the second factor and receive the pair",
         "description": "The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.\nA code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.\nWhere the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.\n",
@@ -12980,6 +13018,16 @@
           "auth"
         ],
         "operationId": "completeLink",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-request": [
+          "tenant_header",
+          "host"
+        ],
+        "x-hubtask-rest-alternate": {
+          "when": "mfa_required",
+          "answer": "mfaChallengeResponse"
+        },
         "security": [],
         "summary": "Prove the account before a provider is connected to it",
         "description": "The `LINK` step. A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.\nWith no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.\n**The password is a proof here even where the workspace switched it off as a way in.** Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).\n",
@@ -13135,6 +13183,18 @@
           "auth"
         ],
         "operationId": "resetPassword",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-request": [
+          "user_agent",
+          "remote_addr",
+          "tenant_header",
+          "host"
+        ],
+        "x-hubtask-rest-alternate": {
+          "when": "mfa_required",
+          "answer": "mfaChallengeResponse"
+        },
         "security": [],
         "summary": "Spend a reset link and set the password",
         "description": "The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.\n**Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.\nWhere the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded.\n",
@@ -13257,6 +13317,15 @@
           "auth"
         ],
         "operationId": "setPasswordAndSignIn",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-request": [
+          "tenant_header"
+        ],
+        "x-hubtask-rest-alternate": {
+          "when": "mfa_required",
+          "answer": "mfaChallengeResponse"
+        },
         "security": [],
         "summary": "Set a new password and finish the sign-in",
         "description": "The fourth door a password is set through. The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.\nThe pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.\nThis is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.\n",
