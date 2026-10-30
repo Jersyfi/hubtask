@@ -908,6 +908,19 @@ An `Alert` is one problem per intake and key - firing, resolved, reopened - boun
 host names and to the entry opened for it; a pull keeps one more about its own runs, firing while
 they fail or fetch nothing. A connector is switched off, never deleted.
 
+What vouches for an inventory (migration 0267): an entry names up to fifty CIs as **affected**
+(`Affected`) - its readers see the services their failure reaches, the other open entries on them,
+and a **collision** with an entry planned on the same or a reached CI in an overlapping start-to-due
+window (UC-AST-09). A **campaign** fixes, when it starts, the active CIs of its classes due for review
+and asks each one's owning person; a confirmed CI's review moves by the campaign's period, a
+disputed one falls due that day (UC-AST-10). A **group** is a hub's set of CIs defined by a filter on
+class, stage, name and attribute values, never by listing; standing for a service, its members are
+what the service rests on in the layered service map (UC-AST-11). An **asset** is a CI's financial
+record, one per CI, moving requested → ordered → in stock → deployed → retired → disposed - the CI's
+stage follows, and disposal needs its method and a certificate's reference (UC-AST-12). Software is
+counted by its folded publisher and product, a workspace's **alias** naming what folding misses
+(UC-AST-13).
+
 ### 3.11 Goals, portfolios and dashboards (context: Goal, M8)
 
 A **`Period`** is a cycle goals are set for - a quarter, a year, at most two years - open until it is
