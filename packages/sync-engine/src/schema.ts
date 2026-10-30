@@ -888,5 +888,7 @@ export type DashboardWrite = components['schemas']['DashboardWrite'];
 export type DashboardCreate = components['schemas']['DashboardCreate'];
 export type DashboardList = components['schemas']['DashboardList'];
 export type DashboardFigures = components['schemas']['DashboardFigures'];
+export type DashboardDigest = components['schemas']['DashboardDigest'];
+export type DashboardDigestWrite = components['schemas']['DashboardDigestWrite'];
 export type ItemAggregateQuery = components['schemas']['ItemAggregateQuery'];
 export type ItemAggregateResult = components['schemas']['ItemAggregateResult'];

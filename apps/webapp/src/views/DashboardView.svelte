@@ -11,18 +11,21 @@
   //
   // **No figure is stored or computed here** (check 2): the figures are read again after a save,
   // and a widget's table is handed over as a CSV file of the rows it shows.
+  //
+  // **By mail** (check 9): every reader may have the dashboard sent to them, daily or on one
+  // weekday at an hour of their zone; the server computes the mail as them when it is sent.
 
   import { untrack } from 'svelte';
   import {
     Banner, Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack,
   } from '@hubtask/design-system/components';
-  import type { Dashboard, DashboardFigures, DashboardWidgetWrite, GoalList } from '@hubtask/sync-engine';
+  import type { Dashboard, DashboardDigest, DashboardFigures, DashboardWidgetWrite, GoalList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    MAX_WIDGETS, csvOf, dashboardPath, figureRows, figuresPath, goals, moved, nextBox, readingOrder, resized, widgetWrite,
+    MAX_WIDGETS, csvOf, dashboardPath, digestPath, figureRows, figuresPath, goals, moved, nextBox, readingOrder, resized, widgetWrite,
   } from '../lib/data/goals.svelte.ts';
   import { views } from '../lib/data/views.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
@@ -153,6 +156,48 @@
     if (ok) { isDeleting = false; onnavigate('/goals?tab=dashboards'); }
   }
 
+  // --- By mail ----------------------------------------------------------------------------------
+
+  let isDigestOpen = $state(false);
+  let digest = $state<DashboardDigest | undefined>(undefined);
+  const digestDraft = $state({ cadence: 'WEEKLY' as 'DAILY' | 'WEEKLY', weekday: '1', hour: '8' });
+  $effect(() => {
+    if (!isDigestOpen) return;
+    const path = digestPath(dashboardId);
+    return untrack(() => engine.subscribe<DashboardDigest>({ path }, (next) => {
+      if (next.status === 'ready') {
+        digest = next.data;
+        digestDraft.cadence = next.data.cadence;
+        digestDraft.weekday = String(next.data.weekday ?? 1);
+        digestDraft.hour = String(next.data.hour);
+      }
+      // Not found is a reader without a digest: the form starts empty.
+      if (next.status === 'failed') digest = undefined;
+    }));
+  });
+  const weekdays = $derived(Array.from({ length: 7 }, (_, i) => ({
+    value: String(i + 1),
+    // 5 January 2026 is a Monday.
+    label: new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 0, 5 + i))),
+  })));
+  const hours = $derived(Array.from({ length: 24 }, (_, h) => ({
+    value: String(h),
+    label: new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 0, 5, h))),
+  })));
+  async function saveDigest() {
+    const ok = await act(() => goals.setDigest(dashboardId, {
+      cadence: digestDraft.cadence,
+      hour: Number(digestDraft.hour),
+      ...(digestDraft.cadence === 'WEEKLY' ? { weekday: Number(digestDraft.weekday) } : {}),
+      time_zone: actor.zone,
+    }), t('app.dashboards.digest_saved'));
+    if (ok) isDigestOpen = false;
+  }
+  async function stopDigest() {
+    const ok = await act(() => goals.removeDigest(dashboardId), t('app.dashboards.digest_stopped'));
+    if (ok) { digest = undefined; isDigestOpen = false; }
+  }
+
   // --- Figures ----------------------------------------------------------------------------------
 
   const figureOf = (id: string | undefined) => (id ? figures?.widgets.find((each) => each.id === id) : undefined);
@@ -180,14 +225,18 @@
         ? [{ label: t('app.dashboards.save_layout'), icon: 'check', onclick: () => void saveLayout() }, { label: t('app.dashboards.add_widget'), icon: 'plus', onclick: () => openWidget(-1), ...(layout.length >= MAX_WIDGETS ? { disabledReason: t('dashboards.too_many_widgets') } : {}) }]
         : [{ label: t('app.dashboards.edit'), icon: 'pencil', onclick: startEditing }]
       : []}
-    menu={mayEdit ? {
+    menu={dashboard ? {
       label: t('app.goals.more'),
       items: [
-        ...(isEditing ? [{ id: 'cancel', label: t('app.dashboards.discard'), icon: 'x' as const }] : []),
-        { id: 'rename', label: t('app.dashboards.rename'), icon: 'pencil' },
-        { id: 'delete', label: t('app.dashboards.delete'), icon: 'trash', isDestructive: true, hasSeparatorBefore: true },
+        { id: 'digest', label: t('app.dashboards.digest'), icon: 'mail' as const },
+        ...(mayEdit ? [
+          ...(isEditing ? [{ id: 'cancel', label: t('app.dashboards.discard'), icon: 'x' as const }] : []),
+          { id: 'rename', label: t('app.dashboards.rename'), icon: 'pencil' as const },
+          { id: 'delete', label: t('app.dashboards.delete'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
+        ] : []),
       ],
       onselect: (id: string) => {
+        if (id === 'digest') isDigestOpen = true;
         if (id === 'cancel') isEditing = false;
         if (id === 'rename' && dashboard) { draft.name = dashboard.name; draft.sharing = dashboard.sharing; isRenaming = true; }
         if (id === 'delete') isDeleting = true;
@@ -254,6 +303,27 @@
 {#if isWidgetOpen}
   <Dialog bind:isOpen={isWidgetOpen} title={editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })} dismissLabel={t('app.links.cancel')}>
     <WidgetEditor widget={editingIndex < 0 ? undefined : layout[editingIndex]} {summaryViews} goals={goalChoices} onsave={saveWidget} />
+  </Dialog>
+{/if}
+
+{#if isDigestOpen}
+  <Dialog bind:isOpen={isDigestOpen} title={t('app.dashboards.digest_title')} dismissLabel={t('app.links.cancel')}>
+    <Stack gap="150">
+      <p class="quiet">{t('app.dashboards.digest_hint')}</p>
+      <Select label={t('app.dashboards.digest_cadence')} bind:value={digestDraft.cadence}
+        options={[{ value: 'DAILY', label: t('app.dashboards.digest_DAILY') }, { value: 'WEEKLY', label: t('app.dashboards.digest_WEEKLY') }]} />
+      {#if digestDraft.cadence === 'WEEKLY'}
+        <Select label={t('app.dashboards.digest_weekday')} bind:value={digestDraft.weekday} options={weekdays} />
+      {/if}
+      <Select label={t('app.dashboards.digest_hour')} hint={t('app.dashboards.digest_zone', { zone: actor.zone })} bind:value={digestDraft.hour} options={hours} />
+      {#if digest}
+        <p class="quiet">{t('app.dashboards.digest_next', { when: formatDateTime(digest.next_at, locale) })}</p>
+      {/if}
+      <Inline justify="end">
+        {#if digest}<Button tone="danger" onclick={() => void stopDigest()}>{t('app.dashboards.digest_stop')}</Button>{/if}
+        <Button tone="primary" onclick={() => void saveDigest()}>{t('app.dashboards.digest_save')}</Button>
+      </Inline>
+    </Stack>
   </Dialog>
 {/if}
 

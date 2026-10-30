@@ -211,6 +211,8 @@ export type {
   DashboardCreate,
   DashboardList,
   DashboardFigures,
+  DashboardDigest,
+  DashboardDigestWrite,
   ItemAggregateQuery,
   ItemAggregateResult,
   CiAttribute,

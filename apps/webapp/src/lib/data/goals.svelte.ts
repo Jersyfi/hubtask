@@ -11,7 +11,7 @@
  */
 
 import type {
-  Dashboard, DashboardCreate, DashboardWrite, Goal, GoalCreate, GoalPeriod, GoalWrite, Portfolio, PortfolioUpdate, PortfolioWrite,
+  Dashboard, DashboardCreate, DashboardDigest, DashboardDigestWrite, DashboardWrite, Goal, GoalCreate, GoalPeriod, GoalWrite, Portfolio, PortfolioUpdate, PortfolioWrite,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -40,6 +40,8 @@ export const updatesPath = (portfolioId: string) => `/portfolios/${portfolioId}/
 export const dashboardsPath = (hubId?: string) => (hubId ? `/dashboards?hub_id=${hubId}` : DASHBOARDS);
 export const dashboardPath = (dashboardId: string) => `/dashboards/${dashboardId}`;
 export const figuresPath = (dashboardId: string) => `/dashboards/${dashboardId}/figures`;
+/** The reader's own digest of a dashboard by mail; not found where they have none. */
+export const digestPath = (dashboardId: string) => `/dashboards/${dashboardId}/digest`;
 
 /** A goal's change reaches its parent's progress and every list, so every goal read is stale. */
 const GOAL_READS = ['/goals', DASHBOARDS];
@@ -114,6 +116,15 @@ class Goals {
 
   async removeDashboard(dashboard: Dashboard): Promise<void> {
     await engine.mutate<void>('DELETE', dashboardPath(dashboard.id), undefined, { ifMatch: etagFor(dashboard.version), invalidates: [DASHBOARDS] });
+  }
+
+  /** Mails the reader a dashboard they see, replacing their digest of it (UC-GOL-04 check 9). */
+  setDigest(dashboardId: string, fields: DashboardDigestWrite): Promise<DashboardDigest> {
+    return engine.mutate<DashboardDigest>('PUT', digestPath(dashboardId), fields, { invalidates: [digestPath(dashboardId)] });
+  }
+
+  async removeDigest(dashboardId: string): Promise<void> {
+    await engine.mutate<void>('DELETE', digestPath(dashboardId), undefined, { invalidates: [digestPath(dashboardId)] });
   }
 }
 
