@@ -122,6 +122,8 @@ type WorkflowStep struct {
 	// check 3); asked is not required unless Requires names it too.
 	Asks   []string
 	Checks []StepCheck
+	// Approval makes the step wait for people's yes; nil moves the entry at once.
+	Approval *StepApproval
 }
 
 // LeavesFrom reports whether the step may be taken from a status.
@@ -533,6 +535,13 @@ func newWorkflowStep(step WorkflowStep, shape WorkflowShape, form text.Normalize
 		checks = append(checks, check)
 	}
 	step.Checks = checks
+	if step.Approval != nil {
+		approval, err := newStepApproval(*step.Approval, shape, at+"/approval")
+		if err != nil {
+			return WorkflowStep{}, err
+		}
+		step.Approval = &approval
+	}
 	return step, nil
 }
 

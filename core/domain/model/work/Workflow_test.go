@@ -273,3 +273,41 @@ func TestACheckSpeaksEachLanguage(t *testing.T) {
 		}
 	}
 }
+
+// UC-APR-01 check 1: an approval step names its levels, a known decline status, a rule and
+// approvers; a level asking all or a majority counts people, never a role.
+func TestAnApprovalStepIsHeldToItsShape(t *testing.T) {
+	shapeWith := func(approval *work.StepApproval) work.WorkflowShape {
+		return work.WorkflowShape{
+			Statuses: []work.WorkflowStatus{{Key: "asked", Name: "Asked", Category: work.CategoryTodo}, {Key: "approved", Name: "Approved", Category: work.CategoryInProgress}, {Key: "declined", Name: "Declined", Category: work.CategoryDone}},
+			Initial:  "asked",
+			Steps:    []work.WorkflowStep{{Key: "approve", Name: "Approve", To: "approved", Approval: approval}},
+		}
+	}
+	person := "0190a4c2-7b1e-7000-8000-00000000000a"
+	cases := []struct {
+		approval work.StepApproval
+		code     string
+	}{
+		{work.StepApproval{}, "workflows.approval_levels"},
+		{work.StepApproval{Levels: []work.ApprovalLevel{{Rule: work.ApprovalAny}}}, "workflows.approval_nobody"},
+		{work.StepApproval{Levels: []work.ApprovalLevel{{People: []string{person}, Rule: "SOME"}}}, "workflows.approval_rule_unknown"},
+		{work.StepApproval{Levels: []work.ApprovalLevel{{Roles: []string{"ADMIN"}, Rule: work.ApprovalAll}}}, "workflows.approval_role_uncounted"},
+		{work.StepApproval{Levels: []work.ApprovalLevel{{People: []string{person}, Rule: work.ApprovalNOf}}}, "workflows.approval_count"},
+		{work.StepApproval{DeclineTo: "gone", Levels: []work.ApprovalLevel{{People: []string{person}, Rule: work.ApprovalAny}}}, "workflows.status_unknown"},
+		{work.StepApproval{Levels: []work.ApprovalLevel{{People: []string{"nobody"}, Rule: work.ApprovalAny}}}, "workflows.approver_unknown"},
+	}
+	for _, c := range cases {
+		approval := c.approval
+		if _, err := work.NewWorkflowShape(shapeWith(&approval), false, text.Composing{}); detailOf(err) != c.code {
+			t.Errorf("%+v: %v, want %s", c.approval, err, c.code)
+		}
+	}
+	good := work.StepApproval{DeclineTo: "declined", DueHours: 48, Levels: []work.ApprovalLevel{
+		{People: []string{person, person}, Rule: work.ApprovalAny}, {Roles: []string{"ADMIN"}, Rule: work.ApprovalNOf, Count: 2},
+	}}
+	shape, err := work.NewWorkflowShape(shapeWith(&good), false, text.Composing{})
+	if err != nil || len(shape.Steps[0].Approval.Levels[0].People) != 1 {
+		t.Errorf("a good approval: %+v %v", shape, err)
+	}
+}
