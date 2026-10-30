@@ -9041,6 +9041,7 @@
   "app.time.report_empty": "No time in this range.",
   "app.time.withheld": "{groups} groups with fewer than three people are left out ({minutes}), so that no person is named.",
   "app.time.export": "Export as CSV",
+  "app.time.export_spreadsheet": "Export as spreadsheet",
   "app.time.exported": "Time exported.",
   "app.time.export_truncated": "The export holds the first 50000 records. Choose fewer days for the rest.",
   "app.time.start": "Start timer",

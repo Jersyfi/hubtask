@@ -14,7 +14,7 @@
  */
 
 import type {
-  Absence, BudgetBurn, Capacity, CostRate, TimeExport, TimePolicy, TimeRecord, TimeTimer, Timesheet, WorkType,
+  Absence, BudgetBurn, Capacity, CostRate, TimeExport, TimePolicy, TimeRecord, TimeTimer, Timesheet, TransportDocument, WorkType,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -25,6 +25,7 @@ export * from './time.ts';
 export const TIMER = '/timer';
 export const WORK_TYPES = '/time-work-types';
 export const POLICY = '/time-policy';
+export const SPREADSHEET = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 /** A week of the caller's, or of another person's where the caller approves it. */
 export const weekPath = (week: string, accountId?: string) =>
   accountId ? `/timesheets/${week}?account_id=${encodeURIComponent(accountId)}` : `/timesheets/${week}`;
@@ -137,6 +138,16 @@ class Time {
   /** The rows of an export: a write, because the export is recorded in the audit trail. */
   export(request: ReportRequest): Promise<TimeExport> {
     return engine.mutate<TimeExport>('POST', '/time-records:export', { from: request.from, to: request.to, mine: request.mine }, { invalidates: [] });
+  }
+
+  /**
+   * The same rows as one sheet of a spreadsheet, rendered by the server: the client has no writer
+   * for the format, and the cells keep their types there (minutes as numbers, a text never a formula).
+   */
+  exportSpreadsheet(request: ReportRequest): Promise<TransportDocument> {
+    return engine.document('/time-records:export', { from: request.from, to: request.to, mine: request.mine }, {
+      timeoutMs: 120_000, accept: SPREADSHEET,
+    });
   }
 
   setCapacity(from: string, weekMinutes: readonly number[]): Promise<Capacity> {

@@ -306,6 +306,16 @@
     }, t('app.time.exported'));
     isExporting = false;
   }
+  let isExportingSheet = $state(false);
+  async function exportSpreadsheet() {
+    isExportingSheet = true;
+    await act(async () => {
+      const file = await time.exportSpreadsheet({ from: report.from, to: report.to, mine: report.mine });
+      platform.saveFile(file.body, `time-${report.from}-${report.to}.xlsx`);
+      if (file.headers.get('export-truncated') === 'true') toast.show({ text: t('app.time.export_truncated'), tone: 'warning' });
+    }, t('app.time.exported'));
+    isExportingSheet = false;
+  }
 </script>
 
 <Stack gap="300">
@@ -468,6 +478,7 @@
         <Select label={t('app.time.then_by')} size="sm" bind:value={report.second} options={[{ value: '', label: t('app.time.none') }, ...dimensionOptions]} />
         <Switch label={t('app.time.mine_only')} bind:checked={report.mine} />
         <Button size="sm" tone="secondary" icon="file-text" isBusy={isExporting} busyLabel={t('app.time.export')} onclick={() => void exportRecords()}>{t('app.time.export')}</Button>
+        <Button size="sm" tone="secondary" icon="file-text" isBusy={isExportingSheet} busyLabel={t('app.time.export_spreadsheet')} onclick={() => void exportSpreadsheet()}>{t('app.time.export_spreadsheet')}</Button>
       </div>
       {#if reportRefusal}
         <Banner tone="danger">{reportRefusal}</Banner>
