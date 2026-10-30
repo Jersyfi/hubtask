@@ -1780,6 +1780,14 @@ class PortfolioWrite(TypedDict, total=False):
     status: Literal["NONE", "ON_TRACK", "AT_RISK", "OFF_TRACK"]
     items: list[dict[str, Any]]
 
+class PortfolioRoadmap(TypedDict, total=False):
+    portfolio_id: Required[str]
+    name: Required[str]
+    status: Required[str]
+    start: Required[str | None]
+    finish: Required[str | None]
+    lanes: Required[list[dict[str, Any]]]
+
 class Portfolio(TypedDict, total=False):
     id: Required[str]
     parent_id: Required[str | None]

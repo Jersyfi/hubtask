@@ -446,6 +446,7 @@ var restDoors = map[string]restDoor{
 	"readPlanTolerance":                 {UseCase: "ReadPlanTolerance", Status: 200, Query: []string{"calendar", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlatformSubscription":          {UseCase: "ReadPlatformSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPortfolio":                     {UseCase: "ReadPortfolio", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readPortfolioRoadmap":              {UseCase: "ReadPortfolioRoadmap", Status: 200, Query: []string{"zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPublicLinksPolicy":             {UseCase: "ReadPublicLinksPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readQuotas":                        {UseCase: "ReadQuotas", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readRelease":                       {UseCase: "ReadRelease", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3214,6 +3215,12 @@ func (c *RestController) ReadPlatformSubscription(w http.ResponseWriter, r *http
 func (c *RestController) ReadPortfolio(w http.ResponseWriter, r *http.Request, portfolioId openapi.PortfolioId) {
 	var answer openapi.Portfolio
 	c.door(w, r, restDoors["readPortfolio"], usecase.Input{"portfolio_id": portfolioId.String()}, nil, nil, &answer)
+}
+
+// ReadPortfolioRoadmap answers GET /portfolios/{portfolioId}/roadmap by the generated mapping.
+func (c *RestController) ReadPortfolioRoadmap(w http.ResponseWriter, r *http.Request, portfolioId openapi.PortfolioId, params openapi.ReadPortfolioRoadmapParams) {
+	var answer openapi.PortfolioRoadmap
+	c.door(w, r, restDoors["readPortfolioRoadmap"], usecase.Input{"portfolio_id": portfolioId.String()}, params, nil, &answer)
 }
 
 // ReadPublicLinksPolicy answers GET /pages:public-links by the generated mapping.

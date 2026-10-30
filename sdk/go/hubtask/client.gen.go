@@ -18796,6 +18796,45 @@ type PortfolioList struct {
 	Data []Portfolio `json:"data"`
 }
 
+// PortfolioRoadmap defines model for PortfolioRoadmap.
+type PortfolioRoadmap struct {
+	// Finish The latest day of any project or bar.
+	Finish *openapi_types.Date `json:"finish"`
+	Lanes  []struct {
+		HubId *openapi_types.UUID `json:"hub_id"`
+
+		// Name The hub's name; empty where the caller may not read the hub.
+		Name     string `json:"name"`
+		Projects []struct {
+			Bars []struct {
+				CollectionId openapi_types.UUID `json:"collection_id"`
+				Critical     bool               `json:"critical"`
+				Done         bool               `json:"done"`
+				Finish       openapi_types.Date `json:"finish"`
+				ItemId       openapi_types.UUID `json:"item_id"`
+				Milestone    bool               `json:"milestone"`
+				Start        openapi_types.Date `json:"start"`
+				Title        string             `json:"title"`
+			} `json:"bars"`
+			ContainerId openapi_types.UUID  `json:"container_id"`
+			EndOn       *openapi_types.Date `json:"end_on"`
+
+			// Finish The project's forecast end as its plan schedules it.
+			Finish  *openapi_types.Date `json:"finish"`
+			Kind    string              `json:"kind"`
+			Name    string              `json:"name"`
+			StartOn *openapi_types.Date `json:"start_on"`
+			Status  string              `json:"status"`
+		} `json:"projects"`
+	} `json:"lanes"`
+	Name        string             `json:"name"`
+	PortfolioId openapi_types.UUID `json:"portfolio_id"`
+
+	// Start The earliest day of any project or bar.
+	Start  *openapi_types.Date `json:"start"`
+	Status string              `json:"status"`
+}
+
 // PortfolioUpdate defines model for PortfolioUpdate.
 type PortfolioUpdate struct {
 	AuthorId    openapi_types.UUID    `json:"author_id"`
@@ -24996,6 +25035,12 @@ type DeletePortfolioParams struct {
 type UpdatePortfolioParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ReadPortfolioRoadmapParams defines parameters for ReadPortfolioRoadmap.
+type ReadPortfolioRoadmapParams struct {
+	// Zone An IANA time zone the days are local to; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
 }
 
 // ReportPortfolioStatusJSONBody defines parameters for ReportPortfolioStatus.
@@ -34314,6 +34359,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
 	UpdatePortfolio(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPortfolioRoadmap A portfolio as a roadmap across teams
+	//
+	// A lane per hub, each project the caller may read in it with the dates the portfolio plans it for and its health, and a bar per top-level entry with its start and finish as the project's plan schedules them (GET /plans/{planId}/schedule), marked milestone, done and critical. A hub the caller may not read is a lane without a name. Needs READ at the workspace.
+	//
+	// Corresponds with GET /portfolios/{portfolioId}/roadmap (the `ReadPortfolioRoadmap` operationId).
+	ReadPortfolioRoadmap(ctx context.Context, portfolioId PortfolioId, params *ReadPortfolioRoadmapParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPortfolioUpdates A portfolio's status updates
 	//
@@ -51924,6 +51976,23 @@ func (c *Client) UpdatePortfolioWithBody(ctx context.Context, portfolioId Portfo
 // Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
 func (c *Client) UpdatePortfolio(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdatePortfolioRequest(c.Server, portfolioId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPortfolioRoadmap A portfolio as a roadmap across teams
+//
+// A lane per hub, each project the caller may read in it with the dates the portfolio plans it for and its health, and a bar per top-level entry with its start and finish as the project's plan schedules them (GET /plans/{planId}/schedule), marked milestone, done and critical. A hub the caller may not read is a lane without a name. Needs READ at the workspace.
+//
+// Corresponds with GET /portfolios/{portfolioId}/roadmap (the `ReadPortfolioRoadmap` operationId).
+func (c *Client) ReadPortfolioRoadmap(ctx context.Context, portfolioId PortfolioId, params *ReadPortfolioRoadmapParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPortfolioRoadmapRequest(c.Server, portfolioId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -82994,6 +83063,67 @@ func NewUpdatePortfolioRequestWithBody(server string, portfolioId PortfolioId, p
 	return req, nil
 }
 
+// NewReadPortfolioRoadmapRequest constructs an http.Request for the ReadPortfolioRoadmap method
+func NewReadPortfolioRoadmapRequest(server string, portfolioId PortfolioId, params *ReadPortfolioRoadmapParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "portfolioId", portfolioId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios/%s/roadmap", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Zone != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "zone", *params.Zone, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListPortfolioUpdatesRequest constructs an http.Request for the ListPortfolioUpdates method
 func NewListPortfolioUpdatesRequest(server string, portfolioId PortfolioId) (*http.Request, error) {
 	var err error
@@ -99082,6 +99212,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
 	UpdatePortfolioWithResponse(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePortfolioResult, error)
+
+	// ReadPortfolioRoadmapWithResponse A portfolio as a roadmap across teams
+	//
+	// A lane per hub, each project the caller may read in it with the dates the portfolio plans it for and its health, and a bar per top-level entry with its start and finish as the project's plan schedules them (GET /plans/{planId}/schedule), marked milestone, done and critical. A hub the caller may not read is a lane without a name. Needs READ at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /portfolios/{portfolioId}/roadmap (the `ReadPortfolioRoadmap` operationId).
+	ReadPortfolioRoadmapWithResponse(ctx context.Context, portfolioId PortfolioId, params *ReadPortfolioRoadmapParams, reqEditors ...RequestEditorFn) (*ReadPortfolioRoadmapResult, error)
 
 	// ListPortfolioUpdatesWithResponse A portfolio's status updates
 	//
@@ -128506,6 +128645,54 @@ func (r UpdatePortfolioResult) ContentType() string {
 	return ""
 }
 
+type ReadPortfolioRoadmapResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PortfolioRoadmap
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPortfolioRoadmapResult) GetJSON200() *PortfolioRoadmap {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPortfolioRoadmapResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPortfolioRoadmapResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPortfolioRoadmapResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPortfolioRoadmapResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPortfolioRoadmapResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPortfolioUpdatesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -149561,6 +149748,21 @@ func (c *ClientWithResponses) UpdatePortfolioWithResponse(ctx context.Context, p
 		return nil, err
 	}
 	return ParseUpdatePortfolioResult(rsp)
+}
+
+// ReadPortfolioRoadmapWithResponse A portfolio as a roadmap across teams
+//
+// A lane per hub, each project the caller may read in it with the dates the portfolio plans it for and its health, and a bar per top-level entry with its start and finish as the project's plan schedules them (GET /plans/{planId}/schedule), marked milestone, done and critical. A hub the caller may not read is a lane without a name. Needs READ at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /portfolios/{portfolioId}/roadmap (the `ReadPortfolioRoadmap` operationId).
+func (c *ClientWithResponses) ReadPortfolioRoadmapWithResponse(ctx context.Context, portfolioId PortfolioId, params *ReadPortfolioRoadmapParams, reqEditors ...RequestEditorFn) (*ReadPortfolioRoadmapResult, error) {
+	rsp, err := c.ReadPortfolioRoadmap(ctx, portfolioId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPortfolioRoadmapResult(rsp)
 }
 
 // ListPortfolioUpdatesWithResponse A portfolio's status updates
@@ -172788,6 +172990,39 @@ func ParseUpdatePortfolioResult(rsp *http.Response) (*UpdatePortfolioResult, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Portfolio
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPortfolioRoadmapResult parses an HTTP response from a ReadPortfolioRoadmapWithResponse call
+func ParseReadPortfolioRoadmapResult(rsp *http.Response) (*ReadPortfolioRoadmapResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPortfolioRoadmapResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PortfolioRoadmap
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

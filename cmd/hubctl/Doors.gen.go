@@ -1465,6 +1465,14 @@ var generatedCommands = []door{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "portfolio", Verb: "roadmap", OperationID: "readPortfolioRoadmap", Method: "GET", Path: "/portfolios/{portfolioId}/roadmap", Summary: "A portfolio as a roadmap across teams",
+		PathParams: []doorParam{
+			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "zone", Kind: "string", Help: "An IANA time zone the days are local to; UTC without", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"name", "status"}},
 	{Group: "portfolio", Verb: "update", OperationID: "updatePortfolio", Method: "PUT", Path: "/portfolios/{portfolioId}", Summary: "Replace a portfolio",
 		PathParams: []doorParam{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},

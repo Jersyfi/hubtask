@@ -2361,6 +2361,48 @@
         }
       }
     },
+    "/portfolios/{portfolioId}/roadmap": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PortfolioId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "goals"
+        ],
+        "operationId": "readPortfolioRoadmap",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "portfolio roadmap",
+        "summary": "A portfolio as a roadmap across teams",
+        "description": "A lane per hub, each project the caller may read in it with the dates the portfolio plans it for and its health, and a bar per top-level entry with its start and finish as the project's plan schedules them (GET /plans/{planId}/schedule), marked milestone, done and critical. A hub the caller may not read is a lane without a name. Needs READ at the workspace.\n",
+        "parameters": [
+          {
+            "name": "zone",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "An IANA time zone the days are local to; UTC without."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The roadmap",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioRoadmap"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/portfolios/{portfolioId}/updates": {
       "parameters": [
         {
@@ -39186,6 +39228,168 @@
                     "AT_RISK",
                     "OFF_TRACK"
                   ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "PortfolioRoadmap": {
+        "type": "object",
+        "required": [
+          "portfolio_id",
+          "name",
+          "status",
+          "start",
+          "finish",
+          "lanes"
+        ],
+        "properties": {
+          "portfolio_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The earliest day of any project or bar."
+          },
+          "finish": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The latest day of any project or bar."
+          },
+          "lanes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "hub_id",
+                "name",
+                "projects"
+              ],
+              "properties": {
+                "hub_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "The hub's name; empty where the caller may not read the hub."
+                },
+                "projects": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "container_id",
+                      "kind",
+                      "name",
+                      "start_on",
+                      "end_on",
+                      "status",
+                      "finish",
+                      "bars"
+                    ],
+                    "properties": {
+                      "container_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "kind": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "start_on": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date"
+                      },
+                      "end_on": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "finish": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date",
+                        "description": "The project's forecast end as its plan schedules it."
+                      },
+                      "bars": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "item_id",
+                            "title",
+                            "collection_id",
+                            "start",
+                            "finish",
+                            "milestone",
+                            "done",
+                            "critical"
+                          ],
+                          "properties": {
+                            "item_id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "collection_id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "start": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "finish": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "milestone": {
+                              "type": "boolean"
+                            },
+                            "done": {
+                              "type": "boolean"
+                            },
+                            "critical": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }

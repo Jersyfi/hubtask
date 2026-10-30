@@ -772,6 +772,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `portfolio.read` | ListPortfolioUpdates | `portfolio` | INFO | When refused |
 | `portfolio.read` | ListPortfolios | `portfolio` | INFO | When refused |
 | `portfolio.read` | ReadPortfolio | `portfolio` | INFO | When refused |
+| `portfolio.read` | ReadPortfolioRoadmap | `portfolio` | INFO | When refused |
 | `portfolio.status_reported` | ReportPortfolioStatus | `portfolio` | INFO | Every time |
 | `portfolio.updated` | UpdatePortfolio | `portfolio` | INFO | Every time |
 

@@ -2829,3 +2829,6 @@ func (pending) ReadPlanTolerance(w http.ResponseWriter, r *http.Request, _ opena
 func (pending) SetPlanTolerance(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
 	notAvailable(w, r)
 }
+func (pending) ReadPortfolioRoadmap(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId, _ openapi.ReadPortfolioRoadmapParams) {
+	notAvailable(w, r)
+}

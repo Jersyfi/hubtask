@@ -303,6 +303,10 @@ class Client:
         """Delete a portfolio"""
         return self._call("DELETE", "/portfolios/{portfolioId}", {"portfolioId": portfolio_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
+    def read_portfolio_roadmap(self, portfolio_id: str, *, query: dict[str, Any] | None = None) -> "PortfolioRoadmap":
+        """A portfolio as a roadmap across teams"""
+        return self._call("GET", "/portfolios/{portfolioId}/roadmap", {"portfolioId": portfolio_id}, query, {}, None, "none", None, "json")
+
     def list_portfolio_updates(self, portfolio_id: str) -> "PortfolioUpdateList":
         """A portfolio's status updates"""
         return self._call("GET", "/portfolios/{portfolioId}/updates", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")

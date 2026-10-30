@@ -18791,6 +18791,45 @@ type PortfolioList struct {
 	Data []Portfolio `json:"data"`
 }
 
+// PortfolioRoadmap defines model for PortfolioRoadmap.
+type PortfolioRoadmap struct {
+	// Finish The latest day of any project or bar.
+	Finish *openapi_types.Date `json:"finish"`
+	Lanes  []struct {
+		HubId *openapi_types.UUID `json:"hub_id"`
+
+		// Name The hub's name; empty where the caller may not read the hub.
+		Name     string `json:"name"`
+		Projects []struct {
+			Bars []struct {
+				CollectionId openapi_types.UUID `json:"collection_id"`
+				Critical     bool               `json:"critical"`
+				Done         bool               `json:"done"`
+				Finish       openapi_types.Date `json:"finish"`
+				ItemId       openapi_types.UUID `json:"item_id"`
+				Milestone    bool               `json:"milestone"`
+				Start        openapi_types.Date `json:"start"`
+				Title        string             `json:"title"`
+			} `json:"bars"`
+			ContainerId openapi_types.UUID  `json:"container_id"`
+			EndOn       *openapi_types.Date `json:"end_on"`
+
+			// Finish The project's forecast end as its plan schedules it.
+			Finish  *openapi_types.Date `json:"finish"`
+			Kind    string              `json:"kind"`
+			Name    string              `json:"name"`
+			StartOn *openapi_types.Date `json:"start_on"`
+			Status  string              `json:"status"`
+		} `json:"projects"`
+	} `json:"lanes"`
+	Name        string             `json:"name"`
+	PortfolioId openapi_types.UUID `json:"portfolio_id"`
+
+	// Start The earliest day of any project or bar.
+	Start  *openapi_types.Date `json:"start"`
+	Status string              `json:"status"`
+}
+
 // PortfolioUpdate defines model for PortfolioUpdate.
 type PortfolioUpdate struct {
 	AuthorId    openapi_types.UUID    `json:"author_id"`
@@ -24993,6 +25032,12 @@ type UpdatePortfolioParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ReadPortfolioRoadmapParams defines parameters for ReadPortfolioRoadmap.
+type ReadPortfolioRoadmapParams struct {
+	// Zone An IANA time zone the days are local to; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
+}
+
 // ReportPortfolioStatusJSONBody defines parameters for ReportPortfolioStatus.
 type ReportPortfolioStatusJSONBody struct {
 	Status  ReportPortfolioStatusJSONBodyStatus `json:"status"`
@@ -28739,6 +28784,9 @@ type ServerInterface interface {
 	// UpdatePortfolio Replace a portfolio
 	// (PUT /portfolios/{portfolioId})
 	UpdatePortfolio(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId, params UpdatePortfolioParams)
+	// ReadPortfolioRoadmap A portfolio as a roadmap across teams
+	// (GET /portfolios/{portfolioId}/roadmap)
+	ReadPortfolioRoadmap(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId, params ReadPortfolioRoadmapParams)
 	// ListPortfolioUpdates A portfolio's status updates
 	// (GET /portfolios/{portfolioId}/updates)
 	ListPortfolioUpdates(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId)
@@ -47966,6 +48014,48 @@ func (siw *ServerInterfaceWrapper) UpdatePortfolio(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ReadPortfolioRoadmap operation middleware
+func (siw *ServerInterfaceWrapper) ReadPortfolioRoadmap(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "portfolioId" -------------
+	var portfolioId PortfolioId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portfolioId", r.PathValue("portfolioId"), &portfolioId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "portfolioId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadPortfolioRoadmapParams
+
+	// ------------- Optional query parameter "zone" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "zone", r.URL.Query(), &params.Zone, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "zone"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "zone", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPortfolioRoadmap(w, r, portfolioId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPortfolioUpdates operation middleware
 func (siw *ServerInterfaceWrapper) ListPortfolioUpdates(w http.ResponseWriter, r *http.Request) {
 
@@ -53697,6 +53787,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/portfolios/{portfolioId}", wrapper.DeletePortfolio)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios/{portfolioId}", wrapper.ReadPortfolio)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/portfolios/{portfolioId}", wrapper.UpdatePortfolio)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios/{portfolioId}/roadmap", wrapper.ReadPortfolioRoadmap)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios/{portfolioId}/updates", wrapper.ListPortfolioUpdates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/portfolios/{portfolioId}/updates", wrapper.ReportPortfolioStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards", wrapper.ListDashboards)

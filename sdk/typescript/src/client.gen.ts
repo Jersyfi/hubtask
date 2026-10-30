@@ -361,6 +361,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/portfolios/{portfolioId}", { "portfolioId": portfolioId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** A portfolio as a roadmap across teams */
+  readPortfolioRoadmap(portfolioId: string, options: CallOptions & { readonly query?: NonNullable<operations["readPortfolioRoadmap"]['parameters']['query']> } = {}): Promise<operations["readPortfolioRoadmap"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/portfolios/{portfolioId}/roadmap", { "portfolioId": portfolioId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** A portfolio's status updates */
   listPortfolioUpdates(portfolioId: string, options: CallOptions = {}): Promise<operations["listPortfolioUpdates"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/portfolios/{portfolioId}/updates", { "portfolioId": portfolioId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
