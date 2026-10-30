@@ -175,6 +175,9 @@ func (h RegisterAgent) Descriptor() usecase.Descriptor {
 				if err := d.Store.InsertAgent(ctx, a); err != nil {
 					return err
 				}
+				if err := d.agentChanged(ctx, actor, a); err != nil {
+					return err
+				}
 				return d.record(ctx, actor, RegisteredAction, agentTarget, a.ID, audit.SeverityNotice,
 					open("kind", string(a.Kind)), open("owner_id", a.OwnerID.String()),
 					open("account_id", a.AccountID.String()), open("risk_class", string(a.RiskClass)),
@@ -365,6 +368,9 @@ func (h ChangeAgent) Descriptor() usecase.Descriptor {
 				}
 				changed.Version = a.Version + 1
 				out = changed
+				if err := d.agentChanged(ctx, actor, changed); err != nil {
+					return err
+				}
 				if revision, _, err = d.modelRevision(ctx, changed); err != nil {
 					return err
 				}
@@ -415,6 +421,9 @@ func (d Desk) transition(
 		}
 		next.Version = a.Version + 1
 		out = next
+		if err := d.agentChanged(ctx, actor, next); err != nil {
+			return err
+		}
 		return d.record(ctx, actor, action, agentTarget, id, audit.SeverityNotice,
 			open("status", string(next.Status)), open("model_revision", strconv.Itoa(revision)))
 	})

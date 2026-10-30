@@ -78,6 +78,9 @@ func (h AddAgentCase) Descriptor() usecase.Descriptor {
 				if err := d.Store.InsertCase(ctx, c); err != nil {
 					return err
 				}
+				if err := d.changed(ctx, actor, CaseEntity, c.ID, CaseOutput(c)); err != nil {
+					return err
+				}
 				return d.record(ctx, actor, CaseAddedAction, agentTarget, id, audit.SeverityInfo, open("case_id", c.ID.String()))
 			})
 			if err != nil {
@@ -176,6 +179,9 @@ func (h RemoveAgentCase) Descriptor() usecase.Descriptor {
 				if !removed {
 					return shared.ErrNotFound.WithDetail("agent_cases.not_found")
 				}
+				if err := d.changed(ctx, actor, CaseEntity, caseID, nil); err != nil {
+					return err
+				}
 				return d.record(ctx, actor, CaseRemovedAction, agentTarget, id, audit.SeverityInfo, open("case_id", caseID.String()))
 			})
 			return nil, err
@@ -261,6 +267,9 @@ func (d Desk) scoreRun(
 		run = Score(cases, answer(cases))
 		run.ID, run.AgentID, run.ModelRevision, run.By, run.At = d.IDs.NewID(), id, revision, actor.AccountID, d.Clock.Now()
 		if err := d.Store.InsertRun(ctx, run); err != nil {
+			return err
+		}
+		if err := d.runChanged(ctx, actor, run); err != nil {
 			return err
 		}
 		return d.record(ctx, actor, EvaluatedAction, agentTarget, id, audit.SeverityNotice,

@@ -150,6 +150,9 @@ func (g Gate) judge(
 			}); err != nil {
 				return err
 			}
+			if err := d.requestChanged(ctx, actor, request); err != nil {
+				return err
+			}
 		}
 		if decision == domain.DecisionNotified && situation.Usage.NotifiedLastHour == 0 && d.Notices != nil {
 			if err := d.Notices.AgentActed(ctx, actor.TenantID, a.ID, a.OwnerID, now); err != nil {

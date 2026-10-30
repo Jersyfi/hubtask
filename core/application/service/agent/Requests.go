@@ -151,6 +151,9 @@ func (h DecideAgentRequest) Descriptor() usecase.Descriptor {
 					return shared.ErrConflict.WithDetail("agents.request_decided")
 				}
 				r = decided
+				if err := d.requestChanged(ctx, actor, id); err != nil {
+					return err
+				}
 				return d.record(ctx, actor, action, requestTarget, id, audit.SeverityNotice,
 					open("agent_id", a.ID.String()), open("use_case", r.UseCase), open("class", string(r.Class)))
 			})
@@ -168,7 +171,10 @@ func (h DecideAgentRequest) Descriptor() usecase.Descriptor {
 					code = shared.AsError(err).Code
 				}
 				if failed := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-					return d.Store.FailRequest(ctx, id, code)
+					if err := d.Store.FailRequest(ctx, id, code); err != nil {
+						return err
+					}
+					return d.requestChanged(ctx, actor, id)
 				}); failed != nil {
 					return nil, failed
 				}

@@ -221,7 +221,15 @@ func (s *store) InsertCase(_ context.Context, c domain.Case) error {
 	s.cases = append(s.cases, c)
 	return nil
 }
-func (s *store) DeleteCase(context.Context, shared.ID, shared.ID) (bool, error) { return false, nil }
+func (s *store) DeleteCase(_ context.Context, agent, id shared.ID) (bool, error) {
+	for i, c := range s.cases {
+		if c.AgentID == agent && c.ID == id {
+			s.cases = append(s.cases[:i], s.cases[i+1:]...)
+			return true, nil
+		}
+	}
+	return false, nil
+}
 func (s *store) InsertRun(_ context.Context, r domain.Run) error {
 	s.runs = append([]domain.Run{r}, s.runs...)
 	return nil

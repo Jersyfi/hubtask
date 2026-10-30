@@ -1915,7 +1915,7 @@ func run() error {
 		Store: agentStore, Catalogue: agentCatalogue, Authorizer: authorizer,
 		Sources: integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor().Handler,
 		Audit:   auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
-		Queue: jobs,
+		Queue: jobs, Changes: changes, HLC: hybrid,
 		// An act run with its owner told tells them, once an hour (NOTIFY).
 		Notices: notification.RecordAgentNotice{
 			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,

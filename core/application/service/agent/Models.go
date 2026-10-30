@@ -135,6 +135,9 @@ func (h RegisterAgentModel) Descriptor() usecase.Descriptor {
 				if err := d.Store.InsertModel(ctx, m, now); err != nil {
 					return err
 				}
+				if err := d.modelChanged(ctx, actor, m); err != nil {
+					return err
+				}
 				return d.record(ctx, actor, ModelRegisteredAction, modelTarget, m.ID, audit.SeverityNotice,
 					open("source", string(m.Source)), open("region", string(m.Region)))
 			})
@@ -240,6 +243,9 @@ func (h ChangeAgentModel) Descriptor() usecase.Descriptor {
 				}
 				revised.Version = m.Version + 1
 				out = revised
+				if err := d.modelChanged(ctx, actor, revised); err != nil {
+					return err
+				}
 				return d.record(ctx, actor, ModelChangedAction, modelTarget, id, audit.SeverityNotice,
 					open("revision", strconv.Itoa(revised.Revision)), open("retired", strconv.FormatBool(revised.Retired)))
 			})

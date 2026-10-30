@@ -20,6 +20,7 @@ import (
 	"time"
 
 	agentrepo "github.com/Jersyfi/hubtask/core/application/repository/agent"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -100,6 +101,10 @@ type Desk struct {
 	// Notices tells an agent's owner of an act its policy lets run with them told (NOTIFY), once
 	// an hour; nil tells nobody, and the ledger still records the act NOTIFIED.
 	Notices Notices
+	// Changes and HLC tell the devices of an agent's owner and of the administrators of the
+	// registry's rows; nil records nothing.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
 }
 
 // Notices writes the owner's notice inside the gate's transaction.
