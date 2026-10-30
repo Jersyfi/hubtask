@@ -45,6 +45,7 @@ import (
 	calendarservice "github.com/Jersyfi/hubtask/core/application/service/calendar"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
+	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
 	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
@@ -1972,6 +1973,11 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
 		Changes: changes, HLC: hybrid,
 	}
+	// An entry's files in a store (UC-INT-14): kept by address, never fetched.
+	entryFiles := filelinkservice.Files{
+		Store: postgres.NewFileLinkRepository(), Entries: entryLinks, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
+	}
 	// The agents' desk; Sources is ReadAiSource's own use case, run as the registering person.
 	agentDesk := agentservice.Desk{
 		Store: agentStore, Catalogue: agentCatalogue, Authorizer: authorizer,
@@ -2247,6 +2253,9 @@ func run() error {
 		forgeservice.UpdateCodeHook{Forge: codeForge}.Descriptor(),
 		forgeservice.RotateCodeHookSecret{Forge: codeForge}.Descriptor(),
 		forgeservice.ListEntryCodeLinks{Forge: codeForge}.Descriptor(),
+		filelinkservice.ListEntryFileLinks{Files: entryFiles}.Descriptor(),
+		filelinkservice.LinkEntryFile{Files: entryFiles}.Descriptor(),
+		filelinkservice.UnlinkEntryFile{Files: entryFiles}.Descriptor(),
 		cmdbservice.ListCiConnectors{Connectors: connectors}.Descriptor(),
 		cmdbservice.DefineCiConnector{Connectors: connectors}.Descriptor(),
 		cmdbservice.SetCiConnectorCredential{Connectors: connectors}.Descriptor(),

@@ -83,7 +83,7 @@ func entryPath(s workrepo.EntrySummary) []identity.Scope {
 	if !s.HubID.IsZero() {
 		path = append(path, identity.HubScope(s.HubID))
 	}
-	return append(path, identity.CollectionScope(s.CollectionID), identity.ItemScope(s.ID))
+	return append(path, identity.CollectionScope(s.CollectionID))
 }
 
 // entry answers a live entry's summary and asks whether the actor may read or write it.
@@ -99,13 +99,15 @@ func (f Files) entry(ctx context.Context, actor appshared.ActorContext, id share
 	if len(summaries) != 1 {
 		return workrepo.EntrySummary{}, shared.ErrNotFound.WithDetail("work_item.not_found")
 	}
-	permission, scope := service.PermissionRead, readScope
+	// The summary carries no assignee, so an "assigned only" role is refused here rather than
+	// admitted on an entry that is not theirs.
+	permission, scope, does := service.PermissionRead, readScope, service.ItemRead
 	if write {
-		permission, scope = service.PermissionWriteItems, writeScope
+		permission, scope, does = service.PermissionWriteItems, writeScope, service.ItemChange
 	}
 	return summaries[0], f.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: permission, Path: entryPath(summaries[0]), Action: action, TokenScope: scope,
-		TargetType: itemTarget, TargetID: id,
+		TargetType: itemTarget, TargetID: id, On: access.ItemSubject{Does: does, ID: id},
 	})
 }
 
@@ -195,7 +197,7 @@ func (h LinkEntryFile) Descriptor() usecase.Descriptor {
 			{Name: "provider", Kind: usecase.KindString, Enum: providerNames(), Description: "The store; told by the address when not given."},
 			{Name: "name", Kind: usecase.KindString, Description: "What the link is called, at most 200 characters; the address's last segment when not given."},
 		},
-		Audit:    usecase.AuditDeclaration{Action: LinkedAction, TargetType: linkTarget, Severity: audit.SeverityInfo},
+		Audit:    usecase.AuditDeclaration{Required: true, Action: LinkedAction, TargetType: linkTarget, Severity: audit.SeverityInfo},
 		Activity: usecase.ActivityDeclaration{Exempt: exemptReason},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			item, err := in.ID("item_id")
@@ -264,7 +266,7 @@ func (h UnlinkEntryFile) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "link_id", Kind: usecase.KindID, Required: true, Description: "The file link."},
 		},
-		Audit:    usecase.AuditDeclaration{Action: UnlinkedAction, TargetType: linkTarget, Severity: audit.SeverityInfo},
+		Audit:    usecase.AuditDeclaration{Required: true, Action: UnlinkedAction, TargetType: linkTarget, Severity: audit.SeverityInfo},
 		Activity: usecase.ActivityDeclaration{Exempt: exemptReason},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			id, err := in.ID("link_id")

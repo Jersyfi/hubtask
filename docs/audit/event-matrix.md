@@ -475,6 +475,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `entry_type.form_set` | SetEntryTypeForm | `entry_type` | INFO | Every time |
 | `entry_type.read` | ListEntryTypes | `entry_type` | INFO | When refused |
 
+## Filelink
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `filelink.linked` | LinkEntryFile | `file_link` | INFO | Every time |
+| `filelink.links_read` | ListEntryFileLinks | `work_item` | INFO | When refused |
+| `filelink.unlinked` | UnlinkEntryFile | `file_link` | INFO | Every time |
+
 ## Forge
 
 | Action | Use case | Target | Severity | Recorded |

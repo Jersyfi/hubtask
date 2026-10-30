@@ -29,6 +29,7 @@ import (
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
+	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
 	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -345,6 +346,9 @@ func Descriptors() []usecase.Descriptor {
 		forgeservice.UpdateCodeHook{}.Descriptor(),
 		forgeservice.RotateCodeHookSecret{}.Descriptor(),
 		forgeservice.ListEntryCodeLinks{}.Descriptor(),
+		filelinkservice.ListEntryFileLinks{}.Descriptor(),
+		filelinkservice.LinkEntryFile{}.Descriptor(),
+		filelinkservice.UnlinkEntryFile{}.Descriptor(),
 		cmdbservice.ListCiConnectors{}.Descriptor(),
 		cmdbservice.DefineCiConnector{}.Descriptor(),
 		cmdbservice.SetCiConnectorCredential{}.Descriptor(),
