@@ -148,7 +148,10 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 	}
 
 	if request.aboutAnEntry() {
-		return s.decideAboutTheEntry(ctx, actor, request, memberships, path)
+		if err := s.decideAboutTheEntry(ctx, actor, request, memberships, path); err != nil {
+			return err
+		}
+		return s.delegatorAllows(ctx, actor, request)
 	}
 
 	if !request.satisfiedBy(memberships, path) {
@@ -172,7 +175,53 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 			WithDetail("access.permission_above_own").
 			WithParams(map[string]string{"permissions": strings.Join(lacking, ",")})
 	}
-	return nil
+	return s.delegatorAllows(ctx, actor, request)
+}
+
+// delegatorAllows asks of the person a registered agent acts for what was just asked of the agent
+// (M9, G2): an agent never does what its owner may not, whatever its own account holds. The
+// refusal is recorded as the agent's, with the reason `delegator`, and reads to the caller as any
+// other refusal does.
+func (s Service) delegatorAllows(ctx context.Context, actor appshared.ActorContext, request Request) error {
+	if actor.OnBehalfOf.IsZero() {
+		return nil
+	}
+	allowed, err := s.delegatorPermits(ctx, actor, request)
+	if err != nil {
+		return err
+	}
+	if allowed {
+		return nil
+	}
+	s.recordRefusal(ctx, actor, request, "delegator")
+	if request.aboutAnEntry() && !request.On.ID.IsZero() {
+		return appshared.ItemNotFound(request.On.ID)
+	}
+	return notPermitted(request)
+}
+
+// delegatorPermits is the delegating person's answer, recorded nowhere.
+func (s Service) delegatorPermits(ctx context.Context, actor appshared.ActorContext, request Request) (bool, error) {
+	person := actor.OnBehalfOf
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), person, request.scopePath(), false)
+	if err != nil {
+		return false, err
+	}
+	if request.aboutAnEntry() {
+		verdict, found := service.AllowsItemActionAlong(
+			memberships, path.path, path.privacy, request.On.Does, person, request.On.Assignee)
+		return found && verdict == service.ItemPermitted, nil
+	}
+	if !request.satisfiedBy(memberships, path) {
+		return false, nil
+	}
+	if request.Grants != "" && !service.MayGrant(memberships, path.path, path.privacy, request.Grants) {
+		return false, nil
+	}
+	if len(request.HandsOut) > 0 && !service.MayHandOut(memberships, path.path, path.privacy, request.HandsOut) {
+		return false, nil
+	}
+	return true, nil
 }
 
 // GrantableRoles answers which roles the actor may hand out along the path, strongest first: the
@@ -234,7 +283,13 @@ func (s Service) Permits(
 		// that read this as a refusal would silently shorten a stream on a database blip.
 		return false, err
 	}
-	return request.satisfiedBy(memberships, path), nil
+	if !request.satisfiedBy(memberships, path) {
+		return false, nil
+	}
+	if actor.OnBehalfOf.IsZero() {
+		return true, nil
+	}
+	return s.delegatorPermits(ctx, actor, request)
 }
 
 // HeldOnWorkspace answers every permission the actor holds on the workspace itself, and records
@@ -442,6 +497,16 @@ func (s Service) Permitted(
 	allowed := make([]bool, len(paths))
 	for i, path := range answers {
 		allowed[i] = request.satisfiedBy(memberships, path)
+	}
+	if !actor.OnBehalfOf.IsZero() {
+		// An agent sees no more than the person it acts for (G2).
+		delegated, theirs, err := s.held(ctx, actor.PersistenceScope(), actor.OnBehalfOf, paths, false)
+		if err != nil {
+			return nil, err
+		}
+		for i, path := range theirs {
+			allowed[i] = allowed[i] && request.satisfiedBy(delegated, path)
+		}
 	}
 	return allowed, nil
 }

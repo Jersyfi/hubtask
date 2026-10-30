@@ -61,6 +61,8 @@ type memberships struct {
 	holdsNothing bool
 	// opened is the hubs the account holds a running emergency access to.
 	opened []shared.ID
+	// byAccount, where set, answers each account its own memberships rather than held.
+	byAccount map[shared.ID][]identity.Membership
 }
 
 func (m *memberships) HoldsAny(context.Context, shared.ID) (bool, error) {
@@ -94,8 +96,11 @@ func (m *memberships) Administrators(context.Context, []identity.Scope) ([]share
 	return nil, m.err
 }
 
-func (m *memberships) Along(_ context.Context, _ shared.ID, path []identity.Scope) ([]identity.Membership, error) {
+func (m *memberships) Along(_ context.Context, account shared.ID, path []identity.Scope) ([]identity.Membership, error) {
 	m.path = path
+	if m.byAccount != nil {
+		return m.byAccount[account], m.err
+	}
 	return m.held, m.err
 }
 

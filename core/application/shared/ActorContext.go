@@ -76,6 +76,10 @@ type ActorContext struct {
 	// a caller holding that account's token would be too - only this tells an act whose answer
 	// nobody reads from one whose caller reads it.
 	RunsForRule shared.ID
+	// OnBehalfOf is the person a registered agent acts for, set by the agents' gate and nowhere
+	// else (M9, G2): the authoriser then asks what it asks of the actor of that person too, so an
+	// agent never does what the person it acts for may not. Empty for every other actor.
+	OnBehalfOf shared.ID
 	// Channel is the door the act arrived through, as a type's form narrows it (work.FormChannel):
 	// set by the adapter - MCP, the sync service, mail intake, import - and empty for the REST
 	// door, which the web app and hubctl share.
