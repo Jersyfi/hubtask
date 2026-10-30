@@ -29,6 +29,7 @@ import (
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
+	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
@@ -339,6 +340,12 @@ func Descriptors() []usecase.Descriptor {
 		cmdbservice.DefineSoftwareAlias{}.Descriptor(),
 		cmdbservice.RemoveSoftwareAlias{}.Descriptor(),
 		cmdbservice.ListSoftwareProducts{}.Descriptor(),
+		forgeservice.ListCodeHooks{}.Descriptor(),
+		forgeservice.CreateCodeHook{}.Descriptor(),
+		forgeservice.UpdateCodeHook{}.Descriptor(),
+		forgeservice.RotateCodeHookSecret{}.Descriptor(),
+		forgeservice.DeleteCodeHook{}.Descriptor(),
+		forgeservice.ListEntryCodeLinks{}.Descriptor(),
 		cmdbservice.ListCiConnectors{}.Descriptor(),
 		cmdbservice.DefineCiConnector{}.Descriptor(),
 		cmdbservice.SetCiConnectorCredential{}.Descriptor(),

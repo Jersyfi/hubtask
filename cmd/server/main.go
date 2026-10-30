@@ -45,6 +45,7 @@ import (
 	calendarservice "github.com/Jersyfi/hubtask/core/application/service/calendar"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
+	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -1963,6 +1964,14 @@ func run() error {
 		},
 		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{}, Jobs: jobs, Entries: alertEntries,
 	}
+	// The code on an entry (UC-INT-13): a forge's hooks, their secrets derived from the
+	// installation key, an entry's key resolved as the mail intake resolves it.
+	codeForge := forgeservice.Forge{
+		Store: postgres.NewCodeForgeRepository(), Containers: containers, Keys: mailIntake, Entries: entryLinks,
+		Secrets: security.NewCodeHookSecrets(cfg.SecretKey), Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
+		Changes: changes, HLC: hybrid,
+	}
 	// The agents' desk; Sources is ReadAiSource's own use case, run as the registering person.
 	agentDesk := agentservice.Desk{
 		Store: agentStore, Catalogue: agentCatalogue, Authorizer: authorizer,
@@ -2233,6 +2242,12 @@ func run() error {
 		cmdbservice.DefineSoftwareAlias{Inventory: inventory}.Descriptor(),
 		cmdbservice.RemoveSoftwareAlias{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListSoftwareProducts{Inventory: inventory}.Descriptor(),
+		forgeservice.ListCodeHooks{Forge: codeForge}.Descriptor(),
+		forgeservice.CreateCodeHook{Forge: codeForge}.Descriptor(),
+		forgeservice.UpdateCodeHook{Forge: codeForge}.Descriptor(),
+		forgeservice.RotateCodeHookSecret{Forge: codeForge}.Descriptor(),
+		forgeservice.DeleteCodeHook{Forge: codeForge}.Descriptor(),
+		forgeservice.ListEntryCodeLinks{Forge: codeForge}.Descriptor(),
 		cmdbservice.ListCiConnectors{Connectors: connectors}.Descriptor(),
 		cmdbservice.DefineCiConnector{Connectors: connectors}.Descriptor(),
 		cmdbservice.SetCiConnectorCredential{Connectors: connectors}.Descriptor(),
@@ -3443,6 +3458,7 @@ func run() error {
 		}
 		// The mail door beside it: the message is parsed here, its files go through the
 		// media pipeline's server-side end, and what lands is an EMAIL entry.
+		controller.CodeIntake = intake.CodeIntake{Deliveries: codeForge}
 		controller.CmdbAlerts = intake.AlertIntake{Deliveries: connectors}
 		controller.CmdbInventory = intake.InventoryIntake{Deliveries: connectors}
 		// The SCIM door a directory provisions through (UC-ID-28): the group acts are the

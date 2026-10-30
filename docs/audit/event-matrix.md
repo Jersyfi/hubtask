@@ -475,6 +475,17 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `entry_type.form_set` | SetEntryTypeForm | `entry_type` | INFO | Every time |
 | `entry_type.read` | ListEntryTypes | `entry_type` | INFO | When refused |
 
+## Forge
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `forge.hook_changed` | UpdateCodeHook | `code_hook` | NOTICE | When refused |
+| `forge.hook_created` | CreateCodeHook | `code_hook` | NOTICE | When refused |
+| `forge.hook_deleted` | DeleteCodeHook | `code_hook` | NOTICE | When refused |
+| `forge.hook_secret_rotated` | RotateCodeHookSecret | `code_hook` | NOTICE | When refused |
+| `forge.hooks_read` | ListCodeHooks | `code_hook` | INFO | When refused |
+| `forge.links_read` | ListEntryCodeLinks | `work_item` | INFO | When refused |
+
 ## Goal
 
 | Action | Use case | Target | Severity | Recorded |
