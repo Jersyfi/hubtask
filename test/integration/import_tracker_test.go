@@ -206,9 +206,9 @@ func TestAWikiSpaceLandsAsTheHubsPages(t *testing.T) {
 			`</ol><span id="title-text">Handbook : ` + title + `</span><div id="main-content">` + content + `</div></body></html>`)
 	}
 	file := zipOf(t, map[string][]byte{
-		"H/index.html":     []byte(`<html><head><title>Handbook</title></head></html>`),
-		"H/Start_1.html":   page("Start", "", `<p>See <a href="Details_2.html">details</a>.</p>`),
-		"H/Details_2.html": page("Details", `<li><a href="Start_1.html">Start</a></li>`, `<h2>More</h2><p><img src="attachments/2/9.png"/></p>`),
+		"H/index.html":          []byte(`<html><head><title>Handbook</title></head></html>`),
+		"H/Start_1.html":        page("Start", "", `<p>See <a href="Details_2.html">details</a>.</p>`),
+		"H/Details_2.html":      page("Details", `<li><a href="Start_1.html">Start</a></li>`, `<h2>More</h2><p><img src="attachments/2/9.png"/></p>`),
 		"H/attachments/2/9.png": []byte("\x89PNG\r\n\x1a\nthe picture"),
 	})
 	store := storage.NewLocalStorage(t.TempDir())
