@@ -179,6 +179,7 @@ func Descriptors() []usecase.Descriptor {
 		planningservice.SetPlanTolerance{}.Descriptor(),
 		planningservice.ReadWorkspaceTolerance{}.Descriptor(),
 		planningservice.SetWorkspaceTolerance{}.Descriptor(),
+		planningservice.ImportPlan{}.Descriptor(),
 		planningservice.CreateRelease{}.Descriptor(),
 		planningservice.UpdateRelease{}.Descriptor(),
 		planningservice.ListReleases{}.Descriptor(),

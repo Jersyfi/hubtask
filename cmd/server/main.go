@@ -2097,6 +2097,7 @@ func run() error {
 		planningservice.SetPlanTolerance{Planner: planner}.Descriptor(),
 		planningservice.ReadWorkspaceTolerance{Planner: planner}.Descriptor(),
 		planningservice.SetWorkspaceTolerance{Planner: planner}.Descriptor(),
+		planningservice.ImportPlan{Planner: planner}.Descriptor(),
 		planningservice.CreateRelease{Planner: planner}.Descriptor(),
 		planningservice.UpdateRelease{Planner: planner}.Descriptor(),
 		planningservice.ListReleases{Planner: planner}.Descriptor(),
