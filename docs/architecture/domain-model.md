@@ -864,7 +864,7 @@ A board's `Comment`s (`whiteboard_comment`, UC-CNV-09) are threads pinned at a p
 and, when they are about an object, at that object (`element_id`): the pin follows the object while
 it stands and stays at its place once it is gone. Replies are one level deep, resolving is the
 thread's, its author alone rewrites or takes back a comment, whoever may draw resolves it. A
-comment names a person as `[@Name](hubtask:person/<account>)` - at most 20 - and each one named who
+comment names a person by a link to the address `hubtask:person/<account>` - at most 20 - and each one named who
 reads the board's hub is told by a COMMENT notification whose subject is the board
 (`notification.whiteboard_id`); a rewrite tells only the people it adds.
 

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-18, P-19]
 state: built
 tasks: []
-checked_by: [core/domain/model/whiteboard/Scene_test.go, packages/whiteboard/test/tools.test.ts, core/application/service/whiteboard/Boards_test.go, test/integration/whiteboard_repository_test.go, packages/whiteboard/test/scene.test.ts, packages/whiteboard/test/geometry.test.ts]
+checked_by: [core/domain/model/whiteboard/Scene_test.go, packages/whiteboard/test/tools.test.ts, core/application/service/whiteboard/Boards_test.go, test/integration/whiteboard_repository_test.go, packages/whiteboard/test/scene.test.ts, packages/whiteboard/test/geometry.test.ts, core/application/service/whiteboard/Changes_test.go, core/application/service/sync/InitialSyncWhiteboards_test.go, apps/webapp/src/lib/data/replica.test.ts]
 ---
 
 # Draw on a whiteboard together
@@ -30,9 +30,10 @@ The team's retrospective runs on a board in the team's hub. Anna draws three fra
 6. A board put in the hub's trash is not listed or opened, and comes back from the trash with every object.
 7. On the *Whiteboard* screen, Tab walks the objects and the chosen one is announced with its words, the arrows move it, N puts a sticky note in the middle and Delete takes the chosen object off.
 8. Whoever may write the board draws freehand strokes with the pen or the highlighter, puts web links (http or https) drawn as their card, and groups objects; reading the board back answers each stroke's line, each link's address and each group as drawn, and a link to anything but a web address is refused with `whiteboards.link_url_invalid`.
+9. A reader of the hub reads its boards and their objects while the server is away, a board they never opened included, and draws nothing on one read from the copy; a board in a hub they may not read never reaches their device.
 
 ## Where it ends
 
-* No images or files on a board, and no comments pinned to objects - the following part of M4 (a board's files need storage of their own).
+* Pictures and files on a board are UC-CNV-08, comments pinned to its objects UC-CNV-09.
 * A web link is drawn as its card; the board never loads the page (no frame of another origin).
-* A board is not in the offline copy: an open board keeps being drawn on offline and merges when the connection is back; one never opened cannot be read offline.
+* Offline, an open board keeps being drawn on and merges when the connection is back; a board read from the copy is read only, and the trash is read online.

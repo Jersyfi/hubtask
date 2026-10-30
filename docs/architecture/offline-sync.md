@@ -493,10 +493,12 @@ it, order it and decide who may touch it.
   objects (`packages/whiteboard`): each object a map of its own, keyed by its identifier, ordered
   by a number per object. A writer seeds an empty document from the board's saved scene and saves
   the scene beside the document a moment after the drawing stops, without `If-Match`; a reader is
-  not connected and draws the scene as last saved. A board is not in the replica: offline, an open
-  board keeps being drawn on and merges when the connection is back, and a board not opened
-  before cannot be read.
-* **Read offline.** A page's saved state - its Markdown body included - is an ordinary record of the
+  connected read-only and, before the document holds anything, draws the scene as last saved.
+  Offline, an open board keeps being drawn on and merges when the connection is back.
+* **Read offline.** A board's saved scene is an ordinary record of the change log and the walk
+  (entity `whiteboard`, filed under its hub): making, drawing, renaming, trashing and restoring a
+  board record it as it now stands. While the server is away the web app answers a hub's boards
+  and a board from the copy - one never opened included -, never writable. A page's saved state - its Markdown body included - is an ordinary record of the
   change log and the walk (entity `page`, filed under its hub, so READ there decides who holds it):
   every write of a page, a trash and a restore with the pages that moved with it, record it. While
   the server is away the web app answers a hub's tree and a page from the copy, the page not
