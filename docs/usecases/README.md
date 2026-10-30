@@ -37,7 +37,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
 | [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history | `service/whiteboard` |
 | [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
-| [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal | `service/servicedesk` |
+| [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros | `service/servicedesk` |
 
 ## What a use case looks like
 
@@ -281,6 +281,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-SVC-03](./servicedesk/UC-SVC-03-work-the-queue-by-what-breaks-first.md) | Work the queue by what breaks first | servicedesk |
 | [UC-SVC-04](./servicedesk/UC-SVC-04-keep-notes-for-the-team-beside-the-replies.md) | Keep notes for the team beside the replies | servicedesk |
 | [UC-SVC-05](./servicedesk/UC-SVC-05-ask-the-service-desk-for-help.md) | Ask the service desk for help and follow my request | servicedesk |
+| [UC-SVC-06](./servicedesk/UC-SVC-06-answer-the-usual-requests-the-usual-way.md) | Answer the usual requests the usual way | servicedesk |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |

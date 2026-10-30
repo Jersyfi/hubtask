@@ -28,4 +28,4 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
 
 ## Where it ends
 
-* A queue is a saved view with a filter and a sort; assignment by round robin, by load or to a group, canned replies and macros are the next parts of the service desk.
+* A queue is a saved view with a filter and a sort. Handing a request out by round robin, by load or to a group is the collection's assignment policy (UC-WRK-11); canned replies and macros are UC-SVC-06.
