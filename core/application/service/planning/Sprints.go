@@ -312,7 +312,7 @@ func (h UpdateSprint) Descriptor() usecase.Descriptor {
 		Input: append(append([]usecase.Field{
 			{Name: "sprint_id", Kind: usecase.KindID, Required: true, Description: "The sprint."},
 		}, sprintFieldInputs(false)...),
-			usecase.Field{Name: "version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read; a stale one is a conflict."}),
+			usecase.Field{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read; a stale one is a conflict."}),
 		Audit:    usecase.AuditDeclaration{Action: SprintUpdatedAction},
 		Activity: usecase.ActivityDeclaration{Exempt: "a sprint's own fields change no entry."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -320,7 +320,7 @@ func (h UpdateSprint) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			cmd := UpdateSprintCommand{SprintID: id, Name: in.OptionalString("name"), Goal: in.OptionalString("goal"), Version: in.Int("version")}
+			cmd := UpdateSprintCommand{SprintID: id, Name: in.OptionalString("name"), Goal: in.OptionalString("goal"), Version: in.Int("expected_version")}
 			for field, target := range map[string]**domain.Day{"start_on": &cmd.StartOn, "end_on": &cmd.EndOn} {
 				if in.Present(field) {
 					day, err := parseDay(in, field)

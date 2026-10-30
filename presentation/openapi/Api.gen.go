@@ -2925,6 +2925,60 @@ func (e EncryptionStoreCountStore) Valid() bool {
 	}
 }
 
+// Defines values for EntryEstimateSize.
+const (
+	EntryEstimateSizeL           EntryEstimateSize = "L"
+	EntryEstimateSizeLessThannil EntryEstimateSize = "<nil>"
+	EntryEstimateSizeM           EntryEstimateSize = "M"
+	EntryEstimateSizeS           EntryEstimateSize = "S"
+	EntryEstimateSizeXL          EntryEstimateSize = "XL"
+	EntryEstimateSizeXS          EntryEstimateSize = "XS"
+	EntryEstimateSizeXXL         EntryEstimateSize = "XXL"
+)
+
+// Valid indicates whether the value is a known member of the EntryEstimateSize enum.
+func (e EntryEstimateSize) Valid() bool {
+	switch e {
+	case EntryEstimateSizeL:
+		return true
+	case EntryEstimateSizeLessThannil:
+		return true
+	case EntryEstimateSizeM:
+		return true
+	case EntryEstimateSizeS:
+		return true
+	case EntryEstimateSizeXL:
+		return true
+	case EntryEstimateSizeXS:
+		return true
+	case EntryEstimateSizeXXL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntryEstimateUnit.
+const (
+	EntryEstimateUnitHOURS  EntryEstimateUnit = "HOURS"
+	EntryEstimateUnitPOINTS EntryEstimateUnit = "POINTS"
+	EntryEstimateUnitSIZE   EntryEstimateUnit = "SIZE"
+)
+
+// Valid indicates whether the value is a known member of the EntryEstimateUnit enum.
+func (e EntryEstimateUnit) Valid() bool {
+	switch e {
+	case EntryEstimateUnitHOURS:
+		return true
+	case EntryEstimateUnitPOINTS:
+		return true
+	case EntryEstimateUnitSIZE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EntryFormChannelChannel.
 const (
 	EntryFormChannelChannelAPP    EntryFormChannelChannel = "APP"
@@ -3192,6 +3246,60 @@ func (e ErasureReapplyResultErasuresOutcome) Valid() bool {
 	case REAPPLIED:
 		return true
 	case SUBJECTABSENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EstimateSize.
+const (
+	EstimateSizeL           EstimateSize = "L"
+	EstimateSizeLessThannil EstimateSize = "<nil>"
+	EstimateSizeM           EstimateSize = "M"
+	EstimateSizeS           EstimateSize = "S"
+	EstimateSizeXL          EstimateSize = "XL"
+	EstimateSizeXS          EstimateSize = "XS"
+	EstimateSizeXXL         EstimateSize = "XXL"
+)
+
+// Valid indicates whether the value is a known member of the EstimateSize enum.
+func (e EstimateSize) Valid() bool {
+	switch e {
+	case EstimateSizeL:
+		return true
+	case EstimateSizeLessThannil:
+		return true
+	case EstimateSizeM:
+		return true
+	case EstimateSizeS:
+		return true
+	case EstimateSizeXL:
+		return true
+	case EstimateSizeXS:
+		return true
+	case EstimateSizeXXL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EstimateUnit.
+const (
+	EstimateUnitHOURS  EstimateUnit = "HOURS"
+	EstimateUnitPOINTS EstimateUnit = "POINTS"
+	EstimateUnitSIZE   EstimateUnit = "SIZE"
+)
+
+// Valid indicates whether the value is a known member of the EstimateUnit enum.
+func (e EstimateUnit) Valid() bool {
+	switch e {
+	case EstimateUnitHOURS:
+		return true
+	case EstimateUnitPOINTS:
+		return true
+	case EstimateUnitSIZE:
 		return true
 	default:
 		return false
@@ -6600,6 +6708,69 @@ func (e SortTermNulls) Valid() bool {
 	}
 }
 
+// Defines values for SprintState.
+const (
+	SprintStateACTIVE  SprintState = "ACTIVE"
+	SprintStateCLOSED  SprintState = "CLOSED"
+	SprintStatePLANNED SprintState = "PLANNED"
+)
+
+// Valid indicates whether the value is a known member of the SprintState enum.
+func (e SprintState) Valid() bool {
+	switch e {
+	case SprintStateACTIVE:
+		return true
+	case SprintStateCLOSED:
+		return true
+	case SprintStatePLANNED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SprintUnit.
+const (
+	SprintUnitHOURS  SprintUnit = "HOURS"
+	SprintUnitPOINTS SprintUnit = "POINTS"
+)
+
+// Valid indicates whether the value is a known member of the SprintUnit enum.
+func (e SprintUnit) Valid() bool {
+	switch e {
+	case SprintUnitHOURS:
+		return true
+	case SprintUnitPOINTS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SprintEntryOutcome.
+const (
+	SprintEntryOutcomeCARRIED     SprintEntryOutcome = "CARRIED"
+	SprintEntryOutcomeDONE        SprintEntryOutcome = "DONE"
+	SprintEntryOutcomeLessThannil SprintEntryOutcome = "<nil>"
+	SprintEntryOutcomeRETURNED    SprintEntryOutcome = "RETURNED"
+)
+
+// Valid indicates whether the value is a known member of the SprintEntryOutcome enum.
+func (e SprintEntryOutcome) Valid() bool {
+	switch e {
+	case SprintEntryOutcomeCARRIED:
+		return true
+	case SprintEntryOutcomeDONE:
+		return true
+	case SprintEntryOutcomeLessThannil:
+		return true
+	case SprintEntryOutcomeRETURNED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
@@ -7317,6 +7488,24 @@ func (e UsageMetricDay) Valid() bool {
 	case UsageMetricDayUTC:
 		return true
 	case UsageMetricDayWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VelocityUnit.
+const (
+	VelocityUnitHOURS  VelocityUnit = "HOURS"
+	VelocityUnitPOINTS VelocityUnit = "POINTS"
+)
+
+// Valid indicates whether the value is a known member of the VelocityUnit enum.
+func (e VelocityUnit) Valid() bool {
+	switch e {
+	case VelocityUnitHOURS:
+		return true
+	case VelocityUnitPOINTS:
 		return true
 	default:
 		return false
@@ -8073,6 +8262,45 @@ func (e ReadCiImpactParamsDirection) Valid() bool {
 	}
 }
 
+// Defines values for ListSprintsParamsState.
+const (
+	ListSprintsParamsStateACTIVE  ListSprintsParamsState = "ACTIVE"
+	ListSprintsParamsStateCLOSED  ListSprintsParamsState = "CLOSED"
+	ListSprintsParamsStatePLANNED ListSprintsParamsState = "PLANNED"
+)
+
+// Valid indicates whether the value is a known member of the ListSprintsParamsState enum.
+func (e ListSprintsParamsState) Valid() bool {
+	switch e {
+	case ListSprintsParamsStateACTIVE:
+		return true
+	case ListSprintsParamsStateCLOSED:
+		return true
+	case ListSprintsParamsStatePLANNED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateSprintJSONBodyUnit.
+const (
+	CreateSprintJSONBodyUnitHOURS  CreateSprintJSONBodyUnit = "HOURS"
+	CreateSprintJSONBodyUnitPOINTS CreateSprintJSONBodyUnit = "POINTS"
+)
+
+// Valid indicates whether the value is a known member of the CreateSprintJSONBodyUnit enum.
+func (e CreateSprintJSONBodyUnit) Valid() bool {
+	switch e {
+	case CreateSprintJSONBodyUnitHOURS:
+		return true
+	case CreateSprintJSONBodyUnitPOINTS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListConfigProposalsParamsState.
 const (
 	ListConfigProposalsParamsStateAPPLIED  ListConfigProposalsParamsState = "APPLIED"
@@ -8133,6 +8361,57 @@ func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
 	case ListWebhookDeliveriesParamsStatusPENDING:
 		return true
 	case ListWebhookDeliveriesParamsStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetEntryEstimateJSONBodySize.
+const (
+	SetEntryEstimateJSONBodySizeL   SetEntryEstimateJSONBodySize = "L"
+	SetEntryEstimateJSONBodySizeM   SetEntryEstimateJSONBodySize = "M"
+	SetEntryEstimateJSONBodySizeS   SetEntryEstimateJSONBodySize = "S"
+	SetEntryEstimateJSONBodySizeXL  SetEntryEstimateJSONBodySize = "XL"
+	SetEntryEstimateJSONBodySizeXS  SetEntryEstimateJSONBodySize = "XS"
+	SetEntryEstimateJSONBodySizeXXL SetEntryEstimateJSONBodySize = "XXL"
+)
+
+// Valid indicates whether the value is a known member of the SetEntryEstimateJSONBodySize enum.
+func (e SetEntryEstimateJSONBodySize) Valid() bool {
+	switch e {
+	case SetEntryEstimateJSONBodySizeL:
+		return true
+	case SetEntryEstimateJSONBodySizeM:
+		return true
+	case SetEntryEstimateJSONBodySizeS:
+		return true
+	case SetEntryEstimateJSONBodySizeXL:
+		return true
+	case SetEntryEstimateJSONBodySizeXS:
+		return true
+	case SetEntryEstimateJSONBodySizeXXL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetEntryEstimateJSONBodyUnit.
+const (
+	SetEntryEstimateJSONBodyUnitHOURS  SetEntryEstimateJSONBodyUnit = "HOURS"
+	SetEntryEstimateJSONBodyUnitPOINTS SetEntryEstimateJSONBodyUnit = "POINTS"
+	SetEntryEstimateJSONBodyUnitSIZE   SetEntryEstimateJSONBodyUnit = "SIZE"
+)
+
+// Valid indicates whether the value is a known member of the SetEntryEstimateJSONBodyUnit enum.
+func (e SetEntryEstimateJSONBodyUnit) Valid() bool {
+	switch e {
+	case SetEntryEstimateJSONBodyUnitHOURS:
+		return true
+	case SetEntryEstimateJSONBodyUnitPOINTS:
+		return true
+	case SetEntryEstimateJSONBodyUnitSIZE:
 		return true
 	default:
 		return false
@@ -8220,6 +8499,24 @@ func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
 	case SetDependencyTimingJSONBodyDependencyKindSF:
 		return true
 	case SetDependencyTimingJSONBodyDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateSprintJSONBodyUnit.
+const (
+	UpdateSprintJSONBodyUnitHOURS  UpdateSprintJSONBodyUnit = "HOURS"
+	UpdateSprintJSONBodyUnitPOINTS UpdateSprintJSONBodyUnit = "POINTS"
+)
+
+// Valid indicates whether the value is a known member of the UpdateSprintJSONBodyUnit enum.
+func (e UpdateSprintJSONBodyUnit) Valid() bool {
+	switch e {
+	case UpdateSprintJSONBodyUnitHOURS:
+		return true
+	case UpdateSprintJSONBodyUnitPOINTS:
 		return true
 	default:
 		return false
@@ -9533,6 +9830,20 @@ type BulkResult struct {
 
 	// Status The status this operation would have answered on its own: 200 or 201 for one that was applied, the refusal's status for one that failed, and 409 for an operation of an atomic bulk that was rolled back because another one failed.
 	Status int `json:"status"`
+}
+
+// BurndownPoint defines model for BurndownPoint.
+type BurndownPoint struct {
+	Day openapi_types.Date `json:"day"`
+
+	// Ideal The commitment falling to zero over the working days.
+	Ideal float64 `json:"ideal"`
+
+	// Remaining The estimates of the entries in the sprint and not done at the day's end.
+	Remaining float64 `json:"remaining"`
+
+	// Scope The estimates of every entry in the sprint at the day's end.
+	Scope float64 `json:"scope"`
 }
 
 // BusinessCalendar Working hours, holidays and a time zone under a key - what an SLA counts its targets in.
@@ -11560,6 +11871,20 @@ type EntriesText struct {
 	Text string `json:"text"`
 }
 
+// EntryEstimate defines model for EntryEstimate.
+type EntryEstimate struct {
+	ItemId openapi_types.UUID `json:"item_id"`
+	Size   *EntryEstimateSize `json:"size"`
+	Unit   EntryEstimateUnit  `json:"unit"`
+	Value  float64            `json:"value"`
+}
+
+// EntryEstimateSize defines model for EntryEstimate.Size.
+type EntryEstimateSize string
+
+// EntryEstimateUnit defines model for EntryEstimate.Unit.
+type EntryEstimateUnit string
+
 // EntryForm A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
 type EntryForm struct {
 	Channels *[]EntryFormChannel `json:"channels,omitempty"`
@@ -12017,6 +12342,21 @@ type ErasureReapplyResult struct {
 
 // ErasureReapplyResultErasuresOutcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
 type ErasureReapplyResultErasuresOutcome string
+
+// Estimate defines model for Estimate.
+type Estimate struct {
+	Size *EstimateSize `json:"size"`
+	Unit EstimateUnit  `json:"unit"`
+
+	// Value Points or hours; for a size, the points it counts as.
+	Value float64 `json:"value"`
+}
+
+// EstimateSize defines model for Estimate.Size.
+type EstimateSize string
+
+// EstimateUnit defines model for Estimate.Unit.
+type EstimateUnit string
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -16822,6 +17162,86 @@ type SortTermDir string
 // SortTermNulls defines model for SortTerm.Nulls.
 type SortTermNulls string
 
+// Sprint defines model for Sprint.
+type Sprint struct {
+	ClosedAt       *time.Time         `json:"closed_at"`
+	CollectionId   openapi_types.UUID `json:"collection_id"`
+	CommittedCount int                `json:"committed_count"`
+
+	// CommittedValue The estimate sum when it started.
+	CommittedValue float64 `json:"committed_value"`
+	CompletedCount int     `json:"completed_count"`
+
+	// CompletedValue The estimate sum done when it closed.
+	CompletedValue float64 `json:"completed_value"`
+
+	// EndOn The last day, included.
+	EndOn     openapi_types.Date `json:"end_on"`
+	Goal      string             `json:"goal"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+	StartOn   openapi_types.Date `json:"start_on"`
+	StartedAt *time.Time         `json:"started_at"`
+	State     SprintState        `json:"state"`
+	Unit      SprintUnit         `json:"unit"`
+	Version   int                `json:"version"`
+}
+
+// SprintState defines model for Sprint.State.
+type SprintState string
+
+// SprintUnit defines model for Sprint.Unit.
+type SprintUnit string
+
+// SprintBacklog defines model for SprintBacklog.
+type SprintBacklog struct {
+	Data []struct {
+		Estimate *Estimate          `json:"estimate"`
+		ItemId   openapi_types.UUID `json:"item_id"`
+		Title    string             `json:"title"`
+	} `json:"data"`
+}
+
+// SprintClosure defines model for SprintClosure.
+type SprintClosure struct {
+	Carried   []openapi_types.UUID `json:"carried"`
+	CarriedTo *openapi_types.UUID  `json:"carried_to"`
+	Returned  []openapi_types.UUID `json:"returned"`
+	Sprint    Sprint               `json:"sprint"`
+}
+
+// SprintDetail defines model for SprintDetail.
+type SprintDetail struct {
+	Burndown []BurndownPoint `json:"burndown"`
+	Entries  []SprintEntry   `json:"entries"`
+	Sprint   Sprint          `json:"sprint"`
+}
+
+// SprintEntry defines model for SprintEntry.
+type SprintEntry struct {
+	AddedAt time.Time `json:"added_at"`
+
+	// Committed In the sprint when it started.
+	Committed   bool                `json:"committed"`
+	CompletedAt *time.Time          `json:"completed_at"`
+	Done        bool                `json:"done"`
+	Estimate    *Estimate           `json:"estimate"`
+	ItemId      openapi_types.UUID  `json:"item_id"`
+	Outcome     *SprintEntryOutcome `json:"outcome"`
+
+	// RemovedAt When it left the sprint before its close.
+	RemovedAt *time.Time `json:"removed_at"`
+	Title     string     `json:"title"`
+}
+
+// SprintEntryOutcome defines model for SprintEntry.Outcome.
+type SprintEntryOutcome string
+
+// SprintList defines model for SprintList.
+type SprintList struct {
+	Data []Sprint `json:"data"`
+}
+
 // StartPasswordIssued defines model for StartPasswordIssued.
 type StartPasswordIssued struct {
 	Account Account `json:"account"`
@@ -17743,6 +18163,17 @@ type UsagePage struct {
 	Metrics      []UsageMetric      `json:"metrics"`
 	Page         PageInfo           `json:"page"`
 }
+
+// Velocity defines model for Velocity.
+type Velocity struct {
+	// Average The average completed of the latest three closed sprints of the unit.
+	Average float64      `json:"average"`
+	Sprints []Sprint     `json:"sprints"`
+	Unit    VelocityUnit `json:"unit"`
+}
+
+// VelocityUnit defines model for Velocity.Unit.
+type VelocityUnit string
 
 // ViewExport What to render and how. The view decides which rows; the format decides what they become.
 type ViewExport struct {
@@ -18810,6 +19241,12 @@ type RuleId = openapi_types.UUID
 // SessionId defines model for SessionId.
 type SessionId = openapi_types.UUID
 
+// SprintCollectionId defines model for SprintCollectionId.
+type SprintCollectionId = openapi_types.UUID
+
+// SprintId defines model for SprintId.
+type SprintId = openapi_types.UUID
+
 // StepUpToken defines model for StepUpToken.
 type StepUpToken = string
 
@@ -19312,6 +19749,27 @@ type DefineCiSourceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
+
+// ListSprintsParams defines parameters for ListSprints.
+type ListSprintsParams struct {
+	// State Only sprints in this state.
+	State *ListSprintsParamsState `form:"state,omitempty" json:"state,omitempty"`
+}
+
+// ListSprintsParamsState defines parameters for ListSprints.
+type ListSprintsParamsState string
+
+// CreateSprintJSONBody defines parameters for CreateSprint.
+type CreateSprintJSONBody struct {
+	EndOn   openapi_types.Date        `json:"end_on"`
+	Goal    *string                   `json:"goal,omitempty"`
+	Name    string                    `json:"name"`
+	StartOn openapi_types.Date        `json:"start_on"`
+	Unit    *CreateSprintJSONBodyUnit `json:"unit,omitempty"`
+}
+
+// CreateSprintJSONBodyUnit defines parameters for CreateSprint.
+type CreateSprintJSONBodyUnit string
 
 // SetCollectionHandleParams defines parameters for SetCollectionHandle.
 type SetCollectionHandleParams struct {
@@ -19839,6 +20297,19 @@ type SetItemEntryTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
+
+// SetEntryEstimateJSONBody defines parameters for SetEntryEstimate.
+type SetEntryEstimateJSONBody struct {
+	Size  *SetEntryEstimateJSONBodySize `json:"size,omitempty"`
+	Unit  SetEntryEstimateJSONBodyUnit  `json:"unit"`
+	Value *float64                      `json:"value,omitempty"`
+}
+
+// SetEntryEstimateJSONBodySize defines parameters for SetEntryEstimate.
+type SetEntryEstimateJSONBodySize string
+
+// SetEntryEstimateJSONBodyUnit defines parameters for SetEntryEstimate.
+type SetEntryEstimateJSONBodyUnit string
 
 // RemoveRecurrenceParams defines parameters for RemoveRecurrence.
 type RemoveRecurrenceParams struct {
@@ -20451,6 +20922,48 @@ type ReportSlaParams struct {
 	To   time.Time `form:"to" json:"to"`
 }
 
+// ReadSprintParams defines parameters for ReadSprint.
+type ReadSprintParams struct {
+	// Calendar A business calendar's key.
+	Calendar *string `form:"calendar,omitempty" json:"calendar,omitempty"`
+
+	// Zone An IANA time zone, when no calendar names one; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
+}
+
+// UpdateSprintJSONBody defines parameters for UpdateSprint.
+type UpdateSprintJSONBody struct {
+	EndOn   *openapi_types.Date       `json:"end_on,omitempty"`
+	Goal    *string                   `json:"goal,omitempty"`
+	Name    *string                   `json:"name,omitempty"`
+	StartOn *openapi_types.Date       `json:"start_on,omitempty"`
+	Unit    *UpdateSprintJSONBodyUnit `json:"unit,omitempty"`
+}
+
+// UpdateSprintParams defines parameters for UpdateSprint.
+type UpdateSprintParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateSprintJSONBodyUnit defines parameters for UpdateSprint.
+type UpdateSprintJSONBodyUnit string
+
+// AddSprintEntriesJSONBody defines parameters for AddSprintEntries.
+type AddSprintEntriesJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
+// RemoveSprintEntriesJSONBody defines parameters for RemoveSprintEntries.
+type RemoveSprintEntriesJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
+// CloseSprintJSONBody defines parameters for CloseSprint.
+type CloseSprintJSONBody struct {
+	CarryToSprintId *openapi_types.UUID `json:"carry_to_sprint_id,omitempty"`
+}
+
 // StreamChangesParams defines parameters for StreamChanges.
 type StreamChangesParams struct {
 	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
@@ -20917,6 +21430,9 @@ type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
 // DefineCiSourceJSONRequestBody defines body for DefineCiSource for application/json ContentType.
 type DefineCiSourceJSONRequestBody = CiSourceDefine
 
+// CreateSprintJSONRequestBody defines body for CreateSprint for application/json ContentType.
+type CreateSprintJSONRequestBody CreateSprintJSONBody
+
 // SetCollectionHandleJSONRequestBody defines body for SetCollectionHandle for application/json ContentType.
 type SetCollectionHandleJSONRequestBody = CollectionHandle
 
@@ -21090,6 +21606,9 @@ type SetDueDateJSONRequestBody = DueDateInput
 
 // SetItemEntryTypeJSONRequestBody defines body for SetItemEntryType for application/json ContentType.
 type SetItemEntryTypeJSONRequestBody SetItemEntryTypeJSONBody
+
+// SetEntryEstimateJSONRequestBody defines body for SetEntryEstimate for application/json ContentType.
+type SetEntryEstimateJSONRequestBody SetEntryEstimateJSONBody
 
 // LinkEntriesJSONRequestBody defines body for LinkEntries for application/json ContentType.
 type LinkEntriesJSONRequestBody = EntryLinkCreate
@@ -21309,6 +21828,18 @@ type SearchItemsJSONRequestBody = ItemSearchQuery
 
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
+
+// UpdateSprintJSONRequestBody defines body for UpdateSprint for application/json ContentType.
+type UpdateSprintJSONRequestBody UpdateSprintJSONBody
+
+// AddSprintEntriesJSONRequestBody defines body for AddSprintEntries for application/json ContentType.
+type AddSprintEntriesJSONRequestBody AddSprintEntriesJSONBody
+
+// RemoveSprintEntriesJSONRequestBody defines body for RemoveSprintEntries for application/json ContentType.
+type RemoveSprintEntriesJSONRequestBody RemoveSprintEntriesJSONBody
+
+// CloseSprintJSONRequestBody defines body for CloseSprint for application/json ContentType.
+type CloseSprintJSONRequestBody CloseSprintJSONBody
 
 // AcceptSuggestionJSONRequestBody defines body for AcceptSuggestion for application/json ContentType.
 type AcceptSuggestionJSONRequestBody = SuggestionAcceptance
@@ -21975,6 +22506,18 @@ type ServerInterface interface {
 	// DefineCiSource Add or change a source
 	// (PUT /cmdb/sources/{sourceKey})
 	DefineCiSource(w http.ResponseWriter, r *http.Request, sourceKey string, params DefineCiSourceParams)
+	// ReadSprintBacklog The backlog to plan a sprint from
+	// (GET /collections/{collectionId}/sprint-backlog)
+	ReadSprintBacklog(w http.ResponseWriter, r *http.Request, collectionId SprintCollectionId)
+	// ListSprints A collection's sprints
+	// (GET /collections/{collectionId}/sprints)
+	ListSprints(w http.ResponseWriter, r *http.Request, collectionId SprintCollectionId, params ListSprintsParams)
+	// CreateSprint Plan a sprint
+	// (POST /collections/{collectionId}/sprints)
+	CreateSprint(w http.ResponseWriter, r *http.Request, collectionId SprintCollectionId)
+	// ReadVelocity How much a team gets done
+	// (GET /collections/{collectionId}/velocity)
+	ReadVelocity(w http.ResponseWriter, r *http.Request, collectionId SprintCollectionId)
 	// SetCollectionHandle Give a collection another handle
 	// (PUT /collections/{collection_id}/handle)
 	SetCollectionHandle(w http.ResponseWriter, r *http.Request, collectionId openapi_types.UUID, params SetCollectionHandleParams)
@@ -22329,6 +22872,12 @@ type ServerInterface interface {
 	// SetItemEntryType Change an entry's type
 	// (PUT /items/{itemId}/entry-type)
 	SetItemEntryType(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetItemEntryTypeParams)
+	// ClearEntryEstimate Remove an entry's estimate
+	// (DELETE /items/{itemId}/estimate)
+	ClearEntryEstimate(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// SetEntryEstimate Say how big an entry is
+	// (PUT /items/{itemId}/estimate)
+	SetEntryEstimate(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (DELETE /items/{itemId}/kudos)
 	TakeBackKudos(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -22839,6 +23388,27 @@ type ServerInterface interface {
 	// ReportSla How the SLA goals of a period stood
 	// (GET /sla-report)
 	ReportSla(w http.ResponseWriter, r *http.Request, params ReportSlaParams)
+	// DeleteSprint Delete a planned sprint
+	// (DELETE /sprints/{sprintId})
+	DeleteSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId)
+	// ReadSprint A sprint with its entries and burndown
+	// (GET /sprints/{sprintId})
+	ReadSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId, params ReadSprintParams)
+	// UpdateSprint Change a sprint
+	// (PATCH /sprints/{sprintId})
+	UpdateSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId, params UpdateSprintParams)
+	// AddSprintEntries Put entries into a sprint
+	// (POST /sprints/{sprintId}/entries)
+	AddSprintEntries(w http.ResponseWriter, r *http.Request, sprintId SprintId)
+	// RemoveSprintEntries Take entries out of a sprint
+	// (POST /sprints/{sprintId}/entries:remove)
+	RemoveSprintEntries(w http.ResponseWriter, r *http.Request, sprintId SprintId)
+	// CloseSprint Close a sprint
+	// (POST /sprints/{sprintId}:close)
+	CloseSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId)
+	// StartSprint Start a sprint
+	// (POST /sprints/{sprintId}:start)
+	StartSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId)
 	// StreamChanges The change stream, as server-sent events
 	// (GET /stream)
 	StreamChanges(w http.ResponseWriter, r *http.Request, params StreamChangesParams)
@@ -28798,6 +29368,126 @@ func (siw *ServerInterfaceWrapper) DefineCiSource(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ReadSprintBacklog operation middleware
+func (siw *ServerInterfaceWrapper) ReadSprintBacklog(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collectionId" -------------
+	var collectionId SprintCollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionId", r.PathValue("collectionId"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadSprintBacklog(w, r, collectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSprints operation middleware
+func (siw *ServerInterfaceWrapper) ListSprints(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collectionId" -------------
+	var collectionId SprintCollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionId", r.PathValue("collectionId"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSprintsParams
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSprints(w, r, collectionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSprint operation middleware
+func (siw *ServerInterfaceWrapper) CreateSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collectionId" -------------
+	var collectionId SprintCollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionId", r.PathValue("collectionId"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSprint(w, r, collectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadVelocity operation middleware
+func (siw *ServerInterfaceWrapper) ReadVelocity(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collectionId" -------------
+	var collectionId SprintCollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionId", r.PathValue("collectionId"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadVelocity(w, r, collectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetCollectionHandle operation middleware
 func (siw *ServerInterfaceWrapper) SetCollectionHandle(w http.ResponseWriter, r *http.Request) {
 
@@ -33633,6 +34323,58 @@ func (siw *ServerInterfaceWrapper) SetItemEntryType(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetItemEntryType(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ClearEntryEstimate operation middleware
+func (siw *ServerInterfaceWrapper) ClearEntryEstimate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ClearEntryEstimate(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetEntryEstimate operation middleware
+func (siw *ServerInterfaceWrapper) SetEntryEstimate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetEntryEstimate(w, r, itemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -39517,6 +40259,241 @@ func (siw *ServerInterfaceWrapper) ReportSla(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteSprint operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", r.PathValue("sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSprint(w, r, sprintId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadSprint operation middleware
+func (siw *ServerInterfaceWrapper) ReadSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", r.PathValue("sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadSprintParams
+
+	// ------------- Optional query parameter "calendar" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "calendar", r.URL.Query(), &params.Calendar, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "calendar"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "calendar", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "zone" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "zone", r.URL.Query(), &params.Zone, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "zone"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "zone", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadSprint(w, r, sprintId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSprint operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", r.PathValue("sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateSprintParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSprint(w, r, sprintId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddSprintEntries operation middleware
+func (siw *ServerInterfaceWrapper) AddSprintEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", r.PathValue("sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddSprintEntries(w, r, sprintId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveSprintEntries operation middleware
+func (siw *ServerInterfaceWrapper) RemoveSprintEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", r.PathValue("sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveSprintEntries(w, r, sprintId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CloseSprint operation middleware
+func (siw *ServerInterfaceWrapper) CloseSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", r.PathValue("sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CloseSprint(w, r, sprintId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartSprint operation middleware
+func (siw *ServerInterfaceWrapper) StartSprint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sprintId" -------------
+	var sprintId SprintId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sprintId", r.PathValue("sprintId"), &sprintId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sprintId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartSprint(w, r, sprintId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StreamChanges operation middleware
 func (siw *ServerInterfaceWrapper) StreamChanges(w http.ResponseWriter, r *http.Request) {
 
@@ -41615,6 +42592,19 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/baselines/{baselineId}", wrapper.CompareBaseline)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/links/{linkId}/timing", wrapper.SetDependencyTiming)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/scheduling", wrapper.SetEntryScheduling)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/collections/{collectionId}/sprints", wrapper.ListSprints)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/collections/{collectionId}/sprints", wrapper.CreateSprint)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/collections/{collectionId}/sprint-backlog", wrapper.ReadSprintBacklog)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/collections/{collectionId}/velocity", wrapper.ReadVelocity)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sprints/{sprintId}", wrapper.DeleteSprint)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sprints/{sprintId}", wrapper.ReadSprint)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/sprints/{sprintId}", wrapper.UpdateSprint)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sprints/{sprintId}:start", wrapper.StartSprint)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sprints/{sprintId}:close", wrapper.CloseSprint)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sprints/{sprintId}/entries", wrapper.AddSprintEntries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sprints/{sprintId}/entries:remove", wrapper.RemoveSprintEntries)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/estimate", wrapper.ClearEntryEstimate)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/estimate", wrapper.SetEntryEstimate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/business-calendars", wrapper.ListBusinessCalendars)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DeleteBusinessCalendar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DefineBusinessCalendar)

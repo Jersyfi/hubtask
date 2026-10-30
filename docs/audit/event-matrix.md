@@ -267,6 +267,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.due_set` | SetDueDate | `item` | INFO | Every time |
 | `item.duplicated` | DuplicateWorkItem | `item` | INFO | Every time |
 | `item.entry_type_set` | SetItemEntryType | `item` | INFO | Every time |
+| `item.estimated` | ClearEntryEstimate | `item` | INFO | Every time |
+| `item.estimated` | SetEntryEstimate | `item` | INFO | Every time |
 | `item.label_added` | AddLabel | `item` | INFO | Every time |
 | `item.label_removed` | RemoveLabel | `item` | INFO | Every time |
 | `item.linked` | LinkEntries | `entry_link` | INFO | Every time |
@@ -705,6 +707,22 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `sla_policy.defined` | DefineSlaPolicy | `sla_policy` | INFO | Every time |
 | `sla_policy.deleted` | DeleteSlaPolicy | `sla_policy` | INFO | Every time |
 | `sla_policy.read` | ListSlaPolicies | `sla_policy` | INFO | When refused |
+
+## Sprint
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `sprint.closed` | CloseSprint | `sprint` | INFO | Every time |
+| `sprint.created` | CreateSprint | `sprint` | INFO | Every time |
+| `sprint.deleted` | DeleteSprint | `sprint` | INFO | Every time |
+| `sprint.entries_added` | AddSprintEntries | `sprint` | INFO | Every time |
+| `sprint.entries_removed` | RemoveSprintEntries | `sprint` | INFO | Every time |
+| `sprint.read` | ListSprints | `sprint` | INFO | When refused |
+| `sprint.read` | ReadSprint | `sprint` | INFO | When refused |
+| `sprint.read` | ReadSprintBacklog | `sprint` | INFO | When refused |
+| `sprint.started` | StartSprint | `sprint` | INFO | Every time |
+| `sprint.updated` | UpdateSprint | `sprint` | INFO | Every time |
+| `sprint.velocity_read` | ReadVelocity | `sprint` | INFO | When refused |
 
 ## Structure: buckets and labels
 

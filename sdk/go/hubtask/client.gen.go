@@ -2931,6 +2931,60 @@ func (e EncryptionStoreCountStore) Valid() bool {
 	}
 }
 
+// Defines values for EntryEstimateSize.
+const (
+	EntryEstimateSizeL           EntryEstimateSize = "L"
+	EntryEstimateSizeLessThannil EntryEstimateSize = "<nil>"
+	EntryEstimateSizeM           EntryEstimateSize = "M"
+	EntryEstimateSizeS           EntryEstimateSize = "S"
+	EntryEstimateSizeXL          EntryEstimateSize = "XL"
+	EntryEstimateSizeXS          EntryEstimateSize = "XS"
+	EntryEstimateSizeXXL         EntryEstimateSize = "XXL"
+)
+
+// Valid indicates whether the value is a known member of the EntryEstimateSize enum.
+func (e EntryEstimateSize) Valid() bool {
+	switch e {
+	case EntryEstimateSizeL:
+		return true
+	case EntryEstimateSizeLessThannil:
+		return true
+	case EntryEstimateSizeM:
+		return true
+	case EntryEstimateSizeS:
+		return true
+	case EntryEstimateSizeXL:
+		return true
+	case EntryEstimateSizeXS:
+		return true
+	case EntryEstimateSizeXXL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntryEstimateUnit.
+const (
+	EntryEstimateUnitHOURS  EntryEstimateUnit = "HOURS"
+	EntryEstimateUnitPOINTS EntryEstimateUnit = "POINTS"
+	EntryEstimateUnitSIZE   EntryEstimateUnit = "SIZE"
+)
+
+// Valid indicates whether the value is a known member of the EntryEstimateUnit enum.
+func (e EntryEstimateUnit) Valid() bool {
+	switch e {
+	case EntryEstimateUnitHOURS:
+		return true
+	case EntryEstimateUnitPOINTS:
+		return true
+	case EntryEstimateUnitSIZE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EntryFormChannelChannel.
 const (
 	EntryFormChannelChannelAPP    EntryFormChannelChannel = "APP"
@@ -3198,6 +3252,60 @@ func (e ErasureReapplyResultErasuresOutcome) Valid() bool {
 	case REAPPLIED:
 		return true
 	case SUBJECTABSENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EstimateSize.
+const (
+	EstimateSizeL           EstimateSize = "L"
+	EstimateSizeLessThannil EstimateSize = "<nil>"
+	EstimateSizeM           EstimateSize = "M"
+	EstimateSizeS           EstimateSize = "S"
+	EstimateSizeXL          EstimateSize = "XL"
+	EstimateSizeXS          EstimateSize = "XS"
+	EstimateSizeXXL         EstimateSize = "XXL"
+)
+
+// Valid indicates whether the value is a known member of the EstimateSize enum.
+func (e EstimateSize) Valid() bool {
+	switch e {
+	case EstimateSizeL:
+		return true
+	case EstimateSizeLessThannil:
+		return true
+	case EstimateSizeM:
+		return true
+	case EstimateSizeS:
+		return true
+	case EstimateSizeXL:
+		return true
+	case EstimateSizeXS:
+		return true
+	case EstimateSizeXXL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EstimateUnit.
+const (
+	EstimateUnitHOURS  EstimateUnit = "HOURS"
+	EstimateUnitPOINTS EstimateUnit = "POINTS"
+	EstimateUnitSIZE   EstimateUnit = "SIZE"
+)
+
+// Valid indicates whether the value is a known member of the EstimateUnit enum.
+func (e EstimateUnit) Valid() bool {
+	switch e {
+	case EstimateUnitHOURS:
+		return true
+	case EstimateUnitPOINTS:
+		return true
+	case EstimateUnitSIZE:
 		return true
 	default:
 		return false
@@ -6606,6 +6714,69 @@ func (e SortTermNulls) Valid() bool {
 	}
 }
 
+// Defines values for SprintState.
+const (
+	SprintStateACTIVE  SprintState = "ACTIVE"
+	SprintStateCLOSED  SprintState = "CLOSED"
+	SprintStatePLANNED SprintState = "PLANNED"
+)
+
+// Valid indicates whether the value is a known member of the SprintState enum.
+func (e SprintState) Valid() bool {
+	switch e {
+	case SprintStateACTIVE:
+		return true
+	case SprintStateCLOSED:
+		return true
+	case SprintStatePLANNED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SprintUnit.
+const (
+	SprintUnitHOURS  SprintUnit = "HOURS"
+	SprintUnitPOINTS SprintUnit = "POINTS"
+)
+
+// Valid indicates whether the value is a known member of the SprintUnit enum.
+func (e SprintUnit) Valid() bool {
+	switch e {
+	case SprintUnitHOURS:
+		return true
+	case SprintUnitPOINTS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SprintEntryOutcome.
+const (
+	SprintEntryOutcomeCARRIED     SprintEntryOutcome = "CARRIED"
+	SprintEntryOutcomeDONE        SprintEntryOutcome = "DONE"
+	SprintEntryOutcomeLessThannil SprintEntryOutcome = "<nil>"
+	SprintEntryOutcomeRETURNED    SprintEntryOutcome = "RETURNED"
+)
+
+// Valid indicates whether the value is a known member of the SprintEntryOutcome enum.
+func (e SprintEntryOutcome) Valid() bool {
+	switch e {
+	case SprintEntryOutcomeCARRIED:
+		return true
+	case SprintEntryOutcomeDONE:
+		return true
+	case SprintEntryOutcomeLessThannil:
+		return true
+	case SprintEntryOutcomeRETURNED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
@@ -7323,6 +7494,24 @@ func (e UsageMetricDay) Valid() bool {
 	case UsageMetricDayUTC:
 		return true
 	case UsageMetricDayWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VelocityUnit.
+const (
+	VelocityUnitHOURS  VelocityUnit = "HOURS"
+	VelocityUnitPOINTS VelocityUnit = "POINTS"
+)
+
+// Valid indicates whether the value is a known member of the VelocityUnit enum.
+func (e VelocityUnit) Valid() bool {
+	switch e {
+	case VelocityUnitHOURS:
+		return true
+	case VelocityUnitPOINTS:
 		return true
 	default:
 		return false
@@ -8079,6 +8268,45 @@ func (e ReadCiImpactParamsDirection) Valid() bool {
 	}
 }
 
+// Defines values for ListSprintsParamsState.
+const (
+	ListSprintsParamsStateACTIVE  ListSprintsParamsState = "ACTIVE"
+	ListSprintsParamsStateCLOSED  ListSprintsParamsState = "CLOSED"
+	ListSprintsParamsStatePLANNED ListSprintsParamsState = "PLANNED"
+)
+
+// Valid indicates whether the value is a known member of the ListSprintsParamsState enum.
+func (e ListSprintsParamsState) Valid() bool {
+	switch e {
+	case ListSprintsParamsStateACTIVE:
+		return true
+	case ListSprintsParamsStateCLOSED:
+		return true
+	case ListSprintsParamsStatePLANNED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateSprintJSONBodyUnit.
+const (
+	CreateSprintJSONBodyUnitHOURS  CreateSprintJSONBodyUnit = "HOURS"
+	CreateSprintJSONBodyUnitPOINTS CreateSprintJSONBodyUnit = "POINTS"
+)
+
+// Valid indicates whether the value is a known member of the CreateSprintJSONBodyUnit enum.
+func (e CreateSprintJSONBodyUnit) Valid() bool {
+	switch e {
+	case CreateSprintJSONBodyUnitHOURS:
+		return true
+	case CreateSprintJSONBodyUnitPOINTS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListConfigProposalsParamsState.
 const (
 	ListConfigProposalsParamsStateAPPLIED  ListConfigProposalsParamsState = "APPLIED"
@@ -8139,6 +8367,57 @@ func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
 	case ListWebhookDeliveriesParamsStatusPENDING:
 		return true
 	case ListWebhookDeliveriesParamsStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetEntryEstimateJSONBodySize.
+const (
+	SetEntryEstimateJSONBodySizeL   SetEntryEstimateJSONBodySize = "L"
+	SetEntryEstimateJSONBodySizeM   SetEntryEstimateJSONBodySize = "M"
+	SetEntryEstimateJSONBodySizeS   SetEntryEstimateJSONBodySize = "S"
+	SetEntryEstimateJSONBodySizeXL  SetEntryEstimateJSONBodySize = "XL"
+	SetEntryEstimateJSONBodySizeXS  SetEntryEstimateJSONBodySize = "XS"
+	SetEntryEstimateJSONBodySizeXXL SetEntryEstimateJSONBodySize = "XXL"
+)
+
+// Valid indicates whether the value is a known member of the SetEntryEstimateJSONBodySize enum.
+func (e SetEntryEstimateJSONBodySize) Valid() bool {
+	switch e {
+	case SetEntryEstimateJSONBodySizeL:
+		return true
+	case SetEntryEstimateJSONBodySizeM:
+		return true
+	case SetEntryEstimateJSONBodySizeS:
+		return true
+	case SetEntryEstimateJSONBodySizeXL:
+		return true
+	case SetEntryEstimateJSONBodySizeXS:
+		return true
+	case SetEntryEstimateJSONBodySizeXXL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetEntryEstimateJSONBodyUnit.
+const (
+	SetEntryEstimateJSONBodyUnitHOURS  SetEntryEstimateJSONBodyUnit = "HOURS"
+	SetEntryEstimateJSONBodyUnitPOINTS SetEntryEstimateJSONBodyUnit = "POINTS"
+	SetEntryEstimateJSONBodyUnitSIZE   SetEntryEstimateJSONBodyUnit = "SIZE"
+)
+
+// Valid indicates whether the value is a known member of the SetEntryEstimateJSONBodyUnit enum.
+func (e SetEntryEstimateJSONBodyUnit) Valid() bool {
+	switch e {
+	case SetEntryEstimateJSONBodyUnitHOURS:
+		return true
+	case SetEntryEstimateJSONBodyUnitPOINTS:
+		return true
+	case SetEntryEstimateJSONBodyUnitSIZE:
 		return true
 	default:
 		return false
@@ -8226,6 +8505,24 @@ func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
 	case SetDependencyTimingJSONBodyDependencyKindSF:
 		return true
 	case SetDependencyTimingJSONBodyDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateSprintJSONBodyUnit.
+const (
+	UpdateSprintJSONBodyUnitHOURS  UpdateSprintJSONBodyUnit = "HOURS"
+	UpdateSprintJSONBodyUnitPOINTS UpdateSprintJSONBodyUnit = "POINTS"
+)
+
+// Valid indicates whether the value is a known member of the UpdateSprintJSONBodyUnit enum.
+func (e UpdateSprintJSONBodyUnit) Valid() bool {
+	switch e {
+	case UpdateSprintJSONBodyUnitHOURS:
+		return true
+	case UpdateSprintJSONBodyUnitPOINTS:
 		return true
 	default:
 		return false
@@ -9539,6 +9836,20 @@ type BulkResult struct {
 
 	// Status The status this operation would have answered on its own: 200 or 201 for one that was applied, the refusal's status for one that failed, and 409 for an operation of an atomic bulk that was rolled back because another one failed.
 	Status int `json:"status"`
+}
+
+// BurndownPoint defines model for BurndownPoint.
+type BurndownPoint struct {
+	Day openapi_types.Date `json:"day"`
+
+	// Ideal The commitment falling to zero over the working days.
+	Ideal float64 `json:"ideal"`
+
+	// Remaining The estimates of the entries in the sprint and not done at the day's end.
+	Remaining float64 `json:"remaining"`
+
+	// Scope The estimates of every entry in the sprint at the day's end.
+	Scope float64 `json:"scope"`
 }
 
 // BusinessCalendar Working hours, holidays and a time zone under a key - what an SLA counts its targets in.
@@ -11566,6 +11877,20 @@ type EntriesText struct {
 	Text string `json:"text"`
 }
 
+// EntryEstimate defines model for EntryEstimate.
+type EntryEstimate struct {
+	ItemId openapi_types.UUID `json:"item_id"`
+	Size   *EntryEstimateSize `json:"size"`
+	Unit   EntryEstimateUnit  `json:"unit"`
+	Value  float64            `json:"value"`
+}
+
+// EntryEstimateSize defines model for EntryEstimate.Size.
+type EntryEstimateSize string
+
+// EntryEstimateUnit defines model for EntryEstimate.Unit.
+type EntryEstimateUnit string
+
 // EntryForm A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
 type EntryForm struct {
 	Channels *[]EntryFormChannel `json:"channels,omitempty"`
@@ -12023,6 +12348,21 @@ type ErasureReapplyResult struct {
 
 // ErasureReapplyResultErasuresOutcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
 type ErasureReapplyResultErasuresOutcome string
+
+// Estimate defines model for Estimate.
+type Estimate struct {
+	Size *EstimateSize `json:"size"`
+	Unit EstimateUnit  `json:"unit"`
+
+	// Value Points or hours; for a size, the points it counts as.
+	Value float64 `json:"value"`
+}
+
+// EstimateSize defines model for Estimate.Size.
+type EstimateSize string
+
+// EstimateUnit defines model for Estimate.Unit.
+type EstimateUnit string
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -16828,6 +17168,86 @@ type SortTermDir string
 // SortTermNulls defines model for SortTerm.Nulls.
 type SortTermNulls string
 
+// Sprint defines model for Sprint.
+type Sprint struct {
+	ClosedAt       *time.Time         `json:"closed_at"`
+	CollectionId   openapi_types.UUID `json:"collection_id"`
+	CommittedCount int                `json:"committed_count"`
+
+	// CommittedValue The estimate sum when it started.
+	CommittedValue float64 `json:"committed_value"`
+	CompletedCount int     `json:"completed_count"`
+
+	// CompletedValue The estimate sum done when it closed.
+	CompletedValue float64 `json:"completed_value"`
+
+	// EndOn The last day, included.
+	EndOn     openapi_types.Date `json:"end_on"`
+	Goal      string             `json:"goal"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+	StartOn   openapi_types.Date `json:"start_on"`
+	StartedAt *time.Time         `json:"started_at"`
+	State     SprintState        `json:"state"`
+	Unit      SprintUnit         `json:"unit"`
+	Version   int                `json:"version"`
+}
+
+// SprintState defines model for Sprint.State.
+type SprintState string
+
+// SprintUnit defines model for Sprint.Unit.
+type SprintUnit string
+
+// SprintBacklog defines model for SprintBacklog.
+type SprintBacklog struct {
+	Data []struct {
+		Estimate *Estimate          `json:"estimate"`
+		ItemId   openapi_types.UUID `json:"item_id"`
+		Title    string             `json:"title"`
+	} `json:"data"`
+}
+
+// SprintClosure defines model for SprintClosure.
+type SprintClosure struct {
+	Carried   []openapi_types.UUID `json:"carried"`
+	CarriedTo *openapi_types.UUID  `json:"carried_to"`
+	Returned  []openapi_types.UUID `json:"returned"`
+	Sprint    Sprint               `json:"sprint"`
+}
+
+// SprintDetail defines model for SprintDetail.
+type SprintDetail struct {
+	Burndown []BurndownPoint `json:"burndown"`
+	Entries  []SprintEntry   `json:"entries"`
+	Sprint   Sprint          `json:"sprint"`
+}
+
+// SprintEntry defines model for SprintEntry.
+type SprintEntry struct {
+	AddedAt time.Time `json:"added_at"`
+
+	// Committed In the sprint when it started.
+	Committed   bool                `json:"committed"`
+	CompletedAt *time.Time          `json:"completed_at"`
+	Done        bool                `json:"done"`
+	Estimate    *Estimate           `json:"estimate"`
+	ItemId      openapi_types.UUID  `json:"item_id"`
+	Outcome     *SprintEntryOutcome `json:"outcome"`
+
+	// RemovedAt When it left the sprint before its close.
+	RemovedAt *time.Time `json:"removed_at"`
+	Title     string     `json:"title"`
+}
+
+// SprintEntryOutcome defines model for SprintEntry.Outcome.
+type SprintEntryOutcome string
+
+// SprintList defines model for SprintList.
+type SprintList struct {
+	Data []Sprint `json:"data"`
+}
+
 // StartPasswordIssued defines model for StartPasswordIssued.
 type StartPasswordIssued struct {
 	Account Account `json:"account"`
@@ -17749,6 +18169,17 @@ type UsagePage struct {
 	Metrics      []UsageMetric      `json:"metrics"`
 	Page         PageInfo           `json:"page"`
 }
+
+// Velocity defines model for Velocity.
+type Velocity struct {
+	// Average The average completed of the latest three closed sprints of the unit.
+	Average float64      `json:"average"`
+	Sprints []Sprint     `json:"sprints"`
+	Unit    VelocityUnit `json:"unit"`
+}
+
+// VelocityUnit defines model for Velocity.Unit.
+type VelocityUnit string
 
 // ViewExport What to render and how. The view decides which rows; the format decides what they become.
 type ViewExport struct {
@@ -18816,6 +19247,12 @@ type RuleId = openapi_types.UUID
 // SessionId defines model for SessionId.
 type SessionId = openapi_types.UUID
 
+// SprintCollectionId defines model for SprintCollectionId.
+type SprintCollectionId = openapi_types.UUID
+
+// SprintId defines model for SprintId.
+type SprintId = openapi_types.UUID
+
 // StepUpToken defines model for StepUpToken.
 type StepUpToken = string
 
@@ -19318,6 +19755,27 @@ type DefineCiSourceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
+
+// ListSprintsParams defines parameters for ListSprints.
+type ListSprintsParams struct {
+	// State Only sprints in this state.
+	State *ListSprintsParamsState `form:"state,omitempty" json:"state,omitempty"`
+}
+
+// ListSprintsParamsState defines parameters for ListSprints.
+type ListSprintsParamsState string
+
+// CreateSprintJSONBody defines parameters for CreateSprint.
+type CreateSprintJSONBody struct {
+	EndOn   openapi_types.Date        `json:"end_on"`
+	Goal    *string                   `json:"goal,omitempty"`
+	Name    string                    `json:"name"`
+	StartOn openapi_types.Date        `json:"start_on"`
+	Unit    *CreateSprintJSONBodyUnit `json:"unit,omitempty"`
+}
+
+// CreateSprintJSONBodyUnit defines parameters for CreateSprint.
+type CreateSprintJSONBodyUnit string
 
 // SetCollectionHandleParams defines parameters for SetCollectionHandle.
 type SetCollectionHandleParams struct {
@@ -19845,6 +20303,19 @@ type SetItemEntryTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
+
+// SetEntryEstimateJSONBody defines parameters for SetEntryEstimate.
+type SetEntryEstimateJSONBody struct {
+	Size  *SetEntryEstimateJSONBodySize `json:"size,omitempty"`
+	Unit  SetEntryEstimateJSONBodyUnit  `json:"unit"`
+	Value *float64                      `json:"value,omitempty"`
+}
+
+// SetEntryEstimateJSONBodySize defines parameters for SetEntryEstimate.
+type SetEntryEstimateJSONBodySize string
+
+// SetEntryEstimateJSONBodyUnit defines parameters for SetEntryEstimate.
+type SetEntryEstimateJSONBodyUnit string
 
 // RemoveRecurrenceParams defines parameters for RemoveRecurrence.
 type RemoveRecurrenceParams struct {
@@ -20457,6 +20928,48 @@ type ReportSlaParams struct {
 	To   time.Time `form:"to" json:"to"`
 }
 
+// ReadSprintParams defines parameters for ReadSprint.
+type ReadSprintParams struct {
+	// Calendar A business calendar's key.
+	Calendar *string `form:"calendar,omitempty" json:"calendar,omitempty"`
+
+	// Zone An IANA time zone, when no calendar names one; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
+}
+
+// UpdateSprintJSONBody defines parameters for UpdateSprint.
+type UpdateSprintJSONBody struct {
+	EndOn   *openapi_types.Date       `json:"end_on,omitempty"`
+	Goal    *string                   `json:"goal,omitempty"`
+	Name    *string                   `json:"name,omitempty"`
+	StartOn *openapi_types.Date       `json:"start_on,omitempty"`
+	Unit    *UpdateSprintJSONBodyUnit `json:"unit,omitempty"`
+}
+
+// UpdateSprintParams defines parameters for UpdateSprint.
+type UpdateSprintParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateSprintJSONBodyUnit defines parameters for UpdateSprint.
+type UpdateSprintJSONBodyUnit string
+
+// AddSprintEntriesJSONBody defines parameters for AddSprintEntries.
+type AddSprintEntriesJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
+// RemoveSprintEntriesJSONBody defines parameters for RemoveSprintEntries.
+type RemoveSprintEntriesJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
+// CloseSprintJSONBody defines parameters for CloseSprint.
+type CloseSprintJSONBody struct {
+	CarryToSprintId *openapi_types.UUID `json:"carry_to_sprint_id,omitempty"`
+}
+
 // StreamChangesParams defines parameters for StreamChanges.
 type StreamChangesParams struct {
 	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
@@ -20923,6 +21436,9 @@ type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
 // DefineCiSourceJSONRequestBody defines body for DefineCiSource for application/json ContentType.
 type DefineCiSourceJSONRequestBody = CiSourceDefine
 
+// CreateSprintJSONRequestBody defines body for CreateSprint for application/json ContentType.
+type CreateSprintJSONRequestBody CreateSprintJSONBody
+
 // SetCollectionHandleJSONRequestBody defines body for SetCollectionHandle for application/json ContentType.
 type SetCollectionHandleJSONRequestBody = CollectionHandle
 
@@ -21096,6 +21612,9 @@ type SetDueDateJSONRequestBody = DueDateInput
 
 // SetItemEntryTypeJSONRequestBody defines body for SetItemEntryType for application/json ContentType.
 type SetItemEntryTypeJSONRequestBody SetItemEntryTypeJSONBody
+
+// SetEntryEstimateJSONRequestBody defines body for SetEntryEstimate for application/json ContentType.
+type SetEntryEstimateJSONRequestBody SetEntryEstimateJSONBody
 
 // LinkEntriesJSONRequestBody defines body for LinkEntries for application/json ContentType.
 type LinkEntriesJSONRequestBody = EntryLinkCreate
@@ -21315,6 +21834,18 @@ type SearchItemsJSONRequestBody = ItemSearchQuery
 
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
+
+// UpdateSprintJSONRequestBody defines body for UpdateSprint for application/json ContentType.
+type UpdateSprintJSONRequestBody UpdateSprintJSONBody
+
+// AddSprintEntriesJSONRequestBody defines body for AddSprintEntries for application/json ContentType.
+type AddSprintEntriesJSONRequestBody AddSprintEntriesJSONBody
+
+// RemoveSprintEntriesJSONRequestBody defines body for RemoveSprintEntries for application/json ContentType.
+type RemoveSprintEntriesJSONRequestBody RemoveSprintEntriesJSONBody
+
+// CloseSprintJSONRequestBody defines body for CloseSprint for application/json ContentType.
+type CloseSprintJSONRequestBody CloseSprintJSONBody
 
 // AcceptSuggestionJSONRequestBody defines body for AcceptSuggestion for application/json ContentType.
 type AcceptSuggestionJSONRequestBody = SuggestionAcceptance
@@ -24464,6 +24995,45 @@ type ClientInterface interface {
 	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
 	DefineCiSource(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReadSprintBacklog The backlog to plan a sprint from
+	//
+	// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
+	//
+	// Corresponds with GET /collections/{collectionId}/sprint-backlog (the `ReadSprintBacklog` operationId).
+	ReadSprintBacklog(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSprints A collection's sprints
+	//
+	// The collection's sprints, the latest first, at most 200. Needs READ at the collection.
+	//
+	// Corresponds with GET /collections/{collectionId}/sprints (the `ListSprints` operationId).
+	ListSprints(ctx context.Context, collectionId SprintCollectionId, params *ListSprintsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateSprintWithBody Plan a sprint
+	//
+	// A name, a goal, its first and last day (at most 92 days) and whether it counts points or hours. It starts PLANNED. Needs WRITE_ITEMS at the collection; a hub has no sprints (`sprints.collection_required`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /collections/{collectionId}/sprints (the `CreateSprint` operationId).
+	CreateSprintWithBody(ctx context.Context, collectionId SprintCollectionId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateSprint Plan a sprint
+	//
+	// A name, a goal, its first and last day (at most 92 days) and whether it counts points or hours. It starts PLANNED. Needs WRITE_ITEMS at the collection; a hub has no sprints (`sprints.collection_required`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /collections/{collectionId}/sprints (the `CreateSprint` operationId).
+	CreateSprint(ctx context.Context, collectionId SprintCollectionId, body CreateSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadVelocity How much a team gets done
+	//
+	// The latest closed sprints, at most 20, newest first, with what each committed and completed, and the average completed of the latest three in the unit the newest counted. Needs READ at the collection.
+	//
+	// Corresponds with GET /collections/{collectionId}/velocity (the `ReadVelocity` operationId).
+	ReadVelocity(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetCollectionHandleWithBody Give a collection another handle
 	//
 	// The short name a mail subject (`#einkauf`), an address and the collection's ticket keys (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old handle no longer arrives here.
@@ -25809,6 +26379,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
 	SetItemEntryType(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, body SetItemEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ClearEntryEstimate Remove an entry's estimate
+	//
+	// It then adds nothing to a commitment or a velocity. Needs WRITE_ITEMS on the entry.
+	//
+	// Corresponds with DELETE /items/{itemId}/estimate (the `ClearEntryEstimate` operationId).
+	ClearEntryEstimate(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetEntryEstimateWithBody Say how big an entry is
+	//
+	// POINTS or HOURS with a value of at most 10000 and two decimals, or a T-shirt SIZE that counts as 1, 2, 3, 5, 8 or 13 points. Needs WRITE_ITEMS on the entry.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
+	SetEntryEstimateWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetEntryEstimate Say how big an entry is
+	//
+	// POINTS or HOURS with a value of at most 10000 and two decimals, or a T-shirt SIZE that counts as 1, 2, 3, 5, 8 or 13 points. Needs WRITE_ITEMS on the entry.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
+	SetEntryEstimate(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// TakeBackKudos performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
 	//
@@ -28082,6 +28677,99 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /sla-report (the `ReportSla` operationId).
 	ReportSla(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteSprint Delete a planned sprint
+	//
+	// Its entries go back to the backlog unchanged. A running or closed sprint is the team's record and stays (`sprints.not_planned`). Needs WRITE_ITEMS at the collection.
+	//
+	// Corresponds with DELETE /sprints/{sprintId} (the `DeleteSprint` operationId).
+	DeleteSprint(ctx context.Context, sprintId SprintId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadSprint A sprint with its entries and burndown
+	//
+	// Every entry in the sprint or once in it the caller may see - when it joined and left, whether it was committed, its estimate, whether it is done and what became of it at the close - and the burndown day by day: the work left, the scope and the ideal line over working days. Needs READ at the collection.
+	//
+	// Corresponds with GET /sprints/{sprintId} (the `ReadSprint` operationId).
+	ReadSprint(ctx context.Context, sprintId SprintId, params *ReadSprintParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateSprintWithBody Change a sprint
+	//
+	// Its name, goal, days or unit; a member left out keeps what stands. A running sprint keeps its first day and unit (`sprints.running_start_fixed`); a closed one does not change (`sprints.closed`). Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /sprints/{sprintId} (the `UpdateSprint` operationId).
+	UpdateSprintWithBody(ctx context.Context, sprintId SprintId, params *UpdateSprintParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateSprint Change a sprint
+	//
+	// Its name, goal, days or unit; a member left out keeps what stands. A running sprint keeps its first day and unit (`sprints.running_start_fixed`); a closed one does not change (`sprints.closed`). Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /sprints/{sprintId} (the `UpdateSprint` operationId).
+	UpdateSprint(ctx context.Context, sprintId SprintId, params *UpdateSprintParams, body UpdateSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddSprintEntriesWithBody Put entries into a sprint
+	//
+	// Entries of the sprint's collection, all or none, at most 500. An entry is in one open sprint at a time (`sprints.entry_in_another_sprint`); one joining a running sprint widens its scope, not its commitment. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /sprints/{sprintId}/entries (the `AddSprintEntries` operationId).
+	AddSprintEntriesWithBody(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddSprintEntries Put entries into a sprint
+	//
+	// Entries of the sprint's collection, all or none, at most 500. An entry is in one open sprint at a time (`sprints.entry_in_another_sprint`); one joining a running sprint widens its scope, not its commitment. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /sprints/{sprintId}/entries (the `AddSprintEntries` operationId).
+	AddSprintEntries(ctx context.Context, sprintId SprintId, body AddSprintEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveSprintEntriesWithBody Take entries out of a sprint
+	//
+	// Back to the backlog, at most 500; an entry not in the sprint is passed over. The sprint keeps when each left. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /sprints/{sprintId}/entries:remove (the `RemoveSprintEntries` operationId).
+	RemoveSprintEntriesWithBody(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveSprintEntries Take entries out of a sprint
+	//
+	// Back to the backlog, at most 500; an entry not in the sprint is passed over. The sprint keeps when each left. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /sprints/{sprintId}/entries:remove (the `RemoveSprintEntries` operationId).
+	RemoveSprintEntries(ctx context.Context, sprintId SprintId, body RemoveSprintEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CloseSprintWithBody Close a sprint
+	//
+	// Records the result - the entries done and their estimate sum - and moves every unfinished entry into the planned sprint of the same collection named, or back to the backlog without one. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /sprints/{sprintId}:close (the `CloseSprint` operationId).
+	CloseSprintWithBody(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CloseSprint Close a sprint
+	//
+	// Records the result - the entries done and their estimate sum - and moves every unfinished entry into the planned sprint of the same collection named, or back to the backlog without one. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /sprints/{sprintId}:close (the `CloseSprint` operationId).
+	CloseSprint(ctx context.Context, sprintId SprintId, body CloseSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartSprint Start a sprint
+	//
+	// Records the commitment - how many entries it holds and their estimate sum. One sprint runs per collection at a time (`sprints.another_running`). Needs WRITE_ITEMS at the collection.
+	//
+	// Corresponds with POST /sprints/{sprintId}:start (the `StartSprint` operationId).
+	StartSprint(ctx context.Context, sprintId SprintId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StreamChanges The change stream, as server-sent events
 	//
@@ -34725,6 +35413,95 @@ func (c *Client) DefineCiSource(ctx context.Context, sourceKey string, params *D
 	return c.Client.Do(req)
 }
 
+// ReadSprintBacklog The backlog to plan a sprint from
+//
+// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
+//
+// Corresponds with GET /collections/{collectionId}/sprint-backlog (the `ReadSprintBacklog` operationId).
+func (c *Client) ReadSprintBacklog(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadSprintBacklogRequest(c.Server, collectionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListSprints A collection's sprints
+//
+// The collection's sprints, the latest first, at most 200. Needs READ at the collection.
+//
+// Corresponds with GET /collections/{collectionId}/sprints (the `ListSprints` operationId).
+func (c *Client) ListSprints(ctx context.Context, collectionId SprintCollectionId, params *ListSprintsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSprintsRequest(c.Server, collectionId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateSprintWithBody Plan a sprint
+//
+// A name, a goal, its first and last day (at most 92 days) and whether it counts points or hours. It starts PLANNED. Needs WRITE_ITEMS at the collection; a hub has no sprints (`sprints.collection_required`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /collections/{collectionId}/sprints (the `CreateSprint` operationId).
+func (c *Client) CreateSprintWithBody(ctx context.Context, collectionId SprintCollectionId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSprintRequestWithBody(c.Server, collectionId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateSprint Plan a sprint
+//
+// A name, a goal, its first and last day (at most 92 days) and whether it counts points or hours. It starts PLANNED. Needs WRITE_ITEMS at the collection; a hub has no sprints (`sprints.collection_required`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /collections/{collectionId}/sprints (the `CreateSprint` operationId).
+func (c *Client) CreateSprint(ctx context.Context, collectionId SprintCollectionId, body CreateSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSprintRequest(c.Server, collectionId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadVelocity How much a team gets done
+//
+// The latest closed sprints, at most 20, newest first, with what each committed and completed, and the average completed of the latest three in the unit the newest counted. Needs READ at the collection.
+//
+// Corresponds with GET /collections/{collectionId}/velocity (the `ReadVelocity` operationId).
+func (c *Client) ReadVelocity(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadVelocityRequest(c.Server, collectionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // SetCollectionHandleWithBody Give a collection another handle
 //
 // The short name a mail subject (`#einkauf`), an address and the collection's ticket keys (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old handle no longer arrives here.
@@ -37821,6 +38598,61 @@ func (c *Client) SetItemEntryTypeWithBody(ctx context.Context, itemId ItemId, pa
 // Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
 func (c *Client) SetItemEntryType(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, body SetItemEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetItemEntryTypeRequest(c.Server, itemId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ClearEntryEstimate Remove an entry's estimate
+//
+// It then adds nothing to a commitment or a velocity. Needs WRITE_ITEMS on the entry.
+//
+// Corresponds with DELETE /items/{itemId}/estimate (the `ClearEntryEstimate` operationId).
+func (c *Client) ClearEntryEstimate(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewClearEntryEstimateRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetEntryEstimateWithBody Say how big an entry is
+//
+// POINTS or HOURS with a value of at most 10000 and two decimals, or a T-shirt SIZE that counts as 1, 2, 3, 5, 8 or 13 points. Needs WRITE_ITEMS on the entry.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
+func (c *Client) SetEntryEstimateWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetEntryEstimateRequestWithBody(c.Server, itemId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetEntryEstimate Say how big an entry is
+//
+// POINTS or HOURS with a value of at most 10000 and two decimals, or a T-shirt SIZE that counts as 1, 2, 3, 5, 8 or 13 points. Needs WRITE_ITEMS on the entry.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
+func (c *Client) SetEntryEstimate(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetEntryEstimateRequest(c.Server, itemId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -42514,6 +43346,209 @@ func (c *Client) DefineSlaPolicy(ctx context.Context, policyKey string, params *
 // Corresponds with GET /sla-report (the `ReportSla` operationId).
 func (c *Client) ReportSla(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReportSlaRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteSprint Delete a planned sprint
+//
+// Its entries go back to the backlog unchanged. A running or closed sprint is the team's record and stays (`sprints.not_planned`). Needs WRITE_ITEMS at the collection.
+//
+// Corresponds with DELETE /sprints/{sprintId} (the `DeleteSprint` operationId).
+func (c *Client) DeleteSprint(ctx context.Context, sprintId SprintId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSprintRequest(c.Server, sprintId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadSprint A sprint with its entries and burndown
+//
+// Every entry in the sprint or once in it the caller may see - when it joined and left, whether it was committed, its estimate, whether it is done and what became of it at the close - and the burndown day by day: the work left, the scope and the ideal line over working days. Needs READ at the collection.
+//
+// Corresponds with GET /sprints/{sprintId} (the `ReadSprint` operationId).
+func (c *Client) ReadSprint(ctx context.Context, sprintId SprintId, params *ReadSprintParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadSprintRequest(c.Server, sprintId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateSprintWithBody Change a sprint
+//
+// Its name, goal, days or unit; a member left out keeps what stands. A running sprint keeps its first day and unit (`sprints.running_start_fixed`); a closed one does not change (`sprints.closed`). Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /sprints/{sprintId} (the `UpdateSprint` operationId).
+func (c *Client) UpdateSprintWithBody(ctx context.Context, sprintId SprintId, params *UpdateSprintParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSprintRequestWithBody(c.Server, sprintId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateSprint Change a sprint
+//
+// Its name, goal, days or unit; a member left out keeps what stands. A running sprint keeps its first day and unit (`sprints.running_start_fixed`); a closed one does not change (`sprints.closed`). Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /sprints/{sprintId} (the `UpdateSprint` operationId).
+func (c *Client) UpdateSprint(ctx context.Context, sprintId SprintId, params *UpdateSprintParams, body UpdateSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSprintRequest(c.Server, sprintId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddSprintEntriesWithBody Put entries into a sprint
+//
+// Entries of the sprint's collection, all or none, at most 500. An entry is in one open sprint at a time (`sprints.entry_in_another_sprint`); one joining a running sprint widens its scope, not its commitment. Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /sprints/{sprintId}/entries (the `AddSprintEntries` operationId).
+func (c *Client) AddSprintEntriesWithBody(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddSprintEntriesRequestWithBody(c.Server, sprintId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddSprintEntries Put entries into a sprint
+//
+// Entries of the sprint's collection, all or none, at most 500. An entry is in one open sprint at a time (`sprints.entry_in_another_sprint`); one joining a running sprint widens its scope, not its commitment. Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /sprints/{sprintId}/entries (the `AddSprintEntries` operationId).
+func (c *Client) AddSprintEntries(ctx context.Context, sprintId SprintId, body AddSprintEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddSprintEntriesRequest(c.Server, sprintId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveSprintEntriesWithBody Take entries out of a sprint
+//
+// Back to the backlog, at most 500; an entry not in the sprint is passed over. The sprint keeps when each left. Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /sprints/{sprintId}/entries:remove (the `RemoveSprintEntries` operationId).
+func (c *Client) RemoveSprintEntriesWithBody(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveSprintEntriesRequestWithBody(c.Server, sprintId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveSprintEntries Take entries out of a sprint
+//
+// Back to the backlog, at most 500; an entry not in the sprint is passed over. The sprint keeps when each left. Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /sprints/{sprintId}/entries:remove (the `RemoveSprintEntries` operationId).
+func (c *Client) RemoveSprintEntries(ctx context.Context, sprintId SprintId, body RemoveSprintEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveSprintEntriesRequest(c.Server, sprintId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CloseSprintWithBody Close a sprint
+//
+// Records the result - the entries done and their estimate sum - and moves every unfinished entry into the planned sprint of the same collection named, or back to the backlog without one. Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /sprints/{sprintId}:close (the `CloseSprint` operationId).
+func (c *Client) CloseSprintWithBody(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCloseSprintRequestWithBody(c.Server, sprintId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CloseSprint Close a sprint
+//
+// Records the result - the entries done and their estimate sum - and moves every unfinished entry into the planned sprint of the same collection named, or back to the backlog without one. Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /sprints/{sprintId}:close (the `CloseSprint` operationId).
+func (c *Client) CloseSprint(ctx context.Context, sprintId SprintId, body CloseSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCloseSprintRequest(c.Server, sprintId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartSprint Start a sprint
+//
+// Records the commitment - how many entries it holds and their estimate sum. One sprint runs per collection at a time (`sprints.another_running`). Needs WRITE_ITEMS at the collection.
+//
+// Corresponds with POST /sprints/{sprintId}:start (the `StartSprint` operationId).
+func (c *Client) StartSprint(ctx context.Context, sprintId SprintId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartSprintRequest(c.Server, sprintId)
 	if err != nil {
 		return nil, err
 	}
@@ -52739,6 +53774,182 @@ func NewDefineCiSourceRequestWithBody(server string, sourceKey string, params *D
 	return req, nil
 }
 
+// NewReadSprintBacklogRequest constructs an http.Request for the ReadSprintBacklog method
+func NewReadSprintBacklogRequest(server string, collectionId SprintCollectionId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "collectionId", collectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/collections/%s/sprint-backlog", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListSprintsRequest constructs an http.Request for the ListSprints method
+func NewListSprintsRequest(server string, collectionId SprintCollectionId, params *ListSprintsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "collectionId", collectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/collections/%s/sprints", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "state", *params.State, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateSprintRequest calls the generic CreateSprint builder with application/json body
+func NewCreateSprintRequest(server string, collectionId SprintCollectionId, body CreateSprintJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateSprintRequestWithBody(server, collectionId, "application/json", bodyReader)
+}
+
+// NewCreateSprintRequestWithBody constructs an http.Request for the CreateSprint method, with any body, and a specified content type
+func NewCreateSprintRequestWithBody(server string, collectionId SprintCollectionId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "collectionId", collectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/collections/%s/sprints", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadVelocityRequest constructs an http.Request for the ReadVelocity method
+func NewReadVelocityRequest(server string, collectionId SprintCollectionId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "collectionId", collectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/collections/%s/velocity", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewSetCollectionHandleRequest calls the generic SetCollectionHandle builder with application/json body
 func NewSetCollectionHandleRequest(server string, collectionId openapi_types.UUID, params *SetCollectionHandleParams, body SetCollectionHandleJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -59062,6 +60273,87 @@ func NewSetItemEntryTypeRequestWithBody(server string, itemId ItemId, params *Se
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewClearEntryEstimateRequest constructs an http.Request for the ClearEntryEstimate method
+func NewClearEntryEstimateRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/estimate", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetEntryEstimateRequest calls the generic SetEntryEstimate builder with application/json body
+func NewSetEntryEstimateRequest(server string, itemId ItemId, body SetEntryEstimateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetEntryEstimateRequestWithBody(server, itemId, "application/json", bodyReader)
+}
+
+// NewSetEntryEstimateRequestWithBody constructs an http.Request for the SetEntryEstimate method, with any body, and a specified content type
+func NewSetEntryEstimateRequestWithBody(server string, itemId ItemId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/estimate", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -66995,6 +68287,350 @@ func NewReportSlaRequest(server string, params *ReportSlaParams) (*http.Request,
 	return req, nil
 }
 
+// NewDeleteSprintRequest constructs an http.Request for the DeleteSprint method
+func NewDeleteSprintRequest(server string, sprintId SprintId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sprintId", sprintId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sprints/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadSprintRequest constructs an http.Request for the ReadSprint method
+func NewReadSprintRequest(server string, sprintId SprintId, params *ReadSprintParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sprintId", sprintId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sprints/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Calendar != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "calendar", *params.Calendar, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Zone != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "zone", *params.Zone, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateSprintRequest calls the generic UpdateSprint builder with application/json body
+func NewUpdateSprintRequest(server string, sprintId SprintId, params *UpdateSprintParams, body UpdateSprintJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateSprintRequestWithBody(server, sprintId, params, "application/json", bodyReader)
+}
+
+// NewUpdateSprintRequestWithBody constructs an http.Request for the UpdateSprint method, with any body, and a specified content type
+func NewUpdateSprintRequestWithBody(server string, sprintId SprintId, params *UpdateSprintParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sprintId", sprintId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sprints/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewAddSprintEntriesRequest calls the generic AddSprintEntries builder with application/json body
+func NewAddSprintEntriesRequest(server string, sprintId SprintId, body AddSprintEntriesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddSprintEntriesRequestWithBody(server, sprintId, "application/json", bodyReader)
+}
+
+// NewAddSprintEntriesRequestWithBody constructs an http.Request for the AddSprintEntries method, with any body, and a specified content type
+func NewAddSprintEntriesRequestWithBody(server string, sprintId SprintId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sprintId", sprintId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sprints/%s/entries", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveSprintEntriesRequest calls the generic RemoveSprintEntries builder with application/json body
+func NewRemoveSprintEntriesRequest(server string, sprintId SprintId, body RemoveSprintEntriesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRemoveSprintEntriesRequestWithBody(server, sprintId, "application/json", bodyReader)
+}
+
+// NewRemoveSprintEntriesRequestWithBody constructs an http.Request for the RemoveSprintEntries method, with any body, and a specified content type
+func NewRemoveSprintEntriesRequestWithBody(server string, sprintId SprintId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sprintId", sprintId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sprints/%s/entries:remove", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCloseSprintRequest calls the generic CloseSprint builder with application/json body
+func NewCloseSprintRequest(server string, sprintId SprintId, body CloseSprintJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCloseSprintRequestWithBody(server, sprintId, "application/json", bodyReader)
+}
+
+// NewCloseSprintRequestWithBody constructs an http.Request for the CloseSprint method, with any body, and a specified content type
+func NewCloseSprintRequestWithBody(server string, sprintId SprintId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sprintId", sprintId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sprints/%s:close", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartSprintRequest constructs an http.Request for the StartSprint method
+func NewStartSprintRequest(server string, sprintId SprintId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sprintId", sprintId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sprints/%s:start", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewStreamChangesRequest constructs an http.Request for the StreamChanges method
 func NewStreamChangesRequest(server string, params *StreamChangesParams) (*http.Request, error) {
 	var err error
@@ -73039,6 +74675,51 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
 	DefineCiSourceWithResponse(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiSourceResult, error)
 
+	// ReadSprintBacklogWithResponse The backlog to plan a sprint from
+	//
+	// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /collections/{collectionId}/sprint-backlog (the `ReadSprintBacklog` operationId).
+	ReadSprintBacklogWithResponse(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*ReadSprintBacklogResult, error)
+
+	// ListSprintsWithResponse A collection's sprints
+	//
+	// The collection's sprints, the latest first, at most 200. Needs READ at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /collections/{collectionId}/sprints (the `ListSprints` operationId).
+	ListSprintsWithResponse(ctx context.Context, collectionId SprintCollectionId, params *ListSprintsParams, reqEditors ...RequestEditorFn) (*ListSprintsResult, error)
+
+	// CreateSprintWithBodyWithResponse Plan a sprint
+	//
+	// A name, a goal, its first and last day (at most 92 days) and whether it counts points or hours. It starts PLANNED. Needs WRITE_ITEMS at the collection; a hub has no sprints (`sprints.collection_required`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /collections/{collectionId}/sprints (the `CreateSprint` operationId).
+	CreateSprintWithBodyWithResponse(ctx context.Context, collectionId SprintCollectionId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSprintResult, error)
+
+	// CreateSprintWithResponse Plan a sprint
+	//
+	// A name, a goal, its first and last day (at most 92 days) and whether it counts points or hours. It starts PLANNED. Needs WRITE_ITEMS at the collection; a hub has no sprints (`sprints.collection_required`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /collections/{collectionId}/sprints (the `CreateSprint` operationId).
+	CreateSprintWithResponse(ctx context.Context, collectionId SprintCollectionId, body CreateSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSprintResult, error)
+
+	// ReadVelocityWithResponse How much a team gets done
+	//
+	// The latest closed sprints, at most 20, newest first, with what each committed and completed, and the average completed of the latest three in the unit the newest counted. Needs READ at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /collections/{collectionId}/velocity (the `ReadVelocity` operationId).
+	ReadVelocityWithResponse(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*ReadVelocityResult, error)
+
 	// SetCollectionHandleWithBodyWithResponse Give a collection another handle
 	//
 	// The short name a mail subject (`#einkauf`), an address and the collection's ticket keys (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old handle no longer arrives here.
@@ -74550,6 +76231,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
 	SetItemEntryTypeWithResponse(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, body SetItemEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*SetItemEntryTypeResult, error)
+
+	// ClearEntryEstimateWithResponse Remove an entry's estimate
+	//
+	// It then adds nothing to a commitment or a velocity. Needs WRITE_ITEMS on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /items/{itemId}/estimate (the `ClearEntryEstimate` operationId).
+	ClearEntryEstimateWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ClearEntryEstimateResult, error)
+
+	// SetEntryEstimateWithBodyWithResponse Say how big an entry is
+	//
+	// POINTS or HOURS with a value of at most 10000 and two decimals, or a T-shirt SIZE that counts as 1, 2, 3, 5, 8 or 13 points. Needs WRITE_ITEMS on the entry.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
+	SetEntryEstimateWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetEntryEstimateResult, error)
+
+	// SetEntryEstimateWithResponse Say how big an entry is
+	//
+	// POINTS or HOURS with a value of at most 10000 and two decimals, or a T-shirt SIZE that counts as 1, 2, 3, 5, 8 or 13 points. Needs WRITE_ITEMS on the entry.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
+	SetEntryEstimateWithResponse(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetEntryEstimateResult, error)
 
 	// TakeBackKudosWithResponse performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
 	//
@@ -77037,6 +78745,105 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /sla-report (the `ReportSla` operationId).
 	ReportSlaWithResponse(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*ReportSlaResult, error)
+
+	// DeleteSprintWithResponse Delete a planned sprint
+	//
+	// Its entries go back to the backlog unchanged. A running or closed sprint is the team's record and stays (`sprints.not_planned`). Needs WRITE_ITEMS at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /sprints/{sprintId} (the `DeleteSprint` operationId).
+	DeleteSprintWithResponse(ctx context.Context, sprintId SprintId, reqEditors ...RequestEditorFn) (*DeleteSprintResult, error)
+
+	// ReadSprintWithResponse A sprint with its entries and burndown
+	//
+	// Every entry in the sprint or once in it the caller may see - when it joined and left, whether it was committed, its estimate, whether it is done and what became of it at the close - and the burndown day by day: the work left, the scope and the ideal line over working days. Needs READ at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /sprints/{sprintId} (the `ReadSprint` operationId).
+	ReadSprintWithResponse(ctx context.Context, sprintId SprintId, params *ReadSprintParams, reqEditors ...RequestEditorFn) (*ReadSprintResult, error)
+
+	// UpdateSprintWithBodyWithResponse Change a sprint
+	//
+	// Its name, goal, days or unit; a member left out keeps what stands. A running sprint keeps its first day and unit (`sprints.running_start_fixed`); a closed one does not change (`sprints.closed`). Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /sprints/{sprintId} (the `UpdateSprint` operationId).
+	UpdateSprintWithBodyWithResponse(ctx context.Context, sprintId SprintId, params *UpdateSprintParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSprintResult, error)
+
+	// UpdateSprintWithResponse Change a sprint
+	//
+	// Its name, goal, days or unit; a member left out keeps what stands. A running sprint keeps its first day and unit (`sprints.running_start_fixed`); a closed one does not change (`sprints.closed`). Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /sprints/{sprintId} (the `UpdateSprint` operationId).
+	UpdateSprintWithResponse(ctx context.Context, sprintId SprintId, params *UpdateSprintParams, body UpdateSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSprintResult, error)
+
+	// AddSprintEntriesWithBodyWithResponse Put entries into a sprint
+	//
+	// Entries of the sprint's collection, all or none, at most 500. An entry is in one open sprint at a time (`sprints.entry_in_another_sprint`); one joining a running sprint widens its scope, not its commitment. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sprints/{sprintId}/entries (the `AddSprintEntries` operationId).
+	AddSprintEntriesWithBodyWithResponse(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddSprintEntriesResult, error)
+
+	// AddSprintEntriesWithResponse Put entries into a sprint
+	//
+	// Entries of the sprint's collection, all or none, at most 500. An entry is in one open sprint at a time (`sprints.entry_in_another_sprint`); one joining a running sprint widens its scope, not its commitment. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sprints/{sprintId}/entries (the `AddSprintEntries` operationId).
+	AddSprintEntriesWithResponse(ctx context.Context, sprintId SprintId, body AddSprintEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*AddSprintEntriesResult, error)
+
+	// RemoveSprintEntriesWithBodyWithResponse Take entries out of a sprint
+	//
+	// Back to the backlog, at most 500; an entry not in the sprint is passed over. The sprint keeps when each left. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sprints/{sprintId}/entries:remove (the `RemoveSprintEntries` operationId).
+	RemoveSprintEntriesWithBodyWithResponse(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RemoveSprintEntriesResult, error)
+
+	// RemoveSprintEntriesWithResponse Take entries out of a sprint
+	//
+	// Back to the backlog, at most 500; an entry not in the sprint is passed over. The sprint keeps when each left. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sprints/{sprintId}/entries:remove (the `RemoveSprintEntries` operationId).
+	RemoveSprintEntriesWithResponse(ctx context.Context, sprintId SprintId, body RemoveSprintEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*RemoveSprintEntriesResult, error)
+
+	// CloseSprintWithBodyWithResponse Close a sprint
+	//
+	// Records the result - the entries done and their estimate sum - and moves every unfinished entry into the planned sprint of the same collection named, or back to the backlog without one. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sprints/{sprintId}:close (the `CloseSprint` operationId).
+	CloseSprintWithBodyWithResponse(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CloseSprintResult, error)
+
+	// CloseSprintWithResponse Close a sprint
+	//
+	// Records the result - the entries done and their estimate sum - and moves every unfinished entry into the planned sprint of the same collection named, or back to the backlog without one. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sprints/{sprintId}:close (the `CloseSprint` operationId).
+	CloseSprintWithResponse(ctx context.Context, sprintId SprintId, body CloseSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*CloseSprintResult, error)
+
+	// StartSprintWithResponse Start a sprint
+	//
+	// Records the commitment - how many entries it holds and their estimate sum. One sprint runs per collection at a time (`sprints.another_running`). Needs WRITE_ITEMS at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sprints/{sprintId}:start (the `StartSprint` operationId).
+	StartSprintWithResponse(ctx context.Context, sprintId SprintId, reqEditors ...RequestEditorFn) (*StartSprintResult, error)
 
 	// StreamChangesWithResponse The change stream, as server-sent events
 	//
@@ -87163,6 +88970,198 @@ func (r DefineCiSourceResult) ContentType() string {
 	return ""
 }
 
+type ReadSprintBacklogResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SprintBacklog
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadSprintBacklogResult) GetJSON200() *SprintBacklog {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadSprintBacklogResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadSprintBacklogResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadSprintBacklogResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadSprintBacklogResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadSprintBacklogResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListSprintsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SprintList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSprintsResult) GetJSON200() *SprintList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListSprintsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSprintsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSprintsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSprintsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSprintsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateSprintResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Sprint
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateSprintResult) GetJSON201() *Sprint {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateSprintResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateSprintResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateSprintResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateSprintResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateSprintResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadVelocityResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Velocity
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadVelocityResult) GetJSON200() *Velocity {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadVelocityResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadVelocityResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadVelocityResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadVelocityResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadVelocityResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SetCollectionHandleResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -93003,6 +95002,95 @@ func (r SetItemEntryTypeResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetItemEntryTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ClearEntryEstimateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ClearEntryEstimateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ClearEntryEstimateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ClearEntryEstimateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ClearEntryEstimateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ClearEntryEstimateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetEntryEstimateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryEstimate
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetEntryEstimateResult) GetJSON200() *EntryEstimate {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetEntryEstimateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetEntryEstimateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetEntryEstimateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetEntryEstimateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetEntryEstimateResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -101345,6 +103433,335 @@ func (r ReportSlaResult) ContentType() string {
 	return ""
 }
 
+type DeleteSprintResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteSprintResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteSprintResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSprintResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSprintResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteSprintResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadSprintResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SprintDetail
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadSprintResult) GetJSON200() *SprintDetail {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadSprintResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadSprintResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadSprintResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadSprintResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadSprintResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateSprintResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Sprint
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateSprintResult) GetJSON200() *Sprint {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateSprintResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateSprintResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateSprintResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateSprintResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateSprintResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddSprintEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Sprint
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AddSprintEntriesResult) GetJSON200() *Sprint {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddSprintEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddSprintEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddSprintEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddSprintEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddSprintEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveSprintEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Sprint
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemoveSprintEntriesResult) GetJSON200() *Sprint {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveSprintEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveSprintEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveSprintEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveSprintEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveSprintEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CloseSprintResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SprintClosure
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CloseSprintResult) GetJSON200() *SprintClosure {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CloseSprintResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CloseSprintResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CloseSprintResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CloseSprintResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CloseSprintResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartSprintResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Sprint
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartSprintResult) GetJSON200() *Sprint {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartSprintResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartSprintResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartSprintResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartSprintResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartSprintResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // StreamChangesResult503Headers the declared response headers of an HTTP 503 response for StreamChanges
 type StreamChangesResult503Headers struct {
 	RetryAfter *int
@@ -109128,6 +111545,81 @@ func (c *ClientWithResponses) DefineCiSourceWithResponse(ctx context.Context, so
 	return ParseDefineCiSourceResult(rsp)
 }
 
+// ReadSprintBacklogWithResponse The backlog to plan a sprint from
+//
+// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /collections/{collectionId}/sprint-backlog (the `ReadSprintBacklog` operationId).
+func (c *ClientWithResponses) ReadSprintBacklogWithResponse(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*ReadSprintBacklogResult, error) {
+	rsp, err := c.ReadSprintBacklog(ctx, collectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadSprintBacklogResult(rsp)
+}
+
+// ListSprintsWithResponse A collection's sprints
+//
+// The collection's sprints, the latest first, at most 200. Needs READ at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /collections/{collectionId}/sprints (the `ListSprints` operationId).
+func (c *ClientWithResponses) ListSprintsWithResponse(ctx context.Context, collectionId SprintCollectionId, params *ListSprintsParams, reqEditors ...RequestEditorFn) (*ListSprintsResult, error) {
+	rsp, err := c.ListSprints(ctx, collectionId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSprintsResult(rsp)
+}
+
+// CreateSprintWithBodyWithResponse Plan a sprint
+//
+// A name, a goal, its first and last day (at most 92 days) and whether it counts points or hours. It starts PLANNED. Needs WRITE_ITEMS at the collection; a hub has no sprints (`sprints.collection_required`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /collections/{collectionId}/sprints (the `CreateSprint` operationId).
+func (c *ClientWithResponses) CreateSprintWithBodyWithResponse(ctx context.Context, collectionId SprintCollectionId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSprintResult, error) {
+	rsp, err := c.CreateSprintWithBody(ctx, collectionId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSprintResult(rsp)
+}
+
+// CreateSprintWithResponse Plan a sprint
+//
+// A name, a goal, its first and last day (at most 92 days) and whether it counts points or hours. It starts PLANNED. Needs WRITE_ITEMS at the collection; a hub has no sprints (`sprints.collection_required`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /collections/{collectionId}/sprints (the `CreateSprint` operationId).
+func (c *ClientWithResponses) CreateSprintWithResponse(ctx context.Context, collectionId SprintCollectionId, body CreateSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSprintResult, error) {
+	rsp, err := c.CreateSprint(ctx, collectionId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSprintResult(rsp)
+}
+
+// ReadVelocityWithResponse How much a team gets done
+//
+// The latest closed sprints, at most 20, newest first, with what each committed and completed, and the average completed of the latest three in the unit the newest counted. Needs READ at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /collections/{collectionId}/velocity (the `ReadVelocity` operationId).
+func (c *ClientWithResponses) ReadVelocityWithResponse(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*ReadVelocityResult, error) {
+	rsp, err := c.ReadVelocity(ctx, collectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadVelocityResult(rsp)
+}
+
 // SetCollectionHandleWithBodyWithResponse Give a collection another handle
 //
 // The short name a mail subject (`#einkauf`), an address and the collection's ticket keys (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old handle no longer arrives here.
@@ -111694,6 +114186,51 @@ func (c *ClientWithResponses) SetItemEntryTypeWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseSetItemEntryTypeResult(rsp)
+}
+
+// ClearEntryEstimateWithResponse Remove an entry's estimate
+//
+// It then adds nothing to a commitment or a velocity. Needs WRITE_ITEMS on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /items/{itemId}/estimate (the `ClearEntryEstimate` operationId).
+func (c *ClientWithResponses) ClearEntryEstimateWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ClearEntryEstimateResult, error) {
+	rsp, err := c.ClearEntryEstimate(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseClearEntryEstimateResult(rsp)
+}
+
+// SetEntryEstimateWithBodyWithResponse Say how big an entry is
+//
+// POINTS or HOURS with a value of at most 10000 and two decimals, or a T-shirt SIZE that counts as 1, 2, 3, 5, 8 or 13 points. Needs WRITE_ITEMS on the entry.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
+func (c *ClientWithResponses) SetEntryEstimateWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetEntryEstimateResult, error) {
+	rsp, err := c.SetEntryEstimateWithBody(ctx, itemId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetEntryEstimateResult(rsp)
+}
+
+// SetEntryEstimateWithResponse Say how big an entry is
+//
+// POINTS or HOURS with a value of at most 10000 and two decimals, or a T-shirt SIZE that counts as 1, 2, 3, 5, 8 or 13 points. Needs WRITE_ITEMS on the entry.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
+func (c *ClientWithResponses) SetEntryEstimateWithResponse(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetEntryEstimateResult, error) {
+	rsp, err := c.SetEntryEstimate(ctx, itemId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetEntryEstimateResult(rsp)
 }
 
 // TakeBackKudosWithResponse performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
@@ -115633,6 +118170,171 @@ func (c *ClientWithResponses) ReportSlaWithResponse(ctx context.Context, params 
 		return nil, err
 	}
 	return ParseReportSlaResult(rsp)
+}
+
+// DeleteSprintWithResponse Delete a planned sprint
+//
+// Its entries go back to the backlog unchanged. A running or closed sprint is the team's record and stays (`sprints.not_planned`). Needs WRITE_ITEMS at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /sprints/{sprintId} (the `DeleteSprint` operationId).
+func (c *ClientWithResponses) DeleteSprintWithResponse(ctx context.Context, sprintId SprintId, reqEditors ...RequestEditorFn) (*DeleteSprintResult, error) {
+	rsp, err := c.DeleteSprint(ctx, sprintId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSprintResult(rsp)
+}
+
+// ReadSprintWithResponse A sprint with its entries and burndown
+//
+// Every entry in the sprint or once in it the caller may see - when it joined and left, whether it was committed, its estimate, whether it is done and what became of it at the close - and the burndown day by day: the work left, the scope and the ideal line over working days. Needs READ at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /sprints/{sprintId} (the `ReadSprint` operationId).
+func (c *ClientWithResponses) ReadSprintWithResponse(ctx context.Context, sprintId SprintId, params *ReadSprintParams, reqEditors ...RequestEditorFn) (*ReadSprintResult, error) {
+	rsp, err := c.ReadSprint(ctx, sprintId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadSprintResult(rsp)
+}
+
+// UpdateSprintWithBodyWithResponse Change a sprint
+//
+// Its name, goal, days or unit; a member left out keeps what stands. A running sprint keeps its first day and unit (`sprints.running_start_fixed`); a closed one does not change (`sprints.closed`). Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /sprints/{sprintId} (the `UpdateSprint` operationId).
+func (c *ClientWithResponses) UpdateSprintWithBodyWithResponse(ctx context.Context, sprintId SprintId, params *UpdateSprintParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSprintResult, error) {
+	rsp, err := c.UpdateSprintWithBody(ctx, sprintId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSprintResult(rsp)
+}
+
+// UpdateSprintWithResponse Change a sprint
+//
+// Its name, goal, days or unit; a member left out keeps what stands. A running sprint keeps its first day and unit (`sprints.running_start_fixed`); a closed one does not change (`sprints.closed`). Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /sprints/{sprintId} (the `UpdateSprint` operationId).
+func (c *ClientWithResponses) UpdateSprintWithResponse(ctx context.Context, sprintId SprintId, params *UpdateSprintParams, body UpdateSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSprintResult, error) {
+	rsp, err := c.UpdateSprint(ctx, sprintId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSprintResult(rsp)
+}
+
+// AddSprintEntriesWithBodyWithResponse Put entries into a sprint
+//
+// Entries of the sprint's collection, all or none, at most 500. An entry is in one open sprint at a time (`sprints.entry_in_another_sprint`); one joining a running sprint widens its scope, not its commitment. Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sprints/{sprintId}/entries (the `AddSprintEntries` operationId).
+func (c *ClientWithResponses) AddSprintEntriesWithBodyWithResponse(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddSprintEntriesResult, error) {
+	rsp, err := c.AddSprintEntriesWithBody(ctx, sprintId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddSprintEntriesResult(rsp)
+}
+
+// AddSprintEntriesWithResponse Put entries into a sprint
+//
+// Entries of the sprint's collection, all or none, at most 500. An entry is in one open sprint at a time (`sprints.entry_in_another_sprint`); one joining a running sprint widens its scope, not its commitment. Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sprints/{sprintId}/entries (the `AddSprintEntries` operationId).
+func (c *ClientWithResponses) AddSprintEntriesWithResponse(ctx context.Context, sprintId SprintId, body AddSprintEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*AddSprintEntriesResult, error) {
+	rsp, err := c.AddSprintEntries(ctx, sprintId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddSprintEntriesResult(rsp)
+}
+
+// RemoveSprintEntriesWithBodyWithResponse Take entries out of a sprint
+//
+// Back to the backlog, at most 500; an entry not in the sprint is passed over. The sprint keeps when each left. Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sprints/{sprintId}/entries:remove (the `RemoveSprintEntries` operationId).
+func (c *ClientWithResponses) RemoveSprintEntriesWithBodyWithResponse(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RemoveSprintEntriesResult, error) {
+	rsp, err := c.RemoveSprintEntriesWithBody(ctx, sprintId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveSprintEntriesResult(rsp)
+}
+
+// RemoveSprintEntriesWithResponse Take entries out of a sprint
+//
+// Back to the backlog, at most 500; an entry not in the sprint is passed over. The sprint keeps when each left. Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sprints/{sprintId}/entries:remove (the `RemoveSprintEntries` operationId).
+func (c *ClientWithResponses) RemoveSprintEntriesWithResponse(ctx context.Context, sprintId SprintId, body RemoveSprintEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*RemoveSprintEntriesResult, error) {
+	rsp, err := c.RemoveSprintEntries(ctx, sprintId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveSprintEntriesResult(rsp)
+}
+
+// CloseSprintWithBodyWithResponse Close a sprint
+//
+// Records the result - the entries done and their estimate sum - and moves every unfinished entry into the planned sprint of the same collection named, or back to the backlog without one. Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sprints/{sprintId}:close (the `CloseSprint` operationId).
+func (c *ClientWithResponses) CloseSprintWithBodyWithResponse(ctx context.Context, sprintId SprintId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CloseSprintResult, error) {
+	rsp, err := c.CloseSprintWithBody(ctx, sprintId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCloseSprintResult(rsp)
+}
+
+// CloseSprintWithResponse Close a sprint
+//
+// Records the result - the entries done and their estimate sum - and moves every unfinished entry into the planned sprint of the same collection named, or back to the backlog without one. Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sprints/{sprintId}:close (the `CloseSprint` operationId).
+func (c *ClientWithResponses) CloseSprintWithResponse(ctx context.Context, sprintId SprintId, body CloseSprintJSONRequestBody, reqEditors ...RequestEditorFn) (*CloseSprintResult, error) {
+	rsp, err := c.CloseSprint(ctx, sprintId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCloseSprintResult(rsp)
+}
+
+// StartSprintWithResponse Start a sprint
+//
+// Records the commitment - how many entries it holds and their estimate sum. One sprint runs per collection at a time (`sprints.another_running`). Needs WRITE_ITEMS at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sprints/{sprintId}:start (the `StartSprint` operationId).
+func (c *ClientWithResponses) StartSprintWithResponse(ctx context.Context, sprintId SprintId, reqEditors ...RequestEditorFn) (*StartSprintResult, error) {
+	rsp, err := c.StartSprint(ctx, sprintId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartSprintResult(rsp)
 }
 
 // StreamChangesWithResponse The change stream, as server-sent events
@@ -123519,6 +126221,138 @@ func ParseDefineCiSourceResult(rsp *http.Response) (*DefineCiSourceResult, error
 	return response, nil
 }
 
+// ParseReadSprintBacklogResult parses an HTTP response from a ReadSprintBacklogWithResponse call
+func ParseReadSprintBacklogResult(rsp *http.Response) (*ReadSprintBacklogResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadSprintBacklogResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SprintBacklog
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSprintsResult parses an HTTP response from a ListSprintsWithResponse call
+func ParseListSprintsResult(rsp *http.Response) (*ListSprintsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSprintsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SprintList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateSprintResult parses an HTTP response from a CreateSprintWithResponse call
+func ParseCreateSprintResult(rsp *http.Response) (*CreateSprintResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateSprintResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Sprint
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadVelocityResult parses an HTTP response from a ReadVelocityWithResponse call
+func ParseReadVelocityResult(rsp *http.Response) (*ReadVelocityResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadVelocityResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Velocity
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseSetCollectionHandleResult parses an HTTP response from a SetCollectionHandleWithResponse call
 func ParseSetCollectionHandleResult(rsp *http.Response) (*SetCollectionHandleResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -127788,6 +130622,68 @@ func ParseSetItemEntryTypeResult(rsp *http.Response) (*SetItemEntryTypeResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest WorkItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseClearEntryEstimateResult parses an HTTP response from a ClearEntryEstimateWithResponse call
+func ParseClearEntryEstimateResult(rsp *http.Response) (*ClearEntryEstimateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ClearEntryEstimateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetEntryEstimateResult parses an HTTP response from a SetEntryEstimateWithResponse call
+func ParseSetEntryEstimateResult(rsp *http.Response) (*SetEntryEstimateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetEntryEstimateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryEstimate
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -133754,6 +136650,233 @@ func ParseReportSlaResult(rsp *http.Response) (*ReportSlaResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest SlaReport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSprintResult parses an HTTP response from a DeleteSprintWithResponse call
+func ParseDeleteSprintResult(rsp *http.Response) (*DeleteSprintResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSprintResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadSprintResult parses an HTTP response from a ReadSprintWithResponse call
+func ParseReadSprintResult(rsp *http.Response) (*ReadSprintResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadSprintResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SprintDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateSprintResult parses an HTTP response from a UpdateSprintWithResponse call
+func ParseUpdateSprintResult(rsp *http.Response) (*UpdateSprintResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateSprintResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Sprint
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddSprintEntriesResult parses an HTTP response from a AddSprintEntriesWithResponse call
+func ParseAddSprintEntriesResult(rsp *http.Response) (*AddSprintEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddSprintEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Sprint
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveSprintEntriesResult parses an HTTP response from a RemoveSprintEntriesWithResponse call
+func ParseRemoveSprintEntriesResult(rsp *http.Response) (*RemoveSprintEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveSprintEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Sprint
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCloseSprintResult parses an HTTP response from a CloseSprintWithResponse call
+func ParseCloseSprintResult(rsp *http.Response) (*CloseSprintResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CloseSprintResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SprintClosure
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartSprintResult parses an HTTP response from a StartSprintWithResponse call
+func ParseStartSprintResult(rsp *http.Response) (*StartSprintResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartSprintResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Sprint
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

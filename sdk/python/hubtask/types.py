@@ -1296,6 +1296,73 @@ class BaselineComparison(TypedDict, total=False):
     baseline: Required["PlanBaseline"]
     entries: Required[list["BaselineVariance"]]
 
+class Sprint(TypedDict, total=False):
+    id: Required[str]
+    collection_id: Required[str]
+    name: Required[str]
+    goal: Required[str]
+    start_on: Required[str]
+    end_on: Required[str]
+    state: Required[Literal["PLANNED", "ACTIVE", "CLOSED"]]
+    unit: Required[Literal["POINTS", "HOURS"]]
+    committed_value: Required[float]
+    committed_count: Required[int]
+    completed_value: Required[float]
+    completed_count: Required[int]
+    started_at: Required[str | None]
+    closed_at: Required[str | None]
+    version: Required[int]
+
+class SprintList(TypedDict, total=False):
+    data: Required[list["Sprint"]]
+
+class Estimate(TypedDict, total=False):
+    unit: Required[Literal["POINTS", "HOURS", "SIZE"]]
+    value: Required[float]
+    size: Required[Literal["XS", "S", "M", "L", "XL", "XXL"] | None]
+
+class EntryEstimate(TypedDict, total=False):
+    item_id: Required[str]
+    unit: Required[Literal["POINTS", "HOURS", "SIZE"]]
+    value: Required[float]
+    size: Required[Literal["XS", "S", "M", "L", "XL", "XXL"] | None]
+
+class SprintEntry(TypedDict, total=False):
+    item_id: Required[str]
+    title: Required[str]
+    added_at: Required[str]
+    removed_at: Required[str | None]
+    committed: Required[bool]
+    outcome: Required[Literal["DONE", "CARRIED", "RETURNED"] | None]
+    done: Required[bool]
+    completed_at: Required[str | None]
+    estimate: Required["Estimate" | Any]
+
+class BurndownPoint(TypedDict, total=False):
+    day: Required[str]
+    remaining: Required[float]
+    scope: Required[float]
+    ideal: Required[float]
+
+class SprintDetail(TypedDict, total=False):
+    sprint: Required["Sprint"]
+    entries: Required[list["SprintEntry"]]
+    burndown: Required[list["BurndownPoint"]]
+
+class SprintClosure(TypedDict, total=False):
+    sprint: Required["Sprint"]
+    carried: Required[list[str]]
+    returned: Required[list[str]]
+    carried_to: Required[str | None]
+
+class SprintBacklog(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
+class Velocity(TypedDict, total=False):
+    unit: Required[Literal["POINTS", "HOURS"]]
+    average: Required[float]
+    sprints: Required[list["Sprint"]]
+
 class BusinessCalendar(TypedDict, total=False):
     """Working hours, holidays and a time zone under a key - what an SLA counts its targets in."""
     key: Required[str]

@@ -151,6 +151,71 @@ export class HubtaskClient {
     return this.call("PUT", "/items/{itemId}/scheduling", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** A collection's sprints */
+  listSprints(collectionId: string, options: CallOptions & { readonly query?: NonNullable<operations["listSprints"]['parameters']['query']> } = {}): Promise<operations["listSprints"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/collections/{collectionId}/sprints", { "collectionId": collectionId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Plan a sprint */
+  createSprint(collectionId: string, body: NonNullable<operations["createSprint"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createSprint"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/collections/{collectionId}/sprints", { "collectionId": collectionId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The backlog to plan a sprint from */
+  readSprintBacklog(collectionId: string, options: CallOptions = {}): Promise<operations["readSprintBacklog"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/collections/{collectionId}/sprint-backlog", { "collectionId": collectionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** How much a team gets done */
+  readVelocity(collectionId: string, options: CallOptions = {}): Promise<operations["readVelocity"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/collections/{collectionId}/velocity", { "collectionId": collectionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A sprint with its entries and burndown */
+  readSprint(sprintId: string, options: CallOptions & { readonly query?: NonNullable<operations["readSprint"]['parameters']['query']> } = {}): Promise<operations["readSprint"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/sprints/{sprintId}", { "sprintId": sprintId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Change a sprint */
+  updateSprint(sprintId: string, body: NonNullable<operations["updateSprint"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateSprint"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/sprints/{sprintId}", { "sprintId": sprintId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete a planned sprint */
+  deleteSprint(sprintId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/sprints/{sprintId}", { "sprintId": sprintId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Start a sprint */
+  startSprint(sprintId: string, options: CallOptions = {}): Promise<operations["startSprint"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/sprints/{sprintId}:start", { "sprintId": sprintId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Close a sprint */
+  closeSprint(sprintId: string, body: NonNullable<operations["closeSprint"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["closeSprint"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/sprints/{sprintId}:close", { "sprintId": sprintId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Put entries into a sprint */
+  addSprintEntries(sprintId: string, body: NonNullable<operations["addSprintEntries"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addSprintEntries"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/sprints/{sprintId}/entries", { "sprintId": sprintId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take entries out of a sprint */
+  removeSprintEntries(sprintId: string, body: NonNullable<operations["removeSprintEntries"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["removeSprintEntries"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/sprints/{sprintId}/entries:remove", { "sprintId": sprintId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Say how big an entry is */
+  setEntryEstimate(itemId: string, body: NonNullable<operations["setEntryEstimate"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setEntryEstimate"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/items/{itemId}/estimate", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove an entry's estimate */
+  clearEntryEstimate(itemId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/items/{itemId}/estimate", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The workspace's business calendars */
   listBusinessCalendars(options: CallOptions = {}): Promise<operations["listBusinessCalendars"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/business-calendars", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -1837,7 +1837,7 @@ func run() error {
 	planMoves := &deferredCatalogue{}
 	planningStore := postgres.NewPlanningRepository()
 	planner := planningservice.Planner{
-		Plans: planningStore, Baselines: planningStore.Baselines(), Items: items, Containers: containers,
+		Plans: planningStore, Baselines: planningStore.Baselines(), Sprints: planningStore.Sprints(), Items: items, Containers: containers,
 		LinkTypes: linkTypeRegistry.Types, Links: entryLinks, References: entryLinks,
 		Calendars: serviceDeskStore.Calendars(), Catalogue: planMoves, Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
@@ -1929,6 +1929,19 @@ func run() error {
 		planningservice.ListBaselines{Planner: planner}.Descriptor(),
 		planningservice.CompareBaseline{Planner: planner}.Descriptor(),
 		planningservice.DeleteBaseline{Planner: planner}.Descriptor(),
+		planningservice.CreateSprint{Planner: planner}.Descriptor(),
+		planningservice.UpdateSprint{Planner: planner}.Descriptor(),
+		planningservice.ListSprints{Planner: planner}.Descriptor(),
+		planningservice.ReadSprint{Planner: planner}.Descriptor(),
+		planningservice.DeleteSprint{Planner: planner}.Descriptor(),
+		planningservice.AddSprintEntries{Planner: planner}.Descriptor(),
+		planningservice.RemoveSprintEntries{Planner: planner}.Descriptor(),
+		planningservice.StartSprint{Planner: planner}.Descriptor(),
+		planningservice.CloseSprint{Planner: planner}.Descriptor(),
+		planningservice.ReadSprintBacklog{Planner: planner}.Descriptor(),
+		planningservice.ReadVelocity{Planner: planner}.Descriptor(),
+		planningservice.SetEntryEstimate{Planner: planner}.Descriptor(),
+		planningservice.ClearEntryEstimate{Planner: planner}.Descriptor(),
 		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),

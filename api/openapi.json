@@ -134,7 +134,8 @@
     "sla": "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period",
     "request": "the requester portal: a service's catalogue, raising a request, following and answering your own",
     "plan": "a hub's or a collection's plan: its schedule, critical path and the moves it proposes",
-    "baseline": "a plan's baselines: the agreed dates kept and compared with today's"
+    "baseline": "a plan's baselines: the agreed dates kept and compared with today's",
+    "sprint": "a collection's sprints: planned, run and closed, their burndown, the backlog and the team's velocity"
   },
   "paths": {
     "/plans/{planId}/schedule": {
@@ -496,6 +497,595 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/collections/{collectionId}/sprints": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SprintCollectionId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "listSprints",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint ls",
+        "summary": "A collection's sprints",
+        "description": "The collection's sprints, the latest first, at most 200. Needs READ at the collection.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PLANNED",
+                "ACTIVE",
+                "CLOSED"
+              ]
+            },
+            "description": "Only sprints in this state."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The sprints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SprintList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "createSprint",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint create",
+        "summary": "Plan a sprint",
+        "description": "A name, a goal, its first and last day (at most 92 days) and whether it counts points or hours. It starts PLANNED. Needs WRITE_ITEMS at the collection; a hub has no sprints (`sprints.collection_required`).\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "start_on",
+                  "end_on"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "goal": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "start_on": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "end_on": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "POINTS",
+                      "HOURS"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/collections/{collectionId}/sprint-backlog": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SprintCollectionId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "readSprintBacklog",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint backlog",
+        "summary": "The backlog to plan a sprint from",
+        "description": "The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.\n",
+        "responses": {
+          "200": {
+            "description": "The backlog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SprintBacklog"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/collections/{collectionId}/velocity": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SprintCollectionId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "readVelocity",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint velocity",
+        "summary": "How much a team gets done",
+        "description": "The latest closed sprints, at most 20, newest first, with what each committed and completed, and the average completed of the latest three in the unit the newest counted. Needs READ at the collection.\n",
+        "responses": {
+          "200": {
+            "description": "The velocity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Velocity"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sprints/{sprintId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SprintId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "readSprint",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint get",
+        "summary": "A sprint with its entries and burndown",
+        "description": "Every entry in the sprint or once in it the caller may see - when it joined and left, whether it was committed, its estimate, whether it is done and what became of it at the close - and the burndown day by day: the work left, the scope and the ideal line over working days. Needs READ at the collection.\n",
+        "parameters": [
+          {
+            "name": "calendar",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,49}$"
+            },
+            "description": "A business calendar's key."
+          },
+          {
+            "name": "zone",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "An IANA time zone, when no calendar names one; UTC without."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The sprint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SprintDetail"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "updateSprint",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint update",
+        "summary": "Change a sprint",
+        "description": "Its name, goal, days or unit; a member left out keeps what stands. A running sprint keeps its first day and unit (`sprints.running_start_fixed`); a closed one does not change (`sprints.closed`). Needs WRITE_ITEMS at the collection.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "goal": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "start_on": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "end_on": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "POINTS",
+                      "HOURS"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The sprint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "deleteSprint",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint rm",
+        "summary": "Delete a planned sprint",
+        "description": "Its entries go back to the backlog unchanged. A running or closed sprint is the team's record and stays (`sprints.not_planned`). Needs WRITE_ITEMS at the collection.\n",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sprints/{sprintId}:start": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SprintId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "startSprint",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint start",
+        "summary": "Start a sprint",
+        "description": "Records the commitment - how many entries it holds and their estimate sum. One sprint runs per collection at a time (`sprints.another_running`). Needs WRITE_ITEMS at the collection.\n",
+        "responses": {
+          "200": {
+            "description": "The running sprint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sprints/{sprintId}:close": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SprintId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "closeSprint",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint close",
+        "summary": "Close a sprint",
+        "description": "Records the result - the entries done and their estimate sum - and moves every unfinished entry into the planned sprint of the same collection named, or back to the backlog without one. Needs WRITE_ITEMS at the collection.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "carry_to_sprint_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The closed sprint and where its unfinished entries went",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SprintClosure"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sprints/{sprintId}/entries": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SprintId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "addSprintEntries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint add",
+        "summary": "Put entries into a sprint",
+        "description": "Entries of the sprint's collection, all or none, at most 500. An entry is in one open sprint at a time (`sprints.entry_in_another_sprint`); one joining a running sprint widens its scope, not its commitment. Needs WRITE_ITEMS at the collection.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "item_ids"
+                ],
+                "properties": {
+                  "item_ids": {
+                    "type": "array",
+                    "maxItems": 500,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The sprint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sprints/{sprintId}/entries:remove": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SprintId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "removeSprintEntries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint remove",
+        "summary": "Take entries out of a sprint",
+        "description": "Back to the backlog, at most 500; an entry not in the sprint is passed over. The sprint keeps when each left. Needs WRITE_ITEMS at the collection.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "item_ids"
+                ],
+                "properties": {
+                  "item_ids": {
+                    "type": "array",
+                    "maxItems": 500,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The sprint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sprint"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}/estimate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "put": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "setEntryEstimate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "item estimate",
+        "summary": "Say how big an entry is",
+        "description": "POINTS or HOURS with a value of at most 10000 and two decimals, or a T-shirt SIZE that counts as 1, 2, 3, 5, 8 or 13 points. Needs WRITE_ITEMS on the entry.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "unit"
+                ],
+                "properties": {
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "POINTS",
+                      "HOURS",
+                      "SIZE"
+                    ]
+                  },
+                  "value": {
+                    "type": "number",
+                    "format": "double",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "size": {
+                    "type": "string",
+                    "enum": [
+                      "XS",
+                      "S",
+                      "M",
+                      "L",
+                      "XL",
+                      "XXL"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The estimate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryEstimate"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "clearEntryEstimate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "item unestimate",
+        "summary": "Remove an entry's estimate",
+        "description": "It then adds nothing to a commitment or a velocity. Needs WRITE_ITEMS on the entry.",
+        "responses": {
+          "204": {
+            "description": "Removed"
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -21806,6 +22396,25 @@
           "format": "uuid"
         }
       },
+      "SprintCollectionId": {
+        "name": "collectionId",
+        "in": "path",
+        "required": true,
+        "description": "The collection - a team's board - the sprints belong to.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "SprintId": {
+        "name": "sprintId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
       "PlanId": {
         "name": "planId",
         "in": "path",
@@ -28110,6 +28719,422 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BaselineVariance"
+            }
+          }
+        }
+      },
+      "Sprint": {
+        "type": "object",
+        "required": [
+          "id",
+          "collection_id",
+          "name",
+          "goal",
+          "start_on",
+          "end_on",
+          "state",
+          "unit",
+          "committed_value",
+          "committed_count",
+          "completed_value",
+          "completed_count",
+          "started_at",
+          "closed_at",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "start_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_on": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day, included."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "ACTIVE",
+              "CLOSED"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "POINTS",
+              "HOURS"
+            ]
+          },
+          "committed_value": {
+            "type": "number",
+            "format": "double",
+            "description": "The estimate sum when it started."
+          },
+          "committed_count": {
+            "type": "integer"
+          },
+          "completed_value": {
+            "type": "number",
+            "format": "double",
+            "description": "The estimate sum done when it closed."
+          },
+          "completed_count": {
+            "type": "integer"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "SprintList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sprint"
+            }
+          }
+        }
+      },
+      "Estimate": {
+        "type": "object",
+        "required": [
+          "unit",
+          "value",
+          "size"
+        ],
+        "properties": {
+          "unit": {
+            "type": "string",
+            "enum": [
+              "POINTS",
+              "HOURS",
+              "SIZE"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "format": "double",
+            "description": "Points or hours; for a size, the points it counts as."
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "XS",
+              "S",
+              "M",
+              "L",
+              "XL",
+              "XXL",
+              null
+            ]
+          }
+        }
+      },
+      "EntryEstimate": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "unit",
+          "value",
+          "size"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "POINTS",
+              "HOURS",
+              "SIZE"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "format": "double"
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "XS",
+              "S",
+              "M",
+              "L",
+              "XL",
+              "XXL",
+              null
+            ]
+          }
+        }
+      },
+      "SprintEntry": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "title",
+          "added_at",
+          "removed_at",
+          "committed",
+          "outcome",
+          "done",
+          "completed_at",
+          "estimate"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "removed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it left the sprint before its close."
+          },
+          "committed": {
+            "type": "boolean",
+            "description": "In the sprint when it started."
+          },
+          "outcome": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "DONE",
+              "CARRIED",
+              "RETURNED",
+              null
+            ]
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "estimate": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Estimate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "BurndownPoint": {
+        "type": "object",
+        "required": [
+          "day",
+          "remaining",
+          "scope",
+          "ideal"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "remaining": {
+            "type": "number",
+            "format": "double",
+            "description": "The estimates of the entries in the sprint and not done at the day's end."
+          },
+          "scope": {
+            "type": "number",
+            "format": "double",
+            "description": "The estimates of every entry in the sprint at the day's end."
+          },
+          "ideal": {
+            "type": "number",
+            "format": "double",
+            "description": "The commitment falling to zero over the working days."
+          }
+        }
+      },
+      "SprintDetail": {
+        "type": "object",
+        "required": [
+          "sprint",
+          "entries",
+          "burndown"
+        ],
+        "properties": {
+          "sprint": {
+            "$ref": "#/components/schemas/Sprint"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SprintEntry"
+            }
+          },
+          "burndown": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BurndownPoint"
+            }
+          }
+        }
+      },
+      "SprintClosure": {
+        "type": "object",
+        "required": [
+          "sprint",
+          "carried",
+          "returned",
+          "carried_to"
+        ],
+        "properties": {
+          "sprint": {
+            "$ref": "#/components/schemas/Sprint"
+          },
+          "carried": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "returned": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "carried_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "SprintBacklog": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "item_id",
+                "title",
+                "estimate"
+              ],
+              "properties": {
+                "item_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "estimate": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Estimate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Velocity": {
+        "type": "object",
+        "required": [
+          "unit",
+          "average",
+          "sprints"
+        ],
+        "properties": {
+          "unit": {
+            "type": "string",
+            "enum": [
+              "POINTS",
+              "HOURS"
+            ]
+          },
+          "average": {
+            "type": "number",
+            "format": "double",
+            "description": "The average completed of the latest three closed sprints of the unit."
+          },
+          "sprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sprint"
             }
           }
         }

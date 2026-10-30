@@ -135,6 +135,58 @@ class Client:
         """Whether the scheduler may move an entry, and whether it is a milestone"""
         return self._call("PUT", "/items/{itemId}/scheduling", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_sprints(self, collection_id: str, *, query: dict[str, Any] | None = None) -> "SprintList":
+        """A collection's sprints"""
+        return self._call("GET", "/collections/{collectionId}/sprints", {"collectionId": collection_id}, query, {}, None, "none", None, "json")
+
+    def create_sprint(self, collection_id: str, body: dict[str, Any]) -> "Sprint":
+        """Plan a sprint"""
+        return self._call("POST", "/collections/{collectionId}/sprints", {"collectionId": collection_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_sprint_backlog(self, collection_id: str) -> "SprintBacklog":
+        """The backlog to plan a sprint from"""
+        return self._call("GET", "/collections/{collectionId}/sprint-backlog", {"collectionId": collection_id}, None, {}, None, "none", None, "json")
+
+    def read_velocity(self, collection_id: str) -> "Velocity":
+        """How much a team gets done"""
+        return self._call("GET", "/collections/{collectionId}/velocity", {"collectionId": collection_id}, None, {}, None, "none", None, "json")
+
+    def read_sprint(self, sprint_id: str, *, query: dict[str, Any] | None = None) -> "SprintDetail":
+        """A sprint with its entries and burndown"""
+        return self._call("GET", "/sprints/{sprintId}", {"sprintId": sprint_id}, query, {}, None, "none", None, "json")
+
+    def update_sprint(self, sprint_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "Sprint":
+        """Change a sprint"""
+        return self._call("PATCH", "/sprints/{sprintId}", {"sprintId": sprint_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_sprint(self, sprint_id: str) -> None:
+        """Delete a planned sprint"""
+        return self._call("DELETE", "/sprints/{sprintId}", {"sprintId": sprint_id}, None, {}, None, "none", None, "void")
+
+    def start_sprint(self, sprint_id: str) -> "Sprint":
+        """Start a sprint"""
+        return self._call("POST", "/sprints/{sprintId}:start", {"sprintId": sprint_id}, None, {}, None, "none", None, "json")
+
+    def close_sprint(self, sprint_id: str, body: dict[str, Any]) -> "SprintClosure":
+        """Close a sprint"""
+        return self._call("POST", "/sprints/{sprintId}:close", {"sprintId": sprint_id}, None, {}, body, "json", "application/json", "json")
+
+    def add_sprint_entries(self, sprint_id: str, body: dict[str, Any]) -> "Sprint":
+        """Put entries into a sprint"""
+        return self._call("POST", "/sprints/{sprintId}/entries", {"sprintId": sprint_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_sprint_entries(self, sprint_id: str, body: dict[str, Any]) -> "Sprint":
+        """Take entries out of a sprint"""
+        return self._call("POST", "/sprints/{sprintId}/entries:remove", {"sprintId": sprint_id}, None, {}, body, "json", "application/json", "json")
+
+    def set_entry_estimate(self, item_id: str, body: dict[str, Any]) -> "EntryEstimate":
+        """Say how big an entry is"""
+        return self._call("PUT", "/items/{itemId}/estimate", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def clear_entry_estimate(self, item_id: str) -> None:
+        """Remove an entry's estimate"""
+        return self._call("DELETE", "/items/{itemId}/estimate", {"itemId": item_id}, None, {}, None, "none", None, "void")
+
     def list_business_calendars(self) -> "BusinessCalendarList":
         """The workspace's business calendars"""
         return self._call("GET", "/business-calendars", {}, None, {}, None, "none", None, "json")

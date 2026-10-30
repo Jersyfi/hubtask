@@ -16,6 +16,7 @@ var generatedGroups = map[string]string{
 	"role":              "the workspace's own roles, who holds them, and why a person may do what",
 	"setting":           "the settings catalogue: every setting, its level and its source",
 	"sla":               "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period",
+	"sprint":            "a collection's sprints: planned, run and closed, their burndown, the backlog and the team's velocity",
 	"whiteboard":        "a hub's whiteboards: make, draw on, trash and export them",
 	"workflow":          "the workspace's workflows and which collection runs which",
 }
@@ -341,6 +342,16 @@ var generatedCommands = []door{
 			{Name: "scope", Kind: "json", Help: "Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either …", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"count", "group", "period", "value"}},
+	{Group: "item", Verb: "estimate", OperationID: "setEntryEstimate", Method: "PUT", Path: "/items/{itemId}/estimate", Summary: "Say how big an entry is",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "size", Kind: "string", Help: "", Required: false},
+			{Name: "unit", Kind: "string", Help: "", Required: true},
+			{Name: "value", Kind: "number", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id", "size", "unit", "value"}},
 	{Group: "item", Verb: "step", OperationID: "takeStep", Method: "POST", Path: "/items/{itemId}:step", Summary: "Move an entry on by one step",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -355,6 +366,11 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"status"}},
+	{Group: "item", Verb: "unestimate", OperationID: "clearEntryEstimate", Method: "DELETE", Path: "/items/{itemId}/estimate", Summary: "Remove an entry's estimate",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "link", Verb: "add", OperationID: "linkEntries", Method: "POST", Path: "/items/{itemId}/links", Summary: "Link the entry to another",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -761,6 +777,91 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"armed_at", "at_risk_at", "breached_at", "due_at", "goal"}},
+	{Group: "sprint", Verb: "add", OperationID: "addSprintEntries", Method: "POST", Path: "/sprints/{sprintId}/entries", Summary: "Put entries into a sprint",
+		PathParams: []doorParam{
+			{Name: "sprintId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "item_ids", Kind: "strings", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "sprint", Verb: "backlog", OperationID: "readSprintBacklog", Method: "GET", Path: "/collections/{collectionId}/sprint-backlog", Summary: "The backlog to plan a sprint from",
+		PathParams: []doorParam{
+			{Name: "collectionId", Kind: "uuid", Help: "The collection - a team's board - the sprints belong to", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
+	{Group: "sprint", Verb: "close", OperationID: "closeSprint", Method: "POST", Path: "/sprints/{sprintId}:close", Summary: "Close a sprint",
+		PathParams: []doorParam{
+			{Name: "sprintId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "carry_to_sprint_id", Kind: "uuid", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"carried_to"}},
+	{Group: "sprint", Verb: "create", OperationID: "createSprint", Method: "POST", Path: "/collections/{collectionId}/sprints", Summary: "Plan a sprint",
+		PathParams: []doorParam{
+			{Name: "collectionId", Kind: "uuid", Help: "The collection - a team's board - the sprints belong to", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "end_on", Kind: "string", Help: "", Required: true},
+			{Name: "goal", Kind: "string", Help: "", Required: false},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "start_on", Kind: "string", Help: "", Required: true},
+			{Name: "unit", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "sprint", Verb: "get", OperationID: "readSprint", Method: "GET", Path: "/sprints/{sprintId}", Summary: "A sprint with its entries and burndown",
+		PathParams: []doorParam{
+			{Name: "sprintId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "calendar", Kind: "string", Help: "A business calendar's key", Required: false},
+			{Name: "zone", Kind: "string", Help: "An IANA time zone, when no calendar names one; UTC without", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "sprint", Verb: "ls", OperationID: "listSprints", Method: "GET", Path: "/collections/{collectionId}/sprints", Summary: "A collection's sprints",
+		PathParams: []doorParam{
+			{Name: "collectionId", Kind: "uuid", Help: "The collection - a team's board - the sprints belong to", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "state", Kind: "string", Help: "Only sprints in this state", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "sprint", Verb: "remove", OperationID: "removeSprintEntries", Method: "POST", Path: "/sprints/{sprintId}/entries:remove", Summary: "Take entries out of a sprint",
+		PathParams: []doorParam{
+			{Name: "sprintId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "item_ids", Kind: "strings", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "sprint", Verb: "rm", OperationID: "deleteSprint", Method: "DELETE", Path: "/sprints/{sprintId}", Summary: "Delete a planned sprint",
+		PathParams: []doorParam{
+			{Name: "sprintId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "sprint", Verb: "start", OperationID: "startSprint", Method: "POST", Path: "/sprints/{sprintId}:start", Summary: "Start a sprint",
+		PathParams: []doorParam{
+			{Name: "sprintId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "sprint", Verb: "update", OperationID: "updateSprint", Method: "PATCH", Path: "/sprints/{sprintId}", Summary: "Change a sprint",
+		PathParams: []doorParam{
+			{Name: "sprintId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "end_on", Kind: "string", Help: "", Required: false},
+			{Name: "goal", Kind: "string", Help: "", Required: false},
+			{Name: "name", Kind: "string", Help: "", Required: false},
+			{Name: "start_on", Kind: "string", Help: "", Required: false},
+			{Name: "unit", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "sprint", Verb: "velocity", OperationID: "readVelocity", Method: "GET", Path: "/collections/{collectionId}/velocity", Summary: "How much a team gets done",
+		PathParams: []doorParam{
+			{Name: "collectionId", Kind: "uuid", Help: "The collection - a team's board - the sprints belong to", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"average", "unit"}},
 	{Group: "type", Verb: "form evaluate", OperationID: "evaluateEntryForm", Method: "POST", Path: "/entry-types/{key}/form:evaluate", Summary: "Answer a type's form for a draft",
 		PathParams: []doorParam{
 			{Name: "key", Kind: "string", Help: "", Required: true},

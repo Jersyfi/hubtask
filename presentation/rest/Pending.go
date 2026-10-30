@@ -2186,3 +2186,42 @@ func (pending) SetDependencyTiming(w http.ResponseWriter, r *http.Request, _ ope
 func (pending) SetEntryScheduling(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
+func (pending) ListSprints(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId, _ openapi.ListSprintsParams) {
+	notAvailable(w, r)
+}
+func (pending) CreateSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
+	notAvailable(w, r)
+}
+func (pending) ReadSprintBacklog(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
+	notAvailable(w, r)
+}
+func (pending) ReadVelocity(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
+	notAvailable(w, r)
+}
+func (pending) ReadSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId, _ openapi.ReadSprintParams) {
+	notAvailable(w, r)
+}
+func (pending) UpdateSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId, _ openapi.UpdateSprintParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) StartSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) CloseSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) AddSprintEntries(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) RemoveSprintEntries(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) SetEntryEstimate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) ClearEntryEstimate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
