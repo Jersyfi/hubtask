@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go, presentation/rest/TimeExportController_test.go]
+checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, core/application/service/timekeeping/Resources_test.go, test/integration/time_repository_test.go, presentation/rest/TimeExportController_test.go]
 ---
 
 # Hand time to accounting
@@ -31,6 +31,11 @@ entry, kind of work, hours and note, which the accounting program reads.
    approves time; aggregated, the caller's own only (`time.aggregated_only`).
 3. Every export is recorded in the audit trail with its range and its number of rows.
 4. REST, MCP and hubctl export alike.
+5. Asked with its costs, which needs `MANAGE_COSTS` (or `MANAGE_MEMBERS`) at the workspace, every
+   record also carries the hourly rate that prices it - the person's own, else their most specific
+   role's where the time was spent - and its cost in that rate's currency's minor unit, empty where
+   no rate prices it; the web app offers it only to whoever manages costs, and no amount reaches
+   the audit trail.
 
 ## Where it ends
 
