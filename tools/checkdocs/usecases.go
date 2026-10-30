@@ -59,6 +59,7 @@ var ucContexts = map[string]string{
 	"timekeeping":  "TIM",
 	"goal":         "GOL",
 	"agent":        "AGT",
+	"config":       "CFG",
 }
 
 var ucStates = map[string]bool{

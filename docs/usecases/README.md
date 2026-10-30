@@ -41,6 +41,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting, capacity, absences and the workload, cost rates and budgets | `service/timekeeping` |
 | [`goal/`](./goal/) | `UC-GOL` | Goals and insight: periods, goals with key results fed by check-ins, views and linked entries, check-ins and grades, portfolios with their health and updates, dashboards over the summaries | `service/goal` |
 | [`agent/`](./agent/) | `UC-AGT` | Governed agents: the registry and lifecycle, the gate every act passes, held acts approved by a person, budgets and kill switches, the models agents may call, evaluation before going live, the provenance of accepted AI values, an agent configuring within its sections | `service/agent` |
+| [`config/`](./config/) | `UC-CFG` | The configuration document of a workspace and of a hub: export, plan with its reach, apply, versions and rollback, the sandbox, the plan seen before it applies | `service/config` |
 
 ## What a use case looks like
 
@@ -332,6 +333,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-AGT-05](./agent/UC-AGT-05-see-where-an-ai-value-came-from.md) | See where a value that came from AI came from | agent |
 | [UC-AGT-06](./agent/UC-AGT-06-let-an-agent-configure-only-the-sections-it-was-given.md) | Let an agent configure only the sections it was given | agent |
 | [UC-AGT-07](./agent/UC-AGT-07-let-a-shipped-agent-propose-what-it-found.md) | Let a shipped agent propose what it found, for a person to apply | agent |
+| [UC-CFG-01](./config/UC-CFG-01-change-our-configuration-as-one-document-seen-before-it-applies.md) | Change our configuration as one document, seen before it applies | config |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
