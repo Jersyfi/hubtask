@@ -4,12 +4,10 @@
 package rest
 
 import (
-	"net/http"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -18,69 +16,6 @@ import (
 // One API and three clients: `hubctl admin`, the instance dashboard, and the file an operator
 // checks into a repository. The controller holds no rules - whose credential may reach any of this
 // is decided inwards of here, behind the scope and the register both.
-
-const (
-	writeInstanceSettingsUseCase = "WriteInstanceSettings"
-)
-
-// The four operations below are written out rather than taken through the identity helper, for the
-// reason `ListServiceAccounts` is: the helper's closure takes no context, and an operation with no
-// parameters gives the linter nothing to trace the request's context through.
-
-// WriteInstanceSettings answers PUT /admin/settings.
-func (c *RestController) WriteInstanceSettings(
-	w http.ResponseWriter, r *http.Request, params openapi.WriteInstanceSettingsParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.InstanceSettings
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{}
-	if body.SignIn != nil {
-		in["sign_in"] = instanceSettingMap(*body.SignIn)
-	}
-	if body.Legal != nil {
-		in["legal"] = instanceSettingMap(*body.Legal)
-	}
-	if body.Localisation != nil {
-		in["localisation"] = instanceSettingMap(*body.Localisation)
-	}
-	if body.Quotas != nil {
-		in["quotas"] = instanceSettingMap(*body.Quotas)
-	}
-	if body.Ai != nil {
-		in["ai"] = instanceSettingMap(*body.Ai)
-	}
-	if body.BlocklistFile != nil {
-		in["blocklist_file"] = *body.BlocklistFile
-	}
-	if body.Metering != nil {
-		in["metering"] = *body.Metering
-	}
-	if body.ReservedShortNames != nil {
-		in["reserved_short_names"] = *body.ReservedShortNames
-	}
-	// The body's `version` is read-only and ignored: the version a save was made on travels in
-	// `If-Match`, as everywhere else in the API.
-	if version, ok := versionFromIfMatch(params.IfMatch); ok {
-		in["expected_version"] = version
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), writeInstanceSettingsUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, instanceSettingsResponse(out))
-}
 
 // operatorResponse maps one operator of the instance.
 func operatorResponse(row usecase.Output) openapi.Operator {
@@ -107,17 +42,6 @@ func operatorResponse(row usecase.Output) openapi.Operator {
 	operator.WorkspaceName = optionalStringOutput(row, "workspace_name")
 	operator.AddedByName = optionalStringOutput(row, "added_by_name")
 	return operator
-}
-
-// instanceSettingMap flattens the contract's `{value, locked}` documents into the catalogue's.
-func instanceSettingMap(sent map[string]openapi.InstanceSetting) map[string]any {
-	settings := make(map[string]any, len(sent))
-	for name, setting := range sent {
-		// As it arrived, value or none: what an entry without a value means is the use case's to
-		// decide, and the file reaches the same reading without passing through here.
-		settings[name] = map[string]any{"value": setting.Value, "locked": setting.Locked}
-	}
-	return settings
 }
 
 func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {

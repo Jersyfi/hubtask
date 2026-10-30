@@ -12058,6 +12058,9 @@ paths:
     put:
       tags: [admin]
       operationId: writeInstanceSettings
+      x-hubtask-rest: generated
+      x-hubtask-rest-drop: [module]
+      x-hubtask-rest-answer: instanceSettingsResponse
       summary: Replace the installation's level
       description: >
         A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no

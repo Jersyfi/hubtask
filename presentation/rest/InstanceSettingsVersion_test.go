@@ -89,3 +89,24 @@ func TestAStaleSaveAnswersVersionConflict(t *testing.T) {
 		t.Errorf("the problem is %+v", problem)
 	}
 }
+
+// A saved level reaches the use case as the areas it read: each setting's value and lock, its
+// description members ignored by the use case, and `module` accepted and dropped as before the
+// door was generated - the use case declares no input of that name.
+func TestASaveHandsTheAreasOnAndDropsTheModules(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"version": 2}}
+	recorder := callSettings(t, registry, http.MethodPut,
+		`{"sign_in":{"methods":{"set":true,"value":["password"],"locked":true,"kind":"CHOICES"}},`+
+			`"module":{"ai":{"set":true,"value":true,"locked":false}},"metering":true}`, "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	signIn, _ := registry.in["sign_in"].(map[string]any)
+	methods, _ := signIn["methods"].(map[string]any)
+	if methods["locked"] != true || methods["value"] == nil {
+		t.Errorf("sign_in = %v", registry.in["sign_in"])
+	}
+	if _, passed := registry.in["module"]; passed || registry.in["metering"] != true {
+		t.Errorf("in = %v", registry.in)
+	}
+}

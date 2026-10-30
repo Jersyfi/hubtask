@@ -728,6 +728,7 @@ var restDoors = map[string]restDoor{
 	"withdrawPreset":                    {UseCase: "WithdrawPreset", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"withdrawTimesheet":                 {UseCase: "WithdrawTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"writeConfigSandbox":                {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"writeInstanceSettings":             {UseCase: "WriteInstanceSettings", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}, ReadOnly: []string{"is_enforced_from_file", "source", "version"}, Dropped: []string{"module"}},
 }
 
 // AcceptSuggestion answers POST /suggestions/{suggestionId}:accept by the generated mapping.
@@ -5334,4 +5335,10 @@ func (c *RestController) WriteConfigSandbox(w http.ResponseWriter, r *http.Reque
 	var body openapi.WriteConfigSandboxJSONRequestBody
 	var answer openapi.ConfigSandbox
 	c.door(w, r, restDoors["writeConfigSandbox"], usecase.Input{}, nil, &body, &answer)
+}
+
+// WriteInstanceSettings answers PUT /admin/settings by the generated mapping.
+func (c *RestController) WriteInstanceSettings(w http.ResponseWriter, r *http.Request, params openapi.WriteInstanceSettingsParams) {
+	var body openapi.WriteInstanceSettingsJSONRequestBody
+	c.door(w, r, restDoors["writeInstanceSettings"], usecase.Input{}, params, &body, answerBy(instanceSettingsResponse))
 }
