@@ -270,6 +270,82 @@
         }
       }
     },
+    "/plans:tolerance": {
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "readWorkspaceTolerance",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan workspace-tolerance",
+        "summary": "The time tolerance the workspace decides",
+        "description": "The days every plan of the workspace may let its forecast end slip past its latest baseline's before it is in exception, the level they come from and the level that locked them. Needs READ at the workspace.\n",
+        "responses": {
+          "200": {
+            "description": "The tolerance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceTolerance"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "setWorkspaceTolerance",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan workspace-tolerance set",
+        "summary": "Set the time tolerance every plan inherits",
+        "description": "Calendar days, 0 to 365, that every hub and collection of the workspace inherits, locked for them when asked; without days it is left to the level above. When a plan slips beyond it, the person who set it is told by mail once per baseline. Needs STRUCTURE at the workspace.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "time_tolerance_days": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 365
+                  },
+                  "lock": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The tolerance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceTolerance"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/plans/{planId}/tolerance": {
       "parameters": [
         {
@@ -38489,6 +38565,44 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 100
+          }
+        }
+      },
+      "WorkspaceTolerance": {
+        "type": "object",
+        "description": "The workspace's time tolerance, keyed by the settings catalogue's key.",
+        "required": [
+          "planning.time_tolerance_days"
+        ],
+        "properties": {
+          "planning.time_tolerance_days": {
+            "type": "object",
+            "required": [
+              "value",
+              "source",
+              "locked_by"
+            ],
+            "properties": {
+              "value": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "The days a plan's forecast end may slip; null without a tolerance."
+              },
+              "source": {
+                "type": "string",
+                "description": "The level whose value is in force."
+              },
+              "locked_by": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The level that locked it",
+                "where one did.": null
+              }
+            }
           }
         }
       },

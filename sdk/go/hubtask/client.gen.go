@@ -22957,6 +22957,20 @@ type WorkspaceStructureChangeDefaultPreset string
 // WorkspaceStructureChangePreset defines model for WorkspaceStructureChange.Preset.
 type WorkspaceStructureChangePreset string
 
+// WorkspaceTolerance The workspace's time tolerance, keyed by the settings catalogue's key.
+type WorkspaceTolerance struct {
+	PlanningTimeToleranceDays struct {
+		// LockedBy The level that locked it
+		LockedBy *string `json:"locked_by"`
+
+		// Source The level whose value is in force.
+		Source string `json:"source"`
+
+		// Value The days a plan's forecast end may slip; null without a tolerance.
+		Value *int `json:"value"`
+	} `json:"planning.time_tolerance_days"`
+}
+
 // WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question.
 type WorkspaceUpdate struct {
 	// DefaultLocale A BCP-47 tag. One this installation cannot resolve is a field error.
@@ -25025,6 +25039,12 @@ type ReadWorkloadParams struct {
 	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
 }
 
+// SetWorkspaceToleranceJSONBody defines parameters for SetWorkspaceTolerance.
+type SetWorkspaceToleranceJSONBody struct {
+	Lock              *bool `json:"lock,omitempty"`
+	TimeToleranceDays *int  `json:"time_tolerance_days,omitempty"`
+}
+
 // DeletePortfolioParams defines parameters for DeletePortfolio.
 type DeletePortfolioParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -26461,6 +26481,9 @@ type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
 
 // SetPlanToleranceJSONRequestBody defines body for SetPlanTolerance for application/json ContentType.
 type SetPlanToleranceJSONRequestBody SetPlanToleranceJSONBody
+
+// SetWorkspaceToleranceJSONRequestBody defines body for SetWorkspaceTolerance for application/json ContentType.
+type SetWorkspaceToleranceJSONRequestBody SetWorkspaceToleranceJSONBody
 
 // CreatePortfolioJSONRequestBody defines body for CreatePortfolio for application/json ContentType.
 type CreatePortfolioJSONRequestBody = PortfolioWrite
@@ -34302,6 +34325,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
 	ReadWorkload(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadWorkspaceTolerance The time tolerance the workspace decides
+	//
+	// The days every plan of the workspace may let its forecast end slip past its latest baseline's before it is in exception, the level they come from and the level that locked them. Needs READ at the workspace.
+	//
+	// Corresponds with GET /plans:tolerance (the `ReadWorkspaceTolerance` operationId).
+	ReadWorkspaceTolerance(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkspaceToleranceWithBody Set the time tolerance every plan inherits
+	//
+	// Calendar days, 0 to 365, that every hub and collection of the workspace inherits, locked for them when asked; without days it is left to the level above. When a plan slips beyond it, the person who set it is told by mail once per baseline. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
+	SetWorkspaceToleranceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkspaceTolerance Set the time tolerance every plan inherits
+	//
+	// Calendar days, 0 to 365, that every hub and collection of the workspace inherits, locked for them when asked; without days it is left to the level above. When a plan slips beyond it, the person who set it is told by mail once per baseline. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
+	SetWorkspaceTolerance(ctx context.Context, body SetWorkspaceToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPortfolios The portfolios
 	//
@@ -51849,6 +51897,61 @@ func (c *Client) SetPlanTolerance(ctx context.Context, planId PlanId, body SetPl
 // Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
 func (c *Client) ReadWorkload(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadWorkloadRequest(c.Server, planId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadWorkspaceTolerance The time tolerance the workspace decides
+//
+// The days every plan of the workspace may let its forecast end slip past its latest baseline's before it is in exception, the level they come from and the level that locked them. Needs READ at the workspace.
+//
+// Corresponds with GET /plans:tolerance (the `ReadWorkspaceTolerance` operationId).
+func (c *Client) ReadWorkspaceTolerance(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadWorkspaceToleranceRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkspaceToleranceWithBody Set the time tolerance every plan inherits
+//
+// Calendar days, 0 to 365, that every hub and collection of the workspace inherits, locked for them when asked; without days it is left to the level above. When a plan slips beyond it, the person who set it is told by mail once per baseline. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
+func (c *Client) SetWorkspaceToleranceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkspaceToleranceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkspaceTolerance Set the time tolerance every plan inherits
+//
+// Calendar days, 0 to 365, that every hub and collection of the workspace inherits, locked for them when asked; without days it is left to the level above. When a plan slips beyond it, the person who set it is told by mail once per baseline. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
+func (c *Client) SetWorkspaceTolerance(ctx context.Context, body SetWorkspaceToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkspaceToleranceRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -82851,6 +82954,73 @@ func NewReadWorkloadRequest(server string, planId PlanId, params *ReadWorkloadPa
 	return req, nil
 }
 
+// NewReadWorkspaceToleranceRequest constructs an http.Request for the ReadWorkspaceTolerance method
+func NewReadWorkspaceToleranceRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans:tolerance")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetWorkspaceToleranceRequest calls the generic SetWorkspaceTolerance builder with application/json body
+func NewSetWorkspaceToleranceRequest(server string, body SetWorkspaceToleranceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetWorkspaceToleranceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetWorkspaceToleranceRequestWithBody constructs an http.Request for the SetWorkspaceTolerance method, with any body, and a specified content type
+func NewSetWorkspaceToleranceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans:tolerance")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListPortfoliosRequest constructs an http.Request for the ListPortfolios method
 func NewListPortfoliosRequest(server string) (*http.Request, error) {
 	var err error
@@ -99149,6 +99319,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
 	ReadWorkloadWithResponse(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*ReadWorkloadResult, error)
+
+	// ReadWorkspaceToleranceWithResponse The time tolerance the workspace decides
+	//
+	// The days every plan of the workspace may let its forecast end slip past its latest baseline's before it is in exception, the level they come from and the level that locked them. Needs READ at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /plans:tolerance (the `ReadWorkspaceTolerance` operationId).
+	ReadWorkspaceToleranceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadWorkspaceToleranceResult, error)
+
+	// SetWorkspaceToleranceWithBodyWithResponse Set the time tolerance every plan inherits
+	//
+	// Calendar days, 0 to 365, that every hub and collection of the workspace inherits, locked for them when asked; without days it is left to the level above. When a plan slips beyond it, the person who set it is told by mail once per baseline. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
+	SetWorkspaceToleranceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceToleranceResult, error)
+
+	// SetWorkspaceToleranceWithResponse Set the time tolerance every plan inherits
+	//
+	// Calendar days, 0 to 365, that every hub and collection of the workspace inherits, locked for them when asked; without days it is left to the level above. When a plan slips beyond it, the person who set it is told by mail once per baseline. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
+	SetWorkspaceToleranceWithResponse(ctx context.Context, body SetWorkspaceToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceToleranceResult, error)
 
 	// ListPortfoliosWithResponse The portfolios
 	//
@@ -128412,6 +128609,102 @@ func (r ReadWorkloadResult) ContentType() string {
 	return ""
 }
 
+type ReadWorkspaceToleranceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceTolerance
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadWorkspaceToleranceResult) GetJSON200() *WorkspaceTolerance {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadWorkspaceToleranceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadWorkspaceToleranceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadWorkspaceToleranceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadWorkspaceToleranceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadWorkspaceToleranceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetWorkspaceToleranceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceTolerance
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetWorkspaceToleranceResult) GetJSON200() *WorkspaceTolerance {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetWorkspaceToleranceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetWorkspaceToleranceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetWorkspaceToleranceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetWorkspaceToleranceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetWorkspaceToleranceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPortfoliosResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -149643,6 +149936,51 @@ func (c *ClientWithResponses) ReadWorkloadWithResponse(ctx context.Context, plan
 		return nil, err
 	}
 	return ParseReadWorkloadResult(rsp)
+}
+
+// ReadWorkspaceToleranceWithResponse The time tolerance the workspace decides
+//
+// The days every plan of the workspace may let its forecast end slip past its latest baseline's before it is in exception, the level they come from and the level that locked them. Needs READ at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /plans:tolerance (the `ReadWorkspaceTolerance` operationId).
+func (c *ClientWithResponses) ReadWorkspaceToleranceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadWorkspaceToleranceResult, error) {
+	rsp, err := c.ReadWorkspaceTolerance(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadWorkspaceToleranceResult(rsp)
+}
+
+// SetWorkspaceToleranceWithBodyWithResponse Set the time tolerance every plan inherits
+//
+// Calendar days, 0 to 365, that every hub and collection of the workspace inherits, locked for them when asked; without days it is left to the level above. When a plan slips beyond it, the person who set it is told by mail once per baseline. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
+func (c *ClientWithResponses) SetWorkspaceToleranceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceToleranceResult, error) {
+	rsp, err := c.SetWorkspaceToleranceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkspaceToleranceResult(rsp)
+}
+
+// SetWorkspaceToleranceWithResponse Set the time tolerance every plan inherits
+//
+// Calendar days, 0 to 365, that every hub and collection of the workspace inherits, locked for them when asked; without days it is left to the level above. When a plan slips beyond it, the person who set it is told by mail once per baseline. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
+func (c *ClientWithResponses) SetWorkspaceToleranceWithResponse(ctx context.Context, body SetWorkspaceToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceToleranceResult, error) {
+	rsp, err := c.SetWorkspaceTolerance(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkspaceToleranceResult(rsp)
 }
 
 // ListPortfoliosWithResponse The portfolios
@@ -172829,6 +173167,72 @@ func ParseReadWorkloadResult(rsp *http.Response) (*ReadWorkloadResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Workload
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadWorkspaceToleranceResult parses an HTTP response from a ReadWorkspaceToleranceWithResponse call
+func ParseReadWorkspaceToleranceResult(rsp *http.Response) (*ReadWorkspaceToleranceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadWorkspaceToleranceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceTolerance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetWorkspaceToleranceResult parses an HTTP response from a SetWorkspaceToleranceWithResponse call
+func ParseSetWorkspaceToleranceResult(rsp *http.Response) (*SetWorkspaceToleranceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetWorkspaceToleranceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceTolerance
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

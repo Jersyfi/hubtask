@@ -465,6 +465,7 @@ var restDoors = map[string]restDoor{
 	"readWhiteboardVersion":             {UseCase: "ReadWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readWorkload":                      {UseCase: "ReadWorkload", Status: 200, Query: []string{"calendar", "from", "weeks", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"weeks"}},
 	"readWorkspace":                     {UseCase: "ReadWorkspace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readWorkspaceTolerance":            {UseCase: "ReadWorkspaceTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reconcileCis":                      {UseCase: "ReconcileCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"recordAbsence":                     {UseCase: "RecordAbsence", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"recordAgentEvaluation":             {UseCase: "RecordAgentEvaluation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -584,6 +585,7 @@ var restDoors = map[string]restDoor{
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"setUpInstallation":                 {UseCase: "SetUpInstallation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), Request: []string{"user_agent", "remote_addr"}},
 	"setWorkflowScheme":                 {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setWorkspaceTolerance":             {UseCase: "SetWorkspaceTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"time_tolerance_days"}},
 	"sharePage":                         {UseCase: "SharePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"shareSavedView":                    {UseCase: "ShareSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showAlexaModel":                    {UseCase: "ShowAlexaModel", Status: 200, Query: []string{"locale"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3329,6 +3331,12 @@ func (c *RestController) ReadWorkspace(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["readWorkspace"], usecase.Input{}, nil, nil, answerBy(workspaceResponse))
 }
 
+// ReadWorkspaceTolerance answers GET /plans:tolerance by the generated mapping.
+func (c *RestController) ReadWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.WorkspaceTolerance
+	c.door(w, r, restDoors["readWorkspaceTolerance"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ReconcileCis answers POST /hubs/{hubId}/cis:reconcile by the generated mapping.
 func (c *RestController) ReconcileCis(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
 	var body openapi.ReconcileCisJSONRequestBody
@@ -4044,6 +4052,13 @@ func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Reques
 	var body openapi.SetWorkflowSchemeJSONRequestBody
 	var answer openapi.WorkflowSchemeResult
 	c.door(w, r, restDoors["setWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetWorkspaceTolerance answers PUT /plans:tolerance by the generated mapping.
+func (c *RestController) SetWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetWorkspaceToleranceJSONRequestBody
+	var answer openapi.WorkspaceTolerance
+	c.door(w, r, restDoors["setWorkspaceTolerance"], usecase.Input{}, nil, &body, &answer)
 }
 
 // SharePage answers POST /pages/{pageId}/shares by the generated mapping.

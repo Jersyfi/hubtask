@@ -1434,6 +1434,14 @@ var generatedCommands = []door{
 			{Name: "zone", Kind: "string", Help: "The time zone the entries' dates are days in; UTC without", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"aggregated", "plan_id", "unscheduled_minutes"}},
+	{Group: "plan", Verb: "workspace-tolerance", OperationID: "readWorkspaceTolerance", Method: "GET", Path: "/plans:tolerance", Summary: "The time tolerance the workspace decides",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "plan", Verb: "workspace-tolerance set", OperationID: "setWorkspaceTolerance", Method: "PUT", Path: "/plans:tolerance", Summary: "Set the time tolerance every plan inherits",
+		Body: []doorParam{
+			{Name: "lock", Kind: "boolean", Help: "", Required: false},
+			{Name: "time_tolerance_days", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
 	{Group: "portfolio", Verb: "add", OperationID: "createPortfolio", Method: "POST", Path: "/portfolios", Summary: "Create a portfolio",
 		Body: []doorParam{
 			{Name: "description", Kind: "string", Help: "", Required: false},

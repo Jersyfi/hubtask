@@ -22952,6 +22952,20 @@ type WorkspaceStructureChangeDefaultPreset string
 // WorkspaceStructureChangePreset defines model for WorkspaceStructureChange.Preset.
 type WorkspaceStructureChangePreset string
 
+// WorkspaceTolerance The workspace's time tolerance, keyed by the settings catalogue's key.
+type WorkspaceTolerance struct {
+	PlanningTimeToleranceDays struct {
+		// LockedBy The level that locked it
+		LockedBy *string `json:"locked_by"`
+
+		// Source The level whose value is in force.
+		Source string `json:"source"`
+
+		// Value The days a plan's forecast end may slip; null without a tolerance.
+		Value *int `json:"value"`
+	} `json:"planning.time_tolerance_days"`
+}
+
 // WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question.
 type WorkspaceUpdate struct {
 	// DefaultLocale A BCP-47 tag. One this installation cannot resolve is a field error.
@@ -25020,6 +25034,12 @@ type ReadWorkloadParams struct {
 	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
 }
 
+// SetWorkspaceToleranceJSONBody defines parameters for SetWorkspaceTolerance.
+type SetWorkspaceToleranceJSONBody struct {
+	Lock              *bool `json:"lock,omitempty"`
+	TimeToleranceDays *int  `json:"time_tolerance_days,omitempty"`
+}
+
 // DeletePortfolioParams defines parameters for DeletePortfolio.
 type DeletePortfolioParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -26456,6 +26476,9 @@ type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
 
 // SetPlanToleranceJSONRequestBody defines body for SetPlanTolerance for application/json ContentType.
 type SetPlanToleranceJSONRequestBody SetPlanToleranceJSONBody
+
+// SetWorkspaceToleranceJSONRequestBody defines body for SetWorkspaceTolerance for application/json ContentType.
+type SetWorkspaceToleranceJSONRequestBody SetWorkspaceToleranceJSONBody
 
 // CreatePortfolioJSONRequestBody defines body for CreatePortfolio for application/json ContentType.
 type CreatePortfolioJSONRequestBody = PortfolioWrite
@@ -28769,6 +28792,12 @@ type ServerInterface interface {
 	// ReadWorkload Who has room in a plan
 	// (GET /plans/{planId}/workload)
 	ReadWorkload(w http.ResponseWriter, r *http.Request, planId PlanId, params ReadWorkloadParams)
+	// ReadWorkspaceTolerance The time tolerance the workspace decides
+	// (GET /plans:tolerance)
+	ReadWorkspaceTolerance(w http.ResponseWriter, r *http.Request)
+	// SetWorkspaceTolerance Set the time tolerance every plan inherits
+	// (PUT /plans:tolerance)
+	SetWorkspaceTolerance(w http.ResponseWriter, r *http.Request)
 	// ListPortfolios The portfolios
 	// (GET /portfolios)
 	ListPortfolios(w http.ResponseWriter, r *http.Request)
@@ -47860,6 +47889,34 @@ func (siw *ServerInterfaceWrapper) ReadWorkload(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ReadWorkspaceTolerance operation middleware
+func (siw *ServerInterfaceWrapper) ReadWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadWorkspaceTolerance(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetWorkspaceTolerance operation middleware
+func (siw *ServerInterfaceWrapper) SetWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetWorkspaceTolerance(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPortfolios operation middleware
 func (siw *ServerInterfaceWrapper) ListPortfolios(w http.ResponseWriter, r *http.Request) {
 
@@ -53739,6 +53796,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/schedule", wrapper.ReadPlanSchedule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plans/{planId}/schedule:apply", wrapper.ApplyPlanSchedule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans:tolerance", wrapper.ReadWorkspaceTolerance)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/plans:tolerance", wrapper.SetWorkspaceTolerance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/tolerance", wrapper.ReadPlanTolerance)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/plans/{planId}/tolerance", wrapper.SetPlanTolerance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/baselines", wrapper.ListBaselines)

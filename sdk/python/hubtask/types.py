@@ -1661,6 +1661,10 @@ class AgentWrite(TypedDict, total=False):
     budget: dict[str, Any]
     min_accuracy: int
 
+WorkspaceTolerance = TypedDict("WorkspaceTolerance", {
+    "planning.time_tolerance_days": Required[dict[str, Any]],
+}, total=False)
+
 WorkspaceAgentPolicy = TypedDict("WorkspaceAgentPolicy", {
     "agents.registered_only": Required[dict[str, Any]],
 }, total=False)

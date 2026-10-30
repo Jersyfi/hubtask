@@ -111,6 +111,14 @@ class Client:
         """Apply the moves a person accepted"""
         return self._call("POST", "/plans/{planId}/schedule:apply", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
 
+    def read_workspace_tolerance(self) -> "WorkspaceTolerance":
+        """The time tolerance the workspace decides"""
+        return self._call("GET", "/plans:tolerance", {}, None, {}, None, "none", None, "json")
+
+    def set_workspace_tolerance(self, body: dict[str, Any]) -> "WorkspaceTolerance":
+        """Set the time tolerance every plan inherits"""
+        return self._call("PUT", "/plans:tolerance", {}, None, {}, body, "json", "application/json", "json")
+
     def read_plan_tolerance(self, plan_id: str, *, query: dict[str, Any] | None = None) -> "PlanTolerance":
         """A plan's time tolerance and its standing"""
         return self._call("GET", "/plans/{planId}/tolerance", {"planId": plan_id}, query, {}, None, "none", None, "json")

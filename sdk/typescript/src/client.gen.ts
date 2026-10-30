@@ -121,6 +121,16 @@ export class HubtaskClient {
     return this.call("POST", "/plans/{planId}/schedule:apply", { "planId": planId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The time tolerance the workspace decides */
+  readWorkspaceTolerance(options: CallOptions = {}): Promise<operations["readWorkspaceTolerance"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/plans:tolerance", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set the time tolerance every plan inherits */
+  setWorkspaceTolerance(body: NonNullable<operations["setWorkspaceTolerance"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setWorkspaceTolerance"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/plans:tolerance", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** A plan's time tolerance and its standing */
   readPlanTolerance(planId: string, options: CallOptions & { readonly query?: NonNullable<operations["readPlanTolerance"]['parameters']['query']> } = {}): Promise<operations["readPlanTolerance"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/plans/{planId}/tolerance", { "planId": planId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
