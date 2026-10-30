@@ -15,8 +15,6 @@ import (
 // job pointer whose result_url names the import, and the import read back as the contract's
 // ImportRun.
 
-const ()
-
 // importJobResponse maps an accepted import: the job and where its report will be.
 func importJobResponse(out usecase.Output) openapi.JobRef {
 	resultURL := out.String("result_url")

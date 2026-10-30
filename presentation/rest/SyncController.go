@@ -165,8 +165,6 @@ func uuidPointer(id shared.ID) *openapi_types.UUID {
 	return &value
 }
 
-const ()
-
 func deviceResponse(row usecase.Output) openapi.SyncDevice {
 	blocked, _ := row["blocked"].(bool)
 	created := timeValue(row["created_at"])

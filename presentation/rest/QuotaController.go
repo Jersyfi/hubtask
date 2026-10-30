@@ -3,8 +3,6 @@
 
 package rest
 
-import ()
-
 // The quota surface's use case names.
 const (
 	updateTenantQuotasUseCase = "UpdateTenantQuotas"

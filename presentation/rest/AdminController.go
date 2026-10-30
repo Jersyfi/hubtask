@@ -12,11 +12,6 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The use case names of the control plane. All four are written out longhand for
-// ListServiceAccounts' reason: the identity helper's closure gives the linter nothing to trace
-// the context through.
-const ()
-
 // provisionedTenantResponse maps a new workspace with the one answer the owner's way in ever appears in (T-18's shown once).
 func provisionedTenantResponse(out usecase.Output) openapi.ProvisionedTenant {
 	tenant := adminTenantResponse(out)

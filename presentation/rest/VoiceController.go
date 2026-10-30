@@ -19,8 +19,6 @@ import (
 // Voice assistants (ADR-0093). The controller maps documents; who may change the settings and
 // what a sentence does are decided inwards of here.
 
-const ()
-
 // AlexaAnswerer serves Alexa's endpoint. Not a catalogue entry: it proves its caller with Amazon's
 // signature and the linked account's token, not with this API's credentials.
 type AlexaAnswerer interface {

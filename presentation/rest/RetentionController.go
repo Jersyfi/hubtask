@@ -10,8 +10,6 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-const ()
-
 // retentionPolicyResponse maps one rule.
 func retentionPolicyResponse(out usecase.Output) openapi.RetentionPolicy {
 	policy := openapi.RetentionPolicy{}
@@ -111,8 +109,6 @@ func retentionPreviewResponse(out usecase.Output) map[string]any {
 	}
 	return preview
 }
-
-const ()
 
 // legalHoldResponse maps one hold.
 func legalHoldResponse(out usecase.Output) openapi.LegalHold {

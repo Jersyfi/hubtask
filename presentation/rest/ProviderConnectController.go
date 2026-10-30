@@ -13,8 +13,6 @@ import (
 // Connecting a provider from a signed-in session (ADR-0078 §1): the two halves, as the provider
 // step-up's are, on the caller's own account.
 
-const ()
-
 func connectedIdentityResponse(out usecase.Output) openapi.ConnectedIdentity {
 	providerID, _ := uuid.Parse(out.String("provider_id"))
 	return openapi.ConnectedIdentity{

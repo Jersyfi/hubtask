@@ -15,8 +15,6 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-const ()
-
 // backupArchiveResponse maps one archive at the target.
 func backupArchiveResponse(out usecase.Output) openapi.BackupArchive {
 	archive := openapi.BackupArchive{}

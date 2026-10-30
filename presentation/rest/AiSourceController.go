@@ -14,8 +14,6 @@ import (
 
 // Which AI answers a workspace (ADR-0072 §2, §3), over REST.
 
-const ()
-
 // aiSourceResponse maps the use case's answer. An offered model carries what the use case gives
 // it - name, processor, jurisdiction - and this mapper has no field for anything more.
 func aiSourceResponse(out usecase.Output) openapi.AiSource {

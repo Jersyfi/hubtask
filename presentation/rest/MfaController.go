@@ -10,9 +10,6 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The use case names of the second factor.
-const ()
-
 // totpConfirmedResponse maps an armed authenticator: the session pair, or the change step the sign-in still owes standing where the pair would.
 func totpConfirmedResponse(out usecase.Output) openapi.TotpConfirmed {
 	confirmed := openapi.TotpConfirmed{Armed: true}
@@ -80,12 +77,6 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 	return challenge
 }
 
-const stepUpUseCase = "StepUp"
-
-const startPasskeyStepUpUseCase = "StartPasskeyStepUp"
-
-const startProviderStepUpUseCase = "StartProviderStepUp"
-
 // stepUpHeaderField reads the proof off the header a privileged operation accepts it in.
 func stepUpHeaderField(token *openapi.StepUpToken) any {
 	if token == nil || *token == "" {
@@ -93,10 +84,6 @@ func stepUpHeaderField(token *openapi.StepUpToken) any {
 	}
 	return string(*token)
 }
-
-const regenerateRecoveryCodesUseCase = "RegenerateRecoveryCodes"
-
-const ()
 
 func recoveryCodeList(value any) []string {
 	values, _ := value.([]any)

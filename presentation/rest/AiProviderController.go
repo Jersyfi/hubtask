@@ -10,9 +10,6 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The AI provider's configuration use cases.
-const ()
-
 // aiProviderResponse maps the use case's answer. The API key is not among the fields, because it
 // is not among the use case's either - there is no call that answers it.
 func aiProviderResponse(out usecase.Output) openapi.AiProvider {

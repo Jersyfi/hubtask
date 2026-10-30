@@ -15,8 +15,6 @@ import (
 // thing it contributes is the host - only the adapter has the connection, so the workspace's
 // address travels as a declared input rather than being re-derived somewhere that never saw it.
 
-const getSignInRulesUseCase = "GetSignInRules"
-
 func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 	methods := make([]openapi.SignInMethod, 0, 2)
 	for _, method := range nameList(out["methods"]) {
@@ -117,8 +115,6 @@ func nameList(value any) []string {
 	return names
 }
 
-const ()
-
 func passwordCheckResponse(out usecase.Output) openapi.PasswordCheckResult {
 	rows, _ := out["violations"].([]any)
 	violations := make([]openapi.PasswordViolation, 0, len(rows))
@@ -145,5 +141,3 @@ func passwordCheckResponse(out usecase.Output) openapi.PasswordCheckResult {
 const (
 	forgetPasswordUseCase = "ForgetPassword"
 )
-
-const setPasswordAndSignInUseCase = "SetPasswordAndSignIn"

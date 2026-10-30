@@ -13,8 +13,6 @@ import (
 // does is map a request to an input and an answer to a document - and, once, carry a plaintext
 // from the mint to the response without letting it touch anything else on the way.
 
-const ()
-
 func accessTokenResponse(out usecase.Output) openapi.AccessToken {
 	return openapi.AccessToken{
 		Id:         uuidValue(out.String("id")),

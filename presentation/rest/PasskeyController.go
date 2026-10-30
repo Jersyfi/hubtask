@@ -110,8 +110,6 @@ func (c *RestController) CompletePasskeyRegistration(w http.ResponseWriter, r *h
 // there is no actor to resolve - the call exists to produce one - and the request's host, client and
 // workspace sources travel as declared inputs, because only this adapter has the request.
 
-const ()
-
 const (
 	completePasskeyEnrollmentUseCase = "CompletePasskeyEnrollment"
 )
