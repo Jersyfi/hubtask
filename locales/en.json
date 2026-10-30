@@ -10529,6 +10529,7 @@
   "app.consent.scope.config_apply_roles": "Apply the configuration's roles without their own permission scope",
   "app.consent.scope.config_apply_fields": "Apply the configuration's fields without their own permission scope",
   "app.consent.scope.config_apply_business_calendars": "Apply the configuration's business calendars without their own permission scope",
+  "app.consent.scope.config_apply_requester_organisations": "Apply the configuration's portal organisations without their own permission scope",
   "app.consent.scope.config_apply_reply_templates": "Apply the configuration's reply templates without their own permission scope",
   "app.consent.scope.config_apply_sla_policies": "Apply the configuration's service level policies without their own permission scope",
   "app.consent.scope.config_apply_views": "Apply the configuration's shared views without their own permission scope",

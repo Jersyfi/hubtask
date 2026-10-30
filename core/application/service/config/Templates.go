@@ -192,6 +192,18 @@ func (h PublishConfigTemplate) Descriptor() usecase.Descriptor {
 	}
 }
 
+// templateDocument is what a template keeps of a workspace's document: neither its settings nor
+// what only this workspace holds - its organisations, which name its own customers by their mail
+// domains, and its own preset, named by an identifier no other workspace holds.
+func templateDocument(document domain.Document) domain.Document {
+	delete(document, sectionSettings)
+	delete(document, sectionOrganisations)
+	if preset := document[sectionStructure][structureDefaultPreset]; preset != nil && preset[presetIDAttribute] != nil {
+		delete(document[sectionStructure], structureDefaultPreset)
+	}
+	return document
+}
+
 func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	key, name := in.String("key"), strings.TrimSpace(in.String("name"))
 	if !domain.ValidKey(key) {
@@ -216,11 +228,7 @@ func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usec
 				return domain.ErrRefused(refusals)
 			}
 		}
-		delete(document, sectionSettings)
-		if preset := document[sectionStructure][structureDefaultPreset]; preset != nil && preset[presetIDAttribute] != nil {
-			// A workspace's own preset is named by its identifier, which no other workspace holds.
-			delete(document[sectionStructure], structureDefaultPreset)
-		}
+		document = templateDocument(document)
 		// Linted as if taken by an empty workspace: every block must be one its create accepts.
 		lint := d.planOf(current{Document: lintBase()}, withoutRemovals(document), domain.ModeMerge)
 		if len(lint.Refusals) > 0 {

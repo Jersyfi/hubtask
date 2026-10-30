@@ -72,6 +72,9 @@ type section struct {
 	// changes what somebody may do.
 	hides       func(change domain.BlockChange) bool
 	permissions bool
+	// releases marks a change that gives up what another block of the section may claim in the
+	// same apply - an organisation's mail domain: it runs first in its section, a removal too.
+	releases func(change domain.BlockChange) bool
 }
 
 const (
@@ -85,11 +88,13 @@ const (
 	sectionStructure = "structure"
 	// The service desk's blocks (M5): calendars before the policies that name them, both after the
 	// types a policy measures.
-	sectionCalendars  = "business_calendars"
-	sectionPolicies   = "sla_policies"
-	sectionReplies    = "reply_templates"
-	switchAttribute   = "switch"
-	settingValueField = "value"
+	sectionCalendars = "business_calendars"
+	sectionPolicies  = "sla_policies"
+	sectionReplies   = "reply_templates"
+	// The portal's organisations (UC-SVC-11): a change decides who sees whose requests.
+	sectionOrganisations = "requester_organisations"
+	switchAttribute      = "switch"
+	settingValueField    = "value"
 )
 
 // sections is the document's shape, in apply order.
@@ -213,7 +218,37 @@ func sections() []section {
 			create:     "DefineReplyTemplate", change: "DefineReplyTemplate", remove: "DeleteReplyTemplate",
 			locate: "key", locateFrom: "key", changeable: []string{"name", "body"}, whole: true,
 		},
+		{
+			name: sectionOrganisations, module: module.ServiceDesk, list: "ListRequesterOrganisations", rows: "data", key: "key",
+			attributes: []string{"name", "domains", "shares_requests"},
+			create:     "DefineRequesterOrganisation", change: "DefineRequesterOrganisation", remove: "DeleteRequesterOrganisation",
+			locate: "key", locateFrom: "key", changeable: []string{"name", "domains", "shares_requests"}, whole: true,
+			permissions: true, releases: releasesDomain,
+		},
 	}, furnitureSections("")...)
+}
+
+// releasesDomain reports whether an organisation's change gives up a mail domain, so that a
+// domain moved to another organisation in one apply is free before it is claimed there.
+func releasesDomain(change domain.BlockChange) bool {
+	if change.Op == domain.OpRemove {
+		return true
+	}
+	if change.Op != domain.OpChange {
+		return false
+	}
+	kept := map[string]bool{}
+	after, _ := change.After["domains"].([]any)
+	for _, d := range after {
+		kept[strings.ToLower(strings.TrimSpace(text(d)))] = true
+	}
+	before, _ := change.Before["domains"].([]any)
+	for _, d := range before {
+		if !kept[strings.ToLower(strings.TrimSpace(text(d)))] {
+			return true
+		}
+	}
+	return false
 }
 
 // workflowOps writes a workflow: a new one is created with its shape; a changed shape is saved

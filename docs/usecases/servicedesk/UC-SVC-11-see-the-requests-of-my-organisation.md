@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Organisation_test.go, core/application/service/servicedesk/Organisations_test.go, test/integration/service_desk_organisation_test.go, apps/webapp/src/lib/servicedesk/organisations.test.ts]
+checked_by: [core/domain/model/servicedesk/Organisation_test.go, core/application/service/config/ServiceDesk_test.go, core/application/service/servicedesk/Organisations_test.go, test/integration/service_desk_organisation_test.go, apps/webapp/src/lib/servicedesk/organisations.test.ts]
 ---
 
 # See the requests of my organisation in the portal
@@ -46,6 +46,10 @@ or rate it. When Jonas's address moves to another company, Mehmet no longer sees
 5. *Administration → Service desk → Organisations* lists, adds, changes and deletes organisations;
    the portal of a collection offers *My requests* and *My organisation's requests* only to a
    requester whose organisation shares its requests.
+6. The organisations are the `requester_organisations` section of the workspace's configuration
+   document by their keys: exported with name, domains and sharing, applied through the same use
+   cases, a change flagged as changing permissions, and a domain moved between two organisations
+   in one apply given up before it is claimed. A published template leaves them out.
 
 ## Where it ends
 

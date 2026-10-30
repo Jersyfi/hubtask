@@ -383,6 +383,7 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 	var removals []operation
 	var settingChanges []domain.BlockChange
 	for _, s := range append(now.sections(), section{name: sectionSettings}) {
+		early := len(p.Ops)
 		for _, change := range changes {
 			if change.Section != s.name {
 				continue
@@ -419,9 +420,13 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 					}
 				}
 			}
-			if change.Op == domain.OpRemove {
+			switch {
+			case s.releases != nil && s.releases(change):
+				p.Ops = append(p.Ops[:early], append(ops, p.Ops[early:]...)...)
+				early += len(ops)
+			case change.Op == domain.OpRemove:
 				removals = append(ops, removals...)
-			} else {
+			default:
 				p.Ops = append(p.Ops, ops...)
 			}
 			if s.hides != nil && s.hides(change) {

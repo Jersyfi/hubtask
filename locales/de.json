@@ -10526,6 +10526,7 @@
   "app.consent.scope.config_apply_roles": "Rollen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_fields": "Felder der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_business_calendars": "Geschäftskalender der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_requester_organisations": "Portal-Organisationen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_reply_templates": "Antwortvorlagen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_sla_policies": "Service-Level-Regeln der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_views": "Geteilte Ansichten der Konfiguration anwenden, ohne deren eigenen Bereich",
