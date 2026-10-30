@@ -1010,6 +1010,28 @@ type ChangeLogDefault struct {
 	Payload     []byte
 }
 
+type ChatBot struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	HubID        pgtype.UUID
+	CollectionID pgtype.UUID
+	Homeserver   string
+	Room         string
+	BotUser      string
+	Locale       string
+	Unfurl       bool
+	Capture      bool
+	Enabled      bool
+	RunAs        pgtype.UUID
+	Since        string
+	Failure      string
+	SecretEnc    []byte
+	SecretKeyID  string
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+}
+
 type CmdbAffected struct {
 	ID       pgtype.UUID
 	TenantID pgtype.UUID

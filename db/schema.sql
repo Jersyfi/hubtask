@@ -6979,4 +6979,42 @@ CREATE POLICY tenant_isolation ON file_store_authorization
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON file_store_authorization TO hubtask_app;
 
+-- A Matrix bot in a hub's room (migration 0280).
+CREATE TABLE chat_bot (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL,
+  hub_id        uuid NOT NULL,
+  collection_id uuid NOT NULL,
+  homeserver    text NOT NULL CHECK (char_length(homeserver) <= 512 AND homeserver LIKE 'https://%'),
+  room          text NOT NULL CHECK (char_length(room) BETWEEN 3 AND 255),
+  bot_user      text NOT NULL CHECK (char_length(bot_user) <= 255),
+  locale        text NOT NULL DEFAULT '' CHECK (char_length(locale) <= 16),
+  unfurl        boolean NOT NULL,
+  capture       boolean NOT NULL,
+  enabled       boolean NOT NULL,
+  run_as        uuid NOT NULL,
+  since         text NOT NULL DEFAULT '' CHECK (char_length(since) <= 1024),
+  failure       text NOT NULL DEFAULT '' CHECK (char_length(failure) <= 120),
+  secret_enc    bytea NOT NULL,
+  secret_key_id text NOT NULL,
+  created_at    timestamptz NOT NULL,
+  updated_at    timestamptz NOT NULL,
+  version       integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, hub_id, homeserver, room),
+  CONSTRAINT chat_bot_run_as_fkey FOREIGN KEY (tenant_id, run_as)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT chat_bot_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT chat_bot_collection_fkey FOREIGN KEY (tenant_id, collection_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX chat_bot_hub_idx ON chat_bot (tenant_id, hub_id, created_at);
+
+ALTER TABLE chat_bot ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_bot FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON chat_bot
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON chat_bot TO hubtask_app;
+
 COMMIT;
