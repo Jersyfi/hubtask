@@ -58,6 +58,7 @@ var ucContexts = map[string]string{
 	"servicedesk":  "SVC",
 	"timekeeping":  "TIM",
 	"goal":         "GOL",
+	"agent":        "AGT",
 }
 
 var ucStates = map[string]bool{

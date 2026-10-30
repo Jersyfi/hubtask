@@ -384,8 +384,6 @@ it, with its references and its order; configuration is data and is never on the
 
 **Not yet** — named gaps, each owned by a step of [the suite plan](../backlog/suite/README.md):
 
-* The provenance of an AI-originated value does not travel: suggestions are AI machinery (§9) and
-  the accepted value carries no mark ([ai-first.md](./ai-first.md) §2.1, AI-2).
 * No import from other tools' exports (issue trackers, wikis) with their configuration, history and
   attachments.
 * A workspace of a shared installation whose operator allows no workspace targets cannot take its

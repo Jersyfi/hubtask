@@ -40,6 +40,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction | `service/servicedesk` |
 | [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting, capacity, absences and the workload, cost rates and budgets | `service/timekeeping` |
 | [`goal/`](./goal/) | `UC-GOL` | Goals and insight: periods, goals with key results fed by check-ins, views and linked entries, check-ins and grades, portfolios with their health and updates, dashboards over the summaries | `service/goal` |
+| [`agent/`](./agent/) | `UC-AGT` | Governed agents: the registry and lifecycle, the gate every act passes, held acts approved by a person, budgets and kill switches, the models agents may call, evaluation before going live, the provenance of accepted AI values, an agent configuring within its sections | `service/agent` |
 
 ## What a use case looks like
 
@@ -303,6 +304,12 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-GOL-02](./goal/UC-GOL-02-check-in-on-a-goal-and-say-how-confident-we-are.md) | Check in on a goal and say how confident we are | goal |
 | [UC-GOL-03](./goal/UC-GOL-03-keep-a-portfolio-of-projects-and-its-health-in-one-place.md) | Keep a portfolio of projects and its health in one place | goal |
 | [UC-GOL-04](./goal/UC-GOL-04-put-the-numbers-i-watch-on-a-dashboard.md) | Put the numbers I watch on a dashboard | goal |
+| [UC-AGT-01](./agent/UC-AGT-01-register-an-agent-and-let-it-act-only-once-a-person-approved-it.md) | Register an agent and let it act only once a person approved it | agent |
+| [UC-AGT-02](./agent/UC-AGT-02-hold-every-act-of-an-agent-to-its-policy-budget-and-person.md) | Hold every act of an agent to its policy, its budget and the person it acts for | agent |
+| [UC-AGT-03](./agent/UC-AGT-03-register-the-models-agents-may-call.md) | Register the models agents may call, with the consent to send them material | agent |
+| [UC-AGT-04](./agent/UC-AGT-04-evaluate-an-agent-before-it-goes-live.md) | Evaluate an agent before it goes live | agent |
+| [UC-AGT-05](./agent/UC-AGT-05-see-where-an-ai-value-came-from.md) | See where a value that came from AI came from | agent |
+| [UC-AGT-06](./agent/UC-AGT-06-let-an-agent-configure-only-the-sections-it-was-given.md) | Let an agent configure only the sections it was given | agent |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |

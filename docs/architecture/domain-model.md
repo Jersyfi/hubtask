@@ -906,6 +906,35 @@ their numbers are computed when read, for the reader, never stored.
 
 ---
 
+### 3.12 Governed agents (context: Agent, M9)
+
+An **`Agent`** is a non-human principal registered in a workspace (UC-AGT-01): it acts as a
+**service account of its own** and **for a person**, its owner, and never does or sees what that
+person may not - the authoriser asks of both (`ActorContext.OnBehalfOf`). It states a purpose, a
+kind (the four shipped agents - ticket triage, CI suggestion, duplicate review, knowledge draft - or
+`EXTERNAL`), a risk class (`MINIMAL`, `LIMITED`; `HIGH` is not registrable, ai-first.md §2.1), the
+token scopes it may use (a token of its account holding more is narrowed), a model, a **policy** per
+act class - a read always runs; a reversible write is `ALLOW`, `NOTIFY`, `APPROVAL` (the default) or
+`NEVER`; an irreversible act (destructive, or asking a fresh sign-in) only `APPROVAL` or `NEVER` - a
+**budget** (tokens per day, writes per hour, runs at once) and an evaluation bar. Its life is
+`DRAFT` → `APPROVED` (by somebody other than its owner, never by an agent) → `ACTIVE` ↔ `SUSPENDED`
+(its kill switch, pulled by its owner or an administrator) → `RETIRED`; a change that lets it do
+more sends it back to a draft. A workspace's **halt** stops every agent at once.
+
+Every act of a registered agent passes the agents' gate on the registry (UC-AGT-02): the halt, its
+state, its model's revision, its budget, then its policy. An act that waits is a **`Request`** held
+with its input until a person approves it - performed then as that person - or declines it. Every
+act is an **`Action`** of the agent's ledger: use case, class, decision, code, tokens - never an
+input or an answer (rule 10).
+
+A **`Model`** registered for agents (UC-AGT-03) names its source (the workspace's own provider or an
+offered model), its name there, its region and the provider's retention; registering is the consent,
+and a change of any of them is a new **revision** an agent's approval must cover. A **`Case`** of an
+agent's evaluation set is a ticket's words and the expected answer; a **`Run`** records how many cases
+an answer set passed on one revision, scored here (UC-AGT-04). A **`Mark`** is an accepted AI value's
+provenance - the object, the names of its fields, the suggestion, model and prompt, who accepted it
+when - kept beyond the suggestion (UC-AGT-05). All of it is stored by migration 0251 and archived.
+
 ## 4. Domain events
 
 Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,
