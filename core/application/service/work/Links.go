@@ -1071,7 +1071,8 @@ func (l Linking) visiblePages(
 		return nil, err
 	}
 	for i, s := range summaries {
-		if i < len(allowed) && allowed[i] {
+		// A restricted page is the people's it names alone (knowledge.Readers).
+		if i < len(allowed) && allowed[i] && s.Readers.Admits(actor.AccountID) {
 			visible[s.ID] = s
 		}
 	}

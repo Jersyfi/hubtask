@@ -137,7 +137,7 @@ func (h ListCiBacklinks) Execute(ctx context.Context, actor appshared.ActorConte
 	}
 	pageOf := map[shared.ID]knowledgerepo.Summary{}
 	for _, page := range pages {
-		if readableHub[page.HubID] {
+		if readableHub[page.HubID] && page.Readers.Admits(actor.AccountID) {
 			pageOf[page.ID] = page
 		}
 	}

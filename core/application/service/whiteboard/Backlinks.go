@@ -116,7 +116,7 @@ func (h ListWhiteboardBacklinks) Execute(ctx context.Context, actor appshared.Ac
 	}
 	pageOf := map[shared.ID]knowledgerepo.Summary{}
 	for _, page := range pages {
-		if readableHub[page.HubID] {
+		if readableHub[page.HubID] && page.Readers.Admits(actor.AccountID) {
 			pageOf[page.ID] = page
 		}
 	}

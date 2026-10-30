@@ -6,6 +6,8 @@
 //
 // A page is judged at its hub: reading needs READ there, writing and commenting WRITE_ITEMS, so a
 // page inherits the hub's memberships and a private hub's pages are its owner's alone (ADR-0073).
+// A restricted page narrows that to the people it names, never widens it; a share opens one page
+// to one person for reading beside the hub (Access.go).
 // The token scopes are the entries' own, as the live document's are (realtime): a page is work as
 // an entry is, and a token's vocabulary is the catalogue's.
 package knowledge
@@ -28,6 +30,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -98,6 +101,10 @@ type Space struct {
 	// it can be read without the server. A nil Changes records nothing, a test's convenience.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
+	// PersonalHubs makes a person's own private hub on first use (UC-DOC-07), named in their
+	// language by Words; nil offers no personal space.
+	PersonalHubs PersonalHubs
+	Words        i18n.Renderer
 }
 
 // announce records each page as it now stands, body included, filed under its hub.
@@ -106,12 +113,26 @@ func (s Space) announce(ctx context.Context, actor appshared.ActorContext, pages
 		return nil
 	}
 	now := s.Clock.Now()
+	ids := make([]shared.ID, 0, len(pages))
 	for _, page := range pages {
-		if err := s.Changes.Record(ctx, changelog.Change{
+		ids = append(ids, page.ID)
+	}
+	readers, err := s.Pages.Readers(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, page := range pages {
+		change := changelog.Change{
 			TenantID: actor.TenantID, Entity: domain.DocumentKind, EntityID: page.ID, Op: changelog.Upsert,
 			ContainerID: page.HubID, ActorID: actor.AccountID, HLC: s.HLC.Next(),
 			Payload: PageOutput(page, true, now),
-		}); err != nil {
+		}
+		// A change is told to every reader of the hub; a page behind a restriction is not theirs
+		// all, so the devices drop it and read it from the server.
+		if readers[page.ID].Restricted {
+			change.Op, change.Payload = changelog.Delete, nil
+		}
+		if err := s.Changes.Record(ctx, change); err != nil {
 			return err
 		}
 	}
@@ -204,6 +225,9 @@ func (s Space) readable(ctx context.Context, actor appshared.ActorContext, id sh
 	if err != nil {
 		return domain.Page{}, err
 	}
+	if err := s.admit(ctx, actor, page.ID); err != nil {
+		return domain.Page{}, err
+	}
 	return page, s.authorizeRead(ctx, actor, page, action)
 }
 
@@ -213,8 +237,10 @@ func (s Space) placeOf(ctx context.Context, actor appshared.ActorContext, id sha
 	var page domain.Page
 	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		page, err = s.find(ctx, id, false)
-		return err
+		if page, err = s.find(ctx, id, false); err != nil {
+			return err
+		}
+		return s.admitted(ctx, actor, page.ID)
 	})
 	return page, err
 }
@@ -281,6 +307,7 @@ func PageOutput(page domain.Page, withBody bool, now time.Time) usecase.Output {
 		"owner_id": idOrNil(page.OwnerID), "verified_until": timeOrNil(page.VerifiedUntil),
 		"verified_at": timeOrNil(page.VerifiedAt), "verified_by": idOrNil(page.VerifiedBy),
 		"due_for_review": page.DueForReview(now), "archived": page.IsArchived(),
+		"restricted": page.Restricted, "daily_for": dayOrNil(page.DailyFor),
 		"trashed_at": timeOrNil(page.DeletedAt),
 		"created_by": page.CreatedBy.String(), "created_at": page.CreatedAt,
 		"updated_by": page.UpdatedBy.String(), "updated_at": page.UpdatedAt, "version": page.Version,
@@ -303,6 +330,13 @@ func nilIfEmpty(value string) any {
 		return nil
 	}
 	return value
+}
+
+func dayOrNil(day *time.Time) any {
+	if day == nil {
+		return nil
+	}
+	return day.Format(time.DateOnly)
 }
 
 func timeOrNil(at *time.Time) any {

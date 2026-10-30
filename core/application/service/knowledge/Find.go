@@ -15,8 +15,8 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
-	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -114,8 +114,25 @@ func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, 
 		if searcher == nil {
 			searcher = h.Space.Pages
 		}
-		hits, err = searcher.Search(ctx, text, readable, limit)
-		return err
+		if hits, err = searcher.Search(ctx, text, readable, limit); err != nil || len(hits) == 0 {
+			return err
+		}
+		ids := make([]shared.ID, 0, len(hits))
+		for _, hit := range hits {
+			ids = append(ids, hit.ID)
+		}
+		readers, err := h.Space.Pages.Readers(ctx, ids)
+		if err != nil {
+			return err
+		}
+		kept := hits[:0]
+		for _, hit := range hits {
+			if readers[hit.ID].Admits(actor.AccountID) {
+				kept = append(kept, hit)
+			}
+		}
+		hits = kept
+		return nil
 	})
 	return hits, err
 }
@@ -211,7 +228,7 @@ func (h ListPageBacklinks) Execute(ctx context.Context, actor appshared.ActorCon
 	}
 	visiblePages := map[shared.ID]repository.Summary{}
 	for _, summary := range pages {
-		if seenHub[summary.HubID] {
+		if seenHub[summary.HubID] && summary.Readers.Admits(actor.AccountID) {
 			visiblePages[summary.ID] = summary
 		}
 	}
@@ -312,7 +329,10 @@ func (h ExportPage) Execute(
 	if subtree {
 		err = h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 			var err error
-			pages, err = h.Space.Pages.Subtree(ctx, page.ID, false, maxExportPages)
+			if pages, err = h.Space.Pages.Subtree(ctx, page.ID, false, maxExportPages); err != nil {
+				return err
+			}
+			pages, err = h.Space.keepAdmitted(ctx, actor, pages)
 			return err
 		})
 		if err != nil {

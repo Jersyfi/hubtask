@@ -73,6 +73,9 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 			if err != nil {
 				return err
 			}
+			if err := h.Space.admitted(ctx, actor, parent.ID); err != nil {
+				return err
+			}
 			ancestors, err := h.Space.Pages.Ancestors(ctx, parent.ID)
 			if err != nil {
 				return err
@@ -88,6 +91,9 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		if !cmd.TemplateID.IsZero() {
 			template, err := h.Space.find(ctx, cmd.TemplateID, false)
 			if err != nil {
+				return err
+			}
+			if err := h.Space.admitted(ctx, actor, template.ID); err != nil {
 				return err
 			}
 			// A space starts pages from its own templates: another space's would carry its words
@@ -186,10 +192,18 @@ type Read struct {
 	Page      domain.Page
 	Ancestors []usecase.Output
 	Writable  bool
+	// Shared marks a page read by a share alone: without the pages above it, never written.
+	Shared bool
 }
 
 // Execute reads the page.
 func (h ReadPage) Execute(ctx context.Context, actor appshared.ActorContext, id shared.ID) (Read, error) {
+	if err := actor.RequireScope(pagesRead); err != nil {
+		return Read{}, err
+	}
+	if page, shared, err := h.Space.sharedRead(ctx, actor, id); err != nil || shared {
+		return Read{Page: page, Ancestors: []usecase.Output{}, Shared: shared}, err
+	}
 	page, err := h.Space.readable(ctx, actor, id, PageReadAction)
 	if err != nil {
 		return Read{}, err
@@ -230,7 +244,7 @@ func (h ReadPage) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			out := PageOutput(read.Page, true, h.Space.Clock.Now())
-			out["ancestors"], out["writable"] = read.Ancestors, read.Writable
+			out["ancestors"], out["writable"], out["shared"] = read.Ancestors, read.Writable, read.Shared
 			return out, nil
 		}),
 	})
@@ -261,7 +275,10 @@ func (h ListPages) Execute(ctx context.Context, actor appshared.ActorContext, qu
 			return err
 		}
 		var err error
-		pages, err = h.Space.Pages.List(ctx, query.HubID, query.IncludeArchived, query.TemplatesOnly, domain.MaxPagesPerHub)
+		if pages, err = h.Space.Pages.List(ctx, query.HubID, query.IncludeArchived, query.TemplatesOnly, domain.MaxPagesPerHub); err != nil {
+			return err
+		}
+		pages, err = h.Space.keepAdmitted(ctx, actor, pages)
 		return err
 	})
 	return pages, err
@@ -438,6 +455,9 @@ func (h MovePage) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 		if !cmd.ParentID.IsZero() {
 			parent, err := h.Space.find(ctx, cmd.ParentID, false)
 			if err != nil {
+				return err
+			}
+			if err := h.Space.admitted(ctx, actor, parent.ID); err != nil {
 				return err
 			}
 			ancestors, err := h.Space.Pages.Ancestors(ctx, parent.ID)
@@ -684,7 +704,10 @@ func (h ListTrashedPages) Execute(ctx context.Context, actor appshared.ActorCont
 	var pages []domain.Page
 	err := h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		pages, err = h.Space.Pages.Trashed(ctx, hubID, domain.MaxPagesPerHub)
+		if pages, err = h.Space.Pages.Trashed(ctx, hubID, domain.MaxPagesPerHub); err != nil {
+			return err
+		}
+		pages, err = h.Space.keepAdmitted(ctx, actor, pages)
 		return err
 	})
 	return pages, err

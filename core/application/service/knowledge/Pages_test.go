@@ -112,10 +112,17 @@ type store struct {
 	pages    map[shared.ID]domain.Page
 	versions map[shared.ID][]domain.Version
 	comments map[shared.ID]domain.Comment
+	// restrictedTo, shares and personal are what Access_test.go's methods keep.
+	restrictedTo map[shared.ID][]shared.ID
+	shares       map[shared.ID][]domain.Share
+	personal     map[shared.ID]shared.ID
 }
 
 func newStore() *store {
-	return &store{pages: map[shared.ID]domain.Page{}, versions: map[shared.ID][]domain.Version{}, comments: map[shared.ID]domain.Comment{}}
+	return &store{
+		pages: map[shared.ID]domain.Page{}, versions: map[shared.ID][]domain.Version{}, comments: map[shared.ID]domain.Comment{},
+		restrictedTo: map[shared.ID][]shared.ID{}, shares: map[shared.ID][]domain.Share{}, personal: map[shared.ID]shared.ID{},
+	}
 }
 
 func (s *store) Insert(_ context.Context, page domain.Page) error {
