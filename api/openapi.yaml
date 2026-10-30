@@ -30833,12 +30833,17 @@ components:
 
     ImportKind:
       type: string
-      enum: [CSV, TRELLO, GOOGLE_TASKS, MICROSOFT_TODO]
+      enum: [CSV, TRELLO, GOOGLE_TASKS, MICROSOFT_TODO, JIRA, CONFLUENCE]
       description: >
         The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is
         a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the
-        Graph API's JSON for the lists and their tasks. A kind this build does not serve is
-        refused by name.
+        Graph API's JSON for the lists and their tasks. `JIRA` is the issue search's JSON
+        answer with its names, schema and change log expanded, or a ZIP of such answers with
+        the attachments under `attachments/<attachment id>/`: each project becomes a collection
+        with its issue types, statuses, custom fields, history, comments, links and
+        attachments. `CONFLUENCE` is a space's HTML export as a ZIP: its pages become the hub's
+        pages in their tree. `CONFLUENCE` lands in the hub and takes no `collection_id`. A kind
+        this build does not serve is refused by name.
 
     ImportRequest:
       type: object
