@@ -7,7 +7,7 @@ deployments: [D1, D4, D5, D6, D7]
 serves: [P-06, P-07, P-08, P-10, P-12]
 state: built
 tasks: [SI-05, SI-12, SI-17, SC-07, CP-11]
-checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/Instance_test.go, core/application/service/admin/InstanceDoors_test.go, test/integration/instance_values_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/e2e/instancesettings.test.mjs, apps/webapp/e2e/settings.test.mjs, docs/evidence/SC-07-2026-10-12.md, apps/webapp/e2e/quotas.test.mjs, test/integration/quota_test.go, core/application/service/quota/Quota_test.go, docs/evidence/SC-15-D1-2026-10-13.md, core/application/service/admin/InstanceVersion_test.go, test/integration/instance_level_version_test.go, docs/evidence/CP-11-2026-10-15.md]
+checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/Instance_test.go, core/application/service/admin/InstanceDoors_test.go, test/integration/instance_values_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/e2e/instancesettings.test.mjs, apps/webapp/e2e/settings.test.mjs, docs/evidence/SC-07-2026-10-12.md, apps/webapp/e2e/quotas.test.mjs, test/integration/quota_test.go, core/application/service/quota/Quota_test.go, docs/evidence/SC-15-D1-2026-10-13.md, core/application/service/admin/InstanceVersion_test.go, core/application/service/admin/InstancePlan_test.go, test/integration/instance_level_version_test.go, docs/evidence/CP-11-2026-10-15.md]
 ---
 
 # Decide defaults and locks for every workspace
@@ -41,6 +41,11 @@ and lands in the instance journal.
 8. A save of the defaults made on values somebody else changed since they were read is refused
    with `version_conflict`, and the screen says somebody else saved first; `hubctl admin settings
    set` is refused the same way.
+9. *Preview the change* in the editor answers what the save would change - each key with its value
+   before and after and whether it becomes locked -, writing nothing (`POST /admin/settings:plan`);
+   where a file enforces the level, the plan says only the file applies it. Below the values, the
+   history lists every save of the level - by a person or the file - with when, who, the keys it
+   moved and the version it made.
 
 ## Where it ends
 

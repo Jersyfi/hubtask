@@ -8,7 +8,9 @@ too. One mechanism serves all three.
 
 ## 1. The document
 
-* **Scopes:** installation (the instance file, as today), workspace, hub. A workspace document
+* **Scopes:** installation (the instance file, as today, with a plan - `POST /admin/settings:plan` -
+  and its history in the journal; applying stays the file's or `PUT /admin/settings`'s, ADR-0070
+  §5), workspace, hub. A workspace document
   contains its hubs' and collections' configuration; a hub document its own.
 * **Contents:** every catalogue setting and every building block (`model.md` §2) — never content
   (entries, comments, pages' text; templates' sample entries excepted and marked), never a secret
