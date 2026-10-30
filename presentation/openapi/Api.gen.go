@@ -14276,7 +14276,7 @@ type ItemAggregateQuery struct {
 			WeekStart *ItemAggregateQueryAggregateBucketWeekStart `json:"week_start,omitempty"`
 		} `json:"bucket,omitempty"`
 
-		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold. Required for every function but `COUNT`, refused for `COUNT`.
+		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none. Required for every function but `COUNT`, refused for `COUNT`.
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 

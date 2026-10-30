@@ -21104,7 +21104,7 @@
         "operationId": "aggregateItems",
         "x-hubtask-cli": "item aggregate",
         "summary": "A summary of what a query keeps",
-        "description": "How many entries the query's scope and filter keep - or links between them, with\n`source: links` - and the sum, average, least or greatest\nof a custom field holding a number, money or a duration, or of an entry's `lead_time`,\n`scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week\nor month of a timestamp, cut in the caller's time zone (a week starts on Monday unless\n`week_start` says Sunday). The permission is the query's: checked against the scope once;\na `workspace` scope counts every collection the caller may read. At most 5000 rows, in the\ngroup's order and then the period's; `truncated` says a longer answer was cut.\n",
+        "description": "How many entries the query's scope and filter keep - or links between them, with\n`source: links` - and the sum, average, least or greatest\nof a custom field holding a number, money or a duration, or of an entry's `lead_time`,\n`scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week\nor month of a timestamp, cut in the caller's time zone (a week starts on Monday unless\n`week_start` says Sunday). The permission is the query's: checked against the scope once;\na `workspace` scope counts every collection the caller may read. At most 5000 rows, in the\ngroup's order and then the period's; `truncated` says a longer answer was cut.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -45024,7 +45024,7 @@
               },
               "field": {
                 "type": "string",
-                "description": "The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold. Required for every function but `COUNT`, refused for `COUNT`.\n"
+                "description": "The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none. Required for every function but `COUNT`, refused for `COUNT`.\n"
               },
               "group_by": {
                 "type": "string",

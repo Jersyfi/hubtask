@@ -14282,7 +14282,7 @@ type ItemAggregateQuery struct {
 			WeekStart *ItemAggregateQueryAggregateBucketWeekStart `json:"week_start,omitempty"`
 		} `json:"bucket,omitempty"`
 
-		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold. Required for every function but `COUNT`, refused for `COUNT`.
+		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none. Required for every function but `COUNT`, refused for `COUNT`.
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
@@ -29251,7 +29251,7 @@ type ClientInterface interface {
 	// How many entries the query's scope and filter keep - or links between them, with
 	// `source: links` - and the sum, average, least or greatest
 	// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
-	// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
+	// `scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
 	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -29267,7 +29267,7 @@ type ClientInterface interface {
 	// How many entries the query's scope and filter keep - or links between them, with
 	// `source: links` - and the sum, average, least or greatest
 	// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
-	// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
+	// `scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
 	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -43283,7 +43283,7 @@ func (c *Client) UnassignWorkItem(ctx context.Context, itemId ItemId, params *Un
 // How many entries the query's scope and filter keep - or links between them, with
 // `source: links` - and the sum, average, least or greatest
 // of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
-// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
+// `scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 // `week_start` says Sunday). The permission is the query's: checked against the scope once;
 // a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -43309,7 +43309,7 @@ func (c *Client) AggregateItemsWithBody(ctx context.Context, contentType string,
 // How many entries the query's scope and filter keep - or links between them, with
 // `source: links` - and the sum, average, least or greatest
 // of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
-// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
+// `scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 // `week_start` says Sunday). The permission is the query's: checked against the scope once;
 // a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -84993,7 +84993,7 @@ type ClientWithResponsesInterface interface {
 	// How many entries the query's scope and filter keep - or links between them, with
 	// `source: links` - and the sum, average, least or greatest
 	// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
-	// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
+	// `scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
 	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -85009,7 +85009,7 @@ type ClientWithResponsesInterface interface {
 	// How many entries the query's scope and filter keep - or links between them, with
 	// `source: links` - and the sum, average, least or greatest
 	// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
-	// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
+	// `scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
 	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -127636,7 +127636,7 @@ func (c *ClientWithResponses) UnassignWorkItemWithResponse(ctx context.Context, 
 // How many entries the query's scope and filter keep - or links between them, with
 // `source: links` - and the sum, average, least or greatest
 // of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
-// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
+// `scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 // `week_start` says Sunday). The permission is the query's: checked against the scope once;
 // a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -127658,7 +127658,7 @@ func (c *ClientWithResponses) AggregateItemsWithBodyWithResponse(ctx context.Con
 // How many entries the query's scope and filter keep - or links between them, with
 // `source: links` - and the sum, average, least or greatest
 // of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
-// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
+// `scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 // `week_start` says Sunday). The permission is the query's: checked against the scope once;
 // a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the

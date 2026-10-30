@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-13, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
+checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
 ---
 
 # Put the numbers I watch on a dashboard
@@ -45,9 +45,13 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
     is sent - a widget they cannot compute says so -, names neither the dashboard nor a widget
     where their mail lets no title travel; nothing is sent of a dashboard gone or no longer seen,
     and the schedule ends with the subscriber's account.
+11. A widget's summary measures cycle time - the first entry into an in-progress status to
+    completion -, WIP age and time in status of the open entries from the status history, which
+    is written from then on whichever door sets a status; an entry without history holds none.
 
 ## Where it ends
 
 * The mail carries no attachment - no CSV and no PDF (the mail port has none by design).
 * No wallboard mode, no historical snapshots, no read API for BI tools.
+* Entries from before the status history have no cycle time, WIP age or time in status.
 * No numbers across workspaces (P-01).

@@ -9094,7 +9094,7 @@
   "app.dashboards.fn_MIN": "Kleinster Wert",
   "app.dashboards.fn_MAX": "Größter Wert",
   "app.dashboards.measure": "Von",
-  "app.dashboards.measure_hint": "lead_time, scheduled_span, satisfaction oder custom_fields.<key> einer Zahl.",
+  "app.dashboards.measure_hint": "lead_time, cycle_time, wip_age, time_in_status (in Minuten), scheduled_span, satisfaction oder custom_fields.<key> einer Zahl.",
   "app.dashboards.measure_needed": "Sag, was gerechnet wird.",
   "app.dashboards.group_by": "Je",
   "app.dashboards.no_grouping": "Alles zusammen",

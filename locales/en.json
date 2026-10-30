@@ -9097,7 +9097,7 @@
   "app.dashboards.fn_MIN": "Smallest",
   "app.dashboards.fn_MAX": "Largest",
   "app.dashboards.measure": "Of",
-  "app.dashboards.measure_hint": "lead_time, scheduled_span, satisfaction or custom_fields.<key> of a number.",
+  "app.dashboards.measure_hint": "lead_time, cycle_time, wip_age, time_in_status (in minutes), scheduled_span, satisfaction or custom_fields.<key> of a number.",
   "app.dashboards.measure_needed": "Say what to sum.",
   "app.dashboards.group_by": "Per",
   "app.dashboards.no_grouping": "All together",

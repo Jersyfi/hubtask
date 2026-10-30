@@ -148,7 +148,12 @@ needs no backend change.
 permission, and an `aggregate` instead of a sort, page or grouping: `function` (`COUNT`, `SUM`,
 `AVG`, `MIN`, `MAX`), `field` (a `custom_fields.<key>` holding a number, money or a duration, or a
 built-in quantity in whole minutes - `lead_time`, `created_at` to `completed_at`, and
-`scheduled_span`, `start_at` to `due_at`, none where a stamp is missing; refused for `COUNT`,
+`scheduled_span`, `start_at` to `due_at`, none where a stamp is missing; and from the status history
+migration 0250 writes, `cycle_time`, the first entry into a status of the `IN_PROGRESS` category to
+`completed_at`, `wip_age`, that entry to now for an open entry, and `time_in_status`, the latest
+entry into the current status to now for an open entry - the use case binds the started statuses of
+the workspace's workflows and the moment from its clock, and an entry without history holds none;
+refused for `COUNT`,
 `query.field_not_aggregatable` for anything else), `group_by` (a field a query may group by) and
 `bucket` (`field`, a timestamp or a custom date, `period`: `day`, `week`, `month`, cut in the
 actor's time zone, and for a week `week_start`: `monday`, the default, or `sunday`). Its scope may
