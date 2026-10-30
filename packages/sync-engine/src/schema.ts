@@ -274,6 +274,25 @@ export type PublicLinksPolicy = components['schemas']['PublicLinksPolicy'];
 export type PageArticle = components['schemas']['PageArticle'];
 export type ArticleSuggestionList = components['schemas']['ArticleSuggestionList'];
 export type Article = components['schemas']['Article'];
+/** The service desk (M5): the requester portal, calendars, SLA policies and an entry's goals, canned replies. */
+export type ArticleRating = components['schemas']['ArticleRating'];
+export type RequestCatalogue = components['schemas']['RequestCatalogue'];
+export type PortalRequest = components['schemas']['PortalRequest'];
+export type PortalRequestPage = components['schemas']['PortalRequestPage'];
+export type PortalRequestDetail = components['schemas']['PortalRequestDetail'];
+export type RequestSatisfaction = components['schemas']['RequestSatisfaction'];
+export type EntrySlaGoal = components['schemas']['EntrySlaGoal'];
+export type EntrySlaList = components['schemas']['EntrySlaList'];
+export type SlaReport = components['schemas']['SlaReport'];
+export type BusinessCalendar = components['schemas']['BusinessCalendar'];
+export type BusinessCalendarList = components['schemas']['BusinessCalendarList'];
+export type BusinessCalendarDefine = components['schemas']['BusinessCalendarDefine'];
+export type SlaPolicy = components['schemas']['SlaPolicy'];
+export type SlaPolicyList = components['schemas']['SlaPolicyList'];
+export type SlaPolicyDefine = components['schemas']['SlaPolicyDefine'];
+export type ReplyTemplate = components['schemas']['ReplyTemplate'];
+export type ReplyTemplateList = components['schemas']['ReplyTemplateList'];
+export type ReplyTemplateDefine = components['schemas']['ReplyTemplateDefine'];
 /** A hub's whiteboards and the objects on them (M4). */
 export type Whiteboard = components['schemas']['Whiteboard'];
 export type WhiteboardRead = components['schemas']['WhiteboardRead'];
