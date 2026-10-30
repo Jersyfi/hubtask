@@ -1191,6 +1191,17 @@ type DurableTimer struct {
 	Version         int32
 }
 
+type EntryEstimate struct {
+	TenantID  pgtype.UUID
+	EntryID   pgtype.UUID
+	Unit      string
+	Value     float64
+	Size      *string
+	UpdatedAt pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+	Version   int32
+}
+
 type EntryFieldValue struct {
 	TenantID     pgtype.UUID
 	EntryID      pgtype.UUID
@@ -2191,6 +2202,38 @@ type SlaPolicy struct {
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 	Version       int32
+}
+
+type Sprint struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Name           string
+	Goal           string
+	StartOn        pgtype.Date
+	EndOn          pgtype.Date
+	State          string
+	Unit           string
+	CommittedValue float64
+	CommittedCount int32
+	CompletedValue float64
+	CompletedCount int32
+	StartedAt      pgtype.Timestamptz
+	ClosedAt       pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	CreatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
+type SprintEntry struct {
+	TenantID  pgtype.UUID
+	SprintID  pgtype.UUID
+	EntryID   pgtype.UUID
+	AddedAt   pgtype.Timestamptz
+	RemovedAt pgtype.Timestamptz
+	Committed bool
+	Outcome   *string
 }
 
 type StructurePreset struct {

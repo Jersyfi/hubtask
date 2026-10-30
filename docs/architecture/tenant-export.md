@@ -188,6 +188,9 @@ re-mints identities must rewrite exactly these).
 | 70 | `entry_schedules` | `entry_schedule` | `entry_id` | `entry_id`→work_items (whether the scheduler may move an entry, and whether it is a milestone, migration 0244) |
 | 71 | `plan_baselines` | `plan_baseline` | `id` | `plan_id`→containers, `taken_by`→accounts (a hub's or a collection's agreed plan under a name, migration 0244) |
 | 72 | `plan_baseline_entries` | `plan_baseline_entry` | `baseline_id`, `entry_id` | `baseline_id`→plan_baselines, `entry_id`→work_items (one entry's start and due as the baseline holds them) |
+| 73 | `sprints` | `sprint` | `id` | `collection_id`→containers, `created_by`→accounts (a collection's time box with its goal, commitment and result, migration 0245) |
+| 74 | `sprint_entries` | `sprint_entry` | `sprint_id`, `entry_id` | `sprint_id`→sprints, `entry_id`→work_items (an entry's membership in a sprint and what became of it at the close) |
+| 75 | `entry_estimates` | `entry_estimate` | `entry_id` | `entry_id`→work_items, `updated_by`→accounts (how big an entry is in points, hours or a T-shirt size) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

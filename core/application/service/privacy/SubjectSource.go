@@ -66,6 +66,9 @@ var subjectColumns = map[string][]string{
 	"entry_link": {"created_by"},
 	// The baselines of a plan they took (M2).
 	"plan_baseline": {"taken_by"},
+	// The sprints they planned and the estimates they gave (M2).
+	"sprint":         {"created_by"},
+	"entry_estimate": {"updated_by"},
 	// The pages they wrote, own or checked, their versions and their comments (M3).
 	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},
 	"page_version": {"author_id"},
@@ -142,6 +145,7 @@ var notThePersons = map[string]string{
 	"reply_template":          "the workspace's canned replies, text the team wrote once for many requests",
 	"entry_schedule":          "whether the scheduler may move an entry, which names nobody; the entry is the entry's",
 	"plan_baseline_entry":     "an entry's dates as a baseline holds them, which name nobody; the baseline names who took it",
+	"sprint_entry":            "an entry's membership in a sprint, which names nobody; the sprint names who planned it",
 	"satisfaction_rating":     "a score of a resolved request, which names nobody; the rater is who raised the entry, and their words are a comment of theirs",
 }
 

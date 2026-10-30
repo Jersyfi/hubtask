@@ -68,3 +68,50 @@ type Baselines interface {
 	// Delete removes a baseline, or reports ErrNotFound.
 	Delete(ctx context.Context, id shared.ID) error
 }
+
+// OpenMembership is the open sprint an entry is in.
+type OpenMembership struct {
+	EntryID  shared.ID
+	SprintID shared.ID
+}
+
+// SprintMember is one membership of a sprint with where its entry lives, for judging who may see
+// it.
+type SprintMember struct {
+	planning.SprintEntry
+	CollectionID shared.ID
+	HubID        shared.ID
+}
+
+// Sprints stores sprints, their entries and estimates (PLN-06, PLN-07).
+type Sprints interface {
+	// Insert writes a planned sprint.
+	Insert(ctx context.Context, sprint planning.Sprint) error
+	// Update writes a sprint held to the version read, or reports ErrVersionConflict; a second
+	// running sprint of one collection is ErrConflict.
+	Update(ctx context.Context, sprint planning.Sprint, expected int) error
+	// Find returns a sprint, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (planning.Sprint, error)
+	// List returns a collection's sprints, the latest first, of one state or all, at most max.
+	List(ctx context.Context, collectionID shared.ID, state planning.SprintState, max int) ([]planning.Sprint, error)
+	// Delete removes a sprint and its memberships, or reports ErrNotFound.
+	Delete(ctx context.Context, id shared.ID) error
+	// Entries returns a sprint's memberships, open and past, at most max.
+	Entries(ctx context.Context, sprintID shared.ID, max int) ([]SprintMember, error)
+	// OpenMemberships answers the open sprint each of the entries is in.
+	OpenMemberships(ctx context.Context, entryIDs []shared.ID) ([]OpenMembership, error)
+	// Add puts an entry into a sprint at a moment, committed when the sprint runs already.
+	Add(ctx context.Context, sprintID, entryID shared.ID, at time.Time, committed bool) error
+	// Remove takes an entry out of a sprint at a moment; false when it was not in it.
+	Remove(ctx context.Context, sprintID, entryID shared.ID, at time.Time) (bool, error)
+	// Commit marks every open membership of a sprint as committed.
+	Commit(ctx context.Context, sprintID shared.ID) error
+	// SetOutcomes records what became of the open entries named at a sprint's close.
+	SetOutcomes(ctx context.Context, sprintID shared.ID, outcome planning.SprintOutcome, entryIDs []shared.ID) error
+	// SetEstimate writes an entry's estimate.
+	SetEstimate(ctx context.Context, estimate planning.Estimate) error
+	// ClearEstimate removes an entry's estimate; false when it had none.
+	ClearEstimate(ctx context.Context, entryID shared.ID) (bool, error)
+	// Estimates returns the estimates of the entries among the identifiers.
+	Estimates(ctx context.Context, entryIDs []shared.ID) (map[shared.ID]planning.Estimate, error)
+}

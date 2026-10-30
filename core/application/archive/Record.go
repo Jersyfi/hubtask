@@ -746,6 +746,32 @@ var entities = []Entity{
 			{Field: "entry_id", Table: "work_item"},
 		},
 	},
+	// Sprints, their entries and an entry's estimate (migration 0245, M2). Whole: none says when
+	// it was removed. A membership names its sprint and its entry, remapped with them.
+	{
+		Name: "sprints", Table: "sprint", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "collection_id", Table: "container"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "sprint_entries", Table: "sprint_entry", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"sprint_id", "entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "sprint_id", Table: "sprint"},
+			{Field: "entry_id", Table: "work_item"},
+		},
+	},
+	{
+		Name: "entry_estimates", Table: "entry_estimate", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "entry_id", Table: "work_item"},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
 	{
 		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,

@@ -387,6 +387,18 @@ func (q *Queries) ClearCustomRoleGrant(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearEntryEstimate = `-- name: ClearEntryEstimate :execrows
+DELETE FROM entry_estimate
+`
+
+func (q *Queries) ClearEntryEstimate(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearEntryEstimate)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearEntryLink = `-- name: ClearEntryLink :execrows
 DELETE FROM entry_link
 `
@@ -777,6 +789,30 @@ DELETE FROM sla_policy
 
 func (q *Queries) ClearSlaPolicy(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearSlaPolicy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearSprint = `-- name: ClearSprint :execrows
+DELETE FROM sprint
+`
+
+func (q *Queries) ClearSprint(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearSprint)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearSprintEntry = `-- name: ClearSprintEntry :execrows
+DELETE FROM sprint_entry
+`
+
+func (q *Queries) ClearSprintEntry(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearSprintEntry)
 	if err != nil {
 		return 0, err
 	}
@@ -1236,6 +1272,19 @@ func (q *Queries) HoldsCustomRoleGrant(ctx context.Context, payload []byte) (boo
 	return held, err
 }
 
+const holdsEntryEstimate = `-- name: HoldsEntryEstimate :one
+SELECT EXISTS (
+  SELECT 1 FROM entry_estimate WHERE entry_id = ($1::jsonb->>'entry_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsEntryEstimate(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsEntryEstimate, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsEntryLink = `-- name: HoldsEntryLink :one
 SELECT EXISTS (SELECT 1 FROM entry_link WHERE id = ($1::jsonb->>'id')::uuid) AS held
 `
@@ -1618,6 +1667,32 @@ SELECT EXISTS (SELECT 1 FROM sla_policy WHERE id = ($1::jsonb->>'id')::uuid) AS 
 
 func (q *Queries) HoldsSlaPolicy(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsSlaPolicy, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsSprint = `-- name: HoldsSprint :one
+SELECT EXISTS (SELECT 1 FROM sprint WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsSprint(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsSprint, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsSprintEntry = `-- name: HoldsSprintEntry :one
+SELECT EXISTS (
+  SELECT 1 FROM sprint_entry
+  WHERE sprint_id = ($1::jsonb->>'sprint_id')::uuid
+    AND entry_id = ($1::jsonb->>'entry_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsSprintEntry(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsSprintEntry, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3045,6 +3120,32 @@ func (q *Queries) ImportCustomRoleGrant(ctx context.Context, payload []byte) (in
 	return result.RowsAffected(), nil
 }
 
+const importEntryEstimate = `-- name: ImportEntryEstimate :execrows
+INSERT INTO entry_estimate (tenant_id, entry_id, unit, value, size, updated_at, updated_by, version)
+SELECT r.tenant_id, r.entry_id, r.unit, r.value, r.size, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::entry_estimate,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, entry_id) DO UPDATE SET
+  unit = EXCLUDED.unit, value = EXCLUDED.value, size = EXCLUDED.size,
+  updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportEntryEstimateParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportEntryEstimate(ctx context.Context, arg ImportEntryEstimateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importEntryEstimate, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importEntryLink = `-- name: ImportEntryLink :execrows
 INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at,
   dependency_kind, lag_days)
@@ -4384,6 +4485,65 @@ type ImportSlaPolicyParams struct {
 
 func (q *Queries) ImportSlaPolicy(ctx context.Context, arg ImportSlaPolicyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importSlaPolicy, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importSprint = `-- name: ImportSprint :execrows
+INSERT INTO sprint (id, tenant_id, collection_id, name, goal, start_on, end_on, state, unit,
+  committed_value, committed_count, completed_value, completed_count, started_at, closed_at,
+  created_at, created_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.collection_id, r.name, r.goal, r.start_on, r.end_on, r.state, r.unit,
+  r.committed_value, r.committed_count, r.completed_value, r.completed_count, r.started_at,
+  r.closed_at, r.created_at, r.created_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::sprint,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, goal = EXCLUDED.goal, start_on = EXCLUDED.start_on, end_on = EXCLUDED.end_on,
+  state = EXCLUDED.state, unit = EXCLUDED.unit, committed_value = EXCLUDED.committed_value,
+  committed_count = EXCLUDED.committed_count, completed_value = EXCLUDED.completed_value,
+  completed_count = EXCLUDED.completed_count, started_at = EXCLUDED.started_at,
+  closed_at = EXCLUDED.closed_at, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportSprintParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportSprint(ctx context.Context, arg ImportSprintParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importSprint, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importSprintEntry = `-- name: ImportSprintEntry :execrows
+INSERT INTO sprint_entry (tenant_id, sprint_id, entry_id, added_at, removed_at, committed, outcome)
+SELECT r.tenant_id, r.sprint_id, r.entry_id, r.added_at, r.removed_at, r.committed, r.outcome
+FROM jsonb_populate_record(
+  NULL::sprint_entry,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, sprint_id, entry_id) DO UPDATE SET
+  added_at = EXCLUDED.added_at, removed_at = EXCLUDED.removed_at, committed = EXCLUDED.committed,
+  outcome = EXCLUDED.outcome
+WHERE $2::boolean
+`
+
+type ImportSprintEntryParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportSprintEntry(ctx context.Context, arg ImportSprintEntryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importSprintEntry, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

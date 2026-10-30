@@ -329,6 +329,46 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"sprint": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportSprints(ctx, sqlc.ExportSprintsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportSprintsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"sprint_entry": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportSprintEntries(ctx, sqlc.ExportSprintEntriesParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorUUID(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportSprintEntriesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"entry_estimate": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportEntryEstimates(ctx, sqlc.ExportEntryEstimatesParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportEntryEstimatesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"satisfaction_rating": {
 		delta: false,
 		keys:  1,
