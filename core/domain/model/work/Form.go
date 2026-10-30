@@ -29,9 +29,14 @@ const (
 	ChannelSync   FormChannel = "SYNC"
 	ChannelImport FormChannel = "IMPORT"
 	ChannelMail   FormChannel = "MAIL"
+	// ChannelPortal is the requester portal's catalogue (UC-SVC-05): a type the portal offers is
+	// one whose form leaves this door open.
+	ChannelPortal FormChannel = "PORTAL"
 )
 
-var formChannels = [...]FormChannel{ChannelApp, ChannelMCP, ChannelRule, ChannelSync, ChannelImport, ChannelMail}
+var formChannels = [...]FormChannel{
+	ChannelApp, ChannelMCP, ChannelRule, ChannelSync, ChannelImport, ChannelMail, ChannelPortal,
+}
 
 // FormChannels answers every channel, in a fixed order.
 func FormChannels() []FormChannel { return formChannels[:] }

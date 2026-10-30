@@ -184,3 +184,22 @@ func TestOnlyACommentableTypeCarriesADiscussion(t *testing.T) {
 		t.Fatalf("refused as %q, want items.capability_not_supported", got)
 	}
 }
+
+// UC-SVC-04 check 1: a note is internal when written so, and a reply to an internal note is
+// internal whatever it asked, because the requester never reads what it answers.
+func TestAReplyToAnInternalNoteIsInternal(t *testing.T) {
+	public, err := work.NewComment(draftComment("We are on it.", nil))
+	if err != nil || public.Internal {
+		t.Fatalf("a comment is public unless asked: %+v, %v", public, err)
+	}
+	draft := draftComment("Check the switch first.", nil)
+	draft.Internal = true
+	note, err := work.NewComment(draft)
+	if err != nil || !note.Internal {
+		t.Fatalf("an internal note: %+v, %v", note, err)
+	}
+	reply, err := work.NewComment(draftComment("Done.", &note))
+	if err != nil || !reply.Internal {
+		t.Errorf("a reply to an internal note is %+v, %v", reply, err)
+	}
+}

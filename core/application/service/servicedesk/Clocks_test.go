@@ -270,6 +270,12 @@ func TestAnEntryIsArmedAndItsFirstResponseMet(t *testing.T) {
 	if f.records.goal(domain.GoalFirstResponse).Standing != domain.StandingRunning {
 		t.Error("the requester's own comment met the first response")
 	}
+	f.deliver(t, event.CommentCreated, monday.Add(7*time.Minute), map[string]any{
+		"item_id": itemID.String(), "author_id": handlerID.String(), "internal": true,
+	})
+	if f.records.goal(domain.GoalFirstResponse).Standing != domain.StandingRunning {
+		t.Error("an internal note met the first response (UC-SVC-04 check 3)")
+	}
 	f.deliver(t, event.CommentCreated, monday.Add(10*time.Minute), map[string]any{
 		"item_id": itemID.String(), "author_id": handlerID.String(),
 	})

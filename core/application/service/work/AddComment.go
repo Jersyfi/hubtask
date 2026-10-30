@@ -90,6 +90,8 @@ type AddCommentCommand struct {
 	// ParentCommentID is the comment being replied to, empty for a top-level comment.
 	ParentCommentID shared.ID
 	Body            string
+	// Internal writes a note for the team (UC-SVC-04).
+	Internal bool
 }
 
 // Execute writes the comment and returns it.
@@ -180,6 +182,7 @@ func (h AddComment) Execute(
 			Text:         w.Text,
 			SystemCode:   cmd.SystemCode,
 			SystemParams: cmd.SystemParams,
+			Internal:     cmd.Internal,
 		})
 		if err != nil {
 			return err
@@ -343,6 +346,7 @@ func commentOutput(comment domain.Comment) usecase.Output {
 		"kind":              string(kind),
 		"system_code":       textOrNull(comment.SystemCode),
 		"system_params":     nil,
+		"internal":          comment.Internal,
 	}
 	if len(comment.SystemParams) > 0 {
 		params := make(map[string]any, len(comment.SystemParams))
@@ -409,6 +413,11 @@ func (h AddComment) Descriptor() usecase.Descriptor {
 				Description: "The comment this one replies to. Omitted for a top-level comment; " +
 					"a reply cannot itself be replied to.",
 			},
+			{
+				Name: "internal", Kind: usecase.KindBool,
+				Description: "An internal note for the team, which the requester never reads in " +
+					"the portal; a reply to an internal note is internal.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: CommentCreatedAction, TargetType: commentTarget,
@@ -442,6 +451,7 @@ func (h AddComment) invoke(
 		ItemID:          itemID,
 		ParentCommentID: parentID,
 		Body:            in.String("body"),
+		Internal:        in.Bool("internal"),
 	})
 	if err != nil {
 		return nil, err

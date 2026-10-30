@@ -987,6 +987,7 @@ type Comment struct {
 	Kind            string
 	SystemCode      *string
 	SystemParams    []byte
+	Internal        bool
 }
 
 type ConfigProposal struct {

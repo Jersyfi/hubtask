@@ -13132,6 +13132,13 @@ paths:
                 parent_comment_id:
                   type: [string, "null"]
                   format: uuid
+                internal:
+                  type: boolean
+                  default: false
+                  description: >
+                    An internal note for the team rather than a reply the requester reads: every
+                    reader of the entry reads it, the person who raised it through the portal
+                    never does. A reply to an internal note is internal.
       responses:
         "201":
           description: Created
@@ -20126,8 +20133,8 @@ components:
       properties:
         channel:
           type: string
-          enum: [APP, MCP, RULE, SYNC, IMPORT, MAIL]
-          description: The door; APP is the REST API the web app and hubctl share.
+          enum: [APP, MCP, RULE, SYNC, IMPORT, MAIL, PORTAL]
+          description: The door; APP is the REST API the web app and hubctl share, PORTAL the requester portal's request catalogue.
         closed: { type: boolean, default: false, description: "No entry of the type is created through this door." }
         hidden:
           type: array
@@ -25364,6 +25371,10 @@ components:
           type: [object, "null"]
           additionalProperties: { type: string }
           description: The parameters of the heading - for a displaced version, the field, the device and the reading.
+        internal:
+          type: boolean
+          default: false
+          description: An internal note for the team, never shown to the requester in the portal.
 
 
     Recurrence:

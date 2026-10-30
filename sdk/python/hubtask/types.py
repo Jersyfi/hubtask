@@ -1503,7 +1503,7 @@ class EntryFormField(TypedDict, total=False):
     help: str
 
 class EntryFormChannel(TypedDict, total=False):
-    channel: Required[Literal["APP", "MCP", "RULE", "SYNC", "IMPORT", "MAIL"]]
+    channel: Required[Literal["APP", "MCP", "RULE", "SYNC", "IMPORT", "MAIL", "PORTAL"]]
     closed: bool
     hidden: list[str]
     presets: dict[str, Any]
@@ -3319,6 +3319,7 @@ class Comment(TypedDict, total=False):
     kind: Literal["USER", "SYSTEM"]
     system_code: str | None
     system_params: dict[str, Any] | None
+    internal: bool
 
 class Recurrence(TypedDict, total=False):
     id: Required[str]

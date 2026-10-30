@@ -122,7 +122,9 @@ func (s SlaClocks) Deliver(ctx context.Context, envelope event.Envelope) error {
 	case event.ItemCompleted:
 		return s.stopAll(ctx, clocks, itemID, records, true, now)
 	case event.CommentCreated:
-		if shared.ID(textAt(envelope.Payload, "author_id")) == item.CreatedBy {
+		// The requester's own words answer nothing, and neither does a note they never read.
+		if shared.ID(textAt(envelope.Payload, "author_id")) == item.CreatedBy ||
+			envelope.Payload["internal"] == true {
 			return nil
 		}
 		return s.meet(ctx, clocks, records, domain.GoalFirstResponse, now)

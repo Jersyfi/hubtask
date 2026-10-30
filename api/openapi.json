@@ -17596,6 +17596,11 @@
                       "null"
                     ],
                     "format": "uuid"
+                  },
+                  "internal": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "An internal note for the team rather than a reply the requester reads: every reader of the entry reads it, the person who raised it through the portal never does. A reply to an internal note is internal.\n"
                   }
                 }
               }
@@ -28609,9 +28614,10 @@
               "RULE",
               "SYNC",
               "IMPORT",
-              "MAIL"
+              "MAIL",
+              "PORTAL"
             ],
-            "description": "The door; APP is the REST API the web app and hubctl share."
+            "description": "The door; APP is the REST API the web app and hubctl share, PORTAL the requester portal's request catalogue."
           },
           "closed": {
             "type": "boolean",
@@ -37755,6 +37761,11 @@
               "type": "string"
             },
             "description": "The parameters of the heading - for a displaced version, the field, the device and the reading."
+          },
+          "internal": {
+            "type": "boolean",
+            "default": false,
+            "description": "An internal note for the team, never shown to the requester in the portal."
           }
         }
       },

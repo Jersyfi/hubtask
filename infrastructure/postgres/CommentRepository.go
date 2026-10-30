@@ -74,6 +74,7 @@ func (r CommentRepository) Insert(ctx context.Context, comment work.Comment) err
 		Kind:            string(kind),
 		SystemCode:      optionalText(comment.SystemCode),
 		SystemParams:    systemParams,
+		Internal:        comment.Internal,
 	})
 	if err != nil {
 		return shared.ErrUnavailable.
@@ -103,11 +104,13 @@ func (r CommentRepository) Find(ctx context.Context, id shared.ID) (work.Comment
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading the comment %s: %w", id, err))
 	}
-	return commentFrom(
+	comment, err := commentFrom(
 		row.ID, row.TenantID, row.ItemID, row.AuthorID, row.ParentCommentID,
 		row.Body, row.CreatedAt, row.EditedAt, row.DeletedAt, row.Version,
 		row.Kind, row.SystemCode, row.SystemParams,
 	)
+	comment.Internal = row.Internal
+	return comment, err
 }
 
 // List returns one page of one entry's comments, oldest first.
@@ -149,6 +152,7 @@ func (r CommentRepository) List(
 		if err != nil {
 			return repository.CommentPage{}, err
 		}
+		comment.Internal = row.Internal
 		comments = append(comments, comment)
 	}
 

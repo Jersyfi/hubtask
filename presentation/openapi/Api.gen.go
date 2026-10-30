@@ -2931,6 +2931,7 @@ const (
 	EntryFormChannelChannelIMPORT EntryFormChannelChannel = "IMPORT"
 	EntryFormChannelChannelMAIL   EntryFormChannelChannel = "MAIL"
 	EntryFormChannelChannelMCP    EntryFormChannelChannel = "MCP"
+	EntryFormChannelChannelPORTAL EntryFormChannelChannel = "PORTAL"
 	EntryFormChannelChannelRULE   EntryFormChannelChannel = "RULE"
 	EntryFormChannelChannelSYNC   EntryFormChannelChannel = "SYNC"
 )
@@ -2945,6 +2946,8 @@ func (e EntryFormChannelChannel) Valid() bool {
 	case EntryFormChannelChannelMAIL:
 		return true
 	case EntryFormChannelChannelMCP:
+		return true
+	case EntryFormChannelChannelPORTAL:
 		return true
 	case EntryFormChannelChannelRULE:
 		return true
@@ -10218,7 +10221,10 @@ type Comment struct {
 	DeletedAt *time.Time         `json:"deleted_at,omitempty"`
 	EditedAt  *time.Time         `json:"edited_at,omitempty"`
 	Id        openapi_types.UUID `json:"id"`
-	ItemId    openapi_types.UUID `json:"item_id"`
+
+	// Internal An internal note for the team, never shown to the requester in the portal.
+	Internal *bool              `json:"internal,omitempty"`
+	ItemId   openapi_types.UUID `json:"item_id"`
 
 	// Kind `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
 	// displaced version of a free-text field that lost a merge, whose
@@ -11378,7 +11384,7 @@ type EntryForm struct {
 
 // EntryFormChannel defines model for EntryFormChannel.
 type EntryFormChannel struct {
-	// Channel The door; APP is the REST API the web app and hubctl share.
+	// Channel The door; APP is the REST API the web app and hubctl share, PORTAL the requester portal's request catalogue.
 	Channel EntryFormChannelChannel `json:"channel"`
 
 	// Closed No entry of the type is created through this door.
@@ -11391,7 +11397,7 @@ type EntryFormChannel struct {
 	Presets *map[string]interface{} `json:"presets,omitempty"`
 }
 
-// EntryFormChannelChannel The door; APP is the REST API the web app and hubctl share.
+// EntryFormChannelChannel The door; APP is the REST API the web app and hubctl share, PORTAL the requester portal's request catalogue.
 type EntryFormChannelChannel string
 
 // EntryFormDraft defines model for EntryFormDraft.
@@ -19324,7 +19330,10 @@ type ListCommentsParams struct {
 
 // AddCommentJSONBody defines parameters for AddComment.
 type AddCommentJSONBody struct {
-	Body            string              `json:"body"`
+	Body string `json:"body"`
+
+	// Internal An internal note for the team rather than a reply the requester reads: every reader of the entry reads it, the person who raised it through the portal never does. A reply to an internal note is internal.
+	Internal        *bool               `json:"internal,omitempty"`
 	ParentCommentId *openapi_types.UUID `json:"parent_comment_id,omitempty"`
 }
 

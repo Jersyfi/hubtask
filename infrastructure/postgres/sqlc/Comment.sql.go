@@ -31,7 +31,7 @@ func (q *Queries) ClearCommentTexts(ctx context.Context, ids []pgtype.UUID) (int
 const findComment = `-- name: FindComment :one
 SELECT id, tenant_id, item_id, author_id, parent_comment_id,
        (CASE WHEN deleted_at IS NULL THEN body ELSE '' END)::text AS body,
-       created_at, edited_at, deleted_at, version, kind, system_code, system_params
+       created_at, edited_at, deleted_at, version, kind, system_code, system_params, internal
 FROM comment
 WHERE id = $1
 `
@@ -50,6 +50,7 @@ type FindCommentRow struct {
 	Kind            string
 	SystemCode      *string
 	SystemParams    []byte
+	Internal        bool
 }
 
 // Tombstones are returned rather than filtered out: whether a deleted comment may be edited is
@@ -76,6 +77,7 @@ func (q *Queries) FindComment(ctx context.Context, id pgtype.UUID) (FindCommentR
 		&i.Kind,
 		&i.SystemCode,
 		&i.SystemParams,
+		&i.Internal,
 	)
 	return i, err
 }
@@ -84,12 +86,12 @@ const insertComment = `-- name: InsertComment :exec
 
 INSERT INTO comment (
   id, tenant_id, item_id, author_id, parent_comment_id, body, created_at, version,
-  kind, system_code, system_params
+  kind, system_code, system_params, internal
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, normalize($5::text, NFC),
   $6, 1,
-  $7, $8, $9
+  $7, $8, $9, $10
 )
 `
 
@@ -103,6 +105,7 @@ type InsertCommentParams struct {
 	Kind            string
 	SystemCode      *string
 	SystemParams    []byte
+	Internal        bool
 }
 
 // The discussion beside the entries (domain-model.md §3.5).
@@ -124,6 +127,7 @@ func (q *Queries) InsertComment(ctx context.Context, arg InsertCommentParams) er
 		arg.Kind,
 		arg.SystemCode,
 		arg.SystemParams,
+		arg.Internal,
 	)
 	return err
 }
@@ -185,7 +189,7 @@ func (q *Queries) KeptCommentTexts(ctx context.Context, arg KeptCommentTextsPara
 const listComments = `-- name: ListComments :many
 SELECT id, tenant_id, item_id, author_id, parent_comment_id,
        (CASE WHEN deleted_at IS NULL THEN body ELSE '' END)::text AS body,
-       created_at, edited_at, deleted_at, version, kind, system_code, system_params
+       created_at, edited_at, deleted_at, version, kind, system_code, system_params, internal
 FROM comment
 WHERE item_id = $1
   AND (
@@ -217,6 +221,7 @@ type ListCommentsRow struct {
 	Kind            string
 	SystemCode      *string
 	SystemParams    []byte
+	Internal        bool
 }
 
 // One page of one entry's discussion, oldest first: a conversation reads top down, and a page
@@ -256,6 +261,7 @@ func (q *Queries) ListComments(ctx context.Context, arg ListCommentsParams) ([]L
 			&i.Kind,
 			&i.SystemCode,
 			&i.SystemParams,
+			&i.Internal,
 		); err != nil {
 			return nil, err
 		}
