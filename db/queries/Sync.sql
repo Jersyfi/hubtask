@@ -362,12 +362,23 @@ LIMIT sqlc.arg('batch');
 -- Every link between two living entries, with the collection of each end: a reader is told of a
 -- link only when they may read both.
 SELECT l.id, l.tenant_id, l.link_type, l.source_id, l.target_id, l.created_by, l.created_at,
+  l.dependency_kind, l.lag_days,
   s.collection_id AS source_collection_id, t.collection_id AS target_collection_id
 FROM entry_link l
 JOIN work_item s ON s.tenant_id = l.tenant_id AND s.id = l.source_id AND s.deleted_at IS NULL
 JOIN work_item t ON t.tenant_id = l.tenant_id AND t.id = l.target_id AND t.deleted_at IS NULL
 WHERE l.tenant_id = current_tenant_id() AND l.id > sqlc.arg('after')
 ORDER BY l.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotEntrySchedules :many
+-- Every live entry's stored scheduling mode and milestone mark (migration 0244), with its
+-- collection: a reader is told of it where they may read the entry.
+SELECT es.entry_id, es.mode, es.milestone, es.version, wi.collection_id
+FROM entry_schedule es
+JOIN work_item wi ON wi.tenant_id = es.tenant_id AND wi.id = es.entry_id AND wi.deleted_at IS NULL
+WHERE es.tenant_id = current_tenant_id() AND es.entry_id > sqlc.arg('after')
+ORDER BY es.entry_id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotCustomRoles :many

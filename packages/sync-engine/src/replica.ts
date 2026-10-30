@@ -65,6 +65,8 @@ export function collectionOf(entity: string): string {
       return 'link_types';
     case 'entry_link':
       return 'entry_links';
+    case 'entry_schedule':
+      return 'entry_schedules';
     case 'workflow':
       return 'workflows';
     case 'custom_role':

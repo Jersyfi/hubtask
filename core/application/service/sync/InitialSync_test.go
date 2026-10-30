@@ -23,6 +23,7 @@ import (
 // snapshotStore is the current state, in memory, paged the way the port pages it: by identifier,
 // after a key. Every kind is sorted at construction so that a page after a key is deterministic.
 type snapshotStore struct {
+	schedules   []repository.ScheduleOf
 	containers  []work.Container
 	buckets     []work.Bucket
 	labels      []work.Label

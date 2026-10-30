@@ -615,3 +615,8 @@ test('a label deleted and then restored is held whole again', async () => {
   const item = await held(storage, 'item', ITEM);
   assert.deepEqual(item?.sets, { labels: [LABEL] }, 'the entry still carries it: the deletion rewrote no entry');
 });
+
+// UC-PLN-02 check 2 offline: an entry's scheduling mode is held in a collection of its own.
+test('an entry\'s scheduling is held under its own collection', () => {
+  assert.equal(collectionOf('entry_schedule'), 'entry_schedules');
+});

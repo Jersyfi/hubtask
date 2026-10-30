@@ -439,6 +439,7 @@ func (SnapshotRepository) EntryLinks(ctx context.Context, after shared.ID, batch
 		link, err := entryLinkFrom(sqlc.FindEntryLinkRow{
 			ID: row.ID, TenantID: row.TenantID, LinkType: row.LinkType, SourceID: row.SourceID,
 			TargetID: row.TargetID, CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt,
+			DependencyKind: row.DependencyKind, LagDays: row.LagDays,
 		})
 		if err != nil {
 			return repository.LinkBetween{}, err
@@ -452,6 +453,33 @@ func (SnapshotRepository) EntryLinks(ctx context.Context, after shared.ID, batch
 			return repository.LinkBetween{}, err
 		}
 		return repository.LinkBetween{Link: link, SourceCollectionID: source, TargetCollectionID: target}, nil
+	})
+}
+
+// EntrySchedules pages the live entries' stored scheduling modes.
+func (SnapshotRepository) EntrySchedules(ctx context.Context, after shared.ID, batch int) ([]repository.ScheduleOf, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotEntrySchedules(ctx, sqlc.SnapshotEntrySchedulesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("entry schedules", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotEntrySchedulesRow) (repository.ScheduleOf, error) {
+		entry, err := idFrom(row.EntryID)
+		if err != nil {
+			return repository.ScheduleOf{}, err
+		}
+		collection, err := idFrom(row.CollectionID)
+		if err != nil {
+			return repository.ScheduleOf{}, err
+		}
+		return repository.ScheduleOf{
+			EntryID: entry, CollectionID: collection, Mode: row.Mode, Milestone: row.Milestone, Version: int(row.Version),
+		}, nil
 	})
 }
 

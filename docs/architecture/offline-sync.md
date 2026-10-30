@@ -102,7 +102,11 @@ CMDB's classes and relation types, shipped and the workspace's own, travel as on
 (`cmdb_catalogue`, under the workspace's identifier and no container, judged as a workspace-wide
 read), recorded again whenever one is defined. While the server is away the web app answers a hub's
 inventory, a CI with its relations and the catalogue from the copy, nothing writable: a CI is
-written through the reconciliation, which needs the server. A
+written through the reconciliation, which needs the server. A link carries its dependency's kind
+and lag (`dependency_kind`, `lag_days`) in the walk as in the delta, and setting them records the
+link again. An entry's scheduling mode and milestone mark (`entry_schedule`, by the entry's
+identifier) are filed under its collection and walked last; an entry without one is MANUAL and no
+milestone. Both are written online only: the plan is scheduled by the server. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 

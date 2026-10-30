@@ -157,6 +157,9 @@ type Snapshot interface {
 	LinkTypes(ctx context.Context, after shared.ID, batch int) ([]work.LinkType, error)
 	// EntryLinks pages every link between two live entries, with the collection of each end.
 	EntryLinks(ctx context.Context, after shared.ID, batch int) ([]LinkBetween, error)
+	// EntrySchedules pages every live entry's stored scheduling mode and milestone mark, with
+	// its collection (M2). An entry without a row is MANUAL and no milestone, and is not paged.
+	EntrySchedules(ctx context.Context, after shared.ID, batch int) ([]ScheduleOf, error)
 	// CustomRoles pages the workspace's own roles (UC-ID-26).
 	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
 	// Pages pages the workspace's living pages with their bodies, for reading offline (M3).
@@ -171,6 +174,15 @@ type Snapshot interface {
 	// OwnRoleGrants pages the grants of custom roles the account holds, named to it or to a
 	// group it is in: a person's own (offline-sync.md §4.3).
 	OwnRoleGrants(ctx context.Context, accountID, after shared.ID, batch int) ([]identityrepo.CustomGrantRow, error)
+}
+
+// ScheduleOf is an entry's scheduling as the walk carries it, filed under the entry's collection.
+type ScheduleOf struct {
+	EntryID      shared.ID
+	CollectionID shared.ID
+	Mode         string
+	Milestone    bool
+	Version      int
 }
 
 // LinkBetween is a link with the collection each of its ends is in: a reader is told of it only

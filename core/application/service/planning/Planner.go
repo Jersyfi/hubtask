@@ -101,7 +101,8 @@ type Planner struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Text       text.Normalizer
-	// Changes and HLC tell offline devices of a dependency's new timing; nil records nothing.
+	// Changes and HLC tell offline devices of a dependency's new timing and an entry's new mode;
+	// nil records nothing.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
 }

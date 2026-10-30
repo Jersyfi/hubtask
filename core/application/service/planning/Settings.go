@@ -234,6 +234,15 @@ func (h SetEntryScheduling) Execute(ctx context.Context, actor appshared.ActorCo
 		}
 		next.Version = current.Version + 1
 		out = next
+		if h.Planner.Changes != nil {
+			if err := h.Planner.Changes.Record(ctx, changelog.Change{
+				TenantID: actor.TenantID, Entity: ScheduleEntity, EntityID: item.ID, Op: changelog.Upsert,
+				ContainerID: item.CollectionID, ActorID: actor.AccountID, HLC: h.Planner.HLC.Next(),
+				Payload: ScheduleRecord(item.ID, item.CollectionID, next.Mode, next.Milestone, next.Version),
+			}); err != nil {
+				return err
+			}
+		}
 		return h.Planner.record(ctx, actor, EntryScheduledAction, itemTarget, item.ID, now,
 			audit.Change{Field: "mode", Classification: audit.Open, From: string(current.Mode), To: string(next.Mode)},
 			audit.Change{Field: "milestone", Classification: audit.Open, From: strconv.FormatBool(current.Milestone), To: strconv.FormatBool(next.Milestone)})
@@ -247,6 +256,22 @@ func (h SetEntryScheduling) Execute(ctx context.Context, actor appshared.ActorCo
 // ScheduleOutput is an entry's mode as every door returns it.
 func ScheduleOutput(s planrepo.EntrySchedule) usecase.Output {
 	return usecase.Output{"item_id": s.EntryID.String(), "mode": string(s.Mode), "milestone": s.Milestone}
+}
+
+// ScheduleEntity is what the change log and the replica file an entry's scheduling under, by the
+// entry's identifier and in its collection: an offline device sees an entry's mode where it sees
+// the entry.
+const ScheduleEntity = "entry_schedule"
+
+// ScheduleRecord is an entry's scheduling as the change log and the replica carry it.
+func ScheduleRecord(entryID, collectionID shared.ID, mode domain.Mode, milestone bool, version int) map[string]any {
+	if !mode.Valid() {
+		mode = domain.Manual
+	}
+	return map[string]any{
+		"item_id": entryID.String(), "collection_id": collectionID.String(), "mode": string(mode),
+		"milestone": milestone, "version": version,
+	}
 }
 
 // Descriptor is the catalogue entry.

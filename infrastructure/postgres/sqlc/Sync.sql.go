@@ -1015,6 +1015,7 @@ func (q *Queries) SnapshotCustomRoles(ctx context.Context, arg SnapshotCustomRol
 
 const snapshotEntryLinks = `-- name: SnapshotEntryLinks :many
 SELECT l.id, l.tenant_id, l.link_type, l.source_id, l.target_id, l.created_by, l.created_at,
+  l.dependency_kind, l.lag_days,
   s.collection_id AS source_collection_id, t.collection_id AS target_collection_id
 FROM entry_link l
 JOIN work_item s ON s.tenant_id = l.tenant_id AND s.id = l.source_id AND s.deleted_at IS NULL
@@ -1037,6 +1038,8 @@ type SnapshotEntryLinksRow struct {
 	TargetID           pgtype.UUID
 	CreatedBy          pgtype.UUID
 	CreatedAt          pgtype.Timestamptz
+	DependencyKind     string
+	LagDays            int32
 	SourceCollectionID pgtype.UUID
 	TargetCollectionID pgtype.UUID
 }
@@ -1060,8 +1063,60 @@ func (q *Queries) SnapshotEntryLinks(ctx context.Context, arg SnapshotEntryLinks
 			&i.TargetID,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.DependencyKind,
+			&i.LagDays,
 			&i.SourceCollectionID,
 			&i.TargetCollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotEntrySchedules = `-- name: SnapshotEntrySchedules :many
+SELECT es.entry_id, es.mode, es.milestone, es.version, wi.collection_id
+FROM entry_schedule es
+JOIN work_item wi ON wi.tenant_id = es.tenant_id AND wi.id = es.entry_id AND wi.deleted_at IS NULL
+WHERE es.tenant_id = current_tenant_id() AND es.entry_id > $1
+ORDER BY es.entry_id
+LIMIT $2
+`
+
+type SnapshotEntrySchedulesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotEntrySchedulesRow struct {
+	EntryID      pgtype.UUID
+	Mode         string
+	Milestone    bool
+	Version      int32
+	CollectionID pgtype.UUID
+}
+
+// Every live entry's stored scheduling mode and milestone mark (migration 0244), with its
+// collection: a reader is told of it where they may read the entry.
+func (q *Queries) SnapshotEntrySchedules(ctx context.Context, arg SnapshotEntrySchedulesParams) ([]SnapshotEntrySchedulesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotEntrySchedules, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotEntrySchedulesRow{}
+	for rows.Next() {
+		var i SnapshotEntrySchedulesRow
+		if err := rows.Scan(
+			&i.EntryID,
+			&i.Mode,
+			&i.Milestone,
+			&i.Version,
+			&i.CollectionID,
 		); err != nil {
 			return nil, err
 		}

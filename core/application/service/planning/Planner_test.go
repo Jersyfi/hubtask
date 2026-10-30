@@ -11,6 +11,7 @@ import (
 	"time"
 
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -346,6 +347,35 @@ func TestADependencysTimingIsSetOnTheWaitingEnd(t *testing.T) {
 		LinkID: dependsOn, Timing: domain.Timing{Kind: domain.FinishToStart, LagDays: 1000},
 	}); !errors.As(err, &e) || e.DetailCode != "planning.lag_out_of_range" {
 		t.Errorf("a lag past the bound: %v", err)
+	}
+}
+
+type changes struct{ recorded []changelog.Change }
+
+func (c *changes) Record(_ context.Context, change changelog.Change) error {
+	c.recorded = append(c.recorded, change)
+	return nil
+}
+
+type hlc struct{}
+
+func (hlc) Next() shared.HLC { return shared.HLC{} }
+
+// PLN-02 check 2 offline: an entry's new mode is filed for offline devices under its collection.
+func TestAnEntrysModeIsToldToOfflineDevices(t *testing.T) {
+	f := newFixture()
+	log := &changes{}
+	f.planner.Changes, f.planner.HLC = log, hlc{}
+	automatic := domain.Automatic
+	if _, err := (SetEntryScheduling{Planner: f.planner}).Execute(context.Background(), actor(), SetEntrySchedulingCommand{ItemID: design, Mode: &automatic}); err != nil {
+		t.Fatal(err)
+	}
+	if len(log.recorded) != 1 {
+		t.Fatalf("recorded %d changes, want one", len(log.recorded))
+	}
+	got := log.recorded[0]
+	if got.Entity != ScheduleEntity || got.EntityID != design || got.ContainerID != collection || got.Payload["mode"] != "AUTOMATIC" {
+		t.Errorf("change = %+v", got)
 	}
 }
 

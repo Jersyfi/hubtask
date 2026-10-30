@@ -11,10 +11,12 @@ import (
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
+	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -33,7 +35,7 @@ var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
 	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage,
-	entityCI, entityCIRelation, entityCICatalogue,
+	entityCI, entityCIRelation, entityCICatalogue, entityEntrySchedule,
 }
 
 const (
@@ -55,6 +57,9 @@ const (
 	// entityEntryLink is filed under its source's collection and reaches a reader only when they
 	// may read the target's as well: a link never tells of an entry its reader cannot see.
 	entityEntryLink = "entry_link"
+	// entityEntrySchedule is an entry's scheduling mode and milestone mark, filed under its
+	// collection (M2): walked last, so a cursor from a build that ended before it still resumes.
+	entityEntrySchedule = planningservice.ScheduleEntity
 	// entityPage is a page with its body, filed under its hub: a page is read where its hub is.
 	entityPage = knowledge.DocumentKind
 	// entityCI and entityCIRelation are a configuration item and a relation between two, each
@@ -434,6 +439,20 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityCIRelation, entityID: r.ID, containerID: r.HubID,
 				payload: cmdbservice.RelationOutput(r), key: r.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityEntrySchedule:
+		schedules, err := p.Snapshot.EntrySchedules(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(schedules))
+		for _, s := range schedules {
+			rows = append(rows, walkRow{
+				entity: entityEntrySchedule, entityID: s.EntryID, containerID: s.CollectionID,
+				payload: planningservice.ScheduleRecord(s.EntryID, s.CollectionID, planning.Mode(s.Mode), s.Milestone, s.Version),
+				key:     s.EntryID.String(),
 			})
 		}
 		return rows, nil
