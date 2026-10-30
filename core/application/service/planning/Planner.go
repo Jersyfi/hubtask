@@ -86,6 +86,7 @@ type Planner struct {
 	Plans      planrepo.Plans
 	Baselines  planrepo.Baselines
 	Sprints    planrepo.Sprints
+	Releases   planrepo.Releases
 	Items      workrepo.Items
 	Containers workrepo.Containers
 	LinkTypes  workrepo.LinkTypes

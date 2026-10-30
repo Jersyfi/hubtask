@@ -171,11 +171,14 @@ func (s *sink) Append(_ context.Context, e audit.Entry) error {
 type catalogue struct{ calls []usecase.Input }
 
 func (c *catalogue) Invoke(_ context.Context, name string, _ appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-	if name != updateWorkItemName {
-		return nil, errors.New("unexpected " + name)
-	}
 	c.calls = append(c.calls, in)
-	return usecase.Output{}, nil
+	switch name {
+	case updateWorkItemName:
+		return usecase.Output{}, nil
+	case createPageName:
+		return usecase.Output{"id": notesPage.String()}, nil
+	}
+	return nil, errors.New("unexpected " + name)
 }
 
 type baselines struct {

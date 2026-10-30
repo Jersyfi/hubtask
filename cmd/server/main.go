@@ -1888,7 +1888,7 @@ func run() error {
 	planMoves := &deferredCatalogue{}
 	planningStore := postgres.NewPlanningRepository()
 	planner := planningservice.Planner{
-		Plans: planningStore, Baselines: planningStore.Baselines(), Sprints: planningStore.Sprints(), Items: items, Containers: containers,
+		Plans: planningStore, Baselines: planningStore.Baselines(), Sprints: planningStore.Sprints(), Releases: planningStore.Releases(), Items: items, Containers: containers,
 		LinkTypes: linkTypeRegistry.Types, Links: entryLinks, References: entryLinks,
 		Calendars: serviceDeskStore.Calendars(), Catalogue: planMoves, Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
@@ -2088,6 +2088,14 @@ func run() error {
 		planningservice.ListBaselines{Planner: planner}.Descriptor(),
 		planningservice.CompareBaseline{Planner: planner}.Descriptor(),
 		planningservice.DeleteBaseline{Planner: planner}.Descriptor(),
+		planningservice.CreateRelease{Planner: planner}.Descriptor(),
+		planningservice.UpdateRelease{Planner: planner}.Descriptor(),
+		planningservice.ListReleases{Planner: planner}.Descriptor(),
+		planningservice.ReadRelease{Planner: planner}.Descriptor(),
+		planningservice.DeleteRelease{Planner: planner}.Descriptor(),
+		planningservice.AddReleaseEntries{Planner: planner}.Descriptor(),
+		planningservice.RemoveReleaseEntries{Planner: planner}.Descriptor(),
+		planningservice.PublishRelease{Planner: planner}.Descriptor(),
 		planningservice.CreateSprint{Planner: planner}.Descriptor(),
 		planningservice.UpdateSprint{Planner: planner}.Descriptor(),
 		planningservice.ListSprints{Planner: planner}.Descriptor(),
