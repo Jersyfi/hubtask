@@ -54,6 +54,9 @@ func (WebhookSubscriptionRepository) Insert(
 		FilterExpr:  optionalText(subscription.Filter),
 		ScopeType:   scopeTypeOf(subscription.Scope),
 		ScopeID:     scopeIDOf(subscription.Scope),
+		Format:      string(formatOf(subscription.Format)),
+		ChatRoom:    optionalText(subscription.Room),
+		ChatLocale:  optionalText(subscription.Locale),
 		SecretEnc:   stored.Secret.Ciphertext,
 		SecretKeyID: optionalText(stored.Secret.KeyID),
 		State:       string(subscription.State),
@@ -268,6 +271,9 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 			EventTypes:          types,
 			Filter:              stringFrom(row.FilterExpr),
 			Scope:               scope,
+			Format:              domain.DeliveryFormat(row.Format),
+			Room:                stringFrom(row.ChatRoom),
+			Locale:              stringFrom(row.ChatLocale),
 			State:               domain.SubscriptionState(row.State),
 			FailureCount:        int(row.FailureCount),
 			LastError:           stringFrom(row.LastError),
@@ -284,6 +290,14 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 			Ciphertext: row.PreviousSecretEnc, KeyID: stringFrom(row.PreviousSecretKeyID),
 		},
 	}, nil
+}
+
+// formatOf stores a subscription built without a format as the CloudEvent it delivers.
+func formatOf(format domain.DeliveryFormat) domain.DeliveryFormat {
+	if format == "" {
+		return domain.FormatCloudEvents
+	}
+	return format
 }
 
 // scopeTypeOf and scopeIDOf store the whole workspace as two NULLs, which every subscription made

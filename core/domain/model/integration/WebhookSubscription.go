@@ -76,7 +76,13 @@ type WebhookSubscription struct {
 	// Scope is where the subscription listens: the whole workspace, one hub or one collection.
 	// Whether an event happened there is the dispatcher's question; this holds what was asked for.
 	Scope WebhookScope
-	State SubscriptionState
+	// Format is what the target receives, the CloudEvent or a chat room's sentence (UC-INT-12);
+	// Room and Locale belong to a chat format. Fixed at creation: a target that changed what it
+	// accepts is a new subscription.
+	Format DeliveryFormat
+	Room   string
+	Locale string
+	State  SubscriptionState
 	// FailureCount is the run of consecutive failed deliveries. The first success resets it, which
 	// is what makes it a measure of "is this target reachable now" rather than of history.
 	FailureCount int
@@ -104,8 +110,11 @@ type NewWebhookSubscriptionInput struct {
 	EventTypes []string
 	Filter     string
 	Scope      WebhookScope
-	CreatedBy  shared.ID
-	Now        time.Time
+	// Chat is the format and, for a chat room, where and in which language; the zero value is
+	// the CloudEvent.
+	Chat      ChatTarget
+	CreatedBy shared.ID
+	Now       time.Time
 }
 
 // NewWebhookSubscription builds one and refuses what automation.md §3.1 does not allow.
@@ -126,10 +135,15 @@ func NewWebhookSubscription(in NewWebhookSubscriptionInput) (WebhookSubscription
 	if err != nil {
 		return WebhookSubscription{}, err
 	}
+	chat, err := ValidChatTarget(in.Chat)
+	if err != nil {
+		return WebhookSubscription{}, err
+	}
 
 	return WebhookSubscription{
 		ID: in.ID, TenantID: in.TenantID,
 		TargetURL: target, EventTypes: types, Scope: scope, Filter: strings.TrimSpace(in.Filter),
+		Format: chat.Format, Room: chat.Room, Locale: chat.Locale,
 		State:     SubscriptionActive,
 		CreatedBy: in.CreatedBy, CreatedAt: in.Now.UTC(), Version: 1,
 	}, nil

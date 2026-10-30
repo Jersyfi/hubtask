@@ -2805,6 +2805,9 @@ type WebhookSubscription struct {
 	DisabledAt          pgtype.Timestamptz
 	ScopeType           *string
 	ScopeID             pgtype.UUID
+	Format              string
+	ChatRoom            *string
+	ChatLocale          *string
 }
 
 type Whiteboard struct {
