@@ -12,11 +12,11 @@
  */
 
 import type {
-  Agent, AgentCase, AgentCaseCreate, AgentHalt, AgentJob, AgentModel, AgentModelChange, AgentModelCreate, AgentRequest, AgentRun, AgentWrite,
+  Agent, AgentCase, AgentCaseCreate, AgentHalt, WorkspaceAgentPolicy, AgentJob, AgentModel, AgentModelChange, AgentModelCreate, AgentRequest, AgentRun, AgentWrite,
 } from '@hubtask/sync-engine';
 
 import {
-  agentCasesPath, agentEvaluationsPath, agentHaltPath, agentJobsPath, agentModelPath, agentModelsPath, agentPath, agentsPath, meteringPath, requestsPath,
+  agentCasesPath, agentEvaluationsPath, agentHaltPath, agentPolicyPath, agentJobsPath, agentModelPath, agentModelsPath, agentPath, agentsPath, meteringPath, requestsPath,
 } from './agents.ts';
 import { engine } from './engine.ts';
 
@@ -44,6 +44,11 @@ class Agents {
   /** The workspace's kill switch: every agent halted, or released. */
   halt(halted: boolean): Promise<AgentHalt> {
     return engine.mutate<AgentHalt>('PUT', agentHaltPath, { halted }, { invalidates: [agentHaltPath] });
+  }
+
+  /** Whether MCP takes registered agents only; a level above may have locked it on. */
+  registeredOnly(on: boolean): Promise<WorkspaceAgentPolicy> {
+    return engine.mutate<WorkspaceAgentPolicy>('PUT', agentPolicyPath, { registered_only: on }, { invalidates: [agentPolicyPath] });
   }
 
   registerModel(body: AgentModelCreate): Promise<AgentModel> {

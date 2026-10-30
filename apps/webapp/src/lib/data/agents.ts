@@ -14,6 +14,8 @@ import type { Agent, AgentMeteringList, AgentRequest } from '@hubtask/sync-engin
 export const agentsPath = '/agents';
 export const agentModelsPath = '/agent-models';
 export const agentHaltPath = '/agents:halt';
+/** The workspace's agent policy: whether MCP takes registered agents only. */
+export const agentPolicyPath = '/agents:policy';
 export const agentPath = (agentId: string) => `/agents/${agentId}`;
 export const agentActionsPath = (agentId: string) => `/agents/${agentId}/actions`;
 export const agentJobsPath = (agentId: string) => `/agents/${agentId}/jobs`;

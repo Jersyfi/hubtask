@@ -15,14 +15,14 @@
     Badge, Banner, Button, Dialog, IconButton, Input, PageHeader, Select, Spinner, Stack, Switch, Table, Tabs, Textarea, type SelectOption,
   } from '@hubtask/design-system/components';
   import type {
-    Agent, AgentHalt, AgentList, AgentMeteringList, AgentModel, AgentModelList, AgentRequest, AgentRequestList, AgentWrite, AiSource,
+    Agent, AgentHalt, WorkspaceAgentPolicy, AgentList, AgentMeteringList, AgentModel, AgentModelList, AgentRequest, AgentRequestList, AgentWrite, AiSource,
   } from '@hubtask/sync-engine';
 
   import AgentDetail from '../lib/agents/AgentDetail.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import {
-    agentHaltPath, agentModelsPath, agents, agentsPath, lifecyclePresses, mayDecide, meteringPath, meteringTotals, previewOf, requestsPath,
+    agentHaltPath, agentPolicyPath, agentModelsPath, agents, agentsPath, lifecyclePresses, mayDecide, meteringPath, meteringTotals, previewOf, requestsPath,
     retentionOf, scopesFrom, type LifecyclePress, type Viewer,
   } from '../lib/data/agents.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -94,6 +94,9 @@
 
   const haltRead = resource<AgentHalt>(agentHaltPath);
   const halt = $derived(haltRead.state.status === 'ready' ? haltRead.state.data : undefined);
+  // Whether MCP takes registered agents only (UC-AGT-02 check 10): absent for whoever may not read it.
+  const policyRead = resource<WorkspaceAgentPolicy>(agentPolicyPath);
+  const registeredOnly = $derived(policyRead.state.status === 'ready' ? policyRead.state.data['agents.registered_only'] : undefined);
 
   // --- An agent opened -------------------------------------------------------------------------
 
@@ -308,6 +311,19 @@
       >
         {halt.halted ? t('app.agents.release_all') : t('app.agents.halt_all')}
       </Button>
+    </div>
+  {/if}
+  {#if administers && registeredOnly}
+    <div data-agents-registered-only>
+      <Switch
+        label={t('app.agents.registered_only')}
+        hint={t('app.agents.registered_only_hint')}
+        disabledReason={registeredOnly.locked_by ? t('app.agents.registered_only_locked') : undefined}
+        bind:checked={
+          () => registeredOnly.value,
+          (on) => void act(() => agents.registeredOnly(on), on ? t('app.agents.registered_only_on') : t('app.agents.registered_only_off'))
+        }
+      />
     </div>
   {/if}
 
