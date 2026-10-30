@@ -892,3 +892,26 @@ export type DashboardDigest = components['schemas']['DashboardDigest'];
 export type DashboardDigestWrite = components['schemas']['DashboardDigestWrite'];
 export type ItemAggregateQuery = components['schemas']['ItemAggregateQuery'];
 export type ItemAggregateResult = components['schemas']['ItemAggregateResult'];
+
+/** Governed agents (M9): the registry, the models they call, held acts, the ledger, metering, jobs and evaluation. */
+export type Agent = components['schemas']['Agent'];
+export type AgentList = components['schemas']['AgentList'];
+export type AgentWrite = components['schemas']['AgentWrite'];
+export type AgentHalt = components['schemas']['AgentHalt'];
+export type AgentModel = components['schemas']['AgentModel'];
+export type AgentModelList = components['schemas']['AgentModelList'];
+export type AgentModelCreate = components['schemas']['AgentModelCreate'];
+export type AgentModelChange = components['schemas']['AgentModelChange'];
+export type AgentMeteringList = components['schemas']['AgentMeteringList'];
+export type AgentActionList = components['schemas']['AgentActionList'];
+export type AgentJob = components['schemas']['AgentJob'];
+export type AgentJobList = components['schemas']['AgentJobList'];
+export type AgentCase = components['schemas']['AgentCase'];
+export type AgentCaseList = components['schemas']['AgentCaseList'];
+export type AgentCaseCreate = components['schemas']['AgentCaseCreate'];
+export type AgentRun = components['schemas']['AgentRun'];
+export type AgentRunList = components['schemas']['AgentRunList'];
+export type AgentRequest = components['schemas']['AgentRequest'];
+export type AgentRequestList = components['schemas']['AgentRequestList'];
+export type ValueProvenance = components['schemas']['ValueProvenance'];
+export type ValueProvenanceList = components['schemas']['ValueProvenanceList'];
