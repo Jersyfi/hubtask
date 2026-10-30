@@ -10,7 +10,8 @@
  *
  * **A scale is how far you are looking and how finely it is ruled, together.** Day rules every
  * day and shows a fortnight; week rules every week and shows eight; month rules every month and
- * shows six. One control, because the two are one question — a fortnight ruled by months says
+ * shows six; quarter rules every quarter and shows a year; year rules every year and shows three
+ * (the Gantt screen's zoom, UC-PLN-02 check 7). One control, because the two are one question — a fortnight ruled by months says
  * nothing and half a year ruled by days is unreadable.
  *
  * **The window opens where the work is, not on the current month.** A window pinned to the month
@@ -26,11 +27,11 @@
 import { addDays, contains, daysBetween, weekOf, type Window } from './due.ts';
 
 /** How far the timeline looks, and how finely it is ruled. */
-export type Scale = 'day' | 'week' | 'month';
+export type Scale = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
-export const SCALES: readonly Scale[] = ['day', 'week', 'month'];
+export const SCALES: readonly Scale[] = ['day', 'week', 'month', 'quarter', 'year'];
 
-/** Whether a word is one of the three. Anything else is the middle one. */
+/** Whether a word is one of the five. Anything else is the week. */
 export function scaleOf(value: string | null | undefined): Scale {
   return (SCALES as readonly string[]).includes(value ?? '') ? (value as Scale) : 'week';
 }
@@ -61,6 +62,15 @@ export function windowOf(anchor: string, scale: Scale, weekStart: number): Windo
   if (scale === 'week') {
     const from = weekOf(addDays(anchor, -7), weekStart).from;
     return { from, to: addDays(from, 8 * 7 - 1) };
+  }
+  if (scale === 'quarter') {
+    const month = Number(anchor.slice(5, 7)) - 1;
+    const from = monthsFrom(`${anchor.slice(0, 4)}-01-01`, month - (month % 3) - 3);
+    return { from, to: addDays(monthsFrom(from, 12), -1) };
+  }
+  if (scale === 'year') {
+    const from = `${anchor.slice(0, 4)}-01-01`;
+    return { from, to: addDays(monthsFrom(from, 36), -1) };
   }
   const from = monthsFrom(firstOfMonth(anchor), -1);
   // The last day of the sixth month is the day before the first of the seventh, which needs no
@@ -97,7 +107,11 @@ export function gridOf(window: Window, scale: Scale, weekStart: number): readonl
     if (scale === 'day') days.push(day);
     else if (scale === 'week') {
       if (weekOf(day, weekStart).from === day) days.push(day);
-    } else if (firstOfMonth(day) === day) days.push(day);
+    } else if (scale === 'month') {
+      if (firstOfMonth(day) === day) days.push(day);
+    } else if (scale === 'quarter') {
+      if (firstOfMonth(day) === day && (Number(day.slice(5, 7)) - 1) % 3 === 0) days.push(day);
+    } else if (day.slice(5) === '01-01') days.push(day);
   }
   // A window that begins mid-week or mid-month would otherwise carry no line until the next one,
   // and a scale with no line at its own left edge does not say where it starts.
