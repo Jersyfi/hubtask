@@ -4,7 +4,6 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -22,7 +21,6 @@ const (
 	updateDataSubjectRequestUseCase = "UpdateDataSubjectRequest"
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
-	listConsentsUseCase             = "ListConsents"
 )
 
 // dataSubjectRequestResponse maps one case onto the contract's schema.
@@ -137,12 +135,8 @@ func processingStateResponse(out usecase.Output) openapi.ProcessingState {
 	}
 }
 
-// ListConsents answers GET /privacy/consents: the register, the one place who withdrew is listed.
-func (c *RestController) ListConsents(w http.ResponseWriter, r *http.Request, params openapi.ListConsentsParams) {
-	out, ok := c.read(w, r, listConsentsUseCase, usecase.Input{"purpose": params.Purpose})
-	if !ok {
-		return
-	}
+// consentRegisterResponse maps who has given consent to a purpose, and since when.
+func consentRegisterResponse(out usecase.Output) any {
 	rows, _ := out["items"].([]usecase.Output)
 	answer := struct {
 		Data []openapi.ConsentRegisterEntry `json:"data"`
@@ -160,7 +154,7 @@ func (c *RestController) ListConsents(w http.ResponseWriter, r *http.Request, pa
 		}
 		answer.Data = append(answer.Data, entry)
 	}
-	writeJSON(w, r, http.StatusOK, answer)
+	return answer
 }
 
 func ownAiPositionOf(out usecase.Output) openapi.OwnAiPosition {

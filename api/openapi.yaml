@@ -5183,6 +5183,8 @@ paths:
     get:
       tags: [voice]
       operationId: showAlexaModel
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: alexaModelOf
       summary: The Alexa interaction model
       description: >
         The interaction model to paste into the Alexa developer console's JSON editor. It names
@@ -8306,6 +8308,10 @@ paths:
     post:
       tags: [auth]
       operationId: completePasskeySignIn
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-request: [host, tenant_header, user_agent, remote_addr]
+      x-hubtask-rest-alternate: { when: mfa_required,  answer: mfaChallengeResponse }
       security: []
       summary: Sign in with a passkey and receive the pair
       description: |
@@ -8934,6 +8940,8 @@ paths:
     post:
       tags: [auth]
       operationId: startPasskeyEnrollment
+      x-hubtask-rest: generated
+      x-hubtask-rest-request: [host]
       security: []
       summary: Begin setting up a passkey or security key during sign-in
       description: |
@@ -13031,6 +13039,8 @@ paths:
     get:
       tags: [privacy]
       operationId: listConsents
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: consentRegisterResponse
       summary: The consent register - who withdrew a purpose
       description: |
         For one purpose, every person whose newest record is a withdrawal, with since when and

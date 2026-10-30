@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -20,9 +19,7 @@ import (
 // Voice assistants (ADR-0093). The controller maps documents; who may change the settings and
 // what a sentence does are decided inwards of here.
 
-const (
-	showAlexaModelUseCase = "ShowAlexaModel"
-)
+const ()
 
 // AlexaAnswerer serves Alexa's endpoint. Not a catalogue entry: it proves its caller with Amazon's
 // signature and the linked account's token, not with this API's credentials.
@@ -30,18 +27,8 @@ type AlexaAnswerer interface {
 	Handle(ctx context.Context, header http.Header, body []byte) (voice.Response, error)
 }
 
-// ShowAlexaModel answers GET /voice/alexa/model.
-func (c *RestController) ShowAlexaModel(w http.ResponseWriter, r *http.Request, params openapi.ShowAlexaModelParams) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		input := usecase.Input{}
-		if params.Locale != nil {
-			input["locale"] = string(*params.Locale)
-		}
-		return c.UseCases.Invoke(r.Context(), showAlexaModelUseCase, actor, input)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, out["model"])
-	})
-}
+// alexaModelOf answers the interaction model itself, which the output carries as one member.
+func alexaModelOf(out usecase.Output) any { return out["model"] }
 
 // AnswerAlexa answers POST /voice/alexa.
 //

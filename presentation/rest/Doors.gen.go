@@ -75,6 +75,7 @@ var restDoors = map[string]restDoor{
 	"compareBaseline":                   {UseCase: "CompareBaseline", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeLink":                      {UseCase: "CompleteLink", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"completeMailboxAuthorization":      {UseCase: "CompleteMailboxAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"completePasskeySignIn":             {UseCase: "CompletePasskeySignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"host", "tenant_header", "user_agent", "remote_addr"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"completeProviderConnect":           {UseCase: "CompleteProviderConnect", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeSignIn":                    {UseCase: "CompleteSignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"completeWorkItem":                  {UseCase: "CompleteWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -253,6 +254,7 @@ var restDoors = map[string]restDoor{
 	"listConfigProposals":               {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigTemplates":               {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigVersions":                {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before"}},
+	"listConsents":                      {UseCase: "ListConsents", Status: 200, Query: []string{"purpose"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listContainers":                    {UseCase: "ListContainers", Status: 200, Query: []string{"cursor", "include_archived", "parent_id", "size", "type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listCostRates":                     {UseCase: "ListCostRates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCustomFields":                  {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -519,6 +521,7 @@ var restDoors = map[string]restDoor{
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"setWorkflowScheme":                 {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"shareSavedView":                    {UseCase: "ShareSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"showAlexaModel":                    {UseCase: "ShowAlexaModel", Status: 200, Query: []string{"locale"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showMailSettings":                  {UseCase: "ShowMailSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showVoiceSettings":                 {UseCase: "ShowVoiceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"signIn":                            {UseCase: "SignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"user_agent", "remote_addr", "tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
@@ -526,6 +529,7 @@ var restDoors = map[string]restDoor{
 	"startAgentJob":                     {UseCase: "StartAgentJob", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startAuthenticatorReplacement":     {UseCase: "StartAuthenticatorReplacement", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "secret"},
 	"startBackup":                       {UseCase: "StartBackup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"startPasskeyEnrollment":            {UseCase: "StartPasskeyEnrollment", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"host"}},
 	"startPasskeyRegistration":          {UseCase: "StartPasskeyRegistration", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startPasskeySignIn":                {UseCase: "StartPasskeySignIn", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"host", "tenant_header", "user_agent", "remote_addr"}},
 	"startPasskeyStepUp":                {UseCase: "StartPasskeyStepUp", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"host"}},
@@ -970,6 +974,12 @@ func (c *RestController) CompleteMailboxAuthorization(w http.ResponseWriter, r *
 	var body openapi.CompleteMailboxAuthorizationJSONRequestBody
 	var answer openapi.Mailbox
 	c.door(w, r, restDoors["completeMailboxAuthorization"], usecase.Input{}, params, &body, &answer)
+}
+
+// CompletePasskeySignIn answers POST /auth/sessions:passkey by the generated mapping.
+func (c *RestController) CompletePasskeySignIn(w http.ResponseWriter, r *http.Request) {
+	var body openapi.CompletePasskeySignInJSONRequestBody
+	c.door(w, r, restDoors["completePasskeySignIn"], usecase.Input{}, nil, &body, answerBy(sessionTokensResponse))
 }
 
 // CompleteProviderConnect answers POST /accounts/me/identities:complete by the generated mapping.
@@ -2006,6 +2016,11 @@ func (c *RestController) ListConfigTemplates(w http.ResponseWriter, r *http.Requ
 func (c *RestController) ListConfigVersions(w http.ResponseWriter, r *http.Request, params openapi.ListConfigVersionsParams) {
 	var answer openapi.ConfigVersionList
 	c.door(w, r, restDoors["listConfigVersions"], usecase.Input{}, params, nil, &answer)
+}
+
+// ListConsents answers GET /privacy/consents by the generated mapping.
+func (c *RestController) ListConsents(w http.ResponseWriter, r *http.Request, params openapi.ListConsentsParams) {
+	c.door(w, r, restDoors["listConsents"], usecase.Input{}, params, nil, answerBy(consentRegisterResponse))
 }
 
 // ListContainers answers GET /containers by the generated mapping.
@@ -3562,6 +3577,11 @@ func (c *RestController) ShareSavedView(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["shareSavedView"], usecase.Input{"view_id": viewId.String()}, params, &body, answerBy(savedViewResponse))
 }
 
+// ShowAlexaModel answers GET /voice/alexa/model by the generated mapping.
+func (c *RestController) ShowAlexaModel(w http.ResponseWriter, r *http.Request, params openapi.ShowAlexaModelParams) {
+	c.door(w, r, restDoors["showAlexaModel"], usecase.Input{}, params, nil, answerBy(alexaModelOf))
+}
+
 // ShowMailSettings answers GET /mail/settings by the generated mapping.
 func (c *RestController) ShowMailSettings(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.MailSettings
@@ -3601,6 +3621,13 @@ func (c *RestController) StartAuthenticatorReplacement(w http.ResponseWriter, r 
 func (c *RestController) StartBackup(w http.ResponseWriter, r *http.Request) {
 	var body openapi.StartBackupJSONRequestBody
 	c.door(w, r, restDoors["startBackup"], usecase.Input{}, nil, &body, answerBy(acceptedJob))
+}
+
+// StartPasskeyEnrollment answers POST /auth/mfa/passkey:enroll-options by the generated mapping.
+func (c *RestController) StartPasskeyEnrollment(w http.ResponseWriter, r *http.Request) {
+	var body openapi.StartPasskeyEnrollmentJSONRequestBody
+	var answer openapi.PasskeyRegistrationOptions
+	c.door(w, r, restDoors["startPasskeyEnrollment"], usecase.Input{}, nil, &body, &answer)
 }
 
 // StartPasskeyRegistration answers POST /accounts/me/passkeys:start by the generated mapping.

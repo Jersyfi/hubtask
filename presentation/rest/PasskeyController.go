@@ -4,13 +4,11 @@
 package rest
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -112,80 +110,11 @@ func (c *RestController) CompletePasskeyRegistration(w http.ResponseWriter, r *h
 // there is no actor to resolve - the call exists to produce one - and the request's host, client and
 // workspace sources travel as declared inputs, because only this adapter has the request.
 
-const (
-	completePasskeySignInUseCase = "CompletePasskeySignIn"
-)
-
-func (c *RestController) passkeySignInInput(r *http.Request) usecase.Input {
-	return usecase.Input{
-		"host": r.Host, "tenant_header": r.Header.Get(TenantHeader),
-		"user_agent": r.UserAgent(), "remote_addr": r.RemoteAddr,
-	}
-}
-
-// CompletePasskeySignIn answers POST /auth/sessions:passkey.
-func (c *RestController) CompletePasskeySignIn(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.PasskeyAssertion
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := c.passkeySignInInput(r)
-	in["raw_id"], in["client_data_json"] = body.RawId, body.ClientDataJson
-	in["authenticator_data"], in["signature"], in["user_handle"] = body.AuthenticatorData, body.Signature, body.UserHandle
-	out, err := c.UseCases.Invoke(r.Context(), completePasskeySignInUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if required, _ := out["mfa_required"].(bool); required {
-		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
+const ()
 
 const (
-	startPasskeyEnrollmentUseCase    = "StartPasskeyEnrollment"
 	completePasskeyEnrollmentUseCase = "CompletePasskeyEnrollment"
 )
-
-// StartPasskeyEnrollment answers POST /auth/mfa/passkey:enroll-options. Public, for ConfirmTotp's
-// reason: the ENROLL credential in the body is what authenticates the call.
-func (c *RestController) StartPasskeyEnrollment(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.PasskeyEnrollmentStart
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), startPasskeyEnrollmentUseCase, actorOf(r), usecase.Input{
-		"pending_token": body.PendingToken, "host": r.Host,
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	var answer openapi.PasskeyRegistrationOptions
-	encoded, err := json.Marshal(out)
-	if err == nil {
-		err = json.Unmarshal(encoded, &answer)
-	}
-	if err != nil {
-		WriteProblem(w, shared.ErrInternal.WithDetail("rest.answer_unshapeable").WithCause(err), requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, answer)
-}
 
 // CompletePasskeyEnrollment answers POST /auth/mfa/passkey:enroll: the key kept, and the sign-in's
 // pair or the step it still owes.

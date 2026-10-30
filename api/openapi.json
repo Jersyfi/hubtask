@@ -8966,6 +8966,8 @@
           "voice"
         ],
         "operationId": "showAlexaModel",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "alexaModelOf",
         "summary": "The Alexa interaction model",
         "description": "The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.\n",
         "parameters": [
@@ -12972,6 +12974,18 @@
           "auth"
         ],
         "operationId": "completePasskeySignIn",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-request": [
+          "host",
+          "tenant_header",
+          "user_agent",
+          "remote_addr"
+        ],
+        "x-hubtask-rest-alternate": {
+          "when": "mfa_required",
+          "answer": "mfaChallengeResponse"
+        },
         "security": [],
         "summary": "Sign in with a passkey and receive the pair",
         "description": "What `navigator.credentials.get()` answered. The challenge inside the client data must be one\nthis workspace issued within five minutes and not yet used; otherwise\n`auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an\nunknown or removed passkey, one made at another address, an account that cannot sign in, a\ndevice that did not verify the person, a signature or counter that does not hold - is the one\nanswer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.\n\nA verified passkey is the whole proof: no second factor is asked, also where the workspace\nrequires one. The answer is `201` with the pair, or `202` where the account still owes a step -\nreplacing a start password Hubtask drew, or agreeing to the terms of use.\n",
@@ -13654,6 +13668,10 @@
           "auth"
         ],
         "operationId": "startPasskeyEnrollment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-request": [
+          "host"
+        ],
         "security": [],
         "summary": "Begin setting up a passkey or security key during sign-in",
         "description": "For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the\noptions to add a passkey or a security key instead of the authenticator app. The `ENROLL`\ncredential is the proof. Only where the request arrived at the workspace's own host\n(`auth.passkey_unavailable` otherwise).\n",
@@ -18666,6 +18684,8 @@
           "privacy"
         ],
         "operationId": "listConsents",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "consentRegisterResponse",
         "summary": "The consent register - who withdrew a purpose",
         "description": "For one purpose, every person whose newest record is a withdrawal, with since when and\nwhether they or an administrator recorded it. For `ai_processing` this is who keeps their\nown content out of AI - and this register is the one place that list appears. For the\npeople who manage members (`MANAGE_MEMBERS`).\n\nUnpaged: it is bounded by the people of the workspace, ordered by name.\n",
         "parameters": [
