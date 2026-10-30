@@ -39,7 +39,10 @@ func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 	dashboard := goal.Dashboard{
 		ID: freshID(t), OwnerID: authorA, Name: "Team", Sharing: goal.SharingGroups, GroupIDs: []shared.ID{freshID(t)},
 		Widgets: []goal.Widget{{ID: freshID(t), Title: "Open", Chart: goal.ChartNumber, Source: goal.WidgetQuery,
-			Query: map[string]any{"scope_container_id": collection.String()}, W: 6, H: 2}},
+			Query: map[string]any{"scope_container_id": collection.String()}, W: 6, H: 2},
+			{ID: freshID(t), Title: "Flow", Chart: goal.ChartLine, Source: goal.WidgetQuery, Cumulative: true,
+				Query:   map[string]any{"scope_container_id": collection.String()},
+				Compare: &goal.Compare{FirstTitle: "Created", Title: "Resolved", Query: map[string]any{"scope_workspace": true}}, W: 6, H: 2}},
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		if err := store.InsertPeriod(ctx, period, authorA, now); err != nil {
@@ -87,7 +90,9 @@ func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 			t.Errorf("portfolio = %+v %v", p, err)
 		}
 		d, err := store.Dashboard(ctx, dashboard.ID)
-		if err != nil || len(d.Widgets) != 1 || d.Widgets[0].Query["scope_container_id"] != collection.String() ||
+		if err != nil || len(d.Widgets) != 2 || d.Widgets[0].Query["scope_container_id"] != collection.String() ||
+			!d.Widgets[1].Cumulative || d.Widgets[1].Compare == nil || d.Widgets[1].Compare.Title != "Resolved" ||
+			d.Widgets[1].Compare.Query["scope_workspace"] != true ||
 			len(d.GroupIDs) != 1 || d.GroupIDs[0] != dashboard.GroupIDs[0] {
 			t.Errorf("dashboard = %+v %v", d, err)
 		}

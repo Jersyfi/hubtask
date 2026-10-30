@@ -61,10 +61,19 @@ type storedWidget struct {
 	ViewID  string         `json:"view_id,omitempty"`
 	Query   map[string]any `json:"query,omitempty"`
 	GoalIDs []string       `json:"goal_ids,omitempty"`
-	X       int            `json:"x"`
-	Y       int            `json:"y"`
-	W       int            `json:"w"`
-	H       int            `json:"h"`
+	// Compare and Cumulative are named as on the wire: the replica hands the column on as it is.
+	Compare    *storedCompare `json:"compare,omitempty"`
+	Cumulative bool           `json:"cumulative,omitempty"`
+	X          int            `json:"x"`
+	Y          int            `json:"y"`
+	W          int            `json:"w"`
+	H          int            `json:"h"`
+}
+
+type storedCompare struct {
+	FirstTitle string         `json:"first_title"`
+	Title      string         `json:"title"`
+	Query      map[string]any `json:"query"`
 }
 
 func parseIDs(raw ...string) ([]shared.ID, error) {
@@ -120,9 +129,14 @@ func encodeWidgets(widgets []domain.Widget) ([]byte, error) {
 		for _, g := range w.GoalIDs {
 			goals = append(goals, g.String())
 		}
+		var compare *storedCompare
+		if w.Compare != nil {
+			compare = &storedCompare{FirstTitle: w.Compare.FirstTitle, Title: w.Compare.Title, Query: w.Compare.Query}
+		}
 		stored = append(stored, storedWidget{
 			ID: w.ID.String(), Title: w.Title, Chart: string(w.Chart), Source: string(w.Source),
-			ViewID: w.ViewID.String(), Query: w.Query, GoalIDs: goals, X: w.X, Y: w.Y, W: w.W, H: w.H,
+			ViewID: w.ViewID.String(), Query: w.Query, GoalIDs: goals, Compare: compare, Cumulative: w.Cumulative,
+			X: w.X, Y: w.Y, W: w.W, H: w.H,
 		})
 	}
 	return json.Marshal(stored)
@@ -143,9 +157,14 @@ func decodeWidgets(raw []byte) ([]domain.Widget, error) {
 		if err != nil {
 			return nil, err
 		}
+		var compare *domain.Compare
+		if s.Compare != nil {
+			compare = &domain.Compare{FirstTitle: s.Compare.FirstTitle, Title: s.Compare.Title, Query: s.Compare.Query}
+		}
 		out = append(out, domain.Widget{
 			ID: ids[0], Title: s.Title, Chart: domain.Chart(s.Chart), Source: domain.WidgetSource(s.Source),
-			ViewID: ids[1], Query: s.Query, GoalIDs: goals, X: s.X, Y: s.Y, W: s.W, H: s.H,
+			ViewID: ids[1], Query: s.Query, GoalIDs: goals, Compare: compare, Cumulative: s.Cumulative,
+			X: s.X, Y: s.Y, W: s.W, H: s.H,
 		})
 	}
 	return out, nil
