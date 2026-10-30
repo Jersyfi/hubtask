@@ -389,8 +389,10 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // consent, their AI position), an open read of the workspace's vocabulary, one decided per entry
 // (exports, bulk changes, AI acts on an entry), or one asking only under a condition (a shared view,
 // a service account's token). The time module's eighteen are a person's own time - their records,
-// timer and week - or ask APPROVE_TIME only of other people's time (UC-TIM-01 ... 05).
-const undeclaredPermissionsAtMost = 169
+// timer and week - or ask APPROVE_TIME only of other people's time (UC-TIM-01 ... 05); its seven
+// more are a person's own capacity and absences, asking MANAGE_MEMBERS or APPROVE_TIME only of
+// another person's, and the shared calendar of absences every member reads (UC-TIM-06, 07).
+const undeclaredPermissionsAtMost = 176
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

@@ -80,7 +80,7 @@ func (g *gate) approves(actor shared.ID, path []identity.Scope) bool {
 }
 
 func (g *gate) Authorize(_ context.Context, actor appshared.ActorContext, r access.Request) error {
-	if r.Permission == service.PermissionApproveTime && !g.approves(actor.AccountID, r.Path) {
+	if guarded(r.Permission) && !g.approves(actor.AccountID, r.Path) {
 		g.refused = append(g.refused, r)
 		return shared.ErrForbidden.WithDetail("access.denied")
 	}
@@ -94,13 +94,18 @@ func (g *gate) Authorize(_ context.Context, actor appshared.ActorContext, r acce
 func (g *gate) Permitted(_ context.Context, actor appshared.ActorContext, r access.Request, paths [][]identity.Scope) ([]bool, error) {
 	out := make([]bool, len(paths))
 	for i, path := range paths {
-		if r.Permission == service.PermissionApproveTime {
+		if guarded(r.Permission) {
 			out[i] = g.approves(actor.AccountID, path)
 		} else {
 			out[i] = !g.hidden[path[len(path)-1].ID]
 		}
 	}
 	return out, nil
+}
+
+// guarded are the permissions only the approvers hold.
+func guarded(p service.Permission) bool {
+	return p == service.PermissionApproveTime || p == service.PermissionManageMembers || p == service.PermissionManageCosts
 }
 
 type sink struct{ entries []audit.Entry }

@@ -18,7 +18,9 @@ import (
 	"strconv"
 	"time"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
+	deskrepo "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
 	timerepo "github.com/Jersyfi/hubtask/core/application/repository/timekeeping"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -97,7 +99,13 @@ type Reader interface {
 
 // Keeper is what every time use case shares.
 type Keeper struct {
-	Store      timerepo.Store
+	Store     timerepo.Store
+	Resources timerepo.Resources
+	// Memberships answers the roles a person holds where their time was spent, which a role's
+	// cost rate prices.
+	Memberships identityrepo.Memberships
+	// Calendars names the business calendars a workload counts public holidays on; nil counts none.
+	Calendars  deskrepo.Calendars
 	Items      workrepo.Items
 	Containers workrepo.Containers
 	References workrepo.References

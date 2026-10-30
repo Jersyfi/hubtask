@@ -1847,7 +1847,9 @@ func run() error {
 	// The time module (M7): a person's records, timer and weeks, judged by who approves time where
 	// the entries lie.
 	keeper := timeservice.Keeper{
-		Store: postgres.NewTimeRepository(), Items: items, Containers: containers, References: entryLinks,
+		Store: postgres.NewTimeRepository(), Resources: postgres.NewTimeResourceRepository(),
+		Memberships: postgres.NewMembershipRepository(), Calendars: serviceDeskStore.Calendars(),
+		Items: items, Containers: containers, References: entryLinks,
 		Plans: planningStore, Estimates: planningStore.Sprints(), Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -1973,6 +1975,20 @@ func run() error {
 		timeservice.ReadTimeReport{Keeper: keeper}.Descriptor(),
 		timeservice.ReadEstimatesVsActuals{Keeper: keeper}.Descriptor(),
 		timeservice.ExportTimeRecords{Keeper: keeper}.Descriptor(),
+		timeservice.ListCapacities{Keeper: keeper}.Descriptor(),
+		timeservice.SetCapacity{Keeper: keeper}.Descriptor(),
+		timeservice.RemoveCapacity{Keeper: keeper}.Descriptor(),
+		timeservice.ListAbsences{Keeper: keeper}.Descriptor(),
+		timeservice.RecordAbsence{Keeper: keeper}.Descriptor(),
+		timeservice.UpdateAbsence{Keeper: keeper}.Descriptor(),
+		timeservice.RemoveAbsence{Keeper: keeper}.Descriptor(),
+		timeservice.ReadWorkload{Keeper: keeper}.Descriptor(),
+		timeservice.ListCostRates{Keeper: keeper}.Descriptor(),
+		timeservice.SetCostRate{Keeper: keeper}.Descriptor(),
+		timeservice.RemoveCostRate{Keeper: keeper}.Descriptor(),
+		timeservice.ReadBudget{Keeper: keeper}.Descriptor(),
+		timeservice.SetBudget{Keeper: keeper}.Descriptor(),
+		timeservice.RemoveBudget{Keeper: keeper}.Descriptor(),
 		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),
