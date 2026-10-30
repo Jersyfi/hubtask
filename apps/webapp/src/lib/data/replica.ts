@@ -422,6 +422,32 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return held ?? { locked_through: null, visibility: 'FULL', version: 0 };
   }
 
+  // A person's own week, capacities, the shared calendar of absences and the cost rates while the
+  // server is away (UC-TIM-02, 06, 07, 08): the copy holds the reader's own weeks and records, and
+  // the rates only for whoever manages costs. Another person's week, the approval queue and a
+  // plan's budget with its burn - summed over everybody's records - wait for the server.
+  match = /^\/timesheets\/(\d{4}-\d{2}-\d{2})$/.exec(pathname);
+  if (match && !query.has('account_id')) return weekOf(storage, mondayOf(match[1]!));
+  if (pathname === '/time-capacities' && !query.has('account_id')) {
+    const [held] = await documents(storage, 'time_capacities');
+    return { data: Array.isArray(held?.data) ? held.data : [] };
+  }
+  if (pathname === '/time-absences') {
+    const from = query.get('from') ?? '';
+    const to = query.get('to') ?? '';
+    const person = query.get('account_id');
+    const rows = (await documents(storage, 'time_absences'))
+      .filter((row) => String(row.from) <= to && String(row.to) >= from && (!person || row.account_id === person))
+      .sort((a, b) => String(a.from).localeCompare(String(b.from)) || String(a.account_id).localeCompare(String(b.account_id))
+        || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+  if (pathname === '/cost-rates') {
+    const [held] = await documents(storage, 'time_cost_rates');
+    // Without the record the reader does not manage costs, or no rate is set: the server decides.
+    return held ? { data: Array.isArray(held.data) ? held.data : [] } : undefined;
+  }
+
   // A collection's sprints read while the server is away (M2), in the server's order - the latest
   // start first. The burndown and the velocity are computed by the server and wait for it.
   match = /^\/collections\/([^/:]+)\/sprints$/.exec(pathname);
@@ -821,4 +847,50 @@ async function moveOf(
     return undefined;
   }
   return { kind: 'MOVE', itemId, payload: { parent_id: parentId, collection_id: collectionId, order_key: orderKey } };
+}
+
+/** The Monday of a day's week, as the server counts weeks (ISO, Monday first). */
+export function mondayOf(day: string): string {
+  const at = new Date(`${day}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() - ((at.getUTCDay() + 6) % 7));
+  return at.toISOString().slice(0, 10);
+}
+
+function dayAfter(day: string, days: number): string {
+  const at = new Date(`${day}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString().slice(0, 10);
+}
+
+/**
+ * The reader's week from the copy, as `ReadTimesheet` answers it: the head as last told, or an open
+ * week never handed in, the week's records placed by their entries and the days locked by the policy.
+ */
+async function weekOf(storage: Storage, start: string): Promise<unknown> {
+  const end = dayAfter(start, 6);
+  const head = (await documents(storage, 'timesheets')).find((row) => row.week_start === start);
+  const [policy] = await documents(storage, 'time_policy');
+  const lockedThrough = typeof policy?.locked_through === 'string' ? policy.locked_through : undefined;
+  const held = (await documents(storage, 'time_records'))
+    .filter((row) => String(row.day) >= start && String(row.day) <= end)
+    .sort((a, b) => String(a.day).localeCompare(String(b.day)) || String(a.id).localeCompare(String(b.id)));
+  const records = await Promise.all(held.map(async (row) => {
+    const entry = typeof row.entry_id === 'string' ? await one(storage, 'items', row.entry_id) : undefined;
+    return {
+      ...row,
+      collection_id: entry?.collection_id ?? null,
+      hub_id: entry?.hub_id ?? null,
+      entry_title: typeof entry?.title === 'string' ? entry.title : '',
+    };
+  }));
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const day = dayAfter(start, i);
+    const minutes = records.filter((row) => row.day === day).reduce((sum, row) => sum + Number(row.minutes ?? 0), 0);
+    return { day, minutes, locked: lockedThrough !== undefined && day <= lockedThrough };
+  });
+  const sheet = head ?? {
+    week_start: start, state: 'OPEN', submitted_minutes: 0, decided_by: null, reason: '', version: 0,
+    submitted_at: null, decided_at: null,
+  };
+  return { ...sheet, records, days, minutes: days.reduce((sum, day) => sum + day.minutes, 0) };
 }

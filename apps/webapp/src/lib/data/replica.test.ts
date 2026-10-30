@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { MemoryStorage, type StoredRecord } from '@hubtask/sync-engine';
 
-import { belowOf, fetchStructureAfresh, hiddenOf, storeFor, useBound, type BoundType, type EntryHidden, type HeldEntry, type StructureShape } from './replica.ts';
+import { belowOf, fetchStructureAfresh, hiddenOf, mondayOf, storeFor, useBound, type BoundType, type EntryHidden, type HeldEntry, type StructureShape } from './replica.ts';
 
 const HUB = 'h-1';
 const COLLECTION = 'c-1';
@@ -487,4 +487,45 @@ test('the timer, the kinds of work and the policy are answered from the copy', a
   assert.equal('account_id' in timer, false);
   const kinds = await storeFor({ path: '/time-work-types' }, storage) as { data: Record<string, unknown>[] };
   assert.deepEqual(kinds.data.map((row) => row.key), ['development']);
+});
+
+// UC-TIM-02, 06, 07 and 08 offline: the reader's week - its head, its records placed by their
+// entries, the locked days -, their capacities, the absences of a range and the cost rates are
+// answered from the copy; another person's week waits for the server, and so do the rates where the
+// copy holds none.
+test('a week, the capacities, the absences and the rates are answered from the copy', async () => {
+  assert.equal(mondayOf('2026-11-05'), '2026-11-02');
+  assert.equal(mondayOf('2026-11-02'), '2026-11-02');
+  assert.equal(mondayOf('2026-11-08'), '2026-11-02');
+
+  const storage = new MemoryStorage();
+  await storage.put('items', 'i-1', record({ id: 'i-1', title: 'Checkout form', collection_id: COLLECTION }));
+  await storage.put('timesheets', 's-1', record({ account_id: 'me', week_start: '2026-11-02', state: 'SUBMITTED', version: 1 }));
+  await storage.put('time_records', 'r-1', record({ id: 'r-1', account_id: 'me', entry_id: 'i-1', day: '2026-11-03', minutes: 90 }));
+  await storage.put('time_records', 'r-2', record({ id: 'r-2', account_id: 'me', day: '2026-11-10', minutes: 30 }));
+  await storage.put('time_policy', 't-1', record({ locked_through: '2026-11-02', visibility: 'FULL', version: 1 }));
+  const week = await storeFor({ path: '/timesheets/2026-11-05' }, storage) as {
+    state: string; minutes: number; records: Record<string, unknown>[]; days: { day: string; minutes: number; locked: boolean }[];
+  };
+  assert.equal(week.state, 'SUBMITTED');
+  assert.equal(week.minutes, 90);
+  assert.deepEqual(week.records.map((row) => [row.id, row.entry_title, row.collection_id]), [['r-1', 'Checkout form', COLLECTION]]);
+  assert.deepEqual(week.days.slice(0, 2), [{ day: '2026-11-02', minutes: 0, locked: true }, { day: '2026-11-03', minutes: 90, locked: false }]);
+  const open = await storeFor({ path: '/timesheets/2026-11-09' }, storage) as { state: string; minutes: number };
+  assert.deepEqual([open.state, open.minutes], ['OPEN', 30]);
+  assert.equal(await storeFor({ path: '/timesheets/2026-11-05?account_id=other' }, storage), undefined, "another person's week");
+
+  await storage.put('time_capacities', 'me', record({ account_id: 'me', data: [{ from: '2026-11-02', week_minutes: [360, 360, 360, 360, 0, 0, 0] }] }));
+  const capacities = await storeFor({ path: '/time-capacities' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(capacities.data.map((row) => row.from), ['2026-11-02']);
+
+  await storage.put('time_absences', 'a-1', record({ id: 'a-1', account_id: 'ben', from: '2026-11-09', to: '2026-11-13', kind: 'LEAVE' }));
+  await storage.put('time_absences', 'a-2', record({ id: 'a-2', account_id: 'me', from: '2026-12-01', to: '2026-12-01', kind: 'TRAINING' }));
+  const absences = await storeFor({ path: '/time-absences?from=2026-11-01&to=2026-11-30' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(absences.data.map((row) => row.id), ['a-1']);
+
+  assert.equal(await storeFor({ path: '/cost-rates' }, storage), undefined, 'no rates in the copy');
+  await storage.put('time_cost_rates', 't-1', record({ data: [{ id: 'rate-1', role: 'designer', hour_minor: 6000 }] }));
+  const rates = await storeFor({ path: '/cost-rates' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(rates.data.map((row) => row.id), ['rate-1']);
 });
