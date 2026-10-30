@@ -5,9 +5,9 @@ context: goal
 actors: [PE-planner, PE-member, PE-admin, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go]
+checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
 ---
 
 # Set goals for a period and connect them to the work
@@ -51,7 +51,3 @@ view's count for whoever looks.
 * No OKR quality hints, goal templates or AI drafting of goals.
 * No key result fed by an integration's metric; a view's total is the one automatic source.
 * No KPIs kept apart from goals.
-
-## Today
-
-* Check 9: the web app's goal screens are not built (S-21).

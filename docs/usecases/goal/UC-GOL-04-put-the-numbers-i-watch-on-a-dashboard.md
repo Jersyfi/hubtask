@@ -5,9 +5,9 @@ context: goal
 actors: [PE-planner, PE-member, PE-admin, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-13, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go]
+checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
 ---
 
 # Put the numbers I watch on a dashboard
@@ -45,7 +45,3 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
 * No scheduled report by mail and no PDF yet.
 * No wallboard mode, no historical snapshots, no read API for BI tools.
 * No numbers across workspaces (P-01).
-
-## Today
-
-* Check 8: the web app's dashboards are not built (S-21).

@@ -5,9 +5,9 @@ context: goal
 actors: [PE-planner, PE-owner, PE-admin, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go]
+checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
 ---
 
 # Keep a portfolio of projects and its health in one place
@@ -47,7 +47,3 @@ Ana's update "late, at risk" makes the programme at risk.
 
 * No budget roll-up across a portfolio's projects yet, no portfolio timeline or workload view.
 * No scheduled status reports and no intake of proposals into projects.
-
-## Today
-
-* Check 8: the web app's portfolio screens are not built (S-21).

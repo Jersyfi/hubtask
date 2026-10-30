@@ -5,9 +5,9 @@ context: goal
 actors: [PE-planner, PE-member, PE-admin, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go]
+checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
 ---
 
 # Check in on a goal and say how confident we are
@@ -43,7 +43,3 @@ a check-in on it afterwards is refused.
 
 * No reminders to check in and no digest to stakeholders.
 * No AI summary of check-ins.
-
-## Today
-
-* Check 6: the web app's check-in is not built (S-21).
