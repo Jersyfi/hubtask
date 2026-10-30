@@ -4,8 +4,12 @@
 package config
 
 import (
+	"context"
+	"errors"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -183,5 +187,39 @@ func TestAHubsCalendarsAreBlocksOfItsDocument(t *testing.T) {
 	removed := f.world.inputs["DeleteHubCalendar"]
 	if len(removed) != 1 || removed[0]["key"] != "weekend" || removed[0]["hub_id"] != supportHub {
 		t.Errorf("the removed calendar ran %v", removed)
+	}
+}
+
+// recorded counts the permissions a test's authoriser was asked.
+type recorded struct{ asked []access.Request }
+
+func (r *recorded) Authorize(_ context.Context, _ appshared.ActorContext, request access.Request) error {
+	r.asked = append(r.asked, request)
+	return nil
+}
+
+// A hub the reader does not reach answers as a missing one does - before any permission is asked
+// of it - on the export and on a plan alike (T-04; UC-CFG-01 check 2).
+func TestAHubTheReaderDoesNotReachIsNotFound(t *testing.T) {
+	f := hubFixture()
+	const private = "0190a8f0-0000-7000-8000-0000000000f9"
+	f.world.unreached = private
+	guard := &recorded{}
+	f.desk.Authorizer = guard
+
+	for name, descriptor := range map[string]usecase.Descriptor{
+		"export": ExportConfig{f.desk}.Descriptor(), "plan": PlanConfig{f.desk}.Descriptor(),
+	} {
+		in := usecase.Input{"hub_id": private}
+		if name == "plan" {
+			in["document"] = map[string]any{"structure": map[string]any{}}
+		}
+		_, err := descriptor.Handler.Invoke(t.Context(), person, in)
+		if !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the %s of an unreached hub answered %v, want not found", name, err)
+		}
+	}
+	if len(guard.asked) != 0 {
+		t.Errorf("a permission was asked of a hub the reader does not reach: %+v", guard.asked)
 	}
 }

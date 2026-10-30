@@ -52,6 +52,8 @@ type world struct {
 	// the workflow scheme ListWorkflows answers.
 	hub          string
 	hubStructure map[string]any
+	// unreached is a hub GetContainer answers as not found: one the reader does not reach.
+	unreached string
 	scheme       []any
 	// hubCalendars, nil withholding the section, are the hub's own calendars by key.
 	hubCalendars map[string]map[string]any
@@ -147,6 +149,9 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		}
 		return usecase.Output{"data": rowsOf(w.workflows), "scheme": w.scheme}, nil
 	case "GetContainer":
+		if w.unreached != "" && in.String("container_id") == w.unreached {
+			return nil, shared.ErrNotFound.WithDetail("containers.not_found")
+		}
 		if w.hub == "" || in.String("container_id") != w.hub {
 			return usecase.Output{"type": "COLLECTION"}, nil
 		}
