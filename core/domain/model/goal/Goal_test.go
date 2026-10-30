@@ -5,6 +5,7 @@ package goal
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"testing"
 
@@ -231,10 +232,30 @@ func TestADashboardsWidgetsFitTheGrid(t *testing.T) {
 		{"progress of a query", widget(Widget{Chart: ChartProgress, Source: WidgetQuery, Query: map[string]any{"a": 1}}), "dashboards.chart_invalid"},
 		{"past the grid", widget(Widget{Chart: ChartBar, Source: WidgetView, ViewID: entry, X: 8, W: 6}), "dashboards.widget_outside_grid"},
 		{"an unknown sharing", Dashboard{Name: "x", Sharing: "GROUP"}, "dashboards.sharing_invalid"},
+		{"groups without one", Dashboard{Name: "x", Sharing: SharingGroups}, "dashboards.groups_required"},
+		{"a group", Dashboard{Name: "x", Sharing: SharingGroups, GroupIDs: []shared.ID{goalA}}, ""},
 	}
 	for _, c := range cases {
 		if got := code(func() error { _, err := CheckDashboard(c.in, nil); return err }()); got != c.want {
 			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
 		}
+	}
+}
+
+// UC-GOL-04 check 14: a dashboard shared with groups names each once; any other sharing names none.
+func TestADashboardsGroupsAreItsSharingsAlone(t *testing.T) {
+	d, err := CheckDashboard(Dashboard{Name: "x", Sharing: SharingGroups, GroupIDs: []shared.ID{goalA, goalA, ""}}, nil)
+	if err != nil || len(d.GroupIDs) != 1 {
+		t.Fatalf("groups = %v, %v", d.GroupIDs, err)
+	}
+	if d, _ = CheckDashboard(Dashboard{Name: "x", Sharing: SharingScope, GroupIDs: []shared.ID{goalA}}, nil); d.GroupIDs != nil {
+		t.Fatalf("a scope dashboard kept groups: %v", d.GroupIDs)
+	}
+	many := make([]shared.ID, MaxDashboardGroups+1)
+	for i := range many {
+		many[i] = shared.ID(fmt.Sprintf("018f0000-0000-7000-8000-%012d", i+1))
+	}
+	if _, err := CheckDashboard(Dashboard{Name: "x", Sharing: SharingGroups, GroupIDs: many}, nil); code(err) != "dashboards.too_many_groups" {
+		t.Fatalf("21 groups: %v", err)
 	}
 }
