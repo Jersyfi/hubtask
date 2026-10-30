@@ -50,6 +50,8 @@ type CustomFieldWriter struct {
 	Clock      clock.Clock
 	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Changes tells offline devices of the change.
+	Changes FieldChanges
 }
 
 // UpdateCustomField changes what a definition permits.
@@ -145,6 +147,9 @@ func (h UpdateCustomField) Execute(
 		}
 		wanted.Version = expected + 1
 		updated = wanted
+		if err := h.Writer.Changes.record(ctx, actor, wanted); err != nil {
+			return err
+		}
 
 		return h.Writer.recordAudit(ctx, wanted, actor, CustomFieldUpdatedAction, changes, now)
 	})
@@ -192,6 +197,9 @@ func (h DeleteCustomField) Execute(
 			expected = stored.Version
 		}
 		if err := h.Writer.Fields.SetDeleted(ctx, deleted, expected); err != nil {
+			return err
+		}
+		if err := h.Writer.Changes.record(ctx, actor, deleted); err != nil {
 			return err
 		}
 		return h.Writer.recordAudit(ctx, deleted, actor, CustomFieldDeletedAction, changes, now)

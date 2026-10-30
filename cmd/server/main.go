@@ -1109,6 +1109,7 @@ func run() error {
 		Fields: customFields, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, Text: forms,
+		Changes: work.FieldChanges{Changes: changes, HLC: hybrid},
 	}
 
 	// Both directions of an entry's attachments share one dependency set (work.ItemAttachmentWriter).
@@ -3015,6 +3016,7 @@ func run() error {
 			Fields: customFields, Containers: containers, Profiles: profiles,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids, Text: forms, Compiler: celexpression.New(), Jobs: jobs,
+			Changes: work.FieldChanges{Changes: changes, HLC: hybrid},
 		}.Descriptor(),
 		work.ListCustomFields{
 			Fields: customFields, Containers: containers, Authorizer: authorizer,

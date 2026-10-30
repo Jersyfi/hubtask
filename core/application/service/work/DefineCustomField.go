@@ -47,13 +47,10 @@ const (
 	CustomFieldReadAction audit.Action = "custom_field.read"
 )
 
-// A definition announces nothing and syncs nothing, unlike a label.
-//
-// No event: the catalogue in domain-model.md §4 names none, and a rule that fired on a field being
-// defined would be reacting to configuration rather than to work. No change log entry either: a
-// definition is what a client needs in order to *render* a form, which it reads when it opens one,
-// and a device that never learned of a key could not display it whether it had merged the
-// definition or not. What does merge is the value on the entry, per key (SetCustomField).
+// A definition announces nothing: the catalogue in domain-model.md §4 names no event, and a rule
+// that fired on a field being defined would be reacting to configuration rather than to work. It
+// reaches the change log whole (CustomFieldEntity), so a device draws a form offline; what merges
+// is the value on the entry, per key (SetCustomField).
 
 // DefineCustomField adds a field to a workspace's or a collection's vocabulary.
 //
@@ -77,6 +74,8 @@ type DefineCustomField struct {
 	// Jobs seeds the fill of a new CALCULATED field on the entries defined before it
 	// (FillCalculatedFields); without it they fill on their next write of an input.
 	Jobs queue.Queue
+	// Changes tells offline devices of the definition.
+	Changes FieldChanges
 }
 
 // DefineCustomFieldCommand is the input, typed.
@@ -173,6 +172,9 @@ func (h DefineCustomField) Execute(
 			return err
 		}
 		if err := h.seedFill(ctx, definition); err != nil {
+			return err
+		}
+		if err := h.Changes.record(ctx, actor, definition); err != nil {
 			return err
 		}
 
