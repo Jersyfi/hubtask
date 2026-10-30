@@ -83,3 +83,33 @@ UC-DOC-11, UC-DOC-12, UC-AGT-07 and UC-AST-01 check 9 as written; UC-AGT-02's co
 
 **E. The workers' smaller choices** recorded in the pull request notes are accepted; the owner may
 still overrule each on the pull request.
+
+## The owner's second answers — 2026-10-30
+
+The completion round raised eleven further questions; the owner accepted every proposal
+("Accept all", 2026-10-30).
+
+1. `POST /containers/{containerId}:summarize` gets a body without `apply` (a summary has nowhere to
+   be applied); the field leaves that operation's request schema.
+2. `module` on `PUT /admin/settings` and `enabled` on `POST /backup-schedules` are declared by their
+   use cases and take effect; both doors then move to the generated mapping.
+3. Embedding in openDesk: `HUBTASK_UI_FRAME_ANCESTORS`, a configured list of origins, empty by
+   default, on the user interface's CSP only, never the API.
+4. Imports and forms: the one ingestion path stays; only an import into an existing collection's
+   types is held to their form, and the result is reported per entry.
+5. UC-GOL-04 gets check 12: a widget's summary sums the time recorded on its entries and counts the
+   live pages of its bound spaces, as the reader may see them.
+6. Whiteboard history: a retention kind `WHITEBOARD_HISTORY`, keeping everything by default; a
+   workspace may age out unnamed versions and resolved threads.
+7. An installation's business calendars: a `business_calendars` block in the instance file, which a
+   workspace calendar of the same key falls back to.
+8. Billing rates per client or project: an optional rate with validity dates on a hub or
+   collection, read only with `MANAGE_COSTS`, and a billable-value column in the export; UC-TIM-08
+   gets the check for it.
+9. Flow measures for entries from before the status history: none; no backfill.
+10. Ticket routing by offering (G11): the triage takes the offering a ticket names, else the nearest
+    one a CI it names affects (none if two are equally near), and proposes `AssignWorkItem` to the
+    member of that offering's support group with the fewest open entries in the hub, held for a
+    person to approve, only for a ticket nobody holds. UC-AGT-07 gets check 9, and its *Where it
+    ends* says a group itself holds no ticket and skills are not weighed.
+11. Searching inside attached files: not now; search stays by file name (no text extractor).
