@@ -2161,6 +2161,7 @@ WorkflowStep = TypedDict("WorkflowStep", {
     "requires": list[str],
     "asks": list[str],
     "checks": list[dict[str, Any]],
+    "approval": Any | dict[str, Any],
 }, total=False)
 
 class WorkflowShape(TypedDict, total=False):

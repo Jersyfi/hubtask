@@ -25893,6 +25893,36 @@ components:
                   A shipped message picked instead of writing one, rendered in the reader's
                   language; another is refused with `workflows.message_code_unknown`.
                 enum: [fill_required, attach_evidence, needs_approval, amount_positive, dates_in_order, needs_assignee, null]
+        approval:
+          description: >
+            Makes the step wait for people's yes: taking it opens an approval instead of moving
+            the entry; the step is taken once the last level approves, and one decline moves the
+            entry to `decline_to` or leaves it where it stands. Null moves the entry at once.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [levels]
+              properties:
+                levels:
+                  type: array
+                  minItems: 1
+                  maxItems: 5
+                  description: Decided one after another.
+                  items:
+                    type: object
+                    required: [rule]
+                    properties:
+                      people: { type: array, items: { type: string, format: uuid } }
+                      groups: { type: array, items: { type: string, format: uuid } }
+                      roles:
+                        type: array
+                        description: Held along the entry's path when somebody decides; never with ALL or MAJORITY.
+                        items: { type: string }
+                      person_fields: { type: array, items: { type: string }, description: "`assignee`, `created_by` or `custom_fields.<key>`." }
+                      rule: { type: string, enum: [ANY, ALL, N_OF, MAJORITY] }
+                      count: { type: integer, minimum: 0, maximum: 50, description: "N of N_OF." }
+                decline_to: { type: [string, "null"], description: "The status a decline moves the entry to." }
+                due_hours: { type: integer, minimum: 0, maximum: 2160, description: "How long each level has; 0 is no limit." }
 
     WorkflowShape:
       type: object

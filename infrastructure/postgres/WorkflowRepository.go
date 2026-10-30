@@ -54,6 +54,50 @@ type workflowStepDocument struct {
 	Requires []string                `json:"requires,omitempty"`
 	Asks     []string                `json:"asks,omitempty"`
 	Checks   []workflowCheckDocument `json:"checks,omitempty"`
+	Approval *workflowApprovalDocument `json:"approval,omitempty"`
+}
+
+type workflowApprovalDocument struct {
+	Levels    []workflowApprovalLevelDocument `json:"levels"`
+	DeclineTo string                          `json:"decline_to,omitempty"`
+	DueHours  int                             `json:"due_hours,omitempty"`
+}
+
+type workflowApprovalLevelDocument struct {
+	People       []string `json:"people,omitempty"`
+	Groups       []string `json:"groups,omitempty"`
+	Roles        []string `json:"roles,omitempty"`
+	PersonFields []string `json:"person_fields,omitempty"`
+	Rule         string   `json:"rule"`
+	Count        int      `json:"count,omitempty"`
+}
+
+func approvalDocument(approval *work.StepApproval) *workflowApprovalDocument {
+	if approval == nil {
+		return nil
+	}
+	doc := &workflowApprovalDocument{DeclineTo: approval.DeclineTo, DueHours: approval.DueHours, Levels: []workflowApprovalLevelDocument{}}
+	for _, level := range approval.Levels {
+		doc.Levels = append(doc.Levels, workflowApprovalLevelDocument{
+			People: level.People, Groups: level.Groups, Roles: level.Roles, PersonFields: level.PersonFields,
+			Rule: string(level.Rule), Count: level.Count,
+		})
+	}
+	return doc
+}
+
+func approvalFrom(doc *workflowApprovalDocument) *work.StepApproval {
+	if doc == nil {
+		return nil
+	}
+	approval := &work.StepApproval{DeclineTo: doc.DeclineTo, DueHours: doc.DueHours}
+	for _, level := range doc.Levels {
+		approval.Levels = append(approval.Levels, work.ApprovalLevel{
+			People: level.People, Groups: level.Groups, Roles: level.Roles, PersonFields: level.PersonFields,
+			Rule: work.ApprovalRule(level.Rule), Count: level.Count,
+		})
+	}
+	return approval
 }
 
 type workflowWhoDocument struct {
@@ -86,7 +130,7 @@ func shapeColumn(shape work.WorkflowShape) ([]byte, error) {
 		doc.Steps = append(doc.Steps, workflowStepDocument{
 			Key: step.Key, Name: step.Name, From: nonNil(step.From), To: step.To,
 			Who:      workflowWhoDocument(step.Who),
-			Requires: step.Requires, Asks: step.Asks, Checks: checks,
+			Requires: step.Requires, Asks: step.Asks, Checks: checks, Approval: approvalDocument(step.Approval),
 		})
 	}
 	encoded, err := json.Marshal(doc)
@@ -114,7 +158,7 @@ func shapeFrom(raw []byte) (work.WorkflowShape, error) {
 		}
 		shape.Steps = append(shape.Steps, work.WorkflowStep{
 			Key: step.Key, Name: step.Name, From: step.From, To: step.To, Who: work.StepWho(step.Who),
-			Requires: step.Requires, Asks: step.Asks, Checks: checks,
+			Requires: step.Requires, Asks: step.Asks, Checks: checks, Approval: approvalFrom(step.Approval),
 		})
 	}
 	return shape, nil

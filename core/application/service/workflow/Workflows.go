@@ -345,6 +345,7 @@ func ShapeOutput(shape domain.WorkflowShape) usecase.Output {
 				"groups": nonNil(step.Who.Groups), "condition": step.Who.Condition,
 			},
 			"requires": nonNil(step.Requires), "asks": nonNil(step.Asks), "checks": checks,
+			"approval": ApprovalOutput(step.Approval),
 		})
 	}
 	return usecase.Output{"statuses": statuses, "initial": shape.Initial, "steps": steps}
@@ -408,9 +409,52 @@ func ShapeFromInput(raw any) (domain.WorkflowShape, error) {
 				Messages: checkMessagesOf(check["messages"]), MessageCode: textOf(check["message_code"]),
 			})
 		}
+		if approval, ok := member["approval"].(map[string]any); ok {
+			step.Approval = approvalOf(approval)
+		}
 		shape.Steps = append(shape.Steps, step)
 	}
 	return shape, nil
+}
+
+// ApprovalOutput is a step's approval as the contract spells it; null where the step moves at once.
+func ApprovalOutput(approval *domain.StepApproval) any {
+	if approval == nil {
+		return nil
+	}
+	levels := make([]any, 0, len(approval.Levels))
+	for _, level := range approval.Levels {
+		levels = append(levels, map[string]any{
+			"people": nonNil(level.People), "groups": nonNil(level.Groups), "roles": nonNil(level.Roles),
+			"person_fields": nonNil(level.PersonFields), "rule": string(level.Rule), "count": level.Count,
+		})
+	}
+	return map[string]any{"levels": levels, "decline_to": stringOrNil(approval.DeclineTo), "due_hours": approval.DueHours}
+}
+
+func approvalOf(raw map[string]any) *domain.StepApproval {
+	approval := &domain.StepApproval{DeclineTo: textOf(raw["decline_to"]), DueHours: intOf(raw["due_hours"])}
+	for _, entry := range listOf(raw["levels"]) {
+		level, _ := entry.(map[string]any)
+		approval.Levels = append(approval.Levels, domain.ApprovalLevel{
+			People: textsOf(level["people"]), Groups: textsOf(level["groups"]), Roles: textsOf(level["roles"]),
+			PersonFields: textsOf(level["person_fields"]), Rule: domain.ApprovalRule(textOf(level["rule"])),
+			Count: intOf(level["count"]),
+		})
+	}
+	return approval
+}
+
+func intOf(raw any) int {
+	switch n := raw.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	case int64:
+		return int(n)
+	}
+	return 0
 }
 
 // CheckMessagesOutput is a check's words per language as the contract spells them: an object, never

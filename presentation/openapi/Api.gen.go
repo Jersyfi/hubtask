@@ -9328,6 +9328,30 @@ func (e WorkflowStatusCategory) Valid() bool {
 	}
 }
 
+// Defines values for WorkflowStepApprovalLevelsRule.
+const (
+	WorkflowStepApprovalLevelsRuleALL      WorkflowStepApprovalLevelsRule = "ALL"
+	WorkflowStepApprovalLevelsRuleANY      WorkflowStepApprovalLevelsRule = "ANY"
+	WorkflowStepApprovalLevelsRuleMAJORITY WorkflowStepApprovalLevelsRule = "MAJORITY"
+	WorkflowStepApprovalLevelsRuleNOF      WorkflowStepApprovalLevelsRule = "N_OF"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowStepApprovalLevelsRule enum.
+func (e WorkflowStepApprovalLevelsRule) Valid() bool {
+	switch e {
+	case WorkflowStepApprovalLevelsRuleALL:
+		return true
+	case WorkflowStepApprovalLevelsRuleANY:
+		return true
+	case WorkflowStepApprovalLevelsRuleMAJORITY:
+		return true
+	case WorkflowStepApprovalLevelsRuleNOF:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkflowStepChecksMessageCode.
 const (
 	WorkflowStepChecksMessageCodeAmountPositive WorkflowStepChecksMessageCode = "amount_positive"
@@ -22323,6 +22347,30 @@ type WorkflowStatusCategory string
 
 // WorkflowStep defines model for WorkflowStep.
 type WorkflowStep struct {
+	// Approval Makes the step wait for people's yes: taking it opens an approval instead of moving the entry; the step is taken once the last level approves, and one decline moves the entry to `decline_to` or leaves it where it stands. Null moves the entry at once.
+	Approval *struct {
+		// DeclineTo The status a decline moves the entry to.
+		DeclineTo *string `json:"decline_to,omitempty"`
+
+		// DueHours How long each level has; 0 is no limit.
+		DueHours *int `json:"due_hours,omitempty"`
+
+		// Levels Decided one after another.
+		Levels []struct {
+			// Count N of N_OF.
+			Count  *int                  `json:"count,omitempty"`
+			Groups *[]openapi_types.UUID `json:"groups,omitempty"`
+			People *[]openapi_types.UUID `json:"people,omitempty"`
+
+			// PersonFields `assignee`, `created_by` or `custom_fields.<key>`.
+			PersonFields *[]string `json:"person_fields,omitempty"`
+
+			// Roles Held along the entry's path when somebody decides; never with ALL or MAJORITY.
+			Roles *[]string                      `json:"roles,omitempty"`
+			Rule  WorkflowStepApprovalLevelsRule `json:"rule"`
+		} `json:"levels"`
+	} `json:"approval,omitempty"`
+
 	// Asks Fields a client asks for when the step is taken.
 	Asks   *[]string `json:"asks,omitempty"`
 	Checks *[]struct {
@@ -22362,6 +22410,9 @@ type WorkflowStep struct {
 		Roles *[]string `json:"roles,omitempty"`
 	} `json:"who,omitempty"`
 }
+
+// WorkflowStepApprovalLevelsRule defines model for WorkflowStep.Approval.Levels.Rule.
+type WorkflowStepApprovalLevelsRule string
 
 // WorkflowStepChecksMessageCode A shipped message picked instead of writing one, rendered in the reader's language; another is refused with `workflows.message_code_unknown`.
 type WorkflowStepChecksMessageCode string
