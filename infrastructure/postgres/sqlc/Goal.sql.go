@@ -68,6 +68,25 @@ func (q *Queries) DeleteDashboard(ctx context.Context, arg DeleteDashboardParams
 	return result.RowsAffected(), nil
 }
 
+const deleteDashboardDigest = `-- name: DeleteDashboardDigest :execrows
+DELETE FROM dashboard_digest
+WHERE tenant_id = current_tenant_id() AND dashboard_id = $1::uuid
+  AND account_id = $2::uuid
+`
+
+type DeleteDashboardDigestParams struct {
+	DashboardID pgtype.UUID
+	AccountID   pgtype.UUID
+}
+
+func (q *Queries) DeleteDashboardDigest(ctx context.Context, arg DeleteDashboardDigestParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDashboardDigest, arg.DashboardID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteGoal = `-- name: DeleteGoal :execrows
 DELETE FROM goal
 WHERE tenant_id = current_tenant_id() AND id = $1::uuid
@@ -133,6 +152,82 @@ func (q *Queries) FindDashboard(ctx context.Context, id pgtype.UUID) (FindDashbo
 		&i.Sharing,
 		&i.Widgets,
 		&i.Version,
+	)
+	return i, err
+}
+
+const findDashboardDigest = `-- name: FindDashboardDigest :one
+SELECT id, dashboard_id, account_id, cadence, weekday, hour, time_zone, next_at, last_sent_at
+FROM dashboard_digest
+WHERE tenant_id = current_tenant_id() AND dashboard_id = $1::uuid
+  AND account_id = $2::uuid
+`
+
+type FindDashboardDigestParams struct {
+	DashboardID pgtype.UUID
+	AccountID   pgtype.UUID
+}
+
+type FindDashboardDigestRow struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+	AccountID   pgtype.UUID
+	Cadence     string
+	Weekday     int16
+	Hour        int16
+	TimeZone    string
+	NextAt      pgtype.Timestamptz
+	LastSentAt  pgtype.Timestamptz
+}
+
+func (q *Queries) FindDashboardDigest(ctx context.Context, arg FindDashboardDigestParams) (FindDashboardDigestRow, error) {
+	row := q.db.QueryRow(ctx, findDashboardDigest, arg.DashboardID, arg.AccountID)
+	var i FindDashboardDigestRow
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.AccountID,
+		&i.Cadence,
+		&i.Weekday,
+		&i.Hour,
+		&i.TimeZone,
+		&i.NextAt,
+		&i.LastSentAt,
+	)
+	return i, err
+}
+
+const findDashboardDigestByID = `-- name: FindDashboardDigestByID :one
+SELECT id, dashboard_id, account_id, cadence, weekday, hour, time_zone, next_at, last_sent_at
+FROM dashboard_digest
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid
+`
+
+type FindDashboardDigestByIDRow struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+	AccountID   pgtype.UUID
+	Cadence     string
+	Weekday     int16
+	Hour        int16
+	TimeZone    string
+	NextAt      pgtype.Timestamptz
+	LastSentAt  pgtype.Timestamptz
+}
+
+func (q *Queries) FindDashboardDigestByID(ctx context.Context, id pgtype.UUID) (FindDashboardDigestByIDRow, error) {
+	row := q.db.QueryRow(ctx, findDashboardDigestByID, id)
+	var i FindDashboardDigestByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.AccountID,
+		&i.Cadence,
+		&i.Weekday,
+		&i.Hour,
+		&i.TimeZone,
+		&i.NextAt,
+		&i.LastSentAt,
 	)
 	return i, err
 }
@@ -916,6 +1011,65 @@ func (q *Queries) ListPortfolios(ctx context.Context, max int32) ([]ListPortfoli
 		return nil, err
 	}
 	return items, nil
+}
+
+const markDashboardDigestSent = `-- name: MarkDashboardDigestSent :execrows
+UPDATE dashboard_digest SET last_sent_at = COALESCE($1, last_sent_at), next_at = $2
+WHERE tenant_id = current_tenant_id() AND id = $3::uuid
+`
+
+type MarkDashboardDigestSentParams struct {
+	SentAt pgtype.Timestamptz
+	NextAt pgtype.Timestamptz
+	ID     pgtype.UUID
+}
+
+func (q *Queries) MarkDashboardDigestSent(ctx context.Context, arg MarkDashboardDigestSentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markDashboardDigestSent, arg.SentAt, arg.NextAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const putDashboardDigest = `-- name: PutDashboardDigest :one
+INSERT INTO dashboard_digest (id, tenant_id, dashboard_id, account_id, cadence, weekday, hour, time_zone,
+  next_at, created_at, updated_at)
+VALUES ($1, current_tenant_id(), $2, $3, $4,
+  $5, $6, $7, $8, $9, $9)
+ON CONFLICT (tenant_id, dashboard_id, account_id) DO UPDATE SET
+  cadence = EXCLUDED.cadence, weekday = EXCLUDED.weekday, hour = EXCLUDED.hour,
+  time_zone = EXCLUDED.time_zone, next_at = EXCLUDED.next_at, updated_at = EXCLUDED.updated_at
+RETURNING id
+`
+
+type PutDashboardDigestParams struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+	AccountID   pgtype.UUID
+	Cadence     string
+	Weekday     int16
+	Hour        int16
+	TimeZone    string
+	NextAt      pgtype.Timestamptz
+	At          pgtype.Timestamptz
+}
+
+func (q *Queries) PutDashboardDigest(ctx context.Context, arg PutDashboardDigestParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, putDashboardDigest,
+		arg.ID,
+		arg.DashboardID,
+		arg.AccountID,
+		arg.Cadence,
+		arg.Weekday,
+		arg.Hour,
+		arg.TimeZone,
+		arg.NextAt,
+		arg.At,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const reparentGoals = `-- name: ReparentGoals :exec

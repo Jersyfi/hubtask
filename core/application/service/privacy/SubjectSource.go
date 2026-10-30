@@ -89,6 +89,7 @@ var subjectColumns = map[string][]string{
 	"portfolio":        {"owner_id", "created_by", "updated_by"},
 	"portfolio_update": {"author_id"},
 	"dashboard":        {"owner_id", "updated_by"},
+	"dashboard_digest": {"account_id"},
 	"entry_estimate":   {"updated_by"},
 	// The pages they wrote, own or checked, their versions and their comments (M3).
 	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},

@@ -126,3 +126,67 @@ func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 		t.Errorf("the other workspace deleted the dashboard: %v", err)
 	}
 }
+
+// A person's digest of a dashboard is kept once per dashboard and person, replaced by a second
+// write, and stays in its workspace (migration 0249, UC-GOL-04 check 10).
+func TestADashboardDigestStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewGoalRepository()
+	now := time.Date(2026, 11, 3, 17, 0, 0, 0, time.UTC)
+	dashboard := goal.Dashboard{ID: freshID(t), OwnerID: authorA, Name: "Digest", Sharing: goal.SharingPrivate}
+	digest := goal.Digest{
+		ID: freshID(t), DashboardID: dashboard.ID, AccountID: authorA, Cadence: goal.CadenceWeekly, Weekday: 1,
+		Hour: 8, TimeZone: "Europe/Berlin", NextAt: now.Add(time.Hour),
+	}
+	var kept shared.ID
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := store.InsertDashboard(ctx, dashboard, now); err != nil {
+			return err
+		}
+		if _, err := store.PutDigest(ctx, digest, now); err != nil {
+			return err
+		}
+		again := digest
+		again.ID, again.Cadence, again.Weekday = freshID(t), goal.CadenceDaily, 0
+		var err error
+		kept, err = store.PutDigest(ctx, again, now)
+		return err
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if kept != digest.ID {
+		t.Errorf("a second write kept %s, want the first row %s", kept, digest.ID)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return store.DigestSent(ctx, digest.ID, &now, now.Add(24*time.Hour))
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		found, err := store.Digest(ctx, dashboard.ID, authorA)
+		if err != nil || found.Cadence != goal.CadenceDaily || found.LastSentAt == nil || !found.NextAt.Equal(now.Add(24*time.Hour)) {
+			t.Errorf("digest = %+v %v", found, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := store.DigestByID(ctx, digest.ID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the other workspace finds the digest: %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		gone, err := store.DeleteDigest(ctx, dashboard.ID, authorA)
+		if gone {
+			t.Errorf("the other workspace deleted the digest")
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

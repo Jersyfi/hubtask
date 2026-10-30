@@ -205,3 +205,33 @@ WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
 DELETE FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
   AND version = sqlc.arg('expected_version')::int;
+
+-- name: FindDashboardDigest :one
+SELECT id, dashboard_id, account_id, cadence, weekday, hour, time_zone, next_at, last_sent_at
+FROM dashboard_digest
+WHERE tenant_id = current_tenant_id() AND dashboard_id = sqlc.arg('dashboard_id')::uuid
+  AND account_id = sqlc.arg('account_id')::uuid;
+
+-- name: FindDashboardDigestByID :one
+SELECT id, dashboard_id, account_id, cadence, weekday, hour, time_zone, next_at, last_sent_at
+FROM dashboard_digest
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
+
+-- name: PutDashboardDigest :one
+INSERT INTO dashboard_digest (id, tenant_id, dashboard_id, account_id, cadence, weekday, hour, time_zone,
+  next_at, created_at, updated_at)
+VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('dashboard_id'), sqlc.arg('account_id'), sqlc.arg('cadence'),
+  sqlc.arg('weekday'), sqlc.arg('hour'), sqlc.arg('time_zone'), sqlc.arg('next_at'), sqlc.arg('at'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, dashboard_id, account_id) DO UPDATE SET
+  cadence = EXCLUDED.cadence, weekday = EXCLUDED.weekday, hour = EXCLUDED.hour,
+  time_zone = EXCLUDED.time_zone, next_at = EXCLUDED.next_at, updated_at = EXCLUDED.updated_at
+RETURNING id;
+
+-- name: DeleteDashboardDigest :execrows
+DELETE FROM dashboard_digest
+WHERE tenant_id = current_tenant_id() AND dashboard_id = sqlc.arg('dashboard_id')::uuid
+  AND account_id = sqlc.arg('account_id')::uuid;
+
+-- name: MarkDashboardDigestSent :execrows
+UPDATE dashboard_digest SET last_sent_at = COALESCE(sqlc.narg('sent_at'), last_sent_at), next_at = sqlc.arg('next_at')
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;

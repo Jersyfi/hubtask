@@ -64,4 +64,14 @@ type Store interface {
 	InsertDashboard(ctx context.Context, d domain.Dashboard, at time.Time) error
 	UpdateDashboard(ctx context.Context, d domain.Dashboard, expected int, by shared.ID, at time.Time) error
 	DeleteDashboard(ctx context.Context, id shared.ID, expected int) error
+
+	// Digest answers one person's digest of a dashboard; DigestByID one by its identifier.
+	Digest(ctx context.Context, dashboard, account shared.ID) (domain.Digest, error)
+	DigestByID(ctx context.Context, id shared.ID) (domain.Digest, error)
+	// PutDigest writes a person's digest of a dashboard, replacing theirs; it answers the
+	// identifier the row keeps.
+	PutDigest(ctx context.Context, d domain.Digest, at time.Time) (shared.ID, error)
+	DeleteDigest(ctx context.Context, dashboard, account shared.ID) (bool, error)
+	// DigestSent records a digest sent (or skipped, sent nil) and the next moment it is owed.
+	DigestSent(ctx context.Context, id shared.ID, sent *time.Time, next time.Time) error
 }

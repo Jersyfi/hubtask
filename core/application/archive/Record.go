@@ -917,6 +917,16 @@ var entities = []Entity{
 			{Field: "updated_by", Table: "account", Clearable: true},
 		},
 	},
+	// A person's digest of a dashboard by mail (migration 0249): its schedule, never a number.
+	{
+		Name: "dashboard_digests", Table: "dashboard_digest", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		Unique: []UniqueField{{Field: "account_id", Rule: UniqueSkip, Within: []string{"dashboard_id"}}},
+		References: []Reference{
+			{Field: "dashboard_id", Table: "dashboard"},
+			{Field: "account_id", Table: "account"},
+		},
+	},
 	{
 		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,

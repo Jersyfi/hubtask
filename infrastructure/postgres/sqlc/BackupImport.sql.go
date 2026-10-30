@@ -399,6 +399,18 @@ func (q *Queries) ClearDashboard(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearDashboardDigest = `-- name: ClearDashboardDigest :execrows
+DELETE FROM dashboard_digest
+`
+
+func (q *Queries) ClearDashboardDigest(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearDashboardDigest)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearEntryEstimate = `-- name: ClearEntryEstimate :execrows
 DELETE FROM entry_estimate
 `
@@ -1482,6 +1494,17 @@ SELECT EXISTS (SELECT 1 FROM dashboard WHERE id = ($1::jsonb->>'id')::uuid) AS h
 
 func (q *Queries) HoldsDashboard(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsDashboard, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsDashboardDigest = `-- name: HoldsDashboardDigest :one
+SELECT EXISTS (SELECT 1 FROM dashboard_digest WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsDashboardDigest(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsDashboardDigest, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3538,6 +3561,31 @@ type ImportDashboardParams struct {
 
 func (q *Queries) ImportDashboard(ctx context.Context, arg ImportDashboardParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importDashboard, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importDashboardDigest = `-- name: ImportDashboardDigest :execrows
+INSERT INTO dashboard_digest (id, tenant_id, dashboard_id, account_id, cadence, weekday, hour, time_zone, next_at, last_sent_at, created_at, updated_at)
+SELECT r.id, r.tenant_id, r.dashboard_id, r.account_id, r.cadence, r.weekday, r.hour, r.time_zone, r.next_at, r.last_sent_at, r.created_at, r.updated_at
+FROM jsonb_populate_record(
+  NULL::dashboard_digest,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  dashboard_id = EXCLUDED.dashboard_id, account_id = EXCLUDED.account_id, cadence = EXCLUDED.cadence, weekday = EXCLUDED.weekday, hour = EXCLUDED.hour, time_zone = EXCLUDED.time_zone, next_at = EXCLUDED.next_at, last_sent_at = EXCLUDED.last_sent_at, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at
+WHERE $2::boolean
+`
+
+type ImportDashboardDigestParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportDashboardDigest(ctx context.Context, arg ImportDashboardDigestParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importDashboardDigest, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

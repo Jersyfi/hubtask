@@ -1156,6 +1156,21 @@ type Dashboard struct {
 	Version   int32
 }
 
+type DashboardDigest struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	DashboardID pgtype.UUID
+	AccountID   pgtype.UUID
+	Cadence     string
+	Weekday     int16
+	Hour        int16
+	TimeZone    string
+	NextAt      pgtype.Timestamptz
+	LastSentAt  pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type DataSubjectRequest struct {
 	ID               pgtype.UUID
 	TenantID         pgtype.UUID

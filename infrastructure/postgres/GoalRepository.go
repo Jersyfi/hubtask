@@ -970,3 +970,123 @@ func wrapGoal(err error, what string) error {
 	}
 	return goalError(err, what)
 }
+
+func digestOf(r sqlc.FindDashboardDigestRow) (domain.Digest, error) {
+	found, err := ids(r.ID, r.DashboardID, r.AccountID)
+	if err != nil {
+		return domain.Digest{}, err
+	}
+	d := domain.Digest{
+		ID: found[0], DashboardID: found[1], AccountID: found[2], Cadence: domain.Cadence(r.Cadence),
+		Weekday: int(r.Weekday), Hour: int(r.Hour), TimeZone: r.TimeZone, LastSentAt: optionalTime(r.LastSentAt),
+	}
+	if r.NextAt.Valid {
+		d.NextAt = r.NextAt.Time.UTC()
+	}
+	return d, nil
+}
+
+// Digest answers one person's digest of a dashboard.
+func (GoalRepository) Digest(ctx context.Context, dashboard, account shared.ID) (domain.Digest, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.Digest{}, err
+	}
+	keys, err := uuids(dashboard, account)
+	if err != nil {
+		return domain.Digest{}, err
+	}
+	r, err := queries.FindDashboardDigest(ctx, sqlc.FindDashboardDigestParams{DashboardID: keys[0], AccountID: keys[1]})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Digest{}, shared.ErrNotFound.WithDetail("dashboards.digest_not_found")
+	}
+	if err != nil {
+		return domain.Digest{}, goalError(err, "reading a digest")
+	}
+	return digestOf(r)
+}
+
+// DigestByID answers a digest by its identifier.
+func (GoalRepository) DigestByID(ctx context.Context, id shared.ID) (domain.Digest, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.Digest{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return domain.Digest{}, err
+	}
+	r, err := queries.FindDashboardDigestByID(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Digest{}, shared.ErrNotFound.WithDetail("dashboards.digest_not_found")
+	}
+	if err != nil {
+		return domain.Digest{}, goalError(err, "reading a digest")
+	}
+	return digestOf(sqlc.FindDashboardDigestRow(r))
+}
+
+// PutDigest writes a person's digest of a dashboard, replacing theirs.
+func (GoalRepository) PutDigest(ctx context.Context, d domain.Digest, at time.Time) (shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	keys, err := uuids(d.ID, d.DashboardID, d.AccountID)
+	if err != nil {
+		return "", err
+	}
+	//nolint:gosec // G115: weekday and hour are checked by the domain
+	kept, err := queries.PutDashboardDigest(ctx, sqlc.PutDashboardDigestParams{
+		ID: keys[0], DashboardID: keys[1], AccountID: keys[2], Cadence: string(d.Cadence),
+		Weekday: int16(d.Weekday), Hour: int16(d.Hour), TimeZone: d.TimeZone,
+		NextAt: timestampOf(d.NextAt), At: timestampOf(at),
+	})
+	if err != nil {
+		if isForeignKeyViolation(err) {
+			return "", shared.ErrNotFound.WithDetail("dashboards.not_found")
+		}
+		return "", goalError(err, "writing a digest")
+	}
+	found, err := ids(kept)
+	if err != nil {
+		return "", err
+	}
+	return found[0], nil
+}
+
+// DeleteDigest removes a person's digest of a dashboard.
+func (GoalRepository) DeleteDigest(ctx context.Context, dashboard, account shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	keys, err := uuids(dashboard, account)
+	if err != nil {
+		return false, err
+	}
+	affected, err := queries.DeleteDashboardDigest(ctx, sqlc.DeleteDashboardDigestParams{DashboardID: keys[0], AccountID: keys[1]})
+	if err != nil {
+		return false, goalError(err, "deleting a digest")
+	}
+	return affected > 0, nil
+}
+
+// DigestSent records a digest's run and its next moment.
+func (GoalRepository) DigestSent(ctx context.Context, id shared.ID, sent *time.Time, next time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	_, err = queries.MarkDashboardDigestSent(ctx, sqlc.MarkDashboardDigestSentParams{
+		SentAt: optionalTimestamp(sent), NextAt: timestampOf(next), ID: key,
+	})
+	if err != nil {
+		return goalError(err, "recording a digest")
+	}
+	return nil
+}

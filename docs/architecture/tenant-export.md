@@ -208,6 +208,7 @@ re-mints identities must rewrite exactly these).
 | 90 | `portfolio_items` | `portfolio_item` | `portfolio_id`, `container_id` | `portfolio_id`→portfolios, `container_id`→containers (a project of a portfolio with its dates and health) |
 | 91 | `portfolio_updates` | `portfolio_update` | `id` | `portfolio_id`→portfolios, `author_id`→accounts (a status update) |
 | 92 | `dashboards` | `dashboard` | `id` | `hub_id`→containers, `owner_id`, `updated_by`→accounts (widgets as their queries; no number is stored) |
+| 93 | `dashboard_digests` | `dashboard_digest` | `id` | `dashboard_id`→dashboards, `account_id`→accounts (a person's digest of a dashboard by mail: cadence, weekday, hour, zone and next moment; no number is stored; migration 0249) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

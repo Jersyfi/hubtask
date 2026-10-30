@@ -3050,3 +3050,20 @@ SELECT EXISTS (SELECT 1 FROM dashboard WHERE id = (sqlc.arg('payload')::jsonb->>
 
 -- name: ClearDashboard :execrows
 DELETE FROM dashboard;
+
+-- name: ImportDashboardDigest :execrows
+INSERT INTO dashboard_digest (id, tenant_id, dashboard_id, account_id, cadence, weekday, hour, time_zone, next_at, last_sent_at, created_at, updated_at)
+SELECT r.id, r.tenant_id, r.dashboard_id, r.account_id, r.cadence, r.weekday, r.hour, r.time_zone, r.next_at, r.last_sent_at, r.created_at, r.updated_at
+FROM jsonb_populate_record(
+  NULL::dashboard_digest,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  dashboard_id = EXCLUDED.dashboard_id, account_id = EXCLUDED.account_id, cadence = EXCLUDED.cadence, weekday = EXCLUDED.weekday, hour = EXCLUDED.hour, time_zone = EXCLUDED.time_zone, next_at = EXCLUDED.next_at, last_sent_at = EXCLUDED.last_sent_at, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsDashboardDigest :one
+SELECT EXISTS (SELECT 1 FROM dashboard_digest WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearDashboardDigest :execrows
+DELETE FROM dashboard_digest;
