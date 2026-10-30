@@ -44,6 +44,14 @@ type builder struct {
 	// byTitle the same by the title's lower case, for a source that names a parent by its title.
 	entries map[string]entry
 	byTitle map[string]string
+	// itemData is each entry's record by its identity, for what a converter settles after the
+	// entry is added - its type, status and field values.
+	itemData map[string]map[string]any
+	// typed keeps the entry types and link types written, by key.
+	typed map[string]bool
+	// media is the attachments' bytes by digest, and mediaRows their records.
+	media     map[string][]byte
+	mediaRows map[string]map[string]any
 }
 
 type entry struct {
@@ -60,14 +68,15 @@ func newBuilder(source service.Source, identity string) *builder {
 		place = source.Into.Collection
 	}
 	b := &builder{
-		source:  source,
-		salt:    backup.DuplicateID(place, "import", identity),
-		records: map[string][]archive.Record{},
-		named:   map[string]shared.ID{},
-		linked:  map[string]bool{},
-		orders:  map[string]string{},
-		entries: map[string]entry{},
-		byTitle: map[string]string{},
+		source:   source,
+		salt:     backup.DuplicateID(place, "import", identity),
+		records:  map[string][]archive.Record{},
+		named:    map[string]shared.ID{},
+		linked:   map[string]bool{},
+		orders:   map[string]string{},
+		entries:  map[string]entry{},
+		byTitle:  map[string]string{},
+		itemData: map[string]map[string]any{},
 	}
 	if into := source.Into; into != nil {
 		for _, bucket := range into.Buckets {
@@ -267,6 +276,7 @@ func (b *builder) item(in Item) (shared.ID, bool) {
 		"retention_pending_until": nil, "retention_rule_id": nil, "retention_action": nil, "retention_blocked_by": nil,
 	}
 	b.add("work_items", id, data)
+	b.itemData[id.String()] = data
 	b.entries[in.Key] = entry{id: id, path: path, depth: depth}
 	return id, true
 }
@@ -332,7 +342,7 @@ func (b *builder) reminder(key string, item shared.ID, at time.Time) {
 }
 
 func (b *builder) result(refused []refusal) service.Result {
-	out := service.Result{Records: b.records}
+	out := service.Result{Records: b.records, Media: b.media}
 	for _, r := range refused {
 		out.Refused = append(out.Refused, r.refusal())
 	}
