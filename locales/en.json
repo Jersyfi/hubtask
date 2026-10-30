@@ -10483,5 +10483,6 @@
   "app.planning.import_run": "Bring them in",
   "app.planning.import_choose_first": "Choose a file first.",
   "app.planning.import_too_large": "The file is larger than 512 KB.",
-  "app.planning.imported": "{count} entries are in the plan."
+  "app.planning.imported": "{count} entries are in the plan.",
+  "app.planning.from_copy": "You are offline: the plan shows the entries' own dates and dependencies from this device. Proposed moves, float and the critical chain come back with the server."
 }

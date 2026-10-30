@@ -10480,5 +10480,6 @@
   "app.planning.import_run": "Übernehmen",
   "app.planning.import_choose_first": "Wähle zuerst eine Datei.",
   "app.planning.import_too_large": "Die Datei ist größer als 512 KB.",
-  "app.planning.imported": "{count} Einträge sind im Plan."
+  "app.planning.imported": "{count} Einträge sind im Plan.",
+  "app.planning.from_copy": "Du bist offline: Der Plan zeigt die eigenen Termine und Abhängigkeiten der Einträge von diesem Gerät. Vorgeschlagene Verschiebungen, Puffer und die kritische Kette kommen mit dem Server zurück."
 }

@@ -287,6 +287,90 @@ function parse(path: string): { pathname: string; query: URLSearchParams } {
  *
  * Every answered path is listed here, and the test lists every one refused by design.
  */
+/** A day `YYYY-MM-DD` of an instant in a zone; an unknown zone counts in UTC. */
+function dayIn(instant: unknown, zone: string): string | undefined {
+  if (typeof instant !== 'string' || instant === '') return undefined;
+  const at = Date.parse(instant);
+  if (Number.isNaN(at)) return undefined;
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+  } catch {
+    return new Date(at).toISOString().slice(0, 10);
+  }
+}
+
+/** Monday to Friday from one day to another, both counted, as the server counts without a calendar. */
+function workdaysBetween(from: string, to: string): number {
+  const first = Date.parse(`${from}T00:00:00Z`);
+  const last = Date.parse(`${to}T00:00:00Z`);
+  let count = 0;
+  for (let at = first; at <= last; at += 86_400_000) {
+    const weekday = new Date(at).getUTCDay();
+    if (weekday !== 0 && weekday !== 6) count++;
+  }
+  return count;
+}
+
+/** The link types that make an entry wait, and which end waits: the copy's, else the shipped ones. */
+async function waitingTypes(storage: Storage): Promise<Map<string, 'SOURCE' | 'TARGET'>> {
+  const out = new Map<string, 'SOURCE' | 'TARGET'>([['blocks', 'TARGET'], ['depends_on', 'SOURCE']]);
+  for (const row of await documents(storage, 'link_types')) {
+    if (row.waits === 'SOURCE' || row.waits === 'TARGET') out.set(String(row.key), row.waits);
+    else out.delete(String(row.key));
+  }
+  return out;
+}
+
+async function planFromCopy(storage: Storage, planId: string, zone: string): Promise<Document | undefined> {
+  const containers = await documents(storage, 'containers');
+  const place = containers.find((each) => each.id === planId);
+  if (!place) return undefined;
+  const collections = new Set(place.type === 'HUB'
+    ? containers.filter((each) => each.parent_id === planId && !each.deleted_at).map((each) => String(each.id))
+    : [planId]);
+  const items = (await documents(storage, 'items'))
+    .filter((item) => collections.has(String(item.collection_id)) && !item.deleted_at && !item.archived_at);
+  const ids = new Set(items.map((item) => String(item.id)));
+  const schedules = new Map((await documents(storage, 'entry_schedules')).map((row) => [String(row.item_id), row]));
+  const parents = new Set(items.map((item) => item.parent_id).filter((id): id is string => typeof id === 'string'));
+  const entries: Document[] = [];
+  const unscheduled: string[] = [];
+  let finish: string | undefined;
+  for (const item of items) {
+    const id = String(item.id);
+    const dueZone = item.due_date_only === true && typeof item.due_time_zone === 'string' ? item.due_time_zone : zone;
+    const due = dayIn(item.due_at, dueZone);
+    const start = dayIn(item.start_at, zone) ?? due;
+    if (!due || !start) {
+      unscheduled.push(id);
+      continue;
+    }
+    if (!finish || due > finish) finish = due;
+    const scheduling = schedules.get(id);
+    entries.push({
+      item_id: id, title: item.title ?? '', parent_id: typeof item.parent_id === 'string' && ids.has(item.parent_id) ? item.parent_id : null,
+      collection_id: item.collection_id, start, finish: due, duration_days: workdaysBetween(start, due), moved: false,
+      total_float_days: 0, free_float_days: 0, critical: false, summary: parents.has(id), external: false,
+      mode: scheduling?.mode === 'AUTOMATIC' ? 'AUTOMATIC' : 'MANUAL', milestone: scheduling?.milestone === true,
+      done: item.is_completed === true,
+    });
+  }
+  const waits = await waitingTypes(storage);
+  const dependencies: Document[] = [];
+  for (const link of await documents(storage, 'entry_links')) {
+    const end = waits.get(String(link.type));
+    const source = String(link.source_id);
+    const target = String(link.target_id);
+    if (!end || !ids.has(source) || !ids.has(target)) continue;
+    const [predecessor, successor] = end === 'TARGET' ? [source, target] : [target, source];
+    dependencies.push({
+      link_id: link.id, type: link.type, predecessor_id: predecessor, successor_id: successor,
+      dependency_kind: link.dependency_kind ?? 'FS', lag_days: Number(link.lag_days ?? 0),
+    });
+  }
+  return { zone, finish: finish ?? null, entries, dependencies, conflicts: [], unscheduled, critical_path: [] };
+}
+
 export async function storeFor(request: ResourceRequest, storage: Storage): Promise<unknown> {
   const { pathname, query } = parse(request.path);
 
@@ -573,6 +657,14 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
       });
     return { data: rows };
   }
+
+  // A plan read while the server is away (UC-PLN-02 check 9): the entries of the collection - or
+  // of every collection of the hub - with their own dates as days in the reader's zone, their mode
+  // and milestone mark, and the dependencies between them with their kind and lag. The server's
+  // scheduling stays the server's: nothing is proposed, no float or critical chain is reckoned and
+  // no dependency is judged broken, so a screen draws the plan as it stands and says so.
+  match = /^\/plans\/([^/:]+)\/schedule$/.exec(pathname);
+  if (match?.[1]) return planFromCopy(storage, match[1], query.get('zone') ?? 'UTC');
 
   // A hub's releases and a release read while the server is away (UC-PLN-08 check 8): the list in
   // the server's order - the latest day first - and a release with the entries the copy holds of

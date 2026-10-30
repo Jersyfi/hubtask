@@ -720,3 +720,43 @@ test('an entry\'s goals and approvals are answered from the copy', async () => {
   assert.ok(asked.data.every((row) => row.may_decide === false), 'nobody decides offline');
   assert.equal((asked.data[1]!.decisions as unknown[]).length, 1);
 });
+
+// UC-PLN-02 check 9: a plan read while the server is away answers the entries' own dates in the
+// reader's zone, their mode and milestone, and the dependencies between them with their kind and
+// lag - never another collection's entry, and nothing the server would propose.
+test('a plan is answered from the copy without the server\'s proposals', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('containers', HUB, record({ id: HUB, type: 'HUB', parent_id: null }));
+  await storage.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', parent_id: HUB }));
+  await storage.put('containers', 'c-other', record({ id: 'c-other', type: 'COLLECTION', parent_id: 'h-other' }));
+  const item = (id: string, fields: Record<string, unknown>) => storage.put('items', id, record({ id, title: id, collection_id: COLLECTION, ...fields }));
+  await item('design', { start_at: '2026-11-01T23:30:00Z', due_at: '2026-11-04T16:00:00Z' });
+  await item('build', { start_at: '2026-11-05T08:00:00Z', due_at: '2026-11-09T00:00:00Z', due_date_only: true, due_time_zone: 'Europe/Berlin' });
+  await item('launch', { due_at: '2026-11-20T12:00:00Z' });
+  await item('someday', {});
+  await storage.put('items', 'elsewhere', record({ id: 'elsewhere', title: 'x', collection_id: 'c-other', due_at: '2026-11-20T12:00:00Z' }));
+  await storage.put('entry_schedules', 'launch', record({ item_id: 'launch', collection_id: COLLECTION, mode: 'MANUAL', milestone: true }));
+  await storage.put('entry_schedules', 'build', record({ item_id: 'build', collection_id: COLLECTION, mode: 'AUTOMATIC', milestone: false }));
+  await storage.put('entry_links', 'l-1', record({ id: 'l-1', type: 'blocks', source_id: 'design', target_id: 'build', dependency_kind: 'SS', lag_days: 2 }));
+  await storage.put('entry_links', 'l-2', record({ id: 'l-2', type: 'depends_on', source_id: 'launch', target_id: 'build', dependency_kind: 'FS', lag_days: 0 }));
+  await storage.put('entry_links', 'l-3', record({ id: 'l-3', type: 'blocks', source_id: 'design', target_id: 'elsewhere' }));
+
+  const plan = await storeFor({ path: `/plans/${COLLECTION}/schedule?zone=Europe%2FBerlin` }, storage) as {
+    entries: Record<string, unknown>[]; dependencies: Record<string, unknown>[]; unscheduled: string[]; finish: string; conflicts: unknown[];
+  };
+  const byId = new Map(plan.entries.map((entry) => [entry.item_id, entry]));
+  assert.deepEqual([...byId.keys()].sort(), ['build', 'design', 'launch']);
+  assert.deepEqual([byId.get('design')?.start, byId.get('design')?.finish, byId.get('design')?.duration_days], ['2026-11-02', '2026-11-04', 3]);
+  assert.equal(byId.get('build')?.finish, '2026-11-09');
+  assert.equal(byId.get('build')?.mode, 'AUTOMATIC');
+  assert.equal(byId.get('build')?.moved, false);
+  assert.equal(byId.get('launch')?.milestone, true);
+  assert.deepEqual(plan.unscheduled, ['someday']);
+  assert.equal(plan.finish, '2026-11-20');
+  assert.deepEqual(plan.dependencies.map((each) => [each.predecessor_id, each.successor_id, each.dependency_kind, each.lag_days]), [
+    ['design', 'build', 'SS', 2], ['build', 'launch', 'FS', 0],
+  ]);
+  assert.deepEqual(plan.conflicts, []);
+  const hub = await storeFor({ path: `/plans/${HUB}/schedule?zone=UTC` }, storage) as { entries: unknown[] };
+  assert.equal(hub.entries.length, 3);
+});

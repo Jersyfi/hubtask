@@ -14,6 +14,9 @@
   // the entry's own screen - one press on its title - sets its dates. The chart is the picture of
   // the same answer, never the only way to change it.
   //
+  // **Offline** the copy answers the plan as it stands (`replica.ts`): no proposal, float or
+  // critical chain, which only the server's scheduler reckons; a banner says so.
+  //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS at the plan the
   // chart's bars are locked and the table shows values, not controls.
 
@@ -75,6 +78,9 @@
   const mayWrite = $derived(holds(people.roleOf(rolePath, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted');
 
   let schedule = $state<PlanSchedule | undefined>(undefined);
+  // While the server is away the plan is the copy's (UC-PLN-02 check 9): the entries' own dates and
+  // dependencies, nothing proposed, no float or critical chain - said, so nobody reads it as scheduled.
+  let fromCopy = $state(false);
   let refusal = $state<string | undefined>(undefined);
   let baselines = $state<PlanBaselineList['data']>([]);
   $effect(() => {
@@ -85,6 +91,7 @@
         engine.subscribe<PlanSchedule>({ path }, (next) => {
           if (next.status === 'ready') {
             schedule = next.data;
+            fromCopy = next.source === 'replica';
             refusal = undefined;
           }
           if (next.status === 'failed') refusal = renderProblem(next.error, messages).message;
@@ -353,6 +360,7 @@
   {:else if !schedule}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}
+    {#if fromCopy}<Banner tone="info">{t('app.planning.from_copy')}</Banner>{/if}
     <p class="quiet">
       {schedule.finish ? t('app.planning.ends_on', { date: dayLabel(schedule.finish) }) : t('app.planning.no_dates')}
     </p>
