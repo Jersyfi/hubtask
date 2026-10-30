@@ -366,6 +366,7 @@ tenants, data categories and period within 72 hours
 | Email notifications containing task content | Title and link only, no full text; switchable |
 | Chat room notifications (UC-INT-12) | Title and link only, never a note or a comment; only where an administrator subscribed the room |
 | Code from a forge (UC-INT-13) | Inbound only: a commit's subject, a branch's name, a pull request's title, address and the forge's account name are kept on the entry; a description and a full message are read for keys and not kept; nothing is sent to the forge |
+| Files in a store (UC-INT-14) | A file's address and name are kept on the entry and erased with it; the file stays in its store and is never fetched; the person who linked it is a subject of the access export |
 | Visibility of profile data to other tenant members | Minimal (display name, avatar) |
 | Retention | The shortest defensible periods (§5) |
 

@@ -1018,6 +1018,13 @@ address, the forge's account name and its state (`PUSHED`, `OPEN`, `MERGED`, `CL
 last told it; a signal older than the one it follows is ignored and a merge is final
 (UC-INT-13, migration 0275, archived).
 
+### 3.14 Files in a store (context: Integration, M10)
+
+An entry's file **`Link`** names a file or folder in Nextcloud, SharePoint, OneDrive or a WebDAV
+store by its https address, with a name and the store (told by the address unless chosen); one per
+entry and address, at most fifty per entry. The file is never fetched or copied; a link taken off
+leaves it in its store (UC-INT-14, migration 0276, archived).
+
 ## 4. Domain events
 
 Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,
