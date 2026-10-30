@@ -22,6 +22,7 @@ import (
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -449,7 +450,16 @@ func (s StreamChanges) mayReadOtherEnd(
 	ctx context.Context, actor appshared.ActorContext, entity string, payload map[string]any,
 	resolved map[shared.ID]visibility,
 ) (bool, error) {
-	if entity != entityEntryLink || payload == nil {
+	if payload == nil {
+		return true, nil
+	}
+	if entity == entityDashboard {
+		// A private dashboard is its owner's alone (UC-GOL-04 check 3).
+		sharing, _ := payload["sharing"].(string)
+		owner, _ := payload["owner_id"].(string)
+		return sharing != string(goal.SharingPrivate) || (owner != "" && owner == actor.AccountID.String()), nil
+	}
+	if entity != entityEntryLink {
 		return true, nil
 	}
 	target, _ := payload[workservice.LinkTargetCollectionKey].(string)

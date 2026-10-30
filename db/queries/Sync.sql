@@ -439,3 +439,38 @@ FROM cmdb_relation
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotGoalPeriods :many
+-- The workspace's goal periods (migration 0248), workspace-wide: read where the workspace is.
+SELECT id, name, start_on, end_on, state, version
+FROM goal_period
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotGoals :many
+-- The workspace's goals as their definitions, each filed under its hub - none for the workspace's.
+SELECT id, period_id, hub_id, parent_id, title, description, owner_id, status, confidence,
+       key_results, grade, version
+FROM goal
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotGoalCheckIns :many
+-- The goals' check-ins, each with its goal's hub, which decides who is told of it.
+SELECT c.id, c.goal_id, c.author_id, c.status, c.confidence, c.note, c."values", c.created_at, g.hub_id
+FROM goal_check_in c
+JOIN goal g ON g.tenant_id = c.tenant_id AND g.id = c.goal_id
+WHERE c.tenant_id = current_tenant_id() AND c.id > sqlc.arg('after')
+ORDER BY c.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotDashboards :many
+-- The workspace's dashboards as their widgets' queries, each filed under its hub; a private one
+-- reaches its owner alone.
+SELECT id, hub_id, owner_id, name, sharing, widgets, version
+FROM dashboard
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');

@@ -16,6 +16,7 @@ import (
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -167,6 +168,12 @@ type Snapshot interface {
 	// CIs pages the workspace's configuration items that are not merged away, for reading a
 	// hub's inventory offline (M6).
 	CIs(ctx context.Context, after shared.ID, batch int) ([]cmdb.CI, error)
+	// GoalPeriods, Goals, GoalCheckIns and Dashboards page the goals module's rows (M8): a goal
+	// as its definition, a check-in with its goal's hub, a dashboard as its widgets' queries.
+	GoalPeriods(ctx context.Context, after shared.ID, batch int) ([]goal.Period, error)
+	Goals(ctx context.Context, after shared.ID, batch int) ([]goal.Goal, error)
+	GoalCheckIns(ctx context.Context, after shared.ID, batch int) ([]GoalCheckIn, error)
+	Dashboards(ctx context.Context, after shared.ID, batch int) ([]goal.Dashboard, error)
 	// CIRelations pages the relations between them.
 	CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error)
 	// CmdbCatalogue reads the workspace's own classes and relation types.
@@ -183,6 +190,12 @@ type ScheduleOf struct {
 	Mode         string
 	Milestone    bool
 	Version      int
+}
+
+// GoalCheckIn is a check-in with the hub of its goal, which decides who is told of it.
+type GoalCheckIn struct {
+	CheckIn goal.CheckIn
+	HubID   shared.ID
 }
 
 // LinkBetween is a link with the collection each of its ends is in: a reader is told of it only

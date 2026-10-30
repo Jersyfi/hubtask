@@ -12,6 +12,7 @@ import (
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
+	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -582,4 +583,88 @@ func snapshotFailed(kind string, err error) error {
 	return shared.ErrUnavailable.
 		WithDetail("postgres.query_failed").
 		WithCause(fmt.Errorf("reading the %s for a synchronisation: %w", kind, err))
+}
+
+// GoalPeriods pages the workspace's goal periods.
+func (SnapshotRepository) GoalPeriods(ctx context.Context, after shared.ID, batch int) ([]goal.Period, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotGoalPeriods(ctx, sqlc.SnapshotGoalPeriodsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("goal periods", err)
+	}
+	return mapRows(rows, func(r sqlc.SnapshotGoalPeriodsRow) (goal.Period, error) {
+		id, err := idFrom(r.ID)
+		if err != nil {
+			return goal.Period{}, err
+		}
+		return goal.Period{
+			ID: id, Name: r.Name, StartOn: planDay(r.StartOn), EndOn: planDay(r.EndOn),
+			State: goal.PeriodState(r.State), Version: int(r.Version),
+		}, nil
+	})
+}
+
+// Goals pages the workspace's goals.
+func (SnapshotRepository) Goals(ctx context.Context, after shared.ID, batch int) ([]goal.Goal, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotGoals(ctx, sqlc.SnapshotGoalsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("goals", err)
+	}
+	return mapRows(rows, func(r sqlc.SnapshotGoalsRow) (goal.Goal, error) { return goalOf(sqlc.ListGoalsRow(r)) })
+}
+
+// GoalCheckIns pages the goals' check-ins with their goals' hubs.
+func (SnapshotRepository) GoalCheckIns(ctx context.Context, after shared.ID, batch int) ([]repository.GoalCheckIn, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotGoalCheckIns(ctx, sqlc.SnapshotGoalCheckInsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("goal check-ins", err)
+	}
+	return mapRows(rows, func(r sqlc.SnapshotGoalCheckInsRow) (repository.GoalCheckIn, error) {
+		found, err := ids(r.ID, r.GoalID, r.AuthorID, r.HubID)
+		if err != nil {
+			return repository.GoalCheckIn{}, err
+		}
+		values, err := decodeValues(r.Values)
+		if err != nil {
+			return repository.GoalCheckIn{}, err
+		}
+		return repository.GoalCheckIn{HubID: found[3], CheckIn: goal.CheckIn{
+			ID: found[0], GoalID: found[1], AuthorID: found[2], Status: goal.Status(r.Status),
+			Confidence: int(r.Confidence), Note: r.Note, Values: values, At: r.CreatedAt.Time,
+		}}, nil
+	})
+}
+
+// Dashboards pages the workspace's dashboards.
+func (SnapshotRepository) Dashboards(ctx context.Context, after shared.ID, batch int) ([]goal.Dashboard, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotDashboards(ctx, sqlc.SnapshotDashboardsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("dashboards", err)
+	}
+	return mapRows(rows, func(r sqlc.SnapshotDashboardsRow) (goal.Dashboard, error) {
+		return dashboardOf(sqlc.ListDashboardsRow(r))
+	})
 }

@@ -15,6 +15,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
+	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -42,6 +43,10 @@ type snapshotStore struct {
 	ciRelations []cmdb.Relation
 	ciClasses   []cmdb.Class
 	grants      []identityrepo.CustomGrantRow
+	periods     []goal.Period
+	goals       []goal.Goal
+	checkIns    []repository.GoalCheckIn
+	dashboards  []goal.Dashboard
 	// groups are the groups the reader is in.
 	groups map[shared.ID]bool
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.

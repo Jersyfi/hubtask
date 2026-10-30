@@ -9,6 +9,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
+	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
@@ -36,6 +37,7 @@ var walkKinds = []string{
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
 	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage,
 	entityCI, entityCIRelation, entityCICatalogue, entityEntrySchedule,
+	entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard,
 }
 
 const (
@@ -72,6 +74,13 @@ const (
 	// entityRoleGrant is a grant of a custom role, walked for its holder alone: what a device
 	// may predict offline is what its own person holds (offline-sync.md §4.3).
 	entityRoleGrant = identityservice.RoleGrantEntity
+	// entityGoalPeriod is workspace-wide; a goal, a check-in and a dashboard are filed under their
+	// hub - none for the workspace's -, a private dashboard reaching its owner alone (M8). Walked
+	// last, for the schedule's reason.
+	entityGoalPeriod  = goalservice.PeriodEntity
+	entityGoal        = goalservice.GoalEntity
+	entityGoalCheckIn = goalservice.CheckInEntity
+	entityDashboard   = goalservice.DashboardEntity
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -439,6 +448,55 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityCIRelation, entityID: r.ID, containerID: r.HubID,
 				payload: cmdbservice.RelationOutput(r), key: r.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityGoalPeriod:
+		periods, err := p.Snapshot.GoalPeriods(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(periods))
+		for _, period := range periods {
+			rows = append(rows, walkRow{
+				entity: entityGoalPeriod, entityID: period.ID, payload: goalservice.PeriodOutput(period), key: period.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityGoal:
+		goals, err := p.Snapshot.Goals(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(goals))
+		for _, g := range goals {
+			rows = append(rows, walkRow{
+				entity: entityGoal, entityID: g.ID, containerID: g.HubID, payload: goalservice.GoalRecord(g), key: g.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityGoalCheckIn:
+		checkIns, err := p.Snapshot.GoalCheckIns(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(checkIns))
+		for _, c := range checkIns {
+			rows = append(rows, walkRow{
+				entity: entityGoalCheckIn, entityID: c.CheckIn.ID, containerID: c.HubID,
+				payload: goalservice.CheckInRecord(c.CheckIn), key: c.CheckIn.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityDashboard:
+		dashboards, err := p.Snapshot.Dashboards(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(dashboards))
+		for _, d := range dashboards {
+			rows = append(rows, walkRow{
+				entity: entityDashboard, entityID: d.ID, containerID: d.HubID, payload: goalservice.DashboardOutput(d), key: d.ID.String(),
 			})
 		}
 		return rows, nil

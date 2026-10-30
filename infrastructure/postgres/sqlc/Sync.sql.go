@@ -1013,6 +1013,59 @@ func (q *Queries) SnapshotCustomRoles(ctx context.Context, arg SnapshotCustomRol
 	return items, nil
 }
 
+const snapshotDashboards = `-- name: SnapshotDashboards :many
+SELECT id, hub_id, owner_id, name, sharing, widgets, version
+FROM dashboard
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotDashboardsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotDashboardsRow struct {
+	ID      pgtype.UUID
+	HubID   pgtype.UUID
+	OwnerID pgtype.UUID
+	Name    string
+	Sharing string
+	Widgets []byte
+	Version int32
+}
+
+// The workspace's dashboards as their widgets' queries, each filed under its hub; a private one
+// reaches its owner alone.
+func (q *Queries) SnapshotDashboards(ctx context.Context, arg SnapshotDashboardsParams) ([]SnapshotDashboardsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotDashboards, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotDashboardsRow{}
+	for rows.Next() {
+		var i SnapshotDashboardsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.OwnerID,
+			&i.Name,
+			&i.Sharing,
+			&i.Widgets,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotEntryLinks = `-- name: SnapshotEntryLinks :many
 SELECT l.id, l.tenant_id, l.link_type, l.source_id, l.target_id, l.created_by, l.created_at,
   l.dependency_kind, l.lag_days,
@@ -1173,6 +1226,176 @@ func (q *Queries) SnapshotEntryTypes(ctx context.Context, arg SnapshotEntryTypes
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Form,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotGoalCheckIns = `-- name: SnapshotGoalCheckIns :many
+SELECT c.id, c.goal_id, c.author_id, c.status, c.confidence, c.note, c."values", c.created_at, g.hub_id
+FROM goal_check_in c
+JOIN goal g ON g.tenant_id = c.tenant_id AND g.id = c.goal_id
+WHERE c.tenant_id = current_tenant_id() AND c.id > $1
+ORDER BY c.id
+LIMIT $2
+`
+
+type SnapshotGoalCheckInsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotGoalCheckInsRow struct {
+	ID         pgtype.UUID
+	GoalID     pgtype.UUID
+	AuthorID   pgtype.UUID
+	Status     string
+	Confidence int32
+	Note       string
+	Values     []byte
+	CreatedAt  pgtype.Timestamptz
+	HubID      pgtype.UUID
+}
+
+// The goals' check-ins, each with its goal's hub, which decides who is told of it.
+func (q *Queries) SnapshotGoalCheckIns(ctx context.Context, arg SnapshotGoalCheckInsParams) ([]SnapshotGoalCheckInsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotGoalCheckIns, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotGoalCheckInsRow{}
+	for rows.Next() {
+		var i SnapshotGoalCheckInsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.GoalID,
+			&i.AuthorID,
+			&i.Status,
+			&i.Confidence,
+			&i.Note,
+			&i.Values,
+			&i.CreatedAt,
+			&i.HubID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotGoalPeriods = `-- name: SnapshotGoalPeriods :many
+SELECT id, name, start_on, end_on, state, version
+FROM goal_period
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotGoalPeriodsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotGoalPeriodsRow struct {
+	ID      pgtype.UUID
+	Name    string
+	StartOn pgtype.Date
+	EndOn   pgtype.Date
+	State   string
+	Version int32
+}
+
+// The workspace's goal periods (migration 0248), workspace-wide: read where the workspace is.
+func (q *Queries) SnapshotGoalPeriods(ctx context.Context, arg SnapshotGoalPeriodsParams) ([]SnapshotGoalPeriodsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotGoalPeriods, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotGoalPeriodsRow{}
+	for rows.Next() {
+		var i SnapshotGoalPeriodsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.StartOn,
+			&i.EndOn,
+			&i.State,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotGoals = `-- name: SnapshotGoals :many
+SELECT id, period_id, hub_id, parent_id, title, description, owner_id, status, confidence,
+       key_results, grade, version
+FROM goal
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotGoalsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotGoalsRow struct {
+	ID          pgtype.UUID
+	PeriodID    pgtype.UUID
+	HubID       pgtype.UUID
+	ParentID    pgtype.UUID
+	Title       string
+	Description string
+	OwnerID     pgtype.UUID
+	Status      string
+	Confidence  int32
+	KeyResults  []byte
+	Grade       *float64
+	Version     int32
+}
+
+// The workspace's goals as their definitions, each filed under its hub - none for the workspace's.
+func (q *Queries) SnapshotGoals(ctx context.Context, arg SnapshotGoalsParams) ([]SnapshotGoalsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotGoals, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotGoalsRow{}
+	for rows.Next() {
+		var i SnapshotGoalsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PeriodID,
+			&i.HubID,
+			&i.ParentID,
+			&i.Title,
+			&i.Description,
+			&i.OwnerID,
+			&i.Status,
+			&i.Confidence,
+			&i.KeyResults,
+			&i.Grade,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}

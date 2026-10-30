@@ -86,7 +86,8 @@ moment it was minted (against the window, §7) and the workspace's synchronisati
 A **null cursor is the initial synchronisation**: the current state, one kind at a time
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
 templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
-pages, configuration items, their relations and the CMDB's catalogue), paged by identifier, each row
+pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
+goals, check-ins and dashboards), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -102,7 +103,14 @@ CMDB's classes and relation types, shipped and the workspace's own, travel as on
 (`cmdb_catalogue`, under the workspace's identifier and no container, judged as a workspace-wide
 read), recorded again whenever one is defined. While the server is away the web app answers a hub's
 inventory, a CI with its relations and the catalogue from the copy, nothing writable: a CI is
-written through the reconciliation, which needs the server. A link carries its dependency's kind
+written through the reconciliation, which needs the server. A goal period (`goal_period`) is
+workspace-wide and judged as a workspace-wide read; a goal (`goal`), a check-in (`goal_check_in`, with
+its goal's hub) and a dashboard (`dashboard`) are filed under their hub - none for the workspace's -,
+and a private dashboard reaches its owner alone. A goal travels as its definition and its manual key
+results' values, never a progress, a view's live value or a share of linked entries done, which
+differ per reader (P-05) and are asked for online; every write of these records them, a period's
+closing each graded goal, a goal's deletion the goals moved to its parent. They are written online
+only. Portfolios are not in the replica yet: their projects narrow per reader. A link carries its dependency's kind
 and lag (`dependency_kind`, `lag_days`) in the walk as in the delta, and setting them records the
 link again. An entry's scheduling mode and milestone mark (`entry_schedule`, by the entry's
 identifier) are filed under its collection and walked last; an entry without one is MANUAL and no

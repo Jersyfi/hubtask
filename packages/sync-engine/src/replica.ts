@@ -71,6 +71,14 @@ export function collectionOf(entity: string): string {
       return 'workflows';
     case 'custom_role':
       return 'custom_roles';
+    case 'goal_period':
+      return 'goal_periods';
+    case 'goal':
+      return 'goals';
+    case 'goal_check_in':
+      return 'goal_check_ins';
+    case 'dashboard':
+      return 'dashboards';
     case 'role_grant':
       return 'role_grants';
     case 'page':

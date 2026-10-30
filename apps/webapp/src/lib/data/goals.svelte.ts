@@ -6,8 +6,9 @@
  * reads: the periods, the goals and one goal, its check-ins, the portfolios and their updates, the
  * dashboards and their figures. The reads are subscriptions at the call site.
  *
- * **Online only.** Goals are not in the replica yet, so the engine refuses a write made offline
- * (`sync.needs_connection`) rather than queueing it.
+ * **Written online.** Periods, goals, check-ins and dashboards reach a device's replica as
+ * definitions, but a write needs the connection: the engine refuses one made offline
+ * (`sync.needs_connection`) rather than queueing it, and every number is asked for online.
  */
 
 import type {
