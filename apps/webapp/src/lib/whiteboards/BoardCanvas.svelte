@@ -23,7 +23,9 @@
   import { tokens } from '@hubtask/design-system';
   import { Button, Checkbox, Dialog, IconButton, Inline, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
   import { LiveDocument, type LiveSocket, type LiveStatus } from '@hubtask/editor';
-  import type { ReferenceTarget, WhiteboardBacklinkList, WhiteboardRead, WhiteboardVersion, WorkItem } from '@hubtask/sync-engine';
+  import type {
+    ReferenceTarget, WhiteboardBacklinkList, WhiteboardComment, WhiteboardCommentList, WhiteboardRead, WhiteboardVersion, WorkItem,
+  } from '@hubtask/sync-engine';
   import {
     Board, DEFAULT_SIZE, Doc, Facilitation, PEN_WIDTH, ROUTES, SHAPES, TEMPLATES, align, bounds, box, connectorPath, copy, culled,
     elementId, fit, fromMinimap, hit, labelPoint, lines, linkHost, minimap, outlinePath, paste, pdfOfJpeg, readCopied, snap, strokePath,
@@ -33,6 +35,7 @@
 
   import { announcer } from '../announce.svelte.ts';
   import EntryPicker from '../entries/EntryPicker.svelte';
+  import BoardComments from './BoardComments.svelte';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { engine } from '../data/engine.ts';
@@ -41,7 +44,8 @@
   import { media } from '../data/media.svelte.ts';
   import { resolveRequest } from '../data/links.svelte.ts';
   import {
-    BOARD_COLOURS, backlinkHref, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, voterKey, whiteboards,
+    BOARD_COLOURS, backlinkHref, boardCommentsPath, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, pinOf,
+    threadsOf, voterKey, whiteboards,
   } from '../data/whiteboards.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
@@ -843,6 +847,38 @@
     }
   }
 
+  // --- Comments pinned to objects and places (UC-CNV-09) -----------------------------------------
+
+  let comments = $state<WhiteboardComment[]>([]);
+  let openThread = $state<string | undefined>(undefined);
+  let withResolved = $state(false);
+  $effect(() => {
+    const id = board.id;
+    return untrack(() =>
+      engine.subscribe<WhiteboardCommentList>({ path: boardCommentsPath(id) }, (next) => {
+        if (next.status === 'ready') comments = next.data.data;
+      }),
+    );
+  });
+  const pins = $derived(threadsOf(comments, withResolved).map(({ thread, replies }) => ({ thread, count: 1 + replies.length, at: pinOf(thread, byId) })));
+
+  /** A new thread stands at the chosen object's corner, or in the middle of the view. */
+  function pinHere(): { element_id?: string; x: number; y: number } {
+    if (chosen) {
+      const at = pinOf({ id: '', parent_id: null, element_id: chosen.id, x: 0, y: 0, resolved: false, deleted: false }, byId);
+      return { element_id: chosen.id, x: Math.round(at.x), y: Math.round(at.y) };
+    }
+    const at = centre();
+    return { x: Math.round(at.x), y: Math.round(at.y) };
+  }
+
+  function showThread(comment: WhiteboardComment) {
+    const at = pinOf(comment, byId);
+    following = undefined;
+    view = { ...view, x: at.x - view.width / view.zoom / 2, y: at.y - view.height / view.zoom / 2 };
+    if (comment.element_id && byId.has(comment.element_id)) choose([comment.element_id]);
+  }
+
   // --- The minimap ---------------------------------------------------------------------------------
 
   const map = $derived(isMapShown ? minimap(elements, view, MAP) : undefined);
@@ -1078,6 +1114,22 @@
       {#if writable && chosen && chosen.kind !== 'CONNECTOR' && chosen.kind !== 'STROKE' && !chosen.locked}
         <rect class="handle" x={chosen.x + chosen.width - 6} y={chosen.y + chosen.height - 6} width="12" height="12" onpointerdown={(event) => resizeStart(event, chosen)} role="presentation" />
       {/if}
+      {#each pins as pin (pin.thread.id)}
+        <g
+          class="pin"
+          class:open={openThread === pin.thread.id}
+          class:resolved={pin.thread.resolved}
+          role="button"
+          tabindex="-1"
+          aria-label={t('app.whiteboards.comment_pin', { count: String(pin.count) })}
+          transform={`translate(${pin.at.x} ${pin.at.y}) scale(${1 / view.zoom})`}
+          onpointerdown={(event) => { event.stopPropagation(); openThread = pin.thread.id; }}
+          onkeydown={(event) => { if (event.key === 'Enter') openThread = pin.thread.id; }}
+        >
+          <path d="M 0 0 L 0 -22 Q 0 -30 8 -30 L 26 -30 Q 34 -30 34 -22 L 34 -12 Q 34 -4 26 -4 L 8 -4 Z" />
+          <text x="17" y="-12" text-anchor="middle">{pin.count}</text>
+        </g>
+      {/each}
       {#each peers as peer (peer.id)}
         {#if peer.cursor}
           <g class="peer" transform={`translate(${peer.cursor.x} ${peer.cursor.y}) scale(${1 / view.zoom})`} style:color={tokens.label[peerColour(peer.id)].fg}>
@@ -1264,6 +1316,17 @@
         {/each}
       </Stack>
 
+      <BoardComments
+        boardId={board.id}
+        {writable}
+        {comments}
+        pin={pinHere}
+        pinLabel={chosen ? t('app.whiteboards.comment_at_object', { kind: t(`app.whiteboards.kind_${chosen.kind.toLowerCase()}`) }) : t('app.whiteboards.comment_at_view')}
+        bind:open={openThread}
+        bind:withResolved
+        onshow={showThread}
+      />
+
       <Stack gap="050">
         <h3 class="heading">{t('app.whiteboards.history')}</h3>
         {#if !history}
@@ -1405,6 +1468,11 @@
   .handle { fill: var(--accent-primary); cursor: nwse-resize; }
   .votes circle { fill: var(--accent-primary); }
   .votes text { fill: var(--text-inverse); font-weight: var(--fw-semibold); }
+  .pin { cursor: pointer; }
+  .pin path { fill: var(--accent-primary); stroke: var(--bg-surface); stroke-width: 1.5; }
+  .pin text { fill: var(--text-inverse); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
+  .pin.open path { stroke: var(--text-primary); stroke-width: 2.5; }
+  .pin.resolved path { fill: var(--border-strong); }
   .peer { pointer-events: none; }
   .peer path { fill: currentColor; stroke: var(--bg-surface); stroke-width: 1; }
   .peer text { fill: currentColor; font-size: var(--fs-075); font-weight: var(--fw-semibold); }

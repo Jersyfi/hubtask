@@ -12,7 +12,7 @@
 
 import type {
   Whiteboard, WhiteboardChange, WhiteboardCreate, WhiteboardExport, WhiteboardRead, WhiteboardVersionList, WhiteboardVersionRead,
-  WhiteboardBacklinkList,
+  WhiteboardBacklinkList, WhiteboardComment, WhiteboardCommentCreate,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -23,6 +23,7 @@ export * from './whiteboards.ts';
 export const boardsPath = (hubId: string) => `/hubs/${hubId}/whiteboards`;
 export const trashedBoardsPath = (hubId: string) => `/hubs/${hubId}/whiteboards?trashed=true`;
 export const boardPath = (boardId: string) => `/whiteboards/${boardId}`;
+export const boardCommentsPath = (boardId: string) => `/whiteboards/${boardId}/comments`;
 
 const touched = (hubId: string, boardId: string) => [boardPath(boardId), boardsPath(hubId), trashedBoardsPath(hubId)];
 
@@ -93,6 +94,27 @@ class Whiteboards {
     const state = await engine.refresh<WhiteboardBacklinkList>({ path: `${boardPath(boardId)}/backlinks` });
     if (state.status === 'failed') throw state.error;
     return state.status === 'ready' ? state.data.data : [];
+  }
+
+  /** A thread pinned to an object or a place, or a reply (UC-CNV-09); the people it names are told. */
+  addComment(boardId: string, body: WhiteboardCommentCreate): Promise<WhiteboardComment> {
+    return engine.mutate<WhiteboardComment>('POST', boardCommentsPath(boardId), body, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [boardCommentsPath(boardId)],
+    });
+  }
+
+  changeComment(comment: WhiteboardComment, change: { body?: string; resolved?: boolean }): Promise<WhiteboardComment> {
+    return engine.mutate<WhiteboardComment>('PATCH', `/whiteboard-comments/${comment.id}`, change, {
+      ifMatch: `"${comment.version}"`,
+      invalidates: [boardCommentsPath(comment.whiteboard_id)],
+    });
+  }
+
+  deleteComment(comment: WhiteboardComment): Promise<unknown> {
+    return engine.mutate('DELETE', `/whiteboard-comments/${comment.id}`, undefined, {
+      invalidates: [boardCommentsPath(comment.whiteboard_id)],
+    });
   }
 
   /** The board's live document socket; the connection asks for a new one on every reconnect. */

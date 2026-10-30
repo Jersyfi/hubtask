@@ -4,7 +4,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { backlinkHref, boardFileName, cardEntries, clockOf, entryOfNote, liveBoardPath, notesInFrame, peerColour, pictureColours, readNative, voterKey } from './whiteboards.ts';
+import {
+  backlinkHref, boardFileName, cardEntries, clockOf, commentParts, entryOfNote, liveBoardPath, mentionOf, notesInFrame, peerColour, pictureColours, pinOf, readNative,
+  threadsOf, voterKey,
+} from './whiteboards.ts';
 
 test('a board lives at its own live document', () => {
   assert.equal(liveBoardPath('b1'), '/realtime/documents/whiteboard/b1');
@@ -61,4 +64,32 @@ test('a backlink of a board leads to its page, its entry or the other board (UC-
   assert.equal(backlinkHref({ page_id: 'p1', entry_id: null, whiteboard_id: null }), '/pages/p1');
   assert.equal(backlinkHref({ page_id: null, entry_id: 'e1', whiteboard_id: null }), '/items/e1');
   assert.equal(backlinkHref({ page_id: null, entry_id: null, whiteboard_id: 'b2' }), '/whiteboards/b2');
+});
+
+test('a thread is pinned at its object while it stands and at its place once it is gone (UC-CNV-09 check 1)', () => {
+  const note = { id: 'n', kind: 'STICKY' as const, x: 10, y: 20, width: 160, height: 160 };
+  const pinned = { id: 'c', parent_id: null, element_id: 'n', x: 1, y: 2, resolved: false, deleted: false };
+  assert.deepEqual(pinOf(pinned, new Map([['n', note]])), { x: 170, y: 20 });
+  assert.deepEqual(pinOf(pinned, new Map()), { x: 1, y: 2 });
+  assert.deepEqual(pinOf({ ...pinned, element_id: null }, new Map([['n', note]])), { x: 1, y: 2 });
+});
+
+test('threads gather their replies; resolved ones only when asked, a taken-back one only while answered', () => {
+  const base = { element_id: null, x: 0, y: 0, resolved: false, deleted: false };
+  const comments = [
+    { ...base, id: 'a', parent_id: null },
+    { ...base, id: 'b', parent_id: null, resolved: true },
+    { ...base, id: 'r', parent_id: 'a' },
+    { ...base, id: 'gone', parent_id: null, deleted: true },
+  ];
+  assert.deepEqual(threadsOf(comments, false).map((each) => [each.thread.id, each.replies.map((r) => r.id)]), [['a', ['r']]]);
+  assert.deepEqual(threadsOf(comments, true).map((each) => each.thread.id), ['a', 'b']);
+});
+
+test('a person is named by their address and drawn by their name (UC-CNV-09 check 2)', () => {
+  const id = '0190a000-0000-7000-8000-0000000000d1';
+  const body = `Ask ${mentionOf(id, 'Bert [B]')} today`;
+  assert.equal(body, `Ask [@Bert B](hubtask:person/${id}) today`);
+  assert.deepEqual(commentParts(body), [{ text: 'Ask ' }, { person: id, name: 'Bert B' }, { text: ' today' }]);
+  assert.deepEqual(commentParts('plain'), [{ text: 'plain' }]);
 });

@@ -287,6 +287,10 @@ export type WhiteboardVersion = components['schemas']['WhiteboardVersion'];
 export type WhiteboardVersionRead = components['schemas']['WhiteboardVersionRead'];
 export type WhiteboardVersionList = components['schemas']['WhiteboardVersionList'];
 export type WhiteboardBacklinkList = components['schemas']['WhiteboardBacklinkList'];
+export type WhiteboardComment = components['schemas']['WhiteboardComment'];
+export type WhiteboardCommentList = components['schemas']['WhiteboardCommentList'];
+export type WhiteboardCommentCreate = components['schemas']['WhiteboardCommentCreate'];
+export type WhiteboardCommentChange = components['schemas']['WhiteboardCommentChange'];
 /** A hub's configuration items, their classes, relations and reconciliation (M6). */
 export type CiAttribute = components['schemas']['CiAttribute'];
 export type CiClass = components['schemas']['CiClass'];

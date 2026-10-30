@@ -99,3 +99,57 @@ export function backlinkHref(link: { page_id: string | null; entry_id: string | 
   if (link.whiteboard_id) return `/whiteboards/${link.whiteboard_id}`;
   return `/items/${link.entry_id}`;
 }
+
+/** A comment as the pins need it (schema WhiteboardComment). */
+interface Pinned {
+  id: string;
+  parent_id: string | null;
+  element_id: string | null;
+  x: number;
+  y: number;
+  resolved: boolean;
+  deleted: boolean;
+}
+
+/**
+ * Where a thread's pin stands (UC-CNV-09): at the top corner of its object while the object stands,
+ * at the place it was pinned once the object is gone.
+ */
+export function pinOf(comment: Pinned, byId: ReadonlyMap<string, Element>): { x: number; y: number } {
+  const element = comment.element_id ? byId.get(comment.element_id) : undefined;
+  if (!element) return { x: comment.x, y: comment.y };
+  const at = box(element);
+  return { x: at.right, y: at.top };
+}
+
+/** A board's threads with their replies, oldest first; a resolved thread only when asked for. */
+export function threadsOf<C extends Pinned>(comments: readonly C[], withResolved: boolean): { thread: C; replies: C[] }[] {
+  const replies = new Map<string, C[]>();
+  for (const comment of comments) {
+    if (!comment.parent_id) continue;
+    replies.set(comment.parent_id, [...(replies.get(comment.parent_id) ?? []), comment]);
+  }
+  return comments
+    .filter((comment) => !comment.parent_id && (withResolved || !comment.resolved))
+    .filter((comment) => !comment.deleted || (replies.get(comment.id)?.length ?? 0) > 0)
+    .map((thread) => ({ thread, replies: replies.get(thread.id) ?? [] }));
+}
+
+/** The address a comment names a person by, and the words it is drawn as. */
+export const mentionOf = (accountId: string, name: string) => `[@${name.replace(/[[\]]/gu, '')}](hubtask:person/${accountId})`;
+
+const MENTION = /\[@([^\]]*)\]\(hubtask:person\/([0-9a-fA-F-]{36})\)/gu;
+
+/** A comment's words cut into text and the people it names, so a person is drawn as their name. */
+export function commentParts(body: string): ({ text: string } | { person: string; name: string })[] {
+  const out: ({ text: string } | { person: string; name: string })[] = [];
+  let last = 0;
+  for (const match of body.matchAll(MENTION)) {
+    const at = match.index ?? 0;
+    if (at > last) out.push({ text: body.slice(last, at) });
+    out.push({ person: (match[2] ?? '').toLowerCase(), name: match[1] ?? '' });
+    last = at + match[0].length;
+  }
+  if (last < body.length) out.push({ text: body.slice(last) });
+  return out;
+}
