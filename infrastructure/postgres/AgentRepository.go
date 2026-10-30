@@ -337,7 +337,7 @@ func (AgentRepository) Usage(ctx context.Context, agent shared.ID, hourFrom, day
 	if err != nil {
 		return domain.Usage{}, agentError(err, "counting an agent's acts")
 	}
-	return domain.Usage{ActionsLastHour: int(row.Actions), TokensToday: row.Tokens}, nil
+	return domain.Usage{ActionsLastHour: int(row.Actions), TokensToday: row.Tokens, NotifiedLastHour: int(row.Notified)}, nil
 }
 
 func (AgentRepository) ListActions(ctx context.Context, agent shared.ID, before *time.Time, max int) ([]domain.Action, error) {
@@ -752,4 +752,10 @@ func (AgentRepository) RunningJobs(ctx context.Context, agent shared.ID, since t
 	}
 	n, err := queries.AgentJobsRunning(ctx, sqlc.AgentJobsRunningParams{AgentID: key, Since: timestampOf(since)})
 	return int(n), agentError(err, "counting an agent's running jobs")
+}
+
+// AgentName answers an agent's name, read in the caller's transaction: what a notice about it says.
+func (r AgentRepository) AgentName(ctx context.Context, id shared.ID) (string, error) {
+	a, err := r.FindAgent(ctx, id)
+	return a.Name, err
 }

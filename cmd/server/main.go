@@ -1912,6 +1912,11 @@ func run() error {
 		Sources: integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor().Handler,
 		Audit:   auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Queue: jobs,
+		// An act run with its owner told tells them, once an hour (NOTIFY).
+		Notices: notification.RecordAgentNotice{
+			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+			Jobs: jobs, IDs: ids, Signals: metrics,
+		},
 	}
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).
@@ -3923,6 +3928,8 @@ func run() error {
 			Grants: grants, Places: containers,
 			// The page whose review fell due.
 			Pages: postgres.NewPageRepository(),
+			// The agent its owner is told of.
+			Agents: agentStore,
 			// The entry's ticket key on the intake's address as Reply-To, so an answer becomes a
 			// comment (ADR-0094).
 			Replies: mailservice.Replies{Writer: mailWriter},
@@ -4348,13 +4355,15 @@ func run() error {
 		queueport.KindRoleGrantedEmail: notificationDelivery,
 		// And under a page review's (queue.KindPageReviewEmail).
 		queueport.KindPageReviewEmail: notificationDelivery,
-		queueport.KindWebhookDeliver:  webhookDelivery,
-		queueport.KindPlatformSweep:   worker.PlatformSweep{Sweep: platformSweep},
-		queueport.KindPlatformDeliver: platformDelivery,
-		queueport.KindAutomationRun:   automationRun,
-		queueport.KindAutomationHTTP:  outboundCall,
-		queueport.KindBackupRun:       backupRun,
-		queueport.KindBackupVerify:    worker.BackupVerify{Performer: backupPerformer},
+		// And under an agent's notice (queue.KindAgentNoticeEmail).
+		queueport.KindAgentNoticeEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:   webhookDelivery,
+		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindPlatformDeliver:  platformDelivery,
+		queueport.KindAutomationRun:    automationRun,
+		queueport.KindAutomationHTTP:   outboundCall,
+		queueport.KindBackupRun:        backupRun,
+		queueport.KindBackupVerify:     worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},

@@ -259,3 +259,31 @@ func TestTheSurvivorIsTheCiSeenLastElseTheOldest(t *testing.T) {
 		}
 	}
 }
+
+type notices struct{ told []shared.ID }
+
+func (n *notices) AgentActed(_ context.Context, _, _, owner shared.ID, _ time.Time) error {
+	n.told = append(n.told, owner)
+	return nil
+}
+
+// UC-AGT-02 check 3: an act its policy lets run with its owner told runs, and tells the owner -
+// once an hour, not once an act.
+func TestAnActRunWithItsOwnerToldTellsThemOnceAnHour(t *testing.T) {
+	f := newFixture()
+	told := &notices{}
+	f.desk.Notices = told
+	a := f.live(t, f.register(t, usecase.Input{"kind": "EXTERNAL", "policy": map[string]any{"reversible": "NOTIFY"}}))
+	actor := appshared.ActorContext{Kind: appshared.ActorAIAgent, TenantID: tenantID, AccountID: a.AccountID}
+	next := usecase.HandlerFunc(func(context.Context, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+		return usecase.Output{}, nil
+	})
+	for i := 0; i < 2; i++ {
+		if _, err := (Gate{Desk: f.desk}).Wrap(nil)(usecase.Descriptor{Name: "UpdateWorkItem"}, next).Invoke(context.Background(), actor, nil); err != nil {
+			t.Fatalf("a told write: %v", err)
+		}
+	}
+	if len(told.told) != 1 || told.told[0] != ana {
+		t.Fatalf("told = %v", told.told)
+	}
+}

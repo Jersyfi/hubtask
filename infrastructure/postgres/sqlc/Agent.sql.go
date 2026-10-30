@@ -91,7 +91,8 @@ func (q *Queries) AgentMetering(ctx context.Context, arg AgentMeteringParams) ([
 const agentUsage = `-- name: AgentUsage :one
 SELECT
   count(*) FILTER (WHERE at >= $1::timestamptz AND class <> 'READ' AND decision <> 'REFUSED')::int AS actions,
-  COALESCE(sum(tokens) FILTER (WHERE at >= $2::timestamptz), 0)::bigint AS tokens
+  COALESCE(sum(tokens) FILTER (WHERE at >= $2::timestamptz), 0)::bigint AS tokens,
+  count(*) FILTER (WHERE at >= $1::timestamptz AND decision = 'NOTIFIED')::int AS notified
 FROM agent_action
 WHERE tenant_id = current_tenant_id() AND agent_id = $3::uuid
   AND at >= LEAST($1::timestamptz, $2::timestamptz)
@@ -104,16 +105,17 @@ type AgentUsageParams struct {
 }
 
 type AgentUsageRow struct {
-	Actions int32
-	Tokens  int64
+	Actions  int32
+	Tokens   int64
+	Notified int32
 }
 
 // What an agent spent: its acts that were not refused and were no read since `hour_from`, and its
-// tokens since `day_from`.
+// tokens since `day_from`; and its acts its owner was told of since `hour_from`.
 func (q *Queries) AgentUsage(ctx context.Context, arg AgentUsageParams) (AgentUsageRow, error) {
 	row := q.db.QueryRow(ctx, agentUsage, arg.HourFrom, arg.DayFrom, arg.AgentID)
 	var i AgentUsageRow
-	err := row.Scan(&i.Actions, &i.Tokens)
+	err := row.Scan(&i.Actions, &i.Tokens, &i.Notified)
 	return i, err
 }
 

@@ -123,6 +123,11 @@ const (
 	// PageReviewAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
 	PageReviewAttempts = 20
 
+	// KindAgentNoticeEmail tells an agent's owner what it did with them told (UC-AGT-02, NOTIFY),
+	// under its own kind for the same rolling update: a process of the previous release does not
+	// know the record's agent. Its attempt budget is PageReviewAttempts.
+	KindAgentNoticeEmail Kind = "notification.agent_notice"
+
 	// EmergencyAccessAttempts is that job's attempt budget: more than the default, because a
 	// rollout's old processes may claim and return it a few times before a new one runs it, and
 	// each claim spends an attempt.

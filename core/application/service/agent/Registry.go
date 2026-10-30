@@ -97,6 +97,14 @@ type Desk struct {
 	Text       text.Normalizer
 	// Queue takes a shipped agent's job; nil in a build that runs none.
 	Queue Jobs
+	// Notices tells an agent's owner of an act its policy lets run with them told (NOTIFY), once
+	// an hour; nil tells nobody, and the ledger still records the act NOTIFIED.
+	Notices Notices
+}
+
+// Notices writes the owner's notice inside the gate's transaction.
+type Notices interface {
+	AgentActed(ctx context.Context, tenant, agent, owner shared.ID, at time.Time) error
 }
 
 func workspacePath() []identity.Scope { return []identity.Scope{identity.TenantScope()} }

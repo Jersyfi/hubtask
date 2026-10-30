@@ -71,6 +71,9 @@ const (
 	// category, its own sentence - nobody asked for this reminder, the page's verification did.
 	subjectPageReview = "email.page_review.subject"
 	bodyPageReview    = "email.page_review.body"
+	// An agent that did what its policy lets it do with its owner told (UC-AGT-02, NOTIFY).
+	subjectAgentNotice = "email.agent_notice.subject"
+	bodyAgentNotice    = "email.agent_notice.body"
 	// rolePrefix and placePrefix name a role and a kind of place in the catalogue.
 	rolePrefix  = "email.role."
 	placePrefix = "email.role_granted.place."
@@ -115,6 +118,8 @@ type DeliverNotification struct {
 	Places PlaceReader
 	// Pages names the page whose review fell due. Optional: nil leaves its title out.
 	Pages PageReader
+	// Agents names the agent its owner is told of. Optional: nil leaves its name out.
+	Agents AgentReader
 	// Replies answers the address of the entry a message is about, so an answer by mail becomes a
 	// comment there (ADR-0092 decision 8). Optional: nil, or an installation without a receiving
 	// domain, sends no Reply-To.
@@ -170,6 +175,11 @@ type PlaceReader interface {
 // PageReader answers a page by its identifier - the knowledge repository's Find.
 type PageReader interface {
 	Find(ctx context.Context, id shared.ID) (knowledge.Page, error)
+}
+
+// AgentReader answers an agent's name by its identifier - the agents' store.
+type AgentReader interface {
+	AgentName(ctx context.Context, id shared.ID) (string, error)
 }
 
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
@@ -360,6 +370,12 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.title = page.Title
+		case !record.AgentID.IsZero() && d.Agents != nil:
+			name, err := d.Agents.AgentName(ctx, record.AgentID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = name
 		case !record.ItemID.IsZero():
 			item, err := d.Items.Find(ctx, record.ItemID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -459,6 +475,9 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	if !loaded.record.PageID.IsZero() {
 		subjectCode, bodyCode = subjectPageReview, bodyPageReview
 	}
+	if !loaded.record.AgentID.IsZero() {
+		subjectCode, bodyCode = subjectAgentNotice, bodyAgentNotice
+	}
 
 	message := domain.Message{
 		SubjectCode: subjectCode,
@@ -546,6 +565,8 @@ func link(base string, record domain.Notification) string {
 		return base + "/items/" + url.PathEscape(record.ItemID.String())
 	case !record.PageID.IsZero():
 		return base + "/pages/" + url.PathEscape(record.PageID.String())
+	case !record.AgentID.IsZero():
+		return base + "/administration/agents"
 	case !record.MembershipID.IsZero():
 		// The place the role is on; compose has the grant and names it.
 		return base

@@ -165,6 +165,9 @@ func (s *store) Usage(_ context.Context, agent shared.ID, hourFrom, dayFrom time
 		if !a.At.Before(dayFrom) {
 			u.TokensToday += a.Tokens
 		}
+		if !a.At.Before(hourFrom) && a.Decision == domain.DecisionNotified {
+			u.NotifiedLastHour++
+		}
 	}
 	return u, nil
 }

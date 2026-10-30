@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
 state: partial
 tasks: []
-checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, core/application/service/access/Delegation_test.go, test/integration/agent_repository_test.go]
+checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, core/application/service/access/Delegation_test.go, core/application/service/agent/Runner_test.go, core/application/service/notification/RecordAgentNotice_test.go, test/integration/agent_repository_test.go]
 ---
 
 # Hold every act of an agent to its policy, its budget and the person it acts for
@@ -51,7 +51,8 @@ incident the admin halts every agent of the workspace at once.
 
 ## Where it ends
 
-* *Runs with its owner told* is recorded in the ledger as `NOTIFIED`; no notification is sent yet.
+* *Runs with its owner told* tells the owner by mail at most once an hour; what the agent did is its
+  ledger, not the mail.
 * The traces of a run - prompts, tool calls, answers - are not kept: the ledger meters, it does not
   trace, and their retention is the owner's decision.
 * A held act waits until somebody decides it; it does not expire.

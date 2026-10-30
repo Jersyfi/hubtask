@@ -100,10 +100,11 @@ VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('agent_id'), sqlc.arg('use
 
 -- name: AgentUsage :one
 -- What an agent spent: its acts that were not refused and were no read since `hour_from`, and its
--- tokens since `day_from`.
+-- tokens since `day_from`; and its acts its owner was told of since `hour_from`.
 SELECT
   count(*) FILTER (WHERE at >= sqlc.arg('hour_from')::timestamptz AND class <> 'READ' AND decision <> 'REFUSED')::int AS actions,
-  COALESCE(sum(tokens) FILTER (WHERE at >= sqlc.arg('day_from')::timestamptz), 0)::bigint AS tokens
+  COALESCE(sum(tokens) FILTER (WHERE at >= sqlc.arg('day_from')::timestamptz), 0)::bigint AS tokens,
+  count(*) FILTER (WHERE at >= sqlc.arg('hour_from')::timestamptz AND decision = 'NOTIFIED')::int AS notified
 FROM agent_action
 WHERE tenant_id = current_tenant_id() AND agent_id = sqlc.arg('agent_id')::uuid
   AND at >= LEAST(sqlc.arg('hour_from')::timestamptz, sqlc.arg('day_from')::timestamptz);

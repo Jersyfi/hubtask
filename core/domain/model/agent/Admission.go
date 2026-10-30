@@ -26,6 +26,9 @@ type Usage struct {
 	TokensToday     int64
 	// RunsNow counts its jobs still running (Job.Running).
 	RunsNow int
+	// NotifiedLastHour counts its acts its owner was told of this hour: the owner is told once an
+	// hour, not once an act.
+	NotifiedLastHour int
 }
 
 // Situation is everything an act is judged on besides the act itself.

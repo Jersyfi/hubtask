@@ -1883,6 +1883,7 @@ type Notification struct {
 	PrivateHubAccessID pgtype.UUID
 	MembershipID       pgtype.UUID
 	PageID             pgtype.UUID
+	AgentID            pgtype.UUID
 }
 
 type NotificationPreference struct {
