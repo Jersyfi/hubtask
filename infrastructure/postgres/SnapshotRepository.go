@@ -425,6 +425,62 @@ func (SnapshotRepository) CIRelations(ctx context.Context, after shared.ID, batc
 	})
 }
 
+// CIAffected pages the CIs entries name as affected, each with its CI's hub (migration 0267).
+func (SnapshotRepository) CIAffected(ctx context.Context, after shared.ID, batch int) ([]repository.AffectedRow, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbAffected(ctx, sqlc.SnapshotCmdbAffectedParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("affected configuration items", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbAffectedRow) (repository.AffectedRow, error) {
+		a, err := affectedFrom(row.ID, row.ItemID, row.CiID, row.AddedBy, row.AddedAt)
+		if err != nil {
+			return repository.AffectedRow{}, err
+		}
+		hub, err := idFrom(row.HubID)
+		return repository.AffectedRow{Affected: a, HubID: hub}, err
+	})
+}
+
+// CIGroups pages the workspace's CI groups.
+func (SnapshotRepository) CIGroups(ctx context.Context, after shared.ID, batch int) ([]cmdb.Group, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbGroups(ctx, sqlc.SnapshotCmdbGroupsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("configuration item groups", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbGroupsRow) (cmdb.Group, error) {
+		return groupFrom(sqlc.FindCmdbGroupRow(row))
+	})
+}
+
+// CIAssets pages the CIs' asset records.
+func (SnapshotRepository) CIAssets(ctx context.Context, after shared.ID, batch int) ([]cmdb.Asset, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbAssets(ctx, sqlc.SnapshotCmdbAssetsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("asset records", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbAssetsRow) (cmdb.Asset, error) {
+		return assetFrom(sqlc.FindCmdbAssetRow(row))
+	})
+}
+
 // Whiteboards pages the workspace's boards outside the trash with their scenes.
 func (SnapshotRepository) Whiteboards(ctx context.Context, after shared.ID, batch int) ([]whiteboard.Board, error) {
 	queries, key, err := snapshotPage(ctx, after)

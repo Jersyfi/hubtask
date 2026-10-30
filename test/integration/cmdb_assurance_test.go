@@ -91,6 +91,16 @@ func TestTheInventorysAssuranceStaysInItsWorkspace(t *testing.T) {
 		if err := repo.RemoveAlias(ctx, alias); err == nil {
 			t.Error("the workspace next door removed the alias")
 		}
+		snap := postgres.NewSnapshotRepository()
+		if rows, _ := snap.CIAffected(ctx, "", 100); len(rows) != 0 {
+			t.Error("the workspace next door walked the affected CIs")
+		}
+		if rows, _ := snap.CIGroups(ctx, "", 100); len(rows) != 0 {
+			t.Error("the workspace next door walked the groups")
+		}
+		if rows, _ := snap.CIAssets(ctx, "", 100); len(rows) != 0 {
+			t.Error("the workspace next door walked the assets")
+		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)

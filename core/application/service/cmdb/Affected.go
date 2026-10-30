@@ -85,7 +85,8 @@ func (a Affecting) authorizeEntry(ctx context.Context, actor appshared.ActorCont
 	})
 }
 
-func affectedOutput(a domain.Affected) usecase.Output {
+// AffectedOutput is an entry's affected CI as the change log carries it.
+func AffectedOutput(a domain.Affected) usecase.Output {
 	return usecase.Output{"id": a.ID.String(), "item_id": a.ItemID.String(), "ci_id": a.CIID.String(), "added_at": a.AddedAt}
 }
 
@@ -96,7 +97,7 @@ func (a Affecting) announce(ctx context.Context, actor appshared.ActorContext, r
 	}
 	change := changelog.Change{
 		TenantID: actor.TenantID, Entity: AffectedEntity, EntityID: row.ID, Op: changelog.Upsert,
-		ContainerID: hub, ActorID: actor.AccountID, HLC: s.HLC.Next(), Payload: affectedOutput(row),
+		ContainerID: hub, ActorID: actor.AccountID, HLC: s.HLC.Next(), Payload: AffectedOutput(row),
 	}
 	if removed {
 		change.Op, change.Payload = changelog.Delete, nil

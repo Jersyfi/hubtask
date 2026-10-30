@@ -617,3 +617,29 @@ FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after') AND deleted_at IS NULL
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotCmdbAffected :many
+-- The CIs entries name as affected (migration 0267), each filed under the CI's hub.
+SELECT a.id, a.item_id, a.ci_id, a.added_by, a.added_at, c.hub_id
+FROM cmdb_affected a
+JOIN cmdb_ci c ON c.tenant_id = a.tenant_id AND c.id = a.ci_id
+WHERE a.tenant_id = current_tenant_id() AND a.id > sqlc.arg('after')
+ORDER BY a.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotCmdbGroups :many
+-- A workspace's CI groups, each filed under its hub.
+SELECT id, hub_id, key, name, filter, service_id, updated_by, updated_at, version
+FROM cmdb_ci_group
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotCmdbAssets :many
+-- The CIs' asset records, each filed under its hub.
+SELECT ci_id, hub_id, asset_tag, cost_minor, currency, purchased_on, supplier, warranty_until, contract_id,
+  stockroom_id, assigned_to, request_id, state, disposal, updated_by, updated_at, version
+FROM cmdb_asset
+WHERE tenant_id = current_tenant_id() AND ci_id > sqlc.arg('after')
+ORDER BY ci_id
+LIMIT sqlc.arg('batch');

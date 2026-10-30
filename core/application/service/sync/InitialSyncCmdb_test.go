@@ -8,6 +8,7 @@ import (
 	"slices"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -93,5 +94,52 @@ func TestTheWalkCarriesTheInventoryOfTheHubsTheReaderReads(t *testing.T) {
 	}
 	if !slices.Equal(relations, []shared.ID{idAt('9', 4)}) {
 		t.Errorf("relations delivered %v, want only the one in the hub the reader reads", relations)
+	}
+}
+
+func (s *snapshotStore) CIAffected(_ context.Context, after shared.ID, batch int) ([]repository.AffectedRow, error) {
+	return pageAfter(s.ciAffected, func(a repository.AffectedRow) string { return a.ID.String() }, after.String(), batch), nil
+}
+
+func (s *snapshotStore) CIGroups(_ context.Context, after shared.ID, batch int) ([]cmdb.Group, error) {
+	return pageAfter(s.ciGroups, func(g cmdb.Group) string { return g.ID.String() }, after.String(), batch), nil
+}
+
+func (s *snapshotStore) CIAssets(_ context.Context, after shared.ID, batch int) ([]cmdb.Asset, error) {
+	return pageAfter(s.ciAssets, func(a cmdb.Asset) string { return a.CIID.String() }, after.String(), batch), nil
+}
+
+// An entry's affected CIs, a hub's groups and asset records are read offline (UC-AST-09 check 5,
+// UC-AST-11 check 4, UC-AST-12 check 4): each is filed under its hub, the affected CI under the
+// CI's, and withheld where the reader may not read the hub.
+func TestTheWalkCarriesAffectedCIsGroupsAndAssetsOfTheHubsTheReaderReads(t *testing.T) {
+	pull, f, store := walking(t)
+	server, hidden := idAt('9', 1), idAt('9', 3)
+	store.ciAffected = []repository.AffectedRow{
+		{Affected: cmdb.Affected{ID: idAt('9', 6), ItemID: idAt('9', 7), CIID: server}, HubID: hub},
+		{Affected: cmdb.Affected{ID: idAt('9', 8), ItemID: idAt('9', 7), CIID: hidden}, HubID: otherHub},
+	}
+	store.ciGroups = []cmdb.Group{{ID: idAt('9', 9), HubID: hub, Key: "web", Name: "Web", Version: 1}}
+	store.ciAssets = []cmdb.Asset{
+		{CIID: server, HubID: hub, State: cmdb.AssetDeployed, Version: 1},
+		{CIID: hidden, HubID: otherHub, State: cmdb.AssetInStock, Version: 1},
+	}
+	f.auth.allowed[otherHub] = false
+
+	records, _ := wholeWalk(t, pull, 100)
+
+	got := map[string][]shared.ID{}
+	for _, record := range records {
+		switch record.Entity {
+		case "cmdb_affected", "cmdb_ci_group", "cmdb_asset":
+			if record.ContainerID != hub {
+				t.Errorf("a record %+v, want it filed under the readable hub", record)
+			}
+			got[record.Entity] = append(got[record.Entity], record.EntityID)
+		}
+	}
+	if !slices.Equal(got["cmdb_affected"], []shared.ID{idAt('9', 6)}) || !slices.Equal(got["cmdb_ci_group"], []shared.ID{idAt('9', 9)}) ||
+		!slices.Equal(got["cmdb_asset"], []shared.ID{server}) {
+		t.Errorf("delivered %v", got)
 	}
 }

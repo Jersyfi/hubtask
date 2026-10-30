@@ -46,6 +46,9 @@ type snapshotStore struct {
 	boards      []whiteboard.Board
 	cis         []cmdb.CI
 	ciRelations []cmdb.Relation
+	ciAffected  []repository.AffectedRow
+	ciGroups    []cmdb.Group
+	ciAssets    []cmdb.Asset
 	ciClasses   []cmdb.Class
 	grants      []identityrepo.CustomGrantRow
 	periods     []goal.Period

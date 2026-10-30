@@ -213,6 +213,11 @@ type Snapshot interface {
 	AgentRuns(ctx context.Context, after shared.ID, batch int) ([]RunOf, error)
 	// CIRelations pages the relations between them.
 	CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error)
+	// CIAffected pages the CIs entries name as affected, each with its CI's hub; CIGroups and
+	// CIAssets page a hub's CI groups and the CIs' asset records (migration 0267).
+	CIAffected(ctx context.Context, after shared.ID, batch int) ([]AffectedRow, error)
+	CIGroups(ctx context.Context, after shared.ID, batch int) ([]cmdb.Group, error)
+	CIAssets(ctx context.Context, after shared.ID, batch int) ([]cmdb.Asset, error)
 	// CmdbCatalogue reads the workspace's own classes and relation types.
 	CmdbCatalogue(ctx context.Context) ([]cmdb.Class, []cmdb.RelationType, error)
 	// OwnRoleGrants pages the grants of custom roles the account holds, named to it or to a
@@ -342,4 +347,10 @@ type Epochs interface {
 	// Advance moves the workspace to the next epoch and answers it. Inside the caller's
 	// transaction: the restore's success and the epoch it owes commit together.
 	Advance(ctx context.Context) (int64, error)
+}
+
+// AffectedRow is an entry's affected CI with the CI's hub it is filed under.
+type AffectedRow struct {
+	cmdb.Affected
+	HubID shared.ID
 }

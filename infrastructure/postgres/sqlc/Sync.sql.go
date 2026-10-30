@@ -989,6 +989,130 @@ func (q *Queries) SnapshotBuckets(ctx context.Context, arg SnapshotBucketsParams
 	return items, nil
 }
 
+const snapshotCmdbAffected = `-- name: SnapshotCmdbAffected :many
+SELECT a.id, a.item_id, a.ci_id, a.added_by, a.added_at, c.hub_id
+FROM cmdb_affected a
+JOIN cmdb_ci c ON c.tenant_id = a.tenant_id AND c.id = a.ci_id
+WHERE a.tenant_id = current_tenant_id() AND a.id > $1
+ORDER BY a.id
+LIMIT $2
+`
+
+type SnapshotCmdbAffectedParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotCmdbAffectedRow struct {
+	ID      pgtype.UUID
+	ItemID  pgtype.UUID
+	CiID    pgtype.UUID
+	AddedBy pgtype.UUID
+	AddedAt pgtype.Timestamptz
+	HubID   pgtype.UUID
+}
+
+// The CIs entries name as affected (migration 0267), each filed under the CI's hub.
+func (q *Queries) SnapshotCmdbAffected(ctx context.Context, arg SnapshotCmdbAffectedParams) ([]SnapshotCmdbAffectedRow, error) {
+	rows, err := q.db.Query(ctx, snapshotCmdbAffected, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotCmdbAffectedRow{}
+	for rows.Next() {
+		var i SnapshotCmdbAffectedRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ItemID,
+			&i.CiID,
+			&i.AddedBy,
+			&i.AddedAt,
+			&i.HubID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotCmdbAssets = `-- name: SnapshotCmdbAssets :many
+SELECT ci_id, hub_id, asset_tag, cost_minor, currency, purchased_on, supplier, warranty_until, contract_id,
+  stockroom_id, assigned_to, request_id, state, disposal, updated_by, updated_at, version
+FROM cmdb_asset
+WHERE tenant_id = current_tenant_id() AND ci_id > $1
+ORDER BY ci_id
+LIMIT $2
+`
+
+type SnapshotCmdbAssetsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotCmdbAssetsRow struct {
+	CiID          pgtype.UUID
+	HubID         pgtype.UUID
+	AssetTag      string
+	CostMinor     int64
+	Currency      string
+	PurchasedOn   pgtype.Date
+	Supplier      string
+	WarrantyUntil pgtype.Date
+	ContractID    pgtype.UUID
+	StockroomID   pgtype.UUID
+	AssignedTo    pgtype.UUID
+	RequestID     pgtype.UUID
+	State         string
+	Disposal      []byte
+	UpdatedBy     pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+// The CIs' asset records, each filed under its hub.
+func (q *Queries) SnapshotCmdbAssets(ctx context.Context, arg SnapshotCmdbAssetsParams) ([]SnapshotCmdbAssetsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotCmdbAssets, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotCmdbAssetsRow{}
+	for rows.Next() {
+		var i SnapshotCmdbAssetsRow
+		if err := rows.Scan(
+			&i.CiID,
+			&i.HubID,
+			&i.AssetTag,
+			&i.CostMinor,
+			&i.Currency,
+			&i.PurchasedOn,
+			&i.Supplier,
+			&i.WarrantyUntil,
+			&i.ContractID,
+			&i.StockroomID,
+			&i.AssignedTo,
+			&i.RequestID,
+			&i.State,
+			&i.Disposal,
+			&i.UpdatedBy,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotCmdbCis = `-- name: SnapshotCmdbCis :many
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
@@ -1058,6 +1182,62 @@ func (q *Queries) SnapshotCmdbCis(ctx context.Context, arg SnapshotCmdbCisParams
 			&i.MergedInto,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.UpdatedBy,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotCmdbGroups = `-- name: SnapshotCmdbGroups :many
+SELECT id, hub_id, key, name, filter, service_id, updated_by, updated_at, version
+FROM cmdb_ci_group
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotCmdbGroupsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotCmdbGroupsRow struct {
+	ID        pgtype.UUID
+	HubID     pgtype.UUID
+	Key       string
+	Name      string
+	Filter    []byte
+	ServiceID pgtype.UUID
+	UpdatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+// A workspace's CI groups, each filed under its hub.
+func (q *Queries) SnapshotCmdbGroups(ctx context.Context, arg SnapshotCmdbGroupsParams) ([]SnapshotCmdbGroupsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotCmdbGroups, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotCmdbGroupsRow{}
+	for rows.Next() {
+		var i SnapshotCmdbGroupsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.Key,
+			&i.Name,
+			&i.Filter,
+			&i.ServiceID,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
 			&i.Version,

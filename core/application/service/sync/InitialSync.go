@@ -40,7 +40,7 @@ var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
 	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage, entityWhiteboard,
-	entityCI, entityCIRelation, entityCICatalogue, entityEntrySchedule,
+	entityCI, entityCIRelation, entityCIAffected, entityCIGroup, entityCIAsset, entityCICatalogue, entityEntrySchedule,
 	entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard,
 	entitySprint, entitySprintEntry, entityEstimate, entityCustomField,
 	entityTimeRecord, entityTimer, entityWorkTypes, entityTimePolicy,
@@ -80,6 +80,11 @@ const (
 	// filed under its hub: an inventory is read where its hub is (M6).
 	entityCI         = cmdbservice.CIEntity
 	entityCIRelation = cmdbservice.RelationEntity
+	// entityCIAffected, entityCIGroup and entityCIAsset are an entry's affected CI, filed under the
+	// CI's hub, and a hub's CI groups and asset records (UC-AST-09, 11, 12).
+	entityCIAffected = cmdbservice.AffectedEntity
+	entityCIGroup    = cmdbservice.GroupEntity
+	entityCIAsset    = cmdbservice.AssetEntity
 	// entityCICatalogue is the workspace's classes and relation types, one record under the
 	// workspace's identifier: what a device names and groups an inventory by.
 	entityCICatalogue = cmdbservice.CatalogueEntity
@@ -684,6 +689,45 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityCI, entityID: ci.ID, containerID: ci.HubID,
 				payload: cmdbservice.CIOutput(ci, nil), key: ci.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityCIAffected:
+		affected, err := p.Snapshot.CIAffected(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(affected))
+		for _, a := range affected {
+			rows = append(rows, walkRow{
+				entity: entityCIAffected, entityID: a.ID, containerID: a.HubID,
+				payload: cmdbservice.AffectedOutput(a.Affected), key: a.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityCIGroup:
+		groups, err := p.Snapshot.CIGroups(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(groups))
+		for _, g := range groups {
+			rows = append(rows, walkRow{
+				entity: entityCIGroup, entityID: g.ID, containerID: g.HubID,
+				payload: cmdbservice.GroupOutput(g, -1), key: g.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityCIAsset:
+		assets, err := p.Snapshot.CIAssets(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(assets))
+		for _, a := range assets {
+			rows = append(rows, walkRow{
+				entity: entityCIAsset, entityID: a.CIID, containerID: a.HubID,
+				payload: cmdbservice.AssetOutput(a, a.UpdatedAt), key: a.CIID.String(),
 			})
 		}
 		return rows, nil
