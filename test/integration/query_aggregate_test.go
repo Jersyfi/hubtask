@@ -285,6 +285,13 @@ func TestAPagesSummaryCountsTheLivePagesOfTheBoundSpaces(t *testing.T) {
 			t.Fatalf("writing a page: %v", err)
 		}
 	}
+	// A restricted page naming nobody yet: kept from every count until it names its reader.
+	restricted := freshID(t).String()
+	if _, err := pool.Exec(ctx, `INSERT INTO page (id, tenant_id, hub_id, title, order_key, created_by, created_at,
+		updated_by, updated_at, restricted) VALUES ($1, $2, $3, 'R', 'z', $4, now(), $4, now(), true)`,
+		restricted, tenantA.String(), hub, authorA.String()); err != nil {
+		t.Fatalf("writing the restricted page: %v", err)
+	}
 	count := func(tenant shared.ID) repository.ItemAggregateResult {
 		t.Helper()
 		aggregation, err := view.ParseAggregation(map[string]any{"source": "pages", "function": "COUNT",
@@ -292,7 +299,7 @@ func TestAPagesSummaryCountsTheLivePagesOfTheBoundSpaces(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		aggregation.Hubs, aggregation.Now = []shared.ID{shared.MustParseID(hub)}, time.Now()
+		aggregation.Hubs, aggregation.Now, aggregation.Reader = []shared.ID{shared.MustParseID(hub)}, time.Now(), authorA
 		var result repository.ItemAggregateResult
 		if err := read(ctx, t, tenant, func(ctx context.Context) error {
 			var err error
@@ -308,5 +315,12 @@ func TestAPagesSummaryCountsTheLivePagesOfTheBoundSpaces(t *testing.T) {
 	}
 	if other := count(tenantB); len(other.Rows) != 0 {
 		t.Errorf("another tenant counted %+v", other)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO page_restriction (tenant_id, page_id, account_id, granted_at)
+		VALUES ($1, $2, $3, now())`, tenantA.String(), restricted, authorA.String()); err != nil {
+		t.Fatalf("naming the reader: %v", err)
+	}
+	if mine := count(tenantA); len(mine.Rows) != 1 || mine.Rows[0].Count != 3 {
+		t.Errorf("the page naming its reader is not counted: %+v", mine)
 	}
 }

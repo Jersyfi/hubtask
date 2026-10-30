@@ -167,9 +167,11 @@ type Aggregation struct {
 	ByDay   bool
 	// Sight is a time summary's reach, set by the use case.
 	Sight TimeSight
-	// PageGroup splits a pages summary; Hubs are the spaces it counts, set by the use case.
+	// PageGroup splits a pages summary; Hubs are the spaces it counts and Reader the person a
+	// restricted page must admit to be counted, both set by the use case.
 	PageGroup PageGroup
 	Hubs      []shared.ID
+	Reader    shared.ID
 	// Bucket and BucketField cut the rows by period; both or neither.
 	Bucket      TimeBucket
 	BucketField Field

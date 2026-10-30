@@ -413,6 +413,7 @@ func (h AggregateItems) pages(
 	if aggregation.Hubs, err = h.Pages.Readable(ctx, actor, hubs, !spec.Scope.Workspace); err != nil {
 		return repository.ItemAggregateResult{}, err
 	}
+	aggregation.Reader = actor.AccountID
 	if h.Query.Clock != nil {
 		aggregation.Now = h.Query.Clock.Now()
 	}

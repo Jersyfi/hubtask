@@ -106,6 +106,15 @@ func (b *builder) pages(search repository.ItemSearch, aggregation view.Aggregati
 	b.write(`, count(*)::bigint, NULL::numeric FROM page p WHERE p.hub_id = ANY(`)
 	b.param(identifiers(aggregation.Hubs))
 	b.write(`::uuid[]) AND p.deleted_at IS NULL`)
+	// A restricted page is counted only for somebody it admits: a count, too, says it is there.
+	b.write(` AND (NOT p.restricted AND p.parent_id IS NULL OR page_admits(p.id, `)
+	if aggregation.Reader.IsZero() {
+		// Nobody to admit: only the pages no restriction narrows are counted.
+		b.write(`NULL`)
+	} else {
+		b.param(aggregation.Reader.String())
+	}
+	b.write(`::uuid))`)
 	if !search.Spec.IncludeArchived {
 		b.write(` AND p.archived_at IS NULL`)
 	}

@@ -188,7 +188,8 @@ or of every space the caller may read pages in for `scope_workspace` (the knowle
 question, `PageReach`, bound as an array); a collection or an entry holds no space
 (`query.aggregate_pages_hub_scope`) and the entries' filter is refused
 (`query.aggregate_pages_unfiltered`); a `COUNT` only (`query.aggregate_pages_count_only`), grouped
-by `owner`, `template` or `verification` and bucketed by `created_at` or `updated_at`. Another
+by `owner`, `template` or `verification` and bucketed by `created_at` or `updated_at`; a page
+behind a restriction is counted only for a caller it admits (`page_admits`, bound). Another
 source is `query.aggregate_source_unknown` - records are entries. A saved view may store `aggregate` (and then `scope_workspace: true`
 instead of an anchor); `POST /views/{viewId}:aggregate` runs it under the caller's authorisation,
 and a view without one is refused (`views.aggregate_missing`); a workspace-scoped summary view has
