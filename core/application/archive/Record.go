@@ -950,12 +950,12 @@ var entities = []Entity{
 		},
 	},
 	{
-		Name: "agent_halts", Table: "agent_halt", Whole: true, Unmarked: true, Later: true,
+		Name: "agent_halts", Table: "agent_halt", Whole: true, Later: true,
 		Keys:       []string{"id"},
 		References: []Reference{{Field: "set_by", Table: "account", Clearable: true}},
 	},
 	{
-		Name: "agent_requests", Table: "agent_request", Whole: true, Unmarked: true, Later: true,
+		Name: "agent_requests", Table: "agent_request", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{
 			{Field: "agent_id", Table: "agent"},
@@ -963,12 +963,12 @@ var entities = []Entity{
 		},
 	},
 	{
-		Name: "agent_actions", Table: "agent_action", Whole: true, Unmarked: true, Later: true,
+		Name: "agent_actions", Table: "agent_action", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{{Field: "agent_id", Table: "agent"}},
 	},
 	{
-		Name: "agent_jobs", Table: "agent_job", Whole: true, Unmarked: true, Later: true,
+		Name: "agent_jobs", Table: "agent_job", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{
 			{Field: "agent_id", Table: "agent"},
@@ -976,7 +976,7 @@ var entities = []Entity{
 		},
 	},
 	{
-		Name: "agent_eval_cases", Table: "agent_eval_case", Whole: true, Unmarked: true, Later: true,
+		Name: "agent_eval_cases", Table: "agent_eval_case", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{
 			{Field: "agent_id", Table: "agent"},
@@ -984,7 +984,7 @@ var entities = []Entity{
 		},
 	},
 	{
-		Name: "agent_eval_runs", Table: "agent_eval_run", Whole: true, Unmarked: true, Later: true,
+		Name: "agent_eval_runs", Table: "agent_eval_run", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{
 			{Field: "agent_id", Table: "agent"},
@@ -992,7 +992,7 @@ var entities = []Entity{
 		},
 	},
 	{
-		Name: "ai_provenance", Table: "ai_provenance", Whole: true, Unmarked: true, Later: true,
+		Name: "ai_provenance", Table: "ai_provenance", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{{Field: "accepted_by", Table: "account", Clearable: true}},
 	},
