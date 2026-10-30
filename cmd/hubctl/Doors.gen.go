@@ -1371,6 +1371,17 @@ var generatedCommands = []door{
 			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
+	{Group: "plan", Verb: "import", OperationID: "importPlan", Method: "POST", Path: "/collections/{collectionId}/plan:import", Summary: "Bring a plan in from a project file",
+		PathParams: []doorParam{
+			{Name: "collectionId", Kind: "uuid", Help: "The collection - a team's board - the sprints belong to", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "content", Kind: "string", Help: "The file's text, UTF-8, within the body limit", Required: true},
+			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
+			{Name: "format", Kind: "string", Help: "", Required: true},
+			{Name: "zone", Kind: "string", Help: "The IANA time zone the file's days are local to; UTC without", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"activities", "dependencies", "dry_run", "flattened", "milestones"}},
 	{Group: "plan", Verb: "mode", OperationID: "setEntryScheduling", Method: "PUT", Path: "/items/{itemId}/scheduling", Summary: "Whether the scheduler may move an entry, and whether it is a milestone",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},

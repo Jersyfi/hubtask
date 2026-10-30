@@ -1661,6 +1661,16 @@ class AgentWrite(TypedDict, total=False):
     budget: dict[str, Any]
     min_accuracy: int
 
+class PlanImport(TypedDict, total=False):
+    dry_run: Required[bool]
+    tasks: Required[int]
+    work_packages: Required[int]
+    activities: Required[int]
+    flattened: Required[int]
+    dependencies: Required[int]
+    milestones: Required[int]
+    created: Required[list[dict[str, Any]]]
+
 WorkspaceTolerance = TypedDict("WorkspaceTolerance", {
     "planning.time_tolerance_days": Required[dict[str, Any]],
 }, total=False)

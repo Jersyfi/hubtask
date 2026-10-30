@@ -238,6 +238,7 @@ var restDoors = map[string]restDoor{
 	"httpRequest":                       {UseCase: "HttpRequest", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"importCiFile":                      {UseCase: "ImportCiFile", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"importEntries":                     {UseCase: "ImportEntries", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"importPlan":                        {UseCase: "ImportPlan", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"inspectInvitation":                 {UseCase: "InspectInvitation", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}},
 	"instantiateTemplate":               {UseCase: "InstantiateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"inviteAccount":                     {UseCase: "InviteAccount", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/accounts/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "invitation_link"},
@@ -2009,6 +2010,13 @@ func (c *RestController) ImportCiFile(w http.ResponseWriter, r *http.Request, hu
 func (c *RestController) ImportEntries(w http.ResponseWriter, r *http.Request, params openapi.ImportEntriesParams) {
 	var body openapi.ImportEntriesJSONRequestBody
 	c.door(w, r, restDoors["importEntries"], usecase.Input{}, params, &body, answerBy(importJobResponse))
+}
+
+// ImportPlan answers POST /collections/{collectionId}/plan:import by the generated mapping.
+func (c *RestController) ImportPlan(w http.ResponseWriter, r *http.Request, collectionId openapi.SprintCollectionId) {
+	var body openapi.ImportPlanJSONRequestBody
+	var answer openapi.PlanImport
+	c.door(w, r, restDoors["importPlan"], usecase.Input{"collection_id": collectionId.String()}, nil, &body, &answer)
 }
 
 // InspectInvitation answers POST /auth/invitations:inspect by the generated mapping.

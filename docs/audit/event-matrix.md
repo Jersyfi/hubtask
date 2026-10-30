@@ -741,6 +741,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `plan.changed` | ChangePlan | `plan` | NOTICE | Every time |
 | `plan.created` | CreatePlan | `plan` | NOTICE | Every time |
+| `plan.imported` | ImportPlan | `plan` | INFO | Every time |
 | `plan.listed` | ListPlans | `plan` | INFO | When refused |
 | `plan.read` | ReadPlan | `plan` | INFO | When refused |
 | `plan.read` | ReadPlanSchedule | `plan` | INFO | When refused |

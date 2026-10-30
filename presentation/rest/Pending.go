@@ -2838,3 +2838,6 @@ func (pending) ReadWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
 func (pending) SetWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+func (pending) ImportPlan(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
+	notAvailable(w, r)
+}

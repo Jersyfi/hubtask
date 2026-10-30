@@ -33,7 +33,7 @@ const (
 
 // The bounds of a project file: what one import may bring in.
 const (
-	MaxFileBytes        = 1 << 20
+	MaxFileBytes        = 512 << 10
 	MaxImportedEntries  = 500
 	MaxImportedLinks    = 2000
 	maxImportedTitle    = 500

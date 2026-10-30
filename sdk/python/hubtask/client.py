@@ -111,6 +111,10 @@ class Client:
         """Apply the moves a person accepted"""
         return self._call("POST", "/plans/{planId}/schedule:apply", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
 
+    def import_plan(self, collection_id: str, body: dict[str, Any]) -> "PlanImport":
+        """Bring a plan in from a project file"""
+        return self._call("POST", "/collections/{collectionId}/plan:import", {"collectionId": collection_id}, None, {}, body, "json", "application/json", "json")
+
     def read_workspace_tolerance(self) -> "WorkspaceTolerance":
         """The time tolerance the workspace decides"""
         return self._call("GET", "/plans:tolerance", {}, None, {}, None, "none", None, "json")

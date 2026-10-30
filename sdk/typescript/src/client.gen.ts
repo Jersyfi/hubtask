@@ -121,6 +121,11 @@ export class HubtaskClient {
     return this.call("POST", "/plans/{planId}/schedule:apply", { "planId": planId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Bring a plan in from a project file */
+  importPlan(collectionId: string, body: NonNullable<operations["importPlan"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["importPlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/collections/{collectionId}/plan:import", { "collectionId": collectionId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The time tolerance the workspace decides */
   readWorkspaceTolerance(options: CallOptions = {}): Promise<operations["readWorkspaceTolerance"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/plans:tolerance", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

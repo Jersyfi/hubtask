@@ -9853,6 +9853,24 @@ func (e ReadCiImpactParamsDirection) Valid() bool {
 	}
 }
 
+// Defines values for ImportPlanJSONBodyFormat.
+const (
+	ImportPlanJSONBodyFormatCSV          ImportPlanJSONBodyFormat = "CSV"
+	ImportPlanJSONBodyFormatMSPROJECTXML ImportPlanJSONBodyFormat = "MSPROJECT_XML"
+)
+
+// Valid indicates whether the value is a known member of the ImportPlanJSONBodyFormat enum.
+func (e ImportPlanJSONBodyFormat) Valid() bool {
+	switch e {
+	case ImportPlanJSONBodyFormatCSV:
+		return true
+	case ImportPlanJSONBodyFormatMSPROJECTXML:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListSprintsParamsState.
 const (
 	ListSprintsParamsStateACTIVE  ListSprintsParamsState = "ACTIVE"
@@ -18464,6 +18482,27 @@ type PlanDependencyDependencyKind string
 // PlanFeature defines model for PlanFeature.
 type PlanFeature string
 
+// PlanImport defines model for PlanImport.
+type PlanImport struct {
+	Activities int `json:"activities"`
+
+	// Created The entry each task of the file became; empty for a dry run.
+	Created []struct {
+		ItemId openapi_types.UUID `json:"item_id"`
+
+		// Key The task's identifier in the file.
+		Key string `json:"key"`
+	} `json:"created"`
+	Dependencies int  `json:"dependencies"`
+	DryRun       bool `json:"dry_run"`
+
+	// Flattened Rows deeper than an activity, hung on the activity's parent.
+	Flattened    int `json:"flattened"`
+	Milestones   int `json:"milestones"`
+	Tasks        int `json:"tasks"`
+	WorkPackages int `json:"work_packages"`
+}
+
 // PlanMoves defines model for PlanMoves.
 type PlanMoves struct {
 	Moved []struct {
@@ -23795,6 +23834,20 @@ type DefineCiSourceParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ImportPlanJSONBody defines parameters for ImportPlan.
+type ImportPlanJSONBody struct {
+	// Content The file's text, UTF-8, within the body limit.
+	Content string                   `json:"content"`
+	DryRun  *bool                    `json:"dry_run,omitempty"`
+	Format  ImportPlanJSONBodyFormat `json:"format"`
+
+	// Zone The IANA time zone the file's days are local to; UTC without.
+	Zone *string `json:"zone,omitempty"`
+}
+
+// ImportPlanJSONBodyFormat defines parameters for ImportPlan.
+type ImportPlanJSONBodyFormat string
+
 // ListSprintsParams defines parameters for ListSprints.
 type ListSprintsParams struct {
 	// State Only sprints in this state.
@@ -26069,6 +26122,9 @@ type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
 // DefineCiSourceJSONRequestBody defines body for DefineCiSource for application/json ContentType.
 type DefineCiSourceJSONRequestBody = CiSourceDefine
 
+// ImportPlanJSONRequestBody defines body for ImportPlan for application/json ContentType.
+type ImportPlanJSONRequestBody ImportPlanJSONBody
+
 // CreateSprintJSONRequestBody defines body for CreateSprint for application/json ContentType.
 type CreateSprintJSONRequestBody CreateSprintJSONBody
 
@@ -27862,6 +27918,9 @@ type ServerInterface interface {
 	// DefineCiSource Add or change a source
 	// (PUT /cmdb/sources/{sourceKey})
 	DefineCiSource(w http.ResponseWriter, r *http.Request, sourceKey string, params DefineCiSourceParams)
+	// ImportPlan Bring a plan in from a project file
+	// (POST /collections/{collectionId}/plan:import)
+	ImportPlan(w http.ResponseWriter, r *http.Request, collectionId SprintCollectionId)
 	// ReadSprintBacklog The backlog to plan a sprint from
 	// (GET /collections/{collectionId}/sprint-backlog)
 	ReadSprintBacklog(w http.ResponseWriter, r *http.Request, collectionId SprintCollectionId)
@@ -36366,6 +36425,32 @@ func (siw *ServerInterfaceWrapper) DefineCiSource(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DefineCiSource(w, r, sourceKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ImportPlan operation middleware
+func (siw *ServerInterfaceWrapper) ImportPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collectionId" -------------
+	var collectionId SprintCollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionId", r.PathValue("collectionId"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ImportPlan(w, r, collectionId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -53796,6 +53881,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/schedule", wrapper.ReadPlanSchedule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plans/{planId}/schedule:apply", wrapper.ApplyPlanSchedule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/collections/{collectionId}/plan:import", wrapper.ImportPlan)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans:tolerance", wrapper.ReadWorkspaceTolerance)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/plans:tolerance", wrapper.SetWorkspaceTolerance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/tolerance", wrapper.ReadPlanTolerance)

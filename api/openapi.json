@@ -270,6 +270,74 @@
         }
       }
     },
+    "/collections/{collectionId}/plan:import": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SprintCollectionId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "importPlan",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan import",
+        "summary": "Bring a plan in from a project file",
+        "description": "A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a \"blocks\" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "format",
+                  "content"
+                ],
+                "properties": {
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "MSPROJECT_XML",
+                      "CSV"
+                    ]
+                  },
+                  "content": {
+                    "type": "string",
+                    "maxLength": 524288,
+                    "description": "The file's text, UTF-8, within the body limit."
+                  },
+                  "zone": {
+                    "type": "string",
+                    "description": "The IANA time zone the file's days are local to; UTC without."
+                  },
+                  "dry_run": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the file brought, or would bring",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanImport"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/plans:tolerance": {
       "get": {
         "tags": [
@@ -38565,6 +38633,64 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 100
+          }
+        }
+      },
+      "PlanImport": {
+        "type": "object",
+        "required": [
+          "dry_run",
+          "tasks",
+          "work_packages",
+          "activities",
+          "flattened",
+          "dependencies",
+          "milestones",
+          "created"
+        ],
+        "properties": {
+          "dry_run": {
+            "type": "boolean"
+          },
+          "tasks": {
+            "type": "integer"
+          },
+          "work_packages": {
+            "type": "integer"
+          },
+          "activities": {
+            "type": "integer"
+          },
+          "flattened": {
+            "type": "integer",
+            "description": "Rows deeper than an activity, hung on the activity's parent."
+          },
+          "dependencies": {
+            "type": "integer"
+          },
+          "milestones": {
+            "type": "integer"
+          },
+          "created": {
+            "type": "array",
+            "description": "The entry each task of the file became; empty for a dry run.",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "item_id"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "The task's identifier in the file."
+                },
+                "item_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
           }
         }
       },

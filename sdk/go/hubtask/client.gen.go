@@ -9858,6 +9858,24 @@ func (e ReadCiImpactParamsDirection) Valid() bool {
 	}
 }
 
+// Defines values for ImportPlanJSONBodyFormat.
+const (
+	ImportPlanJSONBodyFormatCSV          ImportPlanJSONBodyFormat = "CSV"
+	ImportPlanJSONBodyFormatMSPROJECTXML ImportPlanJSONBodyFormat = "MSPROJECT_XML"
+)
+
+// Valid indicates whether the value is a known member of the ImportPlanJSONBodyFormat enum.
+func (e ImportPlanJSONBodyFormat) Valid() bool {
+	switch e {
+	case ImportPlanJSONBodyFormatCSV:
+		return true
+	case ImportPlanJSONBodyFormatMSPROJECTXML:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListSprintsParamsState.
 const (
 	ListSprintsParamsStateACTIVE  ListSprintsParamsState = "ACTIVE"
@@ -18469,6 +18487,27 @@ type PlanDependencyDependencyKind string
 // PlanFeature defines model for PlanFeature.
 type PlanFeature string
 
+// PlanImport defines model for PlanImport.
+type PlanImport struct {
+	Activities int `json:"activities"`
+
+	// Created The entry each task of the file became; empty for a dry run.
+	Created []struct {
+		ItemId openapi_types.UUID `json:"item_id"`
+
+		// Key The task's identifier in the file.
+		Key string `json:"key"`
+	} `json:"created"`
+	Dependencies int  `json:"dependencies"`
+	DryRun       bool `json:"dry_run"`
+
+	// Flattened Rows deeper than an activity, hung on the activity's parent.
+	Flattened    int `json:"flattened"`
+	Milestones   int `json:"milestones"`
+	Tasks        int `json:"tasks"`
+	WorkPackages int `json:"work_packages"`
+}
+
 // PlanMoves defines model for PlanMoves.
 type PlanMoves struct {
 	Moved []struct {
@@ -23800,6 +23839,20 @@ type DefineCiSourceParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ImportPlanJSONBody defines parameters for ImportPlan.
+type ImportPlanJSONBody struct {
+	// Content The file's text, UTF-8, within the body limit.
+	Content string                   `json:"content"`
+	DryRun  *bool                    `json:"dry_run,omitempty"`
+	Format  ImportPlanJSONBodyFormat `json:"format"`
+
+	// Zone The IANA time zone the file's days are local to; UTC without.
+	Zone *string `json:"zone,omitempty"`
+}
+
+// ImportPlanJSONBodyFormat defines parameters for ImportPlan.
+type ImportPlanJSONBodyFormat string
+
 // ListSprintsParams defines parameters for ListSprints.
 type ListSprintsParams struct {
 	// State Only sprints in this state.
@@ -26073,6 +26126,9 @@ type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
 
 // DefineCiSourceJSONRequestBody defines body for DefineCiSource for application/json ContentType.
 type DefineCiSourceJSONRequestBody = CiSourceDefine
+
+// ImportPlanJSONRequestBody defines body for ImportPlan for application/json ContentType.
+type ImportPlanJSONRequestBody ImportPlanJSONBody
 
 // CreateSprintJSONRequestBody defines body for CreateSprint for application/json ContentType.
 type CreateSprintJSONRequestBody CreateSprintJSONBody
@@ -30713,6 +30769,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
 	DefineCiSource(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ImportPlanWithBody Bring a plan in from a project file
+	//
+	// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
+	ImportPlanWithBody(ctx context.Context, collectionId SprintCollectionId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ImportPlan Bring a plan in from a project file
+	//
+	// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
+	ImportPlan(ctx context.Context, collectionId SprintCollectionId, body ImportPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadSprintBacklog The backlog to plan a sprint from
 	//
@@ -43835,6 +43909,44 @@ func (c *Client) DefineCiSourceWithBody(ctx context.Context, sourceKey string, p
 // Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
 func (c *Client) DefineCiSource(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDefineCiSourceRequest(c.Server, sourceKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ImportPlanWithBody Bring a plan in from a project file
+//
+// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
+func (c *Client) ImportPlanWithBody(ctx context.Context, collectionId SprintCollectionId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportPlanRequestWithBody(c.Server, collectionId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ImportPlan Bring a plan in from a project file
+//
+// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
+func (c *Client) ImportPlan(ctx context.Context, collectionId SprintCollectionId, body ImportPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportPlanRequest(c.Server, collectionId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -67655,6 +67767,53 @@ func NewDefineCiSourceRequestWithBody(server string, sourceKey string, params *D
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewImportPlanRequest calls the generic ImportPlan builder with application/json body
+func NewImportPlanRequest(server string, collectionId SprintCollectionId, body ImportPlanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewImportPlanRequestWithBody(server, collectionId, "application/json", bodyReader)
+}
+
+// NewImportPlanRequestWithBody constructs an http.Request for the ImportPlan method, with any body, and a specified content type
+func NewImportPlanRequestWithBody(server string, collectionId SprintCollectionId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "collectionId", collectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/collections/%s/plan:import", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -95294,6 +95453,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
 	DefineCiSourceWithResponse(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiSourceResult, error)
 
+	// ImportPlanWithBodyWithResponse Bring a plan in from a project file
+	//
+	// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
+	ImportPlanWithBodyWithResponse(ctx context.Context, collectionId SprintCollectionId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportPlanResult, error)
+
+	// ImportPlanWithResponse Bring a plan in from a project file
+	//
+	// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
+	ImportPlanWithResponse(ctx context.Context, collectionId SprintCollectionId, body ImportPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportPlanResult, error)
+
 	// ReadSprintBacklogWithResponse The backlog to plan a sprint from
 	//
 	// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
@@ -113466,6 +113643,54 @@ func (r DefineCiSourceResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DefineCiSourceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ImportPlanResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlanImport
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ImportPlanResult) GetJSON200() *PlanImport {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ImportPlanResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ImportPlanResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ImportPlanResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ImportPlanResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ImportPlanResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -143242,6 +143467,36 @@ func (c *ClientWithResponses) DefineCiSourceWithResponse(ctx context.Context, so
 	return ParseDefineCiSourceResult(rsp)
 }
 
+// ImportPlanWithBodyWithResponse Bring a plan in from a project file
+//
+// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
+func (c *ClientWithResponses) ImportPlanWithBodyWithResponse(ctx context.Context, collectionId SprintCollectionId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportPlanResult, error) {
+	rsp, err := c.ImportPlanWithBody(ctx, collectionId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportPlanResult(rsp)
+}
+
+// ImportPlanWithResponse Bring a plan in from a project file
+//
+// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
+func (c *ClientWithResponses) ImportPlanWithResponse(ctx context.Context, collectionId SprintCollectionId, body ImportPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportPlanResult, error) {
+	rsp, err := c.ImportPlan(ctx, collectionId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportPlanResult(rsp)
+}
+
 // ReadSprintBacklogWithResponse The backlog to plan a sprint from
 //
 // The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
@@ -162280,6 +162535,39 @@ func ParseDefineCiSourceResult(rsp *http.Response) (*DefineCiSourceResult, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiSource
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseImportPlanResult parses an HTTP response from a ImportPlanWithResponse call
+func ParseImportPlanResult(rsp *http.Response) (*ImportPlanResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ImportPlanResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlanImport
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

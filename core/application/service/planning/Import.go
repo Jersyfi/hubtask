@@ -223,7 +223,7 @@ func (h ImportPlan) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "collection_id", Kind: usecase.KindID, Required: true, Description: "The collection the plan comes into."},
 			{Name: "format", Kind: usecase.KindString, Required: true, Enum: []string{string(domain.FormatProjectXML), string(domain.FormatCSV)}, Description: "The file's kind."},
-			{Name: "content", Kind: usecase.KindString, Required: true, Description: "The file's text, UTF-8, at most 1 MiB."},
+			{Name: "content", Kind: usecase.KindString, Required: true, Description: "The file's text, UTF-8, at most 512 KiB."},
 			{Name: "zone", Kind: usecase.KindString, Description: "The IANA time zone the file's days are local to; UTC without."},
 			{Name: "dry_run", Kind: usecase.KindBool, Description: "Answer what the file would bring without writing it."},
 		},
