@@ -199,6 +199,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-ID-28](./identity/UC-ID-28-provision-people-from-our-directory.md) | Provision people and groups from our directory | identity |
 | [UC-ID-29](./identity/UC-ID-29-look-at-the-app-as-a-person-sees-it.md) | Look at the app as a person of the workspace sees it | identity |
 | [UC-ID-30](./identity/UC-ID-30-sign-in-through-our-saml-directory.md) | Sign in through our SAML directory | identity |
+| [UC-ID-31](./identity/UC-ID-31-keep-people-from-our-ldap-directory.md) | Keep our people and groups from our LDAP directory | identity |
 | [UC-INS-01](./admin/UC-INS-01-start-a-fresh-installation.md) | Start a fresh installation and create my workspace in the browser | admin |
 | [UC-INS-02](./admin/UC-INS-02-bring-an-installation-up-from-a-file.md) | Bring an installation up from a file, operators included | admin |
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin |

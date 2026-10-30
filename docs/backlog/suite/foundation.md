@@ -64,7 +64,7 @@ search index are optional roles of the same binary; NATS stays optional.
 | A canvas engine for whiteboards (tldraw SDK licence checked against Apache-2.0 distribution; else Excalidraw, MIT) | whiteboards | `packages/` |
 | A CEL evaluator for the browser (`@marcbachmann/cel-js` 8.0.0, MIT, landed with S-13F; listed in `THIRD-PARTY-LICENSES.md`) | F-4 offline forms | `packages/` |
 | XML signature verification for SAML (`github.com/russellhaering/goxmldsig`, Apache-2.0, with `github.com/beevik/etree`, BSD-2-Clause; accepted 2026-10-30, landed, [ADR-0099](../../adr/ADR-0099-saml-and-ldap-behind-one-adapter-each.md)) | UC-ID-30 | `infrastructure/saml` |
-| An LDAP client (`github.com/go-ldap/ldap/v3`, MIT; accepted 2026-10-30, not built yet) | LDAP synchronisation | `infrastructure/ldap` |
+| An LDAP client (`github.com/go-ldap/ldap/v3`, MIT, with `github.com/go-asn1-ber/asn1-ber` and `github.com/Azure/go-ntlmssp`, MIT; accepted 2026-10-30, landed, [ADR-0099](../../adr/ADR-0099-saml-and-ldap-behind-one-adapter-each.md)) | UC-ID-31 | `infrastructure/ldap` |
 | No spreadsheet library: the accepted one was not needed - XLSX is written with `archive/zip` and `encoding/xml` (S-13F) | M7 export to accounting | `presentation/rest` |
 | A websocket library for Go (`github.com/coder/websocket`, ISC, landed with S-13) | F-8 | `presentation/realtime` - an inbound adapter, which `infrastructure/` is not |
 

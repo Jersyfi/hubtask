@@ -1083,7 +1083,7 @@ groups over SCIM 2.0 (RFC 7643, RFC 7644) at `/api/v1/scim/v2` ([UC-ID-28](../us
   `OWNER` - whose member change needs a person's step-up - is refused to a directory.
 * **Not served:** bulk, sorting, ETags, password changes; a filter is one `eq`. The service is not
   a catalogue use case: SCIM's resource semantics are its door's own, and the acts behind it are on
-  every door already as invitations and groups. SAML is §26; LDAP synchronisation waits.
+  every door already as invitations and groups. SAML is §26; LDAP synchronisation is §27.
 
 ---
 
@@ -1118,4 +1118,25 @@ arrival, the newcomers and the session are the same code.
 | Verification | Only the element goxmldsig returns as verified is read. A signed response or a signed assertion, by a configured certificate, never SHA-1; exactly one assertion, none encrypted, no document type declaration; `InResponseTo` the request, `Destination` and the bearer confirmation's `Recipient` the service, issuer the entity ID, audience `client_id`, `NotBefore`/`NotOnOrAfter` with 60 s skew. Every failure is `auth.identity_token_invalid`. |
 | The identity | Subject is the `NameID`; the address the `email`/`mail` attribute (or a `NameID` in the email format), treated as verified because the configured provider signed it; the name `displayName`, else given name and surname; `AuthnInstant` as the authentication time. |
 | Not served | Step-up and connection through a SAML provider (`identity_provider.saml_sign_in_only`), IdP-initiated sign-in, single logout, encrypted assertions, signed requests; the installation does not offer a SAML provider. |
+
+---
+
+## 27. Synchronising from an LDAP directory
+
+A workspace's LDAP directory or Active Directory (UC-ID-31, [ADR-0099](../adr/ADR-0099-saml-and-ldap-behind-one-adapter-each.md))
+is read on a schedule and kept as SCIM keeps it (§24): every change goes through the same
+`Directory` service, as the configured service account, so the owner, the restriction, the people
+limit and the groups' rules hold unchanged.
+
+| Rule | Detail |
+|---|---|
+| Configuration | One per workspace (`ldap_directory`, migration 0285), set whole by `PUT /directory/ldap` with a step-up. `ldaps://`, or `ldap://` always upgraded by StartTLS before the bind - no plain bind exists; an empty password is refused. Bound to and the people's base searched once before it is stored. The password sealed to the workspace (`ldap.bind_password:<tenant>`), never answered; omitting it keeps it. Defaults: `(objectClass=person)`, `(objectClass=groupOfNames)`, `entryUUID`, `mail`, `displayName`, `cn`, `member`, every 60 minutes (15 to 1440). |
+| Acting as | An active service account of the workspace with `MANAGE_MEMBERS`, asked at the save and before every run (`directory.ldap_run_as_invalid`, `directory.ldap_run_as_refused`); its scopes are `members:read` and `members:write`. |
+| Whom it holds | A person or group whose `external_id` is `ldap:` and the identifier attribute's value (binary values, as `objectGUID`, in hex). A SCIM identifier has no prefix, so neither takes the other's. |
+| The plan | Pure (`PlanLdapSync`): invite who is new under the folded address; take over an account already here under it that holds no other identifier; rename; switch on whom it switched off; switch off whom it holds and the directory no longer answers. An entry without an address, with an address another entry has, or with an identifier over 250 characters is skipped, never guessed. Groups: created by their identifier, members those the run keeps; a group gone from the directory keeps its roles and loses its members. |
+| The guard | A run that answers nobody (`directory.ldap_answer_empty`), more than 50 000 entries (`directory.ldap_answer_too_large`), or would switch off more than `max(10, held / 5)` (`directory.ldap_switch_off_too_many`, `count`, `limit`) changes nothing. `confirm_switch_off` equal to the count, with a step-up, lets that run through; `dry_run` plans without a change. |
+| Applying | One act at a time through `Directory`; an act refused (the people limit, a group holding `OWNER`) is counted as `failed` and the run goes on (`PARTIAL`); an owner or a restricted person is `kept`. |
+| Schedule | One job per workspace (`directory.ldap_sync`, deduplicated by it), seeded by the save and rescheduling itself. A refused or failed run is recorded and the next waits twice the interval per failure in a row, at most a day; a run that works resets it. Removing the directory or switching it off ends the job; showing a directory more than a day overdue queues it again. Only a failure of the installation's own store is a job error. |
+| Trail | `directory.ldap_configured`, `directory.ldap_removed`, `directory.ldap_synced` (its outcome and counts, never a name), and the acts' own entries (`account.provisioned`, `account.directory_switched`, …). |
+| Not served | Writing to the directory, passwords from it, nested groups, `memberUid`, Active Directory's ranged `member` retrieval beyond what one read answers. |
 
