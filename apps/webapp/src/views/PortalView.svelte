@@ -4,13 +4,16 @@
   // A service's portal (M5): the kinds of request it offers, each with its own questions
   // (UC-SVC-05 checks 1 and 2), the articles it publishes for the words typed so far (UC-DOC-13
   // check 3), and the reader's own requests there (check 3). A requester reaches it by the address
-  // the team gives them; nothing here reads the team's side of a collection.
+  // the team gives them; nothing here reads the team's side of a collection. The approvals waiting
+  // for the reader's yes are decided here too (UC-SVC-09 check 5), without a link to the entry.
 
   import { untrack } from 'svelte';
   import {
     Badge, Button, EmptyState, ErrorState, Input, ListRow, LoadMore, PageHeader, Radio, Skeleton, Stack, Textarea,
   } from '@hubtask/design-system/components';
-  import type { PortalRequestPage, RequestCatalogue } from '@hubtask/sync-engine';
+  import type { ApprovalList, PortalRequestPage, RequestCatalogue } from '@hubtask/sync-engine';
+
+  import { myApprovalsPath } from '../lib/data/approvals.svelte.ts';
 
   import { cataloguePath, myRequestsPath, portal } from '../lib/data/portal.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
@@ -22,6 +25,7 @@
   import Question from '../lib/portal/Question.svelte';
   import { answersOf, askable, deflectionText } from '../lib/portal/portal.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import ApprovalCard from '../lib/servicedesk/ApprovalCard.svelte';
 
   const { collectionId, onnavigate }: { collectionId: string; onnavigate?: (path: string) => void } = $props();
 
@@ -29,6 +33,8 @@
 
   const catalogue = untrack(() => resource<RequestCatalogue>(cataloguePath(collectionId)));
   const mine = untrack(() => resource<PortalRequestPage>(myRequestsPath(collectionId)));
+  const asked = untrack(() => resource<ApprovalList>(myApprovalsPath));
+  const waiting = $derived(asked.state.status === 'ready' ? asked.state.data.data : []);
 
   const kinds = $derived(catalogue.state.status === 'ready' ? catalogue.state.data.data : []);
   const failure = $derived(catalogue.state.status === 'failed' ? renderProblem(catalogue.state.error, messages) : undefined);
@@ -120,6 +126,17 @@
         </div>
       </Stack>
     </form>
+  {/if}
+
+  {#if waiting.length > 0}
+    <section aria-labelledby="portal-yes">
+      <Stack gap="100">
+        <h2 class="heading" id="portal-yes">{t('app.portal.waiting_for_yes')}</h2>
+        {#each waiting as approval (approval.id)}
+          <ApprovalCard {approval} />
+        {/each}
+      </Stack>
+    </section>
   {/if}
 
   <section aria-labelledby="portal-mine">

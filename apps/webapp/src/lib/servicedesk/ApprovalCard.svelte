@@ -20,7 +20,7 @@
 
   interface Props {
     approval: Approval;
-    /** Drawn on the reader's own list: the entry's title links to it. */
+    /** Drawn on the reader's own list: the entry's title links to it; without it, the title is text. */
     onnavigate?: (path: string) => void;
   }
 
@@ -58,10 +58,13 @@
 <article class="card" data-approval={approval.id}>
   <Stack gap="100">
     <Inline gap="100" align="center">
-      {#if approval.item_title !== undefined}
-        <Button tone="subtle" size="sm" onclick={() => onnavigate?.(`/items/${approval.item_id}`)}>
+      {#if approval.item_title !== undefined && onnavigate}
+        <Button tone="subtle" size="sm" onclick={() => onnavigate(`/items/${approval.item_id}`)}>
           {approval.item_number ? `#${approval.item_number} ` : ''}{approval.item_title}
         </Button>
+      {:else if approval.item_title !== undefined}
+        <!-- The portal's reader decides on the entry's title alone; the team's entry is not theirs to open. -->
+        <strong>{approval.item_number ? `#${approval.item_number} ` : ''}{approval.item_title}</strong>
       {/if}
       <Badge tone={stateTone(approval.state)} size="sm">{t(`app.approvals.state.${approval.state.toLowerCase()}`)}</Badge>
       {#if approval.on_behalf_of}<span class="quiet">{t('app.approvals.for_person', { name: name(approval.on_behalf_of) })}</span>{/if}
