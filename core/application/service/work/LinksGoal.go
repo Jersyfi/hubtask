@@ -68,7 +68,8 @@ func (l Linking) visibleGoals(ctx context.Context, actor appshared.ActorContext,
 }
 
 // visibleDashboard answers a dashboard the reader sees: its owner always, anybody else when it is
-// shared with its place and they read there - the goals module's rule.
+// shared with its place, or with a group they are a member of, and they read there - the goals
+// module's rule.
 func (l Linking) visibleDashboard(ctx context.Context, actor appshared.ActorContext, id shared.ID, action audit.Action) (goal.Dashboard, bool, error) {
 	if l.Goals == nil {
 		return goal.Dashboard{}, false, nil
@@ -88,7 +89,14 @@ func (l Linking) visibleDashboard(ctx context.Context, actor appshared.ActorCont
 	if d.OwnerID == actor.AccountID {
 		return d, true, nil
 	}
-	if d.Sharing != goal.SharingScope {
+	switch d.Sharing {
+	case goal.SharingScope:
+	case goal.SharingGroups:
+		member, err := l.inAnyGroup(ctx, actor, d.GroupIDs)
+		if err != nil || !member {
+			return goal.Dashboard{}, false, err
+		}
+	default:
 		return goal.Dashboard{}, false, nil
 	}
 	allowed, err := l.Reader.Permitted(ctx, actor, access.Request{
@@ -101,6 +109,30 @@ func (l Linking) visibleDashboard(ctx context.Context, actor appshared.ActorCont
 		return goal.Dashboard{}, false, nil
 	}
 	return d, true, nil
+}
+
+// GroupMembers answers whether an account is a member of a group.
+type GroupMembers interface {
+	InGroup(ctx context.Context, accountID, groupID shared.ID) (bool, error)
+}
+
+// inAnyGroup answers whether the reader is a member of one of a dashboard's groups; nil Groups
+// answers no.
+func (l Linking) inAnyGroup(ctx context.Context, actor appshared.ActorContext, groups []shared.ID) (bool, error) {
+	if l.Groups == nil {
+		return false, nil
+	}
+	for _, g := range groups {
+		var member bool
+		if err := l.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			member, err = l.Groups.InGroup(ctx, actor.AccountID, g)
+			return err
+		}); err != nil || member {
+			return member, err
+		}
+	}
+	return false, nil
 }
 
 // goalTarget is a readable goal as a reference shows it (schema ReferenceTarget): its title, status

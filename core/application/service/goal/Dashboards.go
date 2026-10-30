@@ -43,19 +43,23 @@ func DashboardOutput(d domain.Dashboard) usecase.Output {
 			"view_id": idText(w.ViewID), "query": query, "goal_ids": goals, "x": w.X, "y": w.Y, "w": w.W, "h": w.H,
 		})
 	}
+	groups := make([]string, 0, len(d.GroupIDs))
+	for _, g := range d.GroupIDs {
+		groups = append(groups, g.String())
+	}
 	return usecase.Output{
 		"id": d.ID.String(), "hub_id": idText(d.HubID), "owner_id": idText(d.OwnerID), "name": d.Name,
-		"sharing": string(d.Sharing), "widgets": widgets, "version": d.Version,
+		"sharing": string(d.Sharing), "group_ids": groups, "widgets": widgets, "version": d.Version,
 	}
 }
 
 // visible reports whether a reader sees a dashboard: its owner always, anybody else when it is
-// shared and they read its place.
+// shared and they read its place - with its groups, only as a member of one of them.
 func (s Steward) visible(ctx context.Context, actor appshared.ActorContext, ds []domain.Dashboard) ([]bool, error) {
 	out := make([]bool, len(ds))
 	var hubs []shared.ID
 	for _, d := range ds {
-		if d.Sharing == domain.SharingScope {
+		if d.Sharing.Shared() {
 			hubs = append(hubs, d.HubID)
 		}
 	}
@@ -63,10 +67,45 @@ func (s Steward) visible(ctx context.Context, actor appshared.ActorContext, ds [
 	if err != nil {
 		return nil, err
 	}
+	member := map[shared.ID]bool{}
 	for i, d := range ds {
-		out[i] = d.OwnerID == actor.AccountID || (d.Sharing == domain.SharingScope && reads[d.HubID])
+		switch {
+		case d.OwnerID == actor.AccountID:
+			out[i] = true
+		case d.Sharing == domain.SharingScope:
+			out[i] = reads[d.HubID]
+		case d.Sharing == domain.SharingGroups && reads[d.HubID]:
+			if out[i], err = s.inAnyGroup(ctx, actor, d.GroupIDs, member); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return out, nil
+}
+
+// inAnyGroup answers whether the reader is a member of one of the groups, each group asked once
+// for the call. Nil Groups answers no, the answer that shows nobody too much.
+func (s Steward) inAnyGroup(ctx context.Context, actor appshared.ActorContext, groups []shared.ID, member map[shared.ID]bool) (bool, error) {
+	if s.Groups == nil {
+		return false, nil
+	}
+	for _, g := range groups {
+		in, known := member[g]
+		if !known {
+			if err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				var err error
+				in, err = s.Groups.InGroup(ctx, actor.AccountID, g)
+				return err
+			}); err != nil {
+				return false, err
+			}
+			member[g] = in
+		}
+		if in {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s Steward) dashboard(ctx context.Context, actor appshared.ActorContext, id shared.ID) (domain.Dashboard, error) {
@@ -98,7 +137,7 @@ func (s Steward) dashboard(ctx context.Context, actor appshared.ActorContext, id
 // STRUCTURE there for a shared one or for somebody else's, as a shared saved view does.
 func (s Steward) mayShape(ctx context.Context, actor appshared.ActorContext, d domain.Dashboard, action audit.Action) error {
 	permission := service.PermissionRead
-	if d.Sharing == domain.SharingScope || d.OwnerID != actor.AccountID {
+	if d.Sharing.Shared() || d.OwnerID != actor.AccountID {
 		permission = service.PermissionStructure
 	}
 	return s.authorize(ctx, actor, permission, placePath(d.HubID), action, containersWrite, dashboardTarget, d.ID)
@@ -108,6 +147,11 @@ func (s Steward) mayShape(ctx context.Context, actor appshared.ActorContext, d d
 // held to POST /items:aggregate's grammar.
 func (s Steward) dashboardFields(in usecase.Input) (domain.Dashboard, error) {
 	d := domain.Dashboard{Name: in.String("name"), Sharing: domain.Sharing(in.String("sharing"))}
+	groups, err := in.IDList("group_ids")
+	if err != nil {
+		return domain.Dashboard{}, err
+	}
+	d.GroupIDs = groups
 	raw, _ := in["widgets"].([]any)
 	for i, item := range raw {
 		at := "/widgets/" + itoa(i)
@@ -170,7 +214,8 @@ func (s Steward) dashboardFields(in usecase.Input) (domain.Dashboard, error) {
 
 var dashboardInput = []usecase.Field{
 	{Name: "name", Kind: usecase.KindString, Required: true, Description: "The dashboard's name."},
-	{Name: "sharing", Kind: usecase.KindString, Enum: []string{"PRIVATE", "SCOPE"}, Description: "PRIVATE, the default, for its owner alone; SCOPE for everybody who reads its place - who then sees the numbers their own reading allows."},
+	{Name: "sharing", Kind: usecase.KindString, Enum: []string{"PRIVATE", "SCOPE", "GROUPS"}, Description: "PRIVATE, the default, for its owner alone; SCOPE for everybody who reads its place; GROUPS for the members of group_ids who read it - each then sees the numbers their own reading allows."},
+	{Name: "group_ids", Kind: usecase.KindList, Description: "For GROUPS: one to 20 groups whose members see it."},
 	{Name: "widgets", Kind: usecase.KindList, Description: "At most 24 tiles on a twelve-column grid: title, chart (NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS), source (VIEW with view_id, a saved summary view; QUERY with query, a POST /items:aggregate document; GOALS with goal_ids), x, y, w, h; id to keep one."},
 }
 

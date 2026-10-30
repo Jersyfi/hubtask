@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -494,6 +495,37 @@ func TestADashboardDrawsEachReadersOwnNumbers(t *testing.T) {
 	listed := ok(t, ListDashboards{s}.Descriptor(), ben, usecase.Input{})
 	if len(listed["data"].([]usecase.Output)) != 1 {
 		t.Fatalf("Ben lists %v", listed["data"])
+	}
+}
+
+type groups map[shared.ID][]shared.ID
+
+func (g groups) InGroup(_ context.Context, account, group shared.ID) (bool, error) {
+	return slices.Contains(g[group], account), nil
+}
+
+// UC-GOL-04 check 14: a dashboard shared with groups is seen by their members who read its place,
+// and by nobody else but its owner; sharing it asks STRUCTURE as sharing with the place does.
+func TestADashboardSharedWithGroupsReachesTheirMembers(t *testing.T) {
+	s, _, _, _ := newSteward(t)
+	team := shared.MustParseID("018f0000-0000-7000-8000-00000000c001")
+	s.Groups = groups{team: {ben}}
+	if _, err := call(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "Team", "sharing": "GROUPS", "group_ids": []any{team.String()}}); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("a member shared a dashboard with groups: %v", err)
+	}
+	board := ok(t, CreateDashboard{s}.Descriptor(), admin, usecase.Input{"name": "Team", "sharing": "GROUPS", "group_ids": []any{team.String()}})
+	if got := board["group_ids"]; !slices.Equal(got.([]string), []string{team.String()}) {
+		t.Fatalf("group_ids = %v", got)
+	}
+	if _, err := call(t, ReadDashboard{s}.Descriptor(), ben, usecase.Input{"dashboard_id": board.String("id")}); err != nil {
+		t.Fatalf("a member of the group: %v", err)
+	}
+	if _, err := call(t, ReadDashboard{s}.Descriptor(), ana, usecase.Input{"dashboard_id": board.String("id")}); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("somebody outside the group: %v", err)
+	}
+	s.Groups = nil
+	if _, err := call(t, ReadDashboard{s}.Descriptor(), ben, usecase.Input{"dashboard_id": board.String("id")}); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("without a membership answer: %v", err)
 	}
 }
 

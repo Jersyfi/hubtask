@@ -239,7 +239,8 @@ func TestADigestMailsTheSubscribersOwnTotals(t *testing.T) {
 	}
 }
 
-// A total's fraction is written after the subscriber's separator, exact and ungrouped.
+// UC-GOL-04 check 12: a total's fraction is written after the subscriber's separator, exact and
+// ungrouped.
 func TestADigestTotalReadsInTheSubscribersLocale(t *testing.T) {
 	widget := shared.MustParseID("018f0000-0000-7000-8000-0000000000d1")
 	board := domain.Dashboard{Widgets: []domain.Widget{{ID: widget, Title: "Hours", Chart: domain.ChartNumber}}}

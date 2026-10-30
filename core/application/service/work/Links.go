@@ -71,7 +71,10 @@ type Linking struct {
 	// Cis resolves a reference to a configuration item (M6); nil resolves none.
 	Cis CiSummaries
 	// Goals resolves a reference to a goal or a dashboard (M8); nil resolves none.
-	Goals      GoalSummaries
+	Goals GoalSummaries
+	// Groups answers whether a reader is a member of a group a dashboard is shared with; nil
+	// resolves a GROUPS dashboard for its owner alone.
+	Groups     GroupMembers
 	Authorizer Authorizer
 	// Reader filters a page by what the reader may see, and Permits answers one question, both
 	// without writing a refusal: a reference out of reach is not somebody trying anything.

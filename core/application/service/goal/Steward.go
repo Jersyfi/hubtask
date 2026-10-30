@@ -93,6 +93,11 @@ type Reader interface {
 	Permitted(ctx context.Context, actor appshared.ActorContext, request access.Request, paths [][]identity.Scope) ([]bool, error)
 }
 
+// GroupMembers answers whether an account is a member of a group.
+type GroupMembers interface {
+	InGroup(ctx context.Context, accountID, groupID shared.ID) (bool, error)
+}
+
 // Steward is what every use case of the module shares.
 type Steward struct {
 	Store      goalrepo.Store
@@ -116,6 +121,9 @@ type Steward struct {
 	HLC        clock.HLCSource
 	Authorizer Authorizer
 	Reader     Reader
+	// Groups answers whether a reader is a member of a group a dashboard is shared with; nil
+	// shows a GROUPS dashboard to its owner alone.
+	Groups     GroupMembers
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock

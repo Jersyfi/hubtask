@@ -1809,7 +1809,7 @@ func run() error {
 	linking := work.Linking{
 		Items: items, Containers: containers, Types: linkTypeRegistry.Types, Links: entryLinks,
 		References: entryLinks, Views: savedViews, Pages: postgres.NewPageRepository(), Boards: postgres.NewWhiteboardRepository(),
-		Cis: postgres.NewCmdbRepository(), Goals: postgres.NewGoalRepository(),
+		Cis: postgres.NewCmdbRepository(), Goals: postgres.NewGoalRepository(), Groups: postgres.NewSnapshotRepository(),
 		Authorizer: authorizer, Reader: authorizer,
 		Permits: authorizer, Events: outbox, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid, Activity: journal,
@@ -1933,6 +1933,8 @@ func run() error {
 		Schedules:  planningservice.ReadPlanSchedule{Planner: planner}.Descriptor().Handler,
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms, Jobs: jobs, Changes: changes, HLC: hybrid,
+		// A dashboard shared with groups reaches their members only.
+		Groups: postgres.NewSnapshotRepository(),
 	}
 	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
 	// goes through the inventory's reconciliation.

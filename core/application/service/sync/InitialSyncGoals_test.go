@@ -145,3 +145,28 @@ func TestTheGoalsReachADeviceOnlyWhileTheModuleIsOn(t *testing.T) {
 		t.Errorf("the switch was asked %d times a page, want once", switches.asked)
 	}
 }
+
+// UC-GOL-04 check 14: a dashboard shared with groups reaches the devices of their members who read
+// its place, and no other but its owner's.
+func TestADashboardSharedWithGroupsReachesTheirMembersDevices(t *testing.T) {
+	pull, f, store := walking(t)
+	team, others := idAt('c', 1), idAt('c', 2)
+	theirs, foreign := idAt('9', 4), idAt('9', 5)
+	store.dashboards = []goal.Dashboard{
+		{ID: theirs, HubID: hub, OwnerID: idAt('b', 9), Name: "Team", Sharing: goal.SharingGroups, GroupIDs: []shared.ID{others, team}, Version: 1},
+		{ID: foreign, HubID: hub, OwnerID: idAt('b', 9), Name: "Others", Sharing: goal.SharingGroups, GroupIDs: []shared.ID{others}, Version: 1},
+	}
+	f.auth.workspace = true
+	pull.Stream.Groups = &snapshotStore{groups: map[shared.ID]bool{team: true}}
+
+	records, _ := wholeWalk(t, pull, 100)
+	var got []shared.ID
+	for _, record := range records {
+		if record.Entity == "dashboard" {
+			got = append(got, record.EntityID)
+		}
+	}
+	if !slices.Equal(got, []shared.ID{theirs}) {
+		t.Errorf("dashboards delivered %v, want the one shared with the reader's group", got)
+	}
+}

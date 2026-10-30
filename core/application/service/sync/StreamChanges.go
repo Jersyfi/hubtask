@@ -522,10 +522,19 @@ func (s StreamChanges) mayReadOtherEnd(
 		return true, nil
 	}
 	if entity == entityDashboard {
-		// A private dashboard is its owner's alone (UC-GOL-04 check 3).
+		// A private dashboard is its owner's alone (UC-GOL-04 check 3), one shared with groups
+		// their members' too.
 		sharing, _ := payload["sharing"].(string)
 		owner, _ := payload["owner_id"].(string)
-		return sharing != string(goal.SharingPrivate) || (owner != "" && owner == actor.AccountID.String()), nil
+		switch {
+		case owner != "" && owner == actor.AccountID.String():
+			return true, nil
+		case sharing == string(goal.SharingScope):
+			return true, nil
+		case sharing == string(goal.SharingGroups):
+			return s.inAnyGroup(ctx, actor, payload["group_ids"])
+		}
+		return false, nil
 	}
 	if entity != entityEntryLink {
 		return true, nil
@@ -568,6 +577,36 @@ func (s StreamChanges) holds(
 		return err
 	})
 	return member, err
+}
+
+// inAnyGroup answers whether the reader is a member of one of a record's groups. Nil Groups
+// withholds it, the answer that does not leak one.
+func (s StreamChanges) inAnyGroup(ctx context.Context, actor appshared.ActorContext, raw any) (bool, error) {
+	if s.Groups == nil {
+		return false, nil
+	}
+	var groups []string
+	switch list := raw.(type) {
+	case []string:
+		groups = list
+	case []any:
+		for _, each := range list {
+			if text, ok := each.(string); ok {
+				groups = append(groups, text)
+			}
+		}
+	}
+	for _, g := range groups {
+		var member bool
+		if err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			member, err = s.Groups.InGroup(ctx, actor.AccountID, shared.ID(g))
+			return err
+		}); err != nil || member {
+			return member, err
+		}
+	}
+	return false, nil
 }
 
 // heldByOne reports whether a kind's every record names the one account that holds it: the stream
