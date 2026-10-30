@@ -1052,6 +1052,21 @@ export class HubtaskClient {
     return this.call("GET", "/items/{itemId}/code-links", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** An entry's files in a store */
+  listEntryFileLinks(itemId: string, options: CallOptions = {}): Promise<operations["listEntryFileLinks"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/file-links", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Link a file in a store on an entry */
+  linkEntryFile(itemId: string, body: NonNullable<operations["linkEntryFile"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["linkEntryFile"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}/file-links", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take a file link off its entry */
+  unlinkEntryFile(linkId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/file-links/{linkId}", { "linkId": linkId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** A forge posts its pushes and pull requests
    * Public: sent without a bearer where the client holds none. */
   deliverCode(tenantId: string, hookId: string, body: NonNullable<operations["deliverCode"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly xGitHubEvent?: string; readonly xGitlabEvent?: string; readonly xForgejoEvent?: string; readonly xGiteaEvent?: string; readonly xHubSignature256?: string; readonly xForgejoSignature?: string; readonly xGiteaSignature?: string; readonly xGitlabToken?: string; readonly xGitHubDelivery?: string; readonly xGitlabEventUUID?: string; readonly xForgejoDelivery?: string; readonly xGiteaDelivery?: string } = {}): Promise<operations["deliverCode"]['responses'][202]['content']["application/json"]> {

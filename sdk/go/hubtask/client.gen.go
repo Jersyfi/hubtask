@@ -1790,43 +1790,43 @@ func (e BackupTargetCreateEncryptionMode) Valid() bool {
 
 // Defines values for BackupTargetKind.
 const (
-	AZUREBLOB BackupTargetKind = "AZURE_BLOB"
-	FTP       BackupTargetKind = "FTP"
-	FTPS      BackupTargetKind = "FTPS"
-	GCS       BackupTargetKind = "GCS"
-	HTTPPUT   BackupTargetKind = "HTTP_PUT"
-	LOCAL     BackupTargetKind = "LOCAL"
-	RCLONE    BackupTargetKind = "RCLONE"
-	S3        BackupTargetKind = "S3"
-	SFTP      BackupTargetKind = "SFTP"
-	SMB       BackupTargetKind = "SMB"
-	WEBDAV    BackupTargetKind = "WEBDAV"
+	BackupTargetKindAZUREBLOB BackupTargetKind = "AZURE_BLOB"
+	BackupTargetKindFTP       BackupTargetKind = "FTP"
+	BackupTargetKindFTPS      BackupTargetKind = "FTPS"
+	BackupTargetKindGCS       BackupTargetKind = "GCS"
+	BackupTargetKindHTTPPUT   BackupTargetKind = "HTTP_PUT"
+	BackupTargetKindLOCAL     BackupTargetKind = "LOCAL"
+	BackupTargetKindRCLONE    BackupTargetKind = "RCLONE"
+	BackupTargetKindS3        BackupTargetKind = "S3"
+	BackupTargetKindSFTP      BackupTargetKind = "SFTP"
+	BackupTargetKindSMB       BackupTargetKind = "SMB"
+	BackupTargetKindWEBDAV    BackupTargetKind = "WEBDAV"
 )
 
 // Valid indicates whether the value is a known member of the BackupTargetKind enum.
 func (e BackupTargetKind) Valid() bool {
 	switch e {
-	case AZUREBLOB:
+	case BackupTargetKindAZUREBLOB:
 		return true
-	case FTP:
+	case BackupTargetKindFTP:
 		return true
-	case FTPS:
+	case BackupTargetKindFTPS:
 		return true
-	case GCS:
+	case BackupTargetKindGCS:
 		return true
-	case HTTPPUT:
+	case BackupTargetKindHTTPPUT:
 		return true
-	case LOCAL:
+	case BackupTargetKindLOCAL:
 		return true
-	case RCLONE:
+	case BackupTargetKindRCLONE:
 		return true
-	case S3:
+	case BackupTargetKindS3:
 		return true
-	case SFTP:
+	case BackupTargetKindSFTP:
 		return true
-	case SMB:
+	case BackupTargetKindSMB:
 		return true
-	case WEBDAV:
+	case BackupTargetKindWEBDAV:
 		return true
 	default:
 		return false
@@ -4386,6 +4386,54 @@ func (e EstimateUnit) Valid() bool {
 	case EstimateUnitPOINTS:
 		return true
 	case EstimateUnitSIZE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileLinkProvider.
+const (
+	FileLinkProviderNEXTCLOUD  FileLinkProvider = "NEXTCLOUD"
+	FileLinkProviderONEDRIVE   FileLinkProvider = "ONEDRIVE"
+	FileLinkProviderSHAREPOINT FileLinkProvider = "SHAREPOINT"
+	FileLinkProviderWEBDAV     FileLinkProvider = "WEBDAV"
+)
+
+// Valid indicates whether the value is a known member of the FileLinkProvider enum.
+func (e FileLinkProvider) Valid() bool {
+	switch e {
+	case FileLinkProviderNEXTCLOUD:
+		return true
+	case FileLinkProviderONEDRIVE:
+		return true
+	case FileLinkProviderSHAREPOINT:
+		return true
+	case FileLinkProviderWEBDAV:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileLinkCreateProvider.
+const (
+	FileLinkCreateProviderNEXTCLOUD  FileLinkCreateProvider = "NEXTCLOUD"
+	FileLinkCreateProviderONEDRIVE   FileLinkCreateProvider = "ONEDRIVE"
+	FileLinkCreateProviderSHAREPOINT FileLinkCreateProvider = "SHAREPOINT"
+	FileLinkCreateProviderWEBDAV     FileLinkCreateProvider = "WEBDAV"
+)
+
+// Valid indicates whether the value is a known member of the FileLinkCreateProvider enum.
+func (e FileLinkCreateProvider) Valid() bool {
+	switch e {
+	case FileLinkCreateProviderNEXTCLOUD:
+		return true
+	case FileLinkCreateProviderONEDRIVE:
+		return true
+	case FileLinkCreateProviderSHAREPOINT:
+		return true
+	case FileLinkCreateProviderWEBDAV:
 		return true
 	default:
 		return false
@@ -15407,6 +15455,38 @@ type EstimatesVsActuals struct {
 	EstimateHours float64            `json:"estimate_hours"`
 	Minutes       int                `json:"minutes"`
 	PlanId        openapi_types.UUID `json:"plan_id"`
+}
+
+// FileLink defines model for FileLink.
+type FileLink struct {
+	AddedAt time.Time          `json:"added_at"`
+	AddedBy openapi_types.UUID `json:"added_by"`
+
+	// Address The file's or folder's https address in its store.
+	Address      string             `json:"address"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	Id           openapi_types.UUID `json:"id"`
+	ItemId       openapi_types.UUID `json:"item_id"`
+	Name         string             `json:"name"`
+	Provider     FileLinkProvider   `json:"provider"`
+}
+
+// FileLinkProvider defines model for FileLink.Provider.
+type FileLinkProvider string
+
+// FileLinkCreate defines model for FileLinkCreate.
+type FileLinkCreate struct {
+	Address  string                  `json:"address"`
+	Name     *string                 `json:"name,omitempty"`
+	Provider *FileLinkCreateProvider `json:"provider,omitempty"`
+}
+
+// FileLinkCreateProvider defines model for FileLinkCreate.Provider.
+type FileLinkCreateProvider string
+
+// FileLinkList defines model for FileLinkList.
+type FileLinkList struct {
+	Data []FileLink `json:"data"`
 }
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
@@ -26665,6 +26745,9 @@ type SetItemEntryTypeJSONRequestBody SetItemEntryTypeJSONBody
 // SetEntryEstimateJSONRequestBody defines body for SetEntryEstimate for application/json ContentType.
 type SetEntryEstimateJSONRequestBody SetEntryEstimateJSONBody
 
+// LinkEntryFileJSONRequestBody defines body for LinkEntryFile for application/json ContentType.
+type LinkEntryFileJSONRequestBody = FileLinkCreate
+
 // LinkEntriesJSONRequestBody defines body for LinkEntries for application/json ContentType.
 type LinkEntriesJSONRequestBody = EntryLinkCreate
 
@@ -31924,6 +32007,13 @@ type ClientInterface interface {
 	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
 	EvaluateEntryForm(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// UnlinkEntryFile Take a file link off its entry
+	//
+	// Takes the link off its entry; the file itself stays in its store, untouched. Needs WRITE_ITEMS on the entry.
+	//
+	// Corresponds with DELETE /file-links/{linkId} (the `UnlinkEntryFile` operationId).
+	UnlinkEntryFile(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListGoalPeriods The goal periods
 	//
 	// The workspace's periods - quarters, years - the latest first, open and closed.
@@ -33051,6 +33141,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
 	SetEntryEstimate(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListEntryFileLinks An entry's files in a store
+	//
+	// The files and folders the entry links in a file store - Nextcloud, SharePoint, OneDrive or WebDAV - in the order they were added, each with its store, address and name. The files stay in their store with its permissions. Needs READ on the entry.
+	//
+	// Corresponds with GET /items/{itemId}/file-links (the `ListEntryFileLinks` operationId).
+	ListEntryFileLinks(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LinkEntryFileWithBody Link a file in a store on an entry
+	//
+	// Links a file or folder by its https address (a `davs://` address is read as its https address): a Nextcloud share or file, a SharePoint or OneDrive document, any WebDAV address. The store is told by the address unless it is given, the name is the address's last segment unless one is given. The file is never fetched nor copied. An address with credentials in it is refused (`filelink.address_has_credentials`), the same address twice on one entry too (`filelink.already_linked`); at most fifty per entry (`filelink.too_many`). Needs WRITE_ITEMS on the entry.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}/file-links (the `LinkEntryFile` operationId).
+	LinkEntryFileWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LinkEntryFile Link a file in a store on an entry
+	//
+	// Links a file or folder by its https address (a `davs://` address is read as its https address): a Nextcloud share or file, a SharePoint or OneDrive document, any WebDAV address. The store is told by the address unless it is given, the name is the address's last segment unless one is given. The file is never fetched nor copied. An address with credentials in it is refused (`filelink.address_has_credentials`), the same address twice on one entry too (`filelink.already_linked`); at most fifty per entry (`filelink.too_many`). Needs WRITE_ITEMS on the entry.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}/file-links (the `LinkEntryFile` operationId).
+	LinkEntryFile(ctx context.Context, itemId ItemId, body LinkEntryFileJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListEntryGoals The goals an entry serves
 	//
@@ -46300,6 +46415,23 @@ func (c *Client) EvaluateEntryForm(ctx context.Context, key string, body Evaluat
 	return c.Client.Do(req)
 }
 
+// UnlinkEntryFile Take a file link off its entry
+//
+// Takes the link off its entry; the file itself stays in its store, untouched. Needs WRITE_ITEMS on the entry.
+//
+// Corresponds with DELETE /file-links/{linkId} (the `UnlinkEntryFile` operationId).
+func (c *Client) UnlinkEntryFile(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnlinkEntryFileRequest(c.Server, linkId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListGoalPeriods The goal periods
 //
 // The workspace's periods - quarters, years - the latest first, open and closed.
@@ -48798,6 +48930,61 @@ func (c *Client) SetEntryEstimateWithBody(ctx context.Context, itemId ItemId, co
 // Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
 func (c *Client) SetEntryEstimate(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetEntryEstimateRequest(c.Server, itemId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListEntryFileLinks An entry's files in a store
+//
+// The files and folders the entry links in a file store - Nextcloud, SharePoint, OneDrive or WebDAV - in the order they were added, each with its store, address and name. The files stay in their store with its permissions. Needs READ on the entry.
+//
+// Corresponds with GET /items/{itemId}/file-links (the `ListEntryFileLinks` operationId).
+func (c *Client) ListEntryFileLinks(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEntryFileLinksRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LinkEntryFileWithBody Link a file in a store on an entry
+//
+// Links a file or folder by its https address (a `davs://` address is read as its https address): a Nextcloud share or file, a SharePoint or OneDrive document, any WebDAV address. The store is told by the address unless it is given, the name is the address's last segment unless one is given. The file is never fetched nor copied. An address with credentials in it is refused (`filelink.address_has_credentials`), the same address twice on one entry too (`filelink.already_linked`); at most fifty per entry (`filelink.too_many`). Needs WRITE_ITEMS on the entry.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}/file-links (the `LinkEntryFile` operationId).
+func (c *Client) LinkEntryFileWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLinkEntryFileRequestWithBody(c.Server, itemId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LinkEntryFile Link a file in a store on an entry
+//
+// Links a file or folder by its https address (a `davs://` address is read as its https address): a Nextcloud share or file, a SharePoint or OneDrive document, any WebDAV address. The store is told by the address unless it is given, the name is the address's last segment unless one is given. The file is never fetched nor copied. An address with credentials in it is refused (`filelink.address_has_credentials`), the same address twice on one entry too (`filelink.already_linked`); at most fifty per entry (`filelink.too_many`). Needs WRITE_ITEMS on the entry.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}/file-links (the `LinkEntryFile` operationId).
+func (c *Client) LinkEntryFile(ctx context.Context, itemId ItemId, body LinkEntryFileJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLinkEntryFileRequest(c.Server, itemId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -72259,6 +72446,40 @@ func NewEvaluateEntryFormRequestWithBody(server string, key string, contentType 
 	return req, nil
 }
 
+// NewUnlinkEntryFileRequest constructs an http.Request for the UnlinkEntryFile method
+func NewUnlinkEntryFileRequest(server string, linkId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "linkId", linkId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/file-links/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListGoalPeriodsRequest constructs an http.Request for the ListGoalPeriods method
 func NewListGoalPeriodsRequest(server string) (*http.Request, error) {
 	var err error
@@ -77363,6 +77584,87 @@ func NewSetEntryEstimateRequestWithBody(server string, itemId ItemId, contentTyp
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListEntryFileLinksRequest constructs an http.Request for the ListEntryFileLinks method
+func NewListEntryFileLinksRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/file-links", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewLinkEntryFileRequest calls the generic LinkEntryFile builder with application/json body
+func NewLinkEntryFileRequest(server string, itemId ItemId, body LinkEntryFileJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewLinkEntryFileRequestWithBody(server, itemId, "application/json", bodyReader)
+}
+
+// NewLinkEntryFileRequestWithBody constructs an http.Request for the LinkEntryFile method, with any body, and a specified content type
+func NewLinkEntryFileRequestWithBody(server string, itemId ItemId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/file-links", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -97337,6 +97639,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
 	EvaluateEntryFormWithResponse(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*EvaluateEntryFormResult, error)
 
+	// UnlinkEntryFileWithResponse Take a file link off its entry
+	//
+	// Takes the link off its entry; the file itself stays in its store, untouched. Needs WRITE_ITEMS on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /file-links/{linkId} (the `UnlinkEntryFile` operationId).
+	UnlinkEntryFileWithResponse(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkEntryFileResult, error)
+
 	// ListGoalPeriodsWithResponse The goal periods
 	//
 	// The workspace's periods - quarters, years - the latest first, open and closed.
@@ -98596,6 +98907,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /items/{itemId}/estimate (the `SetEntryEstimate` operationId).
 	SetEntryEstimateWithResponse(ctx context.Context, itemId ItemId, body SetEntryEstimateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetEntryEstimateResult, error)
+
+	// ListEntryFileLinksWithResponse An entry's files in a store
+	//
+	// The files and folders the entry links in a file store - Nextcloud, SharePoint, OneDrive or WebDAV - in the order they were added, each with its store, address and name. The files stay in their store with its permissions. Needs READ on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/file-links (the `ListEntryFileLinks` operationId).
+	ListEntryFileLinksWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryFileLinksResult, error)
+
+	// LinkEntryFileWithBodyWithResponse Link a file in a store on an entry
+	//
+	// Links a file or folder by its https address (a `davs://` address is read as its https address): a Nextcloud share or file, a SharePoint or OneDrive document, any WebDAV address. The store is told by the address unless it is given, the name is the address's last segment unless one is given. The file is never fetched nor copied. An address with credentials in it is refused (`filelink.address_has_credentials`), the same address twice on one entry too (`filelink.already_linked`); at most fifty per entry (`filelink.too_many`). Needs WRITE_ITEMS on the entry.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}/file-links (the `LinkEntryFile` operationId).
+	LinkEntryFileWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LinkEntryFileResult, error)
+
+	// LinkEntryFileWithResponse Link a file in a store on an entry
+	//
+	// Links a file or folder by its https address (a `davs://` address is read as its https address): a Nextcloud share or file, a SharePoint or OneDrive document, any WebDAV address. The store is told by the address unless it is given, the name is the address's last segment unless one is given. The file is never fetched nor copied. An address with credentials in it is refused (`filelink.address_has_credentials`), the same address twice on one entry too (`filelink.already_linked`); at most fifty per entry (`filelink.too_many`). Needs WRITE_ITEMS on the entry.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}/file-links (the `LinkEntryFile` operationId).
+	LinkEntryFileWithResponse(ctx context.Context, itemId ItemId, body LinkEntryFileJSONRequestBody, reqEditors ...RequestEditorFn) (*LinkEntryFileResult, error)
 
 	// ListEntryGoalsWithResponse The goals an entry serves
 	//
@@ -118374,6 +118712,47 @@ func (r EvaluateEntryFormResult) ContentType() string {
 	return ""
 }
 
+type UnlinkEntryFileResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnlinkEntryFileResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnlinkEntryFileResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnlinkEntryFileResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnlinkEntryFileResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnlinkEntryFileResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListGoalPeriodsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -123107,6 +123486,102 @@ func (r SetEntryEstimateResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetEntryEstimateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListEntryFileLinksResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *FileLinkList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListEntryFileLinksResult) GetJSON200() *FileLinkList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListEntryFileLinksResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListEntryFileLinksResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEntryFileLinksResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEntryFileLinksResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListEntryFileLinksResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LinkEntryFileResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *FileLink
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r LinkEntryFileResult) GetJSON201() *FileLink {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r LinkEntryFileResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r LinkEntryFileResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LinkEntryFileResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LinkEntryFileResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LinkEntryFileResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -146412,6 +146887,21 @@ func (c *ClientWithResponses) EvaluateEntryFormWithResponse(ctx context.Context,
 	return ParseEvaluateEntryFormResult(rsp)
 }
 
+// UnlinkEntryFileWithResponse Take a file link off its entry
+//
+// Takes the link off its entry; the file itself stays in its store, untouched. Needs WRITE_ITEMS on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /file-links/{linkId} (the `UnlinkEntryFile` operationId).
+func (c *ClientWithResponses) UnlinkEntryFileWithResponse(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkEntryFileResult, error) {
+	rsp, err := c.UnlinkEntryFile(ctx, linkId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnlinkEntryFileResult(rsp)
+}
+
 // ListGoalPeriodsWithResponse The goal periods
 //
 // The workspace's periods - quarters, years - the latest first, open and closed.
@@ -148498,6 +148988,51 @@ func (c *ClientWithResponses) SetEntryEstimateWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseSetEntryEstimateResult(rsp)
+}
+
+// ListEntryFileLinksWithResponse An entry's files in a store
+//
+// The files and folders the entry links in a file store - Nextcloud, SharePoint, OneDrive or WebDAV - in the order they were added, each with its store, address and name. The files stay in their store with its permissions. Needs READ on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/file-links (the `ListEntryFileLinks` operationId).
+func (c *ClientWithResponses) ListEntryFileLinksWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryFileLinksResult, error) {
+	rsp, err := c.ListEntryFileLinks(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEntryFileLinksResult(rsp)
+}
+
+// LinkEntryFileWithBodyWithResponse Link a file in a store on an entry
+//
+// Links a file or folder by its https address (a `davs://` address is read as its https address): a Nextcloud share or file, a SharePoint or OneDrive document, any WebDAV address. The store is told by the address unless it is given, the name is the address's last segment unless one is given. The file is never fetched nor copied. An address with credentials in it is refused (`filelink.address_has_credentials`), the same address twice on one entry too (`filelink.already_linked`); at most fifty per entry (`filelink.too_many`). Needs WRITE_ITEMS on the entry.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}/file-links (the `LinkEntryFile` operationId).
+func (c *ClientWithResponses) LinkEntryFileWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LinkEntryFileResult, error) {
+	rsp, err := c.LinkEntryFileWithBody(ctx, itemId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLinkEntryFileResult(rsp)
+}
+
+// LinkEntryFileWithResponse Link a file in a store on an entry
+//
+// Links a file or folder by its https address (a `davs://` address is read as its https address): a Nextcloud share or file, a SharePoint or OneDrive document, any WebDAV address. The store is told by the address unless it is given, the name is the address's last segment unless one is given. The file is never fetched nor copied. An address with credentials in it is refused (`filelink.address_has_credentials`), the same address twice on one entry too (`filelink.already_linked`); at most fifty per entry (`filelink.too_many`). Needs WRITE_ITEMS on the entry.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}/file-links (the `LinkEntryFile` operationId).
+func (c *ClientWithResponses) LinkEntryFileWithResponse(ctx context.Context, itemId ItemId, body LinkEntryFileJSONRequestBody, reqEditors ...RequestEditorFn) (*LinkEntryFileResult, error) {
+	rsp, err := c.LinkEntryFile(ctx, itemId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLinkEntryFileResult(rsp)
 }
 
 // ListEntryGoalsWithResponse The goals an entry serves
@@ -166712,6 +167247,35 @@ func ParseEvaluateEntryFormResult(rsp *http.Response) (*EvaluateEntryFormResult,
 	return response, nil
 }
 
+// ParseUnlinkEntryFileResult parses an HTTP response from a UnlinkEntryFileWithResponse call
+func ParseUnlinkEntryFileResult(rsp *http.Response) (*UnlinkEntryFileResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnlinkEntryFileResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListGoalPeriodsResult parses an HTTP response from a ListGoalPeriodsWithResponse call
 func ParseListGoalPeriodsResult(rsp *http.Response) (*ListGoalPeriodsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -170061,6 +170625,72 @@ func ParseSetEntryEstimateResult(rsp *http.Response) (*SetEntryEstimateResult, e
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListEntryFileLinksResult parses an HTTP response from a ListEntryFileLinksWithResponse call
+func ParseListEntryFileLinksResult(rsp *http.Response) (*ListEntryFileLinksResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEntryFileLinksResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FileLinkList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLinkEntryFileResult parses an HTTP response from a LinkEntryFileWithResponse call
+func ParseLinkEntryFileResult(rsp *http.Response) (*LinkEntryFileResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LinkEntryFileResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest FileLink
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

@@ -12,6 +12,7 @@ var generatedGroups = map[string]string{
 	"cmdb":              "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
 	"code":              "a hub's forge hooks and an entry's commits, branches and pull requests",
 	"dashboard":         "dashboards: widgets over summary views, summary documents and goals, and their figures for the caller",
+	"file":              "an entry's files and folders in a file store: Nextcloud, SharePoint, OneDrive, WebDAV",
 	"goal":              "goals with key results, linked entries and check-ins, and their progress as the caller sees it",
 	"goal-period":       "the workspace's goal periods: quarters and years, closed with every goal graded",
 	"link":              "an entry's links to other entries, and references resolved",
@@ -912,6 +913,26 @@ var generatedCommands = []door{
 			{Name: "widgets", Kind: "json", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "version"}},
+	{Group: "file", Verb: "add", OperationID: "linkEntryFile", Method: "POST", Path: "/items/{itemId}/file-links", Summary: "Link a file in a store on an entry",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "address", Kind: "string", Help: "", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: false},
+			{Name: "provider", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name"}},
+	{Group: "file", Verb: "ls", OperationID: "listEntryFileLinks", Method: "GET", Path: "/items/{itemId}/file-links", Summary: "An entry's files in a store",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name"}},
+	{Group: "file", Verb: "rm", OperationID: "unlinkEntryFile", Method: "DELETE", Path: "/file-links/{linkId}", Summary: "Take a file link off its entry",
+		PathParams: []doorParam{
+			{Name: "linkId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "goal", Verb: "add", OperationID: "createGoal", Method: "POST", Path: "/goals", Summary: "Set a goal",
 		Body: []doorParam{
 			{Name: "description", Kind: "string", Help: "", Required: false},

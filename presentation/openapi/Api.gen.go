@@ -1785,43 +1785,43 @@ func (e BackupTargetCreateEncryptionMode) Valid() bool {
 
 // Defines values for BackupTargetKind.
 const (
-	AZUREBLOB BackupTargetKind = "AZURE_BLOB"
-	FTP       BackupTargetKind = "FTP"
-	FTPS      BackupTargetKind = "FTPS"
-	GCS       BackupTargetKind = "GCS"
-	HTTPPUT   BackupTargetKind = "HTTP_PUT"
-	LOCAL     BackupTargetKind = "LOCAL"
-	RCLONE    BackupTargetKind = "RCLONE"
-	S3        BackupTargetKind = "S3"
-	SFTP      BackupTargetKind = "SFTP"
-	SMB       BackupTargetKind = "SMB"
-	WEBDAV    BackupTargetKind = "WEBDAV"
+	BackupTargetKindAZUREBLOB BackupTargetKind = "AZURE_BLOB"
+	BackupTargetKindFTP       BackupTargetKind = "FTP"
+	BackupTargetKindFTPS      BackupTargetKind = "FTPS"
+	BackupTargetKindGCS       BackupTargetKind = "GCS"
+	BackupTargetKindHTTPPUT   BackupTargetKind = "HTTP_PUT"
+	BackupTargetKindLOCAL     BackupTargetKind = "LOCAL"
+	BackupTargetKindRCLONE    BackupTargetKind = "RCLONE"
+	BackupTargetKindS3        BackupTargetKind = "S3"
+	BackupTargetKindSFTP      BackupTargetKind = "SFTP"
+	BackupTargetKindSMB       BackupTargetKind = "SMB"
+	BackupTargetKindWEBDAV    BackupTargetKind = "WEBDAV"
 )
 
 // Valid indicates whether the value is a known member of the BackupTargetKind enum.
 func (e BackupTargetKind) Valid() bool {
 	switch e {
-	case AZUREBLOB:
+	case BackupTargetKindAZUREBLOB:
 		return true
-	case FTP:
+	case BackupTargetKindFTP:
 		return true
-	case FTPS:
+	case BackupTargetKindFTPS:
 		return true
-	case GCS:
+	case BackupTargetKindGCS:
 		return true
-	case HTTPPUT:
+	case BackupTargetKindHTTPPUT:
 		return true
-	case LOCAL:
+	case BackupTargetKindLOCAL:
 		return true
-	case RCLONE:
+	case BackupTargetKindRCLONE:
 		return true
-	case S3:
+	case BackupTargetKindS3:
 		return true
-	case SFTP:
+	case BackupTargetKindSFTP:
 		return true
-	case SMB:
+	case BackupTargetKindSMB:
 		return true
-	case WEBDAV:
+	case BackupTargetKindWEBDAV:
 		return true
 	default:
 		return false
@@ -4381,6 +4381,54 @@ func (e EstimateUnit) Valid() bool {
 	case EstimateUnitPOINTS:
 		return true
 	case EstimateUnitSIZE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileLinkProvider.
+const (
+	FileLinkProviderNEXTCLOUD  FileLinkProvider = "NEXTCLOUD"
+	FileLinkProviderONEDRIVE   FileLinkProvider = "ONEDRIVE"
+	FileLinkProviderSHAREPOINT FileLinkProvider = "SHAREPOINT"
+	FileLinkProviderWEBDAV     FileLinkProvider = "WEBDAV"
+)
+
+// Valid indicates whether the value is a known member of the FileLinkProvider enum.
+func (e FileLinkProvider) Valid() bool {
+	switch e {
+	case FileLinkProviderNEXTCLOUD:
+		return true
+	case FileLinkProviderONEDRIVE:
+		return true
+	case FileLinkProviderSHAREPOINT:
+		return true
+	case FileLinkProviderWEBDAV:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileLinkCreateProvider.
+const (
+	FileLinkCreateProviderNEXTCLOUD  FileLinkCreateProvider = "NEXTCLOUD"
+	FileLinkCreateProviderONEDRIVE   FileLinkCreateProvider = "ONEDRIVE"
+	FileLinkCreateProviderSHAREPOINT FileLinkCreateProvider = "SHAREPOINT"
+	FileLinkCreateProviderWEBDAV     FileLinkCreateProvider = "WEBDAV"
+)
+
+// Valid indicates whether the value is a known member of the FileLinkCreateProvider enum.
+func (e FileLinkCreateProvider) Valid() bool {
+	switch e {
+	case FileLinkCreateProviderNEXTCLOUD:
+		return true
+	case FileLinkCreateProviderONEDRIVE:
+		return true
+	case FileLinkCreateProviderSHAREPOINT:
+		return true
+	case FileLinkCreateProviderWEBDAV:
 		return true
 	default:
 		return false
@@ -15402,6 +15450,38 @@ type EstimatesVsActuals struct {
 	EstimateHours float64            `json:"estimate_hours"`
 	Minutes       int                `json:"minutes"`
 	PlanId        openapi_types.UUID `json:"plan_id"`
+}
+
+// FileLink defines model for FileLink.
+type FileLink struct {
+	AddedAt time.Time          `json:"added_at"`
+	AddedBy openapi_types.UUID `json:"added_by"`
+
+	// Address The file's or folder's https address in its store.
+	Address      string             `json:"address"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	Id           openapi_types.UUID `json:"id"`
+	ItemId       openapi_types.UUID `json:"item_id"`
+	Name         string             `json:"name"`
+	Provider     FileLinkProvider   `json:"provider"`
+}
+
+// FileLinkProvider defines model for FileLink.Provider.
+type FileLinkProvider string
+
+// FileLinkCreate defines model for FileLinkCreate.
+type FileLinkCreate struct {
+	Address  string                  `json:"address"`
+	Name     *string                 `json:"name,omitempty"`
+	Provider *FileLinkCreateProvider `json:"provider,omitempty"`
+}
+
+// FileLinkCreateProvider defines model for FileLinkCreate.Provider.
+type FileLinkCreateProvider string
+
+// FileLinkList defines model for FileLinkList.
+type FileLinkList struct {
+	Data []FileLink `json:"data"`
 }
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
@@ -26660,6 +26740,9 @@ type SetItemEntryTypeJSONRequestBody SetItemEntryTypeJSONBody
 // SetEntryEstimateJSONRequestBody defines body for SetEntryEstimate for application/json ContentType.
 type SetEntryEstimateJSONRequestBody SetEntryEstimateJSONBody
 
+// LinkEntryFileJSONRequestBody defines body for LinkEntryFile for application/json ContentType.
+type LinkEntryFileJSONRequestBody = FileLinkCreate
+
 // LinkEntriesJSONRequestBody defines body for LinkEntries for application/json ContentType.
 type LinkEntriesJSONRequestBody = EntryLinkCreate
 
@@ -28450,6 +28533,9 @@ type ServerInterface interface {
 	// EvaluateEntryForm Answer a type's form for a draft
 	// (POST /entry-types/{key}/form:evaluate)
 	EvaluateEntryForm(w http.ResponseWriter, r *http.Request, key string)
+	// UnlinkEntryFile Take a file link off its entry
+	// (DELETE /file-links/{linkId})
+	UnlinkEntryFile(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID)
 	// ListGoalPeriods The goal periods
 	// (GET /goal-periods)
 	ListGoalPeriods(w http.ResponseWriter, r *http.Request)
@@ -28744,6 +28830,12 @@ type ServerInterface interface {
 	// SetEntryEstimate Say how big an entry is
 	// (PUT /items/{itemId}/estimate)
 	SetEntryEstimate(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// ListEntryFileLinks An entry's files in a store
+	// (GET /items/{itemId}/file-links)
+	ListEntryFileLinks(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// LinkEntryFile Link a file in a store on an entry
+	// (POST /items/{itemId}/file-links)
+	LinkEntryFile(w http.ResponseWriter, r *http.Request, itemId ItemId)
 	// ListEntryGoals The goals an entry serves
 	// (GET /items/{itemId}/goals)
 	ListEntryGoals(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -39815,6 +39907,32 @@ func (siw *ServerInterfaceWrapper) EvaluateEntryForm(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// UnlinkEntryFile operation middleware
+func (siw *ServerInterfaceWrapper) UnlinkEntryFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "linkId" -------------
+	var linkId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "linkId", r.PathValue("linkId"), &linkId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "linkId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnlinkEntryFile(w, r, linkId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListGoalPeriods operation middleware
 func (siw *ServerInterfaceWrapper) ListGoalPeriods(w http.ResponseWriter, r *http.Request) {
 
@@ -43679,6 +43797,58 @@ func (siw *ServerInterfaceWrapper) SetEntryEstimate(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetEntryEstimate(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEntryFileLinks operation middleware
+func (siw *ServerInterfaceWrapper) ListEntryFileLinks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEntryFileLinks(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LinkEntryFile operation middleware
+func (siw *ServerInterfaceWrapper) LinkEntryFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LinkEntryFile(w, r, itemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -54790,6 +54960,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/code-hooks/{hookId}", wrapper.UpdateCodeHook)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/code-hooks/{hookId}/secret", wrapper.RotateCodeHookSecret)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/code-links", wrapper.ListEntryCodeLinks)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/file-links", wrapper.ListEntryFileLinks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/file-links", wrapper.LinkEntryFile)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/file-links/{linkId}", wrapper.UnlinkEntryFile)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/code-intake/{tenantId}/{hookId}", wrapper.DeliverCode)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb/inventory-intake/{tenantId}/{connectorId}", wrapper.DeliverCiInventory)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cmdb-health", wrapper.ReadCmdbHealth)

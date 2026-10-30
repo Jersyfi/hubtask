@@ -5754,6 +5754,24 @@ class CodeLink(TypedDict, total=False):
 class CodeLinkList(TypedDict, total=False):
     data: Required[list["CodeLink"]]
 
+class FileLink(TypedDict, total=False):
+    id: Required[str]
+    item_id: Required[str]
+    collection_id: Required[str]
+    provider: Required[Literal["NEXTCLOUD", "SHAREPOINT", "ONEDRIVE", "WEBDAV"]]
+    address: Required[str]
+    name: Required[str]
+    added_by: Required[str]
+    added_at: Required[str]
+
+class FileLinkList(TypedDict, total=False):
+    data: Required[list["FileLink"]]
+
+class FileLinkCreate(TypedDict, total=False):
+    address: Required[str]
+    provider: Literal["NEXTCLOUD", "SHAREPOINT", "ONEDRIVE", "WEBDAV"]
+    name: str
+
 class CodeDeliveryReceipt(TypedDict, total=False):
     received: Required[int]
     linked: Required[int]

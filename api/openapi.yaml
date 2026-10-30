@@ -66,6 +66,7 @@ tags:
   - name: goals
   - name: agents
   - name: code
+  - name: files
 
 x-hubtask-cli-groups:
   workflow: "the workspace's workflows and which collection runs which"
@@ -76,6 +77,7 @@ x-hubtask-cli-groups:
   page: "a hub's pages: write, find, move, version, comment on and export them"
   whiteboard: "a hub's whiteboards: make, draw on, trash and export them"
   code: "a hub's forge hooks and an entry's commits, branches and pull requests"
+  file: "an entry's files and folders in a file store: Nextcloud, SharePoint, OneDrive, WebDAV"
   cmdb: "the workspace's configuration item classes, relation types and sources, and a hub's inventory health"
   ci: "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact"
   business-calendar: "the workspace's business calendars: working hours, holidays and a time zone under a key"
@@ -4640,6 +4642,74 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CodeLinkList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /items/{itemId}/file-links:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [files]
+      operationId: listEntryFileLinks
+      x-hubtask-rest: generated
+      x-hubtask-cli: "file ls"
+      summary: An entry's files in a store
+      description: >
+        The files and folders the entry links in a file store - Nextcloud, SharePoint, OneDrive or
+        WebDAV - in the order they were added, each with its store, address and name. The files
+        stay in their store with its permissions. Needs READ on the entry.
+      responses:
+        "200":
+          description: The entry's file links
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FileLinkList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [files]
+      operationId: linkEntryFile
+      x-hubtask-rest: generated
+      x-hubtask-cli: "file add"
+      summary: Link a file in a store on an entry
+      description: >
+        Links a file or folder by its https address (a `davs://` address is read as its https
+        address): a Nextcloud share or file, a SharePoint or OneDrive document, any WebDAV
+        address. The store is told by the address unless it is given, the name is the address's
+        last segment unless one is given. The file is never fetched nor copied. An address with
+        credentials in it is refused (`filelink.address_has_credentials`), the same address twice
+        on one entry too (`filelink.already_linked`); at most fifty per entry
+        (`filelink.too_many`). Needs WRITE_ITEMS on the entry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FileLinkCreate" }
+      responses:
+        "201":
+          description: Linked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FileLink" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /file-links/{linkId}:
+    parameters:
+      - name: linkId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [files]
+      operationId: unlinkEntryFile
+      x-hubtask-rest: generated
+      x-hubtask-cli: "file rm"
+      summary: Take a file link off its entry
+      description: >
+        Takes the link off its entry; the file itself stays in its store, untouched. Needs
+        WRITE_ITEMS on the entry.
+      responses:
+        "204":
+          description: Taken off
         "4XX":
           $ref: "#/components/responses/Problem"
   /code-intake/{tenantId}/{hookId}:
@@ -36145,6 +36215,33 @@ components:
       required: [data]
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/CodeLink" } }
+
+    FileLink:
+      type: object
+      required: [id, item_id, collection_id, provider, address, name, added_by, added_at]
+      properties:
+        id: { type: string, format: uuid }
+        item_id: { type: string, format: uuid }
+        collection_id: { type: string, format: uuid }
+        provider: { type: string, enum: [NEXTCLOUD, SHAREPOINT, ONEDRIVE, WEBDAV] }
+        address: { type: string, description: The file's or folder's https address in its store. }
+        name: { type: string }
+        added_by: { type: string, format: uuid }
+        added_at: { type: string, format: date-time }
+
+    FileLinkList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/FileLink" } }
+
+    FileLinkCreate:
+      type: object
+      required: [address]
+      properties:
+        address: { type: string, minLength: 1, maxLength: 2048 }
+        provider: { type: string, enum: [NEXTCLOUD, SHAREPOINT, ONEDRIVE, WEBDAV] }
+        name: { type: string, maxLength: 200 }
 
     CodeDeliveryReceipt:
       type: object

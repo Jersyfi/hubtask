@@ -245,6 +245,7 @@ var restDoors = map[string]restDoor{
 	"inviteAccount":                     {UseCase: "InviteAccount", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/accounts/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "invitation_link"},
 	"issueStartPassword":                {UseCase: "IssueStartPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "start_password"},
 	"linkEntries":                       {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"linkEntryFile":                     {UseCase: "LinkEntryFile", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkGoalEntries":                   {UseCase: "LinkGoalEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listAbsences":                      {UseCase: "ListAbsences", Status: 200, Query: []string{"account_id", "from", "to"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listAccessTokens":                  {UseCase: "ListAccessTokens", Status: 200, Query: []string{"account_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -293,6 +294,7 @@ var restDoors = map[string]restDoor{
 	"listEmergencyNotices":              {UseCase: "ListEmergencyNotices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryCis":                      {UseCase: "ListEntryCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryCodeLinks":                {UseCase: "ListEntryCodeLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listEntryFileLinks":                {UseCase: "ListEntryFileLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryGoals":                    {UseCase: "ListEntryGoals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryLinks":                    {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntrySteps":                    {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -638,6 +640,7 @@ var restDoors = map[string]restDoor{
 	"unarchiveWorkItem":                 {UseCase: "UnarchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unassignWorkItem":                  {UseCase: "UnassignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkEntries":                     {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unlinkEntryFile":                   {UseCase: "UnlinkEntryFile", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkGoalEntry":                   {UseCase: "UnlinkGoalEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unpublishPageFromPortal":           {UseCase: "UnpublishPageFromPortal", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unrelateCis":                       {UseCase: "UnrelateCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2062,6 +2065,13 @@ func (c *RestController) LinkEntries(w http.ResponseWriter, r *http.Request, ite
 	c.door(w, r, restDoors["linkEntries"], usecase.Input{"item_id": itemId.String()}, nil, &body, &answer)
 }
 
+// LinkEntryFile answers POST /items/{itemId}/file-links by the generated mapping.
+func (c *RestController) LinkEntryFile(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var body openapi.LinkEntryFileJSONRequestBody
+	var answer openapi.FileLink
+	c.door(w, r, restDoors["linkEntryFile"], usecase.Input{"item_id": itemId.String()}, nil, &body, &answer)
+}
+
 // LinkGoalEntries answers POST /goals/{goalId}/entries by the generated mapping.
 func (c *RestController) LinkGoalEntries(w http.ResponseWriter, r *http.Request, goalId openapi.GoalId) {
 	var body openapi.LinkGoalEntriesJSONRequestBody
@@ -2335,6 +2345,12 @@ func (c *RestController) ListEntryCis(w http.ResponseWriter, r *http.Request, it
 func (c *RestController) ListEntryCodeLinks(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
 	var answer openapi.CodeLinkList
 	c.door(w, r, restDoors["listEntryCodeLinks"], usecase.Input{"item_id": itemId.String()}, nil, nil, &answer)
+}
+
+// ListEntryFileLinks answers GET /items/{itemId}/file-links by the generated mapping.
+func (c *RestController) ListEntryFileLinks(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var answer openapi.FileLinkList
+	c.door(w, r, restDoors["listEntryFileLinks"], usecase.Input{"item_id": itemId.String()}, nil, nil, &answer)
 }
 
 // ListEntryGoals answers GET /items/{itemId}/goals by the generated mapping.
@@ -4374,6 +4390,11 @@ func (c *RestController) UnassignWorkItem(w http.ResponseWriter, r *http.Request
 // UnlinkEntries answers DELETE /links/{linkId} by the generated mapping.
 func (c *RestController) UnlinkEntries(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID) {
 	c.door(w, r, restDoors["unlinkEntries"], usecase.Input{"link_id": linkId.String()}, nil, nil, nil)
+}
+
+// UnlinkEntryFile answers DELETE /file-links/{linkId} by the generated mapping.
+func (c *RestController) UnlinkEntryFile(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID) {
+	c.door(w, r, restDoors["unlinkEntryFile"], usecase.Input{"link_id": linkId.String()}, nil, nil, nil)
 }
 
 // UnlinkGoalEntry answers DELETE /goals/{goalId}/entries/{entryId} by the generated mapping.

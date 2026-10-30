@@ -2865,3 +2865,15 @@ func (pending) ListEntryCodeLinks(w http.ResponseWriter, r *http.Request, _ open
 func (pending) DeliverCode(w http.ResponseWriter, r *http.Request, _, _ openapi_types.UUID, _ openapi.DeliverCodeParams) {
 	notAvailable(w, r)
 }
+
+func (pending) ListEntryFileLinks(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) LinkEntryFile(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnlinkEntryFile(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}

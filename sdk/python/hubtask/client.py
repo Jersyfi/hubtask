@@ -855,6 +855,18 @@ class Client:
         """An entry's commits, branches and pull requests"""
         return self._call("GET", "/items/{itemId}/code-links", {"itemId": item_id}, None, {}, None, "none", None, "json")
 
+    def list_entry_file_links(self, item_id: str) -> "FileLinkList":
+        """An entry's files in a store"""
+        return self._call("GET", "/items/{itemId}/file-links", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def link_entry_file(self, item_id: str, body: "FileLinkCreate") -> "FileLink":
+        """Link a file in a store on an entry"""
+        return self._call("POST", "/items/{itemId}/file-links", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def unlink_entry_file(self, link_id: str) -> None:
+        """Take a file link off its entry"""
+        return self._call("DELETE", "/file-links/{linkId}", {"linkId": link_id}, None, {}, None, "none", None, "void")
+
     def deliver_code(self, tenant_id: str, hook_id: str, body: dict[str, Any], *, x_git_hub_event: str | None = None, x_gitlab_event: str | None = None, x_forgejo_event: str | None = None, x_gitea_event: str | None = None, x_hub_signature_256: str | None = None, x_forgejo_signature: str | None = None, x_gitea_signature: str | None = None, x_gitlab_token: str | None = None, x_git_hub_delivery: str | None = None, x_gitlab_event_uuid: str | None = None, x_forgejo_delivery: str | None = None, x_gitea_delivery: str | None = None) -> "CodeDeliveryReceipt":
         """A forge posts its pushes and pull requests"""
         return self._call("POST", "/code-intake/{tenantId}/{hookId}", {"tenantId": tenant_id, "hookId": hook_id}, None, {"X-GitHub-Event": x_git_hub_event, "X-Gitlab-Event": x_gitlab_event, "X-Forgejo-Event": x_forgejo_event, "X-Gitea-Event": x_gitea_event, "X-Hub-Signature-256": x_hub_signature_256, "X-Forgejo-Signature": x_forgejo_signature, "X-Gitea-Signature": x_gitea_signature, "X-Gitlab-Token": x_gitlab_token, "X-GitHub-Delivery": x_git_hub_delivery, "X-Gitlab-Event-UUID": x_gitlab_event_uuid, "X-Forgejo-Delivery": x_forgejo_delivery, "X-Gitea-Delivery": x_gitea_delivery}, body, "json", "application/json", "json")
