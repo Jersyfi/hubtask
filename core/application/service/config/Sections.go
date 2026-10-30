@@ -36,8 +36,11 @@ type section struct {
 	// field naming the block.
 	list      string
 	listInput usecase.Input
-	rows      string
-	key       string
+	// scope is what every operation of the section carries besides its block: a hub's section
+	// names the hub in each.
+	scope usecase.Input
+	rows  string
+	key   string
 	// rowsOf replaces rows where the answer is one object rather than a list of rows.
 	rowsOf func(answer map[string]any) []any
 	// attributes is what the document keeps of a row; fixed are those set at creation only.
@@ -326,6 +329,16 @@ func (s section) operations(change domain.BlockChange, row map[string]any) ([]op
 	if s.ops != nil {
 		return s.ops(change, row)
 	}
+	ops, err := s.blockOperations(change, row)
+	for _, op := range ops {
+		for name, value := range s.scope {
+			op.Input[name] = value
+		}
+	}
+	return ops, err
+}
+
+func (s section) blockOperations(change domain.BlockChange, row map[string]any) ([]operation, error) {
 	path := change.Path()
 	switch change.Op {
 	case domain.OpAdd:

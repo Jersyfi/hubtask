@@ -136,3 +136,52 @@ func TestAHubsVersionIsNotRestoredAsTheWorkspaces(t *testing.T) {
 		t.Errorf("the hub's own version does not plan back: %v", back)
 	}
 }
+
+// UC-SVC-01 check 5: a hub's own versions of the workspace's calendars are blocks of the hub's
+// document under the workspace's keys, applied through the hub's own calendar use cases, each
+// naming the hub.
+func TestAHubsCalendarsAreBlocksOfItsDocument(t *testing.T) {
+	f := hubFixture()
+	f.world.hubCalendars = map[string]map[string]any{
+		"office": {"key": "office", "hub_id": supportHub, "name": "Support office", "zone": "Europe/Berlin",
+			"hours": []any{map[string]any{"day": "MONDAY", "from": "08:00", "to": "16:00"}}, "holidays": []any{}},
+		"weekend": {"key": "weekend", "hub_id": supportHub, "name": "Weekend", "zone": "Europe/Berlin", "hours": []any{}, "holidays": []any{}},
+	}
+	out := invoke(t, ExportConfig{f.desk}.Descriptor(), person, usecase.Input{"hub_id": supportHub})
+	calendars := out["document"].(map[string]any)[sectionCalendars].(map[string]any)
+	office, _ := calendars["office"].(map[string]any)
+	if len(calendars) != 2 || office["name"] != "Support office" || office["zone"] != "Europe/Berlin" {
+		t.Fatalf("the hub's calendars are not its document's blocks: %v", calendars)
+	}
+	if _, held := office["hub_id"]; held {
+		t.Errorf("a calendar block names its hub: %v", office)
+	}
+
+	document := map[string]any{sectionCalendars: map[string]any{
+		"office":  map[string]any{"name": "Support office", "zone": "Europe/Vienna", "hours": office["hours"], "holidays": []any{"2026-12-24"}},
+		"weekend": nil,
+		"night":   map[string]any{"name": "Night", "zone": "UTC", "hours": []any{}},
+	}}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": document, "hub_id": supportHub, "mode": "MERGE"})
+	if plan["plan_hash"] == nil {
+		t.Fatalf("plan %v", plan)
+	}
+	applied := invoke(t, ApplyConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"document": document, "hub_id": supportHub, "mode": "MERGE", "plan_hash": plan["plan_hash"], "acknowledge": true,
+	})
+	if applied["state"] != "APPLIED" {
+		t.Fatalf("not applied: %v", applied)
+	}
+	defined := map[string]usecase.Input{}
+	for _, in := range f.world.inputs["DefineHubCalendar"] {
+		defined[in.String("key")] = in
+	}
+	if len(defined) != 2 || defined["office"]["zone"] != "Europe/Vienna" || defined["night"]["name"] != "Night" ||
+		defined["office"]["hub_id"] != supportHub || defined["night"]["hub_id"] != supportHub {
+		t.Errorf("the calendars were defined as %v", f.world.inputs["DefineHubCalendar"])
+	}
+	removed := f.world.inputs["DeleteHubCalendar"]
+	if len(removed) != 1 || removed[0]["key"] != "weekend" || removed[0]["hub_id"] != supportHub {
+		t.Errorf("the removed calendar ran %v", removed)
+	}
+}

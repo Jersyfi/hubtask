@@ -16,7 +16,8 @@ import (
 )
 
 // A hub's own document (config-document.md §1) holds what the hub decides itself - its structure
-// settings, its module switches and which workflow it runs for which type - each block by a key
+// settings, its module switches, which workflow it runs for which type and its own versions of the
+// workspace's business calendars - each block by a key
 // that is the same in every hub, so a hub's document applies to a second hub unchanged. The hub
 // is named by the request, never inside the document: a hub has no stable key.
 const (
@@ -117,6 +118,15 @@ func hubSections(hub shared.ID) []section {
 					"container_id": id, "entry_type": entryType, "workflow": workflow, "confirm": true,
 				}}}, nil
 			},
+		},
+		{
+			// The hub's own version of a workspace calendar, under the workspace's key (UC-SVC-01
+			// check 5); after the scheme, as the workspace's calendars follow its types.
+			name: sectionCalendars, module: module.ServiceDesk, list: "ListHubCalendars", listInput: usecase.Input{"hub_id": id},
+			rows: "data", key: "key", scope: usecase.Input{"hub_id": id},
+			attributes: []string{"name", "zone", "hours", "holidays"},
+			create:     "DefineHubCalendar", change: "DefineHubCalendar", remove: "DeleteHubCalendar",
+			locate: "key", locateFrom: "key", changeable: []string{"name", "zone", "hours", "holidays"}, whole: true,
 		},
 	}
 }

@@ -53,6 +53,8 @@ type world struct {
 	hub          string
 	hubStructure map[string]any
 	scheme       []any
+	// hubCalendars, nil withholding the section, are the hub's own calendars by key.
+	hubCalendars map[string]map[string]any
 	// fields, nil withholding the section, are the workspace's custom fields, and fieldReach what
 	// PreviewCustomFieldReach answers for each.
 	fields     map[string]map[string]any
@@ -62,7 +64,7 @@ type world struct {
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
 		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants,
-		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, fields: w.fields, fieldReach: w.fieldReach}
+		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, hubCalendars: w.hubCalendars, fields: w.fields, fieldReach: w.fieldReach}
 	if w.structure != nil {
 		out.structure = maps.Clone(w.structure)
 	}
@@ -146,6 +148,16 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		w.inputs[name] = append(w.inputs[name], in)
 		return usecase.Output{"narrows": true, "levels": []any{map[string]any{"type": "ACTIVITY", "entries": 3}},
 			"fields": []any{map[string]any{"type": "TASK", "capability": "dates", "entries": 5}}}, nil
+	case "ListHubCalendars":
+		if w.hubCalendars == nil {
+			return nil, shared.ErrValidation.WithDetail("module.off")
+		}
+		return usecase.Output{"data": rowsOf(w.hubCalendars)}, nil
+	case "DefineHubCalendar", "DeleteHubCalendar":
+		if w.inputs == nil {
+			w.inputs = map[string][]usecase.Input{}
+		}
+		w.inputs[name] = append(w.inputs[name], in)
 	case "SetContainerStructure", "SetWorkflowScheme":
 		if w.inputs == nil {
 			w.inputs = map[string][]usecase.Input{}

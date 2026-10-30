@@ -379,8 +379,10 @@ status entries are in that the shape removes is refused at the plan, as the publ
 the apply), the entries a hub's scheme change moves (`PreviewWorkflowScheme`), and for a changed
 role the people and groups that hold it and the permissions gained and lost.
 **A hub's own document** is read and written with `hub_id`: the sections `modules` (its switches),
-`structure` (the settings the hub decides itself, through `SetContainerStructure`) and `scheme`
-(which workflow it runs per entry type, `every_type` for the row without one), authorised as
+`structure` (the settings the hub decides itself, through `SetContainerStructure`), `scheme`
+(which workflow it runs per entry type, `every_type` for the row without one) and
+`business_calendars` (its own versions of the workspace's calendars under their keys, through
+`DefineHubCalendar` and `DeleteHubCalendar`), authorised as
 `STRUCTURE` at the hub. The hub is named by the request and never inside the document, so one hub's
 document applies to another unchanged; its versions are the workspace's numbering with `hub_id`
 set (migration 0223), listed in the hub's history only, and a version restores only its own scope
