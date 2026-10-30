@@ -33,7 +33,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`sync/`](./sync/) | `UC-SYN` | Working offline and merging | `service/sync` |
 | [`importer/`](./importer/) | `UC-IMP` | Bringing work in from elsewhere | `service/importer` |
 | [`workflow/`](./workflow/) | `UC-FLW` | A workspace's own entry types and how its work moves | `service/workflow` |
-| [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and the plan they make: schedule, critical path, baselines, milestones | `service/work` (links), `service/planning` |
+| [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and the plan they make: schedule, critical path, baselines, milestones, sprints and estimates | `service/work` (links), `service/planning` |
 | [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
 | [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history | `service/whiteboard` |
 | [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
@@ -255,6 +255,8 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-PLN-03](./planning/UC-PLN-03-know-which-chain-decides-the-end-date.md) | Know which chain decides the end date | planning |
 | [UC-PLN-04](./planning/UC-PLN-04-keep-the-agreed-plan-and-compare-it-with-today.md) | Keep the agreed plan and compare it with today | planning |
 | [UC-PLN-05](./planning/UC-PLN-05-mark-the-dates-that-matter-as-milestones.md) | Mark the dates that matter as milestones | planning |
+| [UC-PLN-06](./planning/UC-PLN-06-plan-a-sprint-run-it-and-close-it.md) | Plan a sprint, run it and close it | planning |
+| [UC-PLN-07](./planning/UC-PLN-07-estimate-work-and-see-how-much-a-team-gets-done.md) | Estimate work and see how much a team gets done | planning |
 | [UC-DOC-01](./knowledge/UC-DOC-01-write-a-page-in-a-hub-and-find-it-again.md) | Write a page in a hub and find it again | knowledge |
 | [UC-DOC-02](./knowledge/UC-DOC-02-write-a-page-together-at-the-same-time.md) | Write a page together at the same time | knowledge |
 | [UC-DOC-03](./knowledge/UC-DOC-03-turn-a-line-of-a-page-into-a-task-and-keep-them-linked.md) | Turn a line of a page into a task and keep them linked | knowledge |

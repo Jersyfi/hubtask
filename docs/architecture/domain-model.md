@@ -717,7 +717,7 @@ deadline and a change's effectiveness check.
   breached -, the record the archive carries and a report counts; the timer is only its clock. A
   warning timer running out announces `item.sla_at_risk`, the goal's `item.sla_breached`, once each;
   an escalation is a rule on them.
-* **Planning** (`core/domain/model/planning`, M2, UC-PLN-02 … 05): a **plan** is a hub or a
+* **Planning** (`core/domain/model/planning`, M2, UC-PLN-02 … 07): a **plan** is a hub or a
   collection, its entries those neither trashed nor archived. A waiting link (`work.EntryLink`)
   carries its **`Timing`** - `FS`, `SS`, `FF` or `SF` and a lag in working days, negative for a lead,
   at most 999 - which only a dependency takes. An entry's **`EntrySchedule`** (`entry_schedule`) is
@@ -731,6 +731,14 @@ deadline and a change's effectiveness check.
   through UpdateWorkItem (P-04). A **`Baseline`** (`plan_baseline`, `plan_baseline_entry`) is a
   named copy of a plan's starts and dues at one moment, at most 20 a plan, never changed; `Compare`
   answers each entry's slip in calendar days.
+  A **`Sprint`** (`sprint`, UC-PLN-06) is a time box of one collection with a goal, its days and a
+  unit (`POINTS`, sizes among them, or `HOURS`), `PLANNED` → `ACTIVE` → `CLOSED`, one `ACTIVE` per
+  collection; starting records the commitment, closing the result and each open entry's outcome
+  (`DONE`, `CARRIED` into a planned sprint, `RETURNED` to the backlog). A **`SprintEntry`**
+  (`sprint_entry`) is an entry's membership, one open per entry; a closed sprint keeps its rows. An
+  **`Estimate`** (`entry_estimate`, UC-PLN-07) is an entry's size in points, hours or a T-shirt size
+  counting 1, 2, 3, 5, 8 or 13 points; `Burndown` and `VelocityOf` are pure functions of a sprint,
+  its memberships and the estimates.
 * **The portal** (UC-SVC-05): a requester holds `REQUEST` at a collection serving as a service. Its
   catalogue is the top-level types the collection offers whose form names the `PORTAL` channel and
   leaves it open (opt-in per type); a request is an entry raised through `CreateWorkItem` on the
