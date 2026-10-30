@@ -1839,8 +1839,10 @@ func (pending) ListConfigProposals(w http.ResponseWriter, r *http.Request, _ ope
 func (pending) DecideConfigProposal(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.DecideConfigProposalParams) {
 	notAvailable(w, r)
 }
-func (pending) SetConfigPolicy(w http.ResponseWriter, r *http.Request)       { notAvailable(w, r) }
-func (pending) ListConfigTemplates(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }
+func (pending) SetConfigPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ListConfigTemplates(w http.ResponseWriter, r *http.Request, _ openapi.ListConfigTemplatesParams) {
+	notAvailable(w, r)
+}
 func (pending) PublishConfigTemplate(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) PlanConfigTemplate(w http.ResponseWriter, r *http.Request, _ string) {
 	notAvailable(w, r)

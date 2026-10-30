@@ -2553,6 +2553,7 @@ class ConfigTemplate(TypedDict, total=False):
     created_at: Required[str]
     taken_version: int | None
     update_available: Required[bool]
+    hub_document: "ConfigDocument" | Any
 
 class ConfigTemplateList(TypedDict, total=False):
     data: Required[list["ConfigTemplate"]]
@@ -2561,8 +2562,11 @@ class ConfigTemplatePublish(TypedDict, total=False):
     key: Required[str]
     name: Required[str]
     document: "ConfigDocument"
+    hub_id: str
+    hub_document: "ConfigDocument"
 
 class ConfigTemplatePlanRequest(TypedDict, total=False):
+    hub_id: str
     version: int
     take: list[str]
 
@@ -2585,6 +2589,7 @@ class ConfigTemplatePlan(TypedDict, total=False):
     reach: list["ConfigReach"]
     counts: Required["ConfigCounts"]
     template: Required[str]
+    hub_id: str | None
     from_version: int | None
     upgrade: Required[list["ConfigUpgradeChange"]]
     document: Required["ConfigDocument"]

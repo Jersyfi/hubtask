@@ -276,7 +276,7 @@ var restDoors = map[string]restDoor{
 	"listCis":                           {UseCase: "ListCis", Status: 200, Query: []string{"after", "class", "include_merged", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listComments":                      {UseCase: "ListComments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listConfigProposals":               {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listConfigTemplates":               {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listConfigTemplates":               {UseCase: "ListConfigTemplates", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigVersions":                {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before"}},
 	"listConsents":                      {UseCase: "ListConsents", Status: 200, Query: []string{"purpose"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listContainers":                    {UseCase: "ListContainers", Status: 200, Query: []string{"cursor", "include_archived", "parent_id", "size", "type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
@@ -2219,9 +2219,9 @@ func (c *RestController) ListConfigProposals(w http.ResponseWriter, r *http.Requ
 }
 
 // ListConfigTemplates answers GET /config/templates by the generated mapping.
-func (c *RestController) ListConfigTemplates(w http.ResponseWriter, r *http.Request) {
+func (c *RestController) ListConfigTemplates(w http.ResponseWriter, r *http.Request, params openapi.ListConfigTemplatesParams) {
 	var answer openapi.ConfigTemplateList
-	c.door(w, r, restDoors["listConfigTemplates"], usecase.Input{}, nil, nil, &answer)
+	c.door(w, r, restDoors["listConfigTemplates"], usecase.Input{}, params, nil, &answer)
 }
 
 // ListConfigVersions answers GET /config/versions by the generated mapping.

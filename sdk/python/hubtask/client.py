@@ -2363,9 +2363,9 @@ class Client:
         """Set what an agent's apply does"""
         return self._call("PUT", "/config/policy", {}, None, {}, body, "json", "application/json", "json")
 
-    def list_config_templates(self) -> "ConfigTemplateList":
+    def list_config_templates(self, *, query: dict[str, Any] | None = None) -> "ConfigTemplateList":
         """The workspace's templates"""
-        return self._call("GET", "/config/templates", {}, None, {}, None, "none", None, "json")
+        return self._call("GET", "/config/templates", {}, query, {}, None, "none", None, "json")
 
     def publish_config_template(self, body: "ConfigTemplatePublish") -> "ConfigTemplate":
         """Publish a template's next version"""

@@ -2970,8 +2970,8 @@ export class HubtaskClient {
   }
 
   /** The workspace's templates */
-  listConfigTemplates(options: CallOptions = {}): Promise<operations["listConfigTemplates"]['responses'][200]['content']["application/json"]> {
-    return this.call("GET", "/config/templates", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  listConfigTemplates(options: CallOptions & { readonly query?: NonNullable<operations["listConfigTemplates"]['parameters']['query']> } = {}): Promise<operations["listConfigTemplates"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config/templates", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Publish a template's next version */

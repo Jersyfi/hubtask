@@ -15886,7 +15886,13 @@ paths:
       summary: The workspace's templates
       description: >
         Each template's newest version, the version the workspace took and whether an update is
-        available.
+        available. With `hub_id`, the templates a hub can take - those with a hub part - and the
+        version that hub took.
+      parameters:
+        - name: hub_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: The templates
@@ -15903,8 +15909,9 @@ paths:
       summary: Publish a template's next version
       description: >
         A configuration document in MERGE form that taking the template applies, checked before it
-        is published; omitted, the configuration in force (save as template). A version never
-        changes once published.
+        is published; omitted, the configuration in force (save as template). A hub part -
+        `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub
+        template, which a hub takes for itself. A version never changes once published.
       requestBody:
         required: true
         content:
@@ -15936,7 +15943,8 @@ paths:
         Plans taking a template version or, for one the workspace took, upgrading to it by a
         three-way comparison: each change is `TAKE` (the template changed it, the workspace did
         not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the
-        document to apply with `template` set, and its plan.
+        document to apply with `template` set, and its plan. With `hub_id`, the template's hub
+        part against that hub's own document, once the workspace took the template.
       requestBody:
         required: true
         content:
@@ -26824,11 +26832,13 @@ components:
         acknowledge: { type: boolean }
         template:
           type: string
-          description: The template@version the document came from; a hub's document takes none.
+          description: >
+            The template@version the document came from, recorded as the workspace's provenance -
+            or with `hub_id` as the hub's, for a template with a hub part.
         hub_id:
           type: string
           format: uuid
-          description: A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+          description: A hub, for the hub's own document (its modules, structure, workflow scheme and business calendars); omitted is the workspace's.
         from_sandbox:
           type: boolean
           description: Promotes the sandbox - what it changed since its copy - instead of a document.
@@ -26951,6 +26961,11 @@ components:
         created_at: { type: string, format: date-time }
         taken_version: { type: [integer, "null"] }
         update_available: { type: boolean }
+        hub_document:
+          description: The part a hub takes - a hub's own document; null for a template of the workspace only.
+          oneOf:
+            - $ref: "#/components/schemas/ConfigDocument"
+            - type: "null"
 
     ConfigTemplateList:
       type: object
@@ -26967,10 +26982,20 @@ components:
         key: { type: string, pattern: "^[a-z][a-z0-9_]{0,62}$" }
         name: { type: string, minLength: 1, maxLength: 120 }
         document: { $ref: "#/components/schemas/ConfigDocument" }
+        hub_id:
+          type: string
+          format: uuid
+          description: A hub whose own document in force is the template's hub part, unless `hub_document` names it.
+        hub_document:
+          $ref: "#/components/schemas/ConfigDocument"
 
     ConfigTemplatePlanRequest:
       type: object
       properties:
+        hub_id:
+          type: string
+          format: uuid
+          description: A hub taking the template's hub part; omitted is the workspace.
         version: { type: integer, minimum: 1 }
         take:
           type: array
@@ -26994,6 +27019,7 @@ components:
           required: [template, upgrade, document, mode]
           properties:
             template: { type: string }
+            hub_id: { type: [string, "null"], format: uuid, description: The hub taking the template's hub part; null for the workspace. }
             from_version: { type: [integer, "null"] }
             upgrade:
               type: array

@@ -13244,12 +13244,12 @@ type ConfigApplyRequest struct {
 	// FromSandbox Promotes the sandbox - what it changed since its copy - instead of a document.
 	FromSandbox *bool `json:"from_sandbox,omitempty"`
 
-	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	// HubId A hub, for the hub's own document (its modules, structure, workflow scheme and business calendars); omitted is the workspace's.
 	HubId    *openapi_types.UUID     `json:"hub_id,omitempty"`
 	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
 	PlanHash string                  `json:"plan_hash"`
 
-	// Template The template@version the document came from; a hub's document takes none.
+	// Template The template@version the document came from, recorded as the workspace's provenance - or with `hub_id` as the hub's, for a template with a hub part.
 	Template  *string `json:"template,omitempty"`
 	ToVersion *int    `json:"to_version,omitempty"`
 }
@@ -13509,7 +13509,10 @@ type ConfigTemplate struct {
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
-	Key      string         `json:"key"`
+
+	// HubDocument The part a hub takes - a hub's own document; null for a template of the workspace only.
+	HubDocument *ConfigDocument `json:"hub_document,omitempty"`
+	Key         string          `json:"key"`
 
 	// Name The template's name; for a HUBTASK template its key, which a client names in the reader's language.
 	Name   string               `json:"name"`
@@ -13542,9 +13545,12 @@ type ConfigTemplatePlan struct {
 		ChangesPermissions bool `json:"changes_permissions"`
 		HidesData          bool `json:"hides_data"`
 	} `json:"flags"`
-	FromVersion *int                   `json:"from_version,omitempty"`
-	Mode        ConfigTemplatePlanMode `json:"mode"`
-	Operations  []struct {
+	FromVersion *int `json:"from_version,omitempty"`
+
+	// HubId The hub taking the template's hub part; null for the workspace.
+	HubId      *openapi_types.UUID    `json:"hub_id,omitempty"`
+	Mode       ConfigTemplatePlanMode `json:"mode"`
+	Operations []struct {
 		Path    string `json:"path"`
 		UseCase string `json:"use_case"`
 	} `json:"operations"`
@@ -13567,16 +13573,24 @@ type ConfigTemplatePlanMode string
 
 // ConfigTemplatePlanRequest defines model for ConfigTemplatePlanRequest.
 type ConfigTemplatePlanRequest struct {
-	Take    *[]string `json:"take,omitempty"`
-	Version *int      `json:"version,omitempty"`
+	// HubId A hub taking the template's hub part; omitted is the workspace.
+	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
+	Take    *[]string           `json:"take,omitempty"`
+	Version *int                `json:"version,omitempty"`
 }
 
 // ConfigTemplatePublish defines model for ConfigTemplatePublish.
 type ConfigTemplatePublish struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
-	Key      string          `json:"key"`
-	Name     string          `json:"name"`
+
+	// HubDocument Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	HubDocument *ConfigDocument `json:"hub_document,omitempty"`
+
+	// HubId A hub whose own document in force is the template's hub part, unless `hub_document` names it.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key   string              `json:"key"`
+	Name  string              `json:"name"`
 }
 
 // ConfigUpgradeChange defines model for ConfigUpgradeChange.
@@ -23647,6 +23661,11 @@ type DecideConfigProposalParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListConfigTemplatesParams defines parameters for ListConfigTemplates.
+type ListConfigTemplatesParams struct {
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
 // ListConfigVersionsParams defines parameters for ListConfigVersions.
 type ListConfigVersionsParams struct {
 	Before *int `form:"before,omitempty" json:"before,omitempty"`
@@ -27598,7 +27617,7 @@ type ServerInterface interface {
 	WriteConfigSandbox(w http.ResponseWriter, r *http.Request)
 	// ListConfigTemplates The workspace's templates
 	// (GET /config/templates)
-	ListConfigTemplates(w http.ResponseWriter, r *http.Request)
+	ListConfigTemplates(w http.ResponseWriter, r *http.Request, params ListConfigTemplatesParams)
 	// PublishConfigTemplate Publish a template's next version
 	// (POST /config/templates)
 	PublishConfigTemplate(w http.ResponseWriter, r *http.Request)
@@ -36411,8 +36430,27 @@ func (siw *ServerInterfaceWrapper) WriteConfigSandbox(w http.ResponseWriter, r *
 // ListConfigTemplates operation middleware
 func (siw *ServerInterfaceWrapper) ListConfigTemplates(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListConfigTemplatesParams
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListConfigTemplates(w, r)
+		siw.Handler.ListConfigTemplates(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
