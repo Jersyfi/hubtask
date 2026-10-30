@@ -113,6 +113,15 @@ practice. Rules:
   identifier - the pseudonym once the account is anonymised or deleted - so the sums accounting,
   plans and costs read are kept, in both modes; the notes on their records and a rejection's reason
   on their weeks are cleared, and their running timer is removed. Nothing of the time is deleted.
+* **A requester without an account is erased by address** (accepted.md B): a sender with no
+  account here whose mail an account filed on their behalf is a `requester` record - address, name,
+  first and last contact, the entries they wrote on - removed 24 months after the last contact
+  (`REQUESTER`, [data-retention.md](./data-retention.md) §3). A case naming only an address erases
+  the record and the address's mail receipts in both modes, and its jumble entries in a full
+  deletion (the anonymisation keeps their text without the address); the entries filed for the
+  person are the team's and stay, with the `From:` line the intake wrote. A hold on the workspace
+  keeps it all, recorded as kept, and the remainder erases it when the hold is released; no
+  narrower hold reaches what an address sent.
 * **An installation-wide case is a loop, not a wider query**: one workspace at a time under its own
   tenant context, through the ordinary repositories; only the tenant identifiers from
   `subject_tenants()` cross the boundary ([multi-tenancy.md](./multi-tenancy.md) §2.1). It needs

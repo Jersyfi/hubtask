@@ -116,8 +116,9 @@ func (h ResumeErasure) Resume(ctx context.Context, in PerformInput) error {
 		return nil
 	}
 
-	if request.SubjectAccountID.IsZero() {
-		// The account is already gone; nothing of the person's can still be kept.
+	if request.SubjectAccountID.IsZero() && (request.SubjectEmail == "" || h.Eraser.Addresses == nil) {
+		// The account is already gone; nothing of the person's can still be kept. A case by
+		// address goes on to the erasure, which erases what the hold kept of the address.
 		return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 			return h.Kept.RecordKept(ctx, request.ID, nil, h.Clock.Now())
 		})

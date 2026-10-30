@@ -87,6 +87,16 @@ type Eraser struct {
 	// Owners holds the erasure to the last-owner rule (domain-model.md §3.2): a person who is the
 	// workspace's only owner is not erased until somebody else is one. Nil skips the question.
 	Owners identityrepo.Owners
+	// Addresses erases what the workspace holds of an address nobody here has an account for: the
+	// requester record, the mail receipts and the jumble entries it sent (accepted.md B). Nil
+	// erases nothing for such a case, as before.
+	Addresses AddressErasure
+}
+
+// AddressErasure is the requester record's and the intake's half of an erasure by address.
+type AddressErasure interface {
+	CountAddress(ctx context.Context, address string) (int, error)
+	EraseAddress(ctx context.Context, address string, full bool) (int, error)
 }
 
 // LastMember is the work context's answer to a person leaving: which private hubs they are a member
@@ -147,6 +157,9 @@ func (e Eraser) erase(
 	extra ...audit.Change,
 ) (Erased, error) {
 	if request.SubjectAccountID.IsZero() {
+		if address := strings.ToLower(strings.TrimSpace(request.SubjectEmail)); address != "" && e.Addresses != nil {
+			return e.eraseAddress(ctx, actor, request, address, action, extra...)
+		}
 		// A case about an address nobody here holds. There is nothing in this workspace to erase,
 		// and saying so is the honest answer rather than an error: the person asked, and the
 		// answer is that this workspace holds nothing of theirs.
@@ -571,4 +584,58 @@ func pseudonymFor(accountID shared.ID) string {
 		digest = digest[len(digest)-12:]
 	}
 	return fmt.Sprintf("%s%s", pseudonymPrefix, digest)
+}
+
+// eraseAddress erases a requester without an account: the record, the mail receipts and the
+// jumble entries of the address - removed in a full deletion, stripped of the address otherwise.
+// The entries an account filed on their behalf are the team's and stay. A hold on the workspace
+// keeps it all, recorded as kept, and the remainder erases it once the hold is released; no
+// narrower hold reaches what an address sent (data-protection.md §4.1).
+func (e Eraser) eraseAddress(
+	ctx context.Context, actor appshared.ActorContext, request domain.Request, address string,
+	action audit.Action, extra ...audit.Change,
+) (Erased, error) {
+	if !request.ErasureMode.Valid() {
+		return Erased{}, shared.ErrConflict.WithDetail(domain.CodeErasureModeRequired)
+	}
+	now := e.Clock.Now()
+	erased := Erased{Mode: request.ErasureMode}
+	err := e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := e.Requests.Lock(ctx, request.ID)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return shared.ErrNotFound.WithDetail(domain.CodeRequestNotFound)
+		}
+		holds, err := e.Holds.Active(ctx)
+		if err != nil {
+			return err
+		}
+		if hold, held := holds.OnTenant(); held {
+			count, err := e.Addresses.CountAddress(ctx, address)
+			if err != nil {
+				return err
+			}
+			if count == 0 {
+				return e.Kept.RecordKept(ctx, request.ID, nil, now)
+			}
+			erased.Kept = []domain.Kept{{
+				HoldID: hold.ID, HoldScope: hold.Scope, HoldScopeID: hold.ScopeID, Intake: count, RecordedAt: now,
+			}}
+			return e.Kept.RecordKept(ctx, request.ID, erased.Kept, now)
+		}
+		if erased.Intake, err = e.Addresses.EraseAddress(ctx, address, request.ErasureMode == domain.ModeFullDelete); err != nil {
+			return err
+		}
+		// Nothing kept: a remainder that runs this marks the earlier record erased.
+		return e.Kept.RecordKept(ctx, request.ID, nil, now)
+	})
+	if err != nil {
+		return Erased{}, err
+	}
+	if err := e.record(ctx, actor, request, erased, action, now, extra...); err != nil {
+		return Erased{}, err
+	}
+	return erased, nil
 }
