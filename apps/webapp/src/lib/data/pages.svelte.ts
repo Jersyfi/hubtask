@@ -12,7 +12,7 @@
  */
 
 import type {
-  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageMove, PagePublicLinkMinted, PageShare, PublicLinksPolicy, PageTrashed, PageVersionNamed,
+  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageArticle, PageMove, PagePublicLinkMinted, PageShare, PublicLinksPolicy, PageTrashed, PageVersionNamed,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -169,6 +169,17 @@ class Pages {
 
   unlink(pageId: string): Promise<unknown> {
     return engine.mutate<unknown>('DELETE', `${pagePath(pageId)}/public-link`, undefined, { invalidates: [accessPath(pageId)] });
+  }
+
+  /** Publishes the page to a service's portal, where its requesters read it (UC-DOC-13). */
+  publish(pageId: string, collectionId: string): Promise<PageArticle> {
+    return engine.mutate<PageArticle>('POST', `${pagePath(pageId)}/articles`, { collection_id: collectionId }, {
+      invalidates: [accessPath(pageId)],
+    });
+  }
+
+  unpublish(pageId: string, collectionId: string): Promise<unknown> {
+    return engine.mutate<unknown>('DELETE', `${pagePath(pageId)}/articles/${collectionId}`, undefined, { invalidates: [accessPath(pageId)] });
   }
 
   /** Allows or forbids public links in the workspace, inside what the plan leaves. */

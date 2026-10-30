@@ -13,6 +13,7 @@
 
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import { accessPath, pages, publicLinkAddress } from '../data/pages.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
@@ -105,6 +106,27 @@
     }
   }
 
+  // --- Published to a service's portal (UC-DOC-13) -----------------------------------------------
+
+  $effect(() => untrack(() => containers.openLevel(hubId)));
+  let publishTo = $state('');
+  const serviceName = (id: string) => containers.find(id)?.name ?? t('app.pages.access_article_service');
+  const publishOptions = $derived([
+    { value: '', label: t('app.pages.access_article_choose') },
+    ...containers
+      .collectionsOf(hubId)
+      .filter((collection) => !(info?.articles ?? []).some((article) => article.collection_id === collection.id))
+      .map((collection) => ({ value: collection.id, label: collection.name })),
+  ]);
+  const publishable = $derived(info?.may_share === true && !info.restricted && !info.restricted_above);
+
+  async function publish() {
+    if (!publishTo) return;
+    const where = publishTo;
+    await act(() => pages.publish(page.id, where), t('app.pages.access_article_published', { name: serviceName(where) }));
+    publishTo = '';
+  }
+
   async function removeLink() {
     madeAddress = undefined;
     await act(() => pages.unlink(page.id), t('app.pages.access_link_removed'));
@@ -171,6 +193,36 @@
           <Button size="sm" tone="secondary" onclick={share}>{t('app.pages.access_share')}</Button>
         </Inline>
         <p class="quiet">{t('app.pages.access_share_hint')}</p>
+      {/if}
+
+      {#if info.articles.length > 0 || publishable}
+        <h4 class="sub">{t('app.pages.access_articles')}</h4>
+        <ul class="shares">
+          {#each info.articles as article (article.collection_id)}
+            <li>
+              <span>
+                {serviceName(article.collection_id)}
+                <span class="meta">{t('app.pages.access_article_counts', {
+                  views: String(article.views), helpful: String(article.helpful), unhelpful: String(article.unhelpful),
+                })}</span>
+              </span>
+              {#if info.may_share}
+                <Button size="sm" tone="subtle" onclick={() => act(() => pages.unpublish(page.id, article.collection_id), t('app.pages.access_article_unpublished'))}>
+                  {t('app.pages.access_article_unpublish')}
+                </Button>
+              {/if}
+            </li>
+          {:else}
+            <li class="quiet">{t('app.pages.access_no_articles')}</li>
+          {/each}
+        </ul>
+        {#if publishable && publishOptions.length > 1}
+          <Inline gap="100" align="end" isWrapping>
+            <Select label={t('app.pages.access_article_to')} size="sm" options={publishOptions} bind:value={publishTo} />
+            <Button size="sm" tone="secondary" onclick={publish}>{t('app.pages.access_article_publish')}</Button>
+          </Inline>
+          <p class="quiet">{t('app.pages.access_article_hint')}</p>
+        {/if}
       {/if}
 
       {#if info.public_link || linkable}
