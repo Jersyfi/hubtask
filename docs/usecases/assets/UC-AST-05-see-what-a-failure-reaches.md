@@ -30,4 +30,4 @@ The host of the two virtual machines needs a firmware update. Before planning it
 
 ## Where it ends
 
-* No drawn service map, no impact on an incident or change (they come with the service desk, S-18), no change collision - the following release.
+* The impact on an incident or a change and the collision of changes are [UC-AST-09](./UC-AST-09-see-what-an-incident-or-a-change-touches.md)'s, the drawn service map [UC-AST-11](./UC-AST-11-group-cis-by-a-filter-and-draw-the-service-map.md)'s.

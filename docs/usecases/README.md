@@ -293,6 +293,11 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-AST-06](./assets/UC-AST-06-see-how-healthy-our-inventory-is.md) | See how healthy our inventory is | assets |
 | [UC-AST-07](./assets/UC-AST-07-pull-our-inventory-from-the-tools-that-know-it.md) | Pull our inventory from the tools that already know it | assets |
 | [UC-AST-08](./assets/UC-AST-08-turn-monitoring-alerts-into-entries-on-the-affected-ci.md) | Turn monitoring alerts into entries on the affected configuration item | assets |
+| [UC-AST-09](./assets/UC-AST-09-see-what-an-incident-or-a-change-touches.md) | See what an incident or a change touches | assets |
+| [UC-AST-10](./assets/UC-AST-10-have-owners-attest-our-inventory.md) | Have owners attest our inventory | assets |
+| [UC-AST-11](./assets/UC-AST-11-group-cis-by-a-filter-and-draw-the-service-map.md) | Group configuration items by a filter and draw the service map | assets |
+| [UC-AST-12](./assets/UC-AST-12-keep-an-asset-register-to-its-disposal.md) | Keep an asset register to its disposal | assets |
+| [UC-AST-13](./assets/UC-AST-13-count-software-by-its-product.md) | Count software by its product | assets |
 | [UC-SVC-01](./servicedesk/UC-SVC-01-keep-our-working-hours-and-holidays.md) | Keep our working hours and holidays | servicedesk |
 | [UC-SVC-02](./servicedesk/UC-SVC-02-promise-response-times-and-see-which-is-about-to-break.md) | Promise response times and see which promise is about to break | servicedesk |
 | [UC-SVC-03](./servicedesk/UC-SVC-03-work-the-queue-by-what-breaks-first.md) | Work the queue by what breaks first | servicedesk |
