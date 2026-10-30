@@ -1837,10 +1837,18 @@ class DashboardWidgetWrite(TypedDict, total=False):
     view_id: str
     query: dict[str, Any]
     goal_ids: list[str]
+    compare: "DashboardWidgetCompare"
+    cumulative: bool
     x: int
     y: int
     w: int
     h: int
+
+class DashboardWidgetCompare(TypedDict, total=False):
+    """A second series beside the widget's own - resolved beside created -, for BAR, LINE and TABLE."""
+    first_title: Required[str]
+    title: Required[str]
+    query: Required[dict[str, Any]]
 
 class DashboardWidget(TypedDict, total=False):
     id: Required[str]
@@ -1850,6 +1858,8 @@ class DashboardWidget(TypedDict, total=False):
     view_id: Required[str | None]
     query: Required[dict[str, Any] | None]
     goal_ids: Required[list[str]]
+    compare: Required["DashboardWidgetCompare"]
+    cumulative: Required[bool]
     x: Required[int]
     y: Required[int]
     w: Required[int]

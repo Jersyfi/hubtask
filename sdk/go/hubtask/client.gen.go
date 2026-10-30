@@ -14220,13 +14220,29 @@ type DashboardFigures struct {
 	ComputedAt  time.Time          `json:"computed_at"`
 	DashboardId openapi_types.UUID `json:"dashboard_id"`
 	Widgets     []struct {
-		// Data A summary's rows (count, group, period, value), or a GOALS widget's goals (goal_id, title, status, progress).
+		// Compare The second series' rows, as data's; its error code alone where the caller cannot run it.
+		Compare struct {
+			Data      []map[string]interface{} `json:"data"`
+			Error     string                   `json:"error"`
+			Truncated bool                     `json:"truncated"`
+		} `json:"compare"`
+
+		// Data A summary's rows (count, group, period, value, and running for a cumulative widget), or a GOALS widget's goals (goal_id, title, status, progress).
 		Data []map[string]interface{} `json:"data"`
 
 		// Error The error code of a widget the caller cannot run.
-		Error     string             `json:"error"`
-		Id        openapi_types.UUID `json:"id"`
-		Truncated bool               `json:"truncated"`
+		Error string             `json:"error"`
+		Id    openapi_types.UUID `json:"id"`
+
+		// Remaining A cumulative widget with a second series: per group and period, the first running total less the second's - what is left.
+		Remaining []struct {
+			Group  string `json:"group"`
+			Period string `json:"period"`
+
+			// Value An exact decimal.
+			Value string `json:"value"`
+		} `json:"remaining"`
+		Truncated bool `json:"truncated"`
 	} `json:"widgets"`
 }
 
@@ -14237,17 +14253,19 @@ type DashboardList struct {
 
 // DashboardWidget defines model for DashboardWidget.
 type DashboardWidget struct {
-	Chart   DashboardWidgetChart   `json:"chart"`
-	GoalIds []openapi_types.UUID   `json:"goal_ids"`
-	H       int                    `json:"h"`
-	Id      openapi_types.UUID     `json:"id"`
-	Query   map[string]interface{} `json:"query"`
-	Source  DashboardWidgetSource  `json:"source"`
-	Title   string                 `json:"title"`
-	ViewId  openapi_types.UUID     `json:"view_id"`
-	W       int                    `json:"w"`
-	X       int                    `json:"x"`
-	Y       int                    `json:"y"`
+	Chart      DashboardWidgetChart   `json:"chart"`
+	Compare    DashboardWidgetCompare `json:"compare"`
+	Cumulative bool                   `json:"cumulative"`
+	GoalIds    []openapi_types.UUID   `json:"goal_ids"`
+	H          int                    `json:"h"`
+	Id         openapi_types.UUID     `json:"id"`
+	Query      map[string]interface{} `json:"query"`
+	Source     DashboardWidgetSource  `json:"source"`
+	Title      string                 `json:"title"`
+	ViewId     openapi_types.UUID     `json:"view_id"`
+	W          int                    `json:"w"`
+	X          int                    `json:"x"`
+	Y          int                    `json:"y"`
 }
 
 // DashboardWidgetChart defines model for DashboardWidget.Chart.
@@ -14256,9 +14274,27 @@ type DashboardWidgetChart string
 // DashboardWidgetSource defines model for DashboardWidget.Source.
 type DashboardWidgetSource string
 
+// DashboardWidgetCompare A second series beside the widget's own - resolved beside created -, for BAR, LINE and TABLE.
+type DashboardWidgetCompare struct {
+	// FirstTitle The legend's name of the widget's own series.
+	FirstTitle string `json:"first_title"`
+
+	// Query A POST /items:aggregate document.
+	Query map[string]interface{} `json:"query"`
+
+	// Title The legend's name of this one.
+	Title string `json:"title"`
+}
+
 // DashboardWidgetWrite defines model for DashboardWidgetWrite.
 type DashboardWidgetWrite struct {
 	Chart DashboardWidgetWriteChart `json:"chart"`
+
+	// Compare A second series beside the widget's own - resolved beside created -, for BAR, LINE and TABLE.
+	Compare *DashboardWidgetCompare `json:"compare,omitempty"`
+
+	// Cumulative Each period drawn as the running total of the periods up to it, for BAR, LINE and TABLE over COUNT or SUM; with compare, the work left between the two series as well.
+	Cumulative *bool `json:"cumulative,omitempty"`
 
 	// GoalIds For GOALS.
 	GoalIds *[]openapi_types.UUID `json:"goal_ids,omitempty"`

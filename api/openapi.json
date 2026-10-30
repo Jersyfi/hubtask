@@ -40010,6 +40010,13 @@
             },
             "description": "For GOALS."
           },
+          "compare": {
+            "$ref": "#/components/schemas/DashboardWidgetCompare"
+          },
+          "cumulative": {
+            "type": "boolean",
+            "description": "Each period drawn as the running total of the periods up to it, for BAR, LINE and TABLE over COUNT or SUM; with compare, the work left between the two series as well."
+          },
           "x": {
             "type": "integer",
             "minimum": 0,
@@ -40031,6 +40038,34 @@
           }
         }
       },
+      "DashboardWidgetCompare": {
+        "type": "object",
+        "description": "A second series beside the widget's own - resolved beside created -, for BAR, LINE and TABLE.",
+        "required": [
+          "first_title",
+          "title",
+          "query"
+        ],
+        "properties": {
+          "first_title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "The legend's name of the widget's own series."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "The legend's name of this one."
+          },
+          "query": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "A POST /items:aggregate document."
+          }
+        }
+      },
       "DashboardWidget": {
         "type": "object",
         "required": [
@@ -40041,6 +40076,8 @@
           "view_id",
           "query",
           "goal_ids",
+          "compare",
+          "cumulative",
           "x",
           "y",
           "w",
@@ -40090,6 +40127,17 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          "compare": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DashboardWidgetCompare"
+              }
+            ],
+            "nullable": true
+          },
+          "cumulative": {
+            "type": "boolean"
           },
           "x": {
             "type": "integer"
@@ -40372,7 +40420,9 @@
                 "id",
                 "data",
                 "truncated",
-                "error"
+                "error",
+                "compare",
+                "remaining"
               ],
               "properties": {
                 "id": {
@@ -40381,7 +40431,7 @@
                 },
                 "data": {
                   "type": "array",
-                  "description": "A summary's rows (count, group, period, value), or a GOALS widget's goals (goal_id, title, status, progress).",
+                  "description": "A summary's rows (count, group, period, value, and running for a cumulative widget), or a GOALS widget's goals (goal_id, title, status, progress).",
                   "items": {
                     "type": "object",
                     "additionalProperties": true
@@ -40394,6 +40444,59 @@
                   "type": "string",
                   "nullable": true,
                   "description": "The error code of a widget the caller cannot run."
+                },
+                "compare": {
+                  "type": "object",
+                  "nullable": true,
+                  "description": "The second series' rows, as data's; its error code alone where the caller cannot run it.",
+                  "required": [
+                    "data",
+                    "truncated",
+                    "error"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "truncated": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                },
+                "remaining": {
+                  "type": "array",
+                  "nullable": true,
+                  "description": "A cumulative widget with a second series: per group and period, the first running total less the second's - what is left.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "group",
+                      "period",
+                      "value"
+                    ],
+                    "properties": {
+                      "group": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "period": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "An exact decimal."
+                      }
+                    }
+                  }
                 }
               }
             }
