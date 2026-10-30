@@ -6,7 +6,6 @@ package rest
 import (
 	"net/http"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -144,27 +143,8 @@ func nameList(value any) []string {
 }
 
 const (
-	changePasswordUseCase = "ChangePassword"
-	checkPasswordUseCase  = "CheckPassword"
+	checkPasswordUseCase = "CheckPassword"
 )
-
-// ChangePassword answers POST /auth/password.
-func (c *RestController) ChangePassword(
-	w http.ResponseWriter, r *http.Request, params openapi.ChangePasswordParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.PasswordChange
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		return c.UseCases.Invoke(r.Context(), changePasswordUseCase, actor, usecase.Input{
-			"password":      body.Password,
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-}
 
 // CheckPassword answers POST /auth/password:check.
 //

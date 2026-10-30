@@ -7,9 +7,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/google/uuid"
-
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -352,31 +349,6 @@ func (c *RestController) StartPasskeyStepUp(w http.ResponseWriter, r *http.Reque
 
 const startProviderStepUpUseCase = "StartProviderStepUp"
 
-// StartProviderStepUp answers POST /auth/step-up:provider (ADR-0075 §2).
-func (c *RestController) StartProviderStepUp(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), startProviderStepUpUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	providerID, err := uuid.Parse(out.String("provider_id"))
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, openapi.ProviderStepUpAuthorization{
-		AuthorizationUrl: out.String("authorization_url"),
-		ExpiresAt:        timeValue(out["expires_at"]),
-		ProviderId:       providerID,
-		ProviderName:     out.String("provider_name"),
-	})
-}
-
 // stepUpHeaderField reads the proof off the header a privileged operation accepts it in.
 func stepUpHeaderField(token *openapi.StepUpToken) any {
 	if token == nil || *token == "" {
@@ -387,72 +359,7 @@ func stepUpHeaderField(token *openapi.StepUpToken) any {
 
 const regenerateRecoveryCodesUseCase = "RegenerateRecoveryCodes"
 
-// RegenerateRecoveryCodes answers POST /auth/mfa/recovery:regenerate.
-func (c *RestController) RegenerateRecoveryCodes(
-	w http.ResponseWriter, r *http.Request, params openapi.RegenerateRecoveryCodesParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(
-			r.Context(), regenerateRecoveryCodesUseCase, actor, usecase.Input{
-				"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-			})
-	}, func(out usecase.Output) {
-		// The second response in the whole API that carries credentials, and the enrolment's is the
-		// first. They are here and in no projection, which is what makes "shown once" a property of
-		// the code rather than a promise in the documentation.
-		writeJSON(w, r, http.StatusCreated, openapi.RecoveryCodes{
-			RecoveryCodes: recoveryCodeList(out["recovery_codes"]),
-		})
-	})
-}
-
-const (
-	startAuthenticatorReplacementUseCase   = "StartAuthenticatorReplacement"
-	confirmAuthenticatorReplacementUseCase = "ConfirmAuthenticatorReplacement"
-)
-
-// StartAuthenticatorReplacement answers POST /auth/mfa/totp:replace.
-func (c *RestController) StartAuthenticatorReplacement(
-	w http.ResponseWriter, r *http.Request, params openapi.StartAuthenticatorReplacementParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), startAuthenticatorReplacementUseCase, actor, usecase.Input{
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(out usecase.Output) {
-		// The new secret's single showing, as the enrolment's: here and in no projection.
-		writeJSON(w, r, http.StatusCreated, openapi.AuthenticatorReplacement{
-			Secret:     out.String("secret"),
-			OtpauthUri: out.String("otpauth_uri"),
-			ExpiresAt:  timeValue(out["expires_at"]),
-		})
-	})
-}
-
-// ConfirmAuthenticatorReplacement answers POST /auth/mfa/totp/replacement:confirm.
-func (c *RestController) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.AuthenticatorReplacementConfirmation
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), confirmAuthenticatorReplacementUseCase, actorOf(r), usecase.Input{
-		"code": body.Code,
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	// The new codes' single showing, as the regenerated ones': here and in no projection.
-	writeJSON(w, r, http.StatusCreated, openapi.RecoveryCodes{
-		RecoveryCodes: recoveryCodeList(out["recovery_codes"]),
-	})
-}
+const ()
 
 func recoveryCodeList(value any) []string {
 	values, _ := value.([]any)

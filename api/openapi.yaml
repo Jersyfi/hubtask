@@ -8402,6 +8402,7 @@ paths:
     post:
       tags: [auth]
       operationId: changePassword
+      x-hubtask-rest: generated
       summary: Change the password of the signed-in account
       description: >
         The password of the caller's own account, behind a step-up. The step-up **is** the
@@ -8928,6 +8929,7 @@ paths:
     post:
       tags: [auth]
       operationId: startProviderStepUp
+      x-hubtask-rest: generated
       summary: Begin a step-up at the provider this account is connected to
       description: >
         The first of `PROVIDER`'s two calls. An authorization request at the provider
@@ -8955,6 +8957,8 @@ paths:
     post:
       tags: [auth]
       operationId: startAuthenticatorReplacement
+      x-hubtask-rest: generated
+      x-hubtask-rest-shown-once: secret
       summary: Begin replacing the authenticator
       description: >
         For a new phone, or an authenticator that is gone: a new secret, kept beside the
@@ -8984,6 +8988,7 @@ paths:
     post:
       tags: [auth]
       operationId: confirmAuthenticatorReplacement
+      x-hubtask-rest: generated
       summary: Confirm the new authenticator, and swap
       description: >
         A code from the new authenticator proves it holds the new secret. Then, in one statement,
@@ -9014,6 +9019,7 @@ paths:
     post:
       tags: [auth]
       operationId: regenerateRecoveryCodes
+      x-hubtask-rest: generated
       summary: Replace the ten recovery codes
       description: >
         Ten new ones, behind a step-up, for an account that holds a second factor - the
@@ -17667,6 +17673,8 @@ paths:
     get:
       tags: [media]
       operationId: getMedia
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: mediaResponse
       description: >
         The media object's record, with a download target when it is READY. Readable by its
         uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it
@@ -17700,6 +17708,8 @@ paths:
     post:
       tags: [media]
       operationId: confirmMediaUpload
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: mediaResponse
       description: >
         Seals the upload: the server reads the object's head back from storage, sniffs it, checks
         the size against what was declared and against the installation's limit, and marks the

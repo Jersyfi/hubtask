@@ -13044,6 +13044,7 @@
           "auth"
         ],
         "operationId": "changePassword",
+        "x-hubtask-rest": "generated",
         "summary": "Change the password of the signed-in account",
         "description": "The password of the caller's own account, behind a step-up. The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).\nEvery other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.\nA refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.\n",
         "parameters": [
@@ -13606,6 +13607,7 @@
           "auth"
         ],
         "operationId": "startProviderStepUp",
+        "x-hubtask-rest": "generated",
         "summary": "Begin a step-up at the provider this account is connected to",
         "description": "The first of `PROVIDER`'s two calls. An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.\nThe browser comes back to this installation's own callback address, the one every registration already permits. Refused with `auth.step_up_no_provider` for an account with no such provider, and with `auth.step_up_session_required` for a caller without a session.\n",
         "responses": {
@@ -13631,6 +13633,8 @@
           "auth"
         ],
         "operationId": "startAuthenticatorReplacement",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-shown-once": "secret",
         "summary": "Begin replacing the authenticator",
         "description": "For a new phone, or an authenticator that is gone: a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.\nBehind a step-up with whatever the account holds: replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.\n",
         "parameters": [
@@ -13661,6 +13665,7 @@
           "auth"
         ],
         "operationId": "confirmAuthenticatorReplacement",
+        "x-hubtask-rest": "generated",
         "summary": "Confirm the new authenticator, and swap",
         "description": "A code from the new authenticator proves it holds the new secret. Then, in one statement, the new secret becomes the armed one and the old stops working, and ten new recovery codes replace the old ten - answered here, for the only time they are shown. Audited as `auth.mfa_replaced`.\nOnly the session that began the replacement confirms it, and only inside its window; otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's ledger and changes nothing.\n",
         "requestBody": {
@@ -13696,6 +13701,7 @@
           "auth"
         ],
         "operationId": "regenerateRecoveryCodes",
+        "x-hubtask-rest": "generated",
         "summary": "Replace the ten recovery codes",
         "description": "Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.\nShown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.\n",
         "parameters": [
@@ -25459,6 +25465,8 @@
           "media"
         ],
         "operationId": "getMedia",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "mediaResponse",
         "description": "The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.\n",
         "responses": {
           "200": {
@@ -25504,6 +25512,8 @@
           "media"
         ],
         "operationId": "confirmMediaUpload",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "mediaResponse",
         "description": "Seals the upload: the server reads the object's head back from storage, sniffs it, checks the size against what was declared and against the installation's limit, and marks the object READY with the judged content type - never the claim. A refusal removes the staged bytes. Idempotent: confirming a READY object succeeds and changes nothing, which is what makes an upload confirmed twice one media object.\n",
         "parameters": [
           {

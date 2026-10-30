@@ -54,6 +54,7 @@ var restDoors = map[string]restDoor{
 	"changeInstallationPreset":          {UseCase: "ChangeInstallationPreset", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeLinkType":                    {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changePageComment":                 {UseCase: "ChangePageComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"changePassword":                    {UseCase: "ChangePassword", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeRole":                        {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkInGoal":                       {UseCase: "CheckInGoal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"confidence"}},
 	"checkMailbox":                      {UseCase: "CheckMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -75,6 +76,8 @@ var restDoors = map[string]restDoor{
 	"configureIdentityProvider":         {UseCase: "ConfigureIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"configureInstanceAiProvider":       {UseCase: "ConfigureInstanceAiProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"configureInstanceIdentityProvider": {UseCase: "ConfigureInstanceIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
+	"confirmAuthenticatorReplacement":   {UseCase: "ConfirmAuthenticatorReplacement", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"confirmMediaUpload":                {UseCase: "ConfirmMediaUpload", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"connectMailbox":                    {UseCase: "ConnectMailbox", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
 	"convertJumbleEntry":                {UseCase: "ConvertJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyTimesheetWeek":                 {UseCase: "CopyTimesheetWeek", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -176,6 +179,7 @@ var restDoors = map[string]restDoor{
 	"getImport":                         {UseCase: "GetImport", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getJob":                            {UseCase: "GetJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getJumbleEntry":                    {UseCase: "GetJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getMedia":                          {UseCase: "GetMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getOwnAccount":                     {UseCase: "GetOwnAccount", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getRecurrence":                     {UseCase: "GetRecurrence", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getRestoreRun":                     {UseCase: "GetRestoreRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -380,6 +384,7 @@ var restDoors = map[string]restDoor{
 	"recordAbsence":                     {UseCase: "RecordAbsence", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"recordAgentEvaluation":             {UseCase: "RecordAgentEvaluation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"redeliverPlatformSubscription":     {UseCase: "RedeliverPlatformSubscription", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"regenerateRecoveryCodes":           {UseCase: "RegenerateRecoveryCodes", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"registerAgent":                     {UseCase: "RegisterAgent", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"min_accuracy"}},
 	"registerAgentModel":                {UseCase: "RegisterAgentModel", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"retention_days"}},
 	"reindexSearch":                     {UseCase: "ReindexSearch", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -481,7 +486,9 @@ var restDoors = map[string]restDoor{
 	"showVoiceSettings":                 {UseCase: "ShowVoiceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"skipOccurrence":                    {UseCase: "SkipOccurrence", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startAgentJob":                     {UseCase: "StartAgentJob", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"startAuthenticatorReplacement":     {UseCase: "StartAuthenticatorReplacement", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "secret"},
 	"startBackup":                       {UseCase: "StartBackup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"startProviderStepUp":               {UseCase: "StartProviderStepUp", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startSprint":                       {UseCase: "StartSprint", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startTimer":                        {UseCase: "StartTimer", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startViewAs":                       {UseCase: "StartViewAs", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -792,6 +799,12 @@ func (c *RestController) ChangePageComment(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["changePageComment"], usecase.Input{"comment_id": commentId.String()}, params, &body, &answer)
 }
 
+// ChangePassword answers POST /auth/password by the generated mapping.
+func (c *RestController) ChangePassword(w http.ResponseWriter, r *http.Request, params openapi.ChangePasswordParams) {
+	var body openapi.ChangePasswordJSONRequestBody
+	c.door(w, r, restDoors["changePassword"], usecase.Input{}, params, &body, nil)
+}
+
 // ChangeRole answers PATCH /roles/{key} by the generated mapping.
 func (c *RestController) ChangeRole(w http.ResponseWriter, r *http.Request, key string, params openapi.ChangeRoleParams) {
 	var body openapi.ChangeRoleApplicationMergePatchPlusJSONRequestBody
@@ -916,6 +929,18 @@ func (c *RestController) ConfigureInstanceAiProvider(w http.ResponseWriter, r *h
 func (c *RestController) ConfigureInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId openapi.ProviderId, params openapi.ConfigureInstanceIdentityProviderParams) {
 	var body openapi.ConfigureInstanceIdentityProviderJSONRequestBody
 	c.door(w, r, restDoors["configureInstanceIdentityProvider"], usecase.Input{"id": providerId.String()}, params, &body, answerBy(identityProviderResponse))
+}
+
+// ConfirmAuthenticatorReplacement answers POST /auth/mfa/totp/replacement:confirm by the generated mapping.
+func (c *RestController) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ConfirmAuthenticatorReplacementJSONRequestBody
+	var answer openapi.RecoveryCodes
+	c.door(w, r, restDoors["confirmAuthenticatorReplacement"], usecase.Input{}, nil, &body, &answer)
+}
+
+// ConfirmMediaUpload answers POST /media/{mediaId}:confirm by the generated mapping.
+func (c *RestController) ConfirmMediaUpload(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.ConfirmMediaUploadParams) {
+	c.door(w, r, restDoors["confirmMediaUpload"], usecase.Input{"media_id": mediaId.String()}, params, nil, answerBy(mediaResponse))
 }
 
 // ConnectMailbox answers POST /mail/mailboxes by the generated mapping.
@@ -1503,6 +1528,11 @@ func (c *RestController) GetJob(w http.ResponseWriter, r *http.Request, jobId op
 // GetJumbleEntry answers GET /jumble/entries/{entryId} by the generated mapping.
 func (c *RestController) GetJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID) {
 	c.door(w, r, restDoors["getJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, nil, nil, answerBy(jumbleEntryResponse))
+}
+
+// GetMedia answers GET /media/{mediaId} by the generated mapping.
+func (c *RestController) GetMedia(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId) {
+	c.door(w, r, restDoors["getMedia"], usecase.Input{"media_id": mediaId.String()}, nil, nil, answerBy(mediaResponse))
 }
 
 // GetOwnAccount answers GET /accounts/me by the generated mapping.
@@ -2678,6 +2708,12 @@ func (c *RestController) RedeliverPlatformSubscription(w http.ResponseWriter, r 
 	c.door(w, r, restDoors["redeliverPlatformSubscription"], usecase.Input{"subscription_id": subscriptionId.String()}, nil, nil, nil)
 }
 
+// RegenerateRecoveryCodes answers POST /auth/mfa/recovery:regenerate by the generated mapping.
+func (c *RestController) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request, params openapi.RegenerateRecoveryCodesParams) {
+	var answer openapi.RecoveryCodes
+	c.door(w, r, restDoors["regenerateRecoveryCodes"], usecase.Input{}, params, nil, &answer)
+}
+
 // RegisterAgent answers POST /agents by the generated mapping.
 func (c *RestController) RegisterAgent(w http.ResponseWriter, r *http.Request) {
 	var body openapi.RegisterAgentJSONRequestBody
@@ -3277,10 +3313,22 @@ func (c *RestController) StartAgentJob(w http.ResponseWriter, r *http.Request, a
 	c.door(w, r, restDoors["startAgentJob"], usecase.Input{"agent_id": agentId.String()}, nil, &body, &answer)
 }
 
+// StartAuthenticatorReplacement answers POST /auth/mfa/totp:replace by the generated mapping.
+func (c *RestController) StartAuthenticatorReplacement(w http.ResponseWriter, r *http.Request, params openapi.StartAuthenticatorReplacementParams) {
+	var answer openapi.AuthenticatorReplacement
+	c.door(w, r, restDoors["startAuthenticatorReplacement"], usecase.Input{}, params, nil, &answer)
+}
+
 // StartBackup answers POST /backups by the generated mapping.
 func (c *RestController) StartBackup(w http.ResponseWriter, r *http.Request) {
 	var body openapi.StartBackupJSONRequestBody
 	c.door(w, r, restDoors["startBackup"], usecase.Input{}, nil, &body, answerBy(acceptedJob))
+}
+
+// StartProviderStepUp answers POST /auth/step-up:provider by the generated mapping.
+func (c *RestController) StartProviderStepUp(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.ProviderStepUpAuthorization
+	c.door(w, r, restDoors["startProviderStepUp"], usecase.Input{}, nil, nil, &answer)
 }
 
 // StartSprint answers POST /sprints/{sprintId}:start by the generated mapping.

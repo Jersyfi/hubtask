@@ -21,7 +21,6 @@ import (
 
 const (
 	requestMediaUploadUseCase = "RequestMediaUpload"
-	confirmMediaUploadUseCase = "ConfirmMediaUpload"
 	getMediaUseCase           = "GetMedia"
 	deleteMediaUseCase        = "DeleteMedia"
 
@@ -86,50 +85,6 @@ func (c *RestController) RequestMediaUpload(
 	object := mediaResponse(out)
 	w.Header().Set("Location", APIBasePath+"/media/"+object.Id.String())
 	writeJSON(w, r, http.StatusCreated, object)
-}
-
-// ConfirmMediaUpload answers POST /media/{mediaId}:confirm.
-func (c *RestController) ConfirmMediaUpload(
-	w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId, _ openapi.ConfirmMediaUploadParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	out, err := c.UseCases.Invoke(r.Context(), confirmMediaUploadUseCase, actor,
-		usecase.Input{"media_id": mediaID.String()})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, mediaResponse(out))
-}
-
-// GetMedia answers GET /media/{mediaId}.
-//
-// The download target travels in the answer rather than as a redirect: a client that wants the
-// record and a client that wants the bytes are asking two different questions, and a 302 here
-// would force the first one to follow the second.
-func (c *RestController) GetMedia(w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	out, err := c.UseCases.Invoke(r.Context(), getMediaUseCase, actor,
-		usecase.Input{"media_id": mediaID.String()})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, mediaResponse(out))
 }
 
 // UploadMediaContent answers PUT /media/{mediaId}:content.
