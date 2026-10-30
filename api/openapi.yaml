@@ -6758,6 +6758,8 @@ paths:
     patch:
       tags: [backup]
       operationId: updateBackupSchedule
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupScheduleResponse
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       summary: Change a schedule, or switch it off
@@ -7139,6 +7141,9 @@ paths:
     post:
       tags: [retention]
       operationId: placeLegalHold
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: legalHoldResponse
+      x-hubtask-rest-flatten: { scope: { kind: scope, id: scope_id } }
       summary: Place a legal hold
       description: |
         Stops anything under it being deleted: a retention rule, a person emptying their own trash,
@@ -7209,6 +7214,9 @@ paths:
     post:
       tags: [retention]
       operationId: createRetentionPolicy
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: retentionPolicyResponse
+      x-hubtask-rest-flatten: { scope: { kind: scope, id: scope_id }, notify: { before_days: notify_before_days, recipients: notify_recipients } }
       summary: Create a retention rule
       description: |
         New rules start in notify-only mode if their first run would affect more than 5% of
@@ -7233,6 +7241,9 @@ paths:
     patch:
       tags: [retention]
       operationId: updateRetentionPolicy
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: retentionPolicyResponse
+      x-hubtask-rest-flatten: { notify: { before_days: notify_before_days, recipients: notify_recipients } }
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       summary: Correct a retention rule, or take it out of enforcement

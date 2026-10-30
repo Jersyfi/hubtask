@@ -477,3 +477,21 @@ func TestAGeneratedOperationDropsReadOnlyMembers(t *testing.T) {
 		t.Errorf("the input is %v", registry.in)
 	}
 }
+
+// A nested member reaches the use case as the flat inputs MCP also sends: a hold's scope as its
+// kind and its identifier.
+func TestAGeneratedOperationFlattensANestedMember(t *testing.T) {
+	hub := "0192f000-0000-7000-8000-0000000000d1"
+	registry := &catalogue{out: usecase.Output{"id": "0192f000-0000-7000-8000-0000000000d2", "reason": "audit"}}
+
+	recorder := callDoor(t, registry, http.MethodPost, "/legal-holds",
+		`{"reason":"audit","scope":{"kind":"HUB","id":"`+hub+`"}}`,
+		map[string]string{"Content-Type": "application/json"})
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.in["scope"] != "HUB" || registry.in["scope_id"] != hub || registry.in["reason"] != "audit" {
+		t.Errorf("the input is %v", registry.in)
+	}
+}

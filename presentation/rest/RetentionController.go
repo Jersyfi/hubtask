@@ -4,77 +4,13 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-const (
-	createRetentionPolicyUseCase = "CreateRetentionPolicy"
-)
-
-// CreateRetentionPolicy answers POST /retention-policies.
-func (c *RestController) CreateRetentionPolicy(w http.ResponseWriter, r *http.Request) {
-	var body openapi.RetentionPolicy
-	if err := decodeFrom(r.Body, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-	in := usecase.Input{
-		"data_kind":   body.DataKind,
-		"retain_days": body.RetainDays,
-		"action":      string(body.Action),
-	}
-	if body.Scope.Kind != nil {
-		in["scope"] = string(*body.Scope.Kind)
-	}
-	if body.Scope.Id != nil {
-		in["scope_id"] = body.Scope.Id.String()
-	}
-	if body.ThenAfterDays != nil {
-		in["then_after_days"] = *body.ThenAfterDays
-	}
-	if body.ThenAction != nil {
-		in["then_action"] = string(*body.ThenAction)
-	}
-	if body.GraceDays != nil {
-		in["grace_days"] = *body.GraceDays
-	}
-	if body.Notify != nil {
-		if body.Notify.BeforeDays != nil {
-			in["notify_before_days"] = *body.Notify.BeforeDays
-		}
-		if body.Notify.Recipients != nil {
-			recipients := make([]any, 0, len(*body.Notify.Recipients))
-			for _, recipient := range *body.Notify.Recipients {
-				recipients = append(recipients, string(recipient))
-			}
-			in["notify_recipients"] = recipients
-		}
-	}
-	for name, value := range map[string]*string{
-		"justification": body.Justification, "condition": body.Condition,
-	} {
-		if value != nil && *value != "" {
-			in[name] = *value
-		}
-	}
-	if body.Enabled != nil {
-		in["enabled"] = *body.Enabled
-	}
-	if body.ExportTargetId != nil {
-		in["export_target_id"] = body.ExportTargetId.String()
-	}
-
-	out, ok := c.read(w, r, createRetentionPolicyUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, retentionPolicyResponse(out))
-}
+const ()
 
 // retentionPolicyResponse maps one rule.
 func retentionPolicyResponse(out usecase.Output) openapi.RetentionPolicy {
@@ -176,29 +112,7 @@ func retentionPreviewResponse(out usecase.Output) map[string]any {
 	return preview
 }
 
-const (
-	placeLegalHoldUseCase = "PlaceLegalHold"
-)
-
-// PlaceLegalHold answers POST /legal-holds.
-func (c *RestController) PlaceLegalHold(w http.ResponseWriter, r *http.Request) {
-	var body openapi.LegalHoldCreate
-	if err := decodeFrom(r.Body, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"reason": body.Reason, "scope": string(body.Scope.Kind)}
-	if body.Scope.Id != nil {
-		in["scope_id"] = body.Scope.Id.String()
-	}
-
-	out, ok := c.read(w, r, placeLegalHoldUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, legalHoldResponse(out))
-}
+const ()
 
 // legalHoldResponse maps one hold.
 func legalHoldResponse(out usecase.Output) openapi.LegalHold {

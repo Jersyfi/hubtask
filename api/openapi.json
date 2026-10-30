@@ -11035,6 +11035,8 @@
           "backup"
         ],
         "operationId": "updateBackupSchedule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupScheduleResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -11567,6 +11569,14 @@
           "retention"
         ],
         "operationId": "placeLegalHold",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "legalHoldResponse",
+        "x-hubtask-rest-flatten": {
+          "scope": {
+            "kind": "scope",
+            "id": "scope_id"
+          }
+        },
         "summary": "Place a legal hold",
         "description": "Stops anything under it being deleted: a retention rule, a person emptying their own trash,\na hard delete somebody asked for. It outranks the workspace's own configured periods, which\nis why placing one is not an ordinary member's power. Auditable.\n",
         "requestBody": {
@@ -11708,6 +11718,18 @@
           "retention"
         ],
         "operationId": "createRetentionPolicy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "retentionPolicyResponse",
+        "x-hubtask-rest-flatten": {
+          "scope": {
+            "kind": "scope",
+            "id": "scope_id"
+          },
+          "notify": {
+            "before_days": "notify_before_days",
+            "recipients": "notify_recipients"
+          }
+        },
         "summary": "Create a retention rule",
         "description": "New rules start in notify-only mode if their first run would affect more than 5% of\nthe holdings. Extending beyond the data kind's upper bound requires a\n`justification`. Auditable.\n",
         "requestBody": {
@@ -11754,6 +11776,14 @@
           "retention"
         ],
         "operationId": "updateRetentionPolicy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "retentionPolicyResponse",
+        "x-hubtask-rest-flatten": {
+          "notify": {
+            "before_days": "notify_before_days",
+            "recipients": "notify_recipients"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
