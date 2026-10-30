@@ -101,3 +101,29 @@ func (SnapshotRepository) SatisfactionRatings(ctx context.Context, after shared.
 		return repository.RatingOf{Rating: rating, CollectionID: collection}, nil
 	})
 }
+
+// CodeLinks pages every live entry's code links with the entry's collection (UC-INT-13).
+func (SnapshotRepository) CodeLinks(ctx context.Context, after shared.ID, batch int) ([]repository.CodeLinkOf, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCodeLinks(ctx, sqlc.SnapshotCodeLinksParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("code links", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCodeLinksRow) (repository.CodeLinkOf, error) {
+		link := linkOf(sqlc.ListCodeLinksRow{
+			ID: row.ID, ItemID: row.ItemID, HubID: row.HubID, HookID: row.HookID, Kind: row.Kind,
+			Repository: row.Repository, Ref: row.Ref, Title: row.Title, Url: row.Url, Author: row.Author,
+			State: row.State, HappenedAt: row.HappenedAt, UpdatedAt: row.UpdatedAt,
+		})
+		collection, err := idFrom(row.CollectionID)
+		if err != nil {
+			return repository.CodeLinkOf{}, err
+		}
+		return repository.CodeLinkOf{Link: link, CollectionID: collection}, nil
+	})
+}

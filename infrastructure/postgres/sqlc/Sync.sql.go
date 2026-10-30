@@ -1384,6 +1384,74 @@ func (q *Queries) SnapshotCmdbRelations(ctx context.Context, arg SnapshotCmdbRel
 	return items, nil
 }
 
+const snapshotCodeLinks = `-- name: SnapshotCodeLinks :many
+SELECT cl.id, cl.item_id, cl.hub_id, cl.hook_id, cl.kind, cl.repository, cl.ref, cl.title, cl.url, cl.author,
+  cl.state, cl.happened_at, cl.updated_at, wi.collection_id
+FROM code_link cl
+JOIN work_item wi ON wi.tenant_id = cl.tenant_id AND wi.id = cl.item_id AND wi.deleted_at IS NULL
+WHERE cl.tenant_id = current_tenant_id() AND cl.id > $1
+ORDER BY cl.id
+LIMIT $2
+`
+
+type SnapshotCodeLinksParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotCodeLinksRow struct {
+	ID           pgtype.UUID
+	ItemID       pgtype.UUID
+	HubID        pgtype.UUID
+	HookID       pgtype.UUID
+	Kind         string
+	Repository   string
+	Ref          string
+	Title        string
+	Url          string
+	Author       string
+	State        string
+	HappenedAt   pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	CollectionID pgtype.UUID
+}
+
+// Every live entry's commits, branches and pull requests (migration 0275), with the entry's collection.
+func (q *Queries) SnapshotCodeLinks(ctx context.Context, arg SnapshotCodeLinksParams) ([]SnapshotCodeLinksRow, error) {
+	rows, err := q.db.Query(ctx, snapshotCodeLinks, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotCodeLinksRow{}
+	for rows.Next() {
+		var i SnapshotCodeLinksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ItemID,
+			&i.HubID,
+			&i.HookID,
+			&i.Kind,
+			&i.Repository,
+			&i.Ref,
+			&i.Title,
+			&i.Url,
+			&i.Author,
+			&i.State,
+			&i.HappenedAt,
+			&i.UpdatedAt,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotComments = `-- name: SnapshotComments :many
 SELECT c.id, c.tenant_id, c.item_id, c.author_id, c.parent_comment_id, c.body,
        c.created_at, c.edited_at, c.deleted_at, c.version, c.kind, c.system_code, c.system_params,

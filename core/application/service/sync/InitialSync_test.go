@@ -63,6 +63,7 @@ type snapshotStore struct {
 	approvals   []repository.ApprovalOf
 	slas        []repository.EntrySlaOf
 	ratings     []repository.RatingOf
+	codeLinks   []repository.CodeLinkOf
 	fields      []work.CustomFieldDefinition
 	timeRecords []timekeeping.Record
 	timers      []timekeeping.Timer

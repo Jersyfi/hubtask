@@ -16,6 +16,7 @@ import (
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/agent"
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
+	"github.com/Jersyfi/hubtask/core/domain/model/forge"
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
@@ -179,6 +180,9 @@ type Snapshot interface {
 	Approvals(ctx context.Context, after shared.ID, batch int) ([]ApprovalOf, error)
 	EntrySlas(ctx context.Context, after shared.ID, batch int) ([]EntrySlaOf, error)
 	SatisfactionRatings(ctx context.Context, after shared.ID, batch int) ([]RatingOf, error)
+	// CodeLinks pages every live entry's commits, branches and pull requests with the entry's
+	// collection (UC-INT-13).
+	CodeLinks(ctx context.Context, after shared.ID, batch int) ([]CodeLinkOf, error)
 	// OwnTimeRecords pages one person's time records and OwnTimer reads their running timer -
 	// the only time read for one person; TimeWorkTypes and TimePolicy read the workspace's (M7).
 	OwnTimeRecords(ctx context.Context, account, after shared.ID, batch int) ([]timekeeping.Record, error)
@@ -275,6 +279,12 @@ type ApprovalOf struct {
 // EntrySlaOf is one goal's record on an entry, with the entry's collection.
 type EntrySlaOf struct {
 	Record       servicedesk.EntrySla
+	CollectionID shared.ID
+}
+
+// CodeLinkOf is an entry's code link, with the entry's collection.
+type CodeLinkOf struct {
+	Link         forge.Link
 	CollectionID shared.ID
 }
 

@@ -693,3 +693,13 @@ JOIN work_item wi ON wi.tenant_id = re.tenant_id AND wi.id = re.entry_id AND wi.
 WHERE re.tenant_id = current_tenant_id() AND re.entry_id > sqlc.arg('after')
 ORDER BY re.entry_id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotCodeLinks :many
+-- Every live entry's commits, branches and pull requests (migration 0275), with the entry's collection.
+SELECT cl.id, cl.item_id, cl.hub_id, cl.hook_id, cl.kind, cl.repository, cl.ref, cl.title, cl.url, cl.author,
+  cl.state, cl.happened_at, cl.updated_at, wi.collection_id
+FROM code_link cl
+JOIN work_item wi ON wi.tenant_id = cl.tenant_id AND wi.id = cl.item_id AND wi.deleted_at IS NULL
+WHERE cl.tenant_id = current_tenant_id() AND cl.id > sqlc.arg('after')
+ORDER BY cl.id
+LIMIT sqlc.arg('batch');
