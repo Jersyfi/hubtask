@@ -501,6 +501,9 @@ it, order it and decide who may touch it.
   every write of a page, a trash and a restore with the pages that moved with it, record it. While
   the server is away the web app answers a hub's tree and a page from the copy, the page not
   writable: writing is the live document's, which needs the server.
+  A page restricted to fewer of its hub's readers, or under one, is not every reader's: the walk
+  leaves it out and every record of it is a `DELETE`, so devices drop it and read it from the
+  server (domain-model.md §3.8).
 * **Retention and erasure.** A snapshot marks the updates it covers and the snapshot it replaces;
   `DOCUMENT_HISTORY` removes them after thirty days ([data-retention.md](./data-retention.md) §3),
   held by a workspace hold. The document itself - the newest snapshot and the updates after it - is
