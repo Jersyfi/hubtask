@@ -1914,7 +1914,10 @@ func run() error {
 	inventory := cmdbservice.Inventory{
 		Store: postgres.NewCmdbRepository(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
+		Assurance: postgres.NewCmdbAssuranceRepository(),
 	}
+	// An entry's affected CIs read the entries and who may see them (UC-AST-09).
+	affecting := cmdbservice.Affecting{Inventory: inventory, Pointers: cmdbservice.Pointers{Entries: entryLinks, Reader: authorizer}}
 	// Its connectors (research itsm-cmdb-ai §6.3): every pull through the guarded client and the
 	// inventory's reconciliation, a breaker per connector; an alert's entry through the registry.
 	alertEntries := &deferredCatalogue{}
@@ -2160,6 +2163,26 @@ func run() error {
 		cmdbservice.ResolveCiDuplicate{Inventory: inventory}.Descriptor(),
 		cmdbservice.ReadCmdbHealth{Inventory: inventory}.Descriptor(),
 		cmdbservice.ReadCiImpact{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListEntryCis{Affecting: affecting}.Descriptor(),
+		cmdbservice.AffectEntryCi{Affecting: affecting}.Descriptor(),
+		cmdbservice.UnaffectEntryCi{Affecting: affecting}.Descriptor(),
+		cmdbservice.ListCiCampaigns{Inventory: inventory}.Descriptor(),
+		cmdbservice.StartCiCampaign{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCiCampaign{Inventory: inventory}.Descriptor(),
+		cmdbservice.AttestCi{Inventory: inventory}.Descriptor(),
+		cmdbservice.CloseCiCampaign{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiGroups{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineCiGroup{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiGroupMembers{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadServiceMap{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiAssets{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCiAsset{Inventory: inventory}.Descriptor(),
+		cmdbservice.RegisterCiAsset{Inventory: inventory}.Descriptor(),
+		cmdbservice.MoveCiAsset{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListSoftwareAliases{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineSoftwareAlias{Inventory: inventory}.Descriptor(),
+		cmdbservice.RemoveSoftwareAlias{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListSoftwareProducts{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiConnectors{Connectors: connectors}.Descriptor(),
 		cmdbservice.DefineCiConnector{Connectors: connectors}.Descriptor(),
 		cmdbservice.SetCiConnectorCredential{Connectors: connectors}.Descriptor(),

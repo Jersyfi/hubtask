@@ -87,6 +87,8 @@ type Inventory struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Assurance keeps affected CIs, campaigns, groups, assets and software aliases (migration 0267).
+	Assurance repository.Assurance
 	// Changes and HLC tell offline devices of a CI or a relation written, so that a hub's
 	// inventory can be read without the server (offline-sync.md §3). A nil Changes records
 	// nothing, a test's convenience.
