@@ -9,6 +9,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/agent"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
@@ -26,6 +27,8 @@ type ListValueProvenance struct{ Desk Desk }
 func (h ListValueProvenance) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ListValueProvenanceName,
+		// The entry's own read decides, along its path.
+		Permission: service.PermissionRead,
 		Summary: "Where an entry's AI-originated values came from: per acceptance, the names of the " +
 			"fields it wrote, the suggestion, the model and prompt version, the agent where one " +
 			"proposed it, and who accepted it when - kept beyond the suggestion's own retention and " +

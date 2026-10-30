@@ -19,6 +19,7 @@
 package catalogue
 
 import (
+	agentservice "github.com/Jersyfi/hubtask/core/application/service/agent"
 	"slices"
 	"strings"
 
@@ -221,6 +222,29 @@ func Descriptors() []usecase.Descriptor {
 		goalservice.DeleteDashboard{}.Descriptor(),
 		goalservice.ReadDashboardFigures{}.Descriptor(),
 		goalservice.ReadDashboardDigest{}.Descriptor(),
+		agentservice.RegisterAgentModel{}.Descriptor(),
+		agentservice.ListAgentModels{}.Descriptor(),
+		agentservice.ChangeAgentModel{}.Descriptor(),
+		agentservice.RegisterAgent{}.Descriptor(),
+		agentservice.ListAgents{}.Descriptor(),
+		agentservice.ReadAgent{}.Descriptor(),
+		agentservice.ChangeAgent{}.Descriptor(),
+		agentservice.ApproveAgent{}.Descriptor(),
+		agentservice.ActivateAgent{}.Descriptor(),
+		agentservice.SuspendAgent{}.Descriptor(),
+		agentservice.RetireAgent{}.Descriptor(),
+		agentservice.SetAgentHalt{}.Descriptor(),
+		agentservice.ReadAgentHalt{}.Descriptor(),
+		agentservice.ListAgentRequests{}.Descriptor(),
+		agentservice.DecideAgentRequest{}.Descriptor(),
+		agentservice.ListAgentActions{}.Descriptor(),
+		agentservice.ReadAgentMetering{}.Descriptor(),
+		agentservice.AddAgentCase{}.Descriptor(),
+		agentservice.ListAgentCases{}.Descriptor(),
+		agentservice.RemoveAgentCase{}.Descriptor(),
+		agentservice.RecordAgentEvaluation{}.Descriptor(),
+		agentservice.ListAgentEvaluations{}.Descriptor(),
+		agentservice.ListValueProvenance{}.Descriptor(),
 		goalservice.SetDashboardDigest{}.Descriptor(),
 		goalservice.DeleteDashboardDigest{}.Descriptor(),
 		cmdbservice.ListCiClasses{}.Descriptor(),

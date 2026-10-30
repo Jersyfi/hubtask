@@ -54,6 +54,38 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
 | `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
 
+## Agent
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `agent.activated` | ActivateAgent | `agent` | NOTICE | Every time |
+| `agent.approved` | ApproveAgent | `agent` | NOTICE | Every time |
+| `agent.case_added` | AddAgentCase | `agent` | INFO | Every time |
+| `agent.case_removed` | RemoveAgentCase | `agent` | INFO | Every time |
+| `agent.changed` | ChangeAgent | `agent` | NOTICE | Every time |
+| `agent.evaluated` | RecordAgentEvaluation | `agent` | NOTICE | Every time |
+| `agent.halt_set` | SetAgentHalt | `agent` | WARNING | Every time |
+| `agent.read` | ListAgentActions | `agent` | INFO | When refused |
+| `agent.read` | ListAgentCases | `agent` | INFO | When refused |
+| `agent.read` | ListAgentEvaluations | `agent` | INFO | When refused |
+| `agent.read` | ListAgentRequests | `agent_request` | INFO | When refused |
+| `agent.read` | ListAgents | `agent` | INFO | When refused |
+| `agent.read` | ReadAgent | `agent` | INFO | When refused |
+| `agent.read` | ReadAgentHalt | `agent` | INFO | When refused |
+| `agent.read` | ReadAgentMetering | `agent` | INFO | When refused |
+| `agent.registered` | RegisterAgent | `agent` | NOTICE | Every time |
+| `agent.request_approved` | DecideAgentRequest | `agent_request` | NOTICE | Every time |
+| `agent.retired` | RetireAgent | `agent` | NOTICE | Every time |
+| `agent.suspended` | SuspendAgent | `agent` | NOTICE | Every time |
+
+## Agent_model
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `agent_model.changed` | ChangeAgentModel | `agent_model` | NOTICE | Every time |
+| `agent_model.read` | ListAgentModels | `agent_model` | INFO | When refused |
+| `agent_model.registered` | RegisterAgentModel | `agent_model` | NOTICE | Every time |
+
 ## Ai
 
 | Action | Use case | Target | Severity | Recorded |
@@ -70,6 +102,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.own_budget_set` | SetOwnAiBudget | `ai_budget` | NOTICE | Every time |
 | `ai.own_position_read` | ReadOwnAiPosition | `account` | INFO | When refused |
 | `ai.person_opt_out_set` | SetAiPersonOptOut | `ai_source` | NOTICE | Every time |
+| `ai.provenance_read` | ListValueProvenance | `work_item` | INFO | When refused |
 | `ai.provider_configured` | ConfigureAiProvider | `ai_provider` | NOTICE | Every time |
 | `ai.provider_read` | ReadAiProvider | `ai_provider` | INFO | When refused |
 | `ai.provider_removed` | RemoveAiProvider | `ai_provider` | NOTICE | Every time |

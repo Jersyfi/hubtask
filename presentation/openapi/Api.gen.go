@@ -309,6 +309,438 @@ func (e AdminTenantStatus) Valid() bool {
 	}
 }
 
+// Defines values for AgentKind.
+const (
+	AgentKindCISUGGESTION    AgentKind = "CI_SUGGESTION"
+	AgentKindDUPLICATEREVIEW AgentKind = "DUPLICATE_REVIEW"
+	AgentKindEXTERNAL        AgentKind = "EXTERNAL"
+	AgentKindKNOWLEDGEDRAFT  AgentKind = "KNOWLEDGE_DRAFT"
+	AgentKindTICKETTRIAGE    AgentKind = "TICKET_TRIAGE"
+)
+
+// Valid indicates whether the value is a known member of the AgentKind enum.
+func (e AgentKind) Valid() bool {
+	switch e {
+	case AgentKindCISUGGESTION:
+		return true
+	case AgentKindDUPLICATEREVIEW:
+		return true
+	case AgentKindEXTERNAL:
+		return true
+	case AgentKindKNOWLEDGEDRAFT:
+		return true
+	case AgentKindTICKETTRIAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentRiskClass.
+const (
+	AgentRiskClassLIMITED AgentRiskClass = "LIMITED"
+	AgentRiskClassMINIMAL AgentRiskClass = "MINIMAL"
+)
+
+// Valid indicates whether the value is a known member of the AgentRiskClass enum.
+func (e AgentRiskClass) Valid() bool {
+	switch e {
+	case AgentRiskClassLIMITED:
+		return true
+	case AgentRiskClassMINIMAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentStatus.
+const (
+	AgentStatusACTIVE    AgentStatus = "ACTIVE"
+	AgentStatusAPPROVED  AgentStatus = "APPROVED"
+	AgentStatusDRAFT     AgentStatus = "DRAFT"
+	AgentStatusRETIRED   AgentStatus = "RETIRED"
+	AgentStatusSUSPENDED AgentStatus = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the AgentStatus enum.
+func (e AgentStatus) Valid() bool {
+	switch e {
+	case AgentStatusACTIVE:
+		return true
+	case AgentStatusAPPROVED:
+		return true
+	case AgentStatusDRAFT:
+		return true
+	case AgentStatusRETIRED:
+		return true
+	case AgentStatusSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentActionListDataClass.
+const (
+	AgentActionListDataClassIRREVERSIBLE AgentActionListDataClass = "IRREVERSIBLE"
+	AgentActionListDataClassREAD         AgentActionListDataClass = "READ"
+	AgentActionListDataClassREVERSIBLE   AgentActionListDataClass = "REVERSIBLE"
+)
+
+// Valid indicates whether the value is a known member of the AgentActionListDataClass enum.
+func (e AgentActionListDataClass) Valid() bool {
+	switch e {
+	case AgentActionListDataClassIRREVERSIBLE:
+		return true
+	case AgentActionListDataClassREAD:
+		return true
+	case AgentActionListDataClassREVERSIBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentActionListDataDecision.
+const (
+	AgentActionListDataDecisionALLOWED  AgentActionListDataDecision = "ALLOWED"
+	AgentActionListDataDecisionHELD     AgentActionListDataDecision = "HELD"
+	AgentActionListDataDecisionNOTIFIED AgentActionListDataDecision = "NOTIFIED"
+	AgentActionListDataDecisionREFUSED  AgentActionListDataDecision = "REFUSED"
+)
+
+// Valid indicates whether the value is a known member of the AgentActionListDataDecision enum.
+func (e AgentActionListDataDecision) Valid() bool {
+	switch e {
+	case AgentActionListDataDecisionALLOWED:
+		return true
+	case AgentActionListDataDecisionHELD:
+		return true
+	case AgentActionListDataDecisionNOTIFIED:
+		return true
+	case AgentActionListDataDecisionREFUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelRegion.
+const (
+	AgentModelRegionADEQUACY   AgentModelRegion = "ADEQUACY"
+	AgentModelRegionANY        AgentModelRegion = "ANY"
+	AgentModelRegionEEA        AgentModelRegion = "EEA"
+	AgentModelRegionSELFHOSTED AgentModelRegion = "SELF_HOSTED"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelRegion enum.
+func (e AgentModelRegion) Valid() bool {
+	switch e {
+	case AgentModelRegionADEQUACY:
+		return true
+	case AgentModelRegionANY:
+		return true
+	case AgentModelRegionEEA:
+		return true
+	case AgentModelRegionSELFHOSTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelSource.
+const (
+	AgentModelSourceOFFERED AgentModelSource = "OFFERED"
+	AgentModelSourceOWN     AgentModelSource = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelSource enum.
+func (e AgentModelSource) Valid() bool {
+	switch e {
+	case AgentModelSourceOFFERED:
+		return true
+	case AgentModelSourceOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelChangeRegion.
+const (
+	AgentModelChangeRegionADEQUACY   AgentModelChangeRegion = "ADEQUACY"
+	AgentModelChangeRegionANY        AgentModelChangeRegion = "ANY"
+	AgentModelChangeRegionEEA        AgentModelChangeRegion = "EEA"
+	AgentModelChangeRegionSELFHOSTED AgentModelChangeRegion = "SELF_HOSTED"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelChangeRegion enum.
+func (e AgentModelChangeRegion) Valid() bool {
+	switch e {
+	case AgentModelChangeRegionADEQUACY:
+		return true
+	case AgentModelChangeRegionANY:
+		return true
+	case AgentModelChangeRegionEEA:
+		return true
+	case AgentModelChangeRegionSELFHOSTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelChangeSource.
+const (
+	AgentModelChangeSourceOFFERED AgentModelChangeSource = "OFFERED"
+	AgentModelChangeSourceOWN     AgentModelChangeSource = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelChangeSource enum.
+func (e AgentModelChangeSource) Valid() bool {
+	switch e {
+	case AgentModelChangeSourceOFFERED:
+		return true
+	case AgentModelChangeSourceOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelCreateRegion.
+const (
+	AgentModelCreateRegionADEQUACY   AgentModelCreateRegion = "ADEQUACY"
+	AgentModelCreateRegionANY        AgentModelCreateRegion = "ANY"
+	AgentModelCreateRegionEEA        AgentModelCreateRegion = "EEA"
+	AgentModelCreateRegionSELFHOSTED AgentModelCreateRegion = "SELF_HOSTED"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelCreateRegion enum.
+func (e AgentModelCreateRegion) Valid() bool {
+	switch e {
+	case AgentModelCreateRegionADEQUACY:
+		return true
+	case AgentModelCreateRegionANY:
+		return true
+	case AgentModelCreateRegionEEA:
+		return true
+	case AgentModelCreateRegionSELFHOSTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelCreateSource.
+const (
+	AgentModelCreateSourceOFFERED AgentModelCreateSource = "OFFERED"
+	AgentModelCreateSourceOWN     AgentModelCreateSource = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelCreateSource enum.
+func (e AgentModelCreateSource) Valid() bool {
+	switch e {
+	case AgentModelCreateSourceOFFERED:
+		return true
+	case AgentModelCreateSourceOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentPolicyIrreversible.
+const (
+	AgentPolicyIrreversibleAPPROVAL AgentPolicyIrreversible = "APPROVAL"
+	AgentPolicyIrreversibleNEVER    AgentPolicyIrreversible = "NEVER"
+)
+
+// Valid indicates whether the value is a known member of the AgentPolicyIrreversible enum.
+func (e AgentPolicyIrreversible) Valid() bool {
+	switch e {
+	case AgentPolicyIrreversibleAPPROVAL:
+		return true
+	case AgentPolicyIrreversibleNEVER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentPolicyRead.
+const (
+	AgentPolicyReadALLOW AgentPolicyRead = "ALLOW"
+)
+
+// Valid indicates whether the value is a known member of the AgentPolicyRead enum.
+func (e AgentPolicyRead) Valid() bool {
+	switch e {
+	case AgentPolicyReadALLOW:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentPolicyReversible.
+const (
+	AgentPolicyReversibleALLOW    AgentPolicyReversible = "ALLOW"
+	AgentPolicyReversibleAPPROVAL AgentPolicyReversible = "APPROVAL"
+	AgentPolicyReversibleNEVER    AgentPolicyReversible = "NEVER"
+	AgentPolicyReversibleNOTIFY   AgentPolicyReversible = "NOTIFY"
+)
+
+// Valid indicates whether the value is a known member of the AgentPolicyReversible enum.
+func (e AgentPolicyReversible) Valid() bool {
+	switch e {
+	case AgentPolicyReversibleALLOW:
+		return true
+	case AgentPolicyReversibleAPPROVAL:
+		return true
+	case AgentPolicyReversibleNEVER:
+		return true
+	case AgentPolicyReversibleNOTIFY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentRequestClass.
+const (
+	AgentRequestClassIRREVERSIBLE AgentRequestClass = "IRREVERSIBLE"
+	AgentRequestClassREVERSIBLE   AgentRequestClass = "REVERSIBLE"
+)
+
+// Valid indicates whether the value is a known member of the AgentRequestClass enum.
+func (e AgentRequestClass) Valid() bool {
+	switch e {
+	case AgentRequestClassIRREVERSIBLE:
+		return true
+	case AgentRequestClassREVERSIBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentRequestStatus.
+const (
+	AgentRequestStatusAPPROVED AgentRequestStatus = "APPROVED"
+	AgentRequestStatusDECLINED AgentRequestStatus = "DECLINED"
+	AgentRequestStatusFAILED   AgentRequestStatus = "FAILED"
+	AgentRequestStatusPENDING  AgentRequestStatus = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the AgentRequestStatus enum.
+func (e AgentRequestStatus) Valid() bool {
+	switch e {
+	case AgentRequestStatusAPPROVED:
+		return true
+	case AgentRequestStatusDECLINED:
+		return true
+	case AgentRequestStatusFAILED:
+		return true
+	case AgentRequestStatusPENDING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentWriteKind.
+const (
+	AgentWriteKindCISUGGESTION    AgentWriteKind = "CI_SUGGESTION"
+	AgentWriteKindDUPLICATEREVIEW AgentWriteKind = "DUPLICATE_REVIEW"
+	AgentWriteKindEXTERNAL        AgentWriteKind = "EXTERNAL"
+	AgentWriteKindKNOWLEDGEDRAFT  AgentWriteKind = "KNOWLEDGE_DRAFT"
+	AgentWriteKindTICKETTRIAGE    AgentWriteKind = "TICKET_TRIAGE"
+)
+
+// Valid indicates whether the value is a known member of the AgentWriteKind enum.
+func (e AgentWriteKind) Valid() bool {
+	switch e {
+	case AgentWriteKindCISUGGESTION:
+		return true
+	case AgentWriteKindDUPLICATEREVIEW:
+		return true
+	case AgentWriteKindEXTERNAL:
+		return true
+	case AgentWriteKindKNOWLEDGEDRAFT:
+		return true
+	case AgentWriteKindTICKETTRIAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentWritePolicyIrreversible.
+const (
+	AgentWritePolicyIrreversibleAPPROVAL AgentWritePolicyIrreversible = "APPROVAL"
+	AgentWritePolicyIrreversibleNEVER    AgentWritePolicyIrreversible = "NEVER"
+)
+
+// Valid indicates whether the value is a known member of the AgentWritePolicyIrreversible enum.
+func (e AgentWritePolicyIrreversible) Valid() bool {
+	switch e {
+	case AgentWritePolicyIrreversibleAPPROVAL:
+		return true
+	case AgentWritePolicyIrreversibleNEVER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentWritePolicyReversible.
+const (
+	AgentWritePolicyReversibleALLOW    AgentWritePolicyReversible = "ALLOW"
+	AgentWritePolicyReversibleAPPROVAL AgentWritePolicyReversible = "APPROVAL"
+	AgentWritePolicyReversibleNEVER    AgentWritePolicyReversible = "NEVER"
+	AgentWritePolicyReversibleNOTIFY   AgentWritePolicyReversible = "NOTIFY"
+)
+
+// Valid indicates whether the value is a known member of the AgentWritePolicyReversible enum.
+func (e AgentWritePolicyReversible) Valid() bool {
+	switch e {
+	case AgentWritePolicyReversibleALLOW:
+		return true
+	case AgentWritePolicyReversibleAPPROVAL:
+		return true
+	case AgentWritePolicyReversibleNEVER:
+		return true
+	case AgentWritePolicyReversibleNOTIFY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentWriteRiskClass.
+const (
+	AgentWriteRiskClassHIGH    AgentWriteRiskClass = "HIGH"
+	AgentWriteRiskClassLIMITED AgentWriteRiskClass = "LIMITED"
+	AgentWriteRiskClassMINIMAL AgentWriteRiskClass = "MINIMAL"
+)
+
+// Valid indicates whether the value is a known member of the AgentWriteRiskClass enum.
+func (e AgentWriteRiskClass) Valid() bool {
+	switch e {
+	case AgentWriteRiskClassHIGH:
+		return true
+	case AgentWriteRiskClassLIMITED:
+		return true
+	case AgentWriteRiskClassMINIMAL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AiBudgetStateState.
 const (
 	AiBudgetStateStateNEARLYSPENT AiBudgetStateState = "NEARLY_SPENT"
@@ -8181,6 +8613,21 @@ func (e UsageMetricDay) Valid() bool {
 	}
 }
 
+// Defines values for ValueProvenanceSource.
+const (
+	ValueProvenanceSourceAI ValueProvenanceSource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the ValueProvenanceSource enum.
+func (e ValueProvenanceSource) Valid() bool {
+	switch e {
+	case ValueProvenanceSourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for VelocityUnit.
 const (
 	VelocityUnitHOURS  VelocityUnit = "HOURS"
@@ -8838,6 +9285,30 @@ func (e ListPlatformDeliveriesParamsStatus) Valid() bool {
 	case ListPlatformDeliveriesParamsStatusPENDING:
 		return true
 	case ListPlatformDeliveriesParamsStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAgentRequestsParamsStatus.
+const (
+	ListAgentRequestsParamsStatusAPPROVED ListAgentRequestsParamsStatus = "APPROVED"
+	ListAgentRequestsParamsStatusDECLINED ListAgentRequestsParamsStatus = "DECLINED"
+	ListAgentRequestsParamsStatusFAILED   ListAgentRequestsParamsStatus = "FAILED"
+	ListAgentRequestsParamsStatusPENDING  ListAgentRequestsParamsStatus = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the ListAgentRequestsParamsStatus enum.
+func (e ListAgentRequestsParamsStatus) Valid() bool {
+	switch e {
+	case ListAgentRequestsParamsStatusAPPROVED:
+		return true
+	case ListAgentRequestsParamsStatusDECLINED:
+		return true
+	case ListAgentRequestsParamsStatusFAILED:
+		return true
+	case ListAgentRequestsParamsStatusPENDING:
 		return true
 	default:
 		return false
@@ -9805,6 +10276,298 @@ type AdminTenantPage struct {
 	Data []AdminTenant `json:"data"`
 	Page PageInfo      `json:"page"`
 }
+
+// Agent defines model for Agent.
+type Agent struct {
+	// AccountId The service account it acts as.
+	AccountId   *openapi_types.UUID `json:"account_id"`
+	ApprovedAt  *time.Time          `json:"approved_at"`
+	ApprovedBy  *openapi_types.UUID `json:"approved_by"`
+	Budget      AgentBudget         `json:"budget"`
+	CreatedAt   time.Time           `json:"created_at"`
+	Id          openapi_types.UUID  `json:"id"`
+	Kind        AgentKind           `json:"kind"`
+	MinAccuracy int                 `json:"min_accuracy"`
+	ModelId     *openapi_types.UUID `json:"model_id"`
+	Name        string              `json:"name"`
+
+	// NeedsApproval Its approval does not cover its model as it now stands.
+	NeedsApproval bool `json:"needs_approval"`
+
+	// OwnerId The person it acts for.
+	OwnerId     *openapi_types.UUID `json:"owner_id"`
+	Policy      AgentPolicy         `json:"policy"`
+	Purpose     string              `json:"purpose"`
+	RiskClass   AgentRiskClass      `json:"risk_class"`
+	Scopes      []string            `json:"scopes"`
+	Status      AgentStatus         `json:"status"`
+	SuspendedAt *time.Time          `json:"suspended_at"`
+	SuspendedBy *openapi_types.UUID `json:"suspended_by"`
+
+	// Usage What it spent; only on an agent read alone.
+	Usage *struct {
+		ActionsThisHour *int `json:"actions_this_hour,omitempty"`
+		TokensToday     *int `json:"tokens_today,omitempty"`
+	} `json:"usage,omitempty"`
+	Version int `json:"version"`
+}
+
+// AgentKind defines model for Agent.Kind.
+type AgentKind string
+
+// AgentRiskClass defines model for Agent.RiskClass.
+type AgentRiskClass string
+
+// AgentStatus defines model for Agent.Status.
+type AgentStatus string
+
+// AgentActionList defines model for AgentActionList.
+type AgentActionList struct {
+	Data []struct {
+		At    time.Time                `json:"at"`
+		Class AgentActionListDataClass `json:"class"`
+
+		// Code The refusal's message code; empty otherwise.
+		Code      string                      `json:"code"`
+		Decision  AgentActionListDataDecision `json:"decision"`
+		Id        openapi_types.UUID          `json:"id"`
+		RequestId *openapi_types.UUID         `json:"request_id"`
+		Tokens    int                         `json:"tokens"`
+		UseCase   string                      `json:"use_case"`
+	} `json:"data"`
+}
+
+// AgentActionListDataClass defines model for AgentActionList.Data.Class.
+type AgentActionListDataClass string
+
+// AgentActionListDataDecision defines model for AgentActionList.Data.Decision.
+type AgentActionListDataDecision string
+
+// AgentBudget defines model for AgentBudget.
+type AgentBudget struct {
+	ActionsPerHour *int `json:"actions_per_hour,omitempty"`
+	ConcurrentRuns *int `json:"concurrent_runs,omitempty"`
+	TokensPerDay   *int `json:"tokens_per_day,omitempty"`
+}
+
+// AgentCase defines model for AgentCase.
+type AgentCase struct {
+	AgentId   openapi_types.UUID     `json:"agent_id"`
+	CreatedAt time.Time              `json:"created_at"`
+	CreatedBy *openapi_types.UUID    `json:"created_by"`
+	Expected  map[string]interface{} `json:"expected"`
+	Id        openapi_types.UUID     `json:"id"`
+	Notes     string                 `json:"notes"`
+	Title     string                 `json:"title"`
+}
+
+// AgentCaseCreate defines model for AgentCaseCreate.
+type AgentCaseCreate struct {
+	// Expected The answer expected: each key compared, a list as a set.
+	Expected map[string]interface{} `json:"expected"`
+	Notes    *string                `json:"notes,omitempty"`
+	Title    string                 `json:"title"`
+}
+
+// AgentCaseList defines model for AgentCaseList.
+type AgentCaseList struct {
+	Data []AgentCase `json:"data"`
+}
+
+// AgentHalt defines model for AgentHalt.
+type AgentHalt struct {
+	Halted bool                `json:"halted"`
+	SetAt  *time.Time          `json:"set_at"`
+	SetBy  *openapi_types.UUID `json:"set_by"`
+}
+
+// AgentList defines model for AgentList.
+type AgentList struct {
+	Data []Agent `json:"data"`
+}
+
+// AgentMeteringList defines model for AgentMeteringList.
+type AgentMeteringList struct {
+	Data []struct {
+		AgentId openapi_types.UUID `json:"agent_id"`
+		Allowed int                `json:"allowed"`
+		Day     openapi_types.Date `json:"day"`
+		Held    int                `json:"held"`
+		Refused int                `json:"refused"`
+		Tokens  int                `json:"tokens"`
+	} `json:"data"`
+}
+
+// AgentModel defines model for AgentModel.
+type AgentModel struct {
+	ConsentAt time.Time           `json:"consent_at"`
+	ConsentBy *openapi_types.UUID `json:"consent_by"`
+	Id        openapi_types.UUID  `json:"id"`
+	Key       string              `json:"key"`
+	Model     string              `json:"model"`
+	Name      string              `json:"name"`
+	OfferedId *openapi_types.UUID `json:"offered_id"`
+	Region    AgentModelRegion    `json:"region"`
+
+	// RetentionDays How long the provider keeps what it is sent; null is not known.
+	RetentionDays *int `json:"retention_days"`
+	Retired       bool `json:"retired"`
+
+	// Revision Moves with every change an approval relied on.
+	Revision int              `json:"revision"`
+	Source   AgentModelSource `json:"source"`
+	Version  int              `json:"version"`
+}
+
+// AgentModelRegion defines model for AgentModel.Region.
+type AgentModelRegion string
+
+// AgentModelSource defines model for AgentModel.Source.
+type AgentModelSource string
+
+// AgentModelChange defines model for AgentModelChange.
+type AgentModelChange struct {
+	Model         string                 `json:"model"`
+	Name          string                 `json:"name"`
+	OfferedId     *openapi_types.UUID    `json:"offered_id,omitempty"`
+	Region        AgentModelChangeRegion `json:"region"`
+	RetentionDays *int                   `json:"retention_days,omitempty"`
+
+	// Retired Retires the model; agents using it stop.
+	Retired *bool                  `json:"retired,omitempty"`
+	Source  AgentModelChangeSource `json:"source"`
+}
+
+// AgentModelChangeRegion defines model for AgentModelChange.Region.
+type AgentModelChangeRegion string
+
+// AgentModelChangeSource defines model for AgentModelChange.Source.
+type AgentModelChangeSource string
+
+// AgentModelCreate defines model for AgentModelCreate.
+type AgentModelCreate struct {
+	Key   string `json:"key"`
+	Model string `json:"model"`
+	Name  string `json:"name"`
+
+	// OfferedId The installation's offered model
+	OfferedId     *openapi_types.UUID    `json:"offered_id,omitempty"`
+	Region        AgentModelCreateRegion `json:"region"`
+	RetentionDays *int                   `json:"retention_days,omitempty"`
+	Source        AgentModelCreateSource `json:"source"`
+}
+
+// AgentModelCreateRegion defines model for AgentModelCreate.Region.
+type AgentModelCreateRegion string
+
+// AgentModelCreateSource defines model for AgentModelCreate.Source.
+type AgentModelCreateSource string
+
+// AgentModelList defines model for AgentModelList.
+type AgentModelList struct {
+	Data []AgentModel `json:"data"`
+}
+
+// AgentPolicy defines model for AgentPolicy.
+type AgentPolicy struct {
+	Irreversible *AgentPolicyIrreversible `json:"irreversible,omitempty"`
+
+	// Read A read always runs.
+	Read       *AgentPolicyRead       `json:"read,omitempty"`
+	Reversible *AgentPolicyReversible `json:"reversible,omitempty"`
+}
+
+// AgentPolicyIrreversible defines model for AgentPolicy.Irreversible.
+type AgentPolicyIrreversible string
+
+// AgentPolicyRead A read always runs.
+type AgentPolicyRead string
+
+// AgentPolicyReversible defines model for AgentPolicy.Reversible.
+type AgentPolicyReversible string
+
+// AgentRequest defines model for AgentRequest.
+type AgentRequest struct {
+	AgentId   openapi_types.UUID     `json:"agent_id"`
+	Class     AgentRequestClass      `json:"class"`
+	Code      string                 `json:"code"`
+	CreatedAt time.Time              `json:"created_at"`
+	DecidedAt *time.Time             `json:"decided_at"`
+	DecidedBy *openapi_types.UUID    `json:"decided_by"`
+	Id        openapi_types.UUID     `json:"id"`
+	Input     map[string]interface{} `json:"input"`
+
+	// Result What the act answered, on approval.
+	Result  *map[string]interface{} `json:"result,omitempty"`
+	Status  AgentRequestStatus      `json:"status"`
+	UseCase string                  `json:"use_case"`
+}
+
+// AgentRequestClass defines model for AgentRequest.Class.
+type AgentRequestClass string
+
+// AgentRequestStatus defines model for AgentRequest.Status.
+type AgentRequestStatus string
+
+// AgentRequestList defines model for AgentRequestList.
+type AgentRequestList struct {
+	Data []AgentRequest `json:"data"`
+}
+
+// AgentRun defines model for AgentRun.
+type AgentRun struct {
+	// Accuracy Percent, rounded down.
+	Accuracy      int                 `json:"accuracy"`
+	AgentId       openapi_types.UUID  `json:"agent_id"`
+	At            time.Time           `json:"at"`
+	Cases         int                 `json:"cases"`
+	Id            openapi_types.UUID  `json:"id"`
+	ModelRevision int                 `json:"model_revision"`
+	Passed        int                 `json:"passed"`
+	RunBy         *openapi_types.UUID `json:"run_by"`
+}
+
+// AgentRunList defines model for AgentRunList.
+type AgentRunList struct {
+	Data []AgentRun `json:"data"`
+}
+
+// AgentWrite defines model for AgentWrite.
+type AgentWrite struct {
+	Budget *struct {
+		ActionsPerHour *int `json:"actions_per_hour,omitempty"`
+		ConcurrentRuns *int `json:"concurrent_runs,omitempty"`
+		TokensPerDay   *int `json:"tokens_per_day,omitempty"`
+	} `json:"budget,omitempty"`
+	Kind        AgentWriteKind      `json:"kind"`
+	MinAccuracy *int                `json:"min_accuracy,omitempty"`
+	ModelId     *openapi_types.UUID `json:"model_id,omitempty"`
+	Name        string              `json:"name"`
+
+	// OwnerId The person it acts for; the caller without.
+	OwnerId *openapi_types.UUID `json:"owner_id,omitempty"`
+	Policy  *struct {
+		Irreversible *AgentWritePolicyIrreversible `json:"irreversible,omitempty"`
+		Reversible   *AgentWritePolicyReversible   `json:"reversible,omitempty"`
+	} `json:"policy,omitempty"`
+	Purpose string `json:"purpose"`
+
+	// RiskClass HIGH is refused.
+	RiskClass *AgentWriteRiskClass `json:"risk_class,omitempty"`
+	Scopes    *[]string            `json:"scopes,omitempty"`
+}
+
+// AgentWriteKind defines model for AgentWrite.Kind.
+type AgentWriteKind string
+
+// AgentWritePolicyIrreversible defines model for AgentWrite.Policy.Irreversible.
+type AgentWritePolicyIrreversible string
+
+// AgentWritePolicyReversible defines model for AgentWrite.Policy.Reversible.
+type AgentWritePolicyReversible string
+
+// AgentWriteRiskClass HIGH is refused.
+type AgentWriteRiskClass string
 
 // AiArrivalProposalsChoice defines model for AiArrivalProposalsChoice.
 type AiArrivalProposalsChoice struct {
@@ -19743,6 +20506,32 @@ type UsagePage struct {
 	Page         PageInfo           `json:"page"`
 }
 
+// ValueProvenance defines model for ValueProvenance.
+type ValueProvenance struct {
+	AcceptedAt time.Time           `json:"accepted_at"`
+	AcceptedBy *openapi_types.UUID `json:"accepted_by"`
+	AgentId    *openapi_types.UUID `json:"agent_id"`
+
+	// Fields The names of the fields the model proposed; never a value.
+	Fields        []string              `json:"fields"`
+	Id            openapi_types.UUID    `json:"id"`
+	Model         string                `json:"model"`
+	PromptId      string                `json:"prompt_id"`
+	PromptVersion string                `json:"prompt_version"`
+	Source        ValueProvenanceSource `json:"source"`
+	SuggestionId  *openapi_types.UUID   `json:"suggestion_id"`
+	TargetId      openapi_types.UUID    `json:"target_id"`
+	TargetType    string                `json:"target_type"`
+}
+
+// ValueProvenanceSource defines model for ValueProvenance.Source.
+type ValueProvenanceSource string
+
+// ValueProvenanceList defines model for ValueProvenanceList.
+type ValueProvenanceList struct {
+	Data []ValueProvenance `json:"data"`
+}
+
 // Velocity defines model for Velocity.
 type Velocity struct {
 	// Average The average completed of the latest three closed sprints of the unit.
@@ -20753,6 +21542,12 @@ type AccountId = openapi_types.UUID
 // AdminTenantId defines model for AdminTenantId.
 type AdminTenantId = openapi_types.UUID
 
+// AgentId defines model for AgentId.
+type AgentId = openapi_types.UUID
+
+// AgentModelId defines model for AgentModelId.
+type AgentModelId = openapi_types.UUID
+
 // BucketId defines model for BucketId.
 type BucketId = openapi_types.UUID
 
@@ -21141,6 +21936,72 @@ type ReadUsageParams struct {
 	Workspace *openapi_types.UUID `form:"workspace,omitempty" json:"workspace,omitempty"`
 	Cursor    *Cursor             `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size      *PageSize           `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// ChangeAgentModelParams defines parameters for ChangeAgentModel.
+type ChangeAgentModelParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListAgentRequestsParams defines parameters for ListAgentRequests.
+type ListAgentRequestsParams struct {
+	// Status PENDING without.
+	Status *ListAgentRequestsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// AgentId Only this agent's.
+	AgentId *openapi_types.UUID `form:"agent_id,omitempty" json:"agent_id,omitempty"`
+}
+
+// ListAgentRequestsParamsStatus defines parameters for ListAgentRequests.
+type ListAgentRequestsParamsStatus string
+
+// DecideAgentRequestJSONBody defines parameters for DecideAgentRequest.
+type DecideAgentRequestJSONBody struct {
+	Approve bool `json:"approve"`
+}
+
+// ListAgentsParams defines parameters for ListAgents.
+type ListAgentsParams struct {
+	// OwnerId Only the agents acting for this person.
+	OwnerId *openapi_types.UUID `form:"owner_id,omitempty" json:"owner_id,omitempty"`
+
+	// ModelId Only the agents using this model.
+	ModelId *openapi_types.UUID `form:"model_id,omitempty" json:"model_id,omitempty"`
+}
+
+// ChangeAgentParams defines parameters for ChangeAgent.
+type ChangeAgentParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListAgentActionsParams defines parameters for ListAgentActions.
+type ListAgentActionsParams struct {
+	// Before Only acts before this moment.
+	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
+}
+
+// RecordAgentEvaluationJSONBody defines parameters for RecordAgentEvaluation.
+type RecordAgentEvaluationJSONBody struct {
+	Answers []struct {
+		Answer map[string]interface{} `json:"answer"`
+		CaseId openapi_types.UUID     `json:"case_id"`
+	} `json:"answers"`
+}
+
+// SetAgentHaltJSONBody defines parameters for SetAgentHalt.
+type SetAgentHaltJSONBody struct {
+	Halted bool `json:"halted"`
+}
+
+// ReadAgentMeteringParams defines parameters for ReadAgentMetering.
+type ReadAgentMeteringParams struct {
+	// AgentId Only this agent.
+	AgentId *openapi_types.UUID `form:"agent_id,omitempty" json:"agent_id,omitempty"`
+
+	// Days How many days back; 30 without.
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
 }
 
 // AskWorkspaceParams defines parameters for AskWorkspace.
@@ -23282,6 +24143,30 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 // QueryTenantsJSONRequestBody defines body for QueryTenants for application/json ContentType.
 type QueryTenantsJSONRequestBody = TenantQuery
 
+// RegisterAgentModelJSONRequestBody defines body for RegisterAgentModel for application/json ContentType.
+type RegisterAgentModelJSONRequestBody = AgentModelCreate
+
+// ChangeAgentModelJSONRequestBody defines body for ChangeAgentModel for application/json ContentType.
+type ChangeAgentModelJSONRequestBody = AgentModelChange
+
+// DecideAgentRequestJSONRequestBody defines body for DecideAgentRequest for application/json ContentType.
+type DecideAgentRequestJSONRequestBody DecideAgentRequestJSONBody
+
+// RegisterAgentJSONRequestBody defines body for RegisterAgent for application/json ContentType.
+type RegisterAgentJSONRequestBody = AgentWrite
+
+// ChangeAgentJSONRequestBody defines body for ChangeAgent for application/json ContentType.
+type ChangeAgentJSONRequestBody = AgentWrite
+
+// AddAgentCaseJSONRequestBody defines body for AddAgentCase for application/json ContentType.
+type AddAgentCaseJSONRequestBody = AgentCaseCreate
+
+// RecordAgentEvaluationJSONRequestBody defines body for RecordAgentEvaluation for application/json ContentType.
+type RecordAgentEvaluationJSONRequestBody RecordAgentEvaluationJSONBody
+
+// SetAgentHaltJSONRequestBody defines body for SetAgentHalt for application/json ContentType.
+type SetAgentHaltJSONRequestBody SetAgentHaltJSONBody
+
 // SetAiArrivalProposalsJSONRequestBody defines body for SetAiArrivalProposals for application/json ContentType.
 type SetAiArrivalProposalsJSONRequestBody = AiArrivalProposalsChoice
 
@@ -24295,6 +25180,72 @@ type ServerInterface interface {
 	// ReadUsage The use per workspace, metric and day, for billing
 	// (GET /admin/usage)
 	ReadUsage(w http.ResponseWriter, r *http.Request, params ReadUsageParams)
+	// ListAgentModels The models registered for the workspace's agents
+	// (GET /agent-models)
+	ListAgentModels(w http.ResponseWriter, r *http.Request)
+	// RegisterAgentModel Register a model for agents
+	// (POST /agent-models)
+	RegisterAgentModel(w http.ResponseWriter, r *http.Request)
+	// ChangeAgentModel Change or retire a registered model
+	// (PATCH /agent-models/{modelId})
+	ChangeAgentModel(w http.ResponseWriter, r *http.Request, modelId AgentModelId, params ChangeAgentModelParams)
+	// ListAgentRequests The acts agents attempted that wait for a person
+	// (GET /agent-requests)
+	ListAgentRequests(w http.ResponseWriter, r *http.Request, params ListAgentRequestsParams)
+	// DecideAgentRequest Approve or decline an act an agent attempted
+	// (POST /agent-requests/{requestId}:decide)
+	DecideAgentRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID)
+	// ListAgents The workspace's agents
+	// (GET /agents)
+	ListAgents(w http.ResponseWriter, r *http.Request, params ListAgentsParams)
+	// RegisterAgent Register an agent
+	// (POST /agents)
+	RegisterAgent(w http.ResponseWriter, r *http.Request)
+	// ReadAgent One agent and what it spent
+	// (GET /agents/{agentId})
+	ReadAgent(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// ChangeAgent Change an agent
+	// (PATCH /agents/{agentId})
+	ChangeAgent(w http.ResponseWriter, r *http.Request, agentId AgentId, params ChangeAgentParams)
+	// ListAgentActions An agent's ledger
+	// (GET /agents/{agentId}/actions)
+	ListAgentActions(w http.ResponseWriter, r *http.Request, agentId AgentId, params ListAgentActionsParams)
+	// ListAgentCases An agent's evaluation set
+	// (GET /agents/{agentId}/cases)
+	ListAgentCases(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// AddAgentCase Add a golden case to an agent's evaluation set
+	// (POST /agents/{agentId}/cases)
+	AddAgentCase(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// RemoveAgentCase Take a case out of an agent's evaluation set
+	// (DELETE /agents/{agentId}/cases/{caseId})
+	RemoveAgentCase(w http.ResponseWriter, r *http.Request, agentId AgentId, caseId openapi_types.UUID)
+	// ListAgentEvaluations An agent's evaluation runs
+	// (GET /agents/{agentId}/evaluations)
+	ListAgentEvaluations(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// RecordAgentEvaluation Record an evaluation run of an agent
+	// (POST /agents/{agentId}/evaluations)
+	RecordAgentEvaluation(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// ActivateAgent Put an approved agent live
+	// (POST /agents/{agentId}:activate)
+	ActivateAgent(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// ApproveAgent Approve an agent for its model as it now stands
+	// (POST /agents/{agentId}:approve)
+	ApproveAgent(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// RetireAgent Retire an agent for good
+	// (POST /agents/{agentId}:retire)
+	RetireAgent(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// SuspendAgent Stop an agent at once
+	// (POST /agents/{agentId}:suspend)
+	SuspendAgent(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// ReadAgentHalt Whether the workspace's agents are halted
+	// (GET /agents:halt)
+	ReadAgentHalt(w http.ResponseWriter, r *http.Request)
+	// SetAgentHalt Halt or release every agent of the workspace
+	// (PUT /agents:halt)
+	SetAgentHalt(w http.ResponseWriter, r *http.Request)
+	// ReadAgentMetering What the workspace's agents did and spent per day
+	// (GET /agents:metering)
+	ReadAgentMetering(w http.ResponseWriter, r *http.Request, params ReadAgentMeteringParams)
 	// SetAiArrivalProposals Whether AI prepares a proposal for each new jumble entry
 	// (PUT /ai-arrival-proposals)
 	SetAiArrivalProposals(w http.ResponseWriter, r *http.Request)
@@ -25102,6 +26053,9 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/members/{accountId})
 	AddMember(w http.ResponseWriter, r *http.Request, itemId ItemId, accountId AccountId)
+	// ListValueProvenance Where an entry's AI-originated values came from
+	// (GET /items/{itemId}/provenance)
+	ListValueProvenance(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (DELETE /items/{itemId}/recurrence)
 	RemoveRecurrence(w http.ResponseWriter, r *http.Request, itemId ItemId, params RemoveRecurrenceParams)
@@ -28623,6 +29577,651 @@ func (siw *ServerInterfaceWrapper) ReadUsage(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadUsage(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentModels operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentModels(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentModels(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegisterAgentModel operation middleware
+func (siw *ServerInterfaceWrapper) RegisterAgentModel(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegisterAgentModel(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeAgentModel operation middleware
+func (siw *ServerInterfaceWrapper) ChangeAgentModel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "modelId" -------------
+	var modelId AgentModelId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "modelId", r.PathValue("modelId"), &modelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "modelId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeAgentModelParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeAgentModel(w, r, modelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentRequests operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentRequests(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAgentRequestsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "agent_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "agent_id", r.URL.Query(), &params.AgentId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "agent_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agent_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentRequests(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DecideAgentRequest operation middleware
+func (siw *ServerInterfaceWrapper) DecideAgentRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", r.PathValue("requestId"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DecideAgentRequest(w, r, requestId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgents operation middleware
+func (siw *ServerInterfaceWrapper) ListAgents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAgentsParams
+
+	// ------------- Optional query parameter "owner_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "owner_id", r.URL.Query(), &params.OwnerId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "owner_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "model_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "model_id", r.URL.Query(), &params.ModelId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "model_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "model_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegisterAgent operation middleware
+func (siw *ServerInterfaceWrapper) RegisterAgent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegisterAgent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadAgent operation middleware
+func (siw *ServerInterfaceWrapper) ReadAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadAgent(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeAgent operation middleware
+func (siw *ServerInterfaceWrapper) ChangeAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeAgentParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeAgent(w, r, agentId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentActions operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentActions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAgentActionsParams
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentActions(w, r, agentId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentCases operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentCases(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentCases(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddAgentCase operation middleware
+func (siw *ServerInterfaceWrapper) AddAgentCase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddAgentCase(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAgentCase operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAgentCase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "caseId" -------------
+	var caseId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "caseId", r.PathValue("caseId"), &caseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "caseId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAgentCase(w, r, agentId, caseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentEvaluations operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentEvaluations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentEvaluations(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecordAgentEvaluation operation middleware
+func (siw *ServerInterfaceWrapper) RecordAgentEvaluation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecordAgentEvaluation(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ActivateAgent operation middleware
+func (siw *ServerInterfaceWrapper) ActivateAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ActivateAgent(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApproveAgent operation middleware
+func (siw *ServerInterfaceWrapper) ApproveAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApproveAgent(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RetireAgent operation middleware
+func (siw *ServerInterfaceWrapper) RetireAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RetireAgent(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SuspendAgent operation middleware
+func (siw *ServerInterfaceWrapper) SuspendAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SuspendAgent(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadAgentHalt operation middleware
+func (siw *ServerInterfaceWrapper) ReadAgentHalt(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadAgentHalt(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetAgentHalt operation middleware
+func (siw *ServerInterfaceWrapper) SetAgentHalt(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAgentHalt(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadAgentMetering operation middleware
+func (siw *ServerInterfaceWrapper) ReadAgentMetering(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadAgentMeteringParams
+
+	// ------------- Optional query parameter "agent_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "agent_id", r.URL.Query(), &params.AgentId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "agent_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agent_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "days", r.URL.Query(), &params.Days, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "days", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadAgentMetering(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -37862,6 +39461,32 @@ func (siw *ServerInterfaceWrapper) AddMember(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AddMember(w, r, itemId, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListValueProvenance operation middleware
+func (siw *ServerInterfaceWrapper) ListValueProvenance(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListValueProvenance(w, r, itemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -47201,6 +48826,29 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.DeleteDashboardDigest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.ReadDashboardDigest)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.SetDashboardDigest)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agent-models", wrapper.ListAgentModels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agent-models", wrapper.RegisterAgentModel)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/agent-models/{modelId}", wrapper.ChangeAgentModel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents", wrapper.ListAgents)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents", wrapper.RegisterAgent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents:halt", wrapper.ReadAgentHalt)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/agents:halt", wrapper.SetAgentHalt)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents:metering", wrapper.ReadAgentMetering)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents/{agentId}", wrapper.ReadAgent)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/agents/{agentId}", wrapper.ChangeAgent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}:approve", wrapper.ApproveAgent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}:activate", wrapper.ActivateAgent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}:suspend", wrapper.SuspendAgent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}:retire", wrapper.RetireAgent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents/{agentId}/actions", wrapper.ListAgentActions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents/{agentId}/cases", wrapper.ListAgentCases)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}/cases", wrapper.AddAgentCase)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/agents/{agentId}/cases/{caseId}", wrapper.RemoveAgentCase)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents/{agentId}/evaluations", wrapper.ListAgentEvaluations)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}/evaluations", wrapper.RecordAgentEvaluation)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agent-requests", wrapper.ListAgentRequests)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agent-requests/{requestId}:decide", wrapper.DecideAgentRequest)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/provenance", wrapper.ListValueProvenance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-records", wrapper.ListTimeRecords)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/time-records", wrapper.LogTime)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/time-records/{recordId}", wrapper.DeleteTimeRecord)

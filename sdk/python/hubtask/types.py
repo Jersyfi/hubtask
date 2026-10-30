@@ -1532,6 +1532,165 @@ class Goal(TypedDict, total=False):
     linked_entries: list[dict[str, Any]]
     check_ins: list["GoalCheckIn"]
 
+class AgentModel(TypedDict, total=False):
+    id: Required[str]
+    key: Required[str]
+    name: Required[str]
+    source: Required[Literal["OWN", "OFFERED"]]
+    offered_id: Required[str | None]
+    model: Required[str]
+    region: Required[Literal["ANY", "ADEQUACY", "EEA", "SELF_HOSTED"]]
+    retention_days: Required[int | None]
+    consent_by: Required[str | None]
+    consent_at: Required[str]
+    revision: Required[int]
+    retired: Required[bool]
+    version: Required[int]
+
+class AgentModelList(TypedDict, total=False):
+    data: Required[list["AgentModel"]]
+
+class AgentModelCreate(TypedDict, total=False):
+    key: Required[str]
+    name: Required[str]
+    source: Required[Literal["OWN", "OFFERED"]]
+    offered_id: str
+    model: Required[str]
+    region: Required[Literal["ANY", "ADEQUACY", "EEA", "SELF_HOSTED"]]
+    retention_days: int
+
+class AgentModelChange(TypedDict, total=False):
+    name: Required[str]
+    source: Required[Literal["OWN", "OFFERED"]]
+    offered_id: str
+    model: Required[str]
+    region: Required[Literal["ANY", "ADEQUACY", "EEA", "SELF_HOSTED"]]
+    retention_days: int
+    retired: bool
+
+class AgentPolicy(TypedDict, total=False):
+    read: Literal["ALLOW"]
+    reversible: Literal["ALLOW", "NOTIFY", "APPROVAL", "NEVER"]
+    irreversible: Literal["APPROVAL", "NEVER"]
+
+class AgentBudget(TypedDict, total=False):
+    tokens_per_day: int
+    actions_per_hour: int
+    concurrent_runs: int
+
+class Agent(TypedDict, total=False):
+    id: Required[str]
+    account_id: Required[str | None]
+    name: Required[str]
+    purpose: Required[str]
+    kind: Required[Literal["TICKET_TRIAGE", "CI_SUGGESTION", "DUPLICATE_REVIEW", "KNOWLEDGE_DRAFT", "EXTERNAL"]]
+    owner_id: Required[str | None]
+    risk_class: Required[Literal["MINIMAL", "LIMITED"]]
+    scopes: Required[list[str]]
+    model_id: Required[str | None]
+    policy: Required["AgentPolicy"]
+    budget: Required["AgentBudget"]
+    min_accuracy: Required[int]
+    status: Required[Literal["DRAFT", "APPROVED", "ACTIVE", "SUSPENDED", "RETIRED"]]
+    needs_approval: Required[bool]
+    approved_by: Required[str | None]
+    approved_at: Required[str | None]
+    suspended_by: Required[str | None]
+    suspended_at: Required[str | None]
+    created_at: Required[str]
+    version: Required[int]
+    usage: dict[str, Any]
+
+class AgentList(TypedDict, total=False):
+    data: Required[list["Agent"]]
+
+class AgentWrite(TypedDict, total=False):
+    name: Required[str]
+    purpose: Required[str]
+    kind: Required[Literal["TICKET_TRIAGE", "CI_SUGGESTION", "DUPLICATE_REVIEW", "KNOWLEDGE_DRAFT", "EXTERNAL"]]
+    owner_id: str
+    risk_class: Literal["MINIMAL", "LIMITED", "HIGH"]
+    scopes: list[str]
+    model_id: str
+    policy: dict[str, Any]
+    budget: dict[str, Any]
+    min_accuracy: int
+
+class AgentHalt(TypedDict, total=False):
+    halted: Required[bool]
+    set_by: Required[str | None]
+    set_at: Required[str | None]
+
+class AgentMeteringList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
+class AgentActionList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
+class AgentCase(TypedDict, total=False):
+    id: Required[str]
+    agent_id: Required[str]
+    title: Required[str]
+    notes: Required[str]
+    expected: Required[dict[str, Any]]
+    created_by: Required[str | None]
+    created_at: Required[str]
+
+class AgentCaseList(TypedDict, total=False):
+    data: Required[list["AgentCase"]]
+
+class AgentCaseCreate(TypedDict, total=False):
+    title: Required[str]
+    notes: str
+    expected: Required[dict[str, Any]]
+
+class AgentRun(TypedDict, total=False):
+    id: Required[str]
+    agent_id: Required[str]
+    model_revision: Required[int]
+    cases: Required[int]
+    passed: Required[int]
+    accuracy: Required[int]
+    run_by: Required[str | None]
+    at: Required[str]
+
+class AgentRunList(TypedDict, total=False):
+    data: Required[list["AgentRun"]]
+
+AgentRequest = TypedDict("AgentRequest", {
+    "id": Required[str],
+    "agent_id": Required[str],
+    "use_case": Required[str],
+    "class": Required[Literal["REVERSIBLE", "IRREVERSIBLE"]],
+    "input": Required[dict[str, Any]],
+    "status": Required[Literal["PENDING", "APPROVED", "DECLINED", "FAILED"]],
+    "decided_by": Required[str | None],
+    "decided_at": Required[str | None],
+    "code": Required[str],
+    "created_at": Required[str],
+    "result": dict[str, Any],
+}, total=False)
+
+class AgentRequestList(TypedDict, total=False):
+    data: Required[list["AgentRequest"]]
+
+class ValueProvenance(TypedDict, total=False):
+    id: Required[str]
+    target_type: Required[str]
+    target_id: Required[str]
+    fields: Required[list[str]]
+    suggestion_id: Required[str | None]
+    agent_id: Required[str | None]
+    source: Required[Literal["AI"]]
+    model: Required[str]
+    prompt_id: Required[str]
+    prompt_version: Required[str]
+    accepted_by: Required[str | None]
+    accepted_at: Required[str]
+
+class ValueProvenanceList(TypedDict, total=False):
+    data: Required[list["ValueProvenance"]]
+
 class GoalList(TypedDict, total=False):
     data: Required[list["Goal"]]
 

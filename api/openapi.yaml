@@ -64,6 +64,7 @@ tags:
   - name: planning
   - name: time
   - name: goals
+  - name: agents
 
 x-hubtask-cli-groups:
   workflow: "the workspace's workflows and which collection runs which"
@@ -89,6 +90,8 @@ x-hubtask-cli-groups:
   goal: "goals with key results, linked entries and check-ins, and their progress as the caller sees it"
   portfolio: "portfolios of hubs and collections: their health, roll-up and status updates"
   dashboard: "dashboards: widgets over summary views, summary documents and goals, and their figures for the caller"
+  agent-model: "the models the workspace's agents may call: source, region, retention and the consent"
+  agent: "the workspace's governed agents: registered, approved, live, stopped; their ledger, held acts and evaluation"
 
 paths:
   /plans/{planId}/schedule:
@@ -1247,6 +1250,484 @@ paths:
       responses:
         "204":
           description: Ended
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agent-models:
+    get:
+      tags: [agents]
+      operationId: listAgentModels
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent-model ls"
+      summary: The models registered for the workspace's agents
+      description: By key, with source, model, region, the provider's retention, the consent and the revision. Needs MANAGE_MEMBERS at the workspace and the agents module switched on.
+      responses:
+        "200":
+          description: The models
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentModelList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [agents]
+      operationId: registerAgentModel
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent-model add"
+      summary: Register a model for agents
+      description: >
+        Registering it is the consent to send agents' material to it, recorded with who gave it. A source
+        the workspace's AI does not allow, a region below the installation's minimum or an offered model the
+        installation does not offer is refused. Needs MANAGE_MEMBERS at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentModelCreate" }
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentModel" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agent-models/{modelId}:
+    parameters:
+      - $ref: "#/components/parameters/AgentModelId"
+    patch:
+      tags: [agents]
+      operationId: changeAgentModel
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent-model set"
+      summary: Change or retire a registered model
+      description: >
+        A change to its source, model, region or retention is a new revision with a new consent: every agent
+        using it is refused until a person approves it again. A retired model stops every agent using it.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentModelChange" }
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentModel" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents:
+    get:
+      tags: [agents]
+      operationId: listAgents
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent ls"
+      summary: The workspace's agents
+      description: Whoever administers agents reads all of them; anybody else the agents acting for them.
+      parameters:
+        - { name: owner_id, in: query, schema: { type: string, format: uuid }, description: "Only the agents acting for this person." }
+        - { name: model_id, in: query, schema: { type: string, format: uuid }, description: "Only the agents using this model." }
+      responses:
+        "200":
+          description: The agents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [agents]
+      operationId: registerAgent
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent add"
+      summary: Register an agent
+      description: >
+        A non-human principal with a service account of its own, acting for a person and never doing what they
+        may not. It starts as a draft: nothing it attempts runs until somebody other than its owner approves it
+        and it is put live. Give its account roles and a token as for any service account. Needs MANAGE_MEMBERS
+        at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentWrite" }
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents:halt:
+    get:
+      tags: [agents]
+      operationId: readAgentHalt
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent halt-state"
+      summary: Whether the workspace's agents are halted
+      responses:
+        "200":
+          description: The kill switch
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHalt" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [agents]
+      operationId: setAgentHalt
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent halt"
+      summary: Halt or release every agent of the workspace
+      description: Halted, every act any registered agent attempts is refused with agents.halted until it is released. Needs MANAGE_MEMBERS at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [halted]
+              properties:
+                halted: { type: boolean }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentHalt" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents:metering:
+    get:
+      tags: [agents]
+      operationId: readAgentMetering
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent metering"
+      summary: What the workspace's agents did and spent per day
+      description: Per agent and day, the acts that ran, waited and were refused, and the tokens spent. Needs MANAGE_MEMBERS at the workspace.
+      parameters:
+        - { name: agent_id, in: query, schema: { type: string, format: uuid }, description: "Only this agent." }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 90 }, description: "How many days back; 30 without." }
+      responses:
+        "200":
+          description: The metering
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentMeteringList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents/{agentId}:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    get:
+      tags: [agents]
+      operationId: readAgent
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent get"
+      summary: One agent and what it spent
+      description: Its owner, an administrator of agents and the agent itself read it.
+      responses:
+        "200":
+          description: The agent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [agents]
+      operationId: changeAgent
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent set"
+      summary: Change an agent
+      description: >
+        A change that lets it do more - wider scopes, another model, a looser rule, a lower bar, another owner,
+        kind or risk class - takes it back to a draft until it is approved again; a smaller budget does not.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentWrite" }
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents/{agentId}:approve:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    post:
+      tags: [agents]
+      operationId: approveAgent
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent approve"
+      summary: Approve an agent for its model as it now stands
+      description: Its owner does not approve it, and no agent approves one. Needs MANAGE_MEMBERS at the workspace.
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents/{agentId}:activate:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    post:
+      tags: [agents]
+      operationId: activateAgent
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent activate"
+      summary: Put an approved agent live
+      description: >
+        Its approval must cover its model as it now stands, and where it asks for an evaluation the newest run on
+        that model must have reached its bar. No agent puts one live.
+      responses:
+        "200":
+          description: Live
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents/{agentId}:suspend:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    post:
+      tags: [agents]
+      operationId: suspendAgent
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent suspend"
+      summary: Stop an agent at once
+      description: The kill switch of one agent. Its owner may pull it as well as whoever administers agents.
+      responses:
+        "200":
+          description: Suspended
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents/{agentId}:retire:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    post:
+      tags: [agents]
+      operationId: retireAgent
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent retire"
+      summary: Retire an agent for good
+      description: It never acts again and is kept with its ledger. Its service account stays; revoke its tokens there.
+      responses:
+        "200":
+          description: Retired
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents/{agentId}/actions:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    get:
+      tags: [agents]
+      operationId: listAgentActions
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent actions"
+      summary: An agent's ledger
+      description: Every act it attempted, newest first - never an input or an answer.
+      parameters:
+        - { name: before, in: query, schema: { type: string, format: date-time }, description: "Only acts before this moment." }
+      responses:
+        "200":
+          description: The ledger
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentActionList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents/{agentId}/cases:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    get:
+      tags: [agents]
+      operationId: listAgentCases
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent cases"
+      summary: An agent's evaluation set
+      description: Whoever administers agents reads it, and the agent itself, to answer it.
+      responses:
+        "200":
+          description: The cases
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentCaseList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [agents]
+      operationId: addAgentCase
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent case-add"
+      summary: Add a golden case to an agent's evaluation set
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentCaseCreate" }
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentCase" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents/{agentId}/cases/{caseId}:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+      - { name: caseId, in: path, required: true, description: A case of the set., schema: { type: string, format: uuid } }
+    delete:
+      tags: [agents]
+      operationId: removeAgentCase
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent case-rm"
+      summary: Take a case out of an agent's evaluation set
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agents/{agentId}/evaluations:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    get:
+      tags: [agents]
+      operationId: listAgentEvaluations
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent evaluations"
+      summary: An agent's evaluation runs
+      responses:
+        "200":
+          description: The runs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [agents]
+      operationId: recordAgentEvaluation
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent evaluate"
+      summary: Record an evaluation run of an agent
+      description: >
+        Its answer to each case of its set, compared here with the expected answer - each expected key, a list
+        as a set; a case left unanswered fails. The run counts for the model's revision as it now stands.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [answers]
+              properties:
+                answers:
+                  type: array
+                  maxItems: 500
+                  items:
+                    type: object
+                    required: [case_id, answer]
+                    properties:
+                      case_id: { type: string, format: uuid }
+                      answer: { type: object, additionalProperties: true }
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agent-requests:
+    get:
+      tags: [agents]
+      operationId: listAgentRequests
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent requests"
+      summary: The acts agents attempted that wait for a person
+      description: Newest first, each with its use case and input - the preview of what approving would do.
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, APPROVED, DECLINED, FAILED] }, description: "PENDING without." }
+        - { name: agent_id, in: query, schema: { type: string, format: uuid }, description: "Only this agent's." }
+      responses:
+        "200":
+          description: The requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRequestList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /agent-requests/{requestId}:decide:
+    parameters:
+      - { name: requestId, in: path, required: true, description: A held act., schema: { type: string, format: uuid } }
+    post:
+      tags: [agents]
+      operationId: decideAgentRequest
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent decide"
+      summary: Approve or decline an act an agent attempted
+      description: >
+        Approving performs it as the approving person, with their rights and audit entries; one their rights refuse
+        is recorded FAILED with the refusal's code. The agent's owner or whoever administers agents decides.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [approve]
+              properties:
+                approve: { type: boolean }
+      responses:
+        "200":
+          description: Decided
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRequest" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /items/{itemId}/provenance:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [agents]
+      operationId: listValueProvenance
+      x-hubtask-rest: generated
+      x-hubtask-cli: "item provenance"
+      summary: Where an entry's AI-originated values came from
+      description: >
+        Per acceptance, the names of the fields it wrote, the suggestion, the model and prompt version, and who
+        accepted it when - kept beyond the suggestion and in the archive. Never a value. Whoever may read the
+        entry reads it.
+      responses:
+        "200":
+          description: The provenance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValueProvenanceList" }
         "4XX":
           $ref: "#/components/responses/Problem"
   /time-records:
@@ -17901,6 +18382,18 @@ components:
       required: true
       description: A portfolio.
       schema: { type: string, format: uuid }
+    AgentId:
+      name: agentId
+      in: path
+      required: true
+      description: An agent.
+      schema: { type: string, format: uuid }
+    AgentModelId:
+      name: modelId
+      in: path
+      required: true
+      description: A model registered for agents.
+      schema: { type: string, format: uuid }
     DashboardId:
       name: dashboardId
       in: path
@@ -22450,6 +22943,248 @@ components:
               collection_id: { type: string, format: uuid }
         check_ins: { type: array, description: "The latest 20, only on a goal read alone.", items: { $ref: "#/components/schemas/GoalCheckIn" } }
 
+    AgentModel:
+      type: object
+      required: [id, key, name, source, offered_id, model, region, retention_days, consent_by, consent_at, revision, retired, version]
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string }
+        name: { type: string }
+        source: { type: string, enum: [OWN, OFFERED] }
+        offered_id: { type: [string, "null"], format: uuid }
+        model: { type: string }
+        region: { type: string, enum: [ANY, ADEQUACY, EEA, SELF_HOSTED] }
+        retention_days: { type: [integer, "null"], description: "How long the provider keeps what it is sent; null is not known." }
+        consent_by: { type: [string, "null"], format: uuid }
+        consent_at: { type: string, format: date-time }
+        revision: { type: integer, description: "Moves with every change an approval relied on." }
+        retired: { type: boolean }
+        version: { type: integer }
+    AgentModelList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/AgentModel" } }
+    AgentModelCreate:
+      type: object
+      additionalProperties: false
+      required: [key, name, source, model, region]
+      properties:
+        key: { type: string, pattern: "^[a-z][a-z0-9_-]{0,63}$" }
+        name: { type: string, maxLength: 120 }
+        source: { type: string, enum: [OWN, OFFERED] }
+        offered_id: { type: string, format: uuid, description: The installation's offered model, for OFFERED. }
+        model: { type: string, maxLength: 200 }
+        region: { type: string, enum: [ANY, ADEQUACY, EEA, SELF_HOSTED] }
+        retention_days: { type: integer, minimum: 0, maximum: 3650 }
+    AgentModelChange:
+      type: object
+      additionalProperties: false
+      required: [name, source, model, region]
+      properties:
+        name: { type: string, maxLength: 120 }
+        source: { type: string, enum: [OWN, OFFERED] }
+        offered_id: { type: string, format: uuid }
+        model: { type: string, maxLength: 200 }
+        region: { type: string, enum: [ANY, ADEQUACY, EEA, SELF_HOSTED] }
+        retention_days: { type: integer, minimum: 0, maximum: 3650 }
+        retired: { type: boolean, description: "Retires the model; agents using it stop." }
+    AgentPolicy:
+      type: object
+      properties:
+        read: { type: string, enum: [ALLOW], description: A read always runs. }
+        reversible: { type: string, enum: [ALLOW, NOTIFY, APPROVAL, NEVER] }
+        irreversible: { type: string, enum: [APPROVAL, NEVER] }
+    AgentBudget:
+      type: object
+      properties:
+        tokens_per_day: { type: integer, minimum: 0 }
+        actions_per_hour: { type: integer, minimum: 0 }
+        concurrent_runs: { type: integer, minimum: 0 }
+    Agent:
+      type: object
+      required: [id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_id, policy, budget, min_accuracy, status, needs_approval, approved_by, approved_at, suspended_by, suspended_at, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: [string, "null"], format: uuid, description: The service account it acts as. }
+        name: { type: string }
+        purpose: { type: string }
+        kind: { type: string, enum: [TICKET_TRIAGE, CI_SUGGESTION, DUPLICATE_REVIEW, KNOWLEDGE_DRAFT, EXTERNAL] }
+        owner_id: { type: [string, "null"], format: uuid, description: The person it acts for. }
+        risk_class: { type: string, enum: [MINIMAL, LIMITED] }
+        scopes: { type: array, items: { type: string } }
+        model_id: { type: [string, "null"], format: uuid }
+        policy: { $ref: "#/components/schemas/AgentPolicy" }
+        budget: { $ref: "#/components/schemas/AgentBudget" }
+        min_accuracy: { type: integer, minimum: 0, maximum: 100 }
+        status: { type: string, enum: [DRAFT, APPROVED, ACTIVE, SUSPENDED, RETIRED] }
+        needs_approval: { type: boolean, description: "Its approval does not cover its model as it now stands." }
+        approved_by: { type: [string, "null"], format: uuid }
+        approved_at: { type: [string, "null"], format: date-time }
+        suspended_by: { type: [string, "null"], format: uuid }
+        suspended_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        version: { type: integer }
+        usage:
+          type: object
+          description: What it spent; only on an agent read alone.
+          properties:
+            actions_this_hour: { type: integer }
+            tokens_today: { type: integer }
+    AgentList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Agent" } }
+    AgentWrite:
+      type: object
+      additionalProperties: false
+      required: [name, purpose, kind]
+      properties:
+        name: { type: string, maxLength: 120 }
+        purpose: { type: string, maxLength: 2000 }
+        kind: { type: string, enum: [TICKET_TRIAGE, CI_SUGGESTION, DUPLICATE_REVIEW, KNOWLEDGE_DRAFT, EXTERNAL] }
+        owner_id: { type: string, format: uuid, description: "The person it acts for; the caller without." }
+        risk_class: { type: string, enum: [MINIMAL, LIMITED, HIGH], description: "HIGH is refused." }
+        scopes: { type: array, maxItems: 64, items: { type: string } }
+        model_id: { type: string, format: uuid }
+        policy:
+          type: object
+          additionalProperties: false
+          properties:
+            reversible: { type: string, enum: [ALLOW, NOTIFY, APPROVAL, NEVER] }
+            irreversible: { type: string, enum: [APPROVAL, NEVER] }
+        budget:
+          type: object
+          additionalProperties: false
+          properties:
+            tokens_per_day: { type: integer, minimum: 0 }
+            actions_per_hour: { type: integer, minimum: 0 }
+            concurrent_runs: { type: integer, minimum: 0 }
+        min_accuracy: { type: integer, minimum: 0, maximum: 100 }
+    AgentHalt:
+      type: object
+      required: [halted, set_by, set_at]
+      properties:
+        halted: { type: boolean }
+        set_by: { type: [string, "null"], format: uuid }
+        set_at: { type: [string, "null"], format: date-time }
+    AgentMeteringList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [agent_id, day, allowed, held, refused, tokens]
+            properties:
+              agent_id: { type: string, format: uuid }
+              day: { type: string, format: date }
+              allowed: { type: integer }
+              held: { type: integer }
+              refused: { type: integer }
+              tokens: { type: integer }
+    AgentActionList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, use_case, class, decision, code, tokens, request_id, at]
+            properties:
+              id: { type: string, format: uuid }
+              use_case: { type: string }
+              class: { type: string, enum: [READ, REVERSIBLE, IRREVERSIBLE] }
+              decision: { type: string, enum: [ALLOWED, NOTIFIED, HELD, REFUSED] }
+              code: { type: string, description: "The refusal's message code; empty otherwise." }
+              tokens: { type: integer }
+              request_id: { type: [string, "null"], format: uuid }
+              at: { type: string, format: date-time }
+    AgentCase:
+      type: object
+      required: [id, agent_id, title, notes, expected, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        agent_id: { type: string, format: uuid }
+        title: { type: string }
+        notes: { type: string }
+        expected: { type: object, additionalProperties: true }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+    AgentCaseList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/AgentCase" } }
+    AgentCaseCreate:
+      type: object
+      additionalProperties: false
+      required: [title, expected]
+      properties:
+        title: { type: string, maxLength: 500 }
+        notes: { type: string, maxLength: 20000 }
+        expected: { type: object, additionalProperties: true, description: "The answer expected: each key compared, a list as a set." }
+    AgentRun:
+      type: object
+      required: [id, agent_id, model_revision, cases, passed, accuracy, run_by, at]
+      properties:
+        id: { type: string, format: uuid }
+        agent_id: { type: string, format: uuid }
+        model_revision: { type: integer }
+        cases: { type: integer }
+        passed: { type: integer }
+        accuracy: { type: integer, description: "Percent, rounded down." }
+        run_by: { type: [string, "null"], format: uuid }
+        at: { type: string, format: date-time }
+    AgentRunList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/AgentRun" } }
+    AgentRequest:
+      type: object
+      required: [id, agent_id, use_case, class, input, status, decided_by, decided_at, code, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        agent_id: { type: string, format: uuid }
+        use_case: { type: string }
+        class: { type: string, enum: [REVERSIBLE, IRREVERSIBLE] }
+        input: { type: object, additionalProperties: true }
+        status: { type: string, enum: [PENDING, APPROVED, DECLINED, FAILED] }
+        decided_by: { type: [string, "null"], format: uuid }
+        decided_at: { type: [string, "null"], format: date-time }
+        code: { type: string }
+        created_at: { type: string, format: date-time }
+        result: { type: object, additionalProperties: true, description: "What the act answered, on approval." }
+    AgentRequestList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/AgentRequest" } }
+    ValueProvenance:
+      type: object
+      required: [id, target_type, target_id, fields, suggestion_id, agent_id, source, model, prompt_id, prompt_version, accepted_by, accepted_at]
+      properties:
+        id: { type: string, format: uuid }
+        target_type: { type: string }
+        target_id: { type: string, format: uuid }
+        fields: { type: array, items: { type: string }, description: The names of the fields the model proposed; never a value. }
+        suggestion_id: { type: [string, "null"], format: uuid }
+        agent_id: { type: [string, "null"], format: uuid }
+        source: { type: string, enum: [AI] }
+        model: { type: string }
+        prompt_id: { type: string }
+        prompt_version: { type: string }
+        accepted_by: { type: [string, "null"], format: uuid }
+        accepted_at: { type: string, format: date-time }
+    ValueProvenanceList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/ValueProvenance" } }
     GoalList:
       type: object
       required: [data]

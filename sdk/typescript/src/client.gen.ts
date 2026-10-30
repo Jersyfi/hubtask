@@ -366,6 +366,121 @@ export class HubtaskClient {
     return this.call("DELETE", "/dashboards/{dashboardId}/digest", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The models registered for the workspace's agents */
+  listAgentModels(options: CallOptions = {}): Promise<operations["listAgentModels"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agent-models", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Register a model for agents */
+  registerAgentModel(body: NonNullable<operations["registerAgentModel"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["registerAgentModel"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/agent-models", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change or retire a registered model */
+  changeAgentModel(modelId: string, body: NonNullable<operations["changeAgentModel"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeAgentModel"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/agent-models/{modelId}", { "modelId": modelId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The workspace's agents */
+  listAgents(options: CallOptions & { readonly query?: NonNullable<operations["listAgents"]['parameters']['query']> } = {}): Promise<operations["listAgents"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agents", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Register an agent */
+  registerAgent(body: NonNullable<operations["registerAgent"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["registerAgent"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/agents", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Whether the workspace's agents are halted */
+  readAgentHalt(options: CallOptions = {}): Promise<operations["readAgentHalt"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agents:halt", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Halt or release every agent of the workspace */
+  setAgentHalt(body: NonNullable<operations["setAgentHalt"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setAgentHalt"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/agents:halt", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** What the workspace's agents did and spent per day */
+  readAgentMetering(options: CallOptions & { readonly query?: NonNullable<operations["readAgentMetering"]['parameters']['query']> } = {}): Promise<operations["readAgentMetering"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agents:metering", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** One agent and what it spent */
+  readAgent(agentId: string, options: CallOptions = {}): Promise<operations["readAgent"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agents/{agentId}", { "agentId": agentId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Change an agent */
+  changeAgent(agentId: string, body: NonNullable<operations["changeAgent"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeAgent"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/agents/{agentId}", { "agentId": agentId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Approve an agent for its model as it now stands */
+  approveAgent(agentId: string, options: CallOptions = {}): Promise<operations["approveAgent"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/agents/{agentId}:approve", { "agentId": agentId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Put an approved agent live */
+  activateAgent(agentId: string, options: CallOptions = {}): Promise<operations["activateAgent"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/agents/{agentId}:activate", { "agentId": agentId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Stop an agent at once */
+  suspendAgent(agentId: string, options: CallOptions = {}): Promise<operations["suspendAgent"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/agents/{agentId}:suspend", { "agentId": agentId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Retire an agent for good */
+  retireAgent(agentId: string, options: CallOptions = {}): Promise<operations["retireAgent"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/agents/{agentId}:retire", { "agentId": agentId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** An agent's ledger */
+  listAgentActions(agentId: string, options: CallOptions & { readonly query?: NonNullable<operations["listAgentActions"]['parameters']['query']> } = {}): Promise<operations["listAgentActions"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agents/{agentId}/actions", { "agentId": agentId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** An agent's evaluation set */
+  listAgentCases(agentId: string, options: CallOptions = {}): Promise<operations["listAgentCases"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agents/{agentId}/cases", { "agentId": agentId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a golden case to an agent's evaluation set */
+  addAgentCase(agentId: string, body: NonNullable<operations["addAgentCase"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addAgentCase"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/agents/{agentId}/cases", { "agentId": agentId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take a case out of an agent's evaluation set */
+  removeAgentCase(agentId: string, caseId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/agents/{agentId}/cases/{caseId}", { "agentId": agentId, "caseId": caseId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** An agent's evaluation runs */
+  listAgentEvaluations(agentId: string, options: CallOptions = {}): Promise<operations["listAgentEvaluations"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agents/{agentId}/evaluations", { "agentId": agentId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Record an evaluation run of an agent */
+  recordAgentEvaluation(agentId: string, body: NonNullable<operations["recordAgentEvaluation"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["recordAgentEvaluation"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/agents/{agentId}/evaluations", { "agentId": agentId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The acts agents attempted that wait for a person */
+  listAgentRequests(options: CallOptions & { readonly query?: NonNullable<operations["listAgentRequests"]['parameters']['query']> } = {}): Promise<operations["listAgentRequests"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agent-requests", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Approve or decline an act an agent attempted */
+  decideAgentRequest(requestId: string, body: NonNullable<operations["decideAgentRequest"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["decideAgentRequest"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/agent-requests/{requestId}:decide", { "requestId": requestId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Where an entry's AI-originated values came from */
+  listValueProvenance(itemId: string, options: CallOptions = {}): Promise<operations["listValueProvenance"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/provenance", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Time records of a range of days */
   listTimeRecords(options: CallOptions & { readonly query?: NonNullable<operations["listTimeRecords"]['parameters']['query']> } = {}): Promise<operations["listTimeRecords"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/time-records", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

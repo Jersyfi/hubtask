@@ -307,6 +307,98 @@ class Client:
         """End the caller's digest of a dashboard"""
         return self._call("DELETE", "/dashboards/{dashboardId}/digest", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "void")
 
+    def list_agent_models(self) -> "AgentModelList":
+        """The models registered for the workspace's agents"""
+        return self._call("GET", "/agent-models", {}, None, {}, None, "none", None, "json")
+
+    def register_agent_model(self, body: "AgentModelCreate") -> "AgentModel":
+        """Register a model for agents"""
+        return self._call("POST", "/agent-models", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_agent_model(self, model_id: str, body: "AgentModelChange", *, if_match: str | None = None) -> "AgentModel":
+        """Change or retire a registered model"""
+        return self._call("PATCH", "/agent-models/{modelId}", {"modelId": model_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_agents(self, *, query: dict[str, Any] | None = None) -> "AgentList":
+        """The workspace's agents"""
+        return self._call("GET", "/agents", {}, query, {}, None, "none", None, "json")
+
+    def register_agent(self, body: "AgentWrite") -> "Agent":
+        """Register an agent"""
+        return self._call("POST", "/agents", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_agent_halt(self) -> "AgentHalt":
+        """Whether the workspace's agents are halted"""
+        return self._call("GET", "/agents:halt", {}, None, {}, None, "none", None, "json")
+
+    def set_agent_halt(self, body: dict[str, Any]) -> "AgentHalt":
+        """Halt or release every agent of the workspace"""
+        return self._call("PUT", "/agents:halt", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_agent_metering(self, *, query: dict[str, Any] | None = None) -> "AgentMeteringList":
+        """What the workspace's agents did and spent per day"""
+        return self._call("GET", "/agents:metering", {}, query, {}, None, "none", None, "json")
+
+    def read_agent(self, agent_id: str) -> "Agent":
+        """One agent and what it spent"""
+        return self._call("GET", "/agents/{agentId}", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def change_agent(self, agent_id: str, body: "AgentWrite", *, if_match: str | None = None) -> "Agent":
+        """Change an agent"""
+        return self._call("PATCH", "/agents/{agentId}", {"agentId": agent_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def approve_agent(self, agent_id: str) -> "Agent":
+        """Approve an agent for its model as it now stands"""
+        return self._call("POST", "/agents/{agentId}:approve", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def activate_agent(self, agent_id: str) -> "Agent":
+        """Put an approved agent live"""
+        return self._call("POST", "/agents/{agentId}:activate", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def suspend_agent(self, agent_id: str) -> "Agent":
+        """Stop an agent at once"""
+        return self._call("POST", "/agents/{agentId}:suspend", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def retire_agent(self, agent_id: str) -> "Agent":
+        """Retire an agent for good"""
+        return self._call("POST", "/agents/{agentId}:retire", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def list_agent_actions(self, agent_id: str, *, query: dict[str, Any] | None = None) -> "AgentActionList":
+        """An agent's ledger"""
+        return self._call("GET", "/agents/{agentId}/actions", {"agentId": agent_id}, query, {}, None, "none", None, "json")
+
+    def list_agent_cases(self, agent_id: str) -> "AgentCaseList":
+        """An agent's evaluation set"""
+        return self._call("GET", "/agents/{agentId}/cases", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def add_agent_case(self, agent_id: str, body: "AgentCaseCreate") -> "AgentCase":
+        """Add a golden case to an agent's evaluation set"""
+        return self._call("POST", "/agents/{agentId}/cases", {"agentId": agent_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_agent_case(self, agent_id: str, case_id: str) -> None:
+        """Take a case out of an agent's evaluation set"""
+        return self._call("DELETE", "/agents/{agentId}/cases/{caseId}", {"agentId": agent_id, "caseId": case_id}, None, {}, None, "none", None, "void")
+
+    def list_agent_evaluations(self, agent_id: str) -> "AgentRunList":
+        """An agent's evaluation runs"""
+        return self._call("GET", "/agents/{agentId}/evaluations", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def record_agent_evaluation(self, agent_id: str, body: dict[str, Any]) -> "AgentRun":
+        """Record an evaluation run of an agent"""
+        return self._call("POST", "/agents/{agentId}/evaluations", {"agentId": agent_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_agent_requests(self, *, query: dict[str, Any] | None = None) -> "AgentRequestList":
+        """The acts agents attempted that wait for a person"""
+        return self._call("GET", "/agent-requests", {}, query, {}, None, "none", None, "json")
+
+    def decide_agent_request(self, request_id: str, body: dict[str, Any]) -> "AgentRequest":
+        """Approve or decline an act an agent attempted"""
+        return self._call("POST", "/agent-requests/{requestId}:decide", {"requestId": request_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_value_provenance(self, item_id: str) -> "ValueProvenanceList":
+        """Where an entry's AI-originated values came from"""
+        return self._call("GET", "/items/{itemId}/provenance", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
     def list_time_records(self, *, query: dict[str, Any] | None = None) -> "TimeRecordList":
         """Time records of a range of days"""
         return self._call("GET", "/time-records", {}, query, {}, None, "none", None, "json")

@@ -2460,3 +2460,95 @@ func (pending) SetDashboardDigest(w http.ResponseWriter, r *http.Request, _ open
 func (pending) DeleteDashboardDigest(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
 	notAvailable(w, r)
 }
+
+func (pending) ListAgentModels(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) RegisterAgentModel(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeAgentModel(w http.ResponseWriter, r *http.Request, _ openapi.AgentModelId, _ openapi.ChangeAgentModelParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgents(w http.ResponseWriter, r *http.Request, _ openapi.ListAgentsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RegisterAgent(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadAgentHalt(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetAgentHalt(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadAgentMetering(w http.ResponseWriter, r *http.Request, _ openapi.ReadAgentMeteringParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId, _ openapi.ChangeAgentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ApproveAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) ActivateAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) SuspendAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) RetireAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentActions(w http.ResponseWriter, r *http.Request, _ openapi.AgentId, _ openapi.ListAgentActionsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentCases(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) AddAgentCase(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveAgentCase(w http.ResponseWriter, r *http.Request, _ openapi.AgentId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentEvaluations(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) RecordAgentEvaluation(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentRequests(w http.ResponseWriter, r *http.Request, _ openapi.ListAgentRequestsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DecideAgentRequest(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListValueProvenance(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}

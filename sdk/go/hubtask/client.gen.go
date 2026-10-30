@@ -315,6 +315,438 @@ func (e AdminTenantStatus) Valid() bool {
 	}
 }
 
+// Defines values for AgentKind.
+const (
+	AgentKindCISUGGESTION    AgentKind = "CI_SUGGESTION"
+	AgentKindDUPLICATEREVIEW AgentKind = "DUPLICATE_REVIEW"
+	AgentKindEXTERNAL        AgentKind = "EXTERNAL"
+	AgentKindKNOWLEDGEDRAFT  AgentKind = "KNOWLEDGE_DRAFT"
+	AgentKindTICKETTRIAGE    AgentKind = "TICKET_TRIAGE"
+)
+
+// Valid indicates whether the value is a known member of the AgentKind enum.
+func (e AgentKind) Valid() bool {
+	switch e {
+	case AgentKindCISUGGESTION:
+		return true
+	case AgentKindDUPLICATEREVIEW:
+		return true
+	case AgentKindEXTERNAL:
+		return true
+	case AgentKindKNOWLEDGEDRAFT:
+		return true
+	case AgentKindTICKETTRIAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentRiskClass.
+const (
+	AgentRiskClassLIMITED AgentRiskClass = "LIMITED"
+	AgentRiskClassMINIMAL AgentRiskClass = "MINIMAL"
+)
+
+// Valid indicates whether the value is a known member of the AgentRiskClass enum.
+func (e AgentRiskClass) Valid() bool {
+	switch e {
+	case AgentRiskClassLIMITED:
+		return true
+	case AgentRiskClassMINIMAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentStatus.
+const (
+	AgentStatusACTIVE    AgentStatus = "ACTIVE"
+	AgentStatusAPPROVED  AgentStatus = "APPROVED"
+	AgentStatusDRAFT     AgentStatus = "DRAFT"
+	AgentStatusRETIRED   AgentStatus = "RETIRED"
+	AgentStatusSUSPENDED AgentStatus = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the AgentStatus enum.
+func (e AgentStatus) Valid() bool {
+	switch e {
+	case AgentStatusACTIVE:
+		return true
+	case AgentStatusAPPROVED:
+		return true
+	case AgentStatusDRAFT:
+		return true
+	case AgentStatusRETIRED:
+		return true
+	case AgentStatusSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentActionListDataClass.
+const (
+	AgentActionListDataClassIRREVERSIBLE AgentActionListDataClass = "IRREVERSIBLE"
+	AgentActionListDataClassREAD         AgentActionListDataClass = "READ"
+	AgentActionListDataClassREVERSIBLE   AgentActionListDataClass = "REVERSIBLE"
+)
+
+// Valid indicates whether the value is a known member of the AgentActionListDataClass enum.
+func (e AgentActionListDataClass) Valid() bool {
+	switch e {
+	case AgentActionListDataClassIRREVERSIBLE:
+		return true
+	case AgentActionListDataClassREAD:
+		return true
+	case AgentActionListDataClassREVERSIBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentActionListDataDecision.
+const (
+	AgentActionListDataDecisionALLOWED  AgentActionListDataDecision = "ALLOWED"
+	AgentActionListDataDecisionHELD     AgentActionListDataDecision = "HELD"
+	AgentActionListDataDecisionNOTIFIED AgentActionListDataDecision = "NOTIFIED"
+	AgentActionListDataDecisionREFUSED  AgentActionListDataDecision = "REFUSED"
+)
+
+// Valid indicates whether the value is a known member of the AgentActionListDataDecision enum.
+func (e AgentActionListDataDecision) Valid() bool {
+	switch e {
+	case AgentActionListDataDecisionALLOWED:
+		return true
+	case AgentActionListDataDecisionHELD:
+		return true
+	case AgentActionListDataDecisionNOTIFIED:
+		return true
+	case AgentActionListDataDecisionREFUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelRegion.
+const (
+	AgentModelRegionADEQUACY   AgentModelRegion = "ADEQUACY"
+	AgentModelRegionANY        AgentModelRegion = "ANY"
+	AgentModelRegionEEA        AgentModelRegion = "EEA"
+	AgentModelRegionSELFHOSTED AgentModelRegion = "SELF_HOSTED"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelRegion enum.
+func (e AgentModelRegion) Valid() bool {
+	switch e {
+	case AgentModelRegionADEQUACY:
+		return true
+	case AgentModelRegionANY:
+		return true
+	case AgentModelRegionEEA:
+		return true
+	case AgentModelRegionSELFHOSTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelSource.
+const (
+	AgentModelSourceOFFERED AgentModelSource = "OFFERED"
+	AgentModelSourceOWN     AgentModelSource = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelSource enum.
+func (e AgentModelSource) Valid() bool {
+	switch e {
+	case AgentModelSourceOFFERED:
+		return true
+	case AgentModelSourceOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelChangeRegion.
+const (
+	AgentModelChangeRegionADEQUACY   AgentModelChangeRegion = "ADEQUACY"
+	AgentModelChangeRegionANY        AgentModelChangeRegion = "ANY"
+	AgentModelChangeRegionEEA        AgentModelChangeRegion = "EEA"
+	AgentModelChangeRegionSELFHOSTED AgentModelChangeRegion = "SELF_HOSTED"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelChangeRegion enum.
+func (e AgentModelChangeRegion) Valid() bool {
+	switch e {
+	case AgentModelChangeRegionADEQUACY:
+		return true
+	case AgentModelChangeRegionANY:
+		return true
+	case AgentModelChangeRegionEEA:
+		return true
+	case AgentModelChangeRegionSELFHOSTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelChangeSource.
+const (
+	AgentModelChangeSourceOFFERED AgentModelChangeSource = "OFFERED"
+	AgentModelChangeSourceOWN     AgentModelChangeSource = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelChangeSource enum.
+func (e AgentModelChangeSource) Valid() bool {
+	switch e {
+	case AgentModelChangeSourceOFFERED:
+		return true
+	case AgentModelChangeSourceOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelCreateRegion.
+const (
+	AgentModelCreateRegionADEQUACY   AgentModelCreateRegion = "ADEQUACY"
+	AgentModelCreateRegionANY        AgentModelCreateRegion = "ANY"
+	AgentModelCreateRegionEEA        AgentModelCreateRegion = "EEA"
+	AgentModelCreateRegionSELFHOSTED AgentModelCreateRegion = "SELF_HOSTED"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelCreateRegion enum.
+func (e AgentModelCreateRegion) Valid() bool {
+	switch e {
+	case AgentModelCreateRegionADEQUACY:
+		return true
+	case AgentModelCreateRegionANY:
+		return true
+	case AgentModelCreateRegionEEA:
+		return true
+	case AgentModelCreateRegionSELFHOSTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentModelCreateSource.
+const (
+	AgentModelCreateSourceOFFERED AgentModelCreateSource = "OFFERED"
+	AgentModelCreateSourceOWN     AgentModelCreateSource = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AgentModelCreateSource enum.
+func (e AgentModelCreateSource) Valid() bool {
+	switch e {
+	case AgentModelCreateSourceOFFERED:
+		return true
+	case AgentModelCreateSourceOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentPolicyIrreversible.
+const (
+	AgentPolicyIrreversibleAPPROVAL AgentPolicyIrreversible = "APPROVAL"
+	AgentPolicyIrreversibleNEVER    AgentPolicyIrreversible = "NEVER"
+)
+
+// Valid indicates whether the value is a known member of the AgentPolicyIrreversible enum.
+func (e AgentPolicyIrreversible) Valid() bool {
+	switch e {
+	case AgentPolicyIrreversibleAPPROVAL:
+		return true
+	case AgentPolicyIrreversibleNEVER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentPolicyRead.
+const (
+	AgentPolicyReadALLOW AgentPolicyRead = "ALLOW"
+)
+
+// Valid indicates whether the value is a known member of the AgentPolicyRead enum.
+func (e AgentPolicyRead) Valid() bool {
+	switch e {
+	case AgentPolicyReadALLOW:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentPolicyReversible.
+const (
+	AgentPolicyReversibleALLOW    AgentPolicyReversible = "ALLOW"
+	AgentPolicyReversibleAPPROVAL AgentPolicyReversible = "APPROVAL"
+	AgentPolicyReversibleNEVER    AgentPolicyReversible = "NEVER"
+	AgentPolicyReversibleNOTIFY   AgentPolicyReversible = "NOTIFY"
+)
+
+// Valid indicates whether the value is a known member of the AgentPolicyReversible enum.
+func (e AgentPolicyReversible) Valid() bool {
+	switch e {
+	case AgentPolicyReversibleALLOW:
+		return true
+	case AgentPolicyReversibleAPPROVAL:
+		return true
+	case AgentPolicyReversibleNEVER:
+		return true
+	case AgentPolicyReversibleNOTIFY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentRequestClass.
+const (
+	AgentRequestClassIRREVERSIBLE AgentRequestClass = "IRREVERSIBLE"
+	AgentRequestClassREVERSIBLE   AgentRequestClass = "REVERSIBLE"
+)
+
+// Valid indicates whether the value is a known member of the AgentRequestClass enum.
+func (e AgentRequestClass) Valid() bool {
+	switch e {
+	case AgentRequestClassIRREVERSIBLE:
+		return true
+	case AgentRequestClassREVERSIBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentRequestStatus.
+const (
+	AgentRequestStatusAPPROVED AgentRequestStatus = "APPROVED"
+	AgentRequestStatusDECLINED AgentRequestStatus = "DECLINED"
+	AgentRequestStatusFAILED   AgentRequestStatus = "FAILED"
+	AgentRequestStatusPENDING  AgentRequestStatus = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the AgentRequestStatus enum.
+func (e AgentRequestStatus) Valid() bool {
+	switch e {
+	case AgentRequestStatusAPPROVED:
+		return true
+	case AgentRequestStatusDECLINED:
+		return true
+	case AgentRequestStatusFAILED:
+		return true
+	case AgentRequestStatusPENDING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentWriteKind.
+const (
+	AgentWriteKindCISUGGESTION    AgentWriteKind = "CI_SUGGESTION"
+	AgentWriteKindDUPLICATEREVIEW AgentWriteKind = "DUPLICATE_REVIEW"
+	AgentWriteKindEXTERNAL        AgentWriteKind = "EXTERNAL"
+	AgentWriteKindKNOWLEDGEDRAFT  AgentWriteKind = "KNOWLEDGE_DRAFT"
+	AgentWriteKindTICKETTRIAGE    AgentWriteKind = "TICKET_TRIAGE"
+)
+
+// Valid indicates whether the value is a known member of the AgentWriteKind enum.
+func (e AgentWriteKind) Valid() bool {
+	switch e {
+	case AgentWriteKindCISUGGESTION:
+		return true
+	case AgentWriteKindDUPLICATEREVIEW:
+		return true
+	case AgentWriteKindEXTERNAL:
+		return true
+	case AgentWriteKindKNOWLEDGEDRAFT:
+		return true
+	case AgentWriteKindTICKETTRIAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentWritePolicyIrreversible.
+const (
+	AgentWritePolicyIrreversibleAPPROVAL AgentWritePolicyIrreversible = "APPROVAL"
+	AgentWritePolicyIrreversibleNEVER    AgentWritePolicyIrreversible = "NEVER"
+)
+
+// Valid indicates whether the value is a known member of the AgentWritePolicyIrreversible enum.
+func (e AgentWritePolicyIrreversible) Valid() bool {
+	switch e {
+	case AgentWritePolicyIrreversibleAPPROVAL:
+		return true
+	case AgentWritePolicyIrreversibleNEVER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentWritePolicyReversible.
+const (
+	AgentWritePolicyReversibleALLOW    AgentWritePolicyReversible = "ALLOW"
+	AgentWritePolicyReversibleAPPROVAL AgentWritePolicyReversible = "APPROVAL"
+	AgentWritePolicyReversibleNEVER    AgentWritePolicyReversible = "NEVER"
+	AgentWritePolicyReversibleNOTIFY   AgentWritePolicyReversible = "NOTIFY"
+)
+
+// Valid indicates whether the value is a known member of the AgentWritePolicyReversible enum.
+func (e AgentWritePolicyReversible) Valid() bool {
+	switch e {
+	case AgentWritePolicyReversibleALLOW:
+		return true
+	case AgentWritePolicyReversibleAPPROVAL:
+		return true
+	case AgentWritePolicyReversibleNEVER:
+		return true
+	case AgentWritePolicyReversibleNOTIFY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentWriteRiskClass.
+const (
+	AgentWriteRiskClassHIGH    AgentWriteRiskClass = "HIGH"
+	AgentWriteRiskClassLIMITED AgentWriteRiskClass = "LIMITED"
+	AgentWriteRiskClassMINIMAL AgentWriteRiskClass = "MINIMAL"
+)
+
+// Valid indicates whether the value is a known member of the AgentWriteRiskClass enum.
+func (e AgentWriteRiskClass) Valid() bool {
+	switch e {
+	case AgentWriteRiskClassHIGH:
+		return true
+	case AgentWriteRiskClassLIMITED:
+		return true
+	case AgentWriteRiskClassMINIMAL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AiBudgetStateState.
 const (
 	AiBudgetStateStateNEARLYSPENT AiBudgetStateState = "NEARLY_SPENT"
@@ -8187,6 +8619,21 @@ func (e UsageMetricDay) Valid() bool {
 	}
 }
 
+// Defines values for ValueProvenanceSource.
+const (
+	ValueProvenanceSourceAI ValueProvenanceSource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the ValueProvenanceSource enum.
+func (e ValueProvenanceSource) Valid() bool {
+	switch e {
+	case ValueProvenanceSourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for VelocityUnit.
 const (
 	VelocityUnitHOURS  VelocityUnit = "HOURS"
@@ -8844,6 +9291,30 @@ func (e ListPlatformDeliveriesParamsStatus) Valid() bool {
 	case ListPlatformDeliveriesParamsStatusPENDING:
 		return true
 	case ListPlatformDeliveriesParamsStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAgentRequestsParamsStatus.
+const (
+	ListAgentRequestsParamsStatusAPPROVED ListAgentRequestsParamsStatus = "APPROVED"
+	ListAgentRequestsParamsStatusDECLINED ListAgentRequestsParamsStatus = "DECLINED"
+	ListAgentRequestsParamsStatusFAILED   ListAgentRequestsParamsStatus = "FAILED"
+	ListAgentRequestsParamsStatusPENDING  ListAgentRequestsParamsStatus = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the ListAgentRequestsParamsStatus enum.
+func (e ListAgentRequestsParamsStatus) Valid() bool {
+	switch e {
+	case ListAgentRequestsParamsStatusAPPROVED:
+		return true
+	case ListAgentRequestsParamsStatusDECLINED:
+		return true
+	case ListAgentRequestsParamsStatusFAILED:
+		return true
+	case ListAgentRequestsParamsStatusPENDING:
 		return true
 	default:
 		return false
@@ -9811,6 +10282,298 @@ type AdminTenantPage struct {
 	Data []AdminTenant `json:"data"`
 	Page PageInfo      `json:"page"`
 }
+
+// Agent defines model for Agent.
+type Agent struct {
+	// AccountId The service account it acts as.
+	AccountId   *openapi_types.UUID `json:"account_id"`
+	ApprovedAt  *time.Time          `json:"approved_at"`
+	ApprovedBy  *openapi_types.UUID `json:"approved_by"`
+	Budget      AgentBudget         `json:"budget"`
+	CreatedAt   time.Time           `json:"created_at"`
+	Id          openapi_types.UUID  `json:"id"`
+	Kind        AgentKind           `json:"kind"`
+	MinAccuracy int                 `json:"min_accuracy"`
+	ModelId     *openapi_types.UUID `json:"model_id"`
+	Name        string              `json:"name"`
+
+	// NeedsApproval Its approval does not cover its model as it now stands.
+	NeedsApproval bool `json:"needs_approval"`
+
+	// OwnerId The person it acts for.
+	OwnerId     *openapi_types.UUID `json:"owner_id"`
+	Policy      AgentPolicy         `json:"policy"`
+	Purpose     string              `json:"purpose"`
+	RiskClass   AgentRiskClass      `json:"risk_class"`
+	Scopes      []string            `json:"scopes"`
+	Status      AgentStatus         `json:"status"`
+	SuspendedAt *time.Time          `json:"suspended_at"`
+	SuspendedBy *openapi_types.UUID `json:"suspended_by"`
+
+	// Usage What it spent; only on an agent read alone.
+	Usage *struct {
+		ActionsThisHour *int `json:"actions_this_hour,omitempty"`
+		TokensToday     *int `json:"tokens_today,omitempty"`
+	} `json:"usage,omitempty"`
+	Version int `json:"version"`
+}
+
+// AgentKind defines model for Agent.Kind.
+type AgentKind string
+
+// AgentRiskClass defines model for Agent.RiskClass.
+type AgentRiskClass string
+
+// AgentStatus defines model for Agent.Status.
+type AgentStatus string
+
+// AgentActionList defines model for AgentActionList.
+type AgentActionList struct {
+	Data []struct {
+		At    time.Time                `json:"at"`
+		Class AgentActionListDataClass `json:"class"`
+
+		// Code The refusal's message code; empty otherwise.
+		Code      string                      `json:"code"`
+		Decision  AgentActionListDataDecision `json:"decision"`
+		Id        openapi_types.UUID          `json:"id"`
+		RequestId *openapi_types.UUID         `json:"request_id"`
+		Tokens    int                         `json:"tokens"`
+		UseCase   string                      `json:"use_case"`
+	} `json:"data"`
+}
+
+// AgentActionListDataClass defines model for AgentActionList.Data.Class.
+type AgentActionListDataClass string
+
+// AgentActionListDataDecision defines model for AgentActionList.Data.Decision.
+type AgentActionListDataDecision string
+
+// AgentBudget defines model for AgentBudget.
+type AgentBudget struct {
+	ActionsPerHour *int `json:"actions_per_hour,omitempty"`
+	ConcurrentRuns *int `json:"concurrent_runs,omitempty"`
+	TokensPerDay   *int `json:"tokens_per_day,omitempty"`
+}
+
+// AgentCase defines model for AgentCase.
+type AgentCase struct {
+	AgentId   openapi_types.UUID     `json:"agent_id"`
+	CreatedAt time.Time              `json:"created_at"`
+	CreatedBy *openapi_types.UUID    `json:"created_by"`
+	Expected  map[string]interface{} `json:"expected"`
+	Id        openapi_types.UUID     `json:"id"`
+	Notes     string                 `json:"notes"`
+	Title     string                 `json:"title"`
+}
+
+// AgentCaseCreate defines model for AgentCaseCreate.
+type AgentCaseCreate struct {
+	// Expected The answer expected: each key compared, a list as a set.
+	Expected map[string]interface{} `json:"expected"`
+	Notes    *string                `json:"notes,omitempty"`
+	Title    string                 `json:"title"`
+}
+
+// AgentCaseList defines model for AgentCaseList.
+type AgentCaseList struct {
+	Data []AgentCase `json:"data"`
+}
+
+// AgentHalt defines model for AgentHalt.
+type AgentHalt struct {
+	Halted bool                `json:"halted"`
+	SetAt  *time.Time          `json:"set_at"`
+	SetBy  *openapi_types.UUID `json:"set_by"`
+}
+
+// AgentList defines model for AgentList.
+type AgentList struct {
+	Data []Agent `json:"data"`
+}
+
+// AgentMeteringList defines model for AgentMeteringList.
+type AgentMeteringList struct {
+	Data []struct {
+		AgentId openapi_types.UUID `json:"agent_id"`
+		Allowed int                `json:"allowed"`
+		Day     openapi_types.Date `json:"day"`
+		Held    int                `json:"held"`
+		Refused int                `json:"refused"`
+		Tokens  int                `json:"tokens"`
+	} `json:"data"`
+}
+
+// AgentModel defines model for AgentModel.
+type AgentModel struct {
+	ConsentAt time.Time           `json:"consent_at"`
+	ConsentBy *openapi_types.UUID `json:"consent_by"`
+	Id        openapi_types.UUID  `json:"id"`
+	Key       string              `json:"key"`
+	Model     string              `json:"model"`
+	Name      string              `json:"name"`
+	OfferedId *openapi_types.UUID `json:"offered_id"`
+	Region    AgentModelRegion    `json:"region"`
+
+	// RetentionDays How long the provider keeps what it is sent; null is not known.
+	RetentionDays *int `json:"retention_days"`
+	Retired       bool `json:"retired"`
+
+	// Revision Moves with every change an approval relied on.
+	Revision int              `json:"revision"`
+	Source   AgentModelSource `json:"source"`
+	Version  int              `json:"version"`
+}
+
+// AgentModelRegion defines model for AgentModel.Region.
+type AgentModelRegion string
+
+// AgentModelSource defines model for AgentModel.Source.
+type AgentModelSource string
+
+// AgentModelChange defines model for AgentModelChange.
+type AgentModelChange struct {
+	Model         string                 `json:"model"`
+	Name          string                 `json:"name"`
+	OfferedId     *openapi_types.UUID    `json:"offered_id,omitempty"`
+	Region        AgentModelChangeRegion `json:"region"`
+	RetentionDays *int                   `json:"retention_days,omitempty"`
+
+	// Retired Retires the model; agents using it stop.
+	Retired *bool                  `json:"retired,omitempty"`
+	Source  AgentModelChangeSource `json:"source"`
+}
+
+// AgentModelChangeRegion defines model for AgentModelChange.Region.
+type AgentModelChangeRegion string
+
+// AgentModelChangeSource defines model for AgentModelChange.Source.
+type AgentModelChangeSource string
+
+// AgentModelCreate defines model for AgentModelCreate.
+type AgentModelCreate struct {
+	Key   string `json:"key"`
+	Model string `json:"model"`
+	Name  string `json:"name"`
+
+	// OfferedId The installation's offered model
+	OfferedId     *openapi_types.UUID    `json:"offered_id,omitempty"`
+	Region        AgentModelCreateRegion `json:"region"`
+	RetentionDays *int                   `json:"retention_days,omitempty"`
+	Source        AgentModelCreateSource `json:"source"`
+}
+
+// AgentModelCreateRegion defines model for AgentModelCreate.Region.
+type AgentModelCreateRegion string
+
+// AgentModelCreateSource defines model for AgentModelCreate.Source.
+type AgentModelCreateSource string
+
+// AgentModelList defines model for AgentModelList.
+type AgentModelList struct {
+	Data []AgentModel `json:"data"`
+}
+
+// AgentPolicy defines model for AgentPolicy.
+type AgentPolicy struct {
+	Irreversible *AgentPolicyIrreversible `json:"irreversible,omitempty"`
+
+	// Read A read always runs.
+	Read       *AgentPolicyRead       `json:"read,omitempty"`
+	Reversible *AgentPolicyReversible `json:"reversible,omitempty"`
+}
+
+// AgentPolicyIrreversible defines model for AgentPolicy.Irreversible.
+type AgentPolicyIrreversible string
+
+// AgentPolicyRead A read always runs.
+type AgentPolicyRead string
+
+// AgentPolicyReversible defines model for AgentPolicy.Reversible.
+type AgentPolicyReversible string
+
+// AgentRequest defines model for AgentRequest.
+type AgentRequest struct {
+	AgentId   openapi_types.UUID     `json:"agent_id"`
+	Class     AgentRequestClass      `json:"class"`
+	Code      string                 `json:"code"`
+	CreatedAt time.Time              `json:"created_at"`
+	DecidedAt *time.Time             `json:"decided_at"`
+	DecidedBy *openapi_types.UUID    `json:"decided_by"`
+	Id        openapi_types.UUID     `json:"id"`
+	Input     map[string]interface{} `json:"input"`
+
+	// Result What the act answered, on approval.
+	Result  *map[string]interface{} `json:"result,omitempty"`
+	Status  AgentRequestStatus      `json:"status"`
+	UseCase string                  `json:"use_case"`
+}
+
+// AgentRequestClass defines model for AgentRequest.Class.
+type AgentRequestClass string
+
+// AgentRequestStatus defines model for AgentRequest.Status.
+type AgentRequestStatus string
+
+// AgentRequestList defines model for AgentRequestList.
+type AgentRequestList struct {
+	Data []AgentRequest `json:"data"`
+}
+
+// AgentRun defines model for AgentRun.
+type AgentRun struct {
+	// Accuracy Percent, rounded down.
+	Accuracy      int                 `json:"accuracy"`
+	AgentId       openapi_types.UUID  `json:"agent_id"`
+	At            time.Time           `json:"at"`
+	Cases         int                 `json:"cases"`
+	Id            openapi_types.UUID  `json:"id"`
+	ModelRevision int                 `json:"model_revision"`
+	Passed        int                 `json:"passed"`
+	RunBy         *openapi_types.UUID `json:"run_by"`
+}
+
+// AgentRunList defines model for AgentRunList.
+type AgentRunList struct {
+	Data []AgentRun `json:"data"`
+}
+
+// AgentWrite defines model for AgentWrite.
+type AgentWrite struct {
+	Budget *struct {
+		ActionsPerHour *int `json:"actions_per_hour,omitempty"`
+		ConcurrentRuns *int `json:"concurrent_runs,omitempty"`
+		TokensPerDay   *int `json:"tokens_per_day,omitempty"`
+	} `json:"budget,omitempty"`
+	Kind        AgentWriteKind      `json:"kind"`
+	MinAccuracy *int                `json:"min_accuracy,omitempty"`
+	ModelId     *openapi_types.UUID `json:"model_id,omitempty"`
+	Name        string              `json:"name"`
+
+	// OwnerId The person it acts for; the caller without.
+	OwnerId *openapi_types.UUID `json:"owner_id,omitempty"`
+	Policy  *struct {
+		Irreversible *AgentWritePolicyIrreversible `json:"irreversible,omitempty"`
+		Reversible   *AgentWritePolicyReversible   `json:"reversible,omitempty"`
+	} `json:"policy,omitempty"`
+	Purpose string `json:"purpose"`
+
+	// RiskClass HIGH is refused.
+	RiskClass *AgentWriteRiskClass `json:"risk_class,omitempty"`
+	Scopes    *[]string            `json:"scopes,omitempty"`
+}
+
+// AgentWriteKind defines model for AgentWrite.Kind.
+type AgentWriteKind string
+
+// AgentWritePolicyIrreversible defines model for AgentWrite.Policy.Irreversible.
+type AgentWritePolicyIrreversible string
+
+// AgentWritePolicyReversible defines model for AgentWrite.Policy.Reversible.
+type AgentWritePolicyReversible string
+
+// AgentWriteRiskClass HIGH is refused.
+type AgentWriteRiskClass string
 
 // AiArrivalProposalsChoice defines model for AiArrivalProposalsChoice.
 type AiArrivalProposalsChoice struct {
@@ -19749,6 +20512,32 @@ type UsagePage struct {
 	Page         PageInfo           `json:"page"`
 }
 
+// ValueProvenance defines model for ValueProvenance.
+type ValueProvenance struct {
+	AcceptedAt time.Time           `json:"accepted_at"`
+	AcceptedBy *openapi_types.UUID `json:"accepted_by"`
+	AgentId    *openapi_types.UUID `json:"agent_id"`
+
+	// Fields The names of the fields the model proposed; never a value.
+	Fields        []string              `json:"fields"`
+	Id            openapi_types.UUID    `json:"id"`
+	Model         string                `json:"model"`
+	PromptId      string                `json:"prompt_id"`
+	PromptVersion string                `json:"prompt_version"`
+	Source        ValueProvenanceSource `json:"source"`
+	SuggestionId  *openapi_types.UUID   `json:"suggestion_id"`
+	TargetId      openapi_types.UUID    `json:"target_id"`
+	TargetType    string                `json:"target_type"`
+}
+
+// ValueProvenanceSource defines model for ValueProvenance.Source.
+type ValueProvenanceSource string
+
+// ValueProvenanceList defines model for ValueProvenanceList.
+type ValueProvenanceList struct {
+	Data []ValueProvenance `json:"data"`
+}
+
 // Velocity defines model for Velocity.
 type Velocity struct {
 	// Average The average completed of the latest three closed sprints of the unit.
@@ -20759,6 +21548,12 @@ type AccountId = openapi_types.UUID
 // AdminTenantId defines model for AdminTenantId.
 type AdminTenantId = openapi_types.UUID
 
+// AgentId defines model for AgentId.
+type AgentId = openapi_types.UUID
+
+// AgentModelId defines model for AgentModelId.
+type AgentModelId = openapi_types.UUID
+
 // BucketId defines model for BucketId.
 type BucketId = openapi_types.UUID
 
@@ -21147,6 +21942,72 @@ type ReadUsageParams struct {
 	Workspace *openapi_types.UUID `form:"workspace,omitempty" json:"workspace,omitempty"`
 	Cursor    *Cursor             `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size      *PageSize           `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// ChangeAgentModelParams defines parameters for ChangeAgentModel.
+type ChangeAgentModelParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListAgentRequestsParams defines parameters for ListAgentRequests.
+type ListAgentRequestsParams struct {
+	// Status PENDING without.
+	Status *ListAgentRequestsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// AgentId Only this agent's.
+	AgentId *openapi_types.UUID `form:"agent_id,omitempty" json:"agent_id,omitempty"`
+}
+
+// ListAgentRequestsParamsStatus defines parameters for ListAgentRequests.
+type ListAgentRequestsParamsStatus string
+
+// DecideAgentRequestJSONBody defines parameters for DecideAgentRequest.
+type DecideAgentRequestJSONBody struct {
+	Approve bool `json:"approve"`
+}
+
+// ListAgentsParams defines parameters for ListAgents.
+type ListAgentsParams struct {
+	// OwnerId Only the agents acting for this person.
+	OwnerId *openapi_types.UUID `form:"owner_id,omitempty" json:"owner_id,omitempty"`
+
+	// ModelId Only the agents using this model.
+	ModelId *openapi_types.UUID `form:"model_id,omitempty" json:"model_id,omitempty"`
+}
+
+// ChangeAgentParams defines parameters for ChangeAgent.
+type ChangeAgentParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListAgentActionsParams defines parameters for ListAgentActions.
+type ListAgentActionsParams struct {
+	// Before Only acts before this moment.
+	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
+}
+
+// RecordAgentEvaluationJSONBody defines parameters for RecordAgentEvaluation.
+type RecordAgentEvaluationJSONBody struct {
+	Answers []struct {
+		Answer map[string]interface{} `json:"answer"`
+		CaseId openapi_types.UUID     `json:"case_id"`
+	} `json:"answers"`
+}
+
+// SetAgentHaltJSONBody defines parameters for SetAgentHalt.
+type SetAgentHaltJSONBody struct {
+	Halted bool `json:"halted"`
+}
+
+// ReadAgentMeteringParams defines parameters for ReadAgentMetering.
+type ReadAgentMeteringParams struct {
+	// AgentId Only this agent.
+	AgentId *openapi_types.UUID `form:"agent_id,omitempty" json:"agent_id,omitempty"`
+
+	// Days How many days back; 30 without.
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
 }
 
 // AskWorkspaceParams defines parameters for AskWorkspace.
@@ -23287,6 +24148,30 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
 // QueryTenantsJSONRequestBody defines body for QueryTenants for application/json ContentType.
 type QueryTenantsJSONRequestBody = TenantQuery
+
+// RegisterAgentModelJSONRequestBody defines body for RegisterAgentModel for application/json ContentType.
+type RegisterAgentModelJSONRequestBody = AgentModelCreate
+
+// ChangeAgentModelJSONRequestBody defines body for ChangeAgentModel for application/json ContentType.
+type ChangeAgentModelJSONRequestBody = AgentModelChange
+
+// DecideAgentRequestJSONRequestBody defines body for DecideAgentRequest for application/json ContentType.
+type DecideAgentRequestJSONRequestBody DecideAgentRequestJSONBody
+
+// RegisterAgentJSONRequestBody defines body for RegisterAgent for application/json ContentType.
+type RegisterAgentJSONRequestBody = AgentWrite
+
+// ChangeAgentJSONRequestBody defines body for ChangeAgent for application/json ContentType.
+type ChangeAgentJSONRequestBody = AgentWrite
+
+// AddAgentCaseJSONRequestBody defines body for AddAgentCase for application/json ContentType.
+type AddAgentCaseJSONRequestBody = AgentCaseCreate
+
+// RecordAgentEvaluationJSONRequestBody defines body for RecordAgentEvaluation for application/json ContentType.
+type RecordAgentEvaluationJSONRequestBody RecordAgentEvaluationJSONBody
+
+// SetAgentHaltJSONRequestBody defines body for SetAgentHalt for application/json ContentType.
+type SetAgentHaltJSONRequestBody SetAgentHaltJSONBody
 
 // SetAiArrivalProposalsJSONRequestBody defines body for SetAiArrivalProposals for application/json ContentType.
 type SetAiArrivalProposalsJSONRequestBody = AiArrivalProposalsChoice
@@ -25462,6 +26347,238 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
 	ReadUsage(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAgentModels The models registered for the workspace's agents
+	//
+	// By key, with source, model, region, the provider's retention, the consent and the revision. Needs MANAGE_MEMBERS at the workspace and the agents module switched on.
+	//
+	// Corresponds with GET /agent-models (the `ListAgentModels` operationId).
+	ListAgentModels(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RegisterAgentModelWithBody Register a model for agents
+	//
+	// Registering it is the consent to send agents' material to it, recorded with who gave it. A source the workspace's AI does not allow, a region below the installation's minimum or an offered model the installation does not offer is refused. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /agent-models (the `RegisterAgentModel` operationId).
+	RegisterAgentModelWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RegisterAgentModel Register a model for agents
+	//
+	// Registering it is the consent to send agents' material to it, recorded with who gave it. A source the workspace's AI does not allow, a region below the installation's minimum or an offered model the installation does not offer is refused. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /agent-models (the `RegisterAgentModel` operationId).
+	RegisterAgentModel(ctx context.Context, body RegisterAgentModelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeAgentModelWithBody Change or retire a registered model
+	//
+	// A change to its source, model, region or retention is a new revision with a new consent: every agent using it is refused until a person approves it again. A retired model stops every agent using it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /agent-models/{modelId} (the `ChangeAgentModel` operationId).
+	ChangeAgentModelWithBody(ctx context.Context, modelId AgentModelId, params *ChangeAgentModelParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeAgentModel Change or retire a registered model
+	//
+	// A change to its source, model, region or retention is a new revision with a new consent: every agent using it is refused until a person approves it again. A retired model stops every agent using it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /agent-models/{modelId} (the `ChangeAgentModel` operationId).
+	ChangeAgentModel(ctx context.Context, modelId AgentModelId, params *ChangeAgentModelParams, body ChangeAgentModelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAgentRequests The acts agents attempted that wait for a person
+	//
+	// Newest first, each with its use case and input - the preview of what approving would do.
+	//
+	// Corresponds with GET /agent-requests (the `ListAgentRequests` operationId).
+	ListAgentRequests(ctx context.Context, params *ListAgentRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DecideAgentRequestWithBody Approve or decline an act an agent attempted
+	//
+	// Approving performs it as the approving person, with their rights and audit entries; one their rights refuse is recorded FAILED with the refusal's code. The agent's owner or whoever administers agents decides.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /agent-requests/{requestId}:decide (the `DecideAgentRequest` operationId).
+	DecideAgentRequestWithBody(ctx context.Context, requestId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DecideAgentRequest Approve or decline an act an agent attempted
+	//
+	// Approving performs it as the approving person, with their rights and audit entries; one their rights refuse is recorded FAILED with the refusal's code. The agent's owner or whoever administers agents decides.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /agent-requests/{requestId}:decide (the `DecideAgentRequest` operationId).
+	DecideAgentRequest(ctx context.Context, requestId openapi_types.UUID, body DecideAgentRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAgents The workspace's agents
+	//
+	// Whoever administers agents reads all of them; anybody else the agents acting for them.
+	//
+	// Corresponds with GET /agents (the `ListAgents` operationId).
+	ListAgents(ctx context.Context, params *ListAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RegisterAgentWithBody Register an agent
+	//
+	// A non-human principal with a service account of its own, acting for a person and never doing what they may not. It starts as a draft: nothing it attempts runs until somebody other than its owner approves it and it is put live. Give its account roles and a token as for any service account. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /agents (the `RegisterAgent` operationId).
+	RegisterAgentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RegisterAgent Register an agent
+	//
+	// A non-human principal with a service account of its own, acting for a person and never doing what they may not. It starts as a draft: nothing it attempts runs until somebody other than its owner approves it and it is put live. Give its account roles and a token as for any service account. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /agents (the `RegisterAgent` operationId).
+	RegisterAgent(ctx context.Context, body RegisterAgentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadAgent One agent and what it spent
+	//
+	// Its owner, an administrator of agents and the agent itself read it.
+	//
+	// Corresponds with GET /agents/{agentId} (the `ReadAgent` operationId).
+	ReadAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeAgentWithBody Change an agent
+	//
+	// A change that lets it do more - wider scopes, another model, a looser rule, a lower bar, another owner, kind or risk class - takes it back to a draft until it is approved again; a smaller budget does not.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /agents/{agentId} (the `ChangeAgent` operationId).
+	ChangeAgentWithBody(ctx context.Context, agentId AgentId, params *ChangeAgentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeAgent Change an agent
+	//
+	// A change that lets it do more - wider scopes, another model, a looser rule, a lower bar, another owner, kind or risk class - takes it back to a draft until it is approved again; a smaller budget does not.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /agents/{agentId} (the `ChangeAgent` operationId).
+	ChangeAgent(ctx context.Context, agentId AgentId, params *ChangeAgentParams, body ChangeAgentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAgentActions An agent's ledger
+	//
+	// Every act it attempted, newest first - never an input or an answer.
+	//
+	// Corresponds with GET /agents/{agentId}/actions (the `ListAgentActions` operationId).
+	ListAgentActions(ctx context.Context, agentId AgentId, params *ListAgentActionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAgentCases An agent's evaluation set
+	//
+	// Whoever administers agents reads it, and the agent itself, to answer it.
+	//
+	// Corresponds with GET /agents/{agentId}/cases (the `ListAgentCases` operationId).
+	ListAgentCases(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddAgentCaseWithBody Add a golden case to an agent's evaluation set
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /agents/{agentId}/cases (the `AddAgentCase` operationId).
+	AddAgentCaseWithBody(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddAgentCase Add a golden case to an agent's evaluation set
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /agents/{agentId}/cases (the `AddAgentCase` operationId).
+	AddAgentCase(ctx context.Context, agentId AgentId, body AddAgentCaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveAgentCase Take a case out of an agent's evaluation set
+	//
+	// Corresponds with DELETE /agents/{agentId}/cases/{caseId} (the `RemoveAgentCase` operationId).
+	RemoveAgentCase(ctx context.Context, agentId AgentId, caseId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAgentEvaluations An agent's evaluation runs
+	//
+	// Corresponds with GET /agents/{agentId}/evaluations (the `ListAgentEvaluations` operationId).
+	ListAgentEvaluations(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RecordAgentEvaluationWithBody Record an evaluation run of an agent
+	//
+	// Its answer to each case of its set, compared here with the expected answer - each expected key, a list as a set; a case left unanswered fails. The run counts for the model's revision as it now stands.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
+	RecordAgentEvaluationWithBody(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RecordAgentEvaluation Record an evaluation run of an agent
+	//
+	// Its answer to each case of its set, compared here with the expected answer - each expected key, a list as a set; a case left unanswered fails. The run counts for the model's revision as it now stands.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
+	RecordAgentEvaluation(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ActivateAgent Put an approved agent live
+	//
+	// Its approval must cover its model as it now stands, and where it asks for an evaluation the newest run on that model must have reached its bar. No agent puts one live.
+	//
+	// Corresponds with POST /agents/{agentId}:activate (the `ActivateAgent` operationId).
+	ActivateAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApproveAgent Approve an agent for its model as it now stands
+	//
+	// Its owner does not approve it, and no agent approves one. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with POST /agents/{agentId}:approve (the `ApproveAgent` operationId).
+	ApproveAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RetireAgent Retire an agent for good
+	//
+	// It never acts again and is kept with its ledger. Its service account stays; revoke its tokens there.
+	//
+	// Corresponds with POST /agents/{agentId}:retire (the `RetireAgent` operationId).
+	RetireAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SuspendAgent Stop an agent at once
+	//
+	// The kill switch of one agent. Its owner may pull it as well as whoever administers agents.
+	//
+	// Corresponds with POST /agents/{agentId}:suspend (the `SuspendAgent` operationId).
+	SuspendAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadAgentHalt Whether the workspace's agents are halted
+	//
+	// Corresponds with GET /agents:halt (the `ReadAgentHalt` operationId).
+	ReadAgentHalt(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAgentHaltWithBody Halt or release every agent of the workspace
+	//
+	// Halted, every act any registered agent attempts is refused with agents.halted until it is released. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /agents:halt (the `SetAgentHalt` operationId).
+	SetAgentHaltWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAgentHalt Halt or release every agent of the workspace
+	//
+	// Halted, every act any registered agent attempts is refused with agents.halted until it is released. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /agents:halt (the `SetAgentHalt` operationId).
+	SetAgentHalt(ctx context.Context, body SetAgentHaltJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadAgentMetering What the workspace's agents did and spent per day
+	//
+	// Per agent and day, the acts that ran, waited and were refused, and the tokens spent. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /agents:metering (the `ReadAgentMetering` operationId).
+	ReadAgentMetering(ctx context.Context, params *ReadAgentMeteringParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetAiArrivalProposalsWithBody Whether AI prepares a proposal for each new jumble entry
 	//
@@ -28901,6 +30018,13 @@ type ClientInterface interface {
 	//
 	// Puts an account on an entry's member list. Idempotent: an entry that already carries it succeeds. The account has to be able to see the entry - it has to hold a membership somewhere on the path above it - and the entry's type has to carry the MEMBERS capability, which an activity does not: an activity has one assignee and no member list.
 	AddMember(ctx context.Context, itemId ItemId, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListValueProvenance Where an entry's AI-originated values came from
+	//
+	// Per acceptance, the names of the fields it wrote, the suggestion, the model and prompt version, and who accepted it when - kept beyond the suggestion and in the archive. Never a value. Whoever may read the entry reads it.
+	//
+	// Corresponds with GET /items/{itemId}/provenance (the `ListValueProvenance` operationId).
+	ListValueProvenance(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveRecurrence performs a DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId) request.
 	//
@@ -35005,6 +36129,538 @@ func (c *Client) QueryTenants(ctx context.Context, body QueryTenantsJSONRequestB
 // Corresponds with GET /admin/usage (the `ReadUsage` operationId).
 func (c *Client) ReadUsage(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadUsageRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAgentModels The models registered for the workspace's agents
+//
+// By key, with source, model, region, the provider's retention, the consent and the revision. Needs MANAGE_MEMBERS at the workspace and the agents module switched on.
+//
+// Corresponds with GET /agent-models (the `ListAgentModels` operationId).
+func (c *Client) ListAgentModels(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAgentModelsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RegisterAgentModelWithBody Register a model for agents
+//
+// Registering it is the consent to send agents' material to it, recorded with who gave it. A source the workspace's AI does not allow, a region below the installation's minimum or an offered model the installation does not offer is refused. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /agent-models (the `RegisterAgentModel` operationId).
+func (c *Client) RegisterAgentModelWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterAgentModelRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RegisterAgentModel Register a model for agents
+//
+// Registering it is the consent to send agents' material to it, recorded with who gave it. A source the workspace's AI does not allow, a region below the installation's minimum or an offered model the installation does not offer is refused. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /agent-models (the `RegisterAgentModel` operationId).
+func (c *Client) RegisterAgentModel(ctx context.Context, body RegisterAgentModelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterAgentModelRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeAgentModelWithBody Change or retire a registered model
+//
+// A change to its source, model, region or retention is a new revision with a new consent: every agent using it is refused until a person approves it again. A retired model stops every agent using it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /agent-models/{modelId} (the `ChangeAgentModel` operationId).
+func (c *Client) ChangeAgentModelWithBody(ctx context.Context, modelId AgentModelId, params *ChangeAgentModelParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeAgentModelRequestWithBody(c.Server, modelId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeAgentModel Change or retire a registered model
+//
+// A change to its source, model, region or retention is a new revision with a new consent: every agent using it is refused until a person approves it again. A retired model stops every agent using it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /agent-models/{modelId} (the `ChangeAgentModel` operationId).
+func (c *Client) ChangeAgentModel(ctx context.Context, modelId AgentModelId, params *ChangeAgentModelParams, body ChangeAgentModelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeAgentModelRequest(c.Server, modelId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAgentRequests The acts agents attempted that wait for a person
+//
+// Newest first, each with its use case and input - the preview of what approving would do.
+//
+// Corresponds with GET /agent-requests (the `ListAgentRequests` operationId).
+func (c *Client) ListAgentRequests(ctx context.Context, params *ListAgentRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAgentRequestsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DecideAgentRequestWithBody Approve or decline an act an agent attempted
+//
+// Approving performs it as the approving person, with their rights and audit entries; one their rights refuse is recorded FAILED with the refusal's code. The agent's owner or whoever administers agents decides.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /agent-requests/{requestId}:decide (the `DecideAgentRequest` operationId).
+func (c *Client) DecideAgentRequestWithBody(ctx context.Context, requestId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideAgentRequestRequestWithBody(c.Server, requestId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DecideAgentRequest Approve or decline an act an agent attempted
+//
+// Approving performs it as the approving person, with their rights and audit entries; one their rights refuse is recorded FAILED with the refusal's code. The agent's owner or whoever administers agents decides.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /agent-requests/{requestId}:decide (the `DecideAgentRequest` operationId).
+func (c *Client) DecideAgentRequest(ctx context.Context, requestId openapi_types.UUID, body DecideAgentRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideAgentRequestRequest(c.Server, requestId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAgents The workspace's agents
+//
+// Whoever administers agents reads all of them; anybody else the agents acting for them.
+//
+// Corresponds with GET /agents (the `ListAgents` operationId).
+func (c *Client) ListAgents(ctx context.Context, params *ListAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAgentsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RegisterAgentWithBody Register an agent
+//
+// A non-human principal with a service account of its own, acting for a person and never doing what they may not. It starts as a draft: nothing it attempts runs until somebody other than its owner approves it and it is put live. Give its account roles and a token as for any service account. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /agents (the `RegisterAgent` operationId).
+func (c *Client) RegisterAgentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterAgentRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RegisterAgent Register an agent
+//
+// A non-human principal with a service account of its own, acting for a person and never doing what they may not. It starts as a draft: nothing it attempts runs until somebody other than its owner approves it and it is put live. Give its account roles and a token as for any service account. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /agents (the `RegisterAgent` operationId).
+func (c *Client) RegisterAgent(ctx context.Context, body RegisterAgentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterAgentRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadAgent One agent and what it spent
+//
+// Its owner, an administrator of agents and the agent itself read it.
+//
+// Corresponds with GET /agents/{agentId} (the `ReadAgent` operationId).
+func (c *Client) ReadAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadAgentRequest(c.Server, agentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeAgentWithBody Change an agent
+//
+// A change that lets it do more - wider scopes, another model, a looser rule, a lower bar, another owner, kind or risk class - takes it back to a draft until it is approved again; a smaller budget does not.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /agents/{agentId} (the `ChangeAgent` operationId).
+func (c *Client) ChangeAgentWithBody(ctx context.Context, agentId AgentId, params *ChangeAgentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeAgentRequestWithBody(c.Server, agentId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeAgent Change an agent
+//
+// A change that lets it do more - wider scopes, another model, a looser rule, a lower bar, another owner, kind or risk class - takes it back to a draft until it is approved again; a smaller budget does not.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /agents/{agentId} (the `ChangeAgent` operationId).
+func (c *Client) ChangeAgent(ctx context.Context, agentId AgentId, params *ChangeAgentParams, body ChangeAgentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeAgentRequest(c.Server, agentId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAgentActions An agent's ledger
+//
+// Every act it attempted, newest first - never an input or an answer.
+//
+// Corresponds with GET /agents/{agentId}/actions (the `ListAgentActions` operationId).
+func (c *Client) ListAgentActions(ctx context.Context, agentId AgentId, params *ListAgentActionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAgentActionsRequest(c.Server, agentId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAgentCases An agent's evaluation set
+//
+// Whoever administers agents reads it, and the agent itself, to answer it.
+//
+// Corresponds with GET /agents/{agentId}/cases (the `ListAgentCases` operationId).
+func (c *Client) ListAgentCases(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAgentCasesRequest(c.Server, agentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddAgentCaseWithBody Add a golden case to an agent's evaluation set
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /agents/{agentId}/cases (the `AddAgentCase` operationId).
+func (c *Client) AddAgentCaseWithBody(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddAgentCaseRequestWithBody(c.Server, agentId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddAgentCase Add a golden case to an agent's evaluation set
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /agents/{agentId}/cases (the `AddAgentCase` operationId).
+func (c *Client) AddAgentCase(ctx context.Context, agentId AgentId, body AddAgentCaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddAgentCaseRequest(c.Server, agentId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveAgentCase Take a case out of an agent's evaluation set
+//
+// Corresponds with DELETE /agents/{agentId}/cases/{caseId} (the `RemoveAgentCase` operationId).
+func (c *Client) RemoveAgentCase(ctx context.Context, agentId AgentId, caseId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveAgentCaseRequest(c.Server, agentId, caseId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAgentEvaluations An agent's evaluation runs
+//
+// Corresponds with GET /agents/{agentId}/evaluations (the `ListAgentEvaluations` operationId).
+func (c *Client) ListAgentEvaluations(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAgentEvaluationsRequest(c.Server, agentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RecordAgentEvaluationWithBody Record an evaluation run of an agent
+//
+// Its answer to each case of its set, compared here with the expected answer - each expected key, a list as a set; a case left unanswered fails. The run counts for the model's revision as it now stands.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
+func (c *Client) RecordAgentEvaluationWithBody(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRecordAgentEvaluationRequestWithBody(c.Server, agentId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RecordAgentEvaluation Record an evaluation run of an agent
+//
+// Its answer to each case of its set, compared here with the expected answer - each expected key, a list as a set; a case left unanswered fails. The run counts for the model's revision as it now stands.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
+func (c *Client) RecordAgentEvaluation(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRecordAgentEvaluationRequest(c.Server, agentId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ActivateAgent Put an approved agent live
+//
+// Its approval must cover its model as it now stands, and where it asks for an evaluation the newest run on that model must have reached its bar. No agent puts one live.
+//
+// Corresponds with POST /agents/{agentId}:activate (the `ActivateAgent` operationId).
+func (c *Client) ActivateAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewActivateAgentRequest(c.Server, agentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ApproveAgent Approve an agent for its model as it now stands
+//
+// Its owner does not approve it, and no agent approves one. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with POST /agents/{agentId}:approve (the `ApproveAgent` operationId).
+func (c *Client) ApproveAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApproveAgentRequest(c.Server, agentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RetireAgent Retire an agent for good
+//
+// It never acts again and is kept with its ledger. Its service account stays; revoke its tokens there.
+//
+// Corresponds with POST /agents/{agentId}:retire (the `RetireAgent` operationId).
+func (c *Client) RetireAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRetireAgentRequest(c.Server, agentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SuspendAgent Stop an agent at once
+//
+// The kill switch of one agent. Its owner may pull it as well as whoever administers agents.
+//
+// Corresponds with POST /agents/{agentId}:suspend (the `SuspendAgent` operationId).
+func (c *Client) SuspendAgent(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSuspendAgentRequest(c.Server, agentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadAgentHalt Whether the workspace's agents are halted
+//
+// Corresponds with GET /agents:halt (the `ReadAgentHalt` operationId).
+func (c *Client) ReadAgentHalt(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadAgentHaltRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAgentHaltWithBody Halt or release every agent of the workspace
+//
+// Halted, every act any registered agent attempts is refused with agents.halted until it is released. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /agents:halt (the `SetAgentHalt` operationId).
+func (c *Client) SetAgentHaltWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAgentHaltRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAgentHalt Halt or release every agent of the workspace
+//
+// Halted, every act any registered agent attempts is refused with agents.halted until it is released. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /agents:halt (the `SetAgentHalt` operationId).
+func (c *Client) SetAgentHalt(ctx context.Context, body SetAgentHaltJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAgentHaltRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadAgentMetering What the workspace's agents did and spent per day
+//
+// Per agent and day, the acts that ran, waited and were refused, and the tokens spent. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /agents:metering (the `ReadAgentMetering` operationId).
+func (c *Client) ReadAgentMetering(ctx context.Context, params *ReadAgentMeteringParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadAgentMeteringRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -42444,6 +44100,23 @@ func (c *Client) RemoveMember(ctx context.Context, itemId ItemId, accountId Acco
 // Puts an account on an entry's member list. Idempotent: an entry that already carries it succeeds. The account has to be able to see the entry - it has to hold a membership somewhere on the path above it - and the entry's type has to carry the MEMBERS capability, which an activity does not: an activity has one assignee and no member list.
 func (c *Client) AddMember(ctx context.Context, itemId ItemId, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAddMemberRequest(c.Server, itemId, accountId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListValueProvenance Where an entry's AI-originated values came from
+//
+// Per acceptance, the names of the fields it wrote, the suggestion, the model and prompt version, and who accepted it when - kept beyond the suggestion and in the archive. Never a value. Whoever may read the entry reads it.
+//
+// Corresponds with GET /items/{itemId}/provenance (the `ListValueProvenance` operationId).
+func (c *Client) ListValueProvenance(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListValueProvenanceRequest(c.Server, itemId)
 	if err != nil {
 		return nil, err
 	}
@@ -53678,6 +55351,983 @@ func NewReadUsageRequest(server string, params *ReadUsageParams) (*http.Request,
 		if params.Size != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListAgentModelsRequest constructs an http.Request for the ListAgentModels method
+func NewListAgentModelsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agent-models")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRegisterAgentModelRequest calls the generic RegisterAgentModel builder with application/json body
+func NewRegisterAgentModelRequest(server string, body RegisterAgentModelJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRegisterAgentModelRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRegisterAgentModelRequestWithBody constructs an http.Request for the RegisterAgentModel method, with any body, and a specified content type
+func NewRegisterAgentModelRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agent-models")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewChangeAgentModelRequest calls the generic ChangeAgentModel builder with application/json body
+func NewChangeAgentModelRequest(server string, modelId AgentModelId, params *ChangeAgentModelParams, body ChangeAgentModelJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeAgentModelRequestWithBody(server, modelId, params, "application/json", bodyReader)
+}
+
+// NewChangeAgentModelRequestWithBody constructs an http.Request for the ChangeAgentModel method, with any body, and a specified content type
+func NewChangeAgentModelRequestWithBody(server string, modelId AgentModelId, params *ChangeAgentModelParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "modelId", modelId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agent-models/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListAgentRequestsRequest constructs an http.Request for the ListAgentRequests method
+func NewListAgentRequestsRequest(server string, params *ListAgentRequestsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agent-requests")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "status", *params.Status, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.AgentId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "agent_id", *params.AgentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDecideAgentRequestRequest calls the generic DecideAgentRequest builder with application/json body
+func NewDecideAgentRequestRequest(server string, requestId openapi_types.UUID, body DecideAgentRequestJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDecideAgentRequestRequestWithBody(server, requestId, "application/json", bodyReader)
+}
+
+// NewDecideAgentRequestRequestWithBody constructs an http.Request for the DecideAgentRequest method, with any body, and a specified content type
+func NewDecideAgentRequestRequestWithBody(server string, requestId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "requestId", requestId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agent-requests/%s:decide", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAgentsRequest constructs an http.Request for the ListAgents method
+func NewListAgentsRequest(server string, params *ListAgentsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.OwnerId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "owner_id", *params.OwnerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ModelId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "model_id", *params.ModelId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRegisterAgentRequest calls the generic RegisterAgent builder with application/json body
+func NewRegisterAgentRequest(server string, body RegisterAgentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRegisterAgentRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRegisterAgentRequestWithBody constructs an http.Request for the RegisterAgent method, with any body, and a specified content type
+func NewRegisterAgentRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadAgentRequest constructs an http.Request for the ReadAgent method
+func NewReadAgentRequest(server string, agentId AgentId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChangeAgentRequest calls the generic ChangeAgent builder with application/json body
+func NewChangeAgentRequest(server string, agentId AgentId, params *ChangeAgentParams, body ChangeAgentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeAgentRequestWithBody(server, agentId, params, "application/json", bodyReader)
+}
+
+// NewChangeAgentRequestWithBody constructs an http.Request for the ChangeAgent method, with any body, and a specified content type
+func NewChangeAgentRequestWithBody(server string, agentId AgentId, params *ChangeAgentParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListAgentActionsRequest constructs an http.Request for the ListAgentActions method
+func NewListAgentActionsRequest(server string, agentId AgentId, params *ListAgentActionsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s/actions", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Before != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "before", *params.Before, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date-time"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListAgentCasesRequest constructs an http.Request for the ListAgentCases method
+func NewListAgentCasesRequest(server string, agentId AgentId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s/cases", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddAgentCaseRequest calls the generic AddAgentCase builder with application/json body
+func NewAddAgentCaseRequest(server string, agentId AgentId, body AddAgentCaseJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddAgentCaseRequestWithBody(server, agentId, "application/json", bodyReader)
+}
+
+// NewAddAgentCaseRequestWithBody constructs an http.Request for the AddAgentCase method, with any body, and a specified content type
+func NewAddAgentCaseRequestWithBody(server string, agentId AgentId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s/cases", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveAgentCaseRequest constructs an http.Request for the RemoveAgentCase method
+func NewRemoveAgentCaseRequest(server string, agentId AgentId, caseId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "caseId", caseId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s/cases/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListAgentEvaluationsRequest constructs an http.Request for the ListAgentEvaluations method
+func NewListAgentEvaluationsRequest(server string, agentId AgentId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s/evaluations", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRecordAgentEvaluationRequest calls the generic RecordAgentEvaluation builder with application/json body
+func NewRecordAgentEvaluationRequest(server string, agentId AgentId, body RecordAgentEvaluationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRecordAgentEvaluationRequestWithBody(server, agentId, "application/json", bodyReader)
+}
+
+// NewRecordAgentEvaluationRequestWithBody constructs an http.Request for the RecordAgentEvaluation method, with any body, and a specified content type
+func NewRecordAgentEvaluationRequestWithBody(server string, agentId AgentId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s/evaluations", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewActivateAgentRequest constructs an http.Request for the ActivateAgent method
+func NewActivateAgentRequest(server string, agentId AgentId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s:activate", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewApproveAgentRequest constructs an http.Request for the ApproveAgent method
+func NewApproveAgentRequest(server string, agentId AgentId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s:approve", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRetireAgentRequest constructs an http.Request for the RetireAgent method
+func NewRetireAgentRequest(server string, agentId AgentId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s:retire", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSuspendAgentRequest constructs an http.Request for the SuspendAgent method
+func NewSuspendAgentRequest(server string, agentId AgentId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s:suspend", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadAgentHaltRequest constructs an http.Request for the ReadAgentHalt method
+func NewReadAgentHaltRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents:halt")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetAgentHaltRequest calls the generic SetAgentHalt builder with application/json body
+func NewSetAgentHaltRequest(server string, body SetAgentHaltJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetAgentHaltRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetAgentHaltRequestWithBody constructs an http.Request for the SetAgentHalt method, with any body, and a specified content type
+func NewSetAgentHaltRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents:halt")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadAgentMeteringRequest constructs an http.Request for the ReadAgentMetering method
+func NewReadAgentMeteringRequest(server string, params *ReadAgentMeteringParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents:metering")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.AgentId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "agent_id", *params.AgentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Days != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "days", *params.Days, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -66649,6 +69299,40 @@ func NewAddMemberRequest(server string, itemId ItemId, accountId AccountId) (*ht
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListValueProvenanceRequest constructs an http.Request for the ListValueProvenance method
+func NewListValueProvenanceRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/provenance", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -80831,6 +83515,266 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
 	ReadUsageWithResponse(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*ReadUsageResult, error)
 
+	// ListAgentModelsWithResponse The models registered for the workspace's agents
+	//
+	// By key, with source, model, region, the provider's retention, the consent and the revision. Needs MANAGE_MEMBERS at the workspace and the agents module switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agent-models (the `ListAgentModels` operationId).
+	ListAgentModelsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAgentModelsResult, error)
+
+	// RegisterAgentModelWithBodyWithResponse Register a model for agents
+	//
+	// Registering it is the consent to send agents' material to it, recorded with who gave it. A source the workspace's AI does not allow, a region below the installation's minimum or an offered model the installation does not offer is refused. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agent-models (the `RegisterAgentModel` operationId).
+	RegisterAgentModelWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterAgentModelResult, error)
+
+	// RegisterAgentModelWithResponse Register a model for agents
+	//
+	// Registering it is the consent to send agents' material to it, recorded with who gave it. A source the workspace's AI does not allow, a region below the installation's minimum or an offered model the installation does not offer is refused. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agent-models (the `RegisterAgentModel` operationId).
+	RegisterAgentModelWithResponse(ctx context.Context, body RegisterAgentModelJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterAgentModelResult, error)
+
+	// ChangeAgentModelWithBodyWithResponse Change or retire a registered model
+	//
+	// A change to its source, model, region or retention is a new revision with a new consent: every agent using it is refused until a person approves it again. A retired model stops every agent using it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /agent-models/{modelId} (the `ChangeAgentModel` operationId).
+	ChangeAgentModelWithBodyWithResponse(ctx context.Context, modelId AgentModelId, params *ChangeAgentModelParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeAgentModelResult, error)
+
+	// ChangeAgentModelWithResponse Change or retire a registered model
+	//
+	// A change to its source, model, region or retention is a new revision with a new consent: every agent using it is refused until a person approves it again. A retired model stops every agent using it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /agent-models/{modelId} (the `ChangeAgentModel` operationId).
+	ChangeAgentModelWithResponse(ctx context.Context, modelId AgentModelId, params *ChangeAgentModelParams, body ChangeAgentModelJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeAgentModelResult, error)
+
+	// ListAgentRequestsWithResponse The acts agents attempted that wait for a person
+	//
+	// Newest first, each with its use case and input - the preview of what approving would do.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agent-requests (the `ListAgentRequests` operationId).
+	ListAgentRequestsWithResponse(ctx context.Context, params *ListAgentRequestsParams, reqEditors ...RequestEditorFn) (*ListAgentRequestsResult, error)
+
+	// DecideAgentRequestWithBodyWithResponse Approve or decline an act an agent attempted
+	//
+	// Approving performs it as the approving person, with their rights and audit entries; one their rights refuse is recorded FAILED with the refusal's code. The agent's owner or whoever administers agents decides.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agent-requests/{requestId}:decide (the `DecideAgentRequest` operationId).
+	DecideAgentRequestWithBodyWithResponse(ctx context.Context, requestId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideAgentRequestResult, error)
+
+	// DecideAgentRequestWithResponse Approve or decline an act an agent attempted
+	//
+	// Approving performs it as the approving person, with their rights and audit entries; one their rights refuse is recorded FAILED with the refusal's code. The agent's owner or whoever administers agents decides.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agent-requests/{requestId}:decide (the `DecideAgentRequest` operationId).
+	DecideAgentRequestWithResponse(ctx context.Context, requestId openapi_types.UUID, body DecideAgentRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideAgentRequestResult, error)
+
+	// ListAgentsWithResponse The workspace's agents
+	//
+	// Whoever administers agents reads all of them; anybody else the agents acting for them.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agents (the `ListAgents` operationId).
+	ListAgentsWithResponse(ctx context.Context, params *ListAgentsParams, reqEditors ...RequestEditorFn) (*ListAgentsResult, error)
+
+	// RegisterAgentWithBodyWithResponse Register an agent
+	//
+	// A non-human principal with a service account of its own, acting for a person and never doing what they may not. It starts as a draft: nothing it attempts runs until somebody other than its owner approves it and it is put live. Give its account roles and a token as for any service account. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents (the `RegisterAgent` operationId).
+	RegisterAgentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterAgentResult, error)
+
+	// RegisterAgentWithResponse Register an agent
+	//
+	// A non-human principal with a service account of its own, acting for a person and never doing what they may not. It starts as a draft: nothing it attempts runs until somebody other than its owner approves it and it is put live. Give its account roles and a token as for any service account. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents (the `RegisterAgent` operationId).
+	RegisterAgentWithResponse(ctx context.Context, body RegisterAgentJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterAgentResult, error)
+
+	// ReadAgentWithResponse One agent and what it spent
+	//
+	// Its owner, an administrator of agents and the agent itself read it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agents/{agentId} (the `ReadAgent` operationId).
+	ReadAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ReadAgentResult, error)
+
+	// ChangeAgentWithBodyWithResponse Change an agent
+	//
+	// A change that lets it do more - wider scopes, another model, a looser rule, a lower bar, another owner, kind or risk class - takes it back to a draft until it is approved again; a smaller budget does not.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /agents/{agentId} (the `ChangeAgent` operationId).
+	ChangeAgentWithBodyWithResponse(ctx context.Context, agentId AgentId, params *ChangeAgentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeAgentResult, error)
+
+	// ChangeAgentWithResponse Change an agent
+	//
+	// A change that lets it do more - wider scopes, another model, a looser rule, a lower bar, another owner, kind or risk class - takes it back to a draft until it is approved again; a smaller budget does not.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /agents/{agentId} (the `ChangeAgent` operationId).
+	ChangeAgentWithResponse(ctx context.Context, agentId AgentId, params *ChangeAgentParams, body ChangeAgentJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeAgentResult, error)
+
+	// ListAgentActionsWithResponse An agent's ledger
+	//
+	// Every act it attempted, newest first - never an input or an answer.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agents/{agentId}/actions (the `ListAgentActions` operationId).
+	ListAgentActionsWithResponse(ctx context.Context, agentId AgentId, params *ListAgentActionsParams, reqEditors ...RequestEditorFn) (*ListAgentActionsResult, error)
+
+	// ListAgentCasesWithResponse An agent's evaluation set
+	//
+	// Whoever administers agents reads it, and the agent itself, to answer it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agents/{agentId}/cases (the `ListAgentCases` operationId).
+	ListAgentCasesWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ListAgentCasesResult, error)
+
+	// AddAgentCaseWithBodyWithResponse Add a golden case to an agent's evaluation set
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}/cases (the `AddAgentCase` operationId).
+	AddAgentCaseWithBodyWithResponse(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddAgentCaseResult, error)
+
+	// AddAgentCaseWithResponse Add a golden case to an agent's evaluation set
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}/cases (the `AddAgentCase` operationId).
+	AddAgentCaseWithResponse(ctx context.Context, agentId AgentId, body AddAgentCaseJSONRequestBody, reqEditors ...RequestEditorFn) (*AddAgentCaseResult, error)
+
+	// RemoveAgentCaseWithResponse Take a case out of an agent's evaluation set
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /agents/{agentId}/cases/{caseId} (the `RemoveAgentCase` operationId).
+	RemoveAgentCaseWithResponse(ctx context.Context, agentId AgentId, caseId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveAgentCaseResult, error)
+
+	// ListAgentEvaluationsWithResponse An agent's evaluation runs
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agents/{agentId}/evaluations (the `ListAgentEvaluations` operationId).
+	ListAgentEvaluationsWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ListAgentEvaluationsResult, error)
+
+	// RecordAgentEvaluationWithBodyWithResponse Record an evaluation run of an agent
+	//
+	// Its answer to each case of its set, compared here with the expected answer - each expected key, a list as a set; a case left unanswered fails. The run counts for the model's revision as it now stands.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
+	RecordAgentEvaluationWithBodyWithResponse(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RecordAgentEvaluationResult, error)
+
+	// RecordAgentEvaluationWithResponse Record an evaluation run of an agent
+	//
+	// Its answer to each case of its set, compared here with the expected answer - each expected key, a list as a set; a case left unanswered fails. The run counts for the model's revision as it now stands.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
+	RecordAgentEvaluationWithResponse(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*RecordAgentEvaluationResult, error)
+
+	// ActivateAgentWithResponse Put an approved agent live
+	//
+	// Its approval must cover its model as it now stands, and where it asks for an evaluation the newest run on that model must have reached its bar. No agent puts one live.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}:activate (the `ActivateAgent` operationId).
+	ActivateAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ActivateAgentResult, error)
+
+	// ApproveAgentWithResponse Approve an agent for its model as it now stands
+	//
+	// Its owner does not approve it, and no agent approves one. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}:approve (the `ApproveAgent` operationId).
+	ApproveAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ApproveAgentResult, error)
+
+	// RetireAgentWithResponse Retire an agent for good
+	//
+	// It never acts again and is kept with its ledger. Its service account stays; revoke its tokens there.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}:retire (the `RetireAgent` operationId).
+	RetireAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*RetireAgentResult, error)
+
+	// SuspendAgentWithResponse Stop an agent at once
+	//
+	// The kill switch of one agent. Its owner may pull it as well as whoever administers agents.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}:suspend (the `SuspendAgent` operationId).
+	SuspendAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*SuspendAgentResult, error)
+
+	// ReadAgentHaltWithResponse Whether the workspace's agents are halted
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agents:halt (the `ReadAgentHalt` operationId).
+	ReadAgentHaltWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadAgentHaltResult, error)
+
+	// SetAgentHaltWithBodyWithResponse Halt or release every agent of the workspace
+	//
+	// Halted, every act any registered agent attempts is refused with agents.halted until it is released. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /agents:halt (the `SetAgentHalt` operationId).
+	SetAgentHaltWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAgentHaltResult, error)
+
+	// SetAgentHaltWithResponse Halt or release every agent of the workspace
+	//
+	// Halted, every act any registered agent attempts is refused with agents.halted until it is released. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /agents:halt (the `SetAgentHalt` operationId).
+	SetAgentHaltWithResponse(ctx context.Context, body SetAgentHaltJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAgentHaltResult, error)
+
+	// ReadAgentMeteringWithResponse What the workspace's agents did and spent per day
+	//
+	// Per agent and day, the acts that ran, waited and were refused, and the tokens spent. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agents:metering (the `ReadAgentMetering` operationId).
+	ReadAgentMeteringWithResponse(ctx context.Context, params *ReadAgentMeteringParams, reqEditors ...RequestEditorFn) (*ReadAgentMeteringResult, error)
+
 	// SetAiArrivalProposalsWithBodyWithResponse Whether AI prepares a proposal for each new jumble entry
 	//
 	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
@@ -84591,6 +87535,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	AddMemberWithResponse(ctx context.Context, itemId ItemId, accountId AccountId, reqEditors ...RequestEditorFn) (*AddMemberResult, error)
+
+	// ListValueProvenanceWithResponse Where an entry's AI-originated values came from
+	//
+	// Per acceptance, the names of the fields it wrote, the suggestion, the model and prompt version, and who accepted it when - kept beyond the suggestion and in the archive. Never a value. Whoever may read the entry reads it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/provenance (the `ListValueProvenance` operationId).
+	ListValueProvenanceWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListValueProvenanceResult, error)
 
 	// RemoveRecurrenceWithResponse performs a DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId) request.
 	//
@@ -92429,6 +95382,1055 @@ func (r ReadUsageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadUsageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAgentModelsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentModelList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAgentModelsResult) GetJSON200() *AgentModelList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAgentModelsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAgentModelsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAgentModelsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAgentModelsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAgentModelsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RegisterAgentModelResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *AgentModel
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r RegisterAgentModelResult) GetJSON201() *AgentModel {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RegisterAgentModelResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RegisterAgentModelResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RegisterAgentModelResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RegisterAgentModelResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RegisterAgentModelResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeAgentModelResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentModel
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeAgentModelResult) GetJSON200() *AgentModel {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeAgentModelResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeAgentModelResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeAgentModelResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeAgentModelResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeAgentModelResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAgentRequestsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentRequestList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAgentRequestsResult) GetJSON200() *AgentRequestList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAgentRequestsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAgentRequestsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAgentRequestsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAgentRequestsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAgentRequestsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DecideAgentRequestResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentRequest
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DecideAgentRequestResult) GetJSON200() *AgentRequest {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DecideAgentRequestResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DecideAgentRequestResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DecideAgentRequestResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DecideAgentRequestResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DecideAgentRequestResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAgentsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAgentsResult) GetJSON200() *AgentList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAgentsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAgentsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAgentsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAgentsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAgentsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RegisterAgentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Agent
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r RegisterAgentResult) GetJSON201() *Agent {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RegisterAgentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RegisterAgentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RegisterAgentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RegisterAgentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RegisterAgentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadAgentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Agent
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadAgentResult) GetJSON200() *Agent {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadAgentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadAgentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadAgentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadAgentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadAgentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeAgentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Agent
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeAgentResult) GetJSON200() *Agent {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeAgentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeAgentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeAgentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeAgentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeAgentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAgentActionsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentActionList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAgentActionsResult) GetJSON200() *AgentActionList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAgentActionsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAgentActionsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAgentActionsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAgentActionsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAgentActionsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAgentCasesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentCaseList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAgentCasesResult) GetJSON200() *AgentCaseList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAgentCasesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAgentCasesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAgentCasesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAgentCasesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAgentCasesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddAgentCaseResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *AgentCase
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AddAgentCaseResult) GetJSON201() *AgentCase {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddAgentCaseResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddAgentCaseResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddAgentCaseResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddAgentCaseResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddAgentCaseResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveAgentCaseResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveAgentCaseResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveAgentCaseResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveAgentCaseResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveAgentCaseResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveAgentCaseResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAgentEvaluationsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentRunList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAgentEvaluationsResult) GetJSON200() *AgentRunList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAgentEvaluationsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAgentEvaluationsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAgentEvaluationsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAgentEvaluationsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAgentEvaluationsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RecordAgentEvaluationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *AgentRun
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r RecordAgentEvaluationResult) GetJSON201() *AgentRun {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RecordAgentEvaluationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RecordAgentEvaluationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RecordAgentEvaluationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RecordAgentEvaluationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RecordAgentEvaluationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ActivateAgentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Agent
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ActivateAgentResult) GetJSON200() *Agent {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ActivateAgentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ActivateAgentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ActivateAgentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ActivateAgentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ActivateAgentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ApproveAgentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Agent
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ApproveAgentResult) GetJSON200() *Agent {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ApproveAgentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ApproveAgentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ApproveAgentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ApproveAgentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ApproveAgentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RetireAgentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Agent
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RetireAgentResult) GetJSON200() *Agent {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RetireAgentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RetireAgentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RetireAgentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RetireAgentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RetireAgentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SuspendAgentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Agent
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SuspendAgentResult) GetJSON200() *Agent {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SuspendAgentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SuspendAgentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SuspendAgentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SuspendAgentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SuspendAgentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadAgentHaltResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentHalt
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadAgentHaltResult) GetJSON200() *AgentHalt {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadAgentHaltResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadAgentHaltResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadAgentHaltResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadAgentHaltResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadAgentHaltResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetAgentHaltResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentHalt
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetAgentHaltResult) GetJSON200() *AgentHalt {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetAgentHaltResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetAgentHaltResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetAgentHaltResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetAgentHaltResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetAgentHaltResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadAgentMeteringResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentMeteringList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadAgentMeteringResult) GetJSON200() *AgentMeteringList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadAgentMeteringResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadAgentMeteringResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadAgentMeteringResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadAgentMeteringResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadAgentMeteringResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -105577,6 +109579,54 @@ func (r AddMemberResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r AddMemberResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListValueProvenanceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ValueProvenanceList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListValueProvenanceResult) GetJSON200() *ValueProvenanceList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListValueProvenanceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListValueProvenanceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListValueProvenanceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListValueProvenanceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListValueProvenanceResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -120786,6 +124836,446 @@ func (c *ClientWithResponses) ReadUsageWithResponse(ctx context.Context, params 
 	return ParseReadUsageResult(rsp)
 }
 
+// ListAgentModelsWithResponse The models registered for the workspace's agents
+//
+// By key, with source, model, region, the provider's retention, the consent and the revision. Needs MANAGE_MEMBERS at the workspace and the agents module switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agent-models (the `ListAgentModels` operationId).
+func (c *ClientWithResponses) ListAgentModelsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAgentModelsResult, error) {
+	rsp, err := c.ListAgentModels(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAgentModelsResult(rsp)
+}
+
+// RegisterAgentModelWithBodyWithResponse Register a model for agents
+//
+// Registering it is the consent to send agents' material to it, recorded with who gave it. A source the workspace's AI does not allow, a region below the installation's minimum or an offered model the installation does not offer is refused. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agent-models (the `RegisterAgentModel` operationId).
+func (c *ClientWithResponses) RegisterAgentModelWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterAgentModelResult, error) {
+	rsp, err := c.RegisterAgentModelWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegisterAgentModelResult(rsp)
+}
+
+// RegisterAgentModelWithResponse Register a model for agents
+//
+// Registering it is the consent to send agents' material to it, recorded with who gave it. A source the workspace's AI does not allow, a region below the installation's minimum or an offered model the installation does not offer is refused. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agent-models (the `RegisterAgentModel` operationId).
+func (c *ClientWithResponses) RegisterAgentModelWithResponse(ctx context.Context, body RegisterAgentModelJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterAgentModelResult, error) {
+	rsp, err := c.RegisterAgentModel(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegisterAgentModelResult(rsp)
+}
+
+// ChangeAgentModelWithBodyWithResponse Change or retire a registered model
+//
+// A change to its source, model, region or retention is a new revision with a new consent: every agent using it is refused until a person approves it again. A retired model stops every agent using it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /agent-models/{modelId} (the `ChangeAgentModel` operationId).
+func (c *ClientWithResponses) ChangeAgentModelWithBodyWithResponse(ctx context.Context, modelId AgentModelId, params *ChangeAgentModelParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeAgentModelResult, error) {
+	rsp, err := c.ChangeAgentModelWithBody(ctx, modelId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeAgentModelResult(rsp)
+}
+
+// ChangeAgentModelWithResponse Change or retire a registered model
+//
+// A change to its source, model, region or retention is a new revision with a new consent: every agent using it is refused until a person approves it again. A retired model stops every agent using it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /agent-models/{modelId} (the `ChangeAgentModel` operationId).
+func (c *ClientWithResponses) ChangeAgentModelWithResponse(ctx context.Context, modelId AgentModelId, params *ChangeAgentModelParams, body ChangeAgentModelJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeAgentModelResult, error) {
+	rsp, err := c.ChangeAgentModel(ctx, modelId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeAgentModelResult(rsp)
+}
+
+// ListAgentRequestsWithResponse The acts agents attempted that wait for a person
+//
+// Newest first, each with its use case and input - the preview of what approving would do.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agent-requests (the `ListAgentRequests` operationId).
+func (c *ClientWithResponses) ListAgentRequestsWithResponse(ctx context.Context, params *ListAgentRequestsParams, reqEditors ...RequestEditorFn) (*ListAgentRequestsResult, error) {
+	rsp, err := c.ListAgentRequests(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAgentRequestsResult(rsp)
+}
+
+// DecideAgentRequestWithBodyWithResponse Approve or decline an act an agent attempted
+//
+// Approving performs it as the approving person, with their rights and audit entries; one their rights refuse is recorded FAILED with the refusal's code. The agent's owner or whoever administers agents decides.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agent-requests/{requestId}:decide (the `DecideAgentRequest` operationId).
+func (c *ClientWithResponses) DecideAgentRequestWithBodyWithResponse(ctx context.Context, requestId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideAgentRequestResult, error) {
+	rsp, err := c.DecideAgentRequestWithBody(ctx, requestId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideAgentRequestResult(rsp)
+}
+
+// DecideAgentRequestWithResponse Approve or decline an act an agent attempted
+//
+// Approving performs it as the approving person, with their rights and audit entries; one their rights refuse is recorded FAILED with the refusal's code. The agent's owner or whoever administers agents decides.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agent-requests/{requestId}:decide (the `DecideAgentRequest` operationId).
+func (c *ClientWithResponses) DecideAgentRequestWithResponse(ctx context.Context, requestId openapi_types.UUID, body DecideAgentRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideAgentRequestResult, error) {
+	rsp, err := c.DecideAgentRequest(ctx, requestId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideAgentRequestResult(rsp)
+}
+
+// ListAgentsWithResponse The workspace's agents
+//
+// Whoever administers agents reads all of them; anybody else the agents acting for them.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agents (the `ListAgents` operationId).
+func (c *ClientWithResponses) ListAgentsWithResponse(ctx context.Context, params *ListAgentsParams, reqEditors ...RequestEditorFn) (*ListAgentsResult, error) {
+	rsp, err := c.ListAgents(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAgentsResult(rsp)
+}
+
+// RegisterAgentWithBodyWithResponse Register an agent
+//
+// A non-human principal with a service account of its own, acting for a person and never doing what they may not. It starts as a draft: nothing it attempts runs until somebody other than its owner approves it and it is put live. Give its account roles and a token as for any service account. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents (the `RegisterAgent` operationId).
+func (c *ClientWithResponses) RegisterAgentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterAgentResult, error) {
+	rsp, err := c.RegisterAgentWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegisterAgentResult(rsp)
+}
+
+// RegisterAgentWithResponse Register an agent
+//
+// A non-human principal with a service account of its own, acting for a person and never doing what they may not. It starts as a draft: nothing it attempts runs until somebody other than its owner approves it and it is put live. Give its account roles and a token as for any service account. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents (the `RegisterAgent` operationId).
+func (c *ClientWithResponses) RegisterAgentWithResponse(ctx context.Context, body RegisterAgentJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterAgentResult, error) {
+	rsp, err := c.RegisterAgent(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegisterAgentResult(rsp)
+}
+
+// ReadAgentWithResponse One agent and what it spent
+//
+// Its owner, an administrator of agents and the agent itself read it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agents/{agentId} (the `ReadAgent` operationId).
+func (c *ClientWithResponses) ReadAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ReadAgentResult, error) {
+	rsp, err := c.ReadAgent(ctx, agentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadAgentResult(rsp)
+}
+
+// ChangeAgentWithBodyWithResponse Change an agent
+//
+// A change that lets it do more - wider scopes, another model, a looser rule, a lower bar, another owner, kind or risk class - takes it back to a draft until it is approved again; a smaller budget does not.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /agents/{agentId} (the `ChangeAgent` operationId).
+func (c *ClientWithResponses) ChangeAgentWithBodyWithResponse(ctx context.Context, agentId AgentId, params *ChangeAgentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeAgentResult, error) {
+	rsp, err := c.ChangeAgentWithBody(ctx, agentId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeAgentResult(rsp)
+}
+
+// ChangeAgentWithResponse Change an agent
+//
+// A change that lets it do more - wider scopes, another model, a looser rule, a lower bar, another owner, kind or risk class - takes it back to a draft until it is approved again; a smaller budget does not.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /agents/{agentId} (the `ChangeAgent` operationId).
+func (c *ClientWithResponses) ChangeAgentWithResponse(ctx context.Context, agentId AgentId, params *ChangeAgentParams, body ChangeAgentJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeAgentResult, error) {
+	rsp, err := c.ChangeAgent(ctx, agentId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeAgentResult(rsp)
+}
+
+// ListAgentActionsWithResponse An agent's ledger
+//
+// Every act it attempted, newest first - never an input or an answer.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agents/{agentId}/actions (the `ListAgentActions` operationId).
+func (c *ClientWithResponses) ListAgentActionsWithResponse(ctx context.Context, agentId AgentId, params *ListAgentActionsParams, reqEditors ...RequestEditorFn) (*ListAgentActionsResult, error) {
+	rsp, err := c.ListAgentActions(ctx, agentId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAgentActionsResult(rsp)
+}
+
+// ListAgentCasesWithResponse An agent's evaluation set
+//
+// Whoever administers agents reads it, and the agent itself, to answer it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agents/{agentId}/cases (the `ListAgentCases` operationId).
+func (c *ClientWithResponses) ListAgentCasesWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ListAgentCasesResult, error) {
+	rsp, err := c.ListAgentCases(ctx, agentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAgentCasesResult(rsp)
+}
+
+// AddAgentCaseWithBodyWithResponse Add a golden case to an agent's evaluation set
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}/cases (the `AddAgentCase` operationId).
+func (c *ClientWithResponses) AddAgentCaseWithBodyWithResponse(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddAgentCaseResult, error) {
+	rsp, err := c.AddAgentCaseWithBody(ctx, agentId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddAgentCaseResult(rsp)
+}
+
+// AddAgentCaseWithResponse Add a golden case to an agent's evaluation set
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}/cases (the `AddAgentCase` operationId).
+func (c *ClientWithResponses) AddAgentCaseWithResponse(ctx context.Context, agentId AgentId, body AddAgentCaseJSONRequestBody, reqEditors ...RequestEditorFn) (*AddAgentCaseResult, error) {
+	rsp, err := c.AddAgentCase(ctx, agentId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddAgentCaseResult(rsp)
+}
+
+// RemoveAgentCaseWithResponse Take a case out of an agent's evaluation set
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /agents/{agentId}/cases/{caseId} (the `RemoveAgentCase` operationId).
+func (c *ClientWithResponses) RemoveAgentCaseWithResponse(ctx context.Context, agentId AgentId, caseId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveAgentCaseResult, error) {
+	rsp, err := c.RemoveAgentCase(ctx, agentId, caseId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveAgentCaseResult(rsp)
+}
+
+// ListAgentEvaluationsWithResponse An agent's evaluation runs
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agents/{agentId}/evaluations (the `ListAgentEvaluations` operationId).
+func (c *ClientWithResponses) ListAgentEvaluationsWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ListAgentEvaluationsResult, error) {
+	rsp, err := c.ListAgentEvaluations(ctx, agentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAgentEvaluationsResult(rsp)
+}
+
+// RecordAgentEvaluationWithBodyWithResponse Record an evaluation run of an agent
+//
+// Its answer to each case of its set, compared here with the expected answer - each expected key, a list as a set; a case left unanswered fails. The run counts for the model's revision as it now stands.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
+func (c *ClientWithResponses) RecordAgentEvaluationWithBodyWithResponse(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RecordAgentEvaluationResult, error) {
+	rsp, err := c.RecordAgentEvaluationWithBody(ctx, agentId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRecordAgentEvaluationResult(rsp)
+}
+
+// RecordAgentEvaluationWithResponse Record an evaluation run of an agent
+//
+// Its answer to each case of its set, compared here with the expected answer - each expected key, a list as a set; a case left unanswered fails. The run counts for the model's revision as it now stands.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
+func (c *ClientWithResponses) RecordAgentEvaluationWithResponse(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*RecordAgentEvaluationResult, error) {
+	rsp, err := c.RecordAgentEvaluation(ctx, agentId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRecordAgentEvaluationResult(rsp)
+}
+
+// ActivateAgentWithResponse Put an approved agent live
+//
+// Its approval must cover its model as it now stands, and where it asks for an evaluation the newest run on that model must have reached its bar. No agent puts one live.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}:activate (the `ActivateAgent` operationId).
+func (c *ClientWithResponses) ActivateAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ActivateAgentResult, error) {
+	rsp, err := c.ActivateAgent(ctx, agentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseActivateAgentResult(rsp)
+}
+
+// ApproveAgentWithResponse Approve an agent for its model as it now stands
+//
+// Its owner does not approve it, and no agent approves one. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}:approve (the `ApproveAgent` operationId).
+func (c *ClientWithResponses) ApproveAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ApproveAgentResult, error) {
+	rsp, err := c.ApproveAgent(ctx, agentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApproveAgentResult(rsp)
+}
+
+// RetireAgentWithResponse Retire an agent for good
+//
+// It never acts again and is kept with its ledger. Its service account stays; revoke its tokens there.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}:retire (the `RetireAgent` operationId).
+func (c *ClientWithResponses) RetireAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*RetireAgentResult, error) {
+	rsp, err := c.RetireAgent(ctx, agentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRetireAgentResult(rsp)
+}
+
+// SuspendAgentWithResponse Stop an agent at once
+//
+// The kill switch of one agent. Its owner may pull it as well as whoever administers agents.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}:suspend (the `SuspendAgent` operationId).
+func (c *ClientWithResponses) SuspendAgentWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*SuspendAgentResult, error) {
+	rsp, err := c.SuspendAgent(ctx, agentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSuspendAgentResult(rsp)
+}
+
+// ReadAgentHaltWithResponse Whether the workspace's agents are halted
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agents:halt (the `ReadAgentHalt` operationId).
+func (c *ClientWithResponses) ReadAgentHaltWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadAgentHaltResult, error) {
+	rsp, err := c.ReadAgentHalt(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadAgentHaltResult(rsp)
+}
+
+// SetAgentHaltWithBodyWithResponse Halt or release every agent of the workspace
+//
+// Halted, every act any registered agent attempts is refused with agents.halted until it is released. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /agents:halt (the `SetAgentHalt` operationId).
+func (c *ClientWithResponses) SetAgentHaltWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAgentHaltResult, error) {
+	rsp, err := c.SetAgentHaltWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAgentHaltResult(rsp)
+}
+
+// SetAgentHaltWithResponse Halt or release every agent of the workspace
+//
+// Halted, every act any registered agent attempts is refused with agents.halted until it is released. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /agents:halt (the `SetAgentHalt` operationId).
+func (c *ClientWithResponses) SetAgentHaltWithResponse(ctx context.Context, body SetAgentHaltJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAgentHaltResult, error) {
+	rsp, err := c.SetAgentHalt(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAgentHaltResult(rsp)
+}
+
+// ReadAgentMeteringWithResponse What the workspace's agents did and spent per day
+//
+// Per agent and day, the acts that ran, waited and were refused, and the tokens spent. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agents:metering (the `ReadAgentMetering` operationId).
+func (c *ClientWithResponses) ReadAgentMeteringWithResponse(ctx context.Context, params *ReadAgentMeteringParams, reqEditors ...RequestEditorFn) (*ReadAgentMeteringResult, error) {
+	rsp, err := c.ReadAgentMetering(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadAgentMeteringResult(rsp)
+}
+
 // SetAiArrivalProposalsWithBodyWithResponse Whether AI prepares a proposal for each new jumble entry
 //
 // `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
@@ -126945,6 +131435,21 @@ func (c *ClientWithResponses) AddMemberWithResponse(ctx context.Context, itemId 
 		return nil, err
 	}
 	return ParseAddMemberResult(rsp)
+}
+
+// ListValueProvenanceWithResponse Where an entry's AI-originated values came from
+//
+// Per acceptance, the names of the fields it wrote, the suggestion, the model and prompt version, and who accepted it when - kept beyond the suggestion and in the archive. Never a value. Whoever may read the entry reads it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/provenance (the `ListValueProvenance` operationId).
+func (c *ClientWithResponses) ListValueProvenanceWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListValueProvenanceResult, error) {
+	rsp, err := c.ListValueProvenance(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListValueProvenanceResult(rsp)
 }
 
 // RemoveRecurrenceWithResponse performs a DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId) request.
@@ -135971,6 +140476,728 @@ func ParseReadUsageResult(rsp *http.Response) (*ReadUsageResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest UsagePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAgentModelsResult parses an HTTP response from a ListAgentModelsWithResponse call
+func ParseListAgentModelsResult(rsp *http.Response) (*ListAgentModelsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAgentModelsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentModelList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRegisterAgentModelResult parses an HTTP response from a RegisterAgentModelWithResponse call
+func ParseRegisterAgentModelResult(rsp *http.Response) (*RegisterAgentModelResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RegisterAgentModelResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AgentModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeAgentModelResult parses an HTTP response from a ChangeAgentModelWithResponse call
+func ParseChangeAgentModelResult(rsp *http.Response) (*ChangeAgentModelResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeAgentModelResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAgentRequestsResult parses an HTTP response from a ListAgentRequestsWithResponse call
+func ParseListAgentRequestsResult(rsp *http.Response) (*ListAgentRequestsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAgentRequestsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentRequestList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDecideAgentRequestResult parses an HTTP response from a DecideAgentRequestWithResponse call
+func ParseDecideAgentRequestResult(rsp *http.Response) (*DecideAgentRequestResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DecideAgentRequestResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAgentsResult parses an HTTP response from a ListAgentsWithResponse call
+func ParseListAgentsResult(rsp *http.Response) (*ListAgentsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAgentsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRegisterAgentResult parses an HTTP response from a RegisterAgentWithResponse call
+func ParseRegisterAgentResult(rsp *http.Response) (*RegisterAgentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RegisterAgentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Agent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadAgentResult parses an HTTP response from a ReadAgentWithResponse call
+func ParseReadAgentResult(rsp *http.Response) (*ReadAgentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadAgentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Agent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeAgentResult parses an HTTP response from a ChangeAgentWithResponse call
+func ParseChangeAgentResult(rsp *http.Response) (*ChangeAgentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeAgentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Agent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAgentActionsResult parses an HTTP response from a ListAgentActionsWithResponse call
+func ParseListAgentActionsResult(rsp *http.Response) (*ListAgentActionsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAgentActionsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentActionList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAgentCasesResult parses an HTTP response from a ListAgentCasesWithResponse call
+func ParseListAgentCasesResult(rsp *http.Response) (*ListAgentCasesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAgentCasesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentCaseList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddAgentCaseResult parses an HTTP response from a AddAgentCaseWithResponse call
+func ParseAddAgentCaseResult(rsp *http.Response) (*AddAgentCaseResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddAgentCaseResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AgentCase
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveAgentCaseResult parses an HTTP response from a RemoveAgentCaseWithResponse call
+func ParseRemoveAgentCaseResult(rsp *http.Response) (*RemoveAgentCaseResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveAgentCaseResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAgentEvaluationsResult parses an HTTP response from a ListAgentEvaluationsWithResponse call
+func ParseListAgentEvaluationsResult(rsp *http.Response) (*ListAgentEvaluationsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAgentEvaluationsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentRunList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRecordAgentEvaluationResult parses an HTTP response from a RecordAgentEvaluationWithResponse call
+func ParseRecordAgentEvaluationResult(rsp *http.Response) (*RecordAgentEvaluationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RecordAgentEvaluationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AgentRun
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseActivateAgentResult parses an HTTP response from a ActivateAgentWithResponse call
+func ParseActivateAgentResult(rsp *http.Response) (*ActivateAgentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ActivateAgentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Agent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseApproveAgentResult parses an HTTP response from a ApproveAgentWithResponse call
+func ParseApproveAgentResult(rsp *http.Response) (*ApproveAgentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ApproveAgentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Agent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRetireAgentResult parses an HTTP response from a RetireAgentWithResponse call
+func ParseRetireAgentResult(rsp *http.Response) (*RetireAgentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RetireAgentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Agent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSuspendAgentResult parses an HTTP response from a SuspendAgentWithResponse call
+func ParseSuspendAgentResult(rsp *http.Response) (*SuspendAgentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SuspendAgentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Agent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadAgentHaltResult parses an HTTP response from a ReadAgentHaltWithResponse call
+func ParseReadAgentHaltResult(rsp *http.Response) (*ReadAgentHaltResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadAgentHaltResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentHalt
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetAgentHaltResult parses an HTTP response from a SetAgentHaltWithResponse call
+func ParseSetAgentHaltResult(rsp *http.Response) (*SetAgentHaltResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetAgentHaltResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentHalt
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadAgentMeteringResult parses an HTTP response from a ReadAgentMeteringWithResponse call
+func ParseReadAgentMeteringResult(rsp *http.Response) (*ReadAgentMeteringResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadAgentMeteringResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentMeteringList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -145317,6 +150544,39 @@ func ParseAddMemberResult(rsp *http.Response) (*AddMemberResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ItemMembers
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListValueProvenanceResult parses an HTTP response from a ListValueProvenanceWithResponse call
+func ParseListValueProvenanceResult(rsp *http.Response) (*ListValueProvenanceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListValueProvenanceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ValueProvenanceList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

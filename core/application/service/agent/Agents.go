@@ -574,7 +574,8 @@ func (h ReadAgentHalt) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        ReadAgentHaltName,
 		Module:      moduleOf(),
-		Summary:     "Whether the workspace's agents are halted, by whom and since when. Every signed-in member reads it.",
+		Permission:  service.PermissionManageMembers,
+		Summary:     "Whether the workspace's agents are halted, by whom and since when. Needs MANAGE_MEMBERS at the workspace.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  scopeRead,
 		ReadOnly:    true,
@@ -582,7 +583,7 @@ func (h ReadAgentHalt) Descriptor() usecase.Descriptor {
 		Activity:    usecase.ActivityDeclaration{Exempt: "a read changes nothing."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
 			d := h.Desk
-			if err := actor.RequireScope(scopeRead); err != nil {
+			if err := d.administer(ctx, actor, ReadAction, scopeRead, agentTarget, ""); err != nil {
 				return nil, err
 			}
 			var out usecase.Output

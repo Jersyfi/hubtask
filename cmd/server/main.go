@@ -38,6 +38,7 @@ import (
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
+	agentservice "github.com/Jersyfi/hubtask/core/application/service/agent"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
@@ -1233,6 +1234,9 @@ func run() error {
 	// the validation, the event and the entry's own history are the ones a person's own write
 	// would have produced, because it *is* a person's own write.
 	suggestionCatalogue := &deferredCatalogue{}
+	// The governed agents (M9): the store, and the catalogue a held act is performed through.
+	agentStore := postgres.NewAgentRepository()
+	agentCatalogue := &deferredCatalogue{}
 	suggestionStore := postgres.NewSuggestionRepository(cursors)
 	suggestionCases := suggestionservice.Cases{
 		Suggestions: suggestionStore,
@@ -1243,6 +1247,8 @@ func run() error {
 		Requests: suggestionStore, IDs: ids,
 		// A proposed destination is answered while it is still in the shared set.
 		Containers: containers,
+		// An accepted value keeps its provenance beyond the suggestion (AI-2).
+		Marks: agentStore,
 	}
 
 	// The cases the privacy use cases share.
@@ -1900,8 +1906,39 @@ func run() error {
 		},
 		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{}, Jobs: jobs, Entries: alertEntries,
 	}
+	// The agents' desk; Sources is ReadAiSource's own use case, run as the registering person.
+	agentDesk := agentservice.Desk{
+		Store: agentStore, Catalogue: agentCatalogue, Authorizer: authorizer,
+		Sources: integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor().Handler,
+		Audit:   auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+	}
 	useCases, err := usecase.NewRegistry(
-		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
+		// Every act of a registered agent passes its governance first (UC-AGT-02).
+		agentservice.Gate{Desk: agentDesk}.Wrap(
+			settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry()))),
+		agentservice.RegisterAgentModel{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentModels{Desk: agentDesk}.Descriptor(),
+		agentservice.ChangeAgentModel{Desk: agentDesk}.Descriptor(),
+		agentservice.RegisterAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgents{Desk: agentDesk}.Descriptor(),
+		agentservice.ReadAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.ChangeAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.ApproveAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.ActivateAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.SuspendAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.RetireAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.SetAgentHalt{Desk: agentDesk}.Descriptor(),
+		agentservice.ReadAgentHalt{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentRequests{Desk: agentDesk}.Descriptor(),
+		agentservice.DecideAgentRequest{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentActions{Desk: agentDesk}.Descriptor(),
+		agentservice.ReadAgentMetering{Desk: agentDesk}.Descriptor(),
+		agentservice.AddAgentCase{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentCases{Desk: agentDesk}.Descriptor(),
+		agentservice.RemoveAgentCase{Desk: agentDesk}.Descriptor(),
+		agentservice.RecordAgentEvaluation{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentEvaluations{Desk: agentDesk}.Descriptor(),
+		agentservice.ListValueProvenance{Desk: agentDesk}.Descriptor(),
 		knowledgeservice.CreatePage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListPages{Space: pageSpace}.Descriptor(),
@@ -3197,6 +3234,7 @@ func run() error {
 	configCatalogue.catalogue = useCases
 	ruleCatalogue.catalogue = useCases
 	alertEntries.catalogue = useCases
+	agentCatalogue.catalogue = useCases
 	portalEntries.catalogue = useCases
 	planMoves.catalogue = useCases
 	suggestionCatalogue.catalogue = useCases
