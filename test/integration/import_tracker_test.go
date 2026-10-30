@@ -208,7 +208,8 @@ func TestAWikiSpaceLandsAsTheHubsPages(t *testing.T) {
 	file := zipOf(t, map[string][]byte{
 		"H/index.html":     []byte(`<html><head><title>Handbook</title></head></html>`),
 		"H/Start_1.html":   page("Start", "", `<p>See <a href="Details_2.html">details</a>.</p>`),
-		"H/Details_2.html": page("Details", `<li><a href="Start_1.html">Start</a></li>`, `<h2>More</h2>`),
+		"H/Details_2.html": page("Details", `<li><a href="Start_1.html">Start</a></li>`, `<h2>More</h2><p><img src="attachments/2/9.png"/></p>`),
+		"H/attachments/2/9.png": []byte("\x89PNG\r\n\x1a\nthe picture"),
 	})
 	store := storage.NewLocalStorage(t.TempDir())
 	run := runImport(ctx, t, store, hub, domain.KindWiki, file)
@@ -224,5 +225,12 @@ func TestAWikiSpaceLandsAsTheHubsPages(t *testing.T) {
 	// The link to a page of the space is a page reference, which the reference trigger keeps.
 	if n := importedCount(ctx, t, `SELECT count(*) FROM page WHERE hub_id = $1 AND body LIKE '%hubtask:page/%'`, hub.String()); n != 1 {
 		t.Errorf("a page reference: %d", n)
+	}
+	// The picture is the page's file, its bytes stored, and drawn by the body (UC-IMP-05 check 5).
+	if n := importedCount(ctx, t, `SELECT count(*) FROM page_media g JOIN page p ON p.id = g.page_id AND p.tenant_id = g.tenant_id
+		JOIN media_object m ON m.id = g.media_id AND m.tenant_id = g.tenant_id
+		WHERE p.hub_id = $1 AND p.title = 'Details' AND m.mime_type = 'image/png' AND m.storage_key <> ''
+		  AND p.body LIKE '%hubtask:media/' || m.id::text || '%'`, hub.String()); n != 1 {
+		t.Errorf("the page's picture: %d", n)
 	}
 }

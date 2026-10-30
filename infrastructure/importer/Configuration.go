@@ -204,45 +204,7 @@ func (b *builder) history(key string, item, collection shared.ID, author string,
 // attachment adds a file to an entry: one media object per content, so that the same bytes
 // attached twice are one object referenced twice, its bytes handed to the archive by digest.
 func (b *builder) attachment(item shared.ID, name string, content []byte, at time.Time) {
-	sum := sha256.Sum256(content)
-	digest := hex.EncodeToString(sum[:])
-	id := b.id("media_objects", digest)
-	if b.media == nil {
-		b.media = map[string][]byte{}
-		b.mediaRows = map[string]map[string]any{}
-	}
-	row, seen := b.mediaRows[digest]
-	if !seen {
-		head := content
-		if len(head) > 512 {
-			head = head[:512]
-		}
-		kind, err := media.AcceptClaim("", http.DetectContentType(head))
-		if err != nil || kind == "" {
-			kind = "application/octet-stream"
-		}
-		file := clip(strings.TrimSpace(strings.Map(func(r rune) rune {
-			if r == '/' || r == '\\' || unicode.IsControl(r) {
-				return '_'
-			}
-			return r
-		}, name)), media.MaxFileNameLength)
-		if file == "" {
-			file = "attachment"
-		}
-		row = map[string]any{
-			"id": id.String(), "storage_key": "", "mime_type": kind, "byte_size": len(content),
-			"checksum": digest, "usage": string(media.UsageAttachment), "ref_count": 0,
-			"created_by": b.source.Actor.String(), "created_at": stamp(at), "deleted_at": nil,
-			"status": string(media.StatusReady), "file_name": file,
-		}
-		b.mediaRows[digest] = row
-		b.media[digest] = content
-		b.records["media_objects"] = append(b.records["media_objects"], archive.Record{
-			ID: id.String(), Op: archive.OpUpsert, UpdatedAt: b.source.Now, Data: row,
-			Blobs: []archive.Blob{{Digest: digest, Bytes: int64(len(content))}},
-		})
-	}
+	id, row := b.mediaObject(name, content, at)
 	key := item.String() + "/" + id.String()
 	if b.linked[key] {
 		return
@@ -253,6 +215,68 @@ func (b *builder) attachment(item shared.ID, name string, content []byte, at tim
 		ID: key, Op: archive.OpUpsert, UpdatedAt: b.source.Now,
 		Data: map[string]any{"item_id": item.String(), "media_id": id.String()},
 	})
+}
+
+// pageFile adds a file to a page's pictures and files (UC-DOC-14), one media object per content
+// as an entry's attachment is, and answers the object's identity for the body to draw.
+func (b *builder) pageFile(page shared.ID, name string, content []byte, at time.Time) shared.ID {
+	id, row := b.mediaObject(name, content, at)
+	key := "page:" + page.String() + "/" + id.String()
+	if b.linked[key] {
+		return id
+	}
+	b.linked[key] = true
+	row["ref_count"] = row["ref_count"].(int) + 1
+	b.records["page_media"] = append(b.records["page_media"], archive.Record{
+		ID: page.String() + "/" + id.String(), Op: archive.OpUpsert, UpdatedAt: b.source.Now,
+		Data: map[string]any{"page_id": page.String(), "media_id": id.String()},
+	})
+	return id
+}
+
+// mediaObject answers the media object of a content, adding it the first time it is met.
+func (b *builder) mediaObject(name string, content []byte, at time.Time) (shared.ID, map[string]any) {
+	sum := sha256.Sum256(content)
+	digest := hex.EncodeToString(sum[:])
+	id := b.id("media_objects", digest)
+	if b.media == nil {
+		b.media = map[string][]byte{}
+		b.mediaRows = map[string]map[string]any{}
+	}
+	row, seen := b.mediaRows[digest]
+	if seen {
+		return id, row
+	}
+	head := content
+	if len(head) > 512 {
+		head = head[:512]
+	}
+	kind, err := media.AcceptClaim("", http.DetectContentType(head))
+	if err != nil || kind == "" {
+		kind = "application/octet-stream"
+	}
+	file := clip(strings.TrimSpace(strings.Map(func(r rune) rune {
+		if r == '/' || r == '\\' || unicode.IsControl(r) {
+			return '_'
+		}
+		return r
+	}, name)), media.MaxFileNameLength)
+	if file == "" {
+		file = "attachment"
+	}
+	row = map[string]any{
+		"id": id.String(), "storage_key": "", "mime_type": kind, "byte_size": len(content),
+		"checksum": digest, "usage": string(media.UsageAttachment), "ref_count": 0,
+		"created_by": b.source.Actor.String(), "created_at": stamp(at), "deleted_at": nil,
+		"status": string(media.StatusReady), "file_name": file,
+	}
+	b.mediaRows[digest] = row
+	b.media[digest] = content
+	b.records["media_objects"] = append(b.records["media_objects"], archive.Record{
+		ID: id.String(), Op: archive.OpUpsert, UpdatedAt: b.source.Now, Data: row,
+		Blobs: []archive.Blob{{Digest: digest, Bytes: int64(len(content))}},
+	})
+	return id, row
 }
 
 // linkType adds a workspace link type for a relation the shipped six do not name.

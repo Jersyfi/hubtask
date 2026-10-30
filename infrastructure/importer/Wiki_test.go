@@ -16,17 +16,19 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-func wikiPageHTML(title, crumbs, content, meta string) string {
+// wikiPageHTML is one exported page; attached are the links of its attachments' section.
+func wikiPageHTML(title, crumbs, content, attached string) string {
 	return `<html><head><title>Team Handbook : ` + title + `</title></head><body>
 <div id="breadcrumb-section"><ol id="breadcrumbs"><li class="first"><span><a href="index.html">Team Handbook</a></span></li>` + crumbs + `</ol></div>
 <h1 id="title-heading" class="pagetitle"><span id="title-text"> Team Handbook : ` + title + ` </span></h1>
 <div class="page-metadata">Created by <span class="author"> Ada</span>, last modified on Mar 03, 2026</div>
 <div id="main-content" class="wiki-content group">` + content + `</div>
-<div class="pageSection group"><h2 id="attachments">Attachments:</h2><a href="attachments/200/301.png">diagram.png</a></div>
+<div class="pageSection group"><h2 id="attachments">Attachments:</h2>` + attached + `</div>
 </body></html>`
 }
 
-// wikiZip is a space's HTML export: an index, three pages two deep, a picture.
+// wikiZip is a space's HTML export: an index, three pages two deep, a picture drawn and a file
+// listed on one of them, and a file of a page the export left out.
 func wikiZip(t *testing.T) []byte {
 	t.Helper()
 	var buffer bytes.Buffer
@@ -36,10 +38,13 @@ func wikiZip(t *testing.T) []byte {
 		"TEAM/Onboarding_100.html": wikiPageHTML("Onboarding", "",
 			`<h2>First day</h2><p>Read the <a href="Tools_200.html">tools page</a> and the <a href="https://example.org/policy">policy</a>.</p><ul><li>Laptop<ul><li>Charger</li></ul></li><li><strong>Badge</strong></li></ul>`, ""),
 		"TEAM/Tools_200.html": wikiPageHTML("Tools", `<li><span><a href="Onboarding_100.html">Onboarding</a></span></li>`,
-			`<p>We use <code>git</code>.</p><table><tr><th>Tool</th><th>Owner</th></tr><tr><td>Mail</td><td>IT</td></tr></table><p><img src="attachments/200/301.png" alt="diagram"/></p>`, ""),
+			`<p>We use <code>git</code>.</p><table><tr><th>Tool</th><th>Owner</th></tr><tr><td>Mail</td><td>IT</td></tr></table><p>The flow: <img src="attachments/200/301.png?version=1" alt="diagram"/> and an <img src="https://example.org/logo.png"/></p>`,
+			`<a href="attachments/200/301.png">diagram.png</a><a href="attachments/200/302.pdf">brief.pdf</a>`),
 		"TEAM/Editors_300.html": wikiPageHTML("Editors", `<li><span><a href="Onboarding_100.html">Onboarding</a></span></li><li><span><a href="Tools_200.html">Tools</a></span></li>`,
 			`<pre>vim --version</pre>`, ""),
-		"TEAM/attachments/200/301.png": "png bytes",
+		"TEAM/attachments/200/301.png": "\x89PNG\r\n\x1a\npng bytes",
+		"TEAM/attachments/200/302.pdf": "%PDF-1.4 the brief",
+		"TEAM/attachments/999/401.txt": "a page not exported",
 		"TEAM/styles/site.css":         "body{}",
 	} {
 		member, err := writer.Create(name)
@@ -134,7 +139,7 @@ func TestATreeDeeperThanPagesAllowHangsAtTheDeepestLevel(t *testing.T) {
 }
 
 // UC-IMP-05 check 2: the content becomes Markdown, and a link to a page of the space a page
-// reference; what pages have no place for is counted.
+// reference; what no page holds is counted.
 func TestAPagesContentBecomesMarkdownWithPageReferences(t *testing.T) {
 	result, err := Wiki{}.Convert(context.Background(), trackerSource(t, wikiZip(t)))
 	if err != nil {
@@ -154,7 +159,44 @@ func TestAPagesContentBecomesMarkdownWithPageReferences(t *testing.T) {
 		t.Errorf("editors = %q", body)
 	}
 	if result.Unmapped["attachments"] != 1 || result.Unmapped["pictures"] != 1 {
-		t.Errorf("unmapped = %v", result.Unmapped)
+		t.Errorf("unmapped = %v, want the file of the page not exported and the outside picture", result.Unmapped)
+	}
+}
+
+// UC-IMP-05 check 5: a page's attachments become its files - a picture drawn where it stood, a
+// file it does not draw after its content -, each with its bytes and its name from the export.
+func TestAPagesAttachmentsAndPicturesBecomeItsFiles(t *testing.T) {
+	result, err := Wiki{}.Convert(context.Background(), trackerSource(t, wikiZip(t)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	objects := map[string]map[string]any{}
+	for _, record := range result.Records["media_objects"] {
+		objects[record.Data["file_name"].(string)] = record.Data
+	}
+	picture, brief := objects["diagram.png"], objects["brief.pdf"]
+	if len(objects) != 2 || picture == nil || brief == nil {
+		t.Fatalf("objects = %v", objects)
+	}
+	if picture["mime_type"] != "image/png" || brief["mime_type"] != "application/pdf" || picture["ref_count"] != 1 {
+		t.Errorf("picture %v, brief %v", picture, brief)
+	}
+	tools := titled(result.Records["pages"], "Tools")
+	want := "The flow: and an\n\n![](hubtask:media/" + picture["id"].(string) + ")\n\n![](hubtask:media/" + brief["id"].(string) + ")"
+	if body := tools["body"].(string); !strings.HasSuffix(body, want) {
+		t.Errorf("body =\n%q\nwant it to end with\n%q", body, want)
+	}
+	held := result.Records["page_media"]
+	if len(held) != 2 {
+		t.Fatalf("page media = %v", held)
+	}
+	for _, record := range held {
+		if record.Data["page_id"] != tools["id"] {
+			t.Errorf("held by %v, want Tools", record.Data["page_id"])
+		}
+	}
+	if len(result.Media) != 2 {
+		t.Errorf("bytes handed over = %d, want 2", len(result.Media))
 	}
 }
 
