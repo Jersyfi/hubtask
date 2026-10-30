@@ -62,7 +62,10 @@ search index are optional roles of the same binary; NATS stays optional.
 | A Yjs-compatible CRDT implementation for the browser (Yjs) and its update format on the server (stored and relayed; S-13 stores and relays it without a Go CRDT, a writer's snapshot compacting the log) | F-8 pages, whiteboards | `apps/`, `packages/` (the server side is `presentation/realtime`, `core/application/service/realtime`) |
 | A block editor on ProseMirror (TipTap or BlockNote core, MIT parts only — no GPL/AGPL export packages) | pages | `packages/` |
 | A canvas engine for whiteboards (tldraw SDK licence checked against Apache-2.0 distribution; else Excalidraw, MIT) | whiteboards | `packages/` |
-| A CEL evaluator for the browser (cel-js or the Go CEL compiled to WebAssembly) | F-4 offline forms | `packages/` |
+| A CEL evaluator for the browser (`@marcbachmann/cel-js` 8.0.0, MIT, landed with S-13F; listed in `THIRD-PARTY-LICENSES.md`) | F-4 offline forms | `packages/` |
+| XML signature verification for SAML (`github.com/russellhaering/goxmldsig`, Apache-2.0, with `github.com/beevik/etree`, BSD-2-Clause; accepted 2026-10-30, landed, [ADR-0099](../../adr/ADR-0099-saml-and-ldap-behind-one-adapter-each.md)) | UC-ID-30 | `infrastructure/saml` |
+| An LDAP client (`github.com/go-ldap/ldap/v3`, MIT; accepted 2026-10-30, not built yet) | LDAP synchronisation | `infrastructure/ldap` |
+| No spreadsheet library: the accepted one was not needed - XLSX is written with `archive/zip` and `encoding/xml` (S-13F) | M7 export to accounting | `presentation/rest` |
 | A websocket library for Go (`github.com/coder/websocket`, ISC, landed with S-13) | F-8 | `presentation/realtime` - an inbound adapter, which `infrastructure/` is not |
 
 Each is checked by the existing licence gate (no copyleft) when it lands; a failing one is replaced,

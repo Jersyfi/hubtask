@@ -1083,7 +1083,7 @@ groups over SCIM 2.0 (RFC 7643, RFC 7644) at `/api/v1/scim/v2` ([UC-ID-28](../us
   `OWNER` - whose member change needs a person's step-up - is refused to a directory.
 * **Not served:** bulk, sorting, ETags, password changes; a filter is one `eq`. The service is not
   a catalogue use case: SCIM's resource semantics are its door's own, and the acts behind it are on
-  every door already as invitations and groups. SAML and LDAP wait (§21).
+  every door already as invitations and groups. SAML is §26; LDAP synchronisation waits.
 
 ---
 
@@ -1100,3 +1100,22 @@ groups over SCIM 2.0 (RFC 7643, RFC 7644) at `/api/v1/scim/v2` ([UC-ID-28](../us
 | Online only | The sync service refuses the snapshot, the pull and the stream with `access.view_as_online_only`; the web app opens no replica while a view runs. |
 | Lapse | A view run out, a person deleted, switched off, or now in a private hub lapses: the session is its holder's own again - failing towards the holder, never towards the person viewed. |
 | Trail | `account.viewed_as` (warning) at each start, `account.view_as_ended` when the viewer ends it. |
+
+---
+
+## 26. Signing in through a SAML provider
+
+A SAML 2.0 provider (UC-ID-30, [ADR-0099](../adr/ADR-0099-saml-and-ldap-behind-one-adapter-each.md))
+is a workspace's provider of kind `SAML`. Only how the identity is proven differs from §10: the
+start, the admission (§10.4, as `GENERIC`: `allowed_email_domains`, never authoritative), the
+arrival, the newcomers and the session are the same code.
+
+| Rule | Detail |
+|---|---|
+| Configuration | `issuer` is the provider's entity ID, an absolute URI compared exactly (`http:` and `urn:` allowed, trailing slash kept); `client_id` this workspace's entity ID, suggested as the installation's metadata address; `saml_sso_url` https; `saml_certificate` one or two PEM certificates valid now. No secret (an empty one is sealed for the column), no discovery. A workspace's own only (`identity_provider.saml_workspace_only`, and a CHECK in migration 0284). |
+| The request | `AuthnRequest` by HTTP-Redirect, unsigned, ID `_` + the flow's nonce, the assertion consumer service `<base>/api/v1/auth/saml:acs`, `ForceAuthn` where §10's `Fresh` asks; `RelayState` is the flow's state. |
+| The return | The provider posts to the assertion consumer service. It keeps the answer (at most 256 KiB) **once** on the live sign-in flow of a SAML provider the state names, unverified, with the hash of a single-use handoff code, and answers `303` to `<base>/auth/callback?code=…&state=…`; from there the web app finishes as for OpenID Connect (`oidc:locate`, `oidc:callback`). The callback refuses a code that is not the handoff, and verifies the kept answer. |
+| Verification | Only the element goxmldsig returns as verified is read. A signed response or a signed assertion, by a configured certificate, never SHA-1; exactly one assertion, none encrypted, no document type declaration; `InResponseTo` the request, `Destination` and the bearer confirmation's `Recipient` the service, issuer the entity ID, audience `client_id`, `NotBefore`/`NotOnOrAfter` with 60 s skew. Every failure is `auth.identity_token_invalid`. |
+| The identity | Subject is the `NameID`; the address the `email`/`mail` attribute (or a `NameID` in the email format), treated as verified because the configured provider signed it; the name `displayName`, else given name and surname; `AuthnInstant` as the authentication time. |
+| Not served | Step-up and connection through a SAML provider (`identity_provider.saml_sign_in_only`), IdP-initiated sign-in, single logout, encrypted assertions, signed requests; the installation does not offer a SAML provider. |
+

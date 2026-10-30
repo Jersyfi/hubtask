@@ -55,4 +55,4 @@ tasks and comments stay hers. The owner of the workspace cannot be switched off 
 * No bulk operations, sorting or ETags; filters are one equality.
 * A group holding `OWNER` is not changed by a directory: its member change needs a person's
   step-up.
-* SAML and LDAP synchronisation are not part of it.
+* SAML sign-in is UC-ID-30; LDAP synchronisation is not part of it.

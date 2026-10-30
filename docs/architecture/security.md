@@ -443,7 +443,6 @@ without asking.
 | End-to-end encryption of content | Incompatible with server-side search, automation and AI |
 | Our own WAF/IDS | The operator's job (ingress/reverse proxy); the application supplies clean signals |
 | Certifications (ISO 27001, SOC 2) | Organisational, not architectural |
-| SAML/SCIM | After `1.0.0` |
 
 ---
 
