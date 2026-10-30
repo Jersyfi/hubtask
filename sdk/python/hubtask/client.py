@@ -187,6 +187,98 @@ class Client:
         """Remove an entry's estimate"""
         return self._call("DELETE", "/items/{itemId}/estimate", {"itemId": item_id}, None, {}, None, "none", None, "void")
 
+    def list_time_records(self, *, query: dict[str, Any] | None = None) -> "TimeRecordList":
+        """Time records of a range of days"""
+        return self._call("GET", "/time-records", {}, query, {}, None, "none", None, "json")
+
+    def log_time(self, body: "TimeRecordFields") -> "TimeRecord":
+        """Record time spent"""
+        return self._call("POST", "/time-records", {}, None, {}, body, "json", "application/json", "json")
+
+    def update_time_record(self, record_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "TimeRecord":
+        """Change a record of one's own"""
+        return self._call("PATCH", "/time-records/{recordId}", {"recordId": record_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_time_record(self, record_id: str, *, if_match: str | None = None) -> None:
+        """Remove a record of one's own"""
+        return self._call("DELETE", "/time-records/{recordId}", {"recordId": record_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def correct_time_record(self, record_id: str, body: dict[str, Any]) -> "TimeRecord":
+        """Correct an approved record"""
+        return self._call("POST", "/time-records/{recordId}:correct", {"recordId": record_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_time_report(self, body: dict[str, Any]) -> "TimeReport":
+        """Sum time by up to two dimensions"""
+        return self._call("POST", "/time-records:report", {}, None, {}, body, "json", "application/json", "json")
+
+    def export_time_records(self, body: dict[str, Any]) -> "TimeExport":
+        """Hand time records to accounting"""
+        return self._call("POST", "/time-records:export", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_timer(self) -> "TimeTimer":
+        """The caller's running timer"""
+        return self._call("GET", "/timer", {}, None, {}, None, "none", None, "json")
+
+    def discard_timer(self) -> None:
+        """Stop the timer without recording it"""
+        return self._call("DELETE", "/timer", {}, None, {}, None, "none", None, "void")
+
+    def start_timer(self, body: dict[str, Any]) -> "TimeTimer":
+        """Start the caller's timer"""
+        return self._call("POST", "/timer:start", {}, None, {}, body, "json", "application/json", "json")
+
+    def stop_timer(self, body: dict[str, Any]) -> "TimeRecord":
+        """Stop the timer into a record"""
+        return self._call("POST", "/timer:stop", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_timesheets(self, *, query: dict[str, Any] | None = None) -> "TimesheetList":
+        """Weeks to decide, or one's own"""
+        return self._call("GET", "/timesheets", {}, query, {}, None, "none", None, "json")
+
+    def read_timesheet(self, week: str, *, query: dict[str, Any] | None = None) -> "TimesheetWeek":
+        """A week from Monday"""
+        return self._call("GET", "/timesheets/{week}", {"week": week}, query, {}, None, "none", None, "json")
+
+    def copy_timesheet_week(self, week: str) -> dict[str, Any]:
+        """Copy last week into this one"""
+        return self._call("POST", "/timesheets/{week}:copy-previous", {"week": week}, None, {}, None, "none", None, "json")
+
+    def submit_timesheet(self, week: str) -> "Timesheet":
+        """Hand one's week in"""
+        return self._call("POST", "/timesheets/{week}:submit", {"week": week}, None, {}, None, "none", None, "json")
+
+    def withdraw_timesheet(self, week: str) -> "Timesheet":
+        """Take one's week back"""
+        return self._call("POST", "/timesheets/{week}:withdraw", {"week": week}, None, {}, None, "none", None, "json")
+
+    def approve_timesheet(self, week: str, body: dict[str, Any]) -> "Timesheet":
+        """Approve another person's week"""
+        return self._call("POST", "/timesheets/{week}:approve", {"week": week}, None, {}, body, "json", "application/json", "json")
+
+    def reject_timesheet(self, week: str, body: dict[str, Any]) -> "Timesheet":
+        """Send another person's week back"""
+        return self._call("POST", "/timesheets/{week}:reject", {"week": week}, None, {}, body, "json", "application/json", "json")
+
+    def list_work_types(self) -> "WorkTypeList":
+        """The workspace's kinds of work"""
+        return self._call("GET", "/time-work-types", {}, None, {}, None, "none", None, "json")
+
+    def define_work_type(self, key: str, body: dict[str, Any]) -> "WorkType":
+        """Write a kind of work"""
+        return self._call("PUT", "/time-work-types/{key}", {"key": key}, None, {}, body, "json", "application/json", "json")
+
+    def read_time_policy(self) -> "TimePolicy":
+        """The workspace's time policy"""
+        return self._call("GET", "/time-policy", {}, None, {}, None, "none", None, "json")
+
+    def set_time_policy(self, body: dict[str, Any]) -> "TimePolicy":
+        """Lock a period and choose what a lead sees"""
+        return self._call("PUT", "/time-policy", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_estimates_vs_actuals(self, plan_id: str) -> "EstimatesVsActuals":
+        """Estimates against the time recorded"""
+        return self._call("GET", "/plans/{planId}/actuals", {"planId": plan_id}, None, {}, None, "none", None, "json")
+
     def list_business_calendars(self) -> "BusinessCalendarList":
         """The workspace's business calendars"""
         return self._call("GET", "/business-calendars", {}, None, {}, None, "none", None, "json")

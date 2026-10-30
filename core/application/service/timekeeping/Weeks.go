@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
@@ -447,7 +448,7 @@ func (h ApproveTimesheet) Execute(ctx context.Context, actor appshared.ActorCont
 // Descriptor is the catalogue entry.
 func (h ApproveTimesheet) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name: ApproveTimesheetName,
+		Name: ApproveTimesheetName, Permission: service.PermissionApproveTime,
 		Summary: "Approves another person's handed-in week. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace " +
 			"or at every hub or collection the week's entries lie in; nobody approves their own (timesheets.own_week). " +
 			"Its records never change again; a correction goes into an open week.",
@@ -486,7 +487,7 @@ func (h RejectTimesheet) Execute(ctx context.Context, actor appshared.ActorConte
 // Descriptor is the catalogue entry.
 func (h RejectTimesheet) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name: RejectTimesheetName,
+		Name: RejectTimesheetName, Permission: service.PermissionApproveTime,
 		Summary: "Sends another person's handed-in week back with a reason they read; they change it and hand it in " +
 			"again. Needs what approving needs.",
 		SideEffects: "Writes the week's state and an audit entry without the reason.",

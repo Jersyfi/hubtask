@@ -5154,6 +5154,30 @@ func (e PermissionEntryKind) Valid() bool {
 	}
 }
 
+// Defines values for PlacedTimeRecordSource.
+const (
+	PlacedTimeRecordSourceCOPY       PlacedTimeRecordSource = "COPY"
+	PlacedTimeRecordSourceCORRECTION PlacedTimeRecordSource = "CORRECTION"
+	PlacedTimeRecordSourceMANUAL     PlacedTimeRecordSource = "MANUAL"
+	PlacedTimeRecordSourceTIMER      PlacedTimeRecordSource = "TIMER"
+)
+
+// Valid indicates whether the value is a known member of the PlacedTimeRecordSource enum.
+func (e PlacedTimeRecordSource) Valid() bool {
+	switch e {
+	case PlacedTimeRecordSourceCOPY:
+		return true
+	case PlacedTimeRecordSourceCORRECTION:
+		return true
+	case PlacedTimeRecordSourceMANUAL:
+		return true
+	case PlacedTimeRecordSourceTIMER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlanConflictDependencyKind.
 const (
 	PlanConflictDependencyKindFF PlanConflictDependencyKind = "FF"
@@ -7419,6 +7443,96 @@ func (e TermsInForceSetBy) Valid() bool {
 	}
 }
 
+// Defines values for TimePolicyVisibility.
+const (
+	TimePolicyVisibilityAGGREGATED TimePolicyVisibility = "AGGREGATED"
+	TimePolicyVisibilityFULL       TimePolicyVisibility = "FULL"
+)
+
+// Valid indicates whether the value is a known member of the TimePolicyVisibility enum.
+func (e TimePolicyVisibility) Valid() bool {
+	switch e {
+	case TimePolicyVisibilityAGGREGATED:
+		return true
+	case TimePolicyVisibilityFULL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TimeRecordSource.
+const (
+	TimeRecordSourceCOPY       TimeRecordSource = "COPY"
+	TimeRecordSourceCORRECTION TimeRecordSource = "CORRECTION"
+	TimeRecordSourceMANUAL     TimeRecordSource = "MANUAL"
+	TimeRecordSourceTIMER      TimeRecordSource = "TIMER"
+)
+
+// Valid indicates whether the value is a known member of the TimeRecordSource enum.
+func (e TimeRecordSource) Valid() bool {
+	switch e {
+	case TimeRecordSourceCOPY:
+		return true
+	case TimeRecordSourceCORRECTION:
+		return true
+	case TimeRecordSourceMANUAL:
+		return true
+	case TimeRecordSourceTIMER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TimesheetState.
+const (
+	TimesheetStateAPPROVED  TimesheetState = "APPROVED"
+	TimesheetStateOPEN      TimesheetState = "OPEN"
+	TimesheetStateREJECTED  TimesheetState = "REJECTED"
+	TimesheetStateSUBMITTED TimesheetState = "SUBMITTED"
+)
+
+// Valid indicates whether the value is a known member of the TimesheetState enum.
+func (e TimesheetState) Valid() bool {
+	switch e {
+	case TimesheetStateAPPROVED:
+		return true
+	case TimesheetStateOPEN:
+		return true
+	case TimesheetStateREJECTED:
+		return true
+	case TimesheetStateSUBMITTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TimesheetWeekState.
+const (
+	TimesheetWeekStateAPPROVED  TimesheetWeekState = "APPROVED"
+	TimesheetWeekStateOPEN      TimesheetWeekState = "OPEN"
+	TimesheetWeekStateREJECTED  TimesheetWeekState = "REJECTED"
+	TimesheetWeekStateSUBMITTED TimesheetWeekState = "SUBMITTED"
+)
+
+// Valid indicates whether the value is a known member of the TimesheetWeekState enum.
+func (e TimesheetWeekState) Valid() bool {
+	switch e {
+	case TimesheetWeekStateAPPROVED:
+		return true
+	case TimesheetWeekStateOPEN:
+		return true
+	case TimesheetWeekStateREJECTED:
+		return true
+	case TimesheetWeekStateSUBMITTED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TrashEntryHeldBy.
 const (
 	TrashEntryHeldByLegalHold   TrashEntryHeldBy = "legal_hold"
@@ -8535,6 +8649,87 @@ func (e PreviewModuleReachParamsSwitch) Valid() bool {
 	case PreviewModuleReachParamsSwitchINHERIT:
 		return true
 	case PreviewModuleReachParamsSwitchOFF:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetTimePolicyJSONBodyVisibility.
+const (
+	SetTimePolicyJSONBodyVisibilityAGGREGATED SetTimePolicyJSONBodyVisibility = "AGGREGATED"
+	SetTimePolicyJSONBodyVisibilityFULL       SetTimePolicyJSONBodyVisibility = "FULL"
+)
+
+// Valid indicates whether the value is a known member of the SetTimePolicyJSONBodyVisibility enum.
+func (e SetTimePolicyJSONBodyVisibility) Valid() bool {
+	switch e {
+	case SetTimePolicyJSONBodyVisibilityAGGREGATED:
+		return true
+	case SetTimePolicyJSONBodyVisibilityFULL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadTimeReportJSONBodyGroupBy.
+const (
+	ReadTimeReportJSONBodyGroupByBILLABLE   ReadTimeReportJSONBodyGroupBy = "BILLABLE"
+	ReadTimeReportJSONBodyGroupByCOLLECTION ReadTimeReportJSONBodyGroupBy = "COLLECTION"
+	ReadTimeReportJSONBodyGroupByDAY        ReadTimeReportJSONBodyGroupBy = "DAY"
+	ReadTimeReportJSONBodyGroupByENTRY      ReadTimeReportJSONBodyGroupBy = "ENTRY"
+	ReadTimeReportJSONBodyGroupByHUB        ReadTimeReportJSONBodyGroupBy = "HUB"
+	ReadTimeReportJSONBodyGroupByMONTH      ReadTimeReportJSONBodyGroupBy = "MONTH"
+	ReadTimeReportJSONBodyGroupByPERSON     ReadTimeReportJSONBodyGroupBy = "PERSON"
+	ReadTimeReportJSONBodyGroupByWEEK       ReadTimeReportJSONBodyGroupBy = "WEEK"
+	ReadTimeReportJSONBodyGroupByWORKTYPE   ReadTimeReportJSONBodyGroupBy = "WORK_TYPE"
+)
+
+// Valid indicates whether the value is a known member of the ReadTimeReportJSONBodyGroupBy enum.
+func (e ReadTimeReportJSONBodyGroupBy) Valid() bool {
+	switch e {
+	case ReadTimeReportJSONBodyGroupByBILLABLE:
+		return true
+	case ReadTimeReportJSONBodyGroupByCOLLECTION:
+		return true
+	case ReadTimeReportJSONBodyGroupByDAY:
+		return true
+	case ReadTimeReportJSONBodyGroupByENTRY:
+		return true
+	case ReadTimeReportJSONBodyGroupByHUB:
+		return true
+	case ReadTimeReportJSONBodyGroupByMONTH:
+		return true
+	case ReadTimeReportJSONBodyGroupByPERSON:
+		return true
+	case ReadTimeReportJSONBodyGroupByWEEK:
+		return true
+	case ReadTimeReportJSONBodyGroupByWORKTYPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTimesheetsParamsState.
+const (
+	ListTimesheetsParamsStateAPPROVED  ListTimesheetsParamsState = "APPROVED"
+	ListTimesheetsParamsStateOPEN      ListTimesheetsParamsState = "OPEN"
+	ListTimesheetsParamsStateREJECTED  ListTimesheetsParamsState = "REJECTED"
+	ListTimesheetsParamsStateSUBMITTED ListTimesheetsParamsState = "SUBMITTED"
+)
+
+// Valid indicates whether the value is a known member of the ListTimesheetsParamsState enum.
+func (e ListTimesheetsParamsState) Valid() bool {
+	switch e {
+	case ListTimesheetsParamsStateAPPROVED:
+		return true
+	case ListTimesheetsParamsStateOPEN:
+		return true
+	case ListTimesheetsParamsStateREJECTED:
+		return true
+	case ListTimesheetsParamsStateSUBMITTED:
 		return true
 	default:
 		return false
@@ -12358,6 +12553,25 @@ type EstimateSize string
 // EstimateUnit defines model for Estimate.Unit.
 type EstimateUnit string
 
+// EstimatesVsActuals defines model for EstimatesVsActuals.
+type EstimatesVsActuals struct {
+	Data []struct {
+		Done                bool                `json:"done"`
+		EntryId             openapi_types.UUID  `json:"entry_id"`
+		EstimateHours       *float64            `json:"estimate_hours"`
+		Minutes             int                 `json:"minutes"`
+		ParentId            *openapi_types.UUID `json:"parent_id"`
+		RemainingHours      float64             `json:"remaining_hours"`
+		RolledEstimateHours float64             `json:"rolled_estimate_hours"`
+		RolledMinutes       int                 `json:"rolled_minutes"`
+		Title               string              `json:"title"`
+		VarianceHours       float64             `json:"variance_hours"`
+	} `json:"data"`
+	EstimateHours float64            `json:"estimate_hours"`
+	Minutes       int                `json:"minutes"`
+	PlanId        openapi_types.UUID `json:"plan_id"`
+}
+
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
 // `nodes`, is refused rather than half-read.
@@ -15294,6 +15508,34 @@ type PermissionEntry struct {
 // PermissionEntryKind defines model for PermissionEntry.Kind.
 type PermissionEntryKind string
 
+// PlacedTimeRecord defines model for PlacedTimeRecord.
+type PlacedTimeRecord struct {
+	AccountId    openapi_types.UUID  `json:"account_id"`
+	Billable     bool                `json:"billable"`
+	CollectionId *openapi_types.UUID `json:"collection_id"`
+
+	// Corrects The approved record a correction corrects.
+	Corrects   *openapi_types.UUID `json:"corrects"`
+	CreatedAt  time.Time           `json:"created_at"`
+	Day        openapi_types.Date  `json:"day"`
+	EntryId    *openapi_types.UUID `json:"entry_id"`
+	EntryTitle string              `json:"entry_title"`
+	HubId      *openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID  `json:"id"`
+
+	// Minutes Signed for a correction.
+	Minutes   int                    `json:"minutes"`
+	Note      string                 `json:"note"`
+	Source    PlacedTimeRecordSource `json:"source"`
+	StartedAt *time.Time             `json:"started_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
+	Version   int                    `json:"version"`
+	WorkType  string                 `json:"work_type"`
+}
+
+// PlacedTimeRecordSource defines model for PlacedTimeRecord.Source.
+type PlacedTimeRecordSource string
+
 // Plan defines model for Plan.
 type Plan struct {
 	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
@@ -18024,6 +18266,176 @@ type TermsInForce struct {
 // TermsInForceSetBy Who set them - whom a person who does not agree can ask.
 type TermsInForceSetBy string
 
+// TimeExport defines model for TimeExport.
+type TimeExport struct {
+	Columns []string `json:"columns"`
+	Rows    []struct {
+		AccountId    openapi_types.UUID  `json:"account_id"`
+		Billable     bool                `json:"billable"`
+		CollectionId *openapi_types.UUID `json:"collection_id"`
+		Corrects     *openapi_types.UUID `json:"corrects"`
+		Day          openapi_types.Date  `json:"day"`
+		EntryId      *openapi_types.UUID `json:"entry_id"`
+		EntryTitle   string              `json:"entry_title"`
+		Hours        float64             `json:"hours"`
+		HubId        *openapi_types.UUID `json:"hub_id"`
+		Minutes      int                 `json:"minutes"`
+		Note         string              `json:"note"`
+		RecordId     openapi_types.UUID  `json:"record_id"`
+		Source       string              `json:"source"`
+		WorkType     string              `json:"work_type"`
+	} `json:"rows"`
+	Truncated bool `json:"truncated"`
+}
+
+// TimePolicy defines model for TimePolicy.
+type TimePolicy struct {
+	LockedThrough *openapi_types.Date  `json:"locked_through"`
+	Version       int                  `json:"version"`
+	Visibility    TimePolicyVisibility `json:"visibility"`
+}
+
+// TimePolicyVisibility defines model for TimePolicy.Visibility.
+type TimePolicyVisibility string
+
+// TimeRecord defines model for TimeRecord.
+type TimeRecord struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	Billable  bool               `json:"billable"`
+
+	// Corrects The approved record a correction corrects.
+	Corrects  *openapi_types.UUID `json:"corrects"`
+	CreatedAt time.Time           `json:"created_at"`
+	Day       openapi_types.Date  `json:"day"`
+	EntryId   *openapi_types.UUID `json:"entry_id"`
+	Id        openapi_types.UUID  `json:"id"`
+
+	// Minutes Signed for a correction.
+	Minutes   int              `json:"minutes"`
+	Note      string           `json:"note"`
+	Source    TimeRecordSource `json:"source"`
+	StartedAt *time.Time       `json:"started_at"`
+	UpdatedAt time.Time        `json:"updated_at"`
+	Version   int              `json:"version"`
+	WorkType  string           `json:"work_type"`
+}
+
+// TimeRecordSource defines model for TimeRecord.Source.
+type TimeRecordSource string
+
+// TimeRecordFields defines model for TimeRecordFields.
+type TimeRecordFields struct {
+	// Billable The kind of work's flag without.
+	Billable *bool `json:"billable,omitempty"`
+
+	// Day The day; the start's day in the zone without.
+	Day *openapi_types.Date `json:"day,omitempty"`
+
+	// EndedAt With a start: the minutes are counted from the start.
+	EndedAt *time.Time `json:"ended_at,omitempty"`
+
+	// EntryId The entry; none for time on no entry.
+	EntryId   *openapi_types.UUID `json:"entry_id,omitempty"`
+	Minutes   *int                `json:"minutes,omitempty"`
+	Note      *string             `json:"note,omitempty"`
+	StartedAt *time.Time          `json:"started_at,omitempty"`
+
+	// WorkType The key of one of the workspace's kinds of work.
+	WorkType *string `json:"work_type,omitempty"`
+
+	// Zone The person's IANA time zone, for the start's day; UTC without.
+	Zone *string `json:"zone,omitempty"`
+}
+
+// TimeRecordList defines model for TimeRecordList.
+type TimeRecordList struct {
+	Data      []PlacedTimeRecord `json:"data"`
+	Truncated bool               `json:"truncated"`
+}
+
+// TimeReport defines model for TimeReport.
+type TimeReport struct {
+	GroupBy []string `json:"group_by"`
+	Groups  []struct {
+		BillableMinutes int `json:"billable_minutes"`
+		Keys            []struct {
+			Dimension string `json:"dimension"`
+
+			// Label An entry's title, where the caller may read it.
+			Label *string `json:"label,omitempty"`
+
+			// Value An identifier, a key, a day or true / false; empty for none.
+			Value string `json:"value"`
+		} `json:"keys"`
+		Minutes int `json:"minutes"`
+		Records int `json:"records"`
+	} `json:"groups"`
+	Minutes        int `json:"minutes"`
+	WithheldGroups int `json:"withheld_groups"`
+
+	// WithheldMinutes The minutes of groups too small to show without naming a person.
+	WithheldMinutes int `json:"withheld_minutes"`
+}
+
+// TimeTimer defines model for TimeTimer.
+type TimeTimer struct {
+	Billable       *bool               `json:"billable,omitempty"`
+	ElapsedMinutes *int                `json:"elapsed_minutes,omitempty"`
+	EntryId        *openapi_types.UUID `json:"entry_id,omitempty"`
+	Note           *string             `json:"note,omitempty"`
+	Running        bool                `json:"running"`
+	StartedAt      *time.Time          `json:"started_at,omitempty"`
+	WorkType       *string             `json:"work_type,omitempty"`
+}
+
+// Timesheet defines model for Timesheet.
+type Timesheet struct {
+	AccountId openapi_types.UUID  `json:"account_id"`
+	DecidedAt *time.Time          `json:"decided_at"`
+	DecidedBy *openapi_types.UUID `json:"decided_by"`
+
+	// Reason Why it was sent back.
+	Reason           string             `json:"reason"`
+	State            TimesheetState     `json:"state"`
+	SubmittedAt      *time.Time         `json:"submitted_at"`
+	SubmittedMinutes int                `json:"submitted_minutes"`
+	Version          int                `json:"version"`
+	WeekStart        openapi_types.Date `json:"week_start"`
+}
+
+// TimesheetState defines model for Timesheet.State.
+type TimesheetState string
+
+// TimesheetList defines model for TimesheetList.
+type TimesheetList struct {
+	Data []Timesheet `json:"data"`
+}
+
+// TimesheetWeek defines model for TimesheetWeek.
+type TimesheetWeek struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	Days      []struct {
+		Day     openapi_types.Date `json:"day"`
+		Locked  bool               `json:"locked"`
+		Minutes int                `json:"minutes"`
+	} `json:"days"`
+	DecidedAt *time.Time          `json:"decided_at"`
+	DecidedBy *openapi_types.UUID `json:"decided_by"`
+	Minutes   int                 `json:"minutes"`
+
+	// Reason Why it was sent back.
+	Reason           string             `json:"reason"`
+	Records          []PlacedTimeRecord `json:"records"`
+	State            TimesheetWeekState `json:"state"`
+	SubmittedAt      *time.Time         `json:"submitted_at"`
+	SubmittedMinutes int                `json:"submitted_minutes"`
+	Version          int                `json:"version"`
+	WeekStart        openapi_types.Date `json:"week_start"`
+}
+
+// TimesheetWeekState defines model for TimesheetWeek.State.
+type TimesheetWeekState string
+
 // TotpConfirmation defines model for TotpConfirmation.
 type TotpConfirmation struct {
 	Code string `json:"code"`
@@ -18778,6 +19190,21 @@ type WorkItemUpdate struct {
 	Title       *string    `json:"title,omitempty"`
 }
 
+// WorkType defines model for WorkType.
+type WorkType struct {
+	Archived bool   `json:"archived"`
+	Billable bool   `json:"billable"`
+	Key      string `json:"key"`
+	Name     string `json:"name"`
+	Position int    `json:"position"`
+	Version  int    `json:"version"`
+}
+
+// WorkTypeList defines model for WorkTypeList.
+type WorkTypeList struct {
+	Data []WorkType `json:"data"`
+}
+
 // Workflow How a workspace's work moves - statuses in categories and the steps between them.
 type Workflow struct {
 	Draft *WorkflowShape `json:"draft"`
@@ -19256,6 +19683,15 @@ type SuggestionId = openapi_types.UUID
 // TemplateId defines model for TemplateId.
 type TemplateId = openapi_types.UUID
 
+// TimeFrom defines model for TimeFrom.
+type TimeFrom = openapi_types.Date
+
+// TimeRecordId defines model for TimeRecordId.
+type TimeRecordId = openapi_types.UUID
+
+// TimeTo defines model for TimeTo.
+type TimeTo = openapi_types.Date
+
 // TokenId defines model for TokenId.
 type TokenId = openapi_types.UUID
 
@@ -19264,6 +19700,9 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// WeekOfTimesheet defines model for WeekOfTimesheet.
+type WeekOfTimesheet = openapi_types.Date
 
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
@@ -21050,6 +21489,156 @@ type SetWorkspaceStructureParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetTimePolicyJSONBody defines parameters for SetTimePolicy.
+type SetTimePolicyJSONBody struct {
+	ExpectedVersion int                             `json:"expected_version"`
+	LockedThrough   *openapi_types.Date             `json:"locked_through,omitempty"`
+	Visibility      SetTimePolicyJSONBodyVisibility `json:"visibility"`
+}
+
+// SetTimePolicyJSONBodyVisibility defines parameters for SetTimePolicy.
+type SetTimePolicyJSONBodyVisibility string
+
+// ListTimeRecordsParams defines parameters for ListTimeRecords.
+type ListTimeRecordsParams struct {
+	// From The first day, YYYY-MM-DD.
+	From TimeFrom `form:"from" json:"from"`
+
+	// To The last day, YYYY-MM-DD; at most 366 days after the first.
+	To TimeTo `form:"to" json:"to"`
+
+	// Mine Only the caller's own time.
+	Mine *bool `form:"mine,omitempty" json:"mine,omitempty"`
+
+	// AccountId Only this person's time.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+
+	// EntryId Only time on this entry.
+	EntryId *openapi_types.UUID `form:"entry_id,omitempty" json:"entry_id,omitempty"`
+
+	// CollectionId Only time on entries of this collection.
+	CollectionId *openapi_types.UUID `form:"collection_id,omitempty" json:"collection_id,omitempty"`
+
+	// HubId Only time on entries of this hub's collections.
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+
+	// Billable Only billable, or only non-billable, time.
+	Billable *bool `form:"billable,omitempty" json:"billable,omitempty"`
+}
+
+// DeleteTimeRecordParams defines parameters for DeleteTimeRecord.
+type DeleteTimeRecordParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateTimeRecordJSONBody defines parameters for UpdateTimeRecord.
+type UpdateTimeRecordJSONBody struct {
+	Billable        *bool               `json:"billable,omitempty"`
+	Day             *openapi_types.Date `json:"day,omitempty"`
+	EndedAt         *time.Time          `json:"ended_at,omitempty"`
+	EntryId         *openapi_types.UUID `json:"entry_id,omitempty"`
+	ExpectedVersion *int                `json:"expected_version,omitempty"`
+	Minutes         *int                `json:"minutes,omitempty"`
+	Note            *string             `json:"note,omitempty"`
+	StartedAt       *time.Time          `json:"started_at,omitempty"`
+	WorkType        *string             `json:"work_type,omitempty"`
+	Zone            *string             `json:"zone,omitempty"`
+}
+
+// UpdateTimeRecordParams defines parameters for UpdateTimeRecord.
+type UpdateTimeRecordParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// CorrectTimeRecordJSONBody defines parameters for CorrectTimeRecord.
+type CorrectTimeRecordJSONBody struct {
+	Day     openapi_types.Date `json:"day"`
+	Minutes int                `json:"minutes"`
+	Note    *string            `json:"note,omitempty"`
+}
+
+// ExportTimeRecordsJSONBody defines parameters for ExportTimeRecords.
+type ExportTimeRecordsJSONBody struct {
+	AccountId    *openapi_types.UUID `json:"account_id,omitempty"`
+	Billable     *bool               `json:"billable,omitempty"`
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	EntryId      *openapi_types.UUID `json:"entry_id,omitempty"`
+	From         openapi_types.Date  `json:"from"`
+	HubId        *openapi_types.UUID `json:"hub_id,omitempty"`
+	Mine         *bool               `json:"mine,omitempty"`
+	To           openapi_types.Date  `json:"to"`
+}
+
+// ReadTimeReportJSONBody defines parameters for ReadTimeReport.
+type ReadTimeReportJSONBody struct {
+	AccountId    *openapi_types.UUID              `json:"account_id,omitempty"`
+	Billable     *bool                            `json:"billable,omitempty"`
+	CollectionId *openapi_types.UUID              `json:"collection_id,omitempty"`
+	From         openapi_types.Date               `json:"from"`
+	GroupBy      *[]ReadTimeReportJSONBodyGroupBy `json:"group_by,omitempty"`
+	HubId        *openapi_types.UUID              `json:"hub_id,omitempty"`
+	Mine         *bool                            `json:"mine,omitempty"`
+	To           openapi_types.Date               `json:"to"`
+}
+
+// ReadTimeReportJSONBodyGroupBy defines parameters for ReadTimeReport.
+type ReadTimeReportJSONBodyGroupBy string
+
+// DefineWorkTypeJSONBody defines parameters for DefineWorkType.
+type DefineWorkTypeJSONBody struct {
+	Archived *bool  `json:"archived,omitempty"`
+	Billable *bool  `json:"billable,omitempty"`
+	Name     string `json:"name"`
+	Position *int   `json:"position,omitempty"`
+}
+
+// StartTimerJSONBody defines parameters for StartTimer.
+type StartTimerJSONBody struct {
+	Billable *bool               `json:"billable,omitempty"`
+	EntryId  *openapi_types.UUID `json:"entry_id,omitempty"`
+	Note     *string             `json:"note,omitempty"`
+	WorkType *string             `json:"work_type,omitempty"`
+}
+
+// StopTimerJSONBody defines parameters for StopTimer.
+type StopTimerJSONBody struct {
+	// Zone An IANA time zone; UTC without.
+	Zone *string `json:"zone,omitempty"`
+}
+
+// ListTimesheetsParams defines parameters for ListTimesheets.
+type ListTimesheetsParams struct {
+	// From The first day, YYYY-MM-DD.
+	From TimeFrom `form:"from" json:"from"`
+
+	// To The last day, YYYY-MM-DD; at most 366 days after the first.
+	To    TimeTo                     `form:"to" json:"to"`
+	State *ListTimesheetsParamsState `form:"state,omitempty" json:"state,omitempty"`
+	Mine  *bool                      `form:"mine,omitempty" json:"mine,omitempty"`
+}
+
+// ListTimesheetsParamsState defines parameters for ListTimesheets.
+type ListTimesheetsParamsState string
+
+// ReadTimesheetParams defines parameters for ReadTimesheet.
+type ReadTimesheetParams struct {
+	// AccountId The person; the caller without.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// ApproveTimesheetJSONBody defines parameters for ApproveTimesheet.
+type ApproveTimesheetJSONBody struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+}
+
+// RejectTimesheetJSONBody defines parameters for RejectTimesheet.
+type RejectTimesheetJSONBody struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	Reason    string             `json:"reason"`
+}
+
 // ListTrashParams defines parameters for ListTrash.
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -21876,6 +22465,39 @@ type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
 
 // PreviewWorkspaceStructureJSONRequestBody defines body for PreviewWorkspaceStructure for application/json ContentType.
 type PreviewWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
+
+// SetTimePolicyJSONRequestBody defines body for SetTimePolicy for application/json ContentType.
+type SetTimePolicyJSONRequestBody SetTimePolicyJSONBody
+
+// LogTimeJSONRequestBody defines body for LogTime for application/json ContentType.
+type LogTimeJSONRequestBody = TimeRecordFields
+
+// UpdateTimeRecordJSONRequestBody defines body for UpdateTimeRecord for application/json ContentType.
+type UpdateTimeRecordJSONRequestBody UpdateTimeRecordJSONBody
+
+// CorrectTimeRecordJSONRequestBody defines body for CorrectTimeRecord for application/json ContentType.
+type CorrectTimeRecordJSONRequestBody CorrectTimeRecordJSONBody
+
+// ExportTimeRecordsJSONRequestBody defines body for ExportTimeRecords for application/json ContentType.
+type ExportTimeRecordsJSONRequestBody ExportTimeRecordsJSONBody
+
+// ReadTimeReportJSONRequestBody defines body for ReadTimeReport for application/json ContentType.
+type ReadTimeReportJSONRequestBody ReadTimeReportJSONBody
+
+// DefineWorkTypeJSONRequestBody defines body for DefineWorkType for application/json ContentType.
+type DefineWorkTypeJSONRequestBody DefineWorkTypeJSONBody
+
+// StartTimerJSONRequestBody defines body for StartTimer for application/json ContentType.
+type StartTimerJSONRequestBody StartTimerJSONBody
+
+// StopTimerJSONRequestBody defines body for StopTimer for application/json ContentType.
+type StopTimerJSONRequestBody StopTimerJSONBody
+
+// ApproveTimesheetJSONRequestBody defines body for ApproveTimesheet for application/json ContentType.
+type ApproveTimesheetJSONRequestBody ApproveTimesheetJSONBody
+
+// RejectTimesheetJSONRequestBody defines body for RejectTimesheet for application/json ContentType.
+type RejectTimesheetJSONRequestBody RejectTimesheetJSONBody
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -23229,6 +23851,9 @@ type ServerInterface interface {
 	// SearchPages Find pages by their words
 	// (POST /pages:search)
 	SearchPages(w http.ResponseWriter, r *http.Request)
+	// ReadEstimatesVsActuals Estimates against the time recorded
+	// (GET /plans/{planId}/actuals)
+	ReadEstimatesVsActuals(w http.ResponseWriter, r *http.Request, planId PlanId)
 	// ListBaselines A plan's baselines
 	// (GET /plans/{planId}/baselines)
 	ListBaselines(w http.ResponseWriter, r *http.Request, planId PlanId)
@@ -23484,6 +24109,72 @@ type ServerInterface interface {
 	// PreviewWorkspaceStructure What a change of the workspace's structure would stop showing
 	// (POST /tenant/structure:preview)
 	PreviewWorkspaceStructure(w http.ResponseWriter, r *http.Request)
+	// ReadTimePolicy The workspace's time policy
+	// (GET /time-policy)
+	ReadTimePolicy(w http.ResponseWriter, r *http.Request)
+	// SetTimePolicy Lock a period and choose what a lead sees
+	// (PUT /time-policy)
+	SetTimePolicy(w http.ResponseWriter, r *http.Request)
+	// ListTimeRecords Time records of a range of days
+	// (GET /time-records)
+	ListTimeRecords(w http.ResponseWriter, r *http.Request, params ListTimeRecordsParams)
+	// LogTime Record time spent
+	// (POST /time-records)
+	LogTime(w http.ResponseWriter, r *http.Request)
+	// DeleteTimeRecord Remove a record of one's own
+	// (DELETE /time-records/{recordId})
+	DeleteTimeRecord(w http.ResponseWriter, r *http.Request, recordId TimeRecordId, params DeleteTimeRecordParams)
+	// UpdateTimeRecord Change a record of one's own
+	// (PATCH /time-records/{recordId})
+	UpdateTimeRecord(w http.ResponseWriter, r *http.Request, recordId TimeRecordId, params UpdateTimeRecordParams)
+	// CorrectTimeRecord Correct an approved record
+	// (POST /time-records/{recordId}:correct)
+	CorrectTimeRecord(w http.ResponseWriter, r *http.Request, recordId TimeRecordId)
+	// ExportTimeRecords Hand time records to accounting
+	// (POST /time-records:export)
+	ExportTimeRecords(w http.ResponseWriter, r *http.Request)
+	// ReadTimeReport Sum time by up to two dimensions
+	// (POST /time-records:report)
+	ReadTimeReport(w http.ResponseWriter, r *http.Request)
+	// ListWorkTypes The workspace's kinds of work
+	// (GET /time-work-types)
+	ListWorkTypes(w http.ResponseWriter, r *http.Request)
+	// DefineWorkType Write a kind of work
+	// (PUT /time-work-types/{key})
+	DefineWorkType(w http.ResponseWriter, r *http.Request, key string)
+	// DiscardTimer Stop the timer without recording it
+	// (DELETE /timer)
+	DiscardTimer(w http.ResponseWriter, r *http.Request)
+	// ReadTimer The caller's running timer
+	// (GET /timer)
+	ReadTimer(w http.ResponseWriter, r *http.Request)
+	// StartTimer Start the caller's timer
+	// (POST /timer:start)
+	StartTimer(w http.ResponseWriter, r *http.Request)
+	// StopTimer Stop the timer into a record
+	// (POST /timer:stop)
+	StopTimer(w http.ResponseWriter, r *http.Request)
+	// ListTimesheets Weeks to decide, or one's own
+	// (GET /timesheets)
+	ListTimesheets(w http.ResponseWriter, r *http.Request, params ListTimesheetsParams)
+	// ReadTimesheet A week from Monday
+	// (GET /timesheets/{week})
+	ReadTimesheet(w http.ResponseWriter, r *http.Request, week WeekOfTimesheet, params ReadTimesheetParams)
+	// ApproveTimesheet Approve another person's week
+	// (POST /timesheets/{week}:approve)
+	ApproveTimesheet(w http.ResponseWriter, r *http.Request, week WeekOfTimesheet)
+	// CopyTimesheetWeek Copy last week into this one
+	// (POST /timesheets/{week}:copy-previous)
+	CopyTimesheetWeek(w http.ResponseWriter, r *http.Request, week WeekOfTimesheet)
+	// RejectTimesheet Send another person's week back
+	// (POST /timesheets/{week}:reject)
+	RejectTimesheet(w http.ResponseWriter, r *http.Request, week WeekOfTimesheet)
+	// SubmitTimesheet Hand one's week in
+	// (POST /timesheets/{week}:submit)
+	SubmitTimesheet(w http.ResponseWriter, r *http.Request, week WeekOfTimesheet)
+	// WithdrawTimesheet Take one's week back
+	// (POST /timesheets/{week}:withdraw)
+	WithdrawTimesheet(w http.ResponseWriter, r *http.Request, week WeekOfTimesheet)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -38596,6 +39287,32 @@ func (siw *ServerInterfaceWrapper) SearchPages(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ReadEstimatesVsActuals operation middleware
+func (siw *ServerInterfaceWrapper) ReadEstimatesVsActuals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadEstimatesVsActuals(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListBaselines operation middleware
 func (siw *ServerInterfaceWrapper) ListBaselines(w http.ResponseWriter, r *http.Request) {
 
@@ -41342,6 +42059,666 @@ func (siw *ServerInterfaceWrapper) PreviewWorkspaceStructure(w http.ResponseWrit
 	handler.ServeHTTP(w, r)
 }
 
+// ReadTimePolicy operation middleware
+func (siw *ServerInterfaceWrapper) ReadTimePolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadTimePolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetTimePolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetTimePolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetTimePolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTimeRecords operation middleware
+func (siw *ServerInterfaceWrapper) ListTimeRecords(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTimeRecordsParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "mine" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "mine", r.URL.Query(), &params.Mine, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "mine"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mine", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "account_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "account_id", r.URL.Query(), &params.AccountId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "account_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "account_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "entry_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "entry_id", r.URL.Query(), &params.EntryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "entry_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entry_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "billable" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "billable", r.URL.Query(), &params.Billable, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "billable"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "billable", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTimeRecords(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LogTime operation middleware
+func (siw *ServerInterfaceWrapper) LogTime(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LogTime(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteTimeRecord operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTimeRecord(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId TimeRecordId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", r.PathValue("recordId"), &recordId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recordId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteTimeRecordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteTimeRecord(w, r, recordId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTimeRecord operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTimeRecord(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId TimeRecordId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", r.PathValue("recordId"), &recordId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recordId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateTimeRecordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTimeRecord(w, r, recordId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CorrectTimeRecord operation middleware
+func (siw *ServerInterfaceWrapper) CorrectTimeRecord(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId TimeRecordId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", r.PathValue("recordId"), &recordId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recordId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CorrectTimeRecord(w, r, recordId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportTimeRecords operation middleware
+func (siw *ServerInterfaceWrapper) ExportTimeRecords(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportTimeRecords(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadTimeReport operation middleware
+func (siw *ServerInterfaceWrapper) ReadTimeReport(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadTimeReport(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWorkTypes operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkTypes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWorkTypes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineWorkType operation middleware
+func (siw *ServerInterfaceWrapper) DefineWorkType(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineWorkType(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DiscardTimer operation middleware
+func (siw *ServerInterfaceWrapper) DiscardTimer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiscardTimer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadTimer operation middleware
+func (siw *ServerInterfaceWrapper) ReadTimer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadTimer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartTimer operation middleware
+func (siw *ServerInterfaceWrapper) StartTimer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartTimer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StopTimer operation middleware
+func (siw *ServerInterfaceWrapper) StopTimer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StopTimer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTimesheets operation middleware
+func (siw *ServerInterfaceWrapper) ListTimesheets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTimesheetsParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "mine" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "mine", r.URL.Query(), &params.Mine, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "mine"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mine", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTimesheets(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadTimesheet operation middleware
+func (siw *ServerInterfaceWrapper) ReadTimesheet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "week" -------------
+	var week WeekOfTimesheet
+
+	err = runtime.BindStyledParameterWithOptions("simple", "week", r.PathValue("week"), &week, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "date", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "week", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadTimesheetParams
+
+	// ------------- Optional query parameter "account_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "account_id", r.URL.Query(), &params.AccountId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "account_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "account_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadTimesheet(w, r, week, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApproveTimesheet operation middleware
+func (siw *ServerInterfaceWrapper) ApproveTimesheet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "week" -------------
+	var week WeekOfTimesheet
+
+	err = runtime.BindStyledParameterWithOptions("simple", "week", r.PathValue("week"), &week, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "date", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "week", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApproveTimesheet(w, r, week)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CopyTimesheetWeek operation middleware
+func (siw *ServerInterfaceWrapper) CopyTimesheetWeek(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "week" -------------
+	var week WeekOfTimesheet
+
+	err = runtime.BindStyledParameterWithOptions("simple", "week", r.PathValue("week"), &week, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "date", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "week", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CopyTimesheetWeek(w, r, week)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RejectTimesheet operation middleware
+func (siw *ServerInterfaceWrapper) RejectTimesheet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "week" -------------
+	var week WeekOfTimesheet
+
+	err = runtime.BindStyledParameterWithOptions("simple", "week", r.PathValue("week"), &week, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "date", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "week", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RejectTimesheet(w, r, week)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SubmitTimesheet operation middleware
+func (siw *ServerInterfaceWrapper) SubmitTimesheet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "week" -------------
+	var week WeekOfTimesheet
+
+	err = runtime.BindStyledParameterWithOptions("simple", "week", r.PathValue("week"), &week, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "date", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "week", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubmitTimesheet(w, r, week)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WithdrawTimesheet operation middleware
+func (siw *ServerInterfaceWrapper) WithdrawTimesheet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "week" -------------
+	var week WeekOfTimesheet
+
+	err = runtime.BindStyledParameterWithOptions("simple", "week", r.PathValue("week"), &week, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "date", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "week", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WithdrawTimesheet(w, r, week)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTrash operation middleware
 func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
 
@@ -42605,6 +43982,29 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sprints/{sprintId}/entries:remove", wrapper.RemoveSprintEntries)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/estimate", wrapper.ClearEntryEstimate)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/estimate", wrapper.SetEntryEstimate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-records", wrapper.ListTimeRecords)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/time-records", wrapper.LogTime)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/time-records/{recordId}", wrapper.DeleteTimeRecord)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/time-records/{recordId}", wrapper.UpdateTimeRecord)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/time-records/{recordId}:correct", wrapper.CorrectTimeRecord)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/time-records:report", wrapper.ReadTimeReport)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/time-records:export", wrapper.ExportTimeRecords)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/timer", wrapper.DiscardTimer)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/timer", wrapper.ReadTimer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/timer:start", wrapper.StartTimer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/timer:stop", wrapper.StopTimer)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/timesheets", wrapper.ListTimesheets)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/timesheets/{week}", wrapper.ReadTimesheet)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/timesheets/{week}:copy-previous", wrapper.CopyTimesheetWeek)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/timesheets/{week}:submit", wrapper.SubmitTimesheet)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/timesheets/{week}:withdraw", wrapper.WithdrawTimesheet)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/timesheets/{week}:approve", wrapper.ApproveTimesheet)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/timesheets/{week}:reject", wrapper.RejectTimesheet)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-work-types", wrapper.ListWorkTypes)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/time-work-types/{key}", wrapper.DefineWorkType)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-policy", wrapper.ReadTimePolicy)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/time-policy", wrapper.SetTimePolicy)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/actuals", wrapper.ReadEstimatesVsActuals)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/business-calendars", wrapper.ListBusinessCalendars)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DeleteBusinessCalendar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DefineBusinessCalendar)

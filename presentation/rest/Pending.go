@@ -2225,3 +2225,72 @@ func (pending) SetEntryEstimate(w http.ResponseWriter, r *http.Request, _ openap
 func (pending) ClearEntryEstimate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
+func (pending) ListTimeRecords(w http.ResponseWriter, r *http.Request, _ openapi.ListTimeRecordsParams) {
+	notAvailable(w, r)
+}
+func (pending) LogTime(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) UpdateTimeRecord(w http.ResponseWriter, r *http.Request, _ openapi.TimeRecordId, _ openapi.UpdateTimeRecordParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteTimeRecord(w http.ResponseWriter, r *http.Request, _ openapi.TimeRecordId, _ openapi.DeleteTimeRecordParams) {
+	notAvailable(w, r)
+}
+func (pending) CorrectTimeRecord(w http.ResponseWriter, r *http.Request, _ openapi.TimeRecordId) {
+	notAvailable(w, r)
+}
+func (pending) ReadTimeReport(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ExportTimeRecords(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ReadTimer(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) DiscardTimer(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) StartTimer(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) StopTimer(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ListTimesheets(w http.ResponseWriter, r *http.Request, _ openapi.ListTimesheetsParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet, _ openapi.ReadTimesheetParams) {
+	notAvailable(w, r)
+}
+func (pending) CopyTimesheetWeek(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) SubmitTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) WithdrawTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) ApproveTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) RejectTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) ListWorkTypes(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) DefineWorkType(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) ReadTimePolicy(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) SetTimePolicy(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ReadEstimatesVsActuals(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}

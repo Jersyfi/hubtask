@@ -236,7 +236,7 @@ func (h SetTimePolicy) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "locked_through", Kind: usecase.KindString, Description: "The last locked day, YYYY-MM-DD; none for no locked period."},
 			{Name: "visibility", Kind: usecase.KindString, Required: true, Enum: []string{"FULL", "AGGREGATED"}, Description: "What an approver sees of other people's time."},
-			{Name: "expected_version", Kind: usecase.KindAny, Required: true, Description: "The version read; 0 before the first."},
+			{Name: "expected_version", Kind: usecase.KindAny, Required: true, CallerOnly: true, Description: "The version read; 0 before the first."},
 		},
 		Audit: usecase.AuditDeclaration{Action: PolicySetAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {

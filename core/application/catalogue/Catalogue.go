@@ -46,6 +46,7 @@ import (
 	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
+	timeservice "github.com/Jersyfi/hubtask/core/application/service/timekeeping"
 	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
 	whiteboardservice "github.com/Jersyfi/hubtask/core/application/service/whiteboard"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
@@ -155,6 +156,29 @@ func Descriptors() []usecase.Descriptor {
 		planningservice.ReadVelocity{}.Descriptor(),
 		planningservice.SetEntryEstimate{}.Descriptor(),
 		planningservice.ClearEntryEstimate{}.Descriptor(),
+		timeservice.LogTime{}.Descriptor(),
+		timeservice.UpdateTimeRecord{}.Descriptor(),
+		timeservice.DeleteTimeRecord{}.Descriptor(),
+		timeservice.CorrectTimeRecord{}.Descriptor(),
+		timeservice.ListTimeRecords{}.Descriptor(),
+		timeservice.StartTimer{}.Descriptor(),
+		timeservice.StopTimer{}.Descriptor(),
+		timeservice.DiscardTimer{}.Descriptor(),
+		timeservice.ReadTimer{}.Descriptor(),
+		timeservice.ReadTimesheet{}.Descriptor(),
+		timeservice.CopyTimesheetWeek{}.Descriptor(),
+		timeservice.SubmitTimesheet{}.Descriptor(),
+		timeservice.WithdrawTimesheet{}.Descriptor(),
+		timeservice.ApproveTimesheet{}.Descriptor(),
+		timeservice.RejectTimesheet{}.Descriptor(),
+		timeservice.ListTimesheets{}.Descriptor(),
+		timeservice.ListWorkTypes{}.Descriptor(),
+		timeservice.DefineWorkType{}.Descriptor(),
+		timeservice.ReadTimePolicy{}.Descriptor(),
+		timeservice.SetTimePolicy{}.Descriptor(),
+		timeservice.ReadTimeReport{}.Descriptor(),
+		timeservice.ReadEstimatesVsActuals{}.Descriptor(),
+		timeservice.ExportTimeRecords{}.Descriptor(),
 		cmdbservice.ListCiClasses{}.Descriptor(),
 		cmdbservice.DefineCiClass{}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{}.Descriptor(),

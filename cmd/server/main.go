@@ -66,6 +66,7 @@ import (
 	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
+	timeservice "github.com/Jersyfi/hubtask/core/application/service/timekeeping"
 	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
 	whiteboardservice "github.com/Jersyfi/hubtask/core/application/service/whiteboard"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
@@ -1843,6 +1844,13 @@ func run() error {
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Changes: changes, HLC: hybrid,
 	}
+	// The time module (M7): a person's records, timer and weeks, judged by who approves time where
+	// the entries lie.
+	keeper := timeservice.Keeper{
+		Store: postgres.NewTimeRepository(), Items: items, Containers: containers, References: entryLinks,
+		Plans: planningStore, Estimates: planningStore.Sprints(), Authorizer: authorizer, Reader: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
 	// goes through the inventory's reconciliation.
 	inventory := cmdbservice.Inventory{
@@ -1942,6 +1950,29 @@ func run() error {
 		planningservice.ReadVelocity{Planner: planner}.Descriptor(),
 		planningservice.SetEntryEstimate{Planner: planner}.Descriptor(),
 		planningservice.ClearEntryEstimate{Planner: planner}.Descriptor(),
+		timeservice.LogTime{Keeper: keeper}.Descriptor(),
+		timeservice.UpdateTimeRecord{Keeper: keeper}.Descriptor(),
+		timeservice.DeleteTimeRecord{Keeper: keeper}.Descriptor(),
+		timeservice.CorrectTimeRecord{Keeper: keeper}.Descriptor(),
+		timeservice.ListTimeRecords{Keeper: keeper}.Descriptor(),
+		timeservice.StartTimer{Keeper: keeper}.Descriptor(),
+		timeservice.StopTimer{Keeper: keeper}.Descriptor(),
+		timeservice.DiscardTimer{Keeper: keeper}.Descriptor(),
+		timeservice.ReadTimer{Keeper: keeper}.Descriptor(),
+		timeservice.ReadTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.CopyTimesheetWeek{Keeper: keeper}.Descriptor(),
+		timeservice.SubmitTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.WithdrawTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.ApproveTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.RejectTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.ListTimesheets{Keeper: keeper}.Descriptor(),
+		timeservice.ListWorkTypes{Keeper: keeper}.Descriptor(),
+		timeservice.DefineWorkType{Keeper: keeper}.Descriptor(),
+		timeservice.ReadTimePolicy{Keeper: keeper}.Descriptor(),
+		timeservice.SetTimePolicy{Keeper: keeper}.Descriptor(),
+		timeservice.ReadTimeReport{Keeper: keeper}.Descriptor(),
+		timeservice.ReadEstimatesVsActuals{Keeper: keeper}.Descriptor(),
+		timeservice.ExportTimeRecords{Keeper: keeper}.Descriptor(),
 		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),

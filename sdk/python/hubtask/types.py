@@ -1327,6 +1327,127 @@ class EntryEstimate(TypedDict, total=False):
     value: Required[float]
     size: Required[Literal["XS", "S", "M", "L", "XL", "XXL"] | None]
 
+class TimeRecordFields(TypedDict, total=False):
+    entry_id: str | None
+    work_type: str
+    day: str
+    minutes: int
+    started_at: str
+    ended_at: str
+    note: str
+    billable: bool
+    zone: str
+
+class TimeRecord(TypedDict, total=False):
+    id: Required[str]
+    account_id: Required[str]
+    entry_id: Required[str | None]
+    work_type: Required[str]
+    day: Required[str]
+    started_at: Required[str | None]
+    minutes: Required[int]
+    note: Required[str]
+    billable: Required[bool]
+    source: Required[Literal["MANUAL", "TIMER", "COPY", "CORRECTION"]]
+    corrects: Required[str | None]
+    created_at: Required[str]
+    updated_at: Required[str]
+    version: Required[int]
+
+class PlacedTimeRecord(TypedDict, total=False):
+    id: Required[str]
+    account_id: Required[str]
+    entry_id: Required[str | None]
+    work_type: Required[str]
+    day: Required[str]
+    started_at: Required[str | None]
+    minutes: Required[int]
+    note: Required[str]
+    billable: Required[bool]
+    source: Required[Literal["MANUAL", "TIMER", "COPY", "CORRECTION"]]
+    corrects: Required[str | None]
+    created_at: Required[str]
+    updated_at: Required[str]
+    version: Required[int]
+    collection_id: Required[str | None]
+    hub_id: Required[str | None]
+    entry_title: Required[str]
+
+class TimeRecordList(TypedDict, total=False):
+    data: Required[list["PlacedTimeRecord"]]
+    truncated: Required[bool]
+
+class TimeReport(TypedDict, total=False):
+    group_by: Required[list[str]]
+    groups: Required[list[dict[str, Any]]]
+    minutes: Required[int]
+    withheld_minutes: Required[int]
+    withheld_groups: Required[int]
+
+class TimeExport(TypedDict, total=False):
+    columns: Required[list[str]]
+    rows: Required[list[dict[str, Any]]]
+    truncated: Required[bool]
+
+class TimeTimer(TypedDict, total=False):
+    running: Required[bool]
+    entry_id: str | None
+    work_type: str
+    note: str
+    billable: bool
+    started_at: str
+    elapsed_minutes: int
+
+class Timesheet(TypedDict, total=False):
+    account_id: Required[str]
+    week_start: Required[str]
+    state: Required[Literal["OPEN", "SUBMITTED", "APPROVED", "REJECTED"]]
+    submitted_minutes: Required[int]
+    submitted_at: Required[str | None]
+    decided_at: Required[str | None]
+    decided_by: Required[str | None]
+    reason: Required[str]
+    version: Required[int]
+
+class TimesheetList(TypedDict, total=False):
+    data: Required[list["Timesheet"]]
+
+class TimesheetWeek(TypedDict, total=False):
+    account_id: Required[str]
+    week_start: Required[str]
+    state: Required[Literal["OPEN", "SUBMITTED", "APPROVED", "REJECTED"]]
+    submitted_minutes: Required[int]
+    submitted_at: Required[str | None]
+    decided_at: Required[str | None]
+    decided_by: Required[str | None]
+    reason: Required[str]
+    version: Required[int]
+    records: Required[list["PlacedTimeRecord"]]
+    days: Required[list[dict[str, Any]]]
+    minutes: Required[int]
+
+class WorkType(TypedDict, total=False):
+    key: Required[str]
+    name: Required[str]
+    billable: Required[bool]
+    archived: Required[bool]
+    position: Required[int]
+    version: Required[int]
+
+class WorkTypeList(TypedDict, total=False):
+    data: Required[list["WorkType"]]
+
+class TimePolicy(TypedDict, total=False):
+    locked_through: Required[str | None]
+    visibility: Required[Literal["FULL", "AGGREGATED"]]
+    version: Required[int]
+
+class EstimatesVsActuals(TypedDict, total=False):
+    plan_id: Required[str]
+    estimate_hours: Required[float]
+    minutes: Required[int]
+    data: Required[list[dict[str, Any]]]
+
 class SprintEntry(TypedDict, total=False):
     item_id: Required[str]
     title: Required[str]

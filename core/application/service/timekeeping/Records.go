@@ -132,8 +132,8 @@ func recordInput() []usecase.Field {
 		{Name: "work_type", Kind: usecase.KindString, Description: "The key of one of the workspace's kinds of work."},
 		{Name: "day", Kind: usecase.KindString, Description: "The day, YYYY-MM-DD; the start's day in the zone without."},
 		{Name: "minutes", Kind: usecase.KindAny, Description: "Minutes, 1 to 1440; left out with a start and an end."},
-		{Name: "started_at", Kind: usecase.KindString, Description: "When the work began (RFC 3339)."},
-		{Name: "ended_at", Kind: usecase.KindString, Description: "When it ended (RFC 3339); the minutes are counted from the start."},
+		{Name: "started_at", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "When the work began (RFC 3339)."},
+		{Name: "ended_at", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "When it ended (RFC 3339); the minutes are counted from the start."},
 		{Name: "note", Kind: usecase.KindString, Description: "What was done, at most 2000 characters."},
 		{Name: "billable", Kind: usecase.KindBool, Description: "Whether the time is billable; the kind of work's flag without."},
 		{Name: "zone", Kind: usecase.KindString, Description: "The person's time zone (IANA), for the start's day; UTC without."},
@@ -282,7 +282,7 @@ func (h UpdateTimeRecord) Execute(
 func (h UpdateTimeRecord) Descriptor() usecase.Descriptor {
 	input := append([]usecase.Field{
 		{Name: "record_id", Kind: usecase.KindID, Required: true, Description: "The record."},
-		{Name: "expected_version", Kind: usecase.KindAny, Required: true, Description: "The version read."},
+		{Name: "expected_version", Kind: usecase.KindAny, Required: true, CallerOnly: true, Description: "The version read."},
 	}, recordInput()...)
 	return descriptor(usecase.Descriptor{
 		Name: UpdateTimeRecordName,
@@ -348,7 +348,7 @@ func (h DeleteTimeRecord) Descriptor() usecase.Descriptor {
 		TokenScope:  itemsWrite, Destructive: true,
 		Input: []usecase.Field{
 			{Name: "record_id", Kind: usecase.KindID, Required: true, Description: "The record."},
-			{Name: "expected_version", Kind: usecase.KindAny, Required: true, Description: "The version read."},
+			{Name: "expected_version", Kind: usecase.KindAny, Required: true, CallerOnly: true, Description: "The version read."},
 		},
 		Audit: usecase.AuditDeclaration{Action: RecordDeletedAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {

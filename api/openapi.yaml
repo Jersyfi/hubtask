@@ -62,6 +62,7 @@ tags:
   - name: whiteboards
   - name: servicedesk
   - name: planning
+  - name: time
 
 x-hubtask-cli-groups:
   workflow: "the workspace's workflows and which collection runs which"
@@ -79,6 +80,10 @@ x-hubtask-cli-groups:
   plan: "a hub's or a collection's plan: its schedule, critical path and the moves it proposes"
   baseline: "a plan's baselines: the agreed dates kept and compared with today's"
   sprint: "a collection's sprints: planned, run and closed, their burndown, the backlog and the team's velocity"
+  time: "time records: recorded, corrected, listed, summed in reports and exported to accounting; the time policy"
+  timer: "the caller's running timer, the same on every device"
+  timesheet: "a person's week from Monday: filled in, copied, handed in, approved or sent back"
+  work-type: "the workspace's kinds of work time is recorded as"
 
 paths:
   /plans/{planId}/schedule:
@@ -599,6 +604,582 @@ paths:
       responses:
         "204":
           description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /time-records:
+    get:
+      tags: [time]
+      operationId: listTimeRecords
+      x-hubtask-rest: generated
+      x-hubtask-cli: "time ls"
+      summary: Time records of a range of days
+      description: >
+        At most 2000, the earliest day first: the caller's own with `mine`, else also other
+        people's where the caller approves time (APPROVE_TIME or MANAGE_MEMBERS at the workspace or
+        at the hub or collection of the entry). Where the workspace shows only sums, other people's
+        records are refused (`time.aggregated_only`). Needs the time module switched on.
+      parameters:
+        - $ref: "#/components/parameters/TimeFrom"
+        - $ref: "#/components/parameters/TimeTo"
+        - { name: mine, in: query, schema: { type: boolean }, description: "Only the caller's own time." }
+        - { name: account_id, in: query, schema: { type: string, format: uuid }, description: "Only this person's time." }
+        - { name: entry_id, in: query, schema: { type: string, format: uuid }, description: "Only time on this entry." }
+        - { name: collection_id, in: query, schema: { type: string, format: uuid }, description: "Only time on entries of this collection." }
+        - { name: hub_id, in: query, schema: { type: string, format: uuid }, description: "Only time on entries of this hub's collections." }
+        - { name: billable, in: query, schema: { type: boolean }, description: "Only billable, or only non-billable, time." }
+      responses:
+        "200":
+          description: The records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeRecordList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [time]
+      operationId: logTime
+      x-hubtask-rest: generated
+      x-hubtask-cli: "time log"
+      summary: Record time spent
+      description: >
+        Minutes from 1 to 1440 on one day, or a start and an end, on an entry the caller may read or
+        on none, of one of the workspace's kinds of work, billable or not (the kind's flag without),
+        with a note. Refused in the workspace's locked period (`time.period_locked`) and in a week
+        handed in or approved (`time.week_not_open`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TimeRecordFields" }
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeRecord" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /time-records/{recordId}:
+    parameters:
+      - $ref: "#/components/parameters/TimeRecordId"
+    patch:
+      tags: [time]
+      operationId: updateTimeRecord
+      x-hubtask-rest: generated
+      x-hubtask-cli: "time update"
+      summary: Change a record of one's own
+      description: >
+        Every field is written as given, while the old and the new day lie outside the locked period
+        and in an open or a sent-back week. A correction keeps its minutes. The version read goes as
+        If-Match or as `expected_version`.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entry_id: { type: [string, "null"], format: uuid }
+                work_type: { type: string }
+                day: { type: string, format: date }
+                minutes: { type: integer, minimum: 1, maximum: 1440 }
+                started_at: { type: string, format: date-time }
+                ended_at: { type: string, format: date-time }
+                note: { type: string, maxLength: 2000 }
+                billable: { type: boolean }
+                zone: { type: string }
+                expected_version: { type: integer }
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeRecord" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [time]
+      operationId: deleteTimeRecord
+      x-hubtask-rest: generated
+      x-hubtask-cli: "time rm"
+      summary: Remove a record of one's own
+      description: While its day lies outside the locked period and in an open or a sent-back week. The version read goes as If-Match.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /time-records/{recordId}:correct:
+    parameters:
+      - $ref: "#/components/parameters/TimeRecordId"
+    post:
+      tags: [time]
+      operationId: correctTimeRecord
+      x-hubtask-rest: generated
+      x-hubtask-cli: "time correct"
+      summary: Correct an approved record
+      description: >
+        A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of
+        the caller's approved records, or one in the locked period; the approved record never changes.
+        A record that can still be changed answers `time.correction_not_needed`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [minutes, day]
+              properties:
+                minutes: { type: integer, minimum: -1440, maximum: 1440 }
+                day: { type: string, format: date }
+                note: { type: string, maxLength: 2000 }
+      responses:
+        "201":
+          description: The correction
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeRecord" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /time-records:report:
+    post:
+      tags: [time]
+      operationId: readTimeReport
+      x-hubtask-rest: generated
+      x-hubtask-cli: "time report"
+      summary: Sum time by up to two dimensions
+      description: >
+        Minutes, billable minutes and records per group of PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE,
+        DAY, WEEK (from Monday), MONTH or BILLABLE, with the titles of the entries the caller may
+        read: the caller's own with `mine`, else also other people's where the caller approves time.
+        Where the workspace shows only sums, a report over other people takes no PERSON and no other
+        person's filter (`time.aggregated_only`) and withholds groups of fewer than three people.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to]
+              properties:
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+                mine: { type: boolean }
+                account_id: { type: string, format: uuid }
+                collection_id: { type: string, format: uuid }
+                hub_id: { type: string, format: uuid }
+                billable: { type: boolean }
+                group_by:
+                  type: array
+                  maxItems: 2
+                  items: { type: string, enum: [PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE, DAY, WEEK, MONTH, BILLABLE] }
+      responses:
+        "200":
+          description: The report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeReport" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /time-records:export:
+    post:
+      tags: [time]
+      operationId: exportTimeRecords
+      x-hubtask-rest: generated
+      x-hubtask-cli: "time export"
+      summary: Hand time records to accounting
+      description: >
+        At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no
+        invoice is made: the caller's own with `mine`, else also other people's where the caller
+        approves time; where the workspace shows only sums, the caller's own only. The export is
+        recorded in the audit trail.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to]
+              properties:
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+                mine: { type: boolean }
+                account_id: { type: string, format: uuid }
+                collection_id: { type: string, format: uuid }
+                hub_id: { type: string, format: uuid }
+                billable: { type: boolean }
+                entry_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The rows
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeExport" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timer:
+    get:
+      tags: [time]
+      operationId: readTimer
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timer show"
+      summary: The caller's running timer
+      description: The same on every device; `running` false when none runs.
+      responses:
+        "200":
+          description: The timer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeTimer" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [time]
+      operationId: discardTimer
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timer discard"
+      summary: Stop the timer without recording it
+      responses:
+        "204":
+          description: Discarded
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timer:start:
+    post:
+      tags: [time]
+      operationId: startTimer
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timer start"
+      summary: Start the caller's timer
+      description: On an entry the caller may read, or on none. One runs per person (`timers.running`).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entry_id: { type: string, format: uuid }
+                work_type: { type: string }
+                note: { type: string, maxLength: 2000 }
+                billable: { type: boolean }
+      responses:
+        "201":
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeTimer" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timer:stop:
+    post:
+      tags: [time]
+      operationId: stopTimer
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timer stop"
+      summary: Stop the timer into a record
+      description: >
+        Its time, rounded up to the started minute, on the day it started in the zone. A timer run
+        longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                zone: { type: string, description: "An IANA time zone; UTC without." }
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeRecord" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timesheets:
+    get:
+      tags: [time]
+      operationId: listTimesheets
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timesheet ls"
+      summary: Weeks to decide, or one's own
+      description: >
+        At most 100, the oldest first: the caller's own weeks in any state with `mine`, else other
+        people's weeks in a state - SUBMITTED without - that the caller may decide.
+      parameters:
+        - $ref: "#/components/parameters/TimeFrom"
+        - $ref: "#/components/parameters/TimeTo"
+        - { name: state, in: query, schema: { type: string, enum: [OPEN, SUBMITTED, APPROVED, REJECTED] } }
+        - { name: mine, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: The weeks
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimesheetList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timesheets/{week}:
+    parameters:
+      - $ref: "#/components/parameters/WeekOfTimesheet"
+    get:
+      tags: [time]
+      operationId: readTimesheet
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timesheet show"
+      summary: A week from Monday
+      description: >
+        Its state, records, each day's minutes and whether the day is locked. The caller's own, or
+        another person's for whoever approves time at every place the week's entries lie in; where
+        the workspace shows only sums, another person's week only while it is handed in.
+      parameters:
+        - { name: account_id, in: query, schema: { type: string, format: uuid }, description: "The person; the caller without." }
+      responses:
+        "200":
+          description: The week
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimesheetWeek" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timesheets/{week}:copy-previous:
+    parameters:
+      - $ref: "#/components/parameters/WeekOfTimesheet"
+    post:
+      tags: [time]
+      operationId: copyTimesheetWeek
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timesheet copy"
+      summary: Copy last week into this one
+      description: The caller's records of the week before, each to the same weekday, leaving out corrections and locked days.
+      responses:
+        "200":
+          description: Copied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [week_start, copied]
+                properties:
+                  week_start: { type: string, format: date }
+                  copied: { type: integer }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timesheets/{week}:submit:
+    parameters:
+      - $ref: "#/components/parameters/WeekOfTimesheet"
+    post:
+      tags: [time]
+      operationId: submitTimesheet
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timesheet submit"
+      summary: Hand one's week in
+      description: With its total; an empty week is refused (`timesheets.empty`). Its records then no longer change until it is sent back or taken back.
+      responses:
+        "200":
+          description: Handed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Timesheet" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timesheets/{week}:withdraw:
+    parameters:
+      - $ref: "#/components/parameters/WeekOfTimesheet"
+    post:
+      tags: [time]
+      operationId: withdrawTimesheet
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timesheet withdraw"
+      summary: Take one's week back
+      description: Before anybody decided; it is open again.
+      responses:
+        "200":
+          description: Open again
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Timesheet" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timesheets/{week}:approve:
+    parameters:
+      - $ref: "#/components/parameters/WeekOfTimesheet"
+    post:
+      tags: [time]
+      operationId: approveTimesheet
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timesheet approve"
+      summary: Approve another person's week
+      description: >
+        Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace or at every hub or collection the
+        week's entries lie in; nobody approves their own (`timesheets.own_week`). Its records never
+        change again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id]
+              properties:
+                account_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Timesheet" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /timesheets/{week}:reject:
+    parameters:
+      - $ref: "#/components/parameters/WeekOfTimesheet"
+    post:
+      tags: [time]
+      operationId: rejectTimesheet
+      x-hubtask-rest: generated
+      x-hubtask-cli: "timesheet reject"
+      summary: Send another person's week back
+      description: With a reason the person reads; they change it and hand it in again. Needs what approving needs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, reason]
+              properties:
+                account_id: { type: string, format: uuid }
+                reason: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: Sent back
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Timesheet" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /time-work-types:
+    get:
+      tags: [time]
+      operationId: listWorkTypes
+      x-hubtask-rest: generated
+      x-hubtask-cli: "work-type ls"
+      summary: The workspace's kinds of work
+      description: Archived ones included, in their order.
+      responses:
+        "200":
+          description: The kinds of work
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkTypeList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /time-work-types/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,39}$" }
+    put:
+      tags: [time]
+      operationId: defineWorkType
+      x-hubtask-rest: generated
+      x-hubtask-cli: "work-type define"
+      summary: Write a kind of work
+      description: >
+        At most 100: its name, whether its time starts billable, its place in the order, and whether
+        it is archived (kept on its records, offered no more). Needs STRUCTURE at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 80 }
+                billable: { type: boolean }
+                archived: { type: boolean }
+                position: { type: integer }
+      responses:
+        "200":
+          description: Written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkType" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /time-policy:
+    get:
+      tags: [time]
+      operationId: readTimePolicy
+      x-hubtask-rest: generated
+      x-hubtask-cli: "time policy"
+      summary: The workspace's time policy
+      description: The last locked day, and whether other people's time is seen in FULL or only AGGREGATED.
+      responses:
+        "200":
+          description: The policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimePolicy" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [time]
+      operationId: setTimePolicy
+      x-hubtask-rest: generated
+      x-hubtask-cli: "time set-policy"
+      summary: Lock a period and choose what a lead sees
+      description: >
+        The last locked day (none unlocks every day), before and on which nobody writes, changes or
+        removes a record, and FULL or AGGREGATED visibility of other people's time. Needs
+        APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visibility, expected_version]
+              properties:
+                locked_through: { type: [string, "null"], format: date }
+                visibility: { type: string, enum: [FULL, AGGREGATED] }
+                expected_version: { type: integer, minimum: 0 }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimePolicy" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /plans/{planId}/actuals:
+    parameters:
+      - $ref: "#/components/parameters/PlanId"
+    get:
+      tags: [time]
+      operationId: readEstimatesVsActuals
+      x-hubtask-rest: generated
+      x-hubtask-cli: "plan actuals"
+      summary: Estimates against the time recorded
+      description: >
+        Each entry of a hub or a collection the caller may read with its estimate in hours,
+        everybody's minutes on it, both rolled up with the entries below it, the hours remaining and
+        the variance. Needs READ at the plan; where the workspace shows only sums, APPROVE_TIME or
+        MANAGE_MEMBERS there.
+      responses:
+        "200":
+          description: The entries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EstimatesVsActuals" }
         "4XX":
           $ref: "#/components/responses/Problem"
   /business-calendars:
@@ -16254,6 +16835,30 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    TimeFrom:
+      name: from
+      in: query
+      required: true
+      description: The first day, YYYY-MM-DD.
+      schema: { type: string, format: date }
+    TimeTo:
+      name: to
+      in: query
+      required: true
+      description: The last day, YYYY-MM-DD; at most 366 days after the first.
+      schema: { type: string, format: date }
+    TimeRecordId:
+      name: recordId
+      in: path
+      required: true
+      description: A time record.
+      schema: { type: string, format: uuid }
+    WeekOfTimesheet:
+      name: week
+      in: path
+      required: true
+      description: Any day of the week, YYYY-MM-DD; the week runs from Monday.
+      schema: { type: string, format: date }
     PlanId:
       name: planId
       in: path
@@ -20482,6 +21087,208 @@ components:
         unit: { type: string, enum: [POINTS, HOURS, SIZE] }
         value: { type: number, format: double }
         size: { type: [string, "null"], enum: [XS, S, M, L, XL, XXL, null] }
+
+    TimeRecordFields:
+      type: object
+      properties:
+        entry_id: { type: [string, "null"], format: uuid, description: "The entry; none for time on no entry." }
+        work_type: { type: string, description: "The key of one of the workspace's kinds of work." }
+        day: { type: string, format: date, description: "The day; the start's day in the zone without." }
+        minutes: { type: integer, minimum: 1, maximum: 1440 }
+        started_at: { type: string, format: date-time }
+        ended_at: { type: string, format: date-time, description: "With a start: the minutes are counted from the start." }
+        note: { type: string, maxLength: 2000 }
+        billable: { type: boolean, description: "The kind of work's flag without." }
+        zone: { type: string, description: "The person's IANA time zone, for the start's day; UTC without." }
+
+    TimeRecord:
+      type: object
+      required: [id, account_id, entry_id, work_type, day, started_at, minutes, note, billable, source, corrects, created_at, updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        entry_id: { type: [string, "null"], format: uuid }
+        work_type: { type: string }
+        day: { type: string, format: date }
+        started_at: { type: [string, "null"], format: date-time }
+        minutes: { type: integer, description: "Signed for a correction." }
+        note: { type: string }
+        billable: { type: boolean }
+        source: { type: string, enum: [MANUAL, TIMER, COPY, CORRECTION] }
+        corrects: { type: [string, "null"], format: uuid, description: "The approved record a correction corrects." }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    PlacedTimeRecord:
+      allOf:
+        - $ref: "#/components/schemas/TimeRecord"
+        - type: object
+          required: [collection_id, hub_id, entry_title]
+          properties:
+            collection_id: { type: [string, "null"], format: uuid }
+            hub_id: { type: [string, "null"], format: uuid }
+            entry_title: { type: string }
+
+    TimeRecordList:
+      type: object
+      required: [data, truncated]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/PlacedTimeRecord" } }
+        truncated: { type: boolean }
+
+    TimeReport:
+      type: object
+      required: [group_by, groups, minutes, withheld_minutes, withheld_groups]
+      properties:
+        group_by: { type: array, items: { type: string } }
+        groups:
+          type: array
+          items:
+            type: object
+            required: [keys, minutes, billable_minutes, records]
+            properties:
+              keys:
+                type: array
+                items:
+                  type: object
+                  required: [dimension, value]
+                  properties:
+                    dimension: { type: string }
+                    value: { type: string, description: "An identifier, a key, a day or true / false; empty for none." }
+                    label: { type: string, description: "An entry's title, where the caller may read it." }
+              minutes: { type: integer }
+              billable_minutes: { type: integer }
+              records: { type: integer }
+        minutes: { type: integer }
+        withheld_minutes: { type: integer, description: "The minutes of groups too small to show without naming a person." }
+        withheld_groups: { type: integer }
+
+    TimeExport:
+      type: object
+      required: [columns, rows, truncated]
+      properties:
+        columns: { type: array, items: { type: string } }
+        rows:
+          type: array
+          items:
+            type: object
+            required: [record_id, day, account_id, hub_id, collection_id, entry_id, entry_title, work_type, minutes, hours, billable, source, corrects, note]
+            properties:
+              record_id: { type: string, format: uuid }
+              day: { type: string, format: date }
+              account_id: { type: string, format: uuid }
+              hub_id: { type: [string, "null"], format: uuid }
+              collection_id: { type: [string, "null"], format: uuid }
+              entry_id: { type: [string, "null"], format: uuid }
+              entry_title: { type: string }
+              work_type: { type: string }
+              minutes: { type: integer }
+              hours: { type: number, format: double }
+              billable: { type: boolean }
+              source: { type: string }
+              corrects: { type: [string, "null"], format: uuid }
+              note: { type: string }
+        truncated: { type: boolean }
+
+    TimeTimer:
+      type: object
+      required: [running]
+      properties:
+        running: { type: boolean }
+        entry_id: { type: [string, "null"], format: uuid }
+        work_type: { type: string }
+        note: { type: string }
+        billable: { type: boolean }
+        started_at: { type: string, format: date-time }
+        elapsed_minutes: { type: integer }
+
+    Timesheet:
+      type: object
+      required: [account_id, week_start, state, submitted_minutes, submitted_at, decided_at, decided_by, reason, version]
+      properties:
+        account_id: { type: string, format: uuid }
+        week_start: { type: string, format: date }
+        state: { type: string, enum: [OPEN, SUBMITTED, APPROVED, REJECTED] }
+        submitted_minutes: { type: integer }
+        submitted_at: { type: [string, "null"], format: date-time }
+        decided_at: { type: [string, "null"], format: date-time }
+        decided_by: { type: [string, "null"], format: uuid }
+        reason: { type: string, description: "Why it was sent back." }
+        version: { type: integer }
+
+    TimesheetList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Timesheet" } }
+
+    TimesheetWeek:
+      allOf:
+        - $ref: "#/components/schemas/Timesheet"
+        - type: object
+          required: [records, days, minutes]
+          properties:
+            records: { type: array, items: { $ref: "#/components/schemas/PlacedTimeRecord" } }
+            days:
+              type: array
+              items:
+                type: object
+                required: [day, minutes, locked]
+                properties:
+                  day: { type: string, format: date }
+                  minutes: { type: integer }
+                  locked: { type: boolean }
+            minutes: { type: integer }
+
+    WorkType:
+      type: object
+      required: [key, name, billable, archived, position, version]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        billable: { type: boolean }
+        archived: { type: boolean }
+        position: { type: integer }
+        version: { type: integer }
+
+    WorkTypeList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/WorkType" } }
+
+    TimePolicy:
+      type: object
+      required: [locked_through, visibility, version]
+      properties:
+        locked_through: { type: [string, "null"], format: date }
+        visibility: { type: string, enum: [FULL, AGGREGATED] }
+        version: { type: integer }
+
+    EstimatesVsActuals:
+      type: object
+      required: [plan_id, data, estimate_hours, minutes]
+      properties:
+        plan_id: { type: string, format: uuid }
+        estimate_hours: { type: number, format: double }
+        minutes: { type: integer }
+        data:
+          type: array
+          items:
+            type: object
+            required: [entry_id, parent_id, title, done, estimate_hours, minutes, rolled_estimate_hours, rolled_minutes, remaining_hours, variance_hours]
+            properties:
+              entry_id: { type: string, format: uuid }
+              parent_id: { type: [string, "null"], format: uuid }
+              title: { type: string }
+              done: { type: boolean }
+              estimate_hours: { type: [number, "null"], format: double }
+              minutes: { type: integer }
+              rolled_estimate_hours: { type: number, format: double }
+              rolled_minutes: { type: integer }
+              remaining_hours: { type: number, format: double }
+              variance_hours: { type: number, format: double }
 
     SprintEntry:
       type: object

@@ -216,6 +216,121 @@ export class HubtaskClient {
     return this.call("DELETE", "/items/{itemId}/estimate", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Time records of a range of days */
+  listTimeRecords(options: CallOptions & { readonly query?: NonNullable<operations["listTimeRecords"]['parameters']['query']> } = {}): Promise<operations["listTimeRecords"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/time-records", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Record time spent */
+  logTime(body: NonNullable<operations["logTime"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["logTime"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/time-records", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change a record of one's own */
+  updateTimeRecord(recordId: string, body: NonNullable<operations["updateTimeRecord"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateTimeRecord"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/time-records/{recordId}", { "recordId": recordId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a record of one's own */
+  deleteTimeRecord(recordId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/time-records/{recordId}", { "recordId": recordId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Correct an approved record */
+  correctTimeRecord(recordId: string, body: NonNullable<operations["correctTimeRecord"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["correctTimeRecord"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/time-records/{recordId}:correct", { "recordId": recordId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Sum time by up to two dimensions */
+  readTimeReport(body: NonNullable<operations["readTimeReport"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["readTimeReport"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/time-records:report", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Hand time records to accounting */
+  exportTimeRecords(body: NonNullable<operations["exportTimeRecords"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportTimeRecords"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/time-records:export", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The caller's running timer */
+  readTimer(options: CallOptions = {}): Promise<operations["readTimer"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/timer", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Stop the timer without recording it */
+  discardTimer(options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/timer", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Start the caller's timer */
+  startTimer(body: NonNullable<operations["startTimer"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["startTimer"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/timer:start", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Stop the timer into a record */
+  stopTimer(body: NonNullable<operations["stopTimer"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["stopTimer"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/timer:stop", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Weeks to decide, or one's own */
+  listTimesheets(options: CallOptions & { readonly query?: NonNullable<operations["listTimesheets"]['parameters']['query']> } = {}): Promise<operations["listTimesheets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/timesheets", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A week from Monday */
+  readTimesheet(week: string, options: CallOptions & { readonly query?: NonNullable<operations["readTimesheet"]['parameters']['query']> } = {}): Promise<operations["readTimesheet"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/timesheets/{week}", { "week": week }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Copy last week into this one */
+  copyTimesheetWeek(week: string, options: CallOptions = {}): Promise<operations["copyTimesheetWeek"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/timesheets/{week}:copy-previous", { "week": week }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Hand one's week in */
+  submitTimesheet(week: string, options: CallOptions = {}): Promise<operations["submitTimesheet"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/timesheets/{week}:submit", { "week": week }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Take one's week back */
+  withdrawTimesheet(week: string, options: CallOptions = {}): Promise<operations["withdrawTimesheet"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/timesheets/{week}:withdraw", { "week": week }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Approve another person's week */
+  approveTimesheet(week: string, body: NonNullable<operations["approveTimesheet"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["approveTimesheet"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/timesheets/{week}:approve", { "week": week }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Send another person's week back */
+  rejectTimesheet(week: string, body: NonNullable<operations["rejectTimesheet"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["rejectTimesheet"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/timesheets/{week}:reject", { "week": week }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The workspace's kinds of work */
+  listWorkTypes(options: CallOptions = {}): Promise<operations["listWorkTypes"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/time-work-types", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Write a kind of work */
+  defineWorkType(key: string, body: NonNullable<operations["defineWorkType"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["defineWorkType"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/time-work-types/{key}", { "key": key }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The workspace's time policy */
+  readTimePolicy(options: CallOptions = {}): Promise<operations["readTimePolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/time-policy", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Lock a period and choose what a lead sees */
+  setTimePolicy(body: NonNullable<operations["setTimePolicy"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setTimePolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/time-policy", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Estimates against the time recorded */
+  readEstimatesVsActuals(planId: string, options: CallOptions = {}): Promise<operations["readEstimatesVsActuals"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/plans/{planId}/actuals", { "planId": planId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The workspace's business calendars */
   listBusinessCalendars(options: CallOptions = {}): Promise<operations["listBusinessCalendars"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/business-calendars", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

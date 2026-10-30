@@ -355,7 +355,7 @@ type planEntry struct {
 // Descriptor is the catalogue entry.
 func (h ReadEstimatesVsActuals) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name: ReadEstimatesVsActualsName,
+		Name: ReadEstimatesVsActualsName, Permission: service.PermissionRead,
 		Summary: "Answers each entry of a hub or a collection the caller may read with its estimate in hours, " +
 			"everybody's recorded minutes on it, both rolled up with the entries below it, the hours remaining and " +
 			"the variance. Needs READ at the plan; where the workspace shows only sums, APPROVE_TIME or MANAGE_MEMBERS there.",

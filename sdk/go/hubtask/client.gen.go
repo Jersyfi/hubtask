@@ -5160,6 +5160,30 @@ func (e PermissionEntryKind) Valid() bool {
 	}
 }
 
+// Defines values for PlacedTimeRecordSource.
+const (
+	PlacedTimeRecordSourceCOPY       PlacedTimeRecordSource = "COPY"
+	PlacedTimeRecordSourceCORRECTION PlacedTimeRecordSource = "CORRECTION"
+	PlacedTimeRecordSourceMANUAL     PlacedTimeRecordSource = "MANUAL"
+	PlacedTimeRecordSourceTIMER      PlacedTimeRecordSource = "TIMER"
+)
+
+// Valid indicates whether the value is a known member of the PlacedTimeRecordSource enum.
+func (e PlacedTimeRecordSource) Valid() bool {
+	switch e {
+	case PlacedTimeRecordSourceCOPY:
+		return true
+	case PlacedTimeRecordSourceCORRECTION:
+		return true
+	case PlacedTimeRecordSourceMANUAL:
+		return true
+	case PlacedTimeRecordSourceTIMER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlanConflictDependencyKind.
 const (
 	PlanConflictDependencyKindFF PlanConflictDependencyKind = "FF"
@@ -7425,6 +7449,96 @@ func (e TermsInForceSetBy) Valid() bool {
 	}
 }
 
+// Defines values for TimePolicyVisibility.
+const (
+	TimePolicyVisibilityAGGREGATED TimePolicyVisibility = "AGGREGATED"
+	TimePolicyVisibilityFULL       TimePolicyVisibility = "FULL"
+)
+
+// Valid indicates whether the value is a known member of the TimePolicyVisibility enum.
+func (e TimePolicyVisibility) Valid() bool {
+	switch e {
+	case TimePolicyVisibilityAGGREGATED:
+		return true
+	case TimePolicyVisibilityFULL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TimeRecordSource.
+const (
+	TimeRecordSourceCOPY       TimeRecordSource = "COPY"
+	TimeRecordSourceCORRECTION TimeRecordSource = "CORRECTION"
+	TimeRecordSourceMANUAL     TimeRecordSource = "MANUAL"
+	TimeRecordSourceTIMER      TimeRecordSource = "TIMER"
+)
+
+// Valid indicates whether the value is a known member of the TimeRecordSource enum.
+func (e TimeRecordSource) Valid() bool {
+	switch e {
+	case TimeRecordSourceCOPY:
+		return true
+	case TimeRecordSourceCORRECTION:
+		return true
+	case TimeRecordSourceMANUAL:
+		return true
+	case TimeRecordSourceTIMER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TimesheetState.
+const (
+	TimesheetStateAPPROVED  TimesheetState = "APPROVED"
+	TimesheetStateOPEN      TimesheetState = "OPEN"
+	TimesheetStateREJECTED  TimesheetState = "REJECTED"
+	TimesheetStateSUBMITTED TimesheetState = "SUBMITTED"
+)
+
+// Valid indicates whether the value is a known member of the TimesheetState enum.
+func (e TimesheetState) Valid() bool {
+	switch e {
+	case TimesheetStateAPPROVED:
+		return true
+	case TimesheetStateOPEN:
+		return true
+	case TimesheetStateREJECTED:
+		return true
+	case TimesheetStateSUBMITTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TimesheetWeekState.
+const (
+	TimesheetWeekStateAPPROVED  TimesheetWeekState = "APPROVED"
+	TimesheetWeekStateOPEN      TimesheetWeekState = "OPEN"
+	TimesheetWeekStateREJECTED  TimesheetWeekState = "REJECTED"
+	TimesheetWeekStateSUBMITTED TimesheetWeekState = "SUBMITTED"
+)
+
+// Valid indicates whether the value is a known member of the TimesheetWeekState enum.
+func (e TimesheetWeekState) Valid() bool {
+	switch e {
+	case TimesheetWeekStateAPPROVED:
+		return true
+	case TimesheetWeekStateOPEN:
+		return true
+	case TimesheetWeekStateREJECTED:
+		return true
+	case TimesheetWeekStateSUBMITTED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TrashEntryHeldBy.
 const (
 	TrashEntryHeldByLegalHold   TrashEntryHeldBy = "legal_hold"
@@ -8541,6 +8655,87 @@ func (e PreviewModuleReachParamsSwitch) Valid() bool {
 	case PreviewModuleReachParamsSwitchINHERIT:
 		return true
 	case PreviewModuleReachParamsSwitchOFF:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetTimePolicyJSONBodyVisibility.
+const (
+	SetTimePolicyJSONBodyVisibilityAGGREGATED SetTimePolicyJSONBodyVisibility = "AGGREGATED"
+	SetTimePolicyJSONBodyVisibilityFULL       SetTimePolicyJSONBodyVisibility = "FULL"
+)
+
+// Valid indicates whether the value is a known member of the SetTimePolicyJSONBodyVisibility enum.
+func (e SetTimePolicyJSONBodyVisibility) Valid() bool {
+	switch e {
+	case SetTimePolicyJSONBodyVisibilityAGGREGATED:
+		return true
+	case SetTimePolicyJSONBodyVisibilityFULL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadTimeReportJSONBodyGroupBy.
+const (
+	ReadTimeReportJSONBodyGroupByBILLABLE   ReadTimeReportJSONBodyGroupBy = "BILLABLE"
+	ReadTimeReportJSONBodyGroupByCOLLECTION ReadTimeReportJSONBodyGroupBy = "COLLECTION"
+	ReadTimeReportJSONBodyGroupByDAY        ReadTimeReportJSONBodyGroupBy = "DAY"
+	ReadTimeReportJSONBodyGroupByENTRY      ReadTimeReportJSONBodyGroupBy = "ENTRY"
+	ReadTimeReportJSONBodyGroupByHUB        ReadTimeReportJSONBodyGroupBy = "HUB"
+	ReadTimeReportJSONBodyGroupByMONTH      ReadTimeReportJSONBodyGroupBy = "MONTH"
+	ReadTimeReportJSONBodyGroupByPERSON     ReadTimeReportJSONBodyGroupBy = "PERSON"
+	ReadTimeReportJSONBodyGroupByWEEK       ReadTimeReportJSONBodyGroupBy = "WEEK"
+	ReadTimeReportJSONBodyGroupByWORKTYPE   ReadTimeReportJSONBodyGroupBy = "WORK_TYPE"
+)
+
+// Valid indicates whether the value is a known member of the ReadTimeReportJSONBodyGroupBy enum.
+func (e ReadTimeReportJSONBodyGroupBy) Valid() bool {
+	switch e {
+	case ReadTimeReportJSONBodyGroupByBILLABLE:
+		return true
+	case ReadTimeReportJSONBodyGroupByCOLLECTION:
+		return true
+	case ReadTimeReportJSONBodyGroupByDAY:
+		return true
+	case ReadTimeReportJSONBodyGroupByENTRY:
+		return true
+	case ReadTimeReportJSONBodyGroupByHUB:
+		return true
+	case ReadTimeReportJSONBodyGroupByMONTH:
+		return true
+	case ReadTimeReportJSONBodyGroupByPERSON:
+		return true
+	case ReadTimeReportJSONBodyGroupByWEEK:
+		return true
+	case ReadTimeReportJSONBodyGroupByWORKTYPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTimesheetsParamsState.
+const (
+	ListTimesheetsParamsStateAPPROVED  ListTimesheetsParamsState = "APPROVED"
+	ListTimesheetsParamsStateOPEN      ListTimesheetsParamsState = "OPEN"
+	ListTimesheetsParamsStateREJECTED  ListTimesheetsParamsState = "REJECTED"
+	ListTimesheetsParamsStateSUBMITTED ListTimesheetsParamsState = "SUBMITTED"
+)
+
+// Valid indicates whether the value is a known member of the ListTimesheetsParamsState enum.
+func (e ListTimesheetsParamsState) Valid() bool {
+	switch e {
+	case ListTimesheetsParamsStateAPPROVED:
+		return true
+	case ListTimesheetsParamsStateOPEN:
+		return true
+	case ListTimesheetsParamsStateREJECTED:
+		return true
+	case ListTimesheetsParamsStateSUBMITTED:
 		return true
 	default:
 		return false
@@ -12364,6 +12559,25 @@ type EstimateSize string
 // EstimateUnit defines model for Estimate.Unit.
 type EstimateUnit string
 
+// EstimatesVsActuals defines model for EstimatesVsActuals.
+type EstimatesVsActuals struct {
+	Data []struct {
+		Done                bool                `json:"done"`
+		EntryId             openapi_types.UUID  `json:"entry_id"`
+		EstimateHours       *float64            `json:"estimate_hours"`
+		Minutes             int                 `json:"minutes"`
+		ParentId            *openapi_types.UUID `json:"parent_id"`
+		RemainingHours      float64             `json:"remaining_hours"`
+		RolledEstimateHours float64             `json:"rolled_estimate_hours"`
+		RolledMinutes       int                 `json:"rolled_minutes"`
+		Title               string              `json:"title"`
+		VarianceHours       float64             `json:"variance_hours"`
+	} `json:"data"`
+	EstimateHours float64            `json:"estimate_hours"`
+	Minutes       int                `json:"minutes"`
+	PlanId        openapi_types.UUID `json:"plan_id"`
+}
+
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
 // `nodes`, is refused rather than half-read.
@@ -15300,6 +15514,34 @@ type PermissionEntry struct {
 // PermissionEntryKind defines model for PermissionEntry.Kind.
 type PermissionEntryKind string
 
+// PlacedTimeRecord defines model for PlacedTimeRecord.
+type PlacedTimeRecord struct {
+	AccountId    openapi_types.UUID  `json:"account_id"`
+	Billable     bool                `json:"billable"`
+	CollectionId *openapi_types.UUID `json:"collection_id"`
+
+	// Corrects The approved record a correction corrects.
+	Corrects   *openapi_types.UUID `json:"corrects"`
+	CreatedAt  time.Time           `json:"created_at"`
+	Day        openapi_types.Date  `json:"day"`
+	EntryId    *openapi_types.UUID `json:"entry_id"`
+	EntryTitle string              `json:"entry_title"`
+	HubId      *openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID  `json:"id"`
+
+	// Minutes Signed for a correction.
+	Minutes   int                    `json:"minutes"`
+	Note      string                 `json:"note"`
+	Source    PlacedTimeRecordSource `json:"source"`
+	StartedAt *time.Time             `json:"started_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
+	Version   int                    `json:"version"`
+	WorkType  string                 `json:"work_type"`
+}
+
+// PlacedTimeRecordSource defines model for PlacedTimeRecord.Source.
+type PlacedTimeRecordSource string
+
 // Plan defines model for Plan.
 type Plan struct {
 	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
@@ -18030,6 +18272,176 @@ type TermsInForce struct {
 // TermsInForceSetBy Who set them - whom a person who does not agree can ask.
 type TermsInForceSetBy string
 
+// TimeExport defines model for TimeExport.
+type TimeExport struct {
+	Columns []string `json:"columns"`
+	Rows    []struct {
+		AccountId    openapi_types.UUID  `json:"account_id"`
+		Billable     bool                `json:"billable"`
+		CollectionId *openapi_types.UUID `json:"collection_id"`
+		Corrects     *openapi_types.UUID `json:"corrects"`
+		Day          openapi_types.Date  `json:"day"`
+		EntryId      *openapi_types.UUID `json:"entry_id"`
+		EntryTitle   string              `json:"entry_title"`
+		Hours        float64             `json:"hours"`
+		HubId        *openapi_types.UUID `json:"hub_id"`
+		Minutes      int                 `json:"minutes"`
+		Note         string              `json:"note"`
+		RecordId     openapi_types.UUID  `json:"record_id"`
+		Source       string              `json:"source"`
+		WorkType     string              `json:"work_type"`
+	} `json:"rows"`
+	Truncated bool `json:"truncated"`
+}
+
+// TimePolicy defines model for TimePolicy.
+type TimePolicy struct {
+	LockedThrough *openapi_types.Date  `json:"locked_through"`
+	Version       int                  `json:"version"`
+	Visibility    TimePolicyVisibility `json:"visibility"`
+}
+
+// TimePolicyVisibility defines model for TimePolicy.Visibility.
+type TimePolicyVisibility string
+
+// TimeRecord defines model for TimeRecord.
+type TimeRecord struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	Billable  bool               `json:"billable"`
+
+	// Corrects The approved record a correction corrects.
+	Corrects  *openapi_types.UUID `json:"corrects"`
+	CreatedAt time.Time           `json:"created_at"`
+	Day       openapi_types.Date  `json:"day"`
+	EntryId   *openapi_types.UUID `json:"entry_id"`
+	Id        openapi_types.UUID  `json:"id"`
+
+	// Minutes Signed for a correction.
+	Minutes   int              `json:"minutes"`
+	Note      string           `json:"note"`
+	Source    TimeRecordSource `json:"source"`
+	StartedAt *time.Time       `json:"started_at"`
+	UpdatedAt time.Time        `json:"updated_at"`
+	Version   int              `json:"version"`
+	WorkType  string           `json:"work_type"`
+}
+
+// TimeRecordSource defines model for TimeRecord.Source.
+type TimeRecordSource string
+
+// TimeRecordFields defines model for TimeRecordFields.
+type TimeRecordFields struct {
+	// Billable The kind of work's flag without.
+	Billable *bool `json:"billable,omitempty"`
+
+	// Day The day; the start's day in the zone without.
+	Day *openapi_types.Date `json:"day,omitempty"`
+
+	// EndedAt With a start: the minutes are counted from the start.
+	EndedAt *time.Time `json:"ended_at,omitempty"`
+
+	// EntryId The entry; none for time on no entry.
+	EntryId   *openapi_types.UUID `json:"entry_id,omitempty"`
+	Minutes   *int                `json:"minutes,omitempty"`
+	Note      *string             `json:"note,omitempty"`
+	StartedAt *time.Time          `json:"started_at,omitempty"`
+
+	// WorkType The key of one of the workspace's kinds of work.
+	WorkType *string `json:"work_type,omitempty"`
+
+	// Zone The person's IANA time zone, for the start's day; UTC without.
+	Zone *string `json:"zone,omitempty"`
+}
+
+// TimeRecordList defines model for TimeRecordList.
+type TimeRecordList struct {
+	Data      []PlacedTimeRecord `json:"data"`
+	Truncated bool               `json:"truncated"`
+}
+
+// TimeReport defines model for TimeReport.
+type TimeReport struct {
+	GroupBy []string `json:"group_by"`
+	Groups  []struct {
+		BillableMinutes int `json:"billable_minutes"`
+		Keys            []struct {
+			Dimension string `json:"dimension"`
+
+			// Label An entry's title, where the caller may read it.
+			Label *string `json:"label,omitempty"`
+
+			// Value An identifier, a key, a day or true / false; empty for none.
+			Value string `json:"value"`
+		} `json:"keys"`
+		Minutes int `json:"minutes"`
+		Records int `json:"records"`
+	} `json:"groups"`
+	Minutes        int `json:"minutes"`
+	WithheldGroups int `json:"withheld_groups"`
+
+	// WithheldMinutes The minutes of groups too small to show without naming a person.
+	WithheldMinutes int `json:"withheld_minutes"`
+}
+
+// TimeTimer defines model for TimeTimer.
+type TimeTimer struct {
+	Billable       *bool               `json:"billable,omitempty"`
+	ElapsedMinutes *int                `json:"elapsed_minutes,omitempty"`
+	EntryId        *openapi_types.UUID `json:"entry_id,omitempty"`
+	Note           *string             `json:"note,omitempty"`
+	Running        bool                `json:"running"`
+	StartedAt      *time.Time          `json:"started_at,omitempty"`
+	WorkType       *string             `json:"work_type,omitempty"`
+}
+
+// Timesheet defines model for Timesheet.
+type Timesheet struct {
+	AccountId openapi_types.UUID  `json:"account_id"`
+	DecidedAt *time.Time          `json:"decided_at"`
+	DecidedBy *openapi_types.UUID `json:"decided_by"`
+
+	// Reason Why it was sent back.
+	Reason           string             `json:"reason"`
+	State            TimesheetState     `json:"state"`
+	SubmittedAt      *time.Time         `json:"submitted_at"`
+	SubmittedMinutes int                `json:"submitted_minutes"`
+	Version          int                `json:"version"`
+	WeekStart        openapi_types.Date `json:"week_start"`
+}
+
+// TimesheetState defines model for Timesheet.State.
+type TimesheetState string
+
+// TimesheetList defines model for TimesheetList.
+type TimesheetList struct {
+	Data []Timesheet `json:"data"`
+}
+
+// TimesheetWeek defines model for TimesheetWeek.
+type TimesheetWeek struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	Days      []struct {
+		Day     openapi_types.Date `json:"day"`
+		Locked  bool               `json:"locked"`
+		Minutes int                `json:"minutes"`
+	} `json:"days"`
+	DecidedAt *time.Time          `json:"decided_at"`
+	DecidedBy *openapi_types.UUID `json:"decided_by"`
+	Minutes   int                 `json:"minutes"`
+
+	// Reason Why it was sent back.
+	Reason           string             `json:"reason"`
+	Records          []PlacedTimeRecord `json:"records"`
+	State            TimesheetWeekState `json:"state"`
+	SubmittedAt      *time.Time         `json:"submitted_at"`
+	SubmittedMinutes int                `json:"submitted_minutes"`
+	Version          int                `json:"version"`
+	WeekStart        openapi_types.Date `json:"week_start"`
+}
+
+// TimesheetWeekState defines model for TimesheetWeek.State.
+type TimesheetWeekState string
+
 // TotpConfirmation defines model for TotpConfirmation.
 type TotpConfirmation struct {
 	Code string `json:"code"`
@@ -18784,6 +19196,21 @@ type WorkItemUpdate struct {
 	Title       *string    `json:"title,omitempty"`
 }
 
+// WorkType defines model for WorkType.
+type WorkType struct {
+	Archived bool   `json:"archived"`
+	Billable bool   `json:"billable"`
+	Key      string `json:"key"`
+	Name     string `json:"name"`
+	Position int    `json:"position"`
+	Version  int    `json:"version"`
+}
+
+// WorkTypeList defines model for WorkTypeList.
+type WorkTypeList struct {
+	Data []WorkType `json:"data"`
+}
+
 // Workflow How a workspace's work moves - statuses in categories and the steps between them.
 type Workflow struct {
 	Draft *WorkflowShape `json:"draft"`
@@ -19262,6 +19689,15 @@ type SuggestionId = openapi_types.UUID
 // TemplateId defines model for TemplateId.
 type TemplateId = openapi_types.UUID
 
+// TimeFrom defines model for TimeFrom.
+type TimeFrom = openapi_types.Date
+
+// TimeRecordId defines model for TimeRecordId.
+type TimeRecordId = openapi_types.UUID
+
+// TimeTo defines model for TimeTo.
+type TimeTo = openapi_types.Date
+
 // TokenId defines model for TokenId.
 type TokenId = openapi_types.UUID
 
@@ -19270,6 +19706,9 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// WeekOfTimesheet defines model for WeekOfTimesheet.
+type WeekOfTimesheet = openapi_types.Date
 
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
@@ -21056,6 +21495,156 @@ type SetWorkspaceStructureParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetTimePolicyJSONBody defines parameters for SetTimePolicy.
+type SetTimePolicyJSONBody struct {
+	ExpectedVersion int                             `json:"expected_version"`
+	LockedThrough   *openapi_types.Date             `json:"locked_through,omitempty"`
+	Visibility      SetTimePolicyJSONBodyVisibility `json:"visibility"`
+}
+
+// SetTimePolicyJSONBodyVisibility defines parameters for SetTimePolicy.
+type SetTimePolicyJSONBodyVisibility string
+
+// ListTimeRecordsParams defines parameters for ListTimeRecords.
+type ListTimeRecordsParams struct {
+	// From The first day, YYYY-MM-DD.
+	From TimeFrom `form:"from" json:"from"`
+
+	// To The last day, YYYY-MM-DD; at most 366 days after the first.
+	To TimeTo `form:"to" json:"to"`
+
+	// Mine Only the caller's own time.
+	Mine *bool `form:"mine,omitempty" json:"mine,omitempty"`
+
+	// AccountId Only this person's time.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+
+	// EntryId Only time on this entry.
+	EntryId *openapi_types.UUID `form:"entry_id,omitempty" json:"entry_id,omitempty"`
+
+	// CollectionId Only time on entries of this collection.
+	CollectionId *openapi_types.UUID `form:"collection_id,omitempty" json:"collection_id,omitempty"`
+
+	// HubId Only time on entries of this hub's collections.
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+
+	// Billable Only billable, or only non-billable, time.
+	Billable *bool `form:"billable,omitempty" json:"billable,omitempty"`
+}
+
+// DeleteTimeRecordParams defines parameters for DeleteTimeRecord.
+type DeleteTimeRecordParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateTimeRecordJSONBody defines parameters for UpdateTimeRecord.
+type UpdateTimeRecordJSONBody struct {
+	Billable        *bool               `json:"billable,omitempty"`
+	Day             *openapi_types.Date `json:"day,omitempty"`
+	EndedAt         *time.Time          `json:"ended_at,omitempty"`
+	EntryId         *openapi_types.UUID `json:"entry_id,omitempty"`
+	ExpectedVersion *int                `json:"expected_version,omitempty"`
+	Minutes         *int                `json:"minutes,omitempty"`
+	Note            *string             `json:"note,omitempty"`
+	StartedAt       *time.Time          `json:"started_at,omitempty"`
+	WorkType        *string             `json:"work_type,omitempty"`
+	Zone            *string             `json:"zone,omitempty"`
+}
+
+// UpdateTimeRecordParams defines parameters for UpdateTimeRecord.
+type UpdateTimeRecordParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// CorrectTimeRecordJSONBody defines parameters for CorrectTimeRecord.
+type CorrectTimeRecordJSONBody struct {
+	Day     openapi_types.Date `json:"day"`
+	Minutes int                `json:"minutes"`
+	Note    *string            `json:"note,omitempty"`
+}
+
+// ExportTimeRecordsJSONBody defines parameters for ExportTimeRecords.
+type ExportTimeRecordsJSONBody struct {
+	AccountId    *openapi_types.UUID `json:"account_id,omitempty"`
+	Billable     *bool               `json:"billable,omitempty"`
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	EntryId      *openapi_types.UUID `json:"entry_id,omitempty"`
+	From         openapi_types.Date  `json:"from"`
+	HubId        *openapi_types.UUID `json:"hub_id,omitempty"`
+	Mine         *bool               `json:"mine,omitempty"`
+	To           openapi_types.Date  `json:"to"`
+}
+
+// ReadTimeReportJSONBody defines parameters for ReadTimeReport.
+type ReadTimeReportJSONBody struct {
+	AccountId    *openapi_types.UUID              `json:"account_id,omitempty"`
+	Billable     *bool                            `json:"billable,omitempty"`
+	CollectionId *openapi_types.UUID              `json:"collection_id,omitempty"`
+	From         openapi_types.Date               `json:"from"`
+	GroupBy      *[]ReadTimeReportJSONBodyGroupBy `json:"group_by,omitempty"`
+	HubId        *openapi_types.UUID              `json:"hub_id,omitempty"`
+	Mine         *bool                            `json:"mine,omitempty"`
+	To           openapi_types.Date               `json:"to"`
+}
+
+// ReadTimeReportJSONBodyGroupBy defines parameters for ReadTimeReport.
+type ReadTimeReportJSONBodyGroupBy string
+
+// DefineWorkTypeJSONBody defines parameters for DefineWorkType.
+type DefineWorkTypeJSONBody struct {
+	Archived *bool  `json:"archived,omitempty"`
+	Billable *bool  `json:"billable,omitempty"`
+	Name     string `json:"name"`
+	Position *int   `json:"position,omitempty"`
+}
+
+// StartTimerJSONBody defines parameters for StartTimer.
+type StartTimerJSONBody struct {
+	Billable *bool               `json:"billable,omitempty"`
+	EntryId  *openapi_types.UUID `json:"entry_id,omitempty"`
+	Note     *string             `json:"note,omitempty"`
+	WorkType *string             `json:"work_type,omitempty"`
+}
+
+// StopTimerJSONBody defines parameters for StopTimer.
+type StopTimerJSONBody struct {
+	// Zone An IANA time zone; UTC without.
+	Zone *string `json:"zone,omitempty"`
+}
+
+// ListTimesheetsParams defines parameters for ListTimesheets.
+type ListTimesheetsParams struct {
+	// From The first day, YYYY-MM-DD.
+	From TimeFrom `form:"from" json:"from"`
+
+	// To The last day, YYYY-MM-DD; at most 366 days after the first.
+	To    TimeTo                     `form:"to" json:"to"`
+	State *ListTimesheetsParamsState `form:"state,omitempty" json:"state,omitempty"`
+	Mine  *bool                      `form:"mine,omitempty" json:"mine,omitempty"`
+}
+
+// ListTimesheetsParamsState defines parameters for ListTimesheets.
+type ListTimesheetsParamsState string
+
+// ReadTimesheetParams defines parameters for ReadTimesheet.
+type ReadTimesheetParams struct {
+	// AccountId The person; the caller without.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// ApproveTimesheetJSONBody defines parameters for ApproveTimesheet.
+type ApproveTimesheetJSONBody struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+}
+
+// RejectTimesheetJSONBody defines parameters for RejectTimesheet.
+type RejectTimesheetJSONBody struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	Reason    string             `json:"reason"`
+}
+
 // ListTrashParams defines parameters for ListTrash.
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -21882,6 +22471,39 @@ type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
 
 // PreviewWorkspaceStructureJSONRequestBody defines body for PreviewWorkspaceStructure for application/json ContentType.
 type PreviewWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
+
+// SetTimePolicyJSONRequestBody defines body for SetTimePolicy for application/json ContentType.
+type SetTimePolicyJSONRequestBody SetTimePolicyJSONBody
+
+// LogTimeJSONRequestBody defines body for LogTime for application/json ContentType.
+type LogTimeJSONRequestBody = TimeRecordFields
+
+// UpdateTimeRecordJSONRequestBody defines body for UpdateTimeRecord for application/json ContentType.
+type UpdateTimeRecordJSONRequestBody UpdateTimeRecordJSONBody
+
+// CorrectTimeRecordJSONRequestBody defines body for CorrectTimeRecord for application/json ContentType.
+type CorrectTimeRecordJSONRequestBody CorrectTimeRecordJSONBody
+
+// ExportTimeRecordsJSONRequestBody defines body for ExportTimeRecords for application/json ContentType.
+type ExportTimeRecordsJSONRequestBody ExportTimeRecordsJSONBody
+
+// ReadTimeReportJSONRequestBody defines body for ReadTimeReport for application/json ContentType.
+type ReadTimeReportJSONRequestBody ReadTimeReportJSONBody
+
+// DefineWorkTypeJSONRequestBody defines body for DefineWorkType for application/json ContentType.
+type DefineWorkTypeJSONRequestBody DefineWorkTypeJSONBody
+
+// StartTimerJSONRequestBody defines body for StartTimer for application/json ContentType.
+type StartTimerJSONRequestBody StartTimerJSONBody
+
+// StopTimerJSONRequestBody defines body for StopTimer for application/json ContentType.
+type StopTimerJSONRequestBody StopTimerJSONBody
+
+// ApproveTimesheetJSONRequestBody defines body for ApproveTimesheet for application/json ContentType.
+type ApproveTimesheetJSONRequestBody ApproveTimesheetJSONBody
+
+// RejectTimesheetJSONRequestBody defines body for RejectTimesheet for application/json ContentType.
+type RejectTimesheetJSONRequestBody RejectTimesheetJSONBody
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -27838,6 +28460,13 @@ type ClientInterface interface {
 	// Corresponds with POST /pages:search (the `SearchPages` operationId).
 	SearchPages(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReadEstimatesVsActuals Estimates against the time recorded
+	//
+	// Each entry of a hub or a collection the caller may read with its estimate in hours, everybody's minutes on it, both rolled up with the entries below it, the hours remaining and the variance. Needs READ at the plan; where the workspace shows only sums, APPROVE_TIME or MANAGE_MEMBERS there.
+	//
+	// Corresponds with GET /plans/{planId}/actuals (the `ReadEstimatesVsActuals` operationId).
+	ReadEstimatesVsActuals(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListBaselines A plan's baselines
 	//
 	// The plan's baselines, the newest first. Needs READ at the plan.
@@ -29167,6 +29796,279 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
 	PreviewWorkspaceStructure(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadTimePolicy The workspace's time policy
+	//
+	// The last locked day, and whether other people's time is seen in FULL or only AGGREGATED.
+	//
+	// Corresponds with GET /time-policy (the `ReadTimePolicy` operationId).
+	ReadTimePolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetTimePolicyWithBody Lock a period and choose what a lead sees
+	//
+	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /time-policy (the `SetTimePolicy` operationId).
+	SetTimePolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetTimePolicy Lock a period and choose what a lead sees
+	//
+	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /time-policy (the `SetTimePolicy` operationId).
+	SetTimePolicy(ctx context.Context, body SetTimePolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTimeRecords Time records of a range of days
+	//
+	// At most 2000, the earliest day first: the caller's own with `mine`, else also other people's where the caller approves time (APPROVE_TIME or MANAGE_MEMBERS at the workspace or at the hub or collection of the entry). Where the workspace shows only sums, other people's records are refused (`time.aggregated_only`). Needs the time module switched on.
+	//
+	// Corresponds with GET /time-records (the `ListTimeRecords` operationId).
+	ListTimeRecords(ctx context.Context, params *ListTimeRecordsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LogTimeWithBody Record time spent
+	//
+	// Minutes from 1 to 1440 on one day, or a start and an end, on an entry the caller may read or on none, of one of the workspace's kinds of work, billable or not (the kind's flag without), with a note. Refused in the workspace's locked period (`time.period_locked`) and in a week handed in or approved (`time.week_not_open`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /time-records (the `LogTime` operationId).
+	LogTimeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LogTime Record time spent
+	//
+	// Minutes from 1 to 1440 on one day, or a start and an end, on an entry the caller may read or on none, of one of the workspace's kinds of work, billable or not (the kind's flag without), with a note. Refused in the workspace's locked period (`time.period_locked`) and in a week handed in or approved (`time.week_not_open`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /time-records (the `LogTime` operationId).
+	LogTime(ctx context.Context, body LogTimeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteTimeRecord Remove a record of one's own
+	//
+	// While its day lies outside the locked period and in an open or a sent-back week. The version read goes as If-Match.
+	//
+	// Corresponds with DELETE /time-records/{recordId} (the `DeleteTimeRecord` operationId).
+	DeleteTimeRecord(ctx context.Context, recordId TimeRecordId, params *DeleteTimeRecordParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateTimeRecordWithBody Change a record of one's own
+	//
+	// Every field is written as given, while the old and the new day lie outside the locked period and in an open or a sent-back week. A correction keeps its minutes. The version read goes as If-Match or as `expected_version`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /time-records/{recordId} (the `UpdateTimeRecord` operationId).
+	UpdateTimeRecordWithBody(ctx context.Context, recordId TimeRecordId, params *UpdateTimeRecordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateTimeRecord Change a record of one's own
+	//
+	// Every field is written as given, while the old and the new day lie outside the locked period and in an open or a sent-back week. A correction keeps its minutes. The version read goes as If-Match or as `expected_version`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /time-records/{recordId} (the `UpdateTimeRecord` operationId).
+	UpdateTimeRecord(ctx context.Context, recordId TimeRecordId, params *UpdateTimeRecordParams, body UpdateTimeRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CorrectTimeRecordWithBody Correct an approved record
+	//
+	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /time-records/{recordId}:correct (the `CorrectTimeRecord` operationId).
+	CorrectTimeRecordWithBody(ctx context.Context, recordId TimeRecordId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CorrectTimeRecord Correct an approved record
+	//
+	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /time-records/{recordId}:correct (the `CorrectTimeRecord` operationId).
+	CorrectTimeRecord(ctx context.Context, recordId TimeRecordId, body CorrectTimeRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportTimeRecordsWithBody Hand time records to accounting
+	//
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /time-records:export (the `ExportTimeRecords` operationId).
+	ExportTimeRecordsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportTimeRecords Hand time records to accounting
+	//
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /time-records:export (the `ExportTimeRecords` operationId).
+	ExportTimeRecords(ctx context.Context, body ExportTimeRecordsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadTimeReportWithBody Sum time by up to two dimensions
+	//
+	// Minutes, billable minutes and records per group of PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE, DAY, WEEK (from Monday), MONTH or BILLABLE, with the titles of the entries the caller may read: the caller's own with `mine`, else also other people's where the caller approves time. Where the workspace shows only sums, a report over other people takes no PERSON and no other person's filter (`time.aggregated_only`) and withholds groups of fewer than three people.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /time-records:report (the `ReadTimeReport` operationId).
+	ReadTimeReportWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadTimeReport Sum time by up to two dimensions
+	//
+	// Minutes, billable minutes and records per group of PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE, DAY, WEEK (from Monday), MONTH or BILLABLE, with the titles of the entries the caller may read: the caller's own with `mine`, else also other people's where the caller approves time. Where the workspace shows only sums, a report over other people takes no PERSON and no other person's filter (`time.aggregated_only`) and withholds groups of fewer than three people.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /time-records:report (the `ReadTimeReport` operationId).
+	ReadTimeReport(ctx context.Context, body ReadTimeReportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListWorkTypes The workspace's kinds of work
+	//
+	// Archived ones included, in their order.
+	//
+	// Corresponds with GET /time-work-types (the `ListWorkTypes` operationId).
+	ListWorkTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineWorkTypeWithBody Write a kind of work
+	//
+	// At most 100: its name, whether its time starts billable, its place in the order, and whether it is archived (kept on its records, offered no more). Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /time-work-types/{key} (the `DefineWorkType` operationId).
+	DefineWorkTypeWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineWorkType Write a kind of work
+	//
+	// At most 100: its name, whether its time starts billable, its place in the order, and whether it is archived (kept on its records, offered no more). Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /time-work-types/{key} (the `DefineWorkType` operationId).
+	DefineWorkType(ctx context.Context, key string, body DefineWorkTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DiscardTimer Stop the timer without recording it
+	//
+	// Corresponds with DELETE /timer (the `DiscardTimer` operationId).
+	DiscardTimer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadTimer The caller's running timer
+	//
+	// The same on every device; `running` false when none runs.
+	//
+	// Corresponds with GET /timer (the `ReadTimer` operationId).
+	ReadTimer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartTimerWithBody Start the caller's timer
+	//
+	// On an entry the caller may read, or on none. One runs per person (`timers.running`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /timer:start (the `StartTimer` operationId).
+	StartTimerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartTimer Start the caller's timer
+	//
+	// On an entry the caller may read, or on none. One runs per person (`timers.running`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /timer:start (the `StartTimer` operationId).
+	StartTimer(ctx context.Context, body StartTimerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StopTimerWithBody Stop the timer into a record
+	//
+	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /timer:stop (the `StopTimer` operationId).
+	StopTimerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StopTimer Stop the timer into a record
+	//
+	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /timer:stop (the `StopTimer` operationId).
+	StopTimer(ctx context.Context, body StopTimerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTimesheets Weeks to decide, or one's own
+	//
+	// At most 100, the oldest first: the caller's own weeks in any state with `mine`, else other people's weeks in a state - SUBMITTED without - that the caller may decide.
+	//
+	// Corresponds with GET /timesheets (the `ListTimesheets` operationId).
+	ListTimesheets(ctx context.Context, params *ListTimesheetsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadTimesheet A week from Monday
+	//
+	// Its state, records, each day's minutes and whether the day is locked. The caller's own, or another person's for whoever approves time at every place the week's entries lie in; where the workspace shows only sums, another person's week only while it is handed in.
+	//
+	// Corresponds with GET /timesheets/{week} (the `ReadTimesheet` operationId).
+	ReadTimesheet(ctx context.Context, week WeekOfTimesheet, params *ReadTimesheetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApproveTimesheetWithBody Approve another person's week
+	//
+	// Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace or at every hub or collection the week's entries lie in; nobody approves their own (`timesheets.own_week`). Its records never change again.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /timesheets/{week}:approve (the `ApproveTimesheet` operationId).
+	ApproveTimesheetWithBody(ctx context.Context, week WeekOfTimesheet, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApproveTimesheet Approve another person's week
+	//
+	// Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace or at every hub or collection the week's entries lie in; nobody approves their own (`timesheets.own_week`). Its records never change again.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /timesheets/{week}:approve (the `ApproveTimesheet` operationId).
+	ApproveTimesheet(ctx context.Context, week WeekOfTimesheet, body ApproveTimesheetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyTimesheetWeek Copy last week into this one
+	//
+	// The caller's records of the week before, each to the same weekday, leaving out corrections and locked days.
+	//
+	// Corresponds with POST /timesheets/{week}:copy-previous (the `CopyTimesheetWeek` operationId).
+	CopyTimesheetWeek(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RejectTimesheetWithBody Send another person's week back
+	//
+	// With a reason the person reads; they change it and hand it in again. Needs what approving needs.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /timesheets/{week}:reject (the `RejectTimesheet` operationId).
+	RejectTimesheetWithBody(ctx context.Context, week WeekOfTimesheet, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RejectTimesheet Send another person's week back
+	//
+	// With a reason the person reads; they change it and hand it in again. Needs what approving needs.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /timesheets/{week}:reject (the `RejectTimesheet` operationId).
+	RejectTimesheet(ctx context.Context, week WeekOfTimesheet, body RejectTimesheetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SubmitTimesheet Hand one's week in
+	//
+	// With its total; an empty week is refused (`timesheets.empty`). Its records then no longer change until it is sent back or taken back.
+	//
+	// Corresponds with POST /timesheets/{week}:submit (the `SubmitTimesheet` operationId).
+	SubmitTimesheet(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WithdrawTimesheet Take one's week back
+	//
+	// Before anybody decided; it is open again.
+	//
+	// Corresponds with POST /timesheets/{week}:withdraw (the `WithdrawTimesheet` operationId).
+	WithdrawTimesheet(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTrash What is in the trash
 	//
@@ -41756,6 +42658,23 @@ func (c *Client) SearchPages(ctx context.Context, body SearchPagesJSONRequestBod
 	return c.Client.Do(req)
 }
 
+// ReadEstimatesVsActuals Estimates against the time recorded
+//
+// Each entry of a hub or a collection the caller may read with its estimate in hours, everybody's minutes on it, both rolled up with the entries below it, the hours remaining and the variance. Needs READ at the plan; where the workspace shows only sums, APPROVE_TIME or MANAGE_MEMBERS there.
+//
+// Corresponds with GET /plans/{planId}/actuals (the `ReadEstimatesVsActuals` operationId).
+func (c *Client) ReadEstimatesVsActuals(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadEstimatesVsActualsRequest(c.Server, planId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListBaselines A plan's baselines
 //
 // The plan's baselines, the newest first. Needs READ at the plan.
@@ -44316,6 +45235,609 @@ func (c *Client) PreviewWorkspaceStructureWithBody(ctx context.Context, contentT
 // Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
 func (c *Client) PreviewWorkspaceStructure(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPreviewWorkspaceStructureRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadTimePolicy The workspace's time policy
+//
+// The last locked day, and whether other people's time is seen in FULL or only AGGREGATED.
+//
+// Corresponds with GET /time-policy (the `ReadTimePolicy` operationId).
+func (c *Client) ReadTimePolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadTimePolicyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetTimePolicyWithBody Lock a period and choose what a lead sees
+//
+// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /time-policy (the `SetTimePolicy` operationId).
+func (c *Client) SetTimePolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetTimePolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetTimePolicy Lock a period and choose what a lead sees
+//
+// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /time-policy (the `SetTimePolicy` operationId).
+func (c *Client) SetTimePolicy(ctx context.Context, body SetTimePolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetTimePolicyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListTimeRecords Time records of a range of days
+//
+// At most 2000, the earliest day first: the caller's own with `mine`, else also other people's where the caller approves time (APPROVE_TIME or MANAGE_MEMBERS at the workspace or at the hub or collection of the entry). Where the workspace shows only sums, other people's records are refused (`time.aggregated_only`). Needs the time module switched on.
+//
+// Corresponds with GET /time-records (the `ListTimeRecords` operationId).
+func (c *Client) ListTimeRecords(ctx context.Context, params *ListTimeRecordsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTimeRecordsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LogTimeWithBody Record time spent
+//
+// Minutes from 1 to 1440 on one day, or a start and an end, on an entry the caller may read or on none, of one of the workspace's kinds of work, billable or not (the kind's flag without), with a note. Refused in the workspace's locked period (`time.period_locked`) and in a week handed in or approved (`time.week_not_open`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /time-records (the `LogTime` operationId).
+func (c *Client) LogTimeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLogTimeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LogTime Record time spent
+//
+// Minutes from 1 to 1440 on one day, or a start and an end, on an entry the caller may read or on none, of one of the workspace's kinds of work, billable or not (the kind's flag without), with a note. Refused in the workspace's locked period (`time.period_locked`) and in a week handed in or approved (`time.week_not_open`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /time-records (the `LogTime` operationId).
+func (c *Client) LogTime(ctx context.Context, body LogTimeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLogTimeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteTimeRecord Remove a record of one's own
+//
+// While its day lies outside the locked period and in an open or a sent-back week. The version read goes as If-Match.
+//
+// Corresponds with DELETE /time-records/{recordId} (the `DeleteTimeRecord` operationId).
+func (c *Client) DeleteTimeRecord(ctx context.Context, recordId TimeRecordId, params *DeleteTimeRecordParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteTimeRecordRequest(c.Server, recordId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateTimeRecordWithBody Change a record of one's own
+//
+// Every field is written as given, while the old and the new day lie outside the locked period and in an open or a sent-back week. A correction keeps its minutes. The version read goes as If-Match or as `expected_version`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /time-records/{recordId} (the `UpdateTimeRecord` operationId).
+func (c *Client) UpdateTimeRecordWithBody(ctx context.Context, recordId TimeRecordId, params *UpdateTimeRecordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTimeRecordRequestWithBody(c.Server, recordId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateTimeRecord Change a record of one's own
+//
+// Every field is written as given, while the old and the new day lie outside the locked period and in an open or a sent-back week. A correction keeps its minutes. The version read goes as If-Match or as `expected_version`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /time-records/{recordId} (the `UpdateTimeRecord` operationId).
+func (c *Client) UpdateTimeRecord(ctx context.Context, recordId TimeRecordId, params *UpdateTimeRecordParams, body UpdateTimeRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTimeRecordRequest(c.Server, recordId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CorrectTimeRecordWithBody Correct an approved record
+//
+// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /time-records/{recordId}:correct (the `CorrectTimeRecord` operationId).
+func (c *Client) CorrectTimeRecordWithBody(ctx context.Context, recordId TimeRecordId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCorrectTimeRecordRequestWithBody(c.Server, recordId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CorrectTimeRecord Correct an approved record
+//
+// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /time-records/{recordId}:correct (the `CorrectTimeRecord` operationId).
+func (c *Client) CorrectTimeRecord(ctx context.Context, recordId TimeRecordId, body CorrectTimeRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCorrectTimeRecordRequest(c.Server, recordId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExportTimeRecordsWithBody Hand time records to accounting
+//
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /time-records:export (the `ExportTimeRecords` operationId).
+func (c *Client) ExportTimeRecordsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportTimeRecordsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExportTimeRecords Hand time records to accounting
+//
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /time-records:export (the `ExportTimeRecords` operationId).
+func (c *Client) ExportTimeRecords(ctx context.Context, body ExportTimeRecordsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportTimeRecordsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadTimeReportWithBody Sum time by up to two dimensions
+//
+// Minutes, billable minutes and records per group of PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE, DAY, WEEK (from Monday), MONTH or BILLABLE, with the titles of the entries the caller may read: the caller's own with `mine`, else also other people's where the caller approves time. Where the workspace shows only sums, a report over other people takes no PERSON and no other person's filter (`time.aggregated_only`) and withholds groups of fewer than three people.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /time-records:report (the `ReadTimeReport` operationId).
+func (c *Client) ReadTimeReportWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadTimeReportRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadTimeReport Sum time by up to two dimensions
+//
+// Minutes, billable minutes and records per group of PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE, DAY, WEEK (from Monday), MONTH or BILLABLE, with the titles of the entries the caller may read: the caller's own with `mine`, else also other people's where the caller approves time. Where the workspace shows only sums, a report over other people takes no PERSON and no other person's filter (`time.aggregated_only`) and withholds groups of fewer than three people.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /time-records:report (the `ReadTimeReport` operationId).
+func (c *Client) ReadTimeReport(ctx context.Context, body ReadTimeReportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadTimeReportRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListWorkTypes The workspace's kinds of work
+//
+// Archived ones included, in their order.
+//
+// Corresponds with GET /time-work-types (the `ListWorkTypes` operationId).
+func (c *Client) ListWorkTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkTypesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineWorkTypeWithBody Write a kind of work
+//
+// At most 100: its name, whether its time starts billable, its place in the order, and whether it is archived (kept on its records, offered no more). Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /time-work-types/{key} (the `DefineWorkType` operationId).
+func (c *Client) DefineWorkTypeWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineWorkTypeRequestWithBody(c.Server, key, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineWorkType Write a kind of work
+//
+// At most 100: its name, whether its time starts billable, its place in the order, and whether it is archived (kept on its records, offered no more). Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /time-work-types/{key} (the `DefineWorkType` operationId).
+func (c *Client) DefineWorkType(ctx context.Context, key string, body DefineWorkTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineWorkTypeRequest(c.Server, key, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DiscardTimer Stop the timer without recording it
+//
+// Corresponds with DELETE /timer (the `DiscardTimer` operationId).
+func (c *Client) DiscardTimer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDiscardTimerRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadTimer The caller's running timer
+//
+// The same on every device; `running` false when none runs.
+//
+// Corresponds with GET /timer (the `ReadTimer` operationId).
+func (c *Client) ReadTimer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadTimerRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartTimerWithBody Start the caller's timer
+//
+// On an entry the caller may read, or on none. One runs per person (`timers.running`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /timer:start (the `StartTimer` operationId).
+func (c *Client) StartTimerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartTimerRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartTimer Start the caller's timer
+//
+// On an entry the caller may read, or on none. One runs per person (`timers.running`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /timer:start (the `StartTimer` operationId).
+func (c *Client) StartTimer(ctx context.Context, body StartTimerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartTimerRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StopTimerWithBody Stop the timer into a record
+//
+// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /timer:stop (the `StopTimer` operationId).
+func (c *Client) StopTimerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStopTimerRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StopTimer Stop the timer into a record
+//
+// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /timer:stop (the `StopTimer` operationId).
+func (c *Client) StopTimer(ctx context.Context, body StopTimerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStopTimerRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListTimesheets Weeks to decide, or one's own
+//
+// At most 100, the oldest first: the caller's own weeks in any state with `mine`, else other people's weeks in a state - SUBMITTED without - that the caller may decide.
+//
+// Corresponds with GET /timesheets (the `ListTimesheets` operationId).
+func (c *Client) ListTimesheets(ctx context.Context, params *ListTimesheetsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTimesheetsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadTimesheet A week from Monday
+//
+// Its state, records, each day's minutes and whether the day is locked. The caller's own, or another person's for whoever approves time at every place the week's entries lie in; where the workspace shows only sums, another person's week only while it is handed in.
+//
+// Corresponds with GET /timesheets/{week} (the `ReadTimesheet` operationId).
+func (c *Client) ReadTimesheet(ctx context.Context, week WeekOfTimesheet, params *ReadTimesheetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadTimesheetRequest(c.Server, week, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ApproveTimesheetWithBody Approve another person's week
+//
+// Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace or at every hub or collection the week's entries lie in; nobody approves their own (`timesheets.own_week`). Its records never change again.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /timesheets/{week}:approve (the `ApproveTimesheet` operationId).
+func (c *Client) ApproveTimesheetWithBody(ctx context.Context, week WeekOfTimesheet, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApproveTimesheetRequestWithBody(c.Server, week, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ApproveTimesheet Approve another person's week
+//
+// Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace or at every hub or collection the week's entries lie in; nobody approves their own (`timesheets.own_week`). Its records never change again.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /timesheets/{week}:approve (the `ApproveTimesheet` operationId).
+func (c *Client) ApproveTimesheet(ctx context.Context, week WeekOfTimesheet, body ApproveTimesheetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApproveTimesheetRequest(c.Server, week, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyTimesheetWeek Copy last week into this one
+//
+// The caller's records of the week before, each to the same weekday, leaving out corrections and locked days.
+//
+// Corresponds with POST /timesheets/{week}:copy-previous (the `CopyTimesheetWeek` operationId).
+func (c *Client) CopyTimesheetWeek(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyTimesheetWeekRequest(c.Server, week)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RejectTimesheetWithBody Send another person's week back
+//
+// With a reason the person reads; they change it and hand it in again. Needs what approving needs.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /timesheets/{week}:reject (the `RejectTimesheet` operationId).
+func (c *Client) RejectTimesheetWithBody(ctx context.Context, week WeekOfTimesheet, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRejectTimesheetRequestWithBody(c.Server, week, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RejectTimesheet Send another person's week back
+//
+// With a reason the person reads; they change it and hand it in again. Needs what approving needs.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /timesheets/{week}:reject (the `RejectTimesheet` operationId).
+func (c *Client) RejectTimesheet(ctx context.Context, week WeekOfTimesheet, body RejectTimesheetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRejectTimesheetRequest(c.Server, week, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SubmitTimesheet Hand one's week in
+//
+// With its total; an empty week is refused (`timesheets.empty`). Its records then no longer change until it is sent back or taken back.
+//
+// Corresponds with POST /timesheets/{week}:submit (the `SubmitTimesheet` operationId).
+func (c *Client) SubmitTimesheet(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSubmitTimesheetRequest(c.Server, week)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WithdrawTimesheet Take one's week back
+//
+// Before anybody decided; it is open again.
+//
+// Corresponds with POST /timesheets/{week}:withdraw (the `WithdrawTimesheet` operationId).
+func (c *Client) WithdrawTimesheet(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWithdrawTimesheetRequest(c.Server, week)
 	if err != nil {
 		return nil, err
 	}
@@ -65857,6 +67379,40 @@ func NewSearchPagesRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewReadEstimatesVsActualsRequest constructs an http.Request for the ReadEstimatesVsActuals method
+func NewReadEstimatesVsActualsRequest(server string, planId PlanId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/actuals", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListBaselinesRequest constructs an http.Request for the ListBaselines method
 func NewListBaselinesRequest(server string, planId PlanId) (*http.Request, error) {
 	var err error
@@ -69836,6 +71392,1028 @@ func NewPreviewWorkspaceStructureRequestWithBody(server string, contentType stri
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadTimePolicyRequest constructs an http.Request for the ReadTimePolicy method
+func NewReadTimePolicyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetTimePolicyRequest calls the generic SetTimePolicy builder with application/json body
+func NewSetTimePolicyRequest(server string, body SetTimePolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetTimePolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetTimePolicyRequestWithBody constructs an http.Request for the SetTimePolicy method, with any body, and a specified content type
+func NewSetTimePolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListTimeRecordsRequest constructs an http.Request for the ListTimeRecords method
+func NewListTimeRecordsRequest(server string, params *ListTimeRecordsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-records")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "from", params.From, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "to", params.To, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.Mine != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "mine", *params.Mine, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.AccountId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "account_id", *params.AccountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.EntryId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "entry_id", *params.EntryId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.CollectionId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collection_id", *params.CollectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Billable != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "billable", *params.Billable, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewLogTimeRequest calls the generic LogTime builder with application/json body
+func NewLogTimeRequest(server string, body LogTimeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewLogTimeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewLogTimeRequestWithBody constructs an http.Request for the LogTime method, with any body, and a specified content type
+func NewLogTimeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-records")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteTimeRecordRequest constructs an http.Request for the DeleteTimeRecord method
+func NewDeleteTimeRecordRequest(server string, recordId TimeRecordId, params *DeleteTimeRecordParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "recordId", recordId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-records/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewUpdateTimeRecordRequest calls the generic UpdateTimeRecord builder with application/json body
+func NewUpdateTimeRecordRequest(server string, recordId TimeRecordId, params *UpdateTimeRecordParams, body UpdateTimeRecordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateTimeRecordRequestWithBody(server, recordId, params, "application/json", bodyReader)
+}
+
+// NewUpdateTimeRecordRequestWithBody constructs an http.Request for the UpdateTimeRecord method, with any body, and a specified content type
+func NewUpdateTimeRecordRequestWithBody(server string, recordId TimeRecordId, params *UpdateTimeRecordParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "recordId", recordId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-records/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCorrectTimeRecordRequest calls the generic CorrectTimeRecord builder with application/json body
+func NewCorrectTimeRecordRequest(server string, recordId TimeRecordId, body CorrectTimeRecordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCorrectTimeRecordRequestWithBody(server, recordId, "application/json", bodyReader)
+}
+
+// NewCorrectTimeRecordRequestWithBody constructs an http.Request for the CorrectTimeRecord method, with any body, and a specified content type
+func NewCorrectTimeRecordRequestWithBody(server string, recordId TimeRecordId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "recordId", recordId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-records/%s:correct", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewExportTimeRecordsRequest calls the generic ExportTimeRecords builder with application/json body
+func NewExportTimeRecordsRequest(server string, body ExportTimeRecordsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewExportTimeRecordsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewExportTimeRecordsRequestWithBody constructs an http.Request for the ExportTimeRecords method, with any body, and a specified content type
+func NewExportTimeRecordsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-records:export")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadTimeReportRequest calls the generic ReadTimeReport builder with application/json body
+func NewReadTimeReportRequest(server string, body ReadTimeReportJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReadTimeReportRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewReadTimeReportRequestWithBody constructs an http.Request for the ReadTimeReport method, with any body, and a specified content type
+func NewReadTimeReportRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-records:report")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListWorkTypesRequest constructs an http.Request for the ListWorkTypes method
+func NewListWorkTypesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-work-types")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineWorkTypeRequest calls the generic DefineWorkType builder with application/json body
+func NewDefineWorkTypeRequest(server string, key string, body DefineWorkTypeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineWorkTypeRequestWithBody(server, key, "application/json", bodyReader)
+}
+
+// NewDefineWorkTypeRequestWithBody constructs an http.Request for the DefineWorkType method, with any body, and a specified content type
+func NewDefineWorkTypeRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/time-work-types/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDiscardTimerRequest constructs an http.Request for the DiscardTimer method
+func NewDiscardTimerRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timer")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadTimerRequest constructs an http.Request for the ReadTimer method
+func NewReadTimerRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timer")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewStartTimerRequest calls the generic StartTimer builder with application/json body
+func NewStartTimerRequest(server string, body StartTimerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStartTimerRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewStartTimerRequestWithBody constructs an http.Request for the StartTimer method, with any body, and a specified content type
+func NewStartTimerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timer:start")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStopTimerRequest calls the generic StopTimer builder with application/json body
+func NewStopTimerRequest(server string, body StopTimerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStopTimerRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewStopTimerRequestWithBody constructs an http.Request for the StopTimer method, with any body, and a specified content type
+func NewStopTimerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timer:stop")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListTimesheetsRequest constructs an http.Request for the ListTimesheets method
+func NewListTimesheetsRequest(server string, params *ListTimesheetsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timesheets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "from", params.From, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "to", params.To, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "state", *params.State, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Mine != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "mine", *params.Mine, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadTimesheetRequest constructs an http.Request for the ReadTimesheet method
+func NewReadTimesheetRequest(server string, week WeekOfTimesheet, params *ReadTimesheetParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "week", week, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "date"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timesheets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.AccountId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "account_id", *params.AccountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewApproveTimesheetRequest calls the generic ApproveTimesheet builder with application/json body
+func NewApproveTimesheetRequest(server string, week WeekOfTimesheet, body ApproveTimesheetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewApproveTimesheetRequestWithBody(server, week, "application/json", bodyReader)
+}
+
+// NewApproveTimesheetRequestWithBody constructs an http.Request for the ApproveTimesheet method, with any body, and a specified content type
+func NewApproveTimesheetRequestWithBody(server string, week WeekOfTimesheet, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "week", week, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "date"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timesheets/%s:approve", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCopyTimesheetWeekRequest constructs an http.Request for the CopyTimesheetWeek method
+func NewCopyTimesheetWeekRequest(server string, week WeekOfTimesheet) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "week", week, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "date"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timesheets/%s:copy-previous", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRejectTimesheetRequest calls the generic RejectTimesheet builder with application/json body
+func NewRejectTimesheetRequest(server string, week WeekOfTimesheet, body RejectTimesheetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRejectTimesheetRequestWithBody(server, week, "application/json", bodyReader)
+}
+
+// NewRejectTimesheetRequestWithBody constructs an http.Request for the RejectTimesheet method, with any body, and a specified content type
+func NewRejectTimesheetRequestWithBody(server string, week WeekOfTimesheet, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "week", week, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "date"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timesheets/%s:reject", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSubmitTimesheetRequest constructs an http.Request for the SubmitTimesheet method
+func NewSubmitTimesheetRequest(server string, week WeekOfTimesheet) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "week", week, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "date"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timesheets/%s:submit", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewWithdrawTimesheetRequest constructs an http.Request for the WithdrawTimesheet method
+func NewWithdrawTimesheetRequest(server string, week WeekOfTimesheet) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "week", week, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "date"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/timesheets/%s:withdraw", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -77846,6 +80424,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /pages:search (the `SearchPages` operationId).
 	SearchPagesWithResponse(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchPagesResult, error)
 
+	// ReadEstimatesVsActualsWithResponse Estimates against the time recorded
+	//
+	// Each entry of a hub or a collection the caller may read with its estimate in hours, everybody's minutes on it, both rolled up with the entries below it, the hours remaining and the variance. Needs READ at the plan; where the workspace shows only sums, APPROVE_TIME or MANAGE_MEMBERS there.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /plans/{planId}/actuals (the `ReadEstimatesVsActuals` operationId).
+	ReadEstimatesVsActualsWithResponse(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*ReadEstimatesVsActualsResult, error)
+
 	// ListBaselinesWithResponse A plan's baselines
 	//
 	// The plan's baselines, the newest first. Needs READ at the plan.
@@ -79275,6 +81862,301 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
 	PreviewWorkspaceStructureWithResponse(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewWorkspaceStructureResult, error)
+
+	// ReadTimePolicyWithResponse The workspace's time policy
+	//
+	// The last locked day, and whether other people's time is seen in FULL or only AGGREGATED.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /time-policy (the `ReadTimePolicy` operationId).
+	ReadTimePolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadTimePolicyResult, error)
+
+	// SetTimePolicyWithBodyWithResponse Lock a period and choose what a lead sees
+	//
+	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /time-policy (the `SetTimePolicy` operationId).
+	SetTimePolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetTimePolicyResult, error)
+
+	// SetTimePolicyWithResponse Lock a period and choose what a lead sees
+	//
+	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /time-policy (the `SetTimePolicy` operationId).
+	SetTimePolicyWithResponse(ctx context.Context, body SetTimePolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetTimePolicyResult, error)
+
+	// ListTimeRecordsWithResponse Time records of a range of days
+	//
+	// At most 2000, the earliest day first: the caller's own with `mine`, else also other people's where the caller approves time (APPROVE_TIME or MANAGE_MEMBERS at the workspace or at the hub or collection of the entry). Where the workspace shows only sums, other people's records are refused (`time.aggregated_only`). Needs the time module switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /time-records (the `ListTimeRecords` operationId).
+	ListTimeRecordsWithResponse(ctx context.Context, params *ListTimeRecordsParams, reqEditors ...RequestEditorFn) (*ListTimeRecordsResult, error)
+
+	// LogTimeWithBodyWithResponse Record time spent
+	//
+	// Minutes from 1 to 1440 on one day, or a start and an end, on an entry the caller may read or on none, of one of the workspace's kinds of work, billable or not (the kind's flag without), with a note. Refused in the workspace's locked period (`time.period_locked`) and in a week handed in or approved (`time.week_not_open`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-records (the `LogTime` operationId).
+	LogTimeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LogTimeResult, error)
+
+	// LogTimeWithResponse Record time spent
+	//
+	// Minutes from 1 to 1440 on one day, or a start and an end, on an entry the caller may read or on none, of one of the workspace's kinds of work, billable or not (the kind's flag without), with a note. Refused in the workspace's locked period (`time.period_locked`) and in a week handed in or approved (`time.week_not_open`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-records (the `LogTime` operationId).
+	LogTimeWithResponse(ctx context.Context, body LogTimeJSONRequestBody, reqEditors ...RequestEditorFn) (*LogTimeResult, error)
+
+	// DeleteTimeRecordWithResponse Remove a record of one's own
+	//
+	// While its day lies outside the locked period and in an open or a sent-back week. The version read goes as If-Match.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /time-records/{recordId} (the `DeleteTimeRecord` operationId).
+	DeleteTimeRecordWithResponse(ctx context.Context, recordId TimeRecordId, params *DeleteTimeRecordParams, reqEditors ...RequestEditorFn) (*DeleteTimeRecordResult, error)
+
+	// UpdateTimeRecordWithBodyWithResponse Change a record of one's own
+	//
+	// Every field is written as given, while the old and the new day lie outside the locked period and in an open or a sent-back week. A correction keeps its minutes. The version read goes as If-Match or as `expected_version`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /time-records/{recordId} (the `UpdateTimeRecord` operationId).
+	UpdateTimeRecordWithBodyWithResponse(ctx context.Context, recordId TimeRecordId, params *UpdateTimeRecordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTimeRecordResult, error)
+
+	// UpdateTimeRecordWithResponse Change a record of one's own
+	//
+	// Every field is written as given, while the old and the new day lie outside the locked period and in an open or a sent-back week. A correction keeps its minutes. The version read goes as If-Match or as `expected_version`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /time-records/{recordId} (the `UpdateTimeRecord` operationId).
+	UpdateTimeRecordWithResponse(ctx context.Context, recordId TimeRecordId, params *UpdateTimeRecordParams, body UpdateTimeRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTimeRecordResult, error)
+
+	// CorrectTimeRecordWithBodyWithResponse Correct an approved record
+	//
+	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-records/{recordId}:correct (the `CorrectTimeRecord` operationId).
+	CorrectTimeRecordWithBodyWithResponse(ctx context.Context, recordId TimeRecordId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CorrectTimeRecordResult, error)
+
+	// CorrectTimeRecordWithResponse Correct an approved record
+	//
+	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-records/{recordId}:correct (the `CorrectTimeRecord` operationId).
+	CorrectTimeRecordWithResponse(ctx context.Context, recordId TimeRecordId, body CorrectTimeRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*CorrectTimeRecordResult, error)
+
+	// ExportTimeRecordsWithBodyWithResponse Hand time records to accounting
+	//
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-records:export (the `ExportTimeRecords` operationId).
+	ExportTimeRecordsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportTimeRecordsResult, error)
+
+	// ExportTimeRecordsWithResponse Hand time records to accounting
+	//
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-records:export (the `ExportTimeRecords` operationId).
+	ExportTimeRecordsWithResponse(ctx context.Context, body ExportTimeRecordsJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportTimeRecordsResult, error)
+
+	// ReadTimeReportWithBodyWithResponse Sum time by up to two dimensions
+	//
+	// Minutes, billable minutes and records per group of PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE, DAY, WEEK (from Monday), MONTH or BILLABLE, with the titles of the entries the caller may read: the caller's own with `mine`, else also other people's where the caller approves time. Where the workspace shows only sums, a report over other people takes no PERSON and no other person's filter (`time.aggregated_only`) and withholds groups of fewer than three people.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-records:report (the `ReadTimeReport` operationId).
+	ReadTimeReportWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReadTimeReportResult, error)
+
+	// ReadTimeReportWithResponse Sum time by up to two dimensions
+	//
+	// Minutes, billable minutes and records per group of PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE, DAY, WEEK (from Monday), MONTH or BILLABLE, with the titles of the entries the caller may read: the caller's own with `mine`, else also other people's where the caller approves time. Where the workspace shows only sums, a report over other people takes no PERSON and no other person's filter (`time.aggregated_only`) and withholds groups of fewer than three people.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /time-records:report (the `ReadTimeReport` operationId).
+	ReadTimeReportWithResponse(ctx context.Context, body ReadTimeReportJSONRequestBody, reqEditors ...RequestEditorFn) (*ReadTimeReportResult, error)
+
+	// ListWorkTypesWithResponse The workspace's kinds of work
+	//
+	// Archived ones included, in their order.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /time-work-types (the `ListWorkTypes` operationId).
+	ListWorkTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListWorkTypesResult, error)
+
+	// DefineWorkTypeWithBodyWithResponse Write a kind of work
+	//
+	// At most 100: its name, whether its time starts billable, its place in the order, and whether it is archived (kept on its records, offered no more). Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /time-work-types/{key} (the `DefineWorkType` operationId).
+	DefineWorkTypeWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineWorkTypeResult, error)
+
+	// DefineWorkTypeWithResponse Write a kind of work
+	//
+	// At most 100: its name, whether its time starts billable, its place in the order, and whether it is archived (kept on its records, offered no more). Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /time-work-types/{key} (the `DefineWorkType` operationId).
+	DefineWorkTypeWithResponse(ctx context.Context, key string, body DefineWorkTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineWorkTypeResult, error)
+
+	// DiscardTimerWithResponse Stop the timer without recording it
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /timer (the `DiscardTimer` operationId).
+	DiscardTimerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DiscardTimerResult, error)
+
+	// ReadTimerWithResponse The caller's running timer
+	//
+	// The same on every device; `running` false when none runs.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /timer (the `ReadTimer` operationId).
+	ReadTimerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadTimerResult, error)
+
+	// StartTimerWithBodyWithResponse Start the caller's timer
+	//
+	// On an entry the caller may read, or on none. One runs per person (`timers.running`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timer:start (the `StartTimer` operationId).
+	StartTimerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartTimerResult, error)
+
+	// StartTimerWithResponse Start the caller's timer
+	//
+	// On an entry the caller may read, or on none. One runs per person (`timers.running`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timer:start (the `StartTimer` operationId).
+	StartTimerWithResponse(ctx context.Context, body StartTimerJSONRequestBody, reqEditors ...RequestEditorFn) (*StartTimerResult, error)
+
+	// StopTimerWithBodyWithResponse Stop the timer into a record
+	//
+	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timer:stop (the `StopTimer` operationId).
+	StopTimerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StopTimerResult, error)
+
+	// StopTimerWithResponse Stop the timer into a record
+	//
+	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timer:stop (the `StopTimer` operationId).
+	StopTimerWithResponse(ctx context.Context, body StopTimerJSONRequestBody, reqEditors ...RequestEditorFn) (*StopTimerResult, error)
+
+	// ListTimesheetsWithResponse Weeks to decide, or one's own
+	//
+	// At most 100, the oldest first: the caller's own weeks in any state with `mine`, else other people's weeks in a state - SUBMITTED without - that the caller may decide.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /timesheets (the `ListTimesheets` operationId).
+	ListTimesheetsWithResponse(ctx context.Context, params *ListTimesheetsParams, reqEditors ...RequestEditorFn) (*ListTimesheetsResult, error)
+
+	// ReadTimesheetWithResponse A week from Monday
+	//
+	// Its state, records, each day's minutes and whether the day is locked. The caller's own, or another person's for whoever approves time at every place the week's entries lie in; where the workspace shows only sums, another person's week only while it is handed in.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /timesheets/{week} (the `ReadTimesheet` operationId).
+	ReadTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, params *ReadTimesheetParams, reqEditors ...RequestEditorFn) (*ReadTimesheetResult, error)
+
+	// ApproveTimesheetWithBodyWithResponse Approve another person's week
+	//
+	// Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace or at every hub or collection the week's entries lie in; nobody approves their own (`timesheets.own_week`). Its records never change again.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timesheets/{week}:approve (the `ApproveTimesheet` operationId).
+	ApproveTimesheetWithBodyWithResponse(ctx context.Context, week WeekOfTimesheet, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApproveTimesheetResult, error)
+
+	// ApproveTimesheetWithResponse Approve another person's week
+	//
+	// Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace or at every hub or collection the week's entries lie in; nobody approves their own (`timesheets.own_week`). Its records never change again.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timesheets/{week}:approve (the `ApproveTimesheet` operationId).
+	ApproveTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, body ApproveTimesheetJSONRequestBody, reqEditors ...RequestEditorFn) (*ApproveTimesheetResult, error)
+
+	// CopyTimesheetWeekWithResponse Copy last week into this one
+	//
+	// The caller's records of the week before, each to the same weekday, leaving out corrections and locked days.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timesheets/{week}:copy-previous (the `CopyTimesheetWeek` operationId).
+	CopyTimesheetWeekWithResponse(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*CopyTimesheetWeekResult, error)
+
+	// RejectTimesheetWithBodyWithResponse Send another person's week back
+	//
+	// With a reason the person reads; they change it and hand it in again. Needs what approving needs.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timesheets/{week}:reject (the `RejectTimesheet` operationId).
+	RejectTimesheetWithBodyWithResponse(ctx context.Context, week WeekOfTimesheet, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RejectTimesheetResult, error)
+
+	// RejectTimesheetWithResponse Send another person's week back
+	//
+	// With a reason the person reads; they change it and hand it in again. Needs what approving needs.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timesheets/{week}:reject (the `RejectTimesheet` operationId).
+	RejectTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, body RejectTimesheetJSONRequestBody, reqEditors ...RequestEditorFn) (*RejectTimesheetResult, error)
+
+	// SubmitTimesheetWithResponse Hand one's week in
+	//
+	// With its total; an empty week is refused (`timesheets.empty`). Its records then no longer change until it is sent back or taken back.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timesheets/{week}:submit (the `SubmitTimesheet` operationId).
+	SubmitTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*SubmitTimesheetResult, error)
+
+	// WithdrawTimesheetWithResponse Take one's week back
+	//
+	// Before anybody decided; it is open again.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /timesheets/{week}:withdraw (the `WithdrawTimesheet` operationId).
+	WithdrawTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*WithdrawTimesheetResult, error)
 
 	// ListTrashWithResponse What is in the trash
 	//
@@ -100858,6 +103740,54 @@ func (r SearchPagesResult) ContentType() string {
 	return ""
 }
 
+type ReadEstimatesVsActualsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EstimatesVsActuals
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadEstimatesVsActualsResult) GetJSON200() *EstimatesVsActuals {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadEstimatesVsActualsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadEstimatesVsActualsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadEstimatesVsActualsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadEstimatesVsActualsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadEstimatesVsActualsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListBaselinesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -104970,6 +107900,1054 @@ func (r PreviewWorkspaceStructureResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r PreviewWorkspaceStructureResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadTimePolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TimePolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadTimePolicyResult) GetJSON200() *TimePolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadTimePolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadTimePolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadTimePolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadTimePolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadTimePolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetTimePolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TimePolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetTimePolicyResult) GetJSON200() *TimePolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetTimePolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetTimePolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetTimePolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetTimePolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetTimePolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListTimeRecordsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TimeRecordList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListTimeRecordsResult) GetJSON200() *TimeRecordList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListTimeRecordsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListTimeRecordsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTimeRecordsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTimeRecordsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListTimeRecordsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LogTimeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *TimeRecord
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r LogTimeResult) GetJSON201() *TimeRecord {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r LogTimeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r LogTimeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LogTimeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LogTimeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LogTimeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteTimeRecordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteTimeRecordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteTimeRecordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteTimeRecordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteTimeRecordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteTimeRecordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateTimeRecordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TimeRecord
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateTimeRecordResult) GetJSON200() *TimeRecord {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateTimeRecordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateTimeRecordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateTimeRecordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateTimeRecordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateTimeRecordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CorrectTimeRecordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *TimeRecord
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CorrectTimeRecordResult) GetJSON201() *TimeRecord {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CorrectTimeRecordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CorrectTimeRecordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CorrectTimeRecordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CorrectTimeRecordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CorrectTimeRecordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ExportTimeRecordsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TimeExport
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ExportTimeRecordsResult) GetJSON200() *TimeExport {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ExportTimeRecordsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ExportTimeRecordsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportTimeRecordsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportTimeRecordsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExportTimeRecordsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadTimeReportResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TimeReport
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadTimeReportResult) GetJSON200() *TimeReport {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadTimeReportResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadTimeReportResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadTimeReportResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadTimeReportResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadTimeReportResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListWorkTypesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkTypeList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListWorkTypesResult) GetJSON200() *WorkTypeList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListWorkTypesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListWorkTypesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWorkTypesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWorkTypesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListWorkTypesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineWorkTypeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkType
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineWorkTypeResult) GetJSON200() *WorkType {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineWorkTypeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineWorkTypeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineWorkTypeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineWorkTypeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineWorkTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DiscardTimerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DiscardTimerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DiscardTimerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DiscardTimerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DiscardTimerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DiscardTimerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadTimerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TimeTimer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadTimerResult) GetJSON200() *TimeTimer {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadTimerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadTimerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadTimerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadTimerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadTimerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartTimerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *TimeTimer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r StartTimerResult) GetJSON201() *TimeTimer {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartTimerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartTimerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartTimerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartTimerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartTimerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StopTimerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *TimeRecord
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r StopTimerResult) GetJSON201() *TimeRecord {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StopTimerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StopTimerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StopTimerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StopTimerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StopTimerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListTimesheetsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TimesheetList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListTimesheetsResult) GetJSON200() *TimesheetList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListTimesheetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListTimesheetsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTimesheetsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTimesheetsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListTimesheetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadTimesheetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TimesheetWeek
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadTimesheetResult) GetJSON200() *TimesheetWeek {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadTimesheetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadTimesheetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadTimesheetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadTimesheetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadTimesheetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ApproveTimesheetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Timesheet
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ApproveTimesheetResult) GetJSON200() *Timesheet {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ApproveTimesheetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ApproveTimesheetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ApproveTimesheetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ApproveTimesheetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ApproveTimesheetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CopyTimesheetWeekResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Copied    int                `json:"copied"`
+		WeekStart openapi_types.Date `json:"week_start"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CopyTimesheetWeekResult) GetJSON200() *struct {
+	Copied    int                `json:"copied"`
+	WeekStart openapi_types.Date `json:"week_start"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CopyTimesheetWeekResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CopyTimesheetWeekResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CopyTimesheetWeekResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CopyTimesheetWeekResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CopyTimesheetWeekResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RejectTimesheetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Timesheet
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RejectTimesheetResult) GetJSON200() *Timesheet {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RejectTimesheetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RejectTimesheetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RejectTimesheetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RejectTimesheetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RejectTimesheetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SubmitTimesheetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Timesheet
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SubmitTimesheetResult) GetJSON200() *Timesheet {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SubmitTimesheetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SubmitTimesheetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SubmitTimesheetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SubmitTimesheetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SubmitTimesheetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type WithdrawTimesheetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Timesheet
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r WithdrawTimesheetResult) GetJSON200() *Timesheet {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r WithdrawTimesheetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r WithdrawTimesheetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WithdrawTimesheetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WithdrawTimesheetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WithdrawTimesheetResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -116816,6 +120794,21 @@ func (c *ClientWithResponses) SearchPagesWithResponse(ctx context.Context, body 
 	return ParseSearchPagesResult(rsp)
 }
 
+// ReadEstimatesVsActualsWithResponse Estimates against the time recorded
+//
+// Each entry of a hub or a collection the caller may read with its estimate in hours, everybody's minutes on it, both rolled up with the entries below it, the hours remaining and the variance. Needs READ at the plan; where the workspace shows only sums, APPROVE_TIME or MANAGE_MEMBERS there.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /plans/{planId}/actuals (the `ReadEstimatesVsActuals` operationId).
+func (c *ClientWithResponses) ReadEstimatesVsActualsWithResponse(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*ReadEstimatesVsActualsResult, error) {
+	rsp, err := c.ReadEstimatesVsActuals(ctx, planId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadEstimatesVsActualsResult(rsp)
+}
+
 // ListBaselinesWithResponse A plan's baselines
 //
 // The plan's baselines, the newest first. Needs READ at the plan.
@@ -118988,6 +122981,499 @@ func (c *ClientWithResponses) PreviewWorkspaceStructureWithResponse(ctx context.
 		return nil, err
 	}
 	return ParsePreviewWorkspaceStructureResult(rsp)
+}
+
+// ReadTimePolicyWithResponse The workspace's time policy
+//
+// The last locked day, and whether other people's time is seen in FULL or only AGGREGATED.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /time-policy (the `ReadTimePolicy` operationId).
+func (c *ClientWithResponses) ReadTimePolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadTimePolicyResult, error) {
+	rsp, err := c.ReadTimePolicy(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadTimePolicyResult(rsp)
+}
+
+// SetTimePolicyWithBodyWithResponse Lock a period and choose what a lead sees
+//
+// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /time-policy (the `SetTimePolicy` operationId).
+func (c *ClientWithResponses) SetTimePolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetTimePolicyResult, error) {
+	rsp, err := c.SetTimePolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetTimePolicyResult(rsp)
+}
+
+// SetTimePolicyWithResponse Lock a period and choose what a lead sees
+//
+// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /time-policy (the `SetTimePolicy` operationId).
+func (c *ClientWithResponses) SetTimePolicyWithResponse(ctx context.Context, body SetTimePolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetTimePolicyResult, error) {
+	rsp, err := c.SetTimePolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetTimePolicyResult(rsp)
+}
+
+// ListTimeRecordsWithResponse Time records of a range of days
+//
+// At most 2000, the earliest day first: the caller's own with `mine`, else also other people's where the caller approves time (APPROVE_TIME or MANAGE_MEMBERS at the workspace or at the hub or collection of the entry). Where the workspace shows only sums, other people's records are refused (`time.aggregated_only`). Needs the time module switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /time-records (the `ListTimeRecords` operationId).
+func (c *ClientWithResponses) ListTimeRecordsWithResponse(ctx context.Context, params *ListTimeRecordsParams, reqEditors ...RequestEditorFn) (*ListTimeRecordsResult, error) {
+	rsp, err := c.ListTimeRecords(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTimeRecordsResult(rsp)
+}
+
+// LogTimeWithBodyWithResponse Record time spent
+//
+// Minutes from 1 to 1440 on one day, or a start and an end, on an entry the caller may read or on none, of one of the workspace's kinds of work, billable or not (the kind's flag without), with a note. Refused in the workspace's locked period (`time.period_locked`) and in a week handed in or approved (`time.week_not_open`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-records (the `LogTime` operationId).
+func (c *ClientWithResponses) LogTimeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LogTimeResult, error) {
+	rsp, err := c.LogTimeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLogTimeResult(rsp)
+}
+
+// LogTimeWithResponse Record time spent
+//
+// Minutes from 1 to 1440 on one day, or a start and an end, on an entry the caller may read or on none, of one of the workspace's kinds of work, billable or not (the kind's flag without), with a note. Refused in the workspace's locked period (`time.period_locked`) and in a week handed in or approved (`time.week_not_open`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-records (the `LogTime` operationId).
+func (c *ClientWithResponses) LogTimeWithResponse(ctx context.Context, body LogTimeJSONRequestBody, reqEditors ...RequestEditorFn) (*LogTimeResult, error) {
+	rsp, err := c.LogTime(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLogTimeResult(rsp)
+}
+
+// DeleteTimeRecordWithResponse Remove a record of one's own
+//
+// While its day lies outside the locked period and in an open or a sent-back week. The version read goes as If-Match.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /time-records/{recordId} (the `DeleteTimeRecord` operationId).
+func (c *ClientWithResponses) DeleteTimeRecordWithResponse(ctx context.Context, recordId TimeRecordId, params *DeleteTimeRecordParams, reqEditors ...RequestEditorFn) (*DeleteTimeRecordResult, error) {
+	rsp, err := c.DeleteTimeRecord(ctx, recordId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteTimeRecordResult(rsp)
+}
+
+// UpdateTimeRecordWithBodyWithResponse Change a record of one's own
+//
+// Every field is written as given, while the old and the new day lie outside the locked period and in an open or a sent-back week. A correction keeps its minutes. The version read goes as If-Match or as `expected_version`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /time-records/{recordId} (the `UpdateTimeRecord` operationId).
+func (c *ClientWithResponses) UpdateTimeRecordWithBodyWithResponse(ctx context.Context, recordId TimeRecordId, params *UpdateTimeRecordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTimeRecordResult, error) {
+	rsp, err := c.UpdateTimeRecordWithBody(ctx, recordId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTimeRecordResult(rsp)
+}
+
+// UpdateTimeRecordWithResponse Change a record of one's own
+//
+// Every field is written as given, while the old and the new day lie outside the locked period and in an open or a sent-back week. A correction keeps its minutes. The version read goes as If-Match or as `expected_version`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /time-records/{recordId} (the `UpdateTimeRecord` operationId).
+func (c *ClientWithResponses) UpdateTimeRecordWithResponse(ctx context.Context, recordId TimeRecordId, params *UpdateTimeRecordParams, body UpdateTimeRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTimeRecordResult, error) {
+	rsp, err := c.UpdateTimeRecord(ctx, recordId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTimeRecordResult(rsp)
+}
+
+// CorrectTimeRecordWithBodyWithResponse Correct an approved record
+//
+// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-records/{recordId}:correct (the `CorrectTimeRecord` operationId).
+func (c *ClientWithResponses) CorrectTimeRecordWithBodyWithResponse(ctx context.Context, recordId TimeRecordId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CorrectTimeRecordResult, error) {
+	rsp, err := c.CorrectTimeRecordWithBody(ctx, recordId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCorrectTimeRecordResult(rsp)
+}
+
+// CorrectTimeRecordWithResponse Correct an approved record
+//
+// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-records/{recordId}:correct (the `CorrectTimeRecord` operationId).
+func (c *ClientWithResponses) CorrectTimeRecordWithResponse(ctx context.Context, recordId TimeRecordId, body CorrectTimeRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*CorrectTimeRecordResult, error) {
+	rsp, err := c.CorrectTimeRecord(ctx, recordId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCorrectTimeRecordResult(rsp)
+}
+
+// ExportTimeRecordsWithBodyWithResponse Hand time records to accounting
+//
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-records:export (the `ExportTimeRecords` operationId).
+func (c *ClientWithResponses) ExportTimeRecordsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportTimeRecordsResult, error) {
+	rsp, err := c.ExportTimeRecordsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportTimeRecordsResult(rsp)
+}
+
+// ExportTimeRecordsWithResponse Hand time records to accounting
+//
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-records:export (the `ExportTimeRecords` operationId).
+func (c *ClientWithResponses) ExportTimeRecordsWithResponse(ctx context.Context, body ExportTimeRecordsJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportTimeRecordsResult, error) {
+	rsp, err := c.ExportTimeRecords(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportTimeRecordsResult(rsp)
+}
+
+// ReadTimeReportWithBodyWithResponse Sum time by up to two dimensions
+//
+// Minutes, billable minutes and records per group of PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE, DAY, WEEK (from Monday), MONTH or BILLABLE, with the titles of the entries the caller may read: the caller's own with `mine`, else also other people's where the caller approves time. Where the workspace shows only sums, a report over other people takes no PERSON and no other person's filter (`time.aggregated_only`) and withholds groups of fewer than three people.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-records:report (the `ReadTimeReport` operationId).
+func (c *ClientWithResponses) ReadTimeReportWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReadTimeReportResult, error) {
+	rsp, err := c.ReadTimeReportWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadTimeReportResult(rsp)
+}
+
+// ReadTimeReportWithResponse Sum time by up to two dimensions
+//
+// Minutes, billable minutes and records per group of PERSON, ENTRY, COLLECTION, HUB, WORK_TYPE, DAY, WEEK (from Monday), MONTH or BILLABLE, with the titles of the entries the caller may read: the caller's own with `mine`, else also other people's where the caller approves time. Where the workspace shows only sums, a report over other people takes no PERSON and no other person's filter (`time.aggregated_only`) and withholds groups of fewer than three people.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /time-records:report (the `ReadTimeReport` operationId).
+func (c *ClientWithResponses) ReadTimeReportWithResponse(ctx context.Context, body ReadTimeReportJSONRequestBody, reqEditors ...RequestEditorFn) (*ReadTimeReportResult, error) {
+	rsp, err := c.ReadTimeReport(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadTimeReportResult(rsp)
+}
+
+// ListWorkTypesWithResponse The workspace's kinds of work
+//
+// Archived ones included, in their order.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /time-work-types (the `ListWorkTypes` operationId).
+func (c *ClientWithResponses) ListWorkTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListWorkTypesResult, error) {
+	rsp, err := c.ListWorkTypes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWorkTypesResult(rsp)
+}
+
+// DefineWorkTypeWithBodyWithResponse Write a kind of work
+//
+// At most 100: its name, whether its time starts billable, its place in the order, and whether it is archived (kept on its records, offered no more). Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /time-work-types/{key} (the `DefineWorkType` operationId).
+func (c *ClientWithResponses) DefineWorkTypeWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineWorkTypeResult, error) {
+	rsp, err := c.DefineWorkTypeWithBody(ctx, key, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineWorkTypeResult(rsp)
+}
+
+// DefineWorkTypeWithResponse Write a kind of work
+//
+// At most 100: its name, whether its time starts billable, its place in the order, and whether it is archived (kept on its records, offered no more). Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /time-work-types/{key} (the `DefineWorkType` operationId).
+func (c *ClientWithResponses) DefineWorkTypeWithResponse(ctx context.Context, key string, body DefineWorkTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineWorkTypeResult, error) {
+	rsp, err := c.DefineWorkType(ctx, key, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineWorkTypeResult(rsp)
+}
+
+// DiscardTimerWithResponse Stop the timer without recording it
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /timer (the `DiscardTimer` operationId).
+func (c *ClientWithResponses) DiscardTimerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DiscardTimerResult, error) {
+	rsp, err := c.DiscardTimer(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDiscardTimerResult(rsp)
+}
+
+// ReadTimerWithResponse The caller's running timer
+//
+// The same on every device; `running` false when none runs.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /timer (the `ReadTimer` operationId).
+func (c *ClientWithResponses) ReadTimerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadTimerResult, error) {
+	rsp, err := c.ReadTimer(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadTimerResult(rsp)
+}
+
+// StartTimerWithBodyWithResponse Start the caller's timer
+//
+// On an entry the caller may read, or on none. One runs per person (`timers.running`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timer:start (the `StartTimer` operationId).
+func (c *ClientWithResponses) StartTimerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartTimerResult, error) {
+	rsp, err := c.StartTimerWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartTimerResult(rsp)
+}
+
+// StartTimerWithResponse Start the caller's timer
+//
+// On an entry the caller may read, or on none. One runs per person (`timers.running`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timer:start (the `StartTimer` operationId).
+func (c *ClientWithResponses) StartTimerWithResponse(ctx context.Context, body StartTimerJSONRequestBody, reqEditors ...RequestEditorFn) (*StartTimerResult, error) {
+	rsp, err := c.StartTimer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartTimerResult(rsp)
+}
+
+// StopTimerWithBodyWithResponse Stop the timer into a record
+//
+// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timer:stop (the `StopTimer` operationId).
+func (c *ClientWithResponses) StopTimerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StopTimerResult, error) {
+	rsp, err := c.StopTimerWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStopTimerResult(rsp)
+}
+
+// StopTimerWithResponse Stop the timer into a record
+//
+// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timer:stop (the `StopTimer` operationId).
+func (c *ClientWithResponses) StopTimerWithResponse(ctx context.Context, body StopTimerJSONRequestBody, reqEditors ...RequestEditorFn) (*StopTimerResult, error) {
+	rsp, err := c.StopTimer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStopTimerResult(rsp)
+}
+
+// ListTimesheetsWithResponse Weeks to decide, or one's own
+//
+// At most 100, the oldest first: the caller's own weeks in any state with `mine`, else other people's weeks in a state - SUBMITTED without - that the caller may decide.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /timesheets (the `ListTimesheets` operationId).
+func (c *ClientWithResponses) ListTimesheetsWithResponse(ctx context.Context, params *ListTimesheetsParams, reqEditors ...RequestEditorFn) (*ListTimesheetsResult, error) {
+	rsp, err := c.ListTimesheets(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTimesheetsResult(rsp)
+}
+
+// ReadTimesheetWithResponse A week from Monday
+//
+// Its state, records, each day's minutes and whether the day is locked. The caller's own, or another person's for whoever approves time at every place the week's entries lie in; where the workspace shows only sums, another person's week only while it is handed in.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /timesheets/{week} (the `ReadTimesheet` operationId).
+func (c *ClientWithResponses) ReadTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, params *ReadTimesheetParams, reqEditors ...RequestEditorFn) (*ReadTimesheetResult, error) {
+	rsp, err := c.ReadTimesheet(ctx, week, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadTimesheetResult(rsp)
+}
+
+// ApproveTimesheetWithBodyWithResponse Approve another person's week
+//
+// Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace or at every hub or collection the week's entries lie in; nobody approves their own (`timesheets.own_week`). Its records never change again.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timesheets/{week}:approve (the `ApproveTimesheet` operationId).
+func (c *ClientWithResponses) ApproveTimesheetWithBodyWithResponse(ctx context.Context, week WeekOfTimesheet, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApproveTimesheetResult, error) {
+	rsp, err := c.ApproveTimesheetWithBody(ctx, week, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApproveTimesheetResult(rsp)
+}
+
+// ApproveTimesheetWithResponse Approve another person's week
+//
+// Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace or at every hub or collection the week's entries lie in; nobody approves their own (`timesheets.own_week`). Its records never change again.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timesheets/{week}:approve (the `ApproveTimesheet` operationId).
+func (c *ClientWithResponses) ApproveTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, body ApproveTimesheetJSONRequestBody, reqEditors ...RequestEditorFn) (*ApproveTimesheetResult, error) {
+	rsp, err := c.ApproveTimesheet(ctx, week, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApproveTimesheetResult(rsp)
+}
+
+// CopyTimesheetWeekWithResponse Copy last week into this one
+//
+// The caller's records of the week before, each to the same weekday, leaving out corrections and locked days.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timesheets/{week}:copy-previous (the `CopyTimesheetWeek` operationId).
+func (c *ClientWithResponses) CopyTimesheetWeekWithResponse(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*CopyTimesheetWeekResult, error) {
+	rsp, err := c.CopyTimesheetWeek(ctx, week, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyTimesheetWeekResult(rsp)
+}
+
+// RejectTimesheetWithBodyWithResponse Send another person's week back
+//
+// With a reason the person reads; they change it and hand it in again. Needs what approving needs.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timesheets/{week}:reject (the `RejectTimesheet` operationId).
+func (c *ClientWithResponses) RejectTimesheetWithBodyWithResponse(ctx context.Context, week WeekOfTimesheet, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RejectTimesheetResult, error) {
+	rsp, err := c.RejectTimesheetWithBody(ctx, week, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRejectTimesheetResult(rsp)
+}
+
+// RejectTimesheetWithResponse Send another person's week back
+//
+// With a reason the person reads; they change it and hand it in again. Needs what approving needs.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timesheets/{week}:reject (the `RejectTimesheet` operationId).
+func (c *ClientWithResponses) RejectTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, body RejectTimesheetJSONRequestBody, reqEditors ...RequestEditorFn) (*RejectTimesheetResult, error) {
+	rsp, err := c.RejectTimesheet(ctx, week, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRejectTimesheetResult(rsp)
+}
+
+// SubmitTimesheetWithResponse Hand one's week in
+//
+// With its total; an empty week is refused (`timesheets.empty`). Its records then no longer change until it is sent back or taken back.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timesheets/{week}:submit (the `SubmitTimesheet` operationId).
+func (c *ClientWithResponses) SubmitTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*SubmitTimesheetResult, error) {
+	rsp, err := c.SubmitTimesheet(ctx, week, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSubmitTimesheetResult(rsp)
+}
+
+// WithdrawTimesheetWithResponse Take one's week back
+//
+// Before anybody decided; it is open again.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /timesheets/{week}:withdraw (the `WithdrawTimesheet` operationId).
+func (c *ClientWithResponses) WithdrawTimesheetWithResponse(ctx context.Context, week WeekOfTimesheet, reqEditors ...RequestEditorFn) (*WithdrawTimesheetResult, error) {
+	rsp, err := c.WithdrawTimesheet(ctx, week, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWithdrawTimesheetResult(rsp)
 }
 
 // ListTrashWithResponse What is in the trash
@@ -134867,6 +139353,39 @@ func ParseSearchPagesResult(rsp *http.Response) (*SearchPagesResult, error) {
 	return response, nil
 }
 
+// ParseReadEstimatesVsActualsResult parses an HTTP response from a ReadEstimatesVsActualsWithResponse call
+func ParseReadEstimatesVsActualsResult(rsp *http.Response) (*ReadEstimatesVsActualsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadEstimatesVsActualsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EstimatesVsActuals
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListBaselinesResult parses an HTTP response from a ListBaselinesWithResponse call
 func ParseListBaselinesResult(rsp *http.Response) (*ListBaselinesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -137755,6 +142274,727 @@ func ParsePreviewWorkspaceStructureResult(rsp *http.Response) (*PreviewWorkspace
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest StructurePreview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadTimePolicyResult parses an HTTP response from a ReadTimePolicyWithResponse call
+func ParseReadTimePolicyResult(rsp *http.Response) (*ReadTimePolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadTimePolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TimePolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetTimePolicyResult parses an HTTP response from a SetTimePolicyWithResponse call
+func ParseSetTimePolicyResult(rsp *http.Response) (*SetTimePolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetTimePolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TimePolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListTimeRecordsResult parses an HTTP response from a ListTimeRecordsWithResponse call
+func ParseListTimeRecordsResult(rsp *http.Response) (*ListTimeRecordsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTimeRecordsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TimeRecordList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLogTimeResult parses an HTTP response from a LogTimeWithResponse call
+func ParseLogTimeResult(rsp *http.Response) (*LogTimeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LogTimeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest TimeRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteTimeRecordResult parses an HTTP response from a DeleteTimeRecordWithResponse call
+func ParseDeleteTimeRecordResult(rsp *http.Response) (*DeleteTimeRecordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteTimeRecordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateTimeRecordResult parses an HTTP response from a UpdateTimeRecordWithResponse call
+func ParseUpdateTimeRecordResult(rsp *http.Response) (*UpdateTimeRecordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateTimeRecordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TimeRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCorrectTimeRecordResult parses an HTTP response from a CorrectTimeRecordWithResponse call
+func ParseCorrectTimeRecordResult(rsp *http.Response) (*CorrectTimeRecordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CorrectTimeRecordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest TimeRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExportTimeRecordsResult parses an HTTP response from a ExportTimeRecordsWithResponse call
+func ParseExportTimeRecordsResult(rsp *http.Response) (*ExportTimeRecordsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportTimeRecordsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TimeExport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadTimeReportResult parses an HTTP response from a ReadTimeReportWithResponse call
+func ParseReadTimeReportResult(rsp *http.Response) (*ReadTimeReportResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadTimeReportResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TimeReport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWorkTypesResult parses an HTTP response from a ListWorkTypesWithResponse call
+func ParseListWorkTypesResult(rsp *http.Response) (*ListWorkTypesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWorkTypesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkTypeList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineWorkTypeResult parses an HTTP response from a DefineWorkTypeWithResponse call
+func ParseDefineWorkTypeResult(rsp *http.Response) (*DefineWorkTypeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineWorkTypeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkType
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDiscardTimerResult parses an HTTP response from a DiscardTimerWithResponse call
+func ParseDiscardTimerResult(rsp *http.Response) (*DiscardTimerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DiscardTimerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadTimerResult parses an HTTP response from a ReadTimerWithResponse call
+func ParseReadTimerResult(rsp *http.Response) (*ReadTimerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadTimerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TimeTimer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartTimerResult parses an HTTP response from a StartTimerWithResponse call
+func ParseStartTimerResult(rsp *http.Response) (*StartTimerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartTimerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest TimeTimer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStopTimerResult parses an HTTP response from a StopTimerWithResponse call
+func ParseStopTimerResult(rsp *http.Response) (*StopTimerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StopTimerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest TimeRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListTimesheetsResult parses an HTTP response from a ListTimesheetsWithResponse call
+func ParseListTimesheetsResult(rsp *http.Response) (*ListTimesheetsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTimesheetsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TimesheetList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadTimesheetResult parses an HTTP response from a ReadTimesheetWithResponse call
+func ParseReadTimesheetResult(rsp *http.Response) (*ReadTimesheetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadTimesheetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TimesheetWeek
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseApproveTimesheetResult parses an HTTP response from a ApproveTimesheetWithResponse call
+func ParseApproveTimesheetResult(rsp *http.Response) (*ApproveTimesheetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ApproveTimesheetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Timesheet
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCopyTimesheetWeekResult parses an HTTP response from a CopyTimesheetWeekWithResponse call
+func ParseCopyTimesheetWeekResult(rsp *http.Response) (*CopyTimesheetWeekResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CopyTimesheetWeekResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Copied    int                `json:"copied"`
+			WeekStart openapi_types.Date `json:"week_start"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRejectTimesheetResult parses an HTTP response from a RejectTimesheetWithResponse call
+func ParseRejectTimesheetResult(rsp *http.Response) (*RejectTimesheetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RejectTimesheetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Timesheet
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSubmitTimesheetResult parses an HTTP response from a SubmitTimesheetWithResponse call
+func ParseSubmitTimesheetResult(rsp *http.Response) (*SubmitTimesheetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SubmitTimesheetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Timesheet
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseWithdrawTimesheetResult parses an HTTP response from a WithdrawTimesheetWithResponse call
+func ParseWithdrawTimesheetResult(rsp *http.Response) (*WithdrawTimesheetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WithdrawTimesheetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Timesheet
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

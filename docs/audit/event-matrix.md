@@ -544,6 +544,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | LocateOidcFlow | `` |  | When refused |
 | `` | ReadConfigSchema | `` |  | When refused |
 | `` | ReadSettingsCatalogue | `` |  | When refused |
+| `` | ReadTimer | `` |  | When refused |
 
 ## Page
 
@@ -778,6 +779,63 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `tenant.reference_changed` | UpdateTenant | `tenant` | INFO | Every time |
 | `tenant.resumed` | ResumeTenant | `tenant` | INFO | Every time |
 | `tenant.suspended` | SuspendTenant | `tenant` | WARNING | Every time |
+
+## Time_actuals
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_actuals.read` | ReadEstimatesVsActuals | `plan` | INFO | When refused |
+
+## Time_policy
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_policy.read` | ReadTimePolicy | `time_policy` | INFO | When refused |
+| `time_policy.set` | SetTimePolicy | `time_policy` | INFO | Every time |
+
+## Time_record
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_record.corrected` | CorrectTimeRecord | `time_record` | INFO | Every time |
+| `time_record.deleted` | DeleteTimeRecord | `time_record` | INFO | Every time |
+| `time_record.exported` | ExportTimeRecords | `time_record` | INFO | Every time |
+| `time_record.logged` | LogTime | `time_record` | INFO | Every time |
+| `time_record.read` | ListTimeRecords | `time_record` | INFO | When refused |
+| `time_record.updated` | UpdateTimeRecord | `time_record` | INFO | Every time |
+
+## Time_report
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_report.read` | ReadTimeReport | `time_record` | INFO | When refused |
+
+## Time_timer
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_timer.discarded` | DiscardTimer | `time_timer` | INFO | Every time |
+| `time_timer.started` | StartTimer | `time_timer` | INFO | Every time |
+| `time_timer.stopped` | StopTimer | `time_record` | INFO | Every time |
+
+## Time_work_type
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_work_type.defined` | DefineWorkType | `time_work_type` | INFO | Every time |
+| `time_work_type.read` | ListWorkTypes | `time_work_type` | INFO | When refused |
+
+## Timesheet
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `timesheet.approved` | ApproveTimesheet | `timesheet` | INFO | Every time |
+| `timesheet.copied` | CopyTimesheetWeek | `timesheet` | INFO | Every time |
+| `timesheet.read` | ListTimesheets | `timesheet` | INFO | When refused |
+| `timesheet.read` | ReadTimesheet | `timesheet` | INFO | When refused |
+| `timesheet.rejected` | RejectTimesheet | `timesheet` | INFO | Every time |
+| `timesheet.submitted` | SubmitTimesheet | `timesheet` | INFO | Every time |
+| `timesheet.withdrawn` | WithdrawTimesheet | `timesheet` | INFO | Every time |
 
 ## Triggers
 
