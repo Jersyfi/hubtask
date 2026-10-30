@@ -3702,3 +3702,20 @@ SELECT EXISTS (SELECT 1 FROM code_link WHERE id = (sqlc.arg('payload')::jsonb->>
 
 -- name: ClearCodeLink :execrows
 DELETE FROM code_link;
+
+-- name: ImportFileLink :execrows
+INSERT INTO file_link (id, tenant_id, item_id, provider, address, name, added_by, added_at)
+SELECT r.id, r.tenant_id, r.item_id, r.provider, r.address, r.name, r.added_by, r.added_at
+FROM jsonb_populate_record(
+  NULL::file_link,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  provider = EXCLUDED.provider, address = EXCLUDED.address, name = EXCLUDED.name
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsFileLink :one
+SELECT EXISTS (SELECT 1 FROM file_link WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearFileLink :execrows
+DELETE FROM file_link;

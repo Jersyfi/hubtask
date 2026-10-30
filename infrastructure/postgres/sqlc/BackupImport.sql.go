@@ -723,6 +723,18 @@ func (q *Queries) ClearEntryType(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearFileLink = `-- name: ClearFileLink :execrows
+DELETE FROM file_link
+`
+
+func (q *Queries) ClearFileLink(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearFileLink)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearGoal = `-- name: ClearGoal :execrows
 DELETE FROM goal
 `
@@ -2183,6 +2195,17 @@ SELECT EXISTS (SELECT 1 FROM entry_type WHERE id = ($1::jsonb->>'id')::uuid) AS 
 
 func (q *Queries) HoldsEntryType(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsEntryType, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsFileLink = `-- name: HoldsFileLink :one
+SELECT EXISTS (SELECT 1 FROM file_link WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsFileLink(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsFileLink, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -5081,6 +5104,31 @@ type ImportEntryTypeParams struct {
 
 func (q *Queries) ImportEntryType(ctx context.Context, arg ImportEntryTypeParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importEntryType, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importFileLink = `-- name: ImportFileLink :execrows
+INSERT INTO file_link (id, tenant_id, item_id, provider, address, name, added_by, added_at)
+SELECT r.id, r.tenant_id, r.item_id, r.provider, r.address, r.name, r.added_by, r.added_at
+FROM jsonb_populate_record(
+  NULL::file_link,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  provider = EXCLUDED.provider, address = EXCLUDED.address, name = EXCLUDED.name
+WHERE $2::boolean
+`
+
+type ImportFileLinkParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportFileLink(ctx context.Context, arg ImportFileLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importFileLink, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

@@ -953,6 +953,17 @@ var importers = map[string]importer{
 			return queries.ClearCodeHook(ctx)
 		},
 	},
+	"file_link": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportFileLink(ctx, sqlc.ImportFileLinkParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsFileLink(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearFileLink(ctx)
+		},
+	},
 	"code_link": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportCodeLink(ctx, sqlc.ImportCodeLinkParams{Payload: payload, Overwrite: overwrite})

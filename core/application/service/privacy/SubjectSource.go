@@ -143,7 +143,9 @@ var subjectColumns = map[string][]string{
 	// The connectors that run with their rights (M6).
 	"cmdb_connector": {"run_as"},
 	// The forge hooks that write as the person who defined them (UC-INT-13).
-	"code_hook":       {"run_as"},
+	"code_hook": {"run_as"},
+	// The files they linked on entries (UC-INT-14).
+	"file_link":       {"added_by"},
 	"config_revision": {"actor_id", "proposed_by"},
 	"config_proposal": {"proposed_by", "decided_by"},
 	"config_template": {"created_by"},

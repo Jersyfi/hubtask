@@ -1200,6 +1200,14 @@ var entities = []Entity{
 			{Field: "hook_id", Table: "code_hook"},
 		},
 	},
+	// An entry's files in a store (migration 0276): the address, never the file.
+	{
+		Name: "file_links", Table: "file_link", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "added_by", Table: "account"},
+		},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
