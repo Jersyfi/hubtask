@@ -43,4 +43,4 @@ in is withheld.
 ## Where it ends
 
 * Nothing scores or ranks a person (P-14); there is no individual performance analysis.
-* Rates, costs and budgets are not built: a report counts time, not money.
+* A report counts time, not money: rates, costs and budgets are UC-TIM-08's.

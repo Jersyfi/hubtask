@@ -38,7 +38,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history | `service/whiteboard` |
 | [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
 | [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction | `service/servicedesk` |
-| [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting | `service/timekeeping` |
+| [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting, capacity, absences and the workload, cost rates and budgets | `service/timekeeping` |
 
 ## What a use case looks like
 
@@ -295,6 +295,9 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-TIM-03](./timekeeping/UC-TIM-03-approve-a-teams-time.md) | Approve a team's time | timekeeping |
 | [UC-TIM-04](./timekeeping/UC-TIM-04-see-where-the-time-went.md) | See where the time went | timekeeping |
 | [UC-TIM-05](./timekeeping/UC-TIM-05-hand-time-to-accounting.md) | Hand time to accounting | timekeeping |
+| [UC-TIM-06](./timekeeping/UC-TIM-06-see-who-has-room-before-handing-out-work.md) | See who has room before handing out work | timekeeping |
+| [UC-TIM-07](./timekeeping/UC-TIM-07-record-absences-and-holidays-once-for-every-plan.md) | Record absences and holidays once for every plan | timekeeping |
+| [UC-TIM-08](./timekeeping/UC-TIM-08-keep-a-project-within-its-budget.md) | Keep a project within its budget | timekeeping |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
