@@ -550,6 +550,26 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return { data: rows };
   }
 
+  // A hub's boards and a board read while the server is away (UC-CNV-01 check 9): the list without
+  // the objects, the last changed first, and a board with its objects, never writable - a board is
+  // drawn on through its live document, which needs the server. The trash is the server's.
+  match = /^\/hubs\/([^/:]+)\/whiteboards$/.exec(pathname);
+  if (match?.[1] && query.get('trashed') !== 'true') {
+    const hubId = match[1];
+    const rows = (await documents(storage, 'whiteboards'))
+      .filter((row) => row.hub_id === hubId && !row.trashed_at)
+      .map(({ elements: _elements, ...row }) => row)
+      .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+
+  match = /^\/whiteboards\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    const board = (await documents(storage, 'whiteboards')).find((row) => row.id === match?.[1]);
+    if (!board || board.trashed_at) return undefined;
+    return { ...board, writable: false };
+  }
+
   if (pathname === '/entry-types') {
     // The server's order: by level as the levels run, then position, then key.
     const levels = ['TASK', 'WORK_PACKAGE', 'ACTIVITY'];

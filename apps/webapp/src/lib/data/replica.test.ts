@@ -636,3 +636,25 @@ test("the agents' registry is answered from the copy", async () => {
   assert.equal('owner_id' in runs.data[0]!, false);
   assert.equal(await storeFor({ path: '/agents/a-2' }, storage), undefined, "one agent's spending is the server's");
 });
+
+// A board read while the server is away, an unopened one included (UC-CNV-01 check 9): a hub's
+// boards without their objects, the last changed first and without the trashed; a board with its
+// objects, never writable.
+test('a hub\'s whiteboards and a whiteboard are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const board = (id: string, fields: Record<string, unknown>) => storage.put('whiteboards', id, record({ id, hub_id: HUB, ...fields }));
+  const note = { id: 's1', kind: 'STICKY', x: 0, y: 0, width: 160, height: 160, text: 'Keep it' };
+  await board('w-old', { title: 'Retro', elements: [note], element_count: 1, updated_at: '2026-10-28T09:00:00Z', trashed_at: null });
+  await board('w-new', { title: 'Plan', elements: [], element_count: 0, updated_at: '2026-10-30T09:00:00Z', trashed_at: null });
+  await board('w-gone', { title: 'Gone', elements: [], element_count: 0, updated_at: '2026-10-30T10:00:00Z', trashed_at: '2026-10-30T10:00:00Z' });
+
+  const list = await storeFor({ path: `/hubs/${HUB}/whiteboards` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(list.data.map((row) => row.id), ['w-new', 'w-old']);
+  assert.ok(list.data.every((row) => !('elements' in row)), 'the list carries no objects');
+  assert.equal(await storeFor({ path: `/hubs/${HUB}/whiteboards?trashed=true` }, storage), undefined, 'the trash is the server\'s');
+
+  const read = await storeFor({ path: '/whiteboards/w-old' }, storage) as Record<string, unknown>;
+  assert.deepEqual(read.elements, [note]);
+  assert.equal(read.writable, false);
+  assert.equal(await storeFor({ path: '/whiteboards/w-gone' }, storage), undefined);
+});

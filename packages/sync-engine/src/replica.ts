@@ -113,6 +113,8 @@ export function collectionOf(entity: string): string {
       return 'role_grants';
     case 'page':
       return 'pages';
+    case 'whiteboard':
+      return 'whiteboards';
     case 'cmdb_ci':
       return 'cis';
     case 'cmdb_relation':
