@@ -97,6 +97,9 @@ export const DESTINATIONS: readonly Destination[] = [
   // The reader's own notes (M3, UC-DOC-07): today's note in their personal space and the pages
   // shared with them. The account's, behind the avatar, as their time is; drawn only where the
   // knowledge module is on.
+  // The approvals waiting for the reader's yes (UC-SVC-09 check 1): the account's, as their notes
+  // are; drawn only where the service desk is on.
+  { id: 'approvals', group: 'account', icon: 'user-check', code: 'app.nav.approvals', target: { kind: 'route', path: '/approvals' }, routes: ['approvals'], module: 'SERVICE_DESK' },
   { id: 'notes', group: 'account', icon: 'file-text', code: 'app.nav.notes', target: { kind: 'route', path: '/notes' }, routes: ['notes'], module: 'KNOWLEDGE' },
   // Goals, portfolios and dashboards (M8): the workspace's view of whether the work adds up. Behind
   // the avatar beside the reader's time rather than in the primary group, whose three spaces are

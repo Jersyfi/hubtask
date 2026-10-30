@@ -42,6 +42,7 @@
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
+  import DelegationSection from '../lib/profile/DelegationSection.svelte';
   import PictureField from '../lib/profile/PictureField.svelte';
   import CelebrationsSwitch from '../lib/profile/CelebrationsSwitch.svelte';
   import AddressForm from '../lib/people/AddressForm.svelte';
@@ -262,6 +263,8 @@
     <!-- Keeping one's own content out of AI: the person's own choice, so on the profile; absent
          where there is nothing to choose (UC-PRV-05 check 8). -->
     <AiObjectionSection />
+    <!-- Who decides the person's approvals while they are away, where the service desk is on (UC-SVC-10). -->
+    {#if manifest.value?.modules_on?.includes('SERVICE_DESK')}<DelegationSection />{/if}
     {#if account.sign_in_name && !account.email && signInRules.isSettled}
       <!-- A person without a mail address may add one (UC-ID-20 check 7): drawn exactly where the
            server would take it - a sign-in name and no address, in a workspace whose password is a

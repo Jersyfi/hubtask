@@ -95,6 +95,7 @@
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import LinksSection from '../lib/entries/LinksSection.svelte';
   import AffectedCis from '../lib/entries/AffectedCis.svelte';
+  import EntryApprovals from '../lib/servicedesk/EntryApprovals.svelte';
   import EntryProvenance from '../lib/entries/EntryProvenance.svelte';
   import EntryTimer from '../lib/time/EntryTimer.svelte';
   import EntryGoals from '../lib/goals/EntryGoals.svelte';
@@ -1355,6 +1356,10 @@
         {/if}
         <!-- The entry's status and the steps the reader may take (UC-FLW-03). -->
         {#key item.id}<StepControl {item} />{/key}
+        <!-- The approvals its steps opened and their trail, where the service desk is on (UC-SVC-09 check 4). -->
+        {#if manifest.value?.modules_on?.includes('SERVICE_DESK')}
+          {#key item.id}<EntryApprovals itemId={item.id} />{/key}
+        {/if}
         <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so
              each entry reads its own. -->
         {#key item.id}<LinksSection {item} mayChange={isWritable} />{/key}

@@ -79,6 +79,7 @@
     CmdbView: () => import('./views/CmdbView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
+    ApprovalsView: () => import('./views/ApprovalsView.svelte'),
     PortalView: () => import('./views/PortalView.svelte'),
     PortalRequestView: () => import('./views/PortalRequestView.svelte'),
     PortalArticleView: () => import('./views/PortalArticleView.svelte'),
@@ -411,6 +412,8 @@
     {#key route.params.id}
       <ItemView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
     {/key}
+  {:else if route.name === 'approvals'}
+    <LazyView load={views.ApprovalsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'notes'}
     <LazyView load={views.NotesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'portal'}
