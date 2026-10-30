@@ -2694,6 +2694,8 @@ CREATE TABLE calendar_feed (
   token_hash  bytea NOT NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
   revoked_at  timestamptz,
+  -- What the token opens (migration 0277): a calendar, or a data feed of the view's rows.
+  kind        text NOT NULL DEFAULT 'CALENDAR' CHECK (kind IN ('CALENDAR', 'DATA')),
   CONSTRAINT calendar_feed_account_id_fkey
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT calendar_feed_view_id_fkey

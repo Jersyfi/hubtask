@@ -58,7 +58,7 @@ func (r CalendarFeedRepository) Insert(
 	if err := queries.InsertCalendarFeed(ctx, sqlc.InsertCalendarFeedParams{
 		ID: id, AccountID: accountID, ViewID: viewID,
 		TokenHash: r.hasher.Hash(token.Secret()),
-		CreatedAt: timestampOf(feed.CreatedAt),
+		CreatedAt: timestampOf(feed.CreatedAt), Kind: string(kindOr(feed.Kind)),
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -91,7 +91,7 @@ func (r CalendarFeedRepository) FindByToken(
 			// (rule 10, T-21).
 			WithCause(fmt.Errorf("reading the calendar feed by token: %w", err))
 	}
-	return feedFrom(row.ID, row.TenantID, row.AccountID, row.ViewID, row.CreatedAt, row.RevokedAt)
+	return feedFrom(row.ID, row.TenantID, row.AccountID, row.ViewID, row.CreatedAt, row.RevokedAt, row.Kind)
 }
 
 // Find returns one feed, revoked or not.
@@ -116,7 +116,7 @@ func (r CalendarFeedRepository) Find(
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading the calendar feed %s: %w", id, err))
 	}
-	return feedFrom(row.ID, row.TenantID, row.AccountID, row.ViewID, row.CreatedAt, row.RevokedAt)
+	return feedFrom(row.ID, row.TenantID, row.AccountID, row.ViewID, row.CreatedAt, row.RevokedAt, row.Kind)
 }
 
 // ListForAccount returns one person's own feeds, newest first.
@@ -142,7 +142,7 @@ func (r CalendarFeedRepository) ListForAccount(
 	feeds := make([]domain.CalendarFeed, 0, len(rows))
 	for _, row := range rows {
 		feed, err := feedFrom(
-			row.ID, row.TenantID, row.AccountID, row.ViewID, row.CreatedAt, row.RevokedAt)
+			row.ID, row.TenantID, row.AccountID, row.ViewID, row.CreatedAt, row.RevokedAt, row.Kind)
 		if err != nil {
 			return nil, err
 		}
@@ -179,7 +179,7 @@ func (r CalendarFeedRepository) Revoke(
 // feedFrom rebuilds the aggregate from a row. Every one of the five queries answers the same
 // columns, so they share one reader.
 func feedFrom(
-	id, tenantID, accountID, viewID pgtype.UUID, createdAt, revokedAt pgtype.Timestamptz,
+	id, tenantID, accountID, viewID pgtype.UUID, createdAt, revokedAt pgtype.Timestamptz, kind string,
 ) (domain.CalendarFeed, error) {
 	feedID, err := idFrom(id)
 	if err != nil {
@@ -201,7 +201,15 @@ func feedFrom(
 	}
 
 	return domain.CalendarFeed{
-		ID: feedID, TenantID: tenant, AccountID: owner, ViewID: view,
+		ID: feedID, TenantID: tenant, AccountID: owner, ViewID: view, Kind: domain.FeedKind(kind),
 		CreatedAt: createdAt.Time.UTC(), RevokedAt: timeFrom(revokedAt),
 	}, nil
+}
+
+// kindOr is a feed's kind, a calendar where none was set.
+func kindOr(kind domain.FeedKind) domain.FeedKind {
+	if kind == "" {
+		return domain.CalendarKind
+	}
+	return kind
 }

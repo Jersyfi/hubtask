@@ -9,6 +9,19 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+// FeedKind is what a feed's token opens: a calendar of the view's dated entries (`.ics` and
+// CalDAV), or the view's rows as a read-only data feed for a reporting tool (OData). One token
+// opens one kind, so that a calendar address kept on a phone never reads a view's fields.
+type FeedKind string
+
+const (
+	CalendarKind FeedKind = "CALENDAR"
+	DataKind     FeedKind = "DATA"
+)
+
+// Valid reports whether the kind is one a feed may be.
+func (k FeedKind) Valid() bool { return k == CalendarKind || k == DataKind }
+
 // CalendarFeed is one subscription: a token somebody holds, over one saved view, revocable.
 //
 // It carries no token - only the hash of one, and not even that here: what is stored is computed
@@ -24,7 +37,9 @@ type CalendarFeed struct {
 	// ViewID is the saved view the feed serves, and the zero identifier once that view has been
 	// deleted. Not a reason to delete the feed: a view is the workspace's and a feed is the
 	// subscriber's, so the reference nulls and the feed serves nothing while saying why.
-	ViewID    shared.ID
+	ViewID shared.ID
+	// Kind is what the token opens; a feed minted before kinds existed is a calendar.
+	Kind      FeedKind
 	CreatedAt time.Time
 	// RevokedAt is when the token stopped working, and the zero time while it works. Kept rather
 	// than deleted, because "that token was revoked on Tuesday" is a question somebody asks after
@@ -38,7 +53,9 @@ type NewCalendarFeedInput struct {
 	TenantID  shared.ID
 	AccountID shared.ID
 	ViewID    shared.ID
-	Now       time.Time
+	// Kind is empty for a calendar.
+	Kind FeedKind
+	Now  time.Time
 }
 
 // NewCalendarFeed mints a feed. The token is minted beside it and never stored on it.
@@ -50,15 +67,23 @@ func NewCalendarFeed(in NewCalendarFeedInput) (CalendarFeed, error) {
 		// A feed with no owner has no authorisation to read with, and this one reads at every
 		// fetch. That is a defect in the caller rather than something a client sent.
 		return CalendarFeed{}, shared.ErrInternal.WithDetail("calendar.feed_owner_missing")
+	case in.Kind != "" && !in.Kind.Valid():
+		return CalendarFeed{}, shared.ErrValidation.
+			WithDetail("calendar.feed_kind_unknown").
+			WithFields(shared.FieldError{Path: "/kind", Code: "calendar.feed_kind_unknown"})
 	case in.ViewID.IsZero():
 		return CalendarFeed{}, shared.ErrValidation.
 			WithDetail("calendar.view_required").
 			WithFields(shared.FieldError{Path: "/view_id", Code: "calendar.view_required"})
 	}
 
+	kind := in.Kind
+	if kind == "" {
+		kind = CalendarKind
+	}
 	return CalendarFeed{
 		ID: in.ID, TenantID: in.TenantID, AccountID: in.AccountID, ViewID: in.ViewID,
-		CreatedAt: in.Now,
+		Kind: kind, CreatedAt: in.Now,
 	}, nil
 }
 
@@ -81,3 +106,12 @@ func (f CalendarFeed) IsRevoked() bool { return !f.RevokedAt.IsZero() }
 // deleted answers nothing, and answers it as a 404 rather than as an empty calendar: an empty
 // calendar reads as "you have nothing on", which is a different and wrong statement.
 func (f CalendarFeed) ServesAView() bool { return !f.ViewID.IsZero() }
+
+// Opens reports whether the feed's token opens the kind asked for. A feed of no kind is one minted
+// before kinds existed, and a calendar.
+func (f CalendarFeed) Opens(kind FeedKind) bool {
+	if f.Kind == "" {
+		return kind == CalendarKind
+	}
+	return f.Kind == kind
+}

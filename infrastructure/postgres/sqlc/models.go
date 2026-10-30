@@ -927,6 +927,7 @@ type CalendarFeed struct {
 	TokenHash []byte
 	CreatedAt pgtype.Timestamptz
 	RevokedAt pgtype.Timestamptz
+	Kind      string
 }
 
 type ChangeLog struct {

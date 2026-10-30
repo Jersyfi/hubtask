@@ -12,7 +12,7 @@ import (
 )
 
 const findCalendarFeed = `-- name: FindCalendarFeed :one
-SELECT id, tenant_id, account_id, view_id, created_at, revoked_at
+SELECT id, tenant_id, account_id, view_id, created_at, revoked_at, kind
 FROM calendar_feed
 WHERE id = $1
 `
@@ -24,6 +24,7 @@ type FindCalendarFeedRow struct {
 	ViewID    pgtype.UUID
 	CreatedAt pgtype.Timestamptz
 	RevokedAt pgtype.Timestamptz
+	Kind      string
 }
 
 func (q *Queries) FindCalendarFeed(ctx context.Context, id pgtype.UUID) (FindCalendarFeedRow, error) {
@@ -36,12 +37,13 @@ func (q *Queries) FindCalendarFeed(ctx context.Context, id pgtype.UUID) (FindCal
 		&i.ViewID,
 		&i.CreatedAt,
 		&i.RevokedAt,
+		&i.Kind,
 	)
 	return i, err
 }
 
 const findCalendarFeedByHash = `-- name: FindCalendarFeedByHash :one
-SELECT id, tenant_id, account_id, view_id, created_at, revoked_at
+SELECT id, tenant_id, account_id, view_id, created_at, revoked_at, kind
 FROM calendar_feed
 WHERE token_hash = $1
 `
@@ -53,6 +55,7 @@ type FindCalendarFeedByHashRow struct {
 	ViewID    pgtype.UUID
 	CreatedAt pgtype.Timestamptz
 	RevokedAt pgtype.Timestamptz
+	Kind      string
 }
 
 // The public route's whole lookup: one index seek on the unique hash.
@@ -70,16 +73,17 @@ func (q *Queries) FindCalendarFeedByHash(ctx context.Context, tokenHash []byte) 
 		&i.ViewID,
 		&i.CreatedAt,
 		&i.RevokedAt,
+		&i.Kind,
 	)
 	return i, err
 }
 
 const insertCalendarFeed = `-- name: InsertCalendarFeed :exec
 
-INSERT INTO calendar_feed (id, tenant_id, account_id, view_id, token_hash, created_at)
+INSERT INTO calendar_feed (id, tenant_id, account_id, view_id, token_hash, created_at, kind)
 VALUES (
   $1, current_tenant_id(), $2, $3,
-  $4, $5
+  $4, $5, $6
 )
 `
 
@@ -89,6 +93,7 @@ type InsertCalendarFeedParams struct {
 	ViewID    pgtype.UUID
 	TokenHash []byte
 	CreatedAt pgtype.Timestamptz
+	Kind      string
 }
 
 // The calendar feeds (api-guidelines.md §7).
@@ -109,12 +114,13 @@ func (q *Queries) InsertCalendarFeed(ctx context.Context, arg InsertCalendarFeed
 		arg.ViewID,
 		arg.TokenHash,
 		arg.CreatedAt,
+		arg.Kind,
 	)
 	return err
 }
 
 const listCalendarFeedsForAccount = `-- name: ListCalendarFeedsForAccount :many
-SELECT id, tenant_id, account_id, view_id, created_at, revoked_at
+SELECT id, tenant_id, account_id, view_id, created_at, revoked_at, kind
 FROM calendar_feed
 WHERE account_id = $1
 ORDER BY created_at DESC, id DESC
@@ -127,6 +133,7 @@ type ListCalendarFeedsForAccountRow struct {
 	ViewID    pgtype.UUID
 	CreatedAt pgtype.Timestamptz
 	RevokedAt pgtype.Timestamptz
+	Kind      string
 }
 
 // One person's own feeds, newest first. The account is a parameter rather than implied, because
@@ -148,6 +155,7 @@ func (q *Queries) ListCalendarFeedsForAccount(ctx context.Context, accountID pgt
 			&i.ViewID,
 			&i.CreatedAt,
 			&i.RevokedAt,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}

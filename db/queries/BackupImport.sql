@@ -1364,7 +1364,8 @@ INSERT INTO calendar_feed (
   view_id,
   token_hash,
   created_at,
-  revoked_at
+  revoked_at,
+  kind
 )
 SELECT
   r.id,
@@ -1373,7 +1374,9 @@ SELECT
   r.view_id,
   r.token_hash,
   r.created_at,
-  r.revoked_at
+  r.revoked_at,
+  -- An archive written before feeds had kinds holds calendars.
+  COALESCE(r.kind, 'CALENDAR')
 FROM jsonb_populate_record(
   NULL::calendar_feed,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1384,7 +1387,8 @@ ON CONFLICT (id) DO UPDATE SET
   view_id = EXCLUDED.view_id,
   token_hash = EXCLUDED.token_hash,
   created_at = EXCLUDED.created_at,
-  revoked_at = EXCLUDED.revoked_at
+  revoked_at = EXCLUDED.revoked_at,
+  kind = EXCLUDED.kind
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsCalendarFeed :one

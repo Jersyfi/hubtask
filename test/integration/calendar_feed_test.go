@@ -331,3 +331,44 @@ func TestCalendarFeedsAreInvisibleFromAnotherTenant(t *testing.T) {
 		}
 	})
 }
+
+// A data feed keeps its kind, and a calendar feed reads back as one (migration 0277, UC-INT-15).
+func TestAFeedKeepsItsKind(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	saved := savedViewIn(tenantA, authorA, collection, freshID(t), freshName(t))
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return viewRepo().Insert(ctx, saved)
+	}); err != nil {
+		t.Fatalf("writing the view: %v", err)
+	}
+	data, err := domain.NewCalendarFeed(domain.NewCalendarFeedInput{
+		ID: freshID(t), TenantID: tenantA, AccountID: authorA, ViewID: saved.ID, Kind: domain.DataKind, Now: created,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	calendar := feedIn(t, tenantA, authorA, saved.ID)
+	dataToken, calendarToken := mintFeedToken(t, tenantA, 0x60), mintFeedToken(t, tenantA, 0x70)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := feedRepo().Insert(ctx, data, dataToken); err != nil {
+			return err
+		}
+		return feedRepo().Insert(ctx, calendar, calendarToken)
+	}); err != nil {
+		t.Fatalf("writing the feeds: %v", err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		found, err := feedRepo().FindByToken(ctx, dataToken)
+		if err != nil || found.Kind != domain.DataKind {
+			t.Errorf("the data feed came back as %+v, %v", found, err)
+		}
+		found, err = feedRepo().FindByToken(ctx, calendarToken)
+		if err != nil || found.Kind != domain.CalendarKind {
+			t.Errorf("the calendar feed came back as %+v, %v", found, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

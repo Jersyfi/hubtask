@@ -11,10 +11,10 @@
 -- access token (security.md §5, §8).
 
 -- name: InsertCalendarFeed :exec
-INSERT INTO calendar_feed (id, tenant_id, account_id, view_id, token_hash, created_at)
+INSERT INTO calendar_feed (id, tenant_id, account_id, view_id, token_hash, created_at, kind)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('view_id'),
-  sqlc.arg('token_hash'), sqlc.arg('created_at')
+  sqlc.arg('token_hash'), sqlc.arg('created_at'), sqlc.arg('kind')
 );
 
 -- name: FindCalendarFeedByHash :one
@@ -23,12 +23,12 @@ VALUES (
 -- A revoked feed is returned rather than filtered out. Whether a token still works is the domain's
 -- question, and the answer a fetch gets is the same either way - what changes is that the
 -- application layer can tell the two apart in its own reasoning without the query deciding for it.
-SELECT id, tenant_id, account_id, view_id, created_at, revoked_at
+SELECT id, tenant_id, account_id, view_id, created_at, revoked_at, kind
 FROM calendar_feed
 WHERE token_hash = $1;
 
 -- name: FindCalendarFeed :one
-SELECT id, tenant_id, account_id, view_id, created_at, revoked_at
+SELECT id, tenant_id, account_id, view_id, created_at, revoked_at, kind
 FROM calendar_feed
 WHERE id = $1;
 
@@ -36,7 +36,7 @@ WHERE id = $1;
 -- One person's own feeds, newest first. The account is a parameter rather than implied, because
 -- the row level security policy on this table is the tenant's and the "only mine" half is the
 -- application layer's rule - stated here as the condition it is, and enforced there as well.
-SELECT id, tenant_id, account_id, view_id, created_at, revoked_at
+SELECT id, tenant_id, account_id, view_id, created_at, revoked_at, kind
 FROM calendar_feed
 WHERE account_id = sqlc.arg('account_id')
 ORDER BY created_at DESC, id DESC;
