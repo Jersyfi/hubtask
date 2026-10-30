@@ -557,4 +557,9 @@ export type {
   AgentRequestList,
   ValueProvenance,
   ValueProvenanceList,
+  CodeHook,
+  CodeHookList,
+  CodeHookMinted,
+  CodeLink,
+  CodeLinkList,
 } from './schema.ts';

@@ -98,6 +98,7 @@
   import EntryApprovals from '../lib/servicedesk/EntryApprovals.svelte';
   import EntrySla from '../lib/servicedesk/EntrySla.svelte';
   import EntryProvenance from '../lib/entries/EntryProvenance.svelte';
+  import EntryCode from '../lib/code/EntryCode.svelte';
   import EntryTimer from '../lib/time/EntryTimer.svelte';
   import EntryGoals from '../lib/goals/EntryGoals.svelte';
   import StepControl from '../lib/entries/StepControl.svelte';
@@ -1370,6 +1371,8 @@
         {#if manifest.value?.modules_on?.includes('ASSETS')}
           {#key item.id}<AffectedCis itemId={item.id} mayChange={isWritable} />{/key}
         {/if}
+        <!-- Its commits, branches and pull requests, where a forge named its key (UC-INT-13 check 3). -->
+        {#key item.id}<EntryCode itemId={item.id} />{/key}
         <!-- Which of its values came from AI, where any did (UC-AGT-05 check 5). -->
         {#key item.id}<EntryProvenance itemId={item.id} />{/key}
         <!-- The goals the entry serves, where the goals module is on (UC-GOL-01 check 4). -->

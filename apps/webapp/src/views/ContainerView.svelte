@@ -135,6 +135,7 @@
     ContainerEditDialog: () => import('../lib/workspace/ContainerEditDialog.svelte'),
     HubCalendars: () => import('../lib/servicedesk/HubCalendars.svelte'),
     TemplatesGallery: () => import('../lib/settings/TemplatesGallery.svelte'),
+    CodeHooks: () => import('../lib/code/CodeHooks.svelte'),
   };
 
   interface Props {
@@ -1236,6 +1237,9 @@
         {#snippet calendarsTab()}
           <LazyView load={settingsParts.HubCalendars} props={{ hubId: container.id, mayShape }} />
         {/snippet}
+        {#snippet codeTab()}
+          <LazyView load={settingsParts.CodeHooks} props={{ hubId: container.id }} />
+        {/snippet}
         {#snippet peopleTab()}
           <MembersDialog isEmbedded isOpen title={t('app.people.title')} scope={memberScope} path={memberPath} />
         {/snippet}
@@ -1263,6 +1267,8 @@
                   ...(manifest.value?.modules_on?.includes('SERVICE_DESK')
                     ? [{ id: 'calendars', label: t('app.desk.hub_section'), body: calendarsTab }]
                     : []),
+                  // The forges that post its code (UC-INT-13 check 1).
+                  { id: 'code', label: t('app.code.section'), body: codeTab },
                   { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
                 ],
           }}
