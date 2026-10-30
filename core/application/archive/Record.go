@@ -1108,6 +1108,32 @@ var entities = []Entity{
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{{Field: "accepted_by", Table: "account", Clearable: true}},
 	},
+	// Approvals (migration 0268): a step waiting for people's yes, its decisions as the trail and a
+	// person's delegation while away.
+	{
+		Name: "approvals", Table: "approval", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "requested_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "approval_decisions", Table: "approval_decision", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "approval_id", Table: "approval"},
+			{Field: "approver_id", Table: "account", Clearable: true},
+			{Field: "on_behalf_of", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "approval_delegations", Table: "approval_delegation", Whole: true, Later: true, Keys: []string{"account_id"},
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "delegate_id", Table: "account"},
+		},
+	},
 	{
 		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,

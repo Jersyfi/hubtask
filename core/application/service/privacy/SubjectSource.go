@@ -90,6 +90,10 @@ var subjectColumns = map[string][]string{
 	"portfolio_update": {"author_id"},
 	"dashboard":        {"owner_id", "updated_by"},
 	"dashboard_digest": {"account_id"},
+	// Approvals a person asked for, decided or decided for somebody away, and their delegation.
+	"approval":            {"requested_by"},
+	"approval_decision":   {"approver_id", "on_behalf_of"},
+	"approval_delegation": {"account_id", "delegate_id"},
 	// The agents they own, approved or stopped, the acts they decided, the cases they wrote and the
 	// AI values they accepted (M9).
 	"agent_model":     {"consent_by"},

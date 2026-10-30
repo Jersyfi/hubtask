@@ -601,6 +601,39 @@ var importers = map[string]importer{
 			return queries.ClearAiProvenanceMark(ctx)
 		},
 	},
+	"approval": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportApproval(ctx, sqlc.ImportApprovalParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsApproval(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearApproval(ctx)
+		},
+	},
+	"approval_decision": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportApprovalDecision(ctx, sqlc.ImportApprovalDecisionParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsApprovalDecision(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearApprovalDecision(ctx)
+		},
+	},
+	"approval_delegation": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportApprovalDelegation(ctx, sqlc.ImportApprovalDelegationParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsApprovalDelegation(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearApprovalDelegation(ctx)
+		},
+	},
 	"satisfaction_rating": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportSatisfactionRating(ctx, sqlc.ImportSatisfactionRatingParams{Payload: payload, Overwrite: overwrite})

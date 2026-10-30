@@ -67,3 +67,32 @@ type Ratings interface {
 	// OfItem answers the request's rating; shared.ErrNotFound when it has none.
 	OfItem(ctx context.Context, itemID shared.ID) (servicedesk.Rating, error)
 }
+
+// Approvals stores the approvals a step opens, their decisions and people's delegations
+// (migration 0268).
+type Approvals interface {
+	// Insert writes a new approval; an entry already waiting on one is `approvals.pending`.
+	Insert(ctx context.Context, approval servicedesk.Approval) error
+	// Update writes where the approval stands now, where its version is still expectedVersion.
+	Update(ctx context.Context, approval servicedesk.Approval, expectedVersion int) error
+	// Find answers one approval; shared.ErrNotFound when the workspace has none by the identifier.
+	Find(ctx context.Context, id shared.ID) (servicedesk.Approval, error)
+	// PendingOf answers the approval an entry waits on; shared.ErrNotFound when none.
+	PendingOf(ctx context.Context, itemID shared.ID) (servicedesk.Approval, error)
+	// OfItem answers an entry's approvals, newest first, at most fifty.
+	OfItem(ctx context.Context, itemID shared.ID) ([]servicedesk.Approval, error)
+	// Pending answers every approval waiting in the workspace, oldest first, at most limit.
+	Pending(ctx context.Context, limit int) ([]servicedesk.Approval, error)
+	// Record writes one decision.
+	Record(ctx context.Context, tenantID shared.ID, decision servicedesk.Decision) error
+	// Decisions answers an approval's decisions in the order they were given.
+	Decisions(ctx context.Context, approvalID shared.ID) ([]servicedesk.Decision, error)
+	// Delegate writes a person's delegation, replacing an earlier one.
+	Delegate(ctx context.Context, delegation servicedesk.Delegation) error
+	// DelegationOf answers a person's delegation; shared.ErrNotFound when none.
+	DelegationOf(ctx context.Context, accountID shared.ID) (servicedesk.Delegation, error)
+	// DelegationsTo answers the delegations naming a delegate, in force or not.
+	DelegationsTo(ctx context.Context, delegateID shared.ID) ([]servicedesk.Delegation, error)
+	// EndDelegation removes a person's delegation; false when there was none.
+	EndDelegation(ctx context.Context, accountID shared.ID) (bool, error)
+}

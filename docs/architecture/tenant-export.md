@@ -232,6 +232,9 @@ re-mints identities must rewrite exactly these).
 | 114 | `cmdb_ci_groups` | `cmdb_ci_group` | `id` | `hub_id`→containers, `service_id`→cmdb_cis (cleared when absent) (a hub's CI groups by filter, UC-AST-11) |
 | 115 | `cmdb_assets` | `cmdb_asset` | `ci_id` | `ci_id`→cmdb_cis, `hub_id`→containers, `contract_id`/`stockroom_id`→cmdb_cis, `assigned_to`→accounts, `request_id`→work_items (each cleared when absent) (a CI's asset record and its disposal, UC-AST-12) |
 | 116 | `cmdb_software_aliases` | `cmdb_software_alias` | `id` | — (the workspace's software aliases, UC-AST-13) |
+| 117 | `approvals` | `approval` | `id` | `item_id`→work_items, `requested_by`→accounts (a step waiting for people's yes: its levels as they opened with the people counted then, the level deciding, its state; migration 0268) |
+| 118 | `approval_decisions` | `approval_decision` | `id` | `approval_id`→approvals, `approver_id`→accounts, `on_behalf_of`→accounts (one answer at one level with its reason and the entry's version, the approval's trail) |
+| 119 | `approval_delegations` | `approval_delegation` | `account_id` | `account_id`→accounts, `delegate_id`→accounts (who decides a person's approvals while they are away, from when until when) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

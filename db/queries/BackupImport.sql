@@ -3534,3 +3534,51 @@ SELECT EXISTS (SELECT 1 FROM cmdb_software_alias WHERE id = (sqlc.arg('payload')
 
 -- name: ClearCmdbSoftwareAlias :execrows
 DELETE FROM cmdb_software_alias;
+
+-- name: ImportApproval :execrows
+INSERT INTO approval (id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours, current_level, state, requested_by, requested_at, level_since, decided_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.workflow_key, r.step_key, r.item_version, r.levels, r.decline_to, r.due_hours, r.current_level, r.state, r.requested_by, r.requested_at, r.level_since, r.decided_at, r.version
+FROM jsonb_populate_record(
+  NULL::approval,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET current_level = EXCLUDED.current_level, state = EXCLUDED.state, level_since = EXCLUDED.level_since, decided_at = EXCLUDED.decided_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsApproval :one
+SELECT EXISTS (SELECT 1 FROM approval WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearApproval :execrows
+DELETE FROM approval;
+
+-- name: ImportApprovalDecision :execrows
+INSERT INTO approval_decision (id, tenant_id, approval_id, level, approver_id, on_behalf_of, verdict, reason, item_version, decided_at)
+SELECT r.id, r.tenant_id, r.approval_id, r.level, r.approver_id, r.on_behalf_of, r.verdict, r.reason, r.item_version, r.decided_at
+FROM jsonb_populate_record(
+  NULL::approval_decision,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET reason = EXCLUDED.reason
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsApprovalDecision :one
+SELECT EXISTS (SELECT 1 FROM approval_decision WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearApprovalDecision :execrows
+DELETE FROM approval_decision;
+
+-- name: ImportApprovalDelegation :execrows
+INSERT INTO approval_delegation (tenant_id, account_id, delegate_id, starts_at, ends_at)
+SELECT r.tenant_id, r.account_id, r.delegate_id, r.starts_at, r.ends_at
+FROM jsonb_populate_record(
+  NULL::approval_delegation,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET delegate_id = EXCLUDED.delegate_id, starts_at = EXCLUDED.starts_at, ends_at = EXCLUDED.ends_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsApprovalDelegation :one
+SELECT EXISTS (SELECT 1 FROM approval_delegation WHERE account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid) AS held;
+
+-- name: ClearApprovalDelegation :execrows
+DELETE FROM approval_delegation;

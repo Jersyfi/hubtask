@@ -46,14 +46,14 @@ type workflowStatusDocument struct {
 }
 
 type workflowStepDocument struct {
-	Key      string                  `json:"key"`
-	Name     string                  `json:"name,omitempty"`
-	From     []string                `json:"from"`
-	To       string                  `json:"to"`
-	Who      workflowWhoDocument     `json:"who"`
-	Requires []string                `json:"requires,omitempty"`
-	Asks     []string                `json:"asks,omitempty"`
-	Checks   []workflowCheckDocument `json:"checks,omitempty"`
+	Key      string                    `json:"key"`
+	Name     string                    `json:"name,omitempty"`
+	From     []string                  `json:"from"`
+	To       string                    `json:"to"`
+	Who      workflowWhoDocument       `json:"who"`
+	Requires []string                  `json:"requires,omitempty"`
+	Asks     []string                  `json:"asks,omitempty"`
+	Checks   []workflowCheckDocument   `json:"checks,omitempty"`
 	Approval *workflowApprovalDocument `json:"approval,omitempty"`
 }
 

@@ -171,6 +171,42 @@ func (q *Queries) ClearAiProvenanceMark(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearApproval = `-- name: ClearApproval :execrows
+DELETE FROM approval
+`
+
+func (q *Queries) ClearApproval(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearApproval)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearApprovalDecision = `-- name: ClearApprovalDecision :execrows
+DELETE FROM approval_decision
+`
+
+func (q *Queries) ClearApprovalDecision(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearApprovalDecision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearApprovalDelegation = `-- name: ClearApprovalDelegation :execrows
+DELETE FROM approval_delegation
+`
+
+func (q *Queries) ClearApprovalDelegation(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearApprovalDelegation)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearAutoAssignPolicy = `-- name: ClearAutoAssignPolicy :execrows
 DELETE FROM auto_assign_policy
 `
@@ -1557,6 +1593,39 @@ SELECT EXISTS (SELECT 1 FROM ai_provenance WHERE id = ($1::jsonb->>'id')::uuid) 
 
 func (q *Queries) HoldsAiProvenanceMark(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsAiProvenanceMark, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsApproval = `-- name: HoldsApproval :one
+SELECT EXISTS (SELECT 1 FROM approval WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsApproval(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsApproval, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsApprovalDecision = `-- name: HoldsApprovalDecision :one
+SELECT EXISTS (SELECT 1 FROM approval_decision WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsApprovalDecision(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsApprovalDecision, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsApprovalDelegation = `-- name: HoldsApprovalDelegation :one
+SELECT EXISTS (SELECT 1 FROM approval_delegation WHERE account_id = ($1::jsonb->>'account_id')::uuid) AS held
+`
+
+func (q *Queries) HoldsApprovalDelegation(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsApprovalDelegation, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3247,6 +3316,78 @@ type ImportAiProvenanceMarkParams struct {
 
 func (q *Queries) ImportAiProvenanceMark(ctx context.Context, arg ImportAiProvenanceMarkParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importAiProvenanceMark, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importApproval = `-- name: ImportApproval :execrows
+INSERT INTO approval (id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours, current_level, state, requested_by, requested_at, level_since, decided_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.workflow_key, r.step_key, r.item_version, r.levels, r.decline_to, r.due_hours, r.current_level, r.state, r.requested_by, r.requested_at, r.level_since, r.decided_at, r.version
+FROM jsonb_populate_record(
+  NULL::approval,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET current_level = EXCLUDED.current_level, state = EXCLUDED.state, level_since = EXCLUDED.level_since, decided_at = EXCLUDED.decided_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportApprovalParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportApproval(ctx context.Context, arg ImportApprovalParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importApproval, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importApprovalDecision = `-- name: ImportApprovalDecision :execrows
+INSERT INTO approval_decision (id, tenant_id, approval_id, level, approver_id, on_behalf_of, verdict, reason, item_version, decided_at)
+SELECT r.id, r.tenant_id, r.approval_id, r.level, r.approver_id, r.on_behalf_of, r.verdict, r.reason, r.item_version, r.decided_at
+FROM jsonb_populate_record(
+  NULL::approval_decision,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET reason = EXCLUDED.reason
+WHERE $2::boolean
+`
+
+type ImportApprovalDecisionParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportApprovalDecision(ctx context.Context, arg ImportApprovalDecisionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importApprovalDecision, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importApprovalDelegation = `-- name: ImportApprovalDelegation :execrows
+INSERT INTO approval_delegation (tenant_id, account_id, delegate_id, starts_at, ends_at)
+SELECT r.tenant_id, r.account_id, r.delegate_id, r.starts_at, r.ends_at
+FROM jsonb_populate_record(
+  NULL::approval_delegation,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET delegate_id = EXCLUDED.delegate_id, starts_at = EXCLUDED.starts_at, ends_at = EXCLUDED.ends_at
+WHERE $2::boolean
+`
+
+type ImportApprovalDelegationParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportApprovalDelegation(ctx context.Context, arg ImportApprovalDelegationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importApprovalDelegation, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

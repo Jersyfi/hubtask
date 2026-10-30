@@ -11,6 +11,51 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const delegationsTo = `-- name: DelegationsTo :many
+SELECT tenant_id, account_id, delegate_id, starts_at, ends_at
+FROM approval_delegation WHERE delegate_id = $1
+`
+
+// The people who handed their approvals to one delegate, in force or not; the application keeps
+// those in force at the moment.
+func (q *Queries) DelegationsTo(ctx context.Context, delegateID pgtype.UUID) ([]ApprovalDelegation, error) {
+	rows, err := q.db.Query(ctx, delegationsTo, delegateID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ApprovalDelegation{}
+	for rows.Next() {
+		var i ApprovalDelegation
+		if err := rows.Scan(
+			&i.TenantID,
+			&i.AccountID,
+			&i.DelegateID,
+			&i.StartsAt,
+			&i.EndsAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteApprovalDelegation = `-- name: DeleteApprovalDelegation :execrows
+DELETE FROM approval_delegation WHERE account_id = $1
+`
+
+func (q *Queries) DeleteApprovalDelegation(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteApprovalDelegation, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteBusinessCalendar = `-- name: DeleteBusinessCalendar :execrows
 DELETE FROM business_calendar WHERE key = $1
 `
@@ -45,6 +90,54 @@ func (q *Queries) DeleteSlaPolicy(ctx context.Context, key string) (int64, error
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const findApproval = `-- name: FindApproval :one
+SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
+       current_level, state, requested_by, requested_at, level_since, decided_at, version
+FROM approval WHERE id = $1
+`
+
+func (q *Queries) FindApproval(ctx context.Context, id pgtype.UUID) (Approval, error) {
+	row := q.db.QueryRow(ctx, findApproval, id)
+	var i Approval
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ItemID,
+		&i.WorkflowKey,
+		&i.StepKey,
+		&i.ItemVersion,
+		&i.Levels,
+		&i.DeclineTo,
+		&i.DueHours,
+		&i.CurrentLevel,
+		&i.State,
+		&i.RequestedBy,
+		&i.RequestedAt,
+		&i.LevelSince,
+		&i.DecidedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const findApprovalDelegation = `-- name: FindApprovalDelegation :one
+SELECT tenant_id, account_id, delegate_id, starts_at, ends_at
+FROM approval_delegation WHERE account_id = $1
+`
+
+func (q *Queries) FindApprovalDelegation(ctx context.Context, accountID pgtype.UUID) (ApprovalDelegation, error) {
+	row := q.db.QueryRow(ctx, findApprovalDelegation, accountID)
+	var i ApprovalDelegation
+	err := row.Scan(
+		&i.TenantID,
+		&i.AccountID,
+		&i.DelegateID,
+		&i.StartsAt,
+		&i.EndsAt,
+	)
+	return i, err
 }
 
 const findBusinessCalendar = `-- name: FindBusinessCalendar :one
@@ -133,6 +226,81 @@ func (q *Queries) FindSlaPolicy(ctx context.Context, key string) (SlaPolicy, err
 		&i.Version,
 	)
 	return i, err
+}
+
+const insertApproval = `-- name: InsertApproval :exec
+INSERT INTO approval (id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to,
+                      due_hours, current_level, state, requested_by, requested_at, level_since, version)
+VALUES ($1, $2, $3, $4, $5,
+        $6, $7, $8, $9, 0, 'PENDING',
+        $10, $11, $11, 1)
+`
+
+type InsertApprovalParams struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	ItemID      pgtype.UUID
+	WorkflowKey string
+	StepKey     string
+	ItemVersion int32
+	Levels      []byte
+	DeclineTo   string
+	DueHours    int32
+	RequestedBy pgtype.UUID
+	RequestedAt pgtype.Timestamptz
+}
+
+func (q *Queries) InsertApproval(ctx context.Context, arg InsertApprovalParams) error {
+	_, err := q.db.Exec(ctx, insertApproval,
+		arg.ID,
+		arg.TenantID,
+		arg.ItemID,
+		arg.WorkflowKey,
+		arg.StepKey,
+		arg.ItemVersion,
+		arg.Levels,
+		arg.DeclineTo,
+		arg.DueHours,
+		arg.RequestedBy,
+		arg.RequestedAt,
+	)
+	return err
+}
+
+const insertApprovalDecision = `-- name: InsertApprovalDecision :exec
+INSERT INTO approval_decision (id, tenant_id, approval_id, level, approver_id, on_behalf_of, verdict, reason,
+                               item_version, decided_at)
+VALUES ($1, $2, $3, $4, $5,
+        $6, $7, $8, $9, $10)
+`
+
+type InsertApprovalDecisionParams struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	ApprovalID  pgtype.UUID
+	Level       int16
+	ApproverID  pgtype.UUID
+	OnBehalfOf  pgtype.UUID
+	Verdict     string
+	Reason      string
+	ItemVersion int32
+	DecidedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) InsertApprovalDecision(ctx context.Context, arg InsertApprovalDecisionParams) error {
+	_, err := q.db.Exec(ctx, insertApprovalDecision,
+		arg.ID,
+		arg.TenantID,
+		arg.ApprovalID,
+		arg.Level,
+		arg.ApproverID,
+		arg.OnBehalfOf,
+		arg.Verdict,
+		arg.Reason,
+		arg.ItemVersion,
+		arg.DecidedAt,
+	)
+	return err
 }
 
 const insertBusinessCalendar = `-- name: InsertBusinessCalendar :exec
@@ -234,6 +402,85 @@ func (q *Queries) InsertSlaPolicy(ctx context.Context, arg InsertSlaPolicyParams
 	return err
 }
 
+const listApprovalDecisions = `-- name: ListApprovalDecisions :many
+SELECT id, tenant_id, approval_id, level, approver_id, on_behalf_of, verdict, reason, item_version, decided_at
+FROM approval_decision WHERE approval_id = $1 ORDER BY decided_at, id
+`
+
+func (q *Queries) ListApprovalDecisions(ctx context.Context, approvalID pgtype.UUID) ([]ApprovalDecision, error) {
+	rows, err := q.db.Query(ctx, listApprovalDecisions, approvalID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ApprovalDecision{}
+	for rows.Next() {
+		var i ApprovalDecision
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ApprovalID,
+			&i.Level,
+			&i.ApproverID,
+			&i.OnBehalfOf,
+			&i.Verdict,
+			&i.Reason,
+			&i.ItemVersion,
+			&i.DecidedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listApprovalsOfItem = `-- name: ListApprovalsOfItem :many
+SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
+       current_level, state, requested_by, requested_at, level_since, decided_at, version
+FROM approval WHERE item_id = $1 ORDER BY requested_at DESC, id DESC LIMIT 50
+`
+
+func (q *Queries) ListApprovalsOfItem(ctx context.Context, itemID pgtype.UUID) ([]Approval, error) {
+	rows, err := q.db.Query(ctx, listApprovalsOfItem, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Approval{}
+	for rows.Next() {
+		var i Approval
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.WorkflowKey,
+			&i.StepKey,
+			&i.ItemVersion,
+			&i.Levels,
+			&i.DeclineTo,
+			&i.DueHours,
+			&i.CurrentLevel,
+			&i.State,
+			&i.RequestedBy,
+			&i.RequestedAt,
+			&i.LevelSince,
+			&i.DecidedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBusinessCalendars = `-- name: ListBusinessCalendars :many
 SELECT id, tenant_id, key, name, spec, created_at, updated_at, version
 FROM business_calendar ORDER BY key
@@ -297,6 +544,51 @@ func (q *Queries) ListEntrySla(ctx context.Context, itemID pgtype.UUID) ([]Entry
 			&i.MetAt,
 			&i.BreachedAt,
 			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPendingApprovals = `-- name: ListPendingApprovals :many
+SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
+       current_level, state, requested_by, requested_at, level_since, decided_at, version
+FROM approval WHERE state = 'PENDING' ORDER BY requested_at, id LIMIT $1
+`
+
+// Every approval waiting in the workspace, oldest first: a person's own are those whose current
+// level counts them or names a role they hold, which the application decides.
+func (q *Queries) ListPendingApprovals(ctx context.Context, maxRows int32) ([]Approval, error) {
+	rows, err := q.db.Query(ctx, listPendingApprovals, maxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Approval{}
+	for rows.Next() {
+		var i Approval
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.WorkflowKey,
+			&i.StepKey,
+			&i.ItemVersion,
+			&i.Levels,
+			&i.DeclineTo,
+			&i.DueHours,
+			&i.CurrentLevel,
+			&i.State,
+			&i.RequestedBy,
+			&i.RequestedAt,
+			&i.LevelSince,
+			&i.DecidedAt,
 			&i.Version,
 		); err != nil {
 			return nil, err
@@ -383,6 +675,36 @@ func (q *Queries) ListSlaPolicies(ctx context.Context) ([]SlaPolicy, error) {
 	return items, nil
 }
 
+const pendingApprovalOfItem = `-- name: PendingApprovalOfItem :one
+SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
+       current_level, state, requested_by, requested_at, level_since, decided_at, version
+FROM approval WHERE item_id = $1 AND state = 'PENDING'
+`
+
+func (q *Queries) PendingApprovalOfItem(ctx context.Context, itemID pgtype.UUID) (Approval, error) {
+	row := q.db.QueryRow(ctx, pendingApprovalOfItem, itemID)
+	var i Approval
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ItemID,
+		&i.WorkflowKey,
+		&i.StepKey,
+		&i.ItemVersion,
+		&i.Levels,
+		&i.DeclineTo,
+		&i.DueHours,
+		&i.CurrentLevel,
+		&i.State,
+		&i.RequestedBy,
+		&i.RequestedAt,
+		&i.LevelSince,
+		&i.DecidedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const reportEntrySla = `-- name: ReportEntrySla :many
 SELECT policy_key, goal, standing, count(*)::bigint AS entries
 FROM entry_sla
@@ -427,6 +749,32 @@ func (q *Queries) ReportEntrySla(ctx context.Context, arg ReportEntrySlaParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const saveApprovalDelegation = `-- name: SaveApprovalDelegation :exec
+INSERT INTO approval_delegation (tenant_id, account_id, delegate_id, starts_at, ends_at)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET
+  delegate_id = EXCLUDED.delegate_id, starts_at = EXCLUDED.starts_at, ends_at = EXCLUDED.ends_at
+`
+
+type SaveApprovalDelegationParams struct {
+	TenantID   pgtype.UUID
+	AccountID  pgtype.UUID
+	DelegateID pgtype.UUID
+	StartsAt   pgtype.Timestamptz
+	EndsAt     pgtype.Timestamptz
+}
+
+func (q *Queries) SaveApprovalDelegation(ctx context.Context, arg SaveApprovalDelegationParams) error {
+	_, err := q.db.Exec(ctx, saveApprovalDelegation,
+		arg.TenantID,
+		arg.AccountID,
+		arg.DelegateID,
+		arg.StartsAt,
+		arg.EndsAt,
+	)
+	return err
 }
 
 const saveSatisfactionRating = `-- name: SaveSatisfactionRating :one
@@ -498,6 +846,37 @@ func (q *Queries) SlaDueOf(ctx context.Context, itemIds []pgtype.UUID) ([]SlaDue
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateApproval = `-- name: UpdateApproval :execrows
+UPDATE approval SET
+  current_level = $1, state = $2, level_since = $3,
+  decided_at = $4, version = version + 1
+WHERE id = $5 AND version = $6
+`
+
+type UpdateApprovalParams struct {
+	CurrentLevel    int16
+	State           string
+	LevelSince      pgtype.Timestamptz
+	DecidedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+func (q *Queries) UpdateApproval(ctx context.Context, arg UpdateApprovalParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateApproval,
+		arg.CurrentLevel,
+		arg.State,
+		arg.LevelSince,
+		arg.DecidedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateBusinessCalendar = `-- name: UpdateBusinessCalendar :execrows

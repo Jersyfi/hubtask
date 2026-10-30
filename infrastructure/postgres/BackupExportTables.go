@@ -722,6 +722,45 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"approval": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportApprovals(ctx, sqlc.ExportApprovalsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportApprovalsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"approval_decision": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportApprovalDecisions(ctx, sqlc.ExportApprovalDecisionsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportApprovalDecisionsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"approval_delegation": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportApprovalDelegations(ctx, sqlc.ExportApprovalDelegationsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportApprovalDelegationsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"satisfaction_rating": {
 		delta: false,
 		keys:  1,

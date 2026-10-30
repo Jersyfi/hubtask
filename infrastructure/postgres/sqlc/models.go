@@ -630,6 +630,46 @@ type AiSuggestion struct {
 	AgentID       pgtype.UUID
 }
 
+type Approval struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	ItemID       pgtype.UUID
+	WorkflowKey  string
+	StepKey      string
+	ItemVersion  int32
+	Levels       []byte
+	DeclineTo    string
+	DueHours     int32
+	CurrentLevel int16
+	State        string
+	RequestedBy  pgtype.UUID
+	RequestedAt  pgtype.Timestamptz
+	LevelSince   pgtype.Timestamptz
+	DecidedAt    pgtype.Timestamptz
+	Version      int32
+}
+
+type ApprovalDecision struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	ApprovalID  pgtype.UUID
+	Level       int16
+	ApproverID  pgtype.UUID
+	OnBehalfOf  pgtype.UUID
+	Verdict     string
+	Reason      string
+	ItemVersion int32
+	DecidedAt   pgtype.Timestamptz
+}
+
+type ApprovalDelegation struct {
+	TenantID   pgtype.UUID
+	AccountID  pgtype.UUID
+	DelegateID pgtype.UUID
+	StartsAt   pgtype.Timestamptz
+	EndsAt     pgtype.Timestamptz
+}
+
 type AuditAnchor struct {
 	TenantID    pgtype.UUID
 	AnchoredAt  pgtype.Timestamptz
