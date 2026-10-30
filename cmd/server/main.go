@@ -1842,6 +1842,7 @@ func run() error {
 		Boards: postgres.NewWhiteboardRepository(), Containers: containers, Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Texts: pageSpace.Pages, Entries: entryLinks, Reader: authorizer, Media: mediaObjects,
+		Changes: changes, HLC: hybrid,
 		// The people a comment names who read the board are told (UC-CNV-09).
 		People: authorizer,
 		Mentions: notification.RecordWhiteboardMention{

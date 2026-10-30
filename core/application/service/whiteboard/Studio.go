@@ -13,6 +13,7 @@ import (
 	"context"
 	"strconv"
 
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/whiteboard"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -82,6 +83,23 @@ type Studio struct {
 	// nil tells nobody.
 	People   People
 	Mentions MentionRecorder
+	// Changes and HLC tell offline devices of a board made, drawn, renamed, trashed or restored, so
+	// that it can be read without the server (UC-CNV-01 check 9). A nil Changes records nothing.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
+}
+
+// announce records the board as it now stands, its scene included, filed under its hub; a trashed
+// board's record says so, as a page's does.
+func (s Studio) announce(ctx context.Context, actor appshared.ActorContext, board domain.Board) error {
+	if s.Changes == nil {
+		return nil
+	}
+	return s.Changes.Record(ctx, changelog.Change{
+		TenantID: actor.TenantID, Entity: domain.DocumentKind, EntityID: board.ID, Op: changelog.Upsert,
+		ContainerID: board.HubID, ActorID: actor.AccountID, HLC: s.HLC.Next(),
+		Payload: BoardOutput(board, len(board.Scene.Elements), true),
+	})
 }
 
 func hubPath(hubID shared.ID) []identity.Scope {

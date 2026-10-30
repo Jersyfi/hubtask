@@ -85,6 +85,9 @@ func (h CreateWhiteboard) Execute(ctx context.Context, actor appshared.ActorCont
 				return err
 			}
 		}
+		if err := h.Studio.announce(ctx, actor, board); err != nil {
+			return err
+		}
 		return h.Studio.record(ctx, actor, BoardCreatedAction, board, []string{domain.FieldTitle, domain.FieldScene})
 	})
 	return board, err
@@ -270,6 +273,9 @@ func (h UpdateWhiteboard) Execute(ctx context.Context, actor appshared.ActorCont
 		if err := h.Studio.snapshot(ctx, next, actor.AccountID); err != nil {
 			return err
 		}
+		if err := h.Studio.announce(ctx, actor, next); err != nil {
+			return err
+		}
 		return h.Studio.record(ctx, actor, BoardChangedAction, next, fields)
 	})
 	return board, err
@@ -366,6 +372,9 @@ func (s Studio) toggle(ctx context.Context, actor appshared.ActorContext, id sha
 		}
 		next.Version = current.Version + 1
 		board = next
+		if err := s.announce(ctx, actor, next); err != nil {
+			return err
+		}
 		return s.record(ctx, actor, action, next, nil)
 	})
 	return board, err
