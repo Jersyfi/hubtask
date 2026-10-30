@@ -399,13 +399,30 @@ func (h ReadEstimatesVsActuals) Descriptor() usecase.Descriptor {
 
 // ExportTimeRecords hands time records to accounting (UC-TIM-05): the same records a listing
 // reads, at most 50000, in fixed columns. Where the workspace shows only sums, only the caller's
-// own: a record is one person's.
+// own: a record is one person's. Asked with costs, each record also carries the hourly rate that
+// prices it and its cost - which only MANAGE_COSTS at the workspace reads, as the rates themselves.
 type ExportTimeRecords struct{ Keeper Keeper }
 
-// Execute reads the rows.
-func (h ExportTimeRecords) Execute(ctx context.Context, actor appshared.ActorContext, f timerepo.Filter, mine bool) ([]timerepo.Placed, bool, error) {
+// Cost is what one exported record cost: the rate pricing its day, in that rate's currency - no
+// conversion -, or none where no rate prices it.
+type Cost struct {
+	Priced      bool
+	HourMinor   int64
+	Currency    string
+	AmountMinor int64
+}
+
+// Execute reads the rows; costs holds one Cost per row when asked, else nothing.
+func (h ExportTimeRecords) Execute(
+	ctx context.Context, actor appshared.ActorContext, f timerepo.Filter, mine, withCosts bool,
+) ([]timerepo.Placed, []Cost, bool, error) {
 	if err := person(actor); err != nil {
-		return nil, false, err
+		return nil, nil, false, err
+	}
+	if withCosts {
+		if err := h.Keeper.Authorizer.Authorize(ctx, actor, costsRequest(RecordsExportedAction, itemsRead, rateTarget, workspacePath(), "")); err != nil {
+			return nil, nil, false, err
+		}
 	}
 	if mine {
 		f.AccountID = actor.AccountID
@@ -414,19 +431,25 @@ func (h ExportTimeRecords) Execute(ctx context.Context, actor appshared.ActorCon
 	if others {
 		policy, err := h.Keeper.policy(ctx, actor)
 		if err != nil {
-			return nil, false, err
+			return nil, nil, false, err
 		}
 		if policy.Visibility == domain.VisibilityAggregated {
-			return nil, false, shared.ErrForbidden.WithDetail("time.aggregated_only")
+			return nil, nil, false, shared.ErrForbidden.WithDetail("time.aggregated_only")
 		}
 	}
-	var placed []timerepo.Placed
+	var (
+		placed []timerepo.Placed
+		rates  []domain.CostRate
+	)
 	if err := h.Keeper.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		placed, err = h.Keeper.Store.Records(ctx, f, maxRecordsExported+1)
+		if placed, err = h.Keeper.Store.Records(ctx, f, maxRecordsExported+1); err != nil || !withCosts {
+			return err
+		}
+		rates, err = h.Keeper.Resources.Rates(ctx, maxRatesKept)
 		return err
 	}); err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	truncated := len(placed) > maxRecordsExported
 	if truncated {
@@ -435,7 +458,14 @@ func (h ExportTimeRecords) Execute(ctx context.Context, actor appshared.ActorCon
 	if others {
 		var err error
 		if placed, err = h.Keeper.approvedRecords(ctx, actor, placed, RecordsExportedAction, itemsRead); err != nil {
-			return nil, false, err
+			return nil, nil, false, err
+		}
+	}
+	var costs []Cost
+	if withCosts {
+		var err error
+		if costs, err = h.Keeper.costsOf(ctx, actor, placed, domain.NewRates(rates)); err != nil {
+			return nil, nil, false, err
 		}
 	}
 	now := h.Keeper.Clock.Now()
@@ -443,9 +473,38 @@ func (h ExportTimeRecords) Execute(ctx context.Context, actor appshared.ActorCon
 		return h.Keeper.record(ctx, actor, RecordsExportedAction, recordTarget, "", now,
 			audit.Change{Field: "from", Classification: audit.Open, To: f.From.String()},
 			audit.Change{Field: "to", Classification: audit.Open, To: f.To.String()},
-			audit.Change{Field: "records", Classification: audit.Open, To: strconv.Itoa(len(placed))})
+			audit.Change{Field: "records", Classification: audit.Open, To: strconv.Itoa(len(placed))},
+			audit.Change{Field: "costs", Classification: audit.Open, To: strconv.FormatBool(withCosts)})
 	})
-	return placed, truncated, err
+	return placed, costs, truncated, err
+}
+
+// costsOf prices each record as a budget's burn does: the person's own rate, else that of their
+// most specific role where the time was spent - its collection, else the workspace.
+func (k Keeper) costsOf(ctx context.Context, actor appshared.ActorContext, placed []timerepo.Placed, rates domain.Rates) ([]Cost, error) {
+	type holder struct {
+		account shared.ID
+		at      place
+	}
+	roles := map[holder][]string{}
+	out := make([]Cost, len(placed))
+	for i, p := range placed {
+		key := holder{account: p.AccountID, at: place{hub: p.HubID, collection: p.CollectionID}}
+		held, seen := roles[key]
+		if !seen && k.Roles != nil {
+			var err error
+			if held, err = k.Roles.RolesBy(ctx, actor, p.AccountID, key.at.path()); err != nil {
+				return nil, err
+			}
+			roles[key] = held
+		}
+		rate, ok := rates.For(p.AccountID, held, p.Day)
+		if !ok {
+			continue
+		}
+		out[i] = Cost{Priced: true, HourMinor: rate.HourMinor, Currency: rate.Currency, AmountMinor: domain.CostMinor(p.Minutes, rate.HourMinor)}
+	}
+	return out, nil
 }
 
 // ExportColumns are the export's columns, fixed so that a sheet built on them keeps its shape.
@@ -454,38 +513,58 @@ var ExportColumns = []string{
 	"minutes", "hours", "billable", "source", "corrects", "note",
 }
 
+// CostColumns follow ExportColumns in an export asked with costs: amounts in the currency's minor
+// unit, empty where no rate prices the record.
+var CostColumns = []string{"rate_minor", "currency", "cost_minor"}
+
 // Descriptor is the catalogue entry.
 func (h ExportTimeRecords) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ExportTimeRecordsName,
 		Summary: "Exports time records of a range of days for accounting, at most 50000, in fixed columns: the " +
 			"caller's own with `mine`, else also other people's where the caller approves time; where the workspace " +
-			"shows only sums, the caller's own only (time.aggregated_only). No invoice is made.",
+			"shows only sums, the caller's own only (time.aggregated_only). With `costs`, each record also carries " +
+			"the hourly rate pricing it and its cost, which needs MANAGE_COSTS at the workspace. No invoice is made.",
 		SideEffects: "Writes an audit entry of the export.",
 		TokenScope:  itemsRead,
-		Input:       filterInput(true),
-		Audit:       usecase.AuditDeclaration{Action: RecordsExportedAction},
+		Input: append(filterInput(true), usecase.Field{
+			Name: "costs", Kind: usecase.KindBool,
+			Description: "Also each record's hourly rate and cost, in the rate's currency; needs MANAGE_COSTS.",
+		}),
+		Audit: usecase.AuditDeclaration{Action: RecordsExportedAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			f, err := filterOf(in)
 			if err != nil {
 				return nil, err
 			}
 			mine, _ := in["mine"].(bool)
-			placed, truncated, err := h.Execute(ctx, actor, f, mine)
+			withCosts, _ := in["costs"].(bool)
+			placed, costs, truncated, err := h.Execute(ctx, actor, f, mine, withCosts)
 			if err != nil {
 				return nil, err
 			}
+			columns := ExportColumns
+			if withCosts {
+				columns = append(append([]string{}, ExportColumns...), CostColumns...)
+			}
 			rows := make([]usecase.Output, 0, len(placed))
-			for _, p := range placed {
-				rows = append(rows, usecase.Output{
+			for i, p := range placed {
+				row := usecase.Output{
 					"record_id": p.ID.String(), "day": p.Day.String(), "account_id": p.AccountID.String(),
 					"hub_id": idText(p.HubID), "collection_id": idText(p.CollectionID), "entry_id": idText(p.EntryID),
 					"entry_title": p.EntryTitle, "work_type": p.WorkType, "minutes": p.Minutes,
 					"hours": float64(p.Minutes) / 60, "billable": p.Billable, "source": string(p.Source),
 					"corrects": idText(p.Corrects), "note": p.Note,
-				})
+				}
+				if withCosts {
+					row["rate_minor"], row["currency"], row["cost_minor"] = nil, "", nil
+					if c := costs[i]; c.Priced {
+						row["rate_minor"], row["currency"], row["cost_minor"] = c.HourMinor, c.Currency, c.AmountMinor
+					}
+				}
+				rows = append(rows, row)
 			}
-			return usecase.Output{"columns": ExportColumns, "rows": rows, "truncated": truncated}, nil
+			return usecase.Output{"columns": columns, "rows": rows, "truncated": truncated}, nil
 		}),
 	}, recordTarget)
 }

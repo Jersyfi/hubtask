@@ -12,7 +12,9 @@ import (
 	"time"
 
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
+	timerepo "github.com/Jersyfi/hubtask/core/application/repository/timekeeping"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	idmodel "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
@@ -346,5 +348,47 @@ func TestABudgetBurnsByTheRates(t *testing.T) {
 	}
 	if err := (RemoveCostRate{Keeper: f.keeper}).Execute(ctx, as(lead), designer.ID, 1); err != nil || len(r.rates) != 1 {
 		t.Fatalf("remove the rate: %v", err)
+	}
+}
+
+// UC-TIM-05 check 5: an export asked with costs carries each record's rate and cost, priced as the
+// burn prices it, and only MANAGE_COSTS at the workspace may ask for it.
+func TestTimeIsHandedToAccountingWithItsCost(t *testing.T) {
+	f := newFixture()
+	f.withResources()
+	ctx := context.Background()
+	f.gate.approvers[lead] = append(f.gate.approvers[lead], tenantID)
+	from := day(t, "2026-01-01")
+	if _, err := (SetCostRate{Keeper: f.keeper}).Execute(ctx, as(lead), domain.CostRate{Role: "designer", HourMinor: 6000, Currency: "EUR", From: from}, 0); err != nil {
+		t.Fatalf("a role's rate: %v", err)
+	}
+	f.log(t, ana, checkout, "2026-11-02", 90) // her role's: 1.5 x 60.00
+	f.log(t, ben, checkout, "2026-11-03", 30) // no rate
+	week := timerepo.Filter{From: day(t, "2026-11-02"), To: day(t, "2026-11-08")}
+	if _, _, _, err := (ExportTimeRecords{Keeper: f.keeper}).Execute(ctx, as(ana), week, true, true); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("a member exported costs: %v", err)
+	}
+	out, err := ExportTimeRecords{Keeper: f.keeper}.Descriptor().Handler.Invoke(ctx, as(lead), usecase.Input{"from": "2026-11-02", "to": "2026-11-08", "costs": true})
+	if err != nil {
+		t.Fatalf("export with costs: %v", err)
+	}
+	columns := out["columns"].([]string)
+	if len(columns) != len(ExportColumns)+len(CostColumns) || columns[len(columns)-1] != "cost_minor" {
+		t.Fatalf("columns = %v", columns)
+	}
+	priced := map[string]usecase.Output{}
+	for _, row := range out["rows"].([]usecase.Output) {
+		priced[row["account_id"].(string)] = row
+	}
+	if a := priced[ana.String()]; a["rate_minor"] != int64(6000) || a["currency"] != "EUR" || a["cost_minor"] != int64(9000) {
+		t.Fatalf("ana's row = %+v", a)
+	}
+	if b, ok := priced[ben.String()]; ok && (b["cost_minor"] != nil || b["currency"] != "") {
+		t.Fatalf("ben's unpriced row = %+v", b)
+	}
+	for _, e := range f.audit.entries {
+		if strings.Contains(fmt.Sprint(e.Changes), "6000") || strings.Contains(fmt.Sprint(e.Changes), "9000") {
+			t.Fatalf("an amount reached the trail: %+v", e)
+		}
 	}
 }

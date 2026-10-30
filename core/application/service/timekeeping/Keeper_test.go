@@ -613,15 +613,15 @@ func TestTimeIsHandedToAccounting(t *testing.T) {
 	f.log(t, ana, checkout, "2026-11-02", 60)
 	f.log(t, ben, elsewhere, "2026-11-03", 45)
 	week := timerepo.Filter{From: day(t, "2026-11-02"), To: day(t, "2026-11-08")}
-	rows, _, err := ExportTimeRecords{Keeper: f.keeper}.Execute(ctx, as(lead), week, false)
+	rows, _, _, err := ExportTimeRecords{Keeper: f.keeper}.Execute(ctx, as(lead), week, false, false)
 	if err != nil || len(rows) != 1 || rows[0].AccountID != ana {
 		t.Fatalf("the lead's export %+v %v", rows, err)
 	}
 	f.store.policy.Visibility = domain.VisibilityAggregated
-	if _, _, err := (ExportTimeRecords{Keeper: f.keeper}).Execute(ctx, as(lead), week, false); detail(err) != "time.aggregated_only" {
+	if _, _, _, err := (ExportTimeRecords{Keeper: f.keeper}).Execute(ctx, as(lead), week, false, false); detail(err) != "time.aggregated_only" {
 		t.Fatalf("others exported in aggregated mode: %v", err)
 	}
-	mine, _, err := ExportTimeRecords{Keeper: f.keeper}.Execute(ctx, as(ben), week, true)
+	mine, _, _, err := ExportTimeRecords{Keeper: f.keeper}.Execute(ctx, as(ben), week, true, false)
 	if err != nil || len(mine) != 1 || mine[0].EntryID != elsewhere {
 		t.Fatalf("own export %+v %v", mine, err)
 	}
