@@ -8210,6 +8210,10 @@ paths:
     post:
       tags: [auth]
       operationId: setUpInstallation
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-null: empty
+      x-hubtask-rest-request: [user_agent, remote_addr]
       security: []
       summary: Set up a fresh installation with the code its first start printed
       description: >
@@ -8984,6 +8988,8 @@ paths:
     post:
       tags: [auth]
       operationId: completePasskeyEnrollment
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: passkeyEnrolledResponse
       security: []
       summary: Finish setting up a passkey or security key during sign-in
       description: |
@@ -17789,6 +17795,9 @@ paths:
     post:
       tags: [media]
       operationId: requestMediaUpload
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: mediaResponse
+      x-hubtask-rest-location: /media/{id}
       description: >
         Stages an upload: declares what is coming - its purpose, size and claimed type - and
         receives where to put the bytes. The answer's upload object carries a URL the client PUTs

@@ -4,10 +4,7 @@
 package rest
 
 import (
-	"net/http"
-
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -18,44 +15,7 @@ const (
 	// revokeOtherSessionsUseCase is *Sign out everywhere else* (UC-ID-06 check 4).
 	revokeOtherSessionsUseCase = "RevokeOtherSessions"
 	redeemInvitationUseCase    = "RedeemInvitation"
-	setUpInstallationUseCase   = "SetUpInstallation"
 )
-
-// SetUpInstallation answers POST /auth/installation:set-up.
-//
-// Written out for SignIn's reason: the route is public, and the setup code in the body is the whole
-// of what authenticates the call.
-func (c *RestController) SetUpInstallation(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.InstallationSetUp
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), setUpInstallationUseCase, actorOf(r), usecase.Input{
-		"code":               body.Code,
-		"display_name":       body.DisplayName,
-		"slug":               stringOrEmpty(body.Slug),
-		"owner_email":        body.OwnerEmail,
-		"owner_display_name": stringOrEmpty(body.OwnerDisplayName),
-		"password":           body.Password,
-		"default_locale":     stringOrEmpty(body.DefaultLocale),
-		"default_time_zone":  stringOrEmpty(body.DefaultTimeZone),
-		"user_agent":         r.UserAgent(),
-		"remote_addr":        r.RemoteAddr,
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
 
 // sessionResponse maps one session projection onto the contract's shape.
 func sessionResponse(row usecase.Output) openapi.Session {

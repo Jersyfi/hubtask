@@ -110,39 +110,10 @@ func (c *RestController) CompletePasskeyRegistration(w http.ResponseWriter, r *h
 // there is no actor to resolve - the call exists to produce one - and the request's host, client and
 // workspace sources travel as declared inputs, because only this adapter has the request.
 
-const (
-	completePasskeyEnrollmentUseCase = "CompletePasskeyEnrollment"
-)
+const ()
 
-// CompletePasskeyEnrollment answers POST /auth/mfa/passkey:enroll: the key kept, and the sign-in's
-// pair or the step it still owes.
-func (c *RestController) CompletePasskeyEnrollment(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.PasskeyEnrollment
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{
-		"pending_token": body.PendingToken, "name": body.Name, "raw_id": body.RawId,
-		"client_data_json": body.ClientDataJson, "attestation_object": body.AttestationObject,
-	}
-	if body.Transports != nil {
-		transports := make([]any, 0, len(*body.Transports))
-		for _, transport := range *body.Transports {
-			transports = append(transports, string(transport))
-		}
-		in["transports"] = transports
-	}
-	out, err := c.UseCases.Invoke(r.Context(), completePasskeyEnrollmentUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
+// passkeyEnrolledResponse maps an enrolled passkey: the first factor's recovery codes, and the session or the step still owed.
+func passkeyEnrolledResponse(out usecase.Output) openapi.PasskeyEnrolled {
 	passkey, _ := out["passkey"].(usecase.Output)
 	answer := openapi.PasskeyEnrolled{Passkey: passkeyResponse(passkey)}
 	if codes, ok := out["recovery_codes"].([]any); ok && len(codes) > 0 {
@@ -161,5 +132,5 @@ func (c *RestController) CompletePasskeyEnrollment(w http.ResponseWriter, r *htt
 		owed := mfaChallengeResponse(challenge)
 		answer.Challenge = &owed
 	}
-	writeJSON(w, r, http.StatusCreated, answer)
+	return answer
 }

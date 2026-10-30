@@ -12884,6 +12884,13 @@
           "auth"
         ],
         "operationId": "setUpInstallation",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-null": "empty",
+        "x-hubtask-rest-request": [
+          "user_agent",
+          "remote_addr"
+        ],
         "security": [],
         "summary": "Set up a fresh installation with the code its first start printed",
         "description": "The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.\nIn single mode the workspace's short name is not asked for and is derived from its name; in multi mode `slug` is required and the workspace answers at that subdomain.\nA wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired` (restarting the server prints a new one). Once any workspace exists every code is spent and the call is refused with `setup.already_done`: the code is the only key, and after the first workspace there is nothing left for it to open. `features.setup_open` in `/meta/capabilities` says whether this is offered.\n",
@@ -13742,6 +13749,8 @@
           "auth"
         ],
         "operationId": "completePasskeyEnrollment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "passkeyEnrolledResponse",
         "security": [],
         "summary": "Finish setting up a passkey or security key during sign-in",
         "description": "The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten\nrecovery codes are shown once where the account held none, and - the second factor proved -\nthe sign-in completes: the pair, or the step still owed.\n",
@@ -25665,6 +25674,9 @@
           "media"
         ],
         "operationId": "requestMediaUpload",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "mediaResponse",
+        "x-hubtask-rest-location": "/media/{id}",
         "description": "Stages an upload: declares what is coming - its purpose, size and claimed type - and receives where to put the bytes. The answer's upload object carries a URL the client PUTs the bytes to directly (presigned object storage, or this server's token-protected content route on a local-storage installation) and the moment it expires. The object stays PENDING until confirmed; abandoned stagings are cleaned up by the reconciliation job.\n",
         "parameters": [
           {

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	usecasemedia "github.com/Jersyfi/hubtask/core/application/service/media"
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -44,47 +43,6 @@ type MediaTokenValidator interface {
 type MediaContentService interface {
 	Receive(ctx context.Context, grant usecasemedia.Grant, content io.Reader) error
 	Send(ctx context.Context, grant usecasemedia.Grant) (usecasemedia.Served, error)
-}
-
-// RequestMediaUpload answers POST /media.
-//
-// The answer carries the upload target, which is the point of the whole operation: on an
-// object-storage installation it is a presigned bucket URL and the bytes never touch this server
-// (arc42 §8.4); on a local one it is this server's own content route, with a token standing in for
-// the signature.
-func (c *RestController) RequestMediaUpload(
-	w http.ResponseWriter, r *http.Request, _ openapi.RequestMediaUploadParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	var body openapi.MediaUploadRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{
-		"usage":        string(body.Usage),
-		"size":         int(body.Size),
-		"file_name":    optionalStringField(body.FileName),
-		"content_type": optionalStringField(body.ContentType),
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), requestMediaUploadUseCase, actor, in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	object := mediaResponse(out)
-	w.Header().Set("Location", APIBasePath+"/media/"+object.Id.String())
-	writeJSON(w, r, http.StatusCreated, object)
 }
 
 // UploadMediaContent answers PUT /media/{mediaId}:content.

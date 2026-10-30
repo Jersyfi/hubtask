@@ -76,6 +76,7 @@ var restDoors = map[string]restDoor{
 	"compareBaseline":                   {UseCase: "CompareBaseline", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeLink":                      {UseCase: "CompleteLink", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"completeMailboxAuthorization":      {UseCase: "CompleteMailboxAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"completePasskeyEnrollment":         {UseCase: "CompletePasskeyEnrollment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completePasskeySignIn":             {UseCase: "CompletePasskeySignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"host", "tenant_header", "user_agent", "remote_addr"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"completeProviderConnect":           {UseCase: "CompleteProviderConnect", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeSignIn":                    {UseCase: "CompleteSignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
@@ -462,6 +463,7 @@ var restDoors = map[string]restDoor{
 	"reportPortfolioStatus":             {UseCase: "ReportPortfolioStatus", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reportSla":                         {UseCase: "ReportSla", Status: 200, Query: []string{"from", "to"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"requestAddress":                    {UseCase: "RequestAddress", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"requestMediaUpload":                {UseCase: "RequestMediaUpload", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/media/{id}", NullClears: false, Integers: []string{"size"}},
 	"requestTenantDeletion":             {UseCase: "RequestTenantDeletion", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resealSecrets":                     {UseCase: "ResealSecrets", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resetPassword":                     {UseCase: "ResetPassword", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"user_agent", "remote_addr", "tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
@@ -526,6 +528,7 @@ var restDoors = map[string]restDoor{
 	"setPasswordAndSignIn":              {UseCase: "SetPasswordAndSignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"setRecurrence":                     {UseCase: "SetRecurrence", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"horizon_days", "max_count"}},
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
+	"setUpInstallation":                 {UseCase: "SetUpInstallation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), Request: []string{"user_agent", "remote_addr"}},
 	"setWorkflowScheme":                 {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"shareSavedView":                    {UseCase: "ShareSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showAlexaModel":                    {UseCase: "ShowAlexaModel", Status: 200, Query: []string{"locale"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -991,6 +994,12 @@ func (c *RestController) CompleteMailboxAuthorization(w http.ResponseWriter, r *
 	var body openapi.CompleteMailboxAuthorizationJSONRequestBody
 	var answer openapi.Mailbox
 	c.door(w, r, restDoors["completeMailboxAuthorization"], usecase.Input{}, params, &body, &answer)
+}
+
+// CompletePasskeyEnrollment answers POST /auth/mfa/passkey:enroll by the generated mapping.
+func (c *RestController) CompletePasskeyEnrollment(w http.ResponseWriter, r *http.Request) {
+	var body openapi.CompletePasskeyEnrollmentJSONRequestBody
+	c.door(w, r, restDoors["completePasskeyEnrollment"], usecase.Input{}, nil, &body, answerBy(passkeyEnrolledResponse))
 }
 
 // CompletePasskeySignIn answers POST /auth/sessions:passkey by the generated mapping.
@@ -3225,6 +3234,12 @@ func (c *RestController) RequestAddress(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["requestAddress"], usecase.Input{"account_id": accountId.String()}, nil, &body, answerBy(addressRequestedResponse))
 }
 
+// RequestMediaUpload answers POST /media by the generated mapping.
+func (c *RestController) RequestMediaUpload(w http.ResponseWriter, r *http.Request, params openapi.RequestMediaUploadParams) {
+	var body openapi.RequestMediaUploadJSONRequestBody
+	c.door(w, r, restDoors["requestMediaUpload"], usecase.Input{}, params, &body, answerBy(mediaResponse))
+}
+
 // RequestTenantDeletion answers POST /admin/tenants/{tenantId}:delete by the generated mapping.
 func (c *RestController) RequestTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId, params openapi.RequestTenantDeletionParams) {
 	var body openapi.RequestTenantDeletionJSONRequestBody
@@ -3616,6 +3631,12 @@ func (c *RestController) SetTimePolicy(w http.ResponseWriter, r *http.Request) {
 	var body openapi.SetTimePolicyJSONRequestBody
 	var answer openapi.TimePolicy
 	c.door(w, r, restDoors["setTimePolicy"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetUpInstallation answers POST /auth/installation:set-up by the generated mapping.
+func (c *RestController) SetUpInstallation(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetUpInstallationJSONRequestBody
+	c.door(w, r, restDoors["setUpInstallation"], usecase.Input{}, nil, &body, answerBy(sessionTokensResponse))
 }
 
 // SetWorkflowScheme answers PUT /workflow-scheme by the generated mapping.
