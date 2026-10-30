@@ -165,32 +165,7 @@ func uuidPointer(id shared.ID) *openapi_types.UUID {
 	return &value
 }
 
-const (
-	listSyncDevicesUseCase = "ListSyncDevices"
-)
-
-// ListSyncDevices answers GET /sync/devices. Written out rather than through the identity
-// helper, for the reason ListSessions is.
-func (c *RestController) ListSyncDevices(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), listSyncDevicesUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	rows, _ := out["data"].([]usecase.Output)
-	devices := make([]openapi.SyncDevice, 0, len(rows))
-	for _, row := range rows {
-		devices = append(devices, deviceResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, devices)
-}
+const ()
 
 func deviceResponse(row usecase.Output) openapi.SyncDevice {
 	blocked, _ := row["blocked"].(bool)

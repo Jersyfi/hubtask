@@ -15,41 +15,12 @@ import (
 
 // The structure use cases: presets and the settings of hubs, collections and the workspace.
 const (
-	listPresetsUseCase               = "ListPresets"
 	setContainerStructureUseCase     = "SetContainerStructure"
 	previewContainerStructureUseCase = "PreviewContainerStructure"
 	setWorkspaceStructureUseCase     = "SetWorkspaceStructure"
 	savePresetUseCase                = "SavePreset"
 	changePresetUseCase              = "ChangePreset"
-	withdrawPresetUseCase            = "WithdrawPreset"
 )
-
-// ListPresets answers GET /presets.
-func (c *RestController) ListPresets(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), listPresetsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	rows, _ := out["data"].([]usecase.Output)
-	presets := make([]openapi.Preset, 0, len(rows))
-	for _, row := range rows {
-		var preset openapi.Preset
-		if err := throughJSON(row, &preset); err != nil {
-			WriteProblem(w, err, requestID)
-			return
-		}
-		presets = append(presets, preset)
-	}
-	writeJSON(w, r, http.StatusOK, presets)
-}
 
 // SetContainerStructure answers PATCH /containers/{containerId}/structure.
 //
@@ -301,26 +272,6 @@ func (c *RestController) ChangePreset(
 		return
 	}
 	writePreset(w, r, http.StatusOK, out)
-}
-
-// WithdrawPreset answers DELETE /presets/{presetId}.
-func (c *RestController) WithdrawPreset(
-	w http.ResponseWriter, r *http.Request, presetID openapi.PresetId, params openapi.WithdrawPresetParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	in := usecase.Input{"preset_id": presetID.String()}
-	if version, ok := versionFromIfMatch(params.IfMatch); ok {
-		in["expected_version"] = version
-	}
-	if _, err := c.UseCases.Invoke(r.Context(), withdrawPresetUseCase, actorOf(r), in); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func writePreset(w http.ResponseWriter, r *http.Request, status int, out usecase.Output) {

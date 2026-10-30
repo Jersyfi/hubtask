@@ -22,7 +22,6 @@ const (
 	createDataSubjectRequestUseCase = "CreateDataSubjectRequest"
 	listDataSubjectRequestsUseCase  = "ListDataSubjectRequests"
 	updateDataSubjectRequestUseCase = "UpdateDataSubjectRequest"
-	extendDataSubjectRequestUseCase = "ExtendDataSubjectRequest"
 	previewErasureUseCase           = "PreviewErasure"
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
@@ -136,40 +135,6 @@ func (c *RestController) UpdateDataSubjectRequest(
 	}
 
 	out, ok := c.read(w, r, updateDataSubjectRequestUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, dataSubjectRequestResponse(out))
-}
-
-// ExtendDataSubjectRequest answers POST /privacy/requests/{requestId}:extend.
-//
-// The body's three fields are required, and the generated type carries a missing one as its zero
-// value. A field is passed on only when it is not that zero value, so a missing one reaches the
-// registry as absent and is refused there with the code every other channel answers. A malformed
-// day never gets this far: the decoder refuses it as a malformed body.
-func (c *RestController) ExtendDataSubjectRequest(
-	w http.ResponseWriter, r *http.Request, requestID openapi_types.UUID,
-	_ openapi.ExtendDataSubjectRequestParams,
-) {
-	var body openapi.DataSubjectRequestExtension
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"request_id": requestID.String()}
-	if !body.DueOn.IsZero() {
-		in["due_on"] = body.DueOn.Format(openapi_types.DateFormat)
-	}
-	if body.Reason != "" {
-		in["reason"] = string(body.Reason)
-	}
-	if !body.InformedOn.IsZero() {
-		in["informed_on"] = body.InformedOn.Format(openapi_types.DateFormat)
-	}
-
-	out, ok := c.read(w, r, extendDataSubjectRequestUseCase, in)
 	if !ok {
 		return
 	}
@@ -318,29 +283,6 @@ func (c *RestController) RestrictProcessing(
 		AccountId: uuidValue(out.String("id")),
 		Status:    openapi.ProcessingStateStatus(out.String("status")),
 	})
-}
-
-// WithdrawConsent answers POST /privacy/consents:withdraw.
-func (c *RestController) WithdrawConsent(w http.ResponseWriter, r *http.Request) {
-	var body openapi.ConsentWithdrawal
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"purpose": body.Purpose}
-	if body.AccountId != nil {
-		in["account_id"] = body.AccountId.String()
-	}
-	if body.Reason != nil {
-		in["reason"] = *body.Reason
-	}
-
-	out, ok := c.read(w, r, withdrawConsentUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, consentRecordOf(out))
 }
 
 // ListConsents answers GET /privacy/consents: the register, the one place who withdrew is listed.

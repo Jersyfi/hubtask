@@ -7103,6 +7103,8 @@ paths:
     get:
       tags: [retention]
       operationId: listLegalHolds
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: legalHoldResponse
       summary: The legal holds in force
       description: |
         A hold overrides every retention rule and every deletion a person asks for, so who placed
@@ -7411,6 +7413,8 @@ paths:
     get:
       tags: [sync]
       operationId: listSyncDevices
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: deviceResponse
       summary: List your own devices
       description: |
         The caller's own devices, most recently seen first - and never anybody else's, whatever the
@@ -10211,6 +10215,8 @@ paths:
     get:
       tags: [admin]
       operationId: listOperators
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: operatorResponse
       summary: Who operates this installation
       description: >
         The operator register. **An empty one is the private installation**: nothing was
@@ -10286,6 +10292,7 @@ paths:
     get:
       tags: [admin]
       operationId: readInstanceOverview
+      x-hubtask-rest: generated
       summary: How big this installation is and how its workspaces stand
       description: >
         The dashboard's first screen: the workspaces by state, and how many
@@ -10885,6 +10892,7 @@ paths:
     get:
       tags: [admin]
       operationId: readEncryptionStatus
+      x-hubtask-rest: generated
       summary: The keyring, and what still names each key
       description: >
         What a rotation needs before it can end: the master key new values are sealed under, and
@@ -11154,6 +11162,8 @@ paths:
     get:
       tags: [identity]
       operationId: listOwnIdentities
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: connectedIdentityResponse
       summary: The sign-in providers the caller's account is connected to
       description: >
         Each provider identity connected to the caller's account in this workspace: which provider,
@@ -11239,6 +11249,8 @@ paths:
     get:
       tags: [identity]
       operationId: listOwnPasskeys
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: passkeyListResponse
       summary: The passkeys and security keys the caller's account holds
       description: |
         Each WebAuthn credential of the caller's account in this workspace: the name the person gave
@@ -11330,6 +11342,8 @@ paths:
     patch:
       tags: [identity]
       operationId: renameOwnPasskey
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: renamedPasskeyResponse
       summary: Rename one of the caller's passkeys or security keys
       description: |
         Changes the name the person gave it, and nothing else. The session alone is enough, or a
@@ -12784,6 +12798,8 @@ paths:
     post:
       tags: [privacy]
       operationId: extendDataSubjectRequest
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: dataSubjectRequestResponse
       summary: Extend a case's deadline once
       description: |
         Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
@@ -12919,6 +12935,8 @@ paths:
     post:
       tags: [privacy]
       operationId: withdrawConsent
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: consentRecordOf
       summary: Withdraw consent for an optional processing purpose (Art. 21)
       description: |
         Objection, as the one thing it can technically be: the optional processing stops and the
@@ -15148,6 +15166,8 @@ paths:
     get:
       tags: [containers]
       operationId: listPresets
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: asWritten
       summary: The presets a hub or collection can start from
       description: >
         The presets the caller can start a hub or collection from, each marked with its `origin`:
@@ -15235,6 +15255,7 @@ paths:
     delete:
       tags: [containers]
       operationId: withdrawPreset
+      x-hubtask-rest: generated
       summary: Withdraws a saved preset
       description: >
         Withdraws a saved preset: it is offered no longer. Hubs and collections made from it keep
@@ -15511,6 +15532,8 @@ paths:
     post:
       tags: [containers]
       operationId: moveContainer
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
       description: >
         Moves a collection into another hub, and ranks it there. The name has to be free at the
         destination; a collision is refused rather than resolved. A hub sits in nothing and cannot
@@ -15554,6 +15577,8 @@ paths:
     post:
       tags: [containers]
       operationId: reorderContainer
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
       description: >
         Ranks a container within the level it already sits in: a hub among the tenant's hubs, a
         collection among its hub's collections. The position is given as the container to place it

@@ -11514,6 +11514,8 @@
           "retention"
         ],
         "operationId": "listLegalHolds",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "legalHoldResponse",
         "summary": "The legal holds in force",
         "description": "A hold overrides every retention rule and every deletion a person asks for, so who placed\none and why is part of what it is. Released holds are shown too when asked for: a hold that\nhas been lifted is what an auditor reads to see that it was.\n",
         "parameters": [
@@ -12009,6 +12011,8 @@
           "sync"
         ],
         "operationId": "listSyncDevices",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "deviceResponse",
         "summary": "List your own devices",
         "description": "The caller's own devices, most recently seen first - and never anybody else's, whatever the\nrole: a device is the person's, like a session. A forgotten device stays in the list as\n`blocked` until the sweep removes it, so that a person can see what they ended.\n",
         "responses": {
@@ -15160,6 +15164,8 @@
           "admin"
         ],
         "operationId": "listOperators",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "operatorResponse",
         "summary": "Who operates this installation",
         "description": "The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.\nEach row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.\n",
         "responses": {
@@ -15239,6 +15245,7 @@
           "admin"
         ],
         "operationId": "readInstanceOverview",
+        "x-hubtask-rest": "generated",
         "summary": "How big this installation is and how its workspaces stand",
         "description": "The dashboard's first screen: the workspaces by state, and how many accounts they hold between them.\n**Counts and states, never rows.** The tenant boundary is a database policy rather than a role, and this answer does not go around it - what it reads is a function that can answer five integers and nothing else. What an operator needs to run an installation is counts, states and limits; the health of the machinery is `GET /meta/health`, which is where it already lives.\nBehind `admin:tenants` **and** the operator register, both.\n",
         "responses": {
@@ -16099,6 +16106,7 @@
           "admin"
         ],
         "operationId": "readEncryptionStatus",
+        "x-hubtask-rest": "generated",
         "summary": "The keyring, and what still names each key",
         "description": "What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.\nInstallation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.\n",
         "responses": {
@@ -16396,6 +16404,8 @@
           "identity"
         ],
         "operationId": "listOwnIdentities",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "connectedIdentityResponse",
         "summary": "The sign-in providers the caller's account is connected to",
         "description": "Each provider identity connected to the caller's account in this workspace: which provider, its name as the sign-in button shows it, and when it was connected. Never the provider's subject or the address it holds. A provider that is no longer a way in here still appears while the connection stands.\n",
         "responses": {
@@ -16499,6 +16509,8 @@
           "identity"
         ],
         "operationId": "listOwnPasskeys",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "passkeyListResponse",
         "summary": "The passkeys and security keys the caller's account holds",
         "description": "Each WebAuthn credential of the caller's account in this workspace: the name the person gave\nit, when it was added and when it was last used. Never the credential's identifier, its\npublic key or the account's user handle.\n\nBeside the list, whether another one can be added now (`can_add`) and, where not, why\n(`cannot_add_reason`): the account holds the most it may (`auth.passkey_limit_reached`), the\ninstallation has no public address to bind a passkey to (`auth.passkey_unavailable`), or the\naccount holds nothing to give the fresh proof adding asks for (`auth.step_up_no_method`).\n`rp_id` is the host passkeys of this workspace belong to; a page served at another host\ncannot add one. Refused with `auth.passkey_person_only` for anyone but a person.\n",
         "responses": {
@@ -16594,6 +16606,8 @@
           "identity"
         ],
         "operationId": "renameOwnPasskey",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "renamedPasskeyResponse",
         "summary": "Rename one of the caller's passkeys or security keys",
         "description": "Changes the name the person gave it, and nothing else. The session alone is enough, or a\ntoken with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last\nwrite wins: a name only its holder writes has no lost update worth a version.\n\nRefused with `auth.passkey_not_found` for a credential the caller's account does not hold,\n`auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds\ncontrol characters, and `auth.passkey_person_only` for anyone but a person.\n",
         "requestBody": {
@@ -18327,6 +18341,8 @@
           "privacy"
         ],
         "operationId": "extendDataSubjectRequest",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "dataSubjectRequestResponse",
         "summary": "Extend a case's deadline once",
         "description": "Art. 12(3) GDPR allows the period to be extended once, by at most two further months,\nwhere the request is complex or the requests are many. An open case before its original\ndeadline can be extended once, to a day at most three months after the day it was\nreceived, naming the reason and the day the person was informed. Hubtask records that the\ncontroller told the person; it does not write to them.\n\nBoth days are calendar days in the workspace's time zone: the new deadline is the end of\n`due_on` there, and `informed_on` lies between the day of receipt and today. A case\nanswers `extendable_until`, the latest day it can be extended to, exactly while an\nextension can succeed - sending that day back as `due_on` is accepted.\n\nA second extension, one at or after the original deadline, or one of a closed case is\nrefused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every\nworkspace the person is a member of records the extension in its own audit trail.\nIdempotent under its Idempotency-Key.\n",
         "parameters": [
@@ -18499,6 +18515,8 @@
           "privacy"
         ],
         "operationId": "withdrawConsent",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "consentRecordOf",
         "summary": "Withdraw consent for an optional processing purpose (Art. 21)",
         "description": "Objection, as the one thing it can technically be: the optional processing stops and the\ncore features keep working. A withdrawal is recorded rather than deleted - the record that\nsomebody consented, and when they took it back, is what an operator needs in order to show\nwhich processing was lawful when.\n",
         "requestBody": {
@@ -21777,6 +21795,8 @@
           "containers"
         ],
         "operationId": "listPresets",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "asWritten",
         "summary": "The presets a hub or collection can start from",
         "description": "The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the installation's, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the installation's, the workspace's and the caller's own, each by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.\n",
         "responses": {
@@ -21896,6 +21916,7 @@
           "containers"
         ],
         "operationId": "withdrawPreset",
+        "x-hubtask-rest": "generated",
         "summary": "Withdraws a saved preset",
         "description": "Withdraws a saved preset: it is offered no longer. Hubs and collections made from it keep their settings. A workspace preset that is the workspace's default is refused with `presets.workspace_default` until another default is chosen or none. Rights as for a change.\n",
         "parameters": [
@@ -22309,6 +22330,8 @@
           "containers"
         ],
         "operationId": "moveContainer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
         "description": "Moves a collection into another hub, and ranks it there. The name has to be free at the destination; a collision is refused rather than resolved. A hub sits in nothing and cannot be moved.\n",
         "parameters": [
           {
@@ -22378,6 +22401,8 @@
           "containers"
         ],
         "operationId": "reorderContainer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
         "description": "Ranks a container within the level it already sits in: a hub among the tenant's hubs, a collection among its hub's collections. The position is given as the container to place it before; omitting it appends to the end of the level.\nThis is the only way to rank a hub. `:move` ranks a collection as a consequence of naming the hub it goes into - which is why its `target_parent_id` is required - and a hub sits in nothing, so an operation whose destination is a hub cannot express it. Every `Container` answers an `order_key`, so without this one the rank of a hub is a field the API reports and nothing can change.\nThe rank is a fractional index, so an insertion between two neighbours renumbers nothing else and two offline devices can insert into the same list without either one's order being discarded. An archived container is read-only (I-C3) and is refused, as it is for every other write. Idempotent: asking for the position a container already holds writes nothing.\n",
         "parameters": [
           {

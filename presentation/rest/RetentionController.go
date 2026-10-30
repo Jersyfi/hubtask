@@ -178,32 +178,7 @@ func retentionPreviewResponse(out usecase.Output) map[string]any {
 
 const (
 	placeLegalHoldUseCase = "PlaceLegalHold"
-	listLegalHoldsUseCase = "ListLegalHolds"
 )
-
-// ListLegalHolds answers GET /legal-holds.
-//
-// An array rather than a page: a workspace has a handful of holds, and a workspace with enough of
-// them to page through has a problem a cursor does not solve.
-func (c *RestController) ListLegalHolds(
-	w http.ResponseWriter, r *http.Request, params openapi.ListLegalHoldsParams,
-) {
-	in := usecase.Input{}
-	if params.IncludeReleased != nil {
-		in["include_released"] = *params.IncludeReleased
-	}
-
-	out, ok := c.read(w, r, listLegalHoldsUseCase, in)
-	if !ok {
-		return
-	}
-
-	holds := []openapi.LegalHold{}
-	for _, row := range rowsOf(out) {
-		holds = append(holds, legalHoldResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, holds)
-}
 
 // PlaceLegalHold answers POST /legal-holds.
 func (c *RestController) PlaceLegalHold(w http.ResponseWriter, r *http.Request) {

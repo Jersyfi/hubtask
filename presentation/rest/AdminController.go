@@ -20,7 +20,6 @@ const (
 	requestTenantDeletionUseCase = "RequestTenantDeletion"
 	exportTenantUseCase          = "ExportTenant"
 	openTenantPasswordUseCase    = "OpenTenantPassword"
-	readEncryptionStatusUseCase  = "ReadEncryptionStatus"
 )
 
 // ProvisionTenant answers POST /admin/tenants.
@@ -280,42 +279,4 @@ func quotaStandingResponse(row usecase.Output) openapi.QuotaStanding {
 		standing.Ratio = &float
 	}
 	return standing
-}
-
-// ReadEncryptionStatus answers GET /admin/encryption: the keyring and the census over it
-// (ADR-0045, security.md §8.1).
-func (c *RestController) ReadEncryptionStatus(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), readEncryptionStatusUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	rows, _ := out["keys"].([]usecase.Output)
-	keys := make([]openapi.EncryptionKeyUsage, 0, len(rows))
-	for _, row := range rows {
-		active, _ := row["active"].(bool)
-		inRing, _ := row["in_ring"].(bool)
-		count, _ := row["sealed_values"].(int64)
-		listed, _ := row["stores"].([]usecase.Output)
-		stores := make([]openapi.EncryptionStoreCount, 0, len(listed))
-		for _, store := range listed {
-			n, _ := store["sealed_values"].(int64)
-			stores = append(stores, openapi.EncryptionStoreCount{
-				Store: openapi.EncryptionStoreCountStore(store.String("store")), SealedValues: n,
-			})
-		}
-		keys = append(keys, openapi.EncryptionKeyUsage{
-			KeyId: row.String("key_id"), Active: active, InRing: inRing, SealedValues: count,
-			Stores: stores,
-		})
-	}
-	writeJSON(w, r, http.StatusOK, openapi.EncryptionStatus{
-		ActiveKeyId: out.String("active_key_id"), Keys: keys,
-	})
 }

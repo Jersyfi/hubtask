@@ -21,9 +21,7 @@ import (
 
 const (
 	writeInstanceSettingsUseCase = "WriteInstanceSettings"
-	readInstanceOverviewUseCase  = "ReadInstanceOverview"
 	listInstanceJournalUseCase   = "ListInstanceJournal"
-	listOperatorsUseCase         = "ListOperators"
 )
 
 // The four operations below are written out rather than taken through the identity helper, for the
@@ -85,48 +83,31 @@ func (c *RestController) WriteInstanceSettings(
 	writeJSON(w, r, http.StatusOK, instanceSettingsResponse(out))
 }
 
-// ListOperators answers GET /admin/operators.
-func (c *RestController) ListOperators(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
+// operatorResponse maps one operator of the instance.
+func operatorResponse(row usecase.Output) openapi.Operator {
+	operator := openapi.Operator{
+		TenantId:  uuidValue(row.String("tenant_id")),
+		AccountId: uuidValue(row.String("account_id")),
+		AddedAt:   timeValue(row["added_at"]),
 	}
-
-	out, err := c.UseCases.Invoke(r.Context(), listOperatorsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
+	if by := row.String("added_by"); by != "" {
+		id := uuidValue(by)
+		operator.AddedBy = &id
 	}
-
-	rows, _ := out["data"].([]usecase.Output)
-	operators := make([]openapi.Operator, 0, len(rows))
-	for _, row := range rows {
-		operator := openapi.Operator{
-			TenantId:  uuidValue(row.String("tenant_id")),
-			AccountId: uuidValue(row.String("account_id")),
-			AddedAt:   timeValue(row["added_at"]),
-		}
-		if by := row.String("added_by"); by != "" {
-			id := uuidValue(by)
-			operator.AddedBy = &id
-		}
-		operator.DisplayName = optionalStringOutput(row, "display_name")
-		if email := row.String("email"); email != "" {
-			address := openapi_types.Email(email)
-			operator.Email = &address
-		}
-		operator.SignInName = optionalStringOutput(row, "sign_in_name")
-		if kind := row.String("kind"); kind != "" {
-			typed := openapi.OperatorKind(kind)
-			operator.Kind = &typed
-		}
-		operator.WorkspaceSlug = optionalStringOutput(row, "workspace_slug")
-		operator.WorkspaceName = optionalStringOutput(row, "workspace_name")
-		operator.AddedByName = optionalStringOutput(row, "added_by_name")
-		operators = append(operators, operator)
+	operator.DisplayName = optionalStringOutput(row, "display_name")
+	if email := row.String("email"); email != "" {
+		address := openapi_types.Email(email)
+		operator.Email = &address
 	}
-	writeJSON(w, r, http.StatusOK, operators)
+	operator.SignInName = optionalStringOutput(row, "sign_in_name")
+	if kind := row.String("kind"); kind != "" {
+		typed := openapi.OperatorKind(kind)
+		operator.Kind = &typed
+	}
+	operator.WorkspaceSlug = optionalStringOutput(row, "workspace_slug")
+	operator.WorkspaceName = optionalStringOutput(row, "workspace_name")
+	operator.AddedByName = optionalStringOutput(row, "added_by_name")
+	return operator
 }
 
 // instanceSettingMap flattens the contract's `{value, locked}` documents into the catalogue's.
@@ -221,30 +202,6 @@ func instanceSettingsOf(value any) map[string]openapi.InstanceSetting {
 		settings[name] = setting
 	}
 	return settings
-}
-
-// ReadInstanceOverview answers GET /admin/overview.
-func (c *RestController) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(
-		r.Context(), readInstanceOverviewUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, openapi.InstanceOverview{
-		WorkspacesActive:          censusCount(out["workspaces_active"]),
-		WorkspacesSuspended:       censusCount(out["workspaces_suspended"]),
-		WorkspacesPendingDeletion: censusCount(out["workspaces_pending_deletion"]),
-		AccountsActive:            censusCount(out["accounts_active"]),
-		AccountsTotal:             censusCount(out["accounts_total"]),
-		WorkspacesServiceOnly:     censusCount(out["workspaces_service_only"]),
-	})
 }
 
 // ListInstanceJournal answers GET /admin/journal.

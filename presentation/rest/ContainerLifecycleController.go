@@ -6,8 +6,6 @@ package rest
 import (
 	"net/http"
 
-	openapi_types "github.com/oapi-codegen/runtime/types"
-
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -82,100 +80,6 @@ func autoAssignInput(policy openapi.AutoAssignPolicy) map[string]any {
 	return document
 }
 
-// MoveContainer answers POST /containers/{containerId}:move.
-//
-// The body is required and `target_parent_id` with it: unlike an item, a collection has no level
-// above its hub to be moved to, so there is no null that would mean anything here.
-func (c *RestController) MoveContainer(
-	w http.ResponseWriter, r *http.Request,
-	containerID openapi.ContainerId, _ openapi.MoveContainerParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.MoveContainerJSONBody
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{"container_id": containerID.String()}
-	// The contract makes `target_parent_id` required and the generated type is a value, so a body
-	// that omitted it decodes to the nil UUID. Passing that on would send the catalogue an identifier
-	// nothing can have, and it would come back as "that hub does not exist" - which is not what went
-	// wrong. Left out here, it is the missing field the catalogue names.
-	if body.TargetParentId != (openapi_types.UUID{}) {
-		in["target_parent_id"] = body.TargetParentId.String()
-	}
-	// Null and absent are one instruction here - "append to the end of the level" - so presence is
-	// not read: there is no third thing for the client to have meant.
-	if body.BeforeContainerId != nil {
-		in["before_container_id"] = body.BeforeContainerId.String()
-	}
-	if version, ok := versionFromIfMatch(ifMatchOf(r)); ok {
-		in["expected_version"] = version
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), moveContainerUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, containerResponse(out))
-}
-
 const moveContainerUseCase = "MoveContainer"
-
-// ReorderContainer answers POST /containers/{containerId}:reorder.
-//
-// The body is optional and so is its one field: a reorder with nothing in it appends to the end of
-// the level, which is a position like any other. That is the difference from `:move`, where the
-// destination is required because there is no default hub to mean.
-func (c *RestController) ReorderContainer(
-	w http.ResponseWriter, r *http.Request,
-	containerID openapi.ContainerId, _ openapi.ReorderContainerParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	in := usecase.Input{"container_id": containerID.String()}
-
-	// The body is optional: no body at all means "put it at the end of the level", which is a
-	// position like any other. `ReorderWorkItem` reads its own the same way.
-	if r.ContentLength > 0 {
-		var body openapi.ReorderContainerJSONBody
-		if err := decodeJSON(r, &body); err != nil {
-			WriteProblem(w, err, requestID)
-			return
-		}
-		// Null and absent are one instruction here, so presence is not read: there is no third
-		// thing for the client to have meant.
-		if body.BeforeContainerId != nil {
-			in["before_container_id"] = body.BeforeContainerId.String()
-		}
-	}
-	if version, ok := versionFromIfMatch(ifMatchOf(r)); ok {
-		in["expected_version"] = version
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), reorderContainerUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, containerResponse(out))
-}
 
 const reorderContainerUseCase = "ReorderContainer"
