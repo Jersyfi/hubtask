@@ -835,6 +835,34 @@ class Client:
         """Post alerts to an intake"""
         return self._call("POST", "/cmdb/alert-intake/{tenantId}/{connectorId}", {"tenantId": tenant_id, "connectorId": connector_id}, None, {"X-Hubtask-Signature": x_hubtask_signature, "X-Hubtask-Timestamp": x_hubtask_timestamp}, body, "json", "application/json", "json")
 
+    def list_code_hooks(self, hub_id: str) -> "CodeHookList":
+        """A hub's forge hooks"""
+        return self._call("GET", "/hubs/{hubId}/code-hooks", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def create_code_hook(self, hub_id: str, body: "CodeHookCreate") -> "CodeHookMinted":
+        """Add a forge hook"""
+        return self._call("POST", "/hubs/{hubId}/code-hooks", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def update_code_hook(self, hook_id: str, body: "CodeHookUpdate") -> "CodeHook":
+        """Rename a forge hook or switch it on or off"""
+        return self._call("PATCH", "/code-hooks/{hookId}", {"hookId": hook_id}, None, {}, body, "json", "application/json", "json")
+
+    def delete_code_hook(self, hook_id: str) -> None:
+        """Remove a forge hook and its links"""
+        return self._call("DELETE", "/code-hooks/{hookId}", {"hookId": hook_id}, None, {}, None, "none", None, "void")
+
+    def rotate_code_hook_secret(self, hook_id: str) -> "CodeHookMinted":
+        """Give a forge hook a new secret"""
+        return self._call("POST", "/code-hooks/{hookId}/secret", {"hookId": hook_id}, None, {}, None, "none", None, "json")
+
+    def list_entry_code_links(self, item_id: str) -> "CodeLinkList":
+        """An entry's commits, branches and pull requests"""
+        return self._call("GET", "/items/{itemId}/code-links", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def deliver_code(self, tenant_id: str, hook_id: str, body: dict[str, Any], *, x_git_hub_event: str | None = None, x_gitlab_event: str | None = None, x_forgejo_event: str | None = None, x_gitea_event: str | None = None, x_hub_signature_256: str | None = None, x_forgejo_signature: str | None = None, x_gitea_signature: str | None = None, x_gitlab_token: str | None = None, x_git_hub_delivery: str | None = None, x_gitlab_event_uuid: str | None = None, x_forgejo_delivery: str | None = None, x_gitea_delivery: str | None = None) -> "CodeDeliveryReceipt":
+        """A forge posts its pushes and pull requests"""
+        return self._call("POST", "/code-intake/{tenantId}/{hookId}", {"tenantId": tenant_id, "hookId": hook_id}, None, {"X-GitHub-Event": x_git_hub_event, "X-Gitlab-Event": x_gitlab_event, "X-Forgejo-Event": x_forgejo_event, "X-Gitea-Event": x_gitea_event, "X-Hub-Signature-256": x_hub_signature_256, "X-Forgejo-Signature": x_forgejo_signature, "X-Gitea-Signature": x_gitea_signature, "X-Gitlab-Token": x_gitlab_token, "X-GitHub-Delivery": x_git_hub_delivery, "X-Gitlab-Event-UUID": x_gitlab_event_uuid, "X-Forgejo-Delivery": x_forgejo_delivery, "X-Gitea-Delivery": x_gitea_delivery}, body, "json", "application/json", "json")
+
     def deliver_ci_inventory(self, tenant_id: str, connector_id: str, body: dict[str, Any], *, x_hubtask_signature: str | None = None, x_hubtask_timestamp: str | None = None) -> "CiInventoryReceipt":
         """Post a GLPI Agent's inventory"""
         return self._call("POST", "/cmdb/inventory-intake/{tenantId}/{connectorId}", {"tenantId": tenant_id, "connectorId": connector_id}, None, {"X-Hubtask-Signature": x_hubtask_signature, "X-Hubtask-Timestamp": x_hubtask_timestamp}, body, "json", "application/json", "json")

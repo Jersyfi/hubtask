@@ -2863,6 +2863,114 @@ func (e CmdbHealthProblemsKinds) Valid() bool {
 	}
 }
 
+// Defines values for CodeHookKind.
+const (
+	CodeHookKindFORGEJO CodeHookKind = "FORGEJO"
+	CodeHookKindGITHUB  CodeHookKind = "GITHUB"
+	CodeHookKindGITLAB  CodeHookKind = "GITLAB"
+)
+
+// Valid indicates whether the value is a known member of the CodeHookKind enum.
+func (e CodeHookKind) Valid() bool {
+	switch e {
+	case CodeHookKindFORGEJO:
+		return true
+	case CodeHookKindGITHUB:
+		return true
+	case CodeHookKindGITLAB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CodeHookCreateKind.
+const (
+	CodeHookCreateKindFORGEJO CodeHookCreateKind = "FORGEJO"
+	CodeHookCreateKindGITHUB  CodeHookCreateKind = "GITHUB"
+	CodeHookCreateKindGITLAB  CodeHookCreateKind = "GITLAB"
+)
+
+// Valid indicates whether the value is a known member of the CodeHookCreateKind enum.
+func (e CodeHookCreateKind) Valid() bool {
+	switch e {
+	case CodeHookCreateKindFORGEJO:
+		return true
+	case CodeHookCreateKindGITHUB:
+		return true
+	case CodeHookCreateKindGITLAB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CodeHookMintedKind.
+const (
+	CodeHookMintedKindFORGEJO CodeHookMintedKind = "FORGEJO"
+	CodeHookMintedKindGITHUB  CodeHookMintedKind = "GITHUB"
+	CodeHookMintedKindGITLAB  CodeHookMintedKind = "GITLAB"
+)
+
+// Valid indicates whether the value is a known member of the CodeHookMintedKind enum.
+func (e CodeHookMintedKind) Valid() bool {
+	switch e {
+	case CodeHookMintedKindFORGEJO:
+		return true
+	case CodeHookMintedKindGITHUB:
+		return true
+	case CodeHookMintedKindGITLAB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CodeLinkKind.
+const (
+	BRANCH      CodeLinkKind = "BRANCH"
+	COMMIT      CodeLinkKind = "COMMIT"
+	PULLREQUEST CodeLinkKind = "PULL_REQUEST"
+)
+
+// Valid indicates whether the value is a known member of the CodeLinkKind enum.
+func (e CodeLinkKind) Valid() bool {
+	switch e {
+	case BRANCH:
+		return true
+	case COMMIT:
+		return true
+	case PULLREQUEST:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CodeLinkState.
+const (
+	CodeLinkStateCLOSED CodeLinkState = "CLOSED"
+	CodeLinkStateMERGED CodeLinkState = "MERGED"
+	CodeLinkStateOPEN   CodeLinkState = "OPEN"
+	CodeLinkStatePUSHED CodeLinkState = "PUSHED"
+)
+
+// Valid indicates whether the value is a known member of the CodeLinkState enum.
+func (e CodeLinkState) Valid() bool {
+	switch e {
+	case CodeLinkStateCLOSED:
+		return true
+	case CodeLinkStateMERGED:
+		return true
+	case CodeLinkStateOPEN:
+		return true
+	case CodeLinkStatePUSHED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CollectionFigureKind.
 const (
 	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
@@ -13219,6 +13327,103 @@ type CmdbHealth struct {
 
 // CmdbHealthProblemsKinds defines model for CmdbHealth.Problems.Kinds.
 type CmdbHealthProblemsKinds string
+
+// CodeDeliveryReceipt defines model for CodeDeliveryReceipt.
+type CodeDeliveryReceipt struct {
+	Linked   int `json:"linked"`
+	Received int `json:"received"`
+
+	// Unknown Keys that name no live entry of the hook's hub.
+	Unknown int `json:"unknown"`
+}
+
+// CodeHook defines model for CodeHook.
+type CodeHook struct {
+	CreatedAt      time.Time          `json:"created_at"`
+	Enabled        bool               `json:"enabled"`
+	HubId          openapi_types.UUID `json:"hub_id"`
+	Id             openapi_types.UUID `json:"id"`
+	Kind           CodeHookKind       `json:"kind"`
+	LastDeliveryAt *time.Time         `json:"last_delivery_at,omitempty"`
+	Name           string             `json:"name"`
+	RunAs          openapi_types.UUID `json:"run_as"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+}
+
+// CodeHookKind defines model for CodeHook.Kind.
+type CodeHookKind string
+
+// CodeHookCreate defines model for CodeHookCreate.
+type CodeHookCreate struct {
+	Kind CodeHookCreateKind `json:"kind"`
+	Name string             `json:"name"`
+}
+
+// CodeHookCreateKind defines model for CodeHookCreate.Kind.
+type CodeHookCreateKind string
+
+// CodeHookList defines model for CodeHookList.
+type CodeHookList struct {
+	Data []CodeHook `json:"data"`
+}
+
+// CodeHookMinted defines model for CodeHookMinted.
+type CodeHookMinted struct {
+	CreatedAt      time.Time          `json:"created_at"`
+	Enabled        bool               `json:"enabled"`
+	HubId          openapi_types.UUID `json:"hub_id"`
+	Id             openapi_types.UUID `json:"id"`
+	Kind           CodeHookMintedKind `json:"kind"`
+	LastDeliveryAt *time.Time         `json:"last_delivery_at,omitempty"`
+	Name           string             `json:"name"`
+	RunAs          openapi_types.UUID `json:"run_as"`
+
+	// Secret Answered here once and never again.
+	Secret    string    `json:"secret"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// CodeHookMintedKind defines model for CodeHookMinted.Kind.
+type CodeHookMintedKind string
+
+// CodeHookUpdate defines model for CodeHookUpdate.
+type CodeHookUpdate struct {
+	Enabled *bool   `json:"enabled,omitempty"`
+	Name    *string `json:"name,omitempty"`
+}
+
+// CodeLink defines model for CodeLink.
+type CodeLink struct {
+	Author       string             `json:"author"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	HappenedAt   time.Time          `json:"happened_at"`
+	HookId       openapi_types.UUID `json:"hook_id"`
+	HubId        openapi_types.UUID `json:"hub_id"`
+	Id           openapi_types.UUID `json:"id"`
+	ItemId       openapi_types.UUID `json:"item_id"`
+	Kind         CodeLinkKind       `json:"kind"`
+
+	// Ref A commit's hash
+	Ref        string        `json:"ref"`
+	Repository string        `json:"repository"`
+	State      CodeLinkState `json:"state"`
+	Title      string        `json:"title"`
+	UpdatedAt  time.Time     `json:"updated_at"`
+
+	// Url The forge's address of it; empty where the forge gave none an address may be.
+	Url string `json:"url"`
+}
+
+// CodeLinkKind defines model for CodeLink.Kind.
+type CodeLinkKind string
+
+// CodeLinkState defines model for CodeLink.State.
+type CodeLinkState string
+
+// CodeLinkList defines model for CodeLinkList.
+type CodeLinkList struct {
+	Data []CodeLink `json:"data"`
+}
 
 // CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
 type CollectionFigure struct {
@@ -23907,6 +24112,25 @@ type DefineCiSourceParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DeliverCodeJSONBody defines parameters for DeliverCode.
+type DeliverCodeJSONBody map[string]interface{}
+
+// DeliverCodeParams defines parameters for DeliverCode.
+type DeliverCodeParams struct {
+	XGitHubEvent      *string `json:"X-GitHub-Event,omitempty"`
+	XGitlabEvent      *string `json:"X-Gitlab-Event,omitempty"`
+	XForgejoEvent     *string `json:"X-Forgejo-Event,omitempty"`
+	XGiteaEvent       *string `json:"X-Gitea-Event,omitempty"`
+	XHubSignature256  *string `json:"X-Hub-Signature-256,omitempty"`
+	XForgejoSignature *string `json:"X-Forgejo-Signature,omitempty"`
+	XGiteaSignature   *string `json:"X-Gitea-Signature,omitempty"`
+	XGitlabToken      *string `json:"X-Gitlab-Token,omitempty"`
+	XGitHubDelivery   *string `json:"X-GitHub-Delivery,omitempty"`
+	XGitlabEventUUID  *string `json:"X-Gitlab-Event-UUID,omitempty"`
+	XForgejoDelivery  *string `json:"X-Forgejo-Delivery,omitempty"`
+	XGiteaDelivery    *string `json:"X-Gitea-Delivery,omitempty"`
+}
+
 // ImportPlanJSONBody defines parameters for ImportPlan.
 type ImportPlanJSONBody struct {
 	// Content The file's text, UTF-8, within the body limit.
@@ -26196,6 +26420,12 @@ type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
 // DefineCiSourceJSONRequestBody defines body for DefineCiSource for application/json ContentType.
 type DefineCiSourceJSONRequestBody = CiSourceDefine
 
+// UpdateCodeHookJSONRequestBody defines body for UpdateCodeHook for application/json ContentType.
+type UpdateCodeHookJSONRequestBody = CodeHookUpdate
+
+// DeliverCodeJSONRequestBody defines body for DeliverCode for application/json ContentType.
+type DeliverCodeJSONRequestBody DeliverCodeJSONBody
+
 // ImportPlanJSONRequestBody defines body for ImportPlan for application/json ContentType.
 type ImportPlanJSONRequestBody ImportPlanJSONBody
 
@@ -26357,6 +26587,9 @@ type ReconcileCisJSONRequestBody = CiPayload
 
 // DefineCiConnectorJSONRequestBody defines body for DefineCiConnector for application/json ContentType.
 type DefineCiConnectorJSONRequestBody = CiConnectorDefine
+
+// CreateCodeHookJSONRequestBody defines body for CreateCodeHook for application/json ContentType.
+type CreateCodeHookJSONRequestBody = CodeHookCreate
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
@@ -27992,6 +28225,18 @@ type ServerInterface interface {
 	// DefineCiSource Add or change a source
 	// (PUT /cmdb/sources/{sourceKey})
 	DefineCiSource(w http.ResponseWriter, r *http.Request, sourceKey string, params DefineCiSourceParams)
+	// DeleteCodeHook Remove a forge hook and its links
+	// (DELETE /code-hooks/{hookId})
+	DeleteCodeHook(w http.ResponseWriter, r *http.Request, hookId openapi_types.UUID)
+	// UpdateCodeHook Rename a forge hook or switch it on or off
+	// (PATCH /code-hooks/{hookId})
+	UpdateCodeHook(w http.ResponseWriter, r *http.Request, hookId openapi_types.UUID)
+	// RotateCodeHookSecret Give a forge hook a new secret
+	// (POST /code-hooks/{hookId}/secret)
+	RotateCodeHookSecret(w http.ResponseWriter, r *http.Request, hookId openapi_types.UUID)
+	// DeliverCode A forge posts its pushes and pull requests
+	// (POST /code-intake/{tenantId}/{hookId})
+	DeliverCode(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, hookId openapi_types.UUID, params DeliverCodeParams)
 	// ImportPlan Bring a plan in from a project file
 	// (POST /collections/{collectionId}/plan:import)
 	ImportPlan(w http.ResponseWriter, r *http.Request, collectionId SprintCollectionId)
@@ -28319,6 +28564,12 @@ type ServerInterface interface {
 	// ReadCmdbHealth A hub's inventory judged
 	// (GET /hubs/{hubId}/cmdb-health)
 	ReadCmdbHealth(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListCodeHooks A hub's forge hooks
+	// (GET /hubs/{hubId}/code-hooks)
+	ListCodeHooks(w http.ResponseWriter, r *http.Request, hubId HubId)
+	// CreateCodeHook Add a forge hook
+	// (POST /hubs/{hubId}/code-hooks)
+	CreateCodeHook(w http.ResponseWriter, r *http.Request, hubId HubId)
 	// ListPages A hub's pages
 	// (GET /hubs/{hubId}/pages)
 	ListPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListPagesParams)
@@ -28457,6 +28708,9 @@ type ServerInterface interface {
 	// AffectEntryCi Name a configuration item as affected by an entry
 	// (PUT /items/{itemId}/cis/{ciId})
 	AffectEntryCi(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID, ciId openapi_types.UUID)
+	// ListEntryCodeLinks An entry's commits, branches and pull requests
+	// (GET /items/{itemId}/code-links)
+	ListEntryCodeLinks(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (GET /items/{itemId}/comments)
 	ListComments(w http.ResponseWriter, r *http.Request, itemId ItemId, params ListCommentsParams)
@@ -36508,6 +36762,352 @@ func (siw *ServerInterfaceWrapper) DefineCiSource(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteCodeHook operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCodeHook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hookId" -------------
+	var hookId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hookId", r.PathValue("hookId"), &hookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCodeHook(w, r, hookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateCodeHook operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCodeHook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hookId" -------------
+	var hookId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hookId", r.PathValue("hookId"), &hookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCodeHook(w, r, hookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateCodeHookSecret operation middleware
+func (siw *ServerInterfaceWrapper) RotateCodeHookSecret(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hookId" -------------
+	var hookId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hookId", r.PathValue("hookId"), &hookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateCodeHookSecret(w, r, hookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeliverCode operation middleware
+func (siw *ServerInterfaceWrapper) DeliverCode(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "hookId" -------------
+	var hookId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hookId", r.PathValue("hookId"), &hookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hookId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeliverCodeParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-GitHub-Event" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-GitHub-Event")]; found {
+		var XGitHubEvent string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-GitHub-Event", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-GitHub-Event", valueList[0], &XGitHubEvent, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-GitHub-Event", Err: err})
+			return
+		}
+
+		params.XGitHubEvent = &XGitHubEvent
+
+	}
+
+	// ------------- Optional header parameter "X-Gitlab-Event" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Gitlab-Event")]; found {
+		var XGitlabEvent string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Gitlab-Event", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Gitlab-Event", valueList[0], &XGitlabEvent, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Gitlab-Event", Err: err})
+			return
+		}
+
+		params.XGitlabEvent = &XGitlabEvent
+
+	}
+
+	// ------------- Optional header parameter "X-Forgejo-Event" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Forgejo-Event")]; found {
+		var XForgejoEvent string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Forgejo-Event", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Forgejo-Event", valueList[0], &XForgejoEvent, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Forgejo-Event", Err: err})
+			return
+		}
+
+		params.XForgejoEvent = &XForgejoEvent
+
+	}
+
+	// ------------- Optional header parameter "X-Gitea-Event" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Gitea-Event")]; found {
+		var XGiteaEvent string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Gitea-Event", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Gitea-Event", valueList[0], &XGiteaEvent, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Gitea-Event", Err: err})
+			return
+		}
+
+		params.XGiteaEvent = &XGiteaEvent
+
+	}
+
+	// ------------- Optional header parameter "X-Hub-Signature-256" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hub-Signature-256")]; found {
+		var XHubSignature256 string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hub-Signature-256", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hub-Signature-256", valueList[0], &XHubSignature256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hub-Signature-256", Err: err})
+			return
+		}
+
+		params.XHubSignature256 = &XHubSignature256
+
+	}
+
+	// ------------- Optional header parameter "X-Forgejo-Signature" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Forgejo-Signature")]; found {
+		var XForgejoSignature string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Forgejo-Signature", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Forgejo-Signature", valueList[0], &XForgejoSignature, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Forgejo-Signature", Err: err})
+			return
+		}
+
+		params.XForgejoSignature = &XForgejoSignature
+
+	}
+
+	// ------------- Optional header parameter "X-Gitea-Signature" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Gitea-Signature")]; found {
+		var XGiteaSignature string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Gitea-Signature", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Gitea-Signature", valueList[0], &XGiteaSignature, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Gitea-Signature", Err: err})
+			return
+		}
+
+		params.XGiteaSignature = &XGiteaSignature
+
+	}
+
+	// ------------- Optional header parameter "X-Gitlab-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Gitlab-Token")]; found {
+		var XGitlabToken string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Gitlab-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Gitlab-Token", valueList[0], &XGitlabToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Gitlab-Token", Err: err})
+			return
+		}
+
+		params.XGitlabToken = &XGitlabToken
+
+	}
+
+	// ------------- Optional header parameter "X-GitHub-Delivery" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-GitHub-Delivery")]; found {
+		var XGitHubDelivery string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-GitHub-Delivery", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-GitHub-Delivery", valueList[0], &XGitHubDelivery, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-GitHub-Delivery", Err: err})
+			return
+		}
+
+		params.XGitHubDelivery = &XGitHubDelivery
+
+	}
+
+	// ------------- Optional header parameter "X-Gitlab-Event-UUID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Gitlab-Event-UUID")]; found {
+		var XGitlabEventUUID string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Gitlab-Event-UUID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Gitlab-Event-UUID", valueList[0], &XGitlabEventUUID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Gitlab-Event-UUID", Err: err})
+			return
+		}
+
+		params.XGitlabEventUUID = &XGitlabEventUUID
+
+	}
+
+	// ------------- Optional header parameter "X-Forgejo-Delivery" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Forgejo-Delivery")]; found {
+		var XForgejoDelivery string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Forgejo-Delivery", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Forgejo-Delivery", valueList[0], &XForgejoDelivery, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Forgejo-Delivery", Err: err})
+			return
+		}
+
+		params.XForgejoDelivery = &XForgejoDelivery
+
+	}
+
+	// ------------- Optional header parameter "X-Gitea-Delivery" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Gitea-Delivery")]; found {
+		var XGiteaDelivery string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Gitea-Delivery", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Gitea-Delivery", valueList[0], &XGiteaDelivery, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Gitea-Delivery", Err: err})
+			return
+		}
+
+		params.XGiteaDelivery = &XGiteaDelivery
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeliverCode(w, r, tenantId, hookId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ImportPlan operation middleware
 func (siw *ServerInterfaceWrapper) ImportPlan(w http.ResponseWriter, r *http.Request) {
 
@@ -40734,6 +41334,58 @@ func (siw *ServerInterfaceWrapper) ReadCmdbHealth(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListCodeHooks operation middleware
+func (siw *ServerInterfaceWrapper) ListCodeHooks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCodeHooks(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateCodeHook operation middleware
+func (siw *ServerInterfaceWrapper) CreateCodeHook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateCodeHook(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPages operation middleware
 func (siw *ServerInterfaceWrapper) ListPages(w http.ResponseWriter, r *http.Request) {
 
@@ -42446,6 +43098,32 @@ func (siw *ServerInterfaceWrapper) AffectEntryCi(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AffectEntryCi(w, r, itemId, ciId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEntryCodeLinks operation middleware
+func (siw *ServerInterfaceWrapper) ListEntryCodeLinks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEntryCodeLinks(w, r, itemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -54136,6 +54814,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb-connectors/{connectorId}:run", wrapper.RunCiConnector)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-alerts", wrapper.ListCiAlerts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb/alert-intake/{tenantId}/{connectorId}", wrapper.DeliverCiAlerts)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/code-hooks", wrapper.ListCodeHooks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/code-hooks", wrapper.CreateCodeHook)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/code-hooks/{hookId}", wrapper.DeleteCodeHook)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/code-hooks/{hookId}", wrapper.UpdateCodeHook)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/code-hooks/{hookId}/secret", wrapper.RotateCodeHookSecret)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/code-links", wrapper.ListEntryCodeLinks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/code-intake/{tenantId}/{hookId}", wrapper.DeliverCode)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb/inventory-intake/{tenantId}/{connectorId}", wrapper.DeliverCiInventory)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cmdb-health", wrapper.ReadCmdbHealth)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}", wrapper.ReadCi)

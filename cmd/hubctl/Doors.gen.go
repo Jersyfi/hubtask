@@ -10,6 +10,7 @@ var generatedGroups = map[string]string{
 	"business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
 	"ci":                "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
 	"cmdb":              "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
+	"code":              "a hub's forge hooks and an entry's commits, branches and pull requests",
 	"dashboard":         "dashboards: widgets over summary views, summary documents and goals, and their figures for the caller",
 	"goal":              "goals with key results, linked entries and check-ins, and their progress as the caller sees it",
 	"goal-period":       "the workspace's goal periods: quarters and years, closed with every goal graded",
@@ -759,6 +760,44 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "kind", "version"}},
 	{Group: "cmdb", Verb: "source ls", OperationID: "listCiSources", Method: "GET", Path: "/cmdb/sources", Summary: "The sources configuration items come from",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "kind", "version"}},
+	{Group: "code", Verb: "hook add", OperationID: "createCodeHook", Method: "POST", Path: "/hubs/{hubId}/code-hooks", Summary: "Add a forge hook",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "kind", Kind: "string", Help: "", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "code", Verb: "hook ls", OperationID: "listCodeHooks", Method: "GET", Path: "/hubs/{hubId}/code-hooks", Summary: "A hub's forge hooks",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "kind"}},
+	{Group: "code", Verb: "hook rm", OperationID: "deleteCodeHook", Method: "DELETE", Path: "/code-hooks/{hookId}", Summary: "Remove a forge hook and its links",
+		PathParams: []doorParam{
+			{Name: "hookId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "code", Verb: "hook rotate", OperationID: "rotateCodeHookSecret", Method: "POST", Path: "/code-hooks/{hookId}/secret", Summary: "Give a forge hook a new secret",
+		PathParams: []doorParam{
+			{Name: "hookId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "code", Verb: "hook set", OperationID: "updateCodeHook", Method: "PATCH", Path: "/code-hooks/{hookId}", Summary: "Rename a forge hook or switch it on or off",
+		PathParams: []doorParam{
+			{Name: "hookId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "enabled", Kind: "boolean", Help: "", Required: false},
+			{Name: "name", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "kind"}},
+	{Group: "code", Verb: "ls", OperationID: "listEntryCodeLinks", Method: "GET", Path: "/items/{itemId}/code-links", Summary: "An entry's commits, branches and pull requests",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "kind", "state"}},
 	{Group: "config", Verb: "propose", OperationID: "proposeConfig", Method: "POST", Path: "/config:propose", Summary: "Propose a planned change for a person to decide",
 		Body: []doorParam{
 			{Name: "acknowledge", Kind: "boolean", Help: "", Required: false},

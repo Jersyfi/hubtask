@@ -1027,6 +1027,42 @@ export class HubtaskClient {
     return this.call("POST", "/cmdb/alert-intake/{tenantId}/{connectorId}", { "tenantId": tenantId, "connectorId": connectorId }, undefined, { "X-Hubtask-Signature": options.xHubtaskSignature, "X-Hubtask-Timestamp": options.xHubtaskTimestamp }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** A hub's forge hooks */
+  listCodeHooks(hubId: string, options: CallOptions = {}): Promise<operations["listCodeHooks"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/code-hooks", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a forge hook */
+  createCodeHook(hubId: string, body: NonNullable<operations["createCodeHook"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createCodeHook"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/code-hooks", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Rename a forge hook or switch it on or off */
+  updateCodeHook(hookId: string, body: NonNullable<operations["updateCodeHook"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["updateCodeHook"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/code-hooks/{hookId}", { "hookId": hookId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a forge hook and its links */
+  deleteCodeHook(hookId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/code-hooks/{hookId}", { "hookId": hookId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Give a forge hook a new secret */
+  rotateCodeHookSecret(hookId: string, options: CallOptions = {}): Promise<operations["rotateCodeHookSecret"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/code-hooks/{hookId}/secret", { "hookId": hookId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** An entry's commits, branches and pull requests */
+  listEntryCodeLinks(itemId: string, options: CallOptions = {}): Promise<operations["listEntryCodeLinks"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/code-links", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A forge posts its pushes and pull requests
+   * Public: sent without a bearer where the client holds none. */
+  deliverCode(tenantId: string, hookId: string, body: NonNullable<operations["deliverCode"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly xGitHubEvent?: string; readonly xGitlabEvent?: string; readonly xForgejoEvent?: string; readonly xGiteaEvent?: string; readonly xHubSignature256?: string; readonly xForgejoSignature?: string; readonly xGiteaSignature?: string; readonly xGitlabToken?: string; readonly xGitHubDelivery?: string; readonly xGitlabEventUUID?: string; readonly xForgejoDelivery?: string; readonly xGiteaDelivery?: string } = {}): Promise<operations["deliverCode"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/code-intake/{tenantId}/{hookId}", { "tenantId": tenantId, "hookId": hookId }, undefined, { "X-GitHub-Event": options.xGitHubEvent, "X-Gitlab-Event": options.xGitlabEvent, "X-Forgejo-Event": options.xForgejoEvent, "X-Gitea-Event": options.xGiteaEvent, "X-Hub-Signature-256": options.xHubSignature256, "X-Forgejo-Signature": options.xForgejoSignature, "X-Gitea-Signature": options.xGiteaSignature, "X-Gitlab-Token": options.xGitlabToken, "X-GitHub-Delivery": options.xGitHubDelivery, "X-Gitlab-Event-UUID": options.xGitlabEventUUID, "X-Forgejo-Delivery": options.xForgejoDelivery, "X-Gitea-Delivery": options.xGiteaDelivery }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Post a GLPI Agent's inventory
    * Public: sent without a bearer where the client holds none. */
   deliverCiInventory(tenantId: string, connectorId: string, body: NonNullable<operations["deliverCiInventory"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly xHubtaskSignature?: string; readonly xHubtaskTimestamp?: string } = {}): Promise<operations["deliverCiInventory"]['responses'][200]['content']["application/json"]> {

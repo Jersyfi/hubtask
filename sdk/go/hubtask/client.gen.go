@@ -2868,6 +2868,114 @@ func (e CmdbHealthProblemsKinds) Valid() bool {
 	}
 }
 
+// Defines values for CodeHookKind.
+const (
+	CodeHookKindFORGEJO CodeHookKind = "FORGEJO"
+	CodeHookKindGITHUB  CodeHookKind = "GITHUB"
+	CodeHookKindGITLAB  CodeHookKind = "GITLAB"
+)
+
+// Valid indicates whether the value is a known member of the CodeHookKind enum.
+func (e CodeHookKind) Valid() bool {
+	switch e {
+	case CodeHookKindFORGEJO:
+		return true
+	case CodeHookKindGITHUB:
+		return true
+	case CodeHookKindGITLAB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CodeHookCreateKind.
+const (
+	CodeHookCreateKindFORGEJO CodeHookCreateKind = "FORGEJO"
+	CodeHookCreateKindGITHUB  CodeHookCreateKind = "GITHUB"
+	CodeHookCreateKindGITLAB  CodeHookCreateKind = "GITLAB"
+)
+
+// Valid indicates whether the value is a known member of the CodeHookCreateKind enum.
+func (e CodeHookCreateKind) Valid() bool {
+	switch e {
+	case CodeHookCreateKindFORGEJO:
+		return true
+	case CodeHookCreateKindGITHUB:
+		return true
+	case CodeHookCreateKindGITLAB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CodeHookMintedKind.
+const (
+	CodeHookMintedKindFORGEJO CodeHookMintedKind = "FORGEJO"
+	CodeHookMintedKindGITHUB  CodeHookMintedKind = "GITHUB"
+	CodeHookMintedKindGITLAB  CodeHookMintedKind = "GITLAB"
+)
+
+// Valid indicates whether the value is a known member of the CodeHookMintedKind enum.
+func (e CodeHookMintedKind) Valid() bool {
+	switch e {
+	case CodeHookMintedKindFORGEJO:
+		return true
+	case CodeHookMintedKindGITHUB:
+		return true
+	case CodeHookMintedKindGITLAB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CodeLinkKind.
+const (
+	BRANCH      CodeLinkKind = "BRANCH"
+	COMMIT      CodeLinkKind = "COMMIT"
+	PULLREQUEST CodeLinkKind = "PULL_REQUEST"
+)
+
+// Valid indicates whether the value is a known member of the CodeLinkKind enum.
+func (e CodeLinkKind) Valid() bool {
+	switch e {
+	case BRANCH:
+		return true
+	case COMMIT:
+		return true
+	case PULLREQUEST:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CodeLinkState.
+const (
+	CodeLinkStateCLOSED CodeLinkState = "CLOSED"
+	CodeLinkStateMERGED CodeLinkState = "MERGED"
+	CodeLinkStateOPEN   CodeLinkState = "OPEN"
+	CodeLinkStatePUSHED CodeLinkState = "PUSHED"
+)
+
+// Valid indicates whether the value is a known member of the CodeLinkState enum.
+func (e CodeLinkState) Valid() bool {
+	switch e {
+	case CodeLinkStateCLOSED:
+		return true
+	case CodeLinkStateMERGED:
+		return true
+	case CodeLinkStateOPEN:
+		return true
+	case CodeLinkStatePUSHED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CollectionFigureKind.
 const (
 	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
@@ -13224,6 +13332,103 @@ type CmdbHealth struct {
 
 // CmdbHealthProblemsKinds defines model for CmdbHealth.Problems.Kinds.
 type CmdbHealthProblemsKinds string
+
+// CodeDeliveryReceipt defines model for CodeDeliveryReceipt.
+type CodeDeliveryReceipt struct {
+	Linked   int `json:"linked"`
+	Received int `json:"received"`
+
+	// Unknown Keys that name no live entry of the hook's hub.
+	Unknown int `json:"unknown"`
+}
+
+// CodeHook defines model for CodeHook.
+type CodeHook struct {
+	CreatedAt      time.Time          `json:"created_at"`
+	Enabled        bool               `json:"enabled"`
+	HubId          openapi_types.UUID `json:"hub_id"`
+	Id             openapi_types.UUID `json:"id"`
+	Kind           CodeHookKind       `json:"kind"`
+	LastDeliveryAt *time.Time         `json:"last_delivery_at,omitempty"`
+	Name           string             `json:"name"`
+	RunAs          openapi_types.UUID `json:"run_as"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+}
+
+// CodeHookKind defines model for CodeHook.Kind.
+type CodeHookKind string
+
+// CodeHookCreate defines model for CodeHookCreate.
+type CodeHookCreate struct {
+	Kind CodeHookCreateKind `json:"kind"`
+	Name string             `json:"name"`
+}
+
+// CodeHookCreateKind defines model for CodeHookCreate.Kind.
+type CodeHookCreateKind string
+
+// CodeHookList defines model for CodeHookList.
+type CodeHookList struct {
+	Data []CodeHook `json:"data"`
+}
+
+// CodeHookMinted defines model for CodeHookMinted.
+type CodeHookMinted struct {
+	CreatedAt      time.Time          `json:"created_at"`
+	Enabled        bool               `json:"enabled"`
+	HubId          openapi_types.UUID `json:"hub_id"`
+	Id             openapi_types.UUID `json:"id"`
+	Kind           CodeHookMintedKind `json:"kind"`
+	LastDeliveryAt *time.Time         `json:"last_delivery_at,omitempty"`
+	Name           string             `json:"name"`
+	RunAs          openapi_types.UUID `json:"run_as"`
+
+	// Secret Answered here once and never again.
+	Secret    string    `json:"secret"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// CodeHookMintedKind defines model for CodeHookMinted.Kind.
+type CodeHookMintedKind string
+
+// CodeHookUpdate defines model for CodeHookUpdate.
+type CodeHookUpdate struct {
+	Enabled *bool   `json:"enabled,omitempty"`
+	Name    *string `json:"name,omitempty"`
+}
+
+// CodeLink defines model for CodeLink.
+type CodeLink struct {
+	Author       string             `json:"author"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	HappenedAt   time.Time          `json:"happened_at"`
+	HookId       openapi_types.UUID `json:"hook_id"`
+	HubId        openapi_types.UUID `json:"hub_id"`
+	Id           openapi_types.UUID `json:"id"`
+	ItemId       openapi_types.UUID `json:"item_id"`
+	Kind         CodeLinkKind       `json:"kind"`
+
+	// Ref A commit's hash
+	Ref        string        `json:"ref"`
+	Repository string        `json:"repository"`
+	State      CodeLinkState `json:"state"`
+	Title      string        `json:"title"`
+	UpdatedAt  time.Time     `json:"updated_at"`
+
+	// Url The forge's address of it; empty where the forge gave none an address may be.
+	Url string `json:"url"`
+}
+
+// CodeLinkKind defines model for CodeLink.Kind.
+type CodeLinkKind string
+
+// CodeLinkState defines model for CodeLink.State.
+type CodeLinkState string
+
+// CodeLinkList defines model for CodeLinkList.
+type CodeLinkList struct {
+	Data []CodeLink `json:"data"`
+}
 
 // CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
 type CollectionFigure struct {
@@ -23912,6 +24117,25 @@ type DefineCiSourceParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DeliverCodeJSONBody defines parameters for DeliverCode.
+type DeliverCodeJSONBody map[string]interface{}
+
+// DeliverCodeParams defines parameters for DeliverCode.
+type DeliverCodeParams struct {
+	XGitHubEvent      *string `json:"X-GitHub-Event,omitempty"`
+	XGitlabEvent      *string `json:"X-Gitlab-Event,omitempty"`
+	XForgejoEvent     *string `json:"X-Forgejo-Event,omitempty"`
+	XGiteaEvent       *string `json:"X-Gitea-Event,omitempty"`
+	XHubSignature256  *string `json:"X-Hub-Signature-256,omitempty"`
+	XForgejoSignature *string `json:"X-Forgejo-Signature,omitempty"`
+	XGiteaSignature   *string `json:"X-Gitea-Signature,omitempty"`
+	XGitlabToken      *string `json:"X-Gitlab-Token,omitempty"`
+	XGitHubDelivery   *string `json:"X-GitHub-Delivery,omitempty"`
+	XGitlabEventUUID  *string `json:"X-Gitlab-Event-UUID,omitempty"`
+	XForgejoDelivery  *string `json:"X-Forgejo-Delivery,omitempty"`
+	XGiteaDelivery    *string `json:"X-Gitea-Delivery,omitempty"`
+}
+
 // ImportPlanJSONBody defines parameters for ImportPlan.
 type ImportPlanJSONBody struct {
 	// Content The file's text, UTF-8, within the body limit.
@@ -26201,6 +26425,12 @@ type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
 // DefineCiSourceJSONRequestBody defines body for DefineCiSource for application/json ContentType.
 type DefineCiSourceJSONRequestBody = CiSourceDefine
 
+// UpdateCodeHookJSONRequestBody defines body for UpdateCodeHook for application/json ContentType.
+type UpdateCodeHookJSONRequestBody = CodeHookUpdate
+
+// DeliverCodeJSONRequestBody defines body for DeliverCode for application/json ContentType.
+type DeliverCodeJSONRequestBody DeliverCodeJSONBody
+
 // ImportPlanJSONRequestBody defines body for ImportPlan for application/json ContentType.
 type ImportPlanJSONRequestBody ImportPlanJSONBody
 
@@ -26362,6 +26592,9 @@ type ReconcileCisJSONRequestBody = CiPayload
 
 // DefineCiConnectorJSONRequestBody defines body for DefineCiConnector for application/json ContentType.
 type DefineCiConnectorJSONRequestBody = CiConnectorDefine
+
+// CreateCodeHookJSONRequestBody defines body for CreateCodeHook for application/json ContentType.
+type CreateCodeHookJSONRequestBody = CodeHookCreate
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
@@ -30844,6 +31077,58 @@ type ClientInterface interface {
 	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
 	DefineCiSource(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteCodeHook Remove a forge hook and its links
+	//
+	// Removes the hook and the code links it wrote from the hub's entries; the forge's own commits and pull requests are untouched. Switching it off keeps the links instead. Needs STRUCTURE on the hub.
+	//
+	// Corresponds with DELETE /code-hooks/{hookId} (the `DeleteCodeHook` operationId).
+	DeleteCodeHook(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateCodeHookWithBody Rename a forge hook or switch it on or off
+	//
+	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /code-hooks/{hookId} (the `UpdateCodeHook` operationId).
+	UpdateCodeHookWithBody(ctx context.Context, hookId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateCodeHook Rename a forge hook or switch it on or off
+	//
+	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /code-hooks/{hookId} (the `UpdateCodeHook` operationId).
+	UpdateCodeHook(ctx context.Context, hookId openapi_types.UUID, body UpdateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RotateCodeHookSecret Give a forge hook a new secret
+	//
+	// Draws the hook's new secret and answers it once. The old secret stops at once, so the forge's webhook is given the new one straight after. Needs STRUCTURE on the hub.
+	//
+	// Corresponds with POST /code-hooks/{hookId}/secret (the `RotateCodeHookSecret` operationId).
+	RotateCodeHookSecret(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverCodeWithBody A forge posts its pushes and pull requests
+	//
+	// A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.
+	// Every reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /code-intake/{tenantId}/{hookId} (the `DeliverCode` operationId).
+	DeliverCodeWithBody(ctx context.Context, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverCode A forge posts its pushes and pull requests
+	//
+	// A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.
+	// Every reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /code-intake/{tenantId}/{hookId} (the `DeliverCode` operationId).
+	DeliverCode(ctx context.Context, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, body DeliverCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ImportPlanWithBody Bring a plan in from a project file
 	//
 	// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
@@ -32093,6 +32378,31 @@ type ClientInterface interface {
 	// Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
 	ReadCmdbHealth(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListCodeHooks A hub's forge hooks
+	//
+	// The hooks GitHub, GitLab, Forgejo or Gitea post the hub's pushes and pull requests to, each with its forge, name, whether it is on, who it writes as and its last delivery - never its secret. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/code-hooks (the `ListCodeHooks` operationId).
+	ListCodeHooks(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateCodeHookWithBody Add a forge hook
+	//
+	// Adds a hook a forge posts to at `/code-intake/{tenantId}/{hookId}`; commits, branches and pull requests naming one of the hub's entries by its key are then kept on the entry with their state. The secret is answered once and never again: GitHub, Forgejo and Gitea sign with it, GitLab sends it as its token. The hook writes as whoever last defined it, while they may write in the hub. At most twenty hooks per hub (`forge.hooks_too_many`). Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
+	CreateCodeHookWithBody(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateCodeHook Add a forge hook
+	//
+	// Adds a hook a forge posts to at `/code-intake/{tenantId}/{hookId}`; commits, branches and pull requests naming one of the hub's entries by its key are then kept on the entry with their state. The secret is answered once and never again: GitHub, Forgejo and Gitea sign with it, GitLab sends it as its token. The hook writes as whoever last defined it, while they may write in the hub. At most twenty hooks per hub (`forge.hooks_too_many`). Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
+	CreateCodeHook(ctx context.Context, hubId HubId, body CreateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListPages A hub's pages
 	//
 	// The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
@@ -32624,6 +32934,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
 	AffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListEntryCodeLinks An entry's commits, branches and pull requests
+	//
+	// What named the entry's key in a forge hooked to its hub, the latest first: each commit, branch and pull request with its repository, title, address, author and state - pushed, open, merged or closed. At most 200. Needs READ on the entry.
+	//
+	// Corresponds with GET /items/{itemId}/code-links (the `ListEntryCodeLinks` operationId).
+	ListEntryCodeLinks(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListComments performs a GET /items/{itemId}/comments (the `ListComments` operationId) request.
 	ListComments(ctx context.Context, itemId ItemId, params *ListCommentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -43993,6 +44310,118 @@ func (c *Client) DefineCiSource(ctx context.Context, sourceKey string, params *D
 	return c.Client.Do(req)
 }
 
+// DeleteCodeHook Remove a forge hook and its links
+//
+// Removes the hook and the code links it wrote from the hub's entries; the forge's own commits and pull requests are untouched. Switching it off keeps the links instead. Needs STRUCTURE on the hub.
+//
+// Corresponds with DELETE /code-hooks/{hookId} (the `DeleteCodeHook` operationId).
+func (c *Client) DeleteCodeHook(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteCodeHookRequest(c.Server, hookId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateCodeHookWithBody Rename a forge hook or switch it on or off
+//
+// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /code-hooks/{hookId} (the `UpdateCodeHook` operationId).
+func (c *Client) UpdateCodeHookWithBody(ctx context.Context, hookId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateCodeHookRequestWithBody(c.Server, hookId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateCodeHook Rename a forge hook or switch it on or off
+//
+// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /code-hooks/{hookId} (the `UpdateCodeHook` operationId).
+func (c *Client) UpdateCodeHook(ctx context.Context, hookId openapi_types.UUID, body UpdateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateCodeHookRequest(c.Server, hookId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RotateCodeHookSecret Give a forge hook a new secret
+//
+// Draws the hook's new secret and answers it once. The old secret stops at once, so the forge's webhook is given the new one straight after. Needs STRUCTURE on the hub.
+//
+// Corresponds with POST /code-hooks/{hookId}/secret (the `RotateCodeHookSecret` operationId).
+func (c *Client) RotateCodeHookSecret(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRotateCodeHookSecretRequest(c.Server, hookId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverCodeWithBody A forge posts its pushes and pull requests
+//
+// A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.
+// Every reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /code-intake/{tenantId}/{hookId} (the `DeliverCode` operationId).
+func (c *Client) DeliverCodeWithBody(ctx context.Context, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverCodeRequestWithBody(c.Server, tenantId, hookId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverCode A forge posts its pushes and pull requests
+//
+// A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.
+// Every reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /code-intake/{tenantId}/{hookId} (the `DeliverCode` operationId).
+func (c *Client) DeliverCode(ctx context.Context, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, body DeliverCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverCodeRequest(c.Server, tenantId, hookId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ImportPlanWithBody Bring a plan in from a project file
 //
 // A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
@@ -46872,6 +47301,61 @@ func (c *Client) ReadCmdbHealth(ctx context.Context, hubId openapi_types.UUID, r
 	return c.Client.Do(req)
 }
 
+// ListCodeHooks A hub's forge hooks
+//
+// The hooks GitHub, GitLab, Forgejo or Gitea post the hub's pushes and pull requests to, each with its forge, name, whether it is on, who it writes as and its last delivery - never its secret. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/code-hooks (the `ListCodeHooks` operationId).
+func (c *Client) ListCodeHooks(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCodeHooksRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateCodeHookWithBody Add a forge hook
+//
+// Adds a hook a forge posts to at `/code-intake/{tenantId}/{hookId}`; commits, branches and pull requests naming one of the hub's entries by its key are then kept on the entry with their state. The secret is answered once and never again: GitHub, Forgejo and Gitea sign with it, GitLab sends it as its token. The hook writes as whoever last defined it, while they may write in the hub. At most twenty hooks per hub (`forge.hooks_too_many`). Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
+func (c *Client) CreateCodeHookWithBody(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateCodeHookRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateCodeHook Add a forge hook
+//
+// Adds a hook a forge posts to at `/code-intake/{tenantId}/{hookId}`; commits, branches and pull requests naming one of the hub's entries by its key are then kept on the entry with their state. The secret is answered once and never again: GitHub, Forgejo and Gitea sign with it, GitLab sends it as its token. The hook writes as whoever last defined it, while they may write in the hub. At most twenty hooks per hub (`forge.hooks_too_many`). Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
+func (c *Client) CreateCodeHook(ctx context.Context, hubId HubId, body CreateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateCodeHookRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListPages A hub's pages
 //
 // The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
@@ -48014,6 +48498,23 @@ func (c *Client) UnaffectEntryCi(ctx context.Context, itemId openapi_types.UUID,
 // Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
 func (c *Client) AffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAffectEntryCiRequest(c.Server, itemId, ciId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListEntryCodeLinks An entry's commits, branches and pull requests
+//
+// What named the entry's key in a forge hooked to its hub, the latest first: each commit, branch and pull request with its repository, title, address, author and state - pushed, open, merged or closed. At most 200. Needs READ on the entry.
+//
+// Corresponds with GET /items/{itemId}/code-links (the `ListEntryCodeLinks` operationId).
+func (c *Client) ListEntryCodeLinks(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEntryCodeLinksRequest(c.Server, itemId)
 	if err != nil {
 		return nil, err
 	}
@@ -67845,6 +68346,311 @@ func NewDefineCiSourceRequestWithBody(server string, sourceKey string, params *D
 	return req, nil
 }
 
+// NewDeleteCodeHookRequest constructs an http.Request for the DeleteCodeHook method
+func NewDeleteCodeHookRequest(server string, hookId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hookId", hookId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/code-hooks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateCodeHookRequest calls the generic UpdateCodeHook builder with application/json body
+func NewUpdateCodeHookRequest(server string, hookId openapi_types.UUID, body UpdateCodeHookJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateCodeHookRequestWithBody(server, hookId, "application/json", bodyReader)
+}
+
+// NewUpdateCodeHookRequestWithBody constructs an http.Request for the UpdateCodeHook method, with any body, and a specified content type
+func NewUpdateCodeHookRequestWithBody(server string, hookId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hookId", hookId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/code-hooks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRotateCodeHookSecretRequest constructs an http.Request for the RotateCodeHookSecret method
+func NewRotateCodeHookSecretRequest(server string, hookId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hookId", hookId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/code-hooks/%s/secret", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeliverCodeRequest calls the generic DeliverCode builder with application/json body
+func NewDeliverCodeRequest(server string, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, body DeliverCodeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDeliverCodeRequestWithBody(server, tenantId, hookId, params, "application/json", bodyReader)
+}
+
+// NewDeliverCodeRequestWithBody constructs an http.Request for the DeliverCode method, with any body, and a specified content type
+func NewDeliverCodeRequestWithBody(server string, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "hookId", hookId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/code-intake/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XGitHubEvent != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-GitHub-Event", *params.XGitHubEvent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-GitHub-Event", headerParam0)
+		}
+
+		if params.XGitlabEvent != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Gitlab-Event", *params.XGitlabEvent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Gitlab-Event", headerParam1)
+		}
+
+		if params.XForgejoEvent != nil {
+			var headerParam2 string
+
+			headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-Forgejo-Event", *params.XForgejoEvent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Forgejo-Event", headerParam2)
+		}
+
+		if params.XGiteaEvent != nil {
+			var headerParam3 string
+
+			headerParam3, err = runtime.StyleParamWithOptions("simple", false, "X-Gitea-Event", *params.XGiteaEvent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Gitea-Event", headerParam3)
+		}
+
+		if params.XHubSignature256 != nil {
+			var headerParam4 string
+
+			headerParam4, err = runtime.StyleParamWithOptions("simple", false, "X-Hub-Signature-256", *params.XHubSignature256, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hub-Signature-256", headerParam4)
+		}
+
+		if params.XForgejoSignature != nil {
+			var headerParam5 string
+
+			headerParam5, err = runtime.StyleParamWithOptions("simple", false, "X-Forgejo-Signature", *params.XForgejoSignature, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Forgejo-Signature", headerParam5)
+		}
+
+		if params.XGiteaSignature != nil {
+			var headerParam6 string
+
+			headerParam6, err = runtime.StyleParamWithOptions("simple", false, "X-Gitea-Signature", *params.XGiteaSignature, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Gitea-Signature", headerParam6)
+		}
+
+		if params.XGitlabToken != nil {
+			var headerParam7 string
+
+			headerParam7, err = runtime.StyleParamWithOptions("simple", false, "X-Gitlab-Token", *params.XGitlabToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Gitlab-Token", headerParam7)
+		}
+
+		if params.XGitHubDelivery != nil {
+			var headerParam8 string
+
+			headerParam8, err = runtime.StyleParamWithOptions("simple", false, "X-GitHub-Delivery", *params.XGitHubDelivery, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-GitHub-Delivery", headerParam8)
+		}
+
+		if params.XGitlabEventUUID != nil {
+			var headerParam9 string
+
+			headerParam9, err = runtime.StyleParamWithOptions("simple", false, "X-Gitlab-Event-UUID", *params.XGitlabEventUUID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Gitlab-Event-UUID", headerParam9)
+		}
+
+		if params.XForgejoDelivery != nil {
+			var headerParam10 string
+
+			headerParam10, err = runtime.StyleParamWithOptions("simple", false, "X-Forgejo-Delivery", *params.XForgejoDelivery, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Forgejo-Delivery", headerParam10)
+		}
+
+		if params.XGiteaDelivery != nil {
+			var headerParam11 string
+
+			headerParam11, err = runtime.StyleParamWithOptions("simple", false, "X-Gitea-Delivery", *params.XGiteaDelivery, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Gitea-Delivery", headerParam11)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewImportPlanRequest calls the generic ImportPlan builder with application/json body
 func NewImportPlanRequest(server string, collectionId SprintCollectionId, body ImportPlanJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -73506,6 +74312,87 @@ func NewReadCmdbHealthRequest(server string, hubId openapi_types.UUID) (*http.Re
 	return req, nil
 }
 
+// NewListCodeHooksRequest constructs an http.Request for the ListCodeHooks method
+func NewListCodeHooksRequest(server string, hubId HubId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/code-hooks", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateCodeHookRequest calls the generic CreateCodeHook builder with application/json body
+func NewCreateCodeHookRequest(server string, hubId HubId, body CreateCodeHookJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateCodeHookRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewCreateCodeHookRequestWithBody constructs an http.Request for the CreateCodeHook method, with any body, and a specified content type
+func NewCreateCodeHookRequestWithBody(server string, hubId HubId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/code-hooks", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListPagesRequest constructs an http.Request for the ListPages method
 func NewListPagesRequest(server string, hubId openapi_types.UUID, params *ListPagesParams) (*http.Request, error) {
 	var err error
@@ -75808,6 +76695,40 @@ func NewAffectEntryCiRequest(server string, itemId openapi_types.UUID, ciId open
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListEntryCodeLinksRequest constructs an http.Request for the ListEntryCodeLinks method
+func NewListEntryCodeLinksRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/code-links", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -95527,6 +96448,62 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
 	DefineCiSourceWithResponse(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiSourceResult, error)
 
+	// DeleteCodeHookWithResponse Remove a forge hook and its links
+	//
+	// Removes the hook and the code links it wrote from the hub's entries; the forge's own commits and pull requests are untouched. Switching it off keeps the links instead. Needs STRUCTURE on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /code-hooks/{hookId} (the `DeleteCodeHook` operationId).
+	DeleteCodeHookWithResponse(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteCodeHookResult, error)
+
+	// UpdateCodeHookWithBodyWithResponse Rename a forge hook or switch it on or off
+	//
+	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /code-hooks/{hookId} (the `UpdateCodeHook` operationId).
+	UpdateCodeHookWithBodyWithResponse(ctx context.Context, hookId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCodeHookResult, error)
+
+	// UpdateCodeHookWithResponse Rename a forge hook or switch it on or off
+	//
+	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /code-hooks/{hookId} (the `UpdateCodeHook` operationId).
+	UpdateCodeHookWithResponse(ctx context.Context, hookId openapi_types.UUID, body UpdateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCodeHookResult, error)
+
+	// RotateCodeHookSecretWithResponse Give a forge hook a new secret
+	//
+	// Draws the hook's new secret and answers it once. The old secret stops at once, so the forge's webhook is given the new one straight after. Needs STRUCTURE on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /code-hooks/{hookId}/secret (the `RotateCodeHookSecret` operationId).
+	RotateCodeHookSecretWithResponse(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RotateCodeHookSecretResult, error)
+
+	// DeliverCodeWithBodyWithResponse A forge posts its pushes and pull requests
+	//
+	// A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.
+	// Every reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /code-intake/{tenantId}/{hookId} (the `DeliverCode` operationId).
+	DeliverCodeWithBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverCodeResult, error)
+
+	// DeliverCodeWithResponse A forge posts its pushes and pull requests
+	//
+	// A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.
+	// Every reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /code-intake/{tenantId}/{hookId} (the `DeliverCode` operationId).
+	DeliverCodeWithResponse(ctx context.Context, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, body DeliverCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCodeResult, error)
+
 	// ImportPlanWithBodyWithResponse Bring a plan in from a project file
 	//
 	// A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
@@ -96916,6 +97893,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
 	ReadCmdbHealthWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCmdbHealthResult, error)
 
+	// ListCodeHooksWithResponse A hub's forge hooks
+	//
+	// The hooks GitHub, GitLab, Forgejo or Gitea post the hub's pushes and pull requests to, each with its forge, name, whether it is on, who it writes as and its last delivery - never its secret. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/code-hooks (the `ListCodeHooks` operationId).
+	ListCodeHooksWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListCodeHooksResult, error)
+
+	// CreateCodeHookWithBodyWithResponse Add a forge hook
+	//
+	// Adds a hook a forge posts to at `/code-intake/{tenantId}/{hookId}`; commits, branches and pull requests naming one of the hub's entries by its key are then kept on the entry with their state. The secret is answered once and never again: GitHub, Forgejo and Gitea sign with it, GitLab sends it as its token. The hook writes as whoever last defined it, while they may write in the hub. At most twenty hooks per hub (`forge.hooks_too_many`). Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
+	CreateCodeHookWithBodyWithResponse(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCodeHookResult, error)
+
+	// CreateCodeHookWithResponse Add a forge hook
+	//
+	// Adds a hook a forge posts to at `/code-intake/{tenantId}/{hookId}`; commits, branches and pull requests naming one of the hub's entries by its key are then kept on the entry with their state. The secret is answered once and never again: GitHub, Forgejo and Gitea sign with it, GitLab sends it as its token. The hook writes as whoever last defined it, while they may write in the hub. At most twenty hooks per hub (`forge.hooks_too_many`). Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
+	CreateCodeHookWithResponse(ctx context.Context, hubId HubId, body CreateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCodeHookResult, error)
+
 	// ListPagesWithResponse A hub's pages
 	//
 	// The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
@@ -97513,6 +98517,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
 	AffectEntryCiWithResponse(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*AffectEntryCiResult, error)
+
+	// ListEntryCodeLinksWithResponse An entry's commits, branches and pull requests
+	//
+	// What named the entry's key in a forge hooked to its hub, the latest first: each commit, branch and pull request with its repository, title, address, author and state - pushed, open, merged or closed. At most 200. Needs READ on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/code-links (the `ListEntryCodeLinks` operationId).
+	ListEntryCodeLinksWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryCodeLinksResult, error)
 
 	// ListCommentsWithResponse performs a GET /items/{itemId}/comments (the `ListComments` operationId) request.
 	//
@@ -113723,6 +114736,191 @@ func (r DefineCiSourceResult) ContentType() string {
 	return ""
 }
 
+type DeleteCodeHookResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteCodeHookResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteCodeHookResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteCodeHookResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteCodeHookResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteCodeHookResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateCodeHookResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CodeHook
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateCodeHookResult) GetJSON200() *CodeHook {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateCodeHookResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateCodeHookResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateCodeHookResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateCodeHookResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateCodeHookResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RotateCodeHookSecretResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CodeHookMinted
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RotateCodeHookSecretResult) GetJSON200() *CodeHookMinted {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RotateCodeHookSecretResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RotateCodeHookSecretResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RotateCodeHookSecretResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RotateCodeHookSecretResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RotateCodeHookSecretResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeliverCodeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *CodeDeliveryReceipt
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r DeliverCodeResult) GetJSON202() *CodeDeliveryReceipt {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeliverCodeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeliverCodeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeliverCodeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeliverCodeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeliverCodeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ImportPlanResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -119060,6 +120258,102 @@ func (r ReadCmdbHealthResult) ContentType() string {
 	return ""
 }
 
+type ListCodeHooksResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CodeHookList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCodeHooksResult) GetJSON200() *CodeHookList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCodeHooksResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCodeHooksResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCodeHooksResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCodeHooksResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCodeHooksResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateCodeHookResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *CodeHookMinted
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateCodeHookResult) GetJSON201() *CodeHookMinted {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateCodeHookResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateCodeHookResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateCodeHookResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateCodeHookResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateCodeHookResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPagesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -121269,6 +122563,54 @@ func (r AffectEntryCiResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r AffectEntryCiResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListEntryCodeLinksResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CodeLinkList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListEntryCodeLinksResult) GetJSON200() *CodeLinkList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListEntryCodeLinksResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListEntryCodeLinksResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEntryCodeLinksResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEntryCodeLinksResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListEntryCodeLinksResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -143541,6 +144883,98 @@ func (c *ClientWithResponses) DefineCiSourceWithResponse(ctx context.Context, so
 	return ParseDefineCiSourceResult(rsp)
 }
 
+// DeleteCodeHookWithResponse Remove a forge hook and its links
+//
+// Removes the hook and the code links it wrote from the hub's entries; the forge's own commits and pull requests are untouched. Switching it off keeps the links instead. Needs STRUCTURE on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /code-hooks/{hookId} (the `DeleteCodeHook` operationId).
+func (c *ClientWithResponses) DeleteCodeHookWithResponse(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteCodeHookResult, error) {
+	rsp, err := c.DeleteCodeHook(ctx, hookId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteCodeHookResult(rsp)
+}
+
+// UpdateCodeHookWithBodyWithResponse Rename a forge hook or switch it on or off
+//
+// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /code-hooks/{hookId} (the `UpdateCodeHook` operationId).
+func (c *ClientWithResponses) UpdateCodeHookWithBodyWithResponse(ctx context.Context, hookId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCodeHookResult, error) {
+	rsp, err := c.UpdateCodeHookWithBody(ctx, hookId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCodeHookResult(rsp)
+}
+
+// UpdateCodeHookWithResponse Rename a forge hook or switch it on or off
+//
+// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /code-hooks/{hookId} (the `UpdateCodeHook` operationId).
+func (c *ClientWithResponses) UpdateCodeHookWithResponse(ctx context.Context, hookId openapi_types.UUID, body UpdateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCodeHookResult, error) {
+	rsp, err := c.UpdateCodeHook(ctx, hookId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCodeHookResult(rsp)
+}
+
+// RotateCodeHookSecretWithResponse Give a forge hook a new secret
+//
+// Draws the hook's new secret and answers it once. The old secret stops at once, so the forge's webhook is given the new one straight after. Needs STRUCTURE on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /code-hooks/{hookId}/secret (the `RotateCodeHookSecret` operationId).
+func (c *ClientWithResponses) RotateCodeHookSecretWithResponse(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RotateCodeHookSecretResult, error) {
+	rsp, err := c.RotateCodeHookSecret(ctx, hookId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRotateCodeHookSecretResult(rsp)
+}
+
+// DeliverCodeWithBodyWithResponse A forge posts its pushes and pull requests
+//
+// A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.
+// Every reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /code-intake/{tenantId}/{hookId} (the `DeliverCode` operationId).
+func (c *ClientWithResponses) DeliverCodeWithBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverCodeResult, error) {
+	rsp, err := c.DeliverCodeWithBody(ctx, tenantId, hookId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverCodeResult(rsp)
+}
+
+// DeliverCodeWithResponse A forge posts its pushes and pull requests
+//
+// A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.
+// Every reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /code-intake/{tenantId}/{hookId} (the `DeliverCode` operationId).
+func (c *ClientWithResponses) DeliverCodeWithResponse(ctx context.Context, tenantId openapi_types.UUID, hookId openapi_types.UUID, params *DeliverCodeParams, body DeliverCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCodeResult, error) {
+	rsp, err := c.DeliverCode(ctx, tenantId, hookId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverCodeResult(rsp)
+}
+
 // ImportPlanWithBodyWithResponse Bring a plan in from a project file
 //
 // A project tool's XML (MSPROJECT_XML) or a CSV with a header row - a Name column, and ID, Start, Finish, Predecessors (3, 3SS, 4FF+2d, separated by ; or ,), Outline Level and Milestone where the file has them. Each task becomes an entry of the collection at the depth its outline gives - a task, a work package under it, an activity below; deeper rows hang on the last level that may hold them -, its dates the start and an all-day due date, milestones marked, and each predecessor a "blocks" dependency with its kind and lag in working days. All or nothing, every entry and dependency checked and recorded as one made by hand; a dry run answers the counts and writes nothing. Needs WRITE_ITEMS at the collection.
@@ -145908,6 +147342,51 @@ func (c *ClientWithResponses) ReadCmdbHealthWithResponse(ctx context.Context, hu
 	return ParseReadCmdbHealthResult(rsp)
 }
 
+// ListCodeHooksWithResponse A hub's forge hooks
+//
+// The hooks GitHub, GitLab, Forgejo or Gitea post the hub's pushes and pull requests to, each with its forge, name, whether it is on, who it writes as and its last delivery - never its secret. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/code-hooks (the `ListCodeHooks` operationId).
+func (c *ClientWithResponses) ListCodeHooksWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListCodeHooksResult, error) {
+	rsp, err := c.ListCodeHooks(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCodeHooksResult(rsp)
+}
+
+// CreateCodeHookWithBodyWithResponse Add a forge hook
+//
+// Adds a hook a forge posts to at `/code-intake/{tenantId}/{hookId}`; commits, branches and pull requests naming one of the hub's entries by its key are then kept on the entry with their state. The secret is answered once and never again: GitHub, Forgejo and Gitea sign with it, GitLab sends it as its token. The hook writes as whoever last defined it, while they may write in the hub. At most twenty hooks per hub (`forge.hooks_too_many`). Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
+func (c *ClientWithResponses) CreateCodeHookWithBodyWithResponse(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCodeHookResult, error) {
+	rsp, err := c.CreateCodeHookWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateCodeHookResult(rsp)
+}
+
+// CreateCodeHookWithResponse Add a forge hook
+//
+// Adds a hook a forge posts to at `/code-intake/{tenantId}/{hookId}`; commits, branches and pull requests naming one of the hub's entries by its key are then kept on the entry with their state. The secret is answered once and never again: GitHub, Forgejo and Gitea sign with it, GitLab sends it as its token. The hook writes as whoever last defined it, while they may write in the hub. At most twenty hooks per hub (`forge.hooks_too_many`). Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
+func (c *ClientWithResponses) CreateCodeHookWithResponse(ctx context.Context, hubId HubId, body CreateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCodeHookResult, error) {
+	rsp, err := c.CreateCodeHook(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateCodeHookResult(rsp)
+}
+
 // ListPagesWithResponse A hub's pages
 //
 // The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
@@ -146876,6 +148355,21 @@ func (c *ClientWithResponses) AffectEntryCiWithResponse(ctx context.Context, ite
 		return nil, err
 	}
 	return ParseAffectEntryCiResult(rsp)
+}
+
+// ListEntryCodeLinksWithResponse An entry's commits, branches and pull requests
+//
+// What named the entry's key in a forge hooked to its hub, the latest first: each commit, branch and pull request with its repository, title, address, author and state - pushed, open, merged or closed. At most 200. Needs READ on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/code-links (the `ListEntryCodeLinks` operationId).
+func (c *ClientWithResponses) ListEntryCodeLinksWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryCodeLinksResult, error) {
+	rsp, err := c.ListEntryCodeLinks(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEntryCodeLinksResult(rsp)
 }
 
 // ListCommentsWithResponse performs a GET /items/{itemId}/comments (the `ListComments` operationId) request.
@@ -162626,6 +164120,134 @@ func ParseDefineCiSourceResult(rsp *http.Response) (*DefineCiSourceResult, error
 	return response, nil
 }
 
+// ParseDeleteCodeHookResult parses an HTTP response from a DeleteCodeHookWithResponse call
+func ParseDeleteCodeHookResult(rsp *http.Response) (*DeleteCodeHookResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteCodeHookResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateCodeHookResult parses an HTTP response from a UpdateCodeHookWithResponse call
+func ParseUpdateCodeHookResult(rsp *http.Response) (*UpdateCodeHookResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateCodeHookResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CodeHook
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRotateCodeHookSecretResult parses an HTTP response from a RotateCodeHookSecretWithResponse call
+func ParseRotateCodeHookSecretResult(rsp *http.Response) (*RotateCodeHookSecretResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RotateCodeHookSecretResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CodeHookMinted
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeliverCodeResult parses an HTTP response from a DeliverCodeWithResponse call
+func ParseDeliverCodeResult(rsp *http.Response) (*DeliverCodeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeliverCodeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest CodeDeliveryReceipt
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseImportPlanResult parses an HTTP response from a ImportPlanWithResponse call
 func ParseImportPlanResult(rsp *http.Response) (*ImportPlanResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -166490,6 +168112,72 @@ func ParseReadCmdbHealthResult(rsp *http.Response) (*ReadCmdbHealthResult, error
 	return response, nil
 }
 
+// ParseListCodeHooksResult parses an HTTP response from a ListCodeHooksWithResponse call
+func ParseListCodeHooksResult(rsp *http.Response) (*ListCodeHooksResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCodeHooksResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CodeHookList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateCodeHookResult parses an HTTP response from a CreateCodeHookWithResponse call
+func ParseCreateCodeHookResult(rsp *http.Response) (*CreateCodeHookResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateCodeHookResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CodeHookMinted
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListPagesResult parses an HTTP response from a ListPagesWithResponse call
 func ParseListPagesResult(rsp *http.Response) (*ListPagesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -168022,6 +169710,39 @@ func ParseAffectEntryCiResult(rsp *http.Response) (*AffectEntryCiResult, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest EntryCis
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListEntryCodeLinksResult parses an HTTP response from a ListEntryCodeLinksWithResponse call
+func ParseListEntryCodeLinksResult(rsp *http.Response) (*ListEntryCodeLinksResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEntryCodeLinksResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CodeLinkList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

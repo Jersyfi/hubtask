@@ -5701,6 +5701,64 @@ class CiAlertReceipt(TypedDict, total=False):
     unchanged: Required[int]
     entries_failed: Required[int]
 
+class CodeHook(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    kind: Required[Literal["GITHUB", "GITLAB", "FORGEJO"]]
+    name: Required[str]
+    enabled: Required[bool]
+    run_as: Required[str]
+    created_at: Required[str]
+    updated_at: Required[str]
+    last_delivery_at: str | None
+
+class CodeHookMinted(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    kind: Required[Literal["GITHUB", "GITLAB", "FORGEJO"]]
+    name: Required[str]
+    enabled: Required[bool]
+    run_as: Required[str]
+    created_at: Required[str]
+    updated_at: Required[str]
+    last_delivery_at: str | None
+    secret: Required[str]
+
+class CodeHookList(TypedDict, total=False):
+    data: Required[list["CodeHook"]]
+
+class CodeHookCreate(TypedDict, total=False):
+    kind: Required[Literal["GITHUB", "GITLAB", "FORGEJO"]]
+    name: Required[str]
+
+class CodeHookUpdate(TypedDict, total=False):
+    name: str
+    enabled: bool
+
+class CodeLink(TypedDict, total=False):
+    id: Required[str]
+    item_id: Required[str]
+    hub_id: Required[str]
+    collection_id: Required[str]
+    hook_id: Required[str]
+    kind: Required[Literal["COMMIT", "BRANCH", "PULL_REQUEST"]]
+    repository: Required[str]
+    ref: Required[str]
+    title: Required[str]
+    url: Required[str]
+    author: Required[str]
+    state: Required[Literal["PUSHED", "OPEN", "MERGED", "CLOSED"]]
+    happened_at: Required[str]
+    updated_at: Required[str]
+
+class CodeLinkList(TypedDict, total=False):
+    data: Required[list["CodeLink"]]
+
+class CodeDeliveryReceipt(TypedDict, total=False):
+    received: Required[int]
+    linked: Required[int]
+    unknown: Required[int]
+
 class CiRunList(TypedDict, total=False):
     data: Required[list["CiRun"]]
 

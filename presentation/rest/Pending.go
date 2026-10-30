@@ -2841,3 +2841,31 @@ func (pending) SetWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
 func (pending) ImportPlan(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
 	notAvailable(w, r)
 }
+
+func (pending) ListCodeHooks(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateCodeHook(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateCodeHook(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteCodeHook(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RotateCodeHookSecret(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListEntryCodeLinks(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeliverCode(w http.ResponseWriter, r *http.Request, _, _ openapi_types.UUID, _ openapi.DeliverCodeParams) {
+	notAvailable(w, r)
+}

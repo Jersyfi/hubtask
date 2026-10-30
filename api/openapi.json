@@ -127,6 +127,9 @@
     },
     {
       "name": "agents"
+    },
+    {
+      "name": "code"
     }
   ],
   "x-hubtask-cli-groups": {
@@ -137,6 +140,7 @@
     "setting": "the settings catalogue: every setting, its level and its source",
     "page": "a hub's pages: write, find, move, version, comment on and export them",
     "whiteboard": "a hub's whiteboards: make, draw on, trash and export them",
+    "code": "a hub's forge hooks and an entry's commits, branches and pull requests",
     "cmdb": "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
     "ci": "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
     "business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
@@ -8150,6 +8154,353 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CiAlertReceipt"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/code-hooks": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/HubId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "code"
+        ],
+        "operationId": "listCodeHooks",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "code hook ls",
+        "summary": "A hub's forge hooks",
+        "description": "The hooks GitHub, GitLab, Forgejo or Gitea post the hub's pushes and pull requests to, each with its forge, name, whether it is on, who it writes as and its last delivery - never its secret. Needs READ on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The hooks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeHookList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "code"
+        ],
+        "operationId": "createCodeHook",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "code hook add",
+        "summary": "Add a forge hook",
+        "description": "Adds a hook a forge posts to at `/code-intake/{tenantId}/{hookId}`; commits, branches and pull requests naming one of the hub's entries by its key are then kept on the entry with their state. The secret is answered once and never again: GitHub, Forgejo and Gitea sign with it, GitLab sends it as its token. The hook writes as whoever last defined it, while they may write in the hub. At most twenty hooks per hub (`forge.hooks_too_many`). Needs STRUCTURE on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeHookCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeHookMinted"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/code-hooks/{hookId}": {
+      "parameters": [
+        {
+          "name": "hookId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "code"
+        ],
+        "operationId": "updateCodeHook",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "code hook set",
+        "summary": "Rename a forge hook or switch it on or off",
+        "description": "A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeHookUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeHook"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "code"
+        ],
+        "operationId": "deleteCodeHook",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "code hook rm",
+        "summary": "Remove a forge hook and its links",
+        "description": "Removes the hook and the code links it wrote from the hub's entries; the forge's own commits and pull requests are untouched. Switching it off keeps the links instead. Needs STRUCTURE on the hub.\n",
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/code-hooks/{hookId}/secret": {
+      "parameters": [
+        {
+          "name": "hookId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "code"
+        ],
+        "operationId": "rotateCodeHookSecret",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "code hook rotate",
+        "summary": "Give a forge hook a new secret",
+        "description": "Draws the hook's new secret and answers it once. The old secret stops at once, so the forge's webhook is given the new one straight after. Needs STRUCTURE on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The new secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeHookMinted"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}/code-links": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "code"
+        ],
+        "operationId": "listEntryCodeLinks",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "code ls",
+        "summary": "An entry's commits, branches and pull requests",
+        "description": "What named the entry's key in a forge hooked to its hub, the latest first: each commit, branch and pull request with its repository, title, address, author and state - pushed, open, merged or closed. At most 200. Needs READ on the entry.\n",
+        "responses": {
+          "200": {
+            "description": "The entry's code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeLinkList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/code-intake/{tenantId}/{hookId}": {
+      "parameters": [
+        {
+          "name": "tenantId",
+          "in": "path",
+          "required": true,
+          "description": "The workspace the hook belongs to, which the lookup needs before it can happen.",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "hookId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "code"
+        ],
+        "operationId": "deliverCode",
+        "security": [],
+        "summary": "A forge posts its pushes and pull requests",
+        "description": "A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.\nEvery reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.\n",
+        "parameters": [
+          {
+            "name": "X-GitHub-Event",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Gitlab-Event",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Forgejo-Event",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Gitea-Event",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Hub-Signature-256",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Forgejo-Signature",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Gitea-Signature",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Gitlab-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-GitHub-Delivery",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Gitlab-Event-UUID",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Forgejo-Delivery",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Gitea-Delivery",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Taken in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeDeliveryReceipt"
                 }
               }
             }
@@ -60534,6 +60885,246 @@
           },
           "entries_failed": {
             "type": "integer"
+          }
+        }
+      },
+      "CodeHook": {
+        "type": "object",
+        "required": [
+          "id",
+          "hub_id",
+          "kind",
+          "name",
+          "enabled",
+          "run_as",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "GITHUB",
+              "GITLAB",
+              "FORGEJO"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "run_as": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_delivery_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CodeHookMinted": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CodeHook"
+          },
+          {
+            "type": "object",
+            "required": [
+              "secret"
+            ],
+            "properties": {
+              "secret": {
+                "type": "string",
+                "description": "Answered here once and never again."
+              }
+            }
+          }
+        ]
+      },
+      "CodeHookList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CodeHook"
+            }
+          }
+        }
+      },
+      "CodeHookCreate": {
+        "type": "object",
+        "required": [
+          "kind",
+          "name"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "GITHUB",
+              "GITLAB",
+              "FORGEJO"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        }
+      },
+      "CodeHookUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CodeLink": {
+        "type": "object",
+        "required": [
+          "id",
+          "item_id",
+          "hub_id",
+          "collection_id",
+          "hook_id",
+          "kind",
+          "repository",
+          "ref",
+          "title",
+          "url",
+          "author",
+          "state",
+          "happened_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hook_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "COMMIT",
+              "BRANCH",
+              "PULL_REQUEST"
+            ]
+          },
+          "repository": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string",
+            "description": "A commit's hash",
+            "a branch's name or a pull request's number.": null
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "The forge's address of it; empty where the forge gave none an address may be."
+          },
+          "author": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PUSHED",
+              "OPEN",
+              "MERGED",
+              "CLOSED"
+            ]
+          },
+          "happened_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CodeLinkList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CodeLink"
+            }
+          }
+        }
+      },
+      "CodeDeliveryReceipt": {
+        "type": "object",
+        "required": [
+          "received",
+          "linked",
+          "unknown"
+        ],
+        "properties": {
+          "received": {
+            "type": "integer"
+          },
+          "linked": {
+            "type": "integer"
+          },
+          "unknown": {
+            "type": "integer",
+            "description": "Keys that name no live entry of the hook's hub."
           }
         }
       },
