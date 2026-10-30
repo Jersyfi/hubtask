@@ -510,3 +510,49 @@ func TestEntriesHoldingCountsOnlyTheCallersEntries(t *testing.T) {
 		t.Fatalf("A counts %d, B counts %d", inA, inB)
 	}
 }
+
+// The walk's definitions stay in their workspace and leave a deleted one out (offline-sync.md
+// §3.1): the workspace next door walks none of them.
+func TestTheDefinitionWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	live := definedField(ctx, t, tenantA, collection, "walked", work.CustomFieldText)
+	gone := definedField(ctx, t, tenantA, collection, "walked_gone", work.CustomFieldText)
+	deleted, _, err := gone.Deleted(changedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return fieldRepo().SetDeleted(ctx, deleted, gone.Version)
+	}); err != nil {
+		t.Fatalf("deleting: %v", err)
+	}
+	walked := func(tenant shared.ID) map[shared.ID]string {
+		found := map[shared.ID]string{}
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			definitions, err := postgres.NewSnapshotRepository().CustomFields(ctx, "", 5000)
+			for _, d := range definitions {
+				found[d.ID] = d.Key
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return found
+	}
+	own := walked(tenantA)
+	if own[live.ID] != "walked" {
+		t.Errorf("the workspace's walk holds %v, want the live definition", own)
+	}
+	if _, found := own[gone.ID]; found {
+		t.Errorf("the walk holds a deleted definition: %v", own)
+	}
+	if next := walked(tenantB); len(next) != 0 {
+		for id := range next {
+			if id == live.ID || id == gone.ID {
+				t.Errorf("the workspace next door walked the definition: %v", next)
+			}
+		}
+	}
+}

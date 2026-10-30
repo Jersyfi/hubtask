@@ -421,8 +421,9 @@ func (s StreamChanges) mayReadWorkspaceWide(
 		return visibility{}, nil
 	}
 	switch entity {
-	case entityEntryType, entityLinkType, entityWorkflow:
-		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member.
+	case entityEntryType, entityLinkType, entityWorkflow, entityCustomField:
+		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member, and the
+		// workspace-wide definitions ListCustomFields answers within every collection.
 		return visibility{allowed: true}, nil
 	case entityRoleGrant:
 		// The walk reads the reader's own grants only; the stream decides each record by holds.

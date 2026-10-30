@@ -38,7 +38,7 @@ var walkKinds = []string{
 	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage,
 	entityCI, entityCIRelation, entityCICatalogue, entityEntrySchedule,
 	entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard,
-	entitySprint, entitySprintEntry, entityEstimate,
+	entitySprint, entitySprintEntry, entityEstimate, entityCustomField,
 }
 
 const (
@@ -88,6 +88,10 @@ const (
 	entitySprint      = planningservice.SprintEntity
 	entitySprintEntry = planningservice.SprintEntryEntity
 	entityEstimate    = planningservice.EstimateEntity
+	// entityCustomField is a custom field definition, filed under its collection - none for a
+	// workspace-wide one, which reaches every member as the types do: a definition draws a form,
+	// a read-restricted field narrows its values, never its definition.
+	entityCustomField = workservice.CustomFieldEntity
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -558,6 +562,19 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityEstimate, entityID: e.Estimate.EntryID, containerID: e.CollectionID,
 				payload: planningservice.EstimateRecord(e.Estimate, e.CollectionID), key: e.Estimate.EntryID.String(),
+			})
+		}
+		return rows, nil
+	case entityCustomField:
+		definitions, err := p.Snapshot.CustomFields(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(definitions))
+		for _, d := range definitions {
+			rows = append(rows, walkRow{
+				entity: entityCustomField, entityID: d.ID, containerID: d.CollectionID,
+				payload: workservice.CustomFieldRecord(d), key: d.ID.String(),
 			})
 		}
 		return rows, nil

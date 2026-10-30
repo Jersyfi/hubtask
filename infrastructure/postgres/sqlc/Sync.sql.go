@@ -970,6 +970,78 @@ func (q *Queries) SnapshotContainers(ctx context.Context, arg SnapshotContainers
 	return items, nil
 }
 
+const snapshotCustomFields = `-- name: SnapshotCustomFields :many
+SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
+       created_at, updated_at, deleted_at, version, restricted, read_restricted
+FROM custom_field_definition
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotCustomFieldsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotCustomFieldsRow struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	Currency       *string
+	Formula        *string
+	IsRequired     bool
+	AppliesTo      []ItemType
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	DeletedAt      pgtype.Timestamptz
+	Version        int32
+	Restricted     bool
+	ReadRestricted bool
+}
+
+// The workspace's custom field definitions in force, each filed under its collection - none for a
+// workspace-wide one; a deleted one is not walked.
+func (q *Queries) SnapshotCustomFields(ctx context.Context, arg SnapshotCustomFieldsParams) ([]SnapshotCustomFieldsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotCustomFields, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotCustomFieldsRow{}
+	for rows.Next() {
+		var i SnapshotCustomFieldsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.Key,
+			&i.Kind,
+			&i.Options,
+			&i.Currency,
+			&i.Formula,
+			&i.IsRequired,
+			&i.AppliesTo,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.Version,
+			&i.Restricted,
+			&i.ReadRestricted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotCustomRoles = `-- name: SnapshotCustomRoles :many
 SELECT id, tenant_id, key, name, permissions, created_at, updated_at, version
 FROM custom_role

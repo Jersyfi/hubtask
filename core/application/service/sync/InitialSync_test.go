@@ -51,6 +51,7 @@ type snapshotStore struct {
 	sprints     []planning.Sprint
 	members     []repository.SprintEntryOf
 	estimates   []repository.EstimateOf
+	fields      []work.CustomFieldDefinition
 	// groups are the groups the reader is in.
 	groups map[shared.ID]bool
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.

@@ -167,6 +167,8 @@ type Snapshot interface {
 	Sprints(ctx context.Context, after shared.ID, batch int) ([]planning.Sprint, error)
 	SprintEntries(ctx context.Context, after shared.ID, batch int) ([]SprintEntryOf, error)
 	EntryEstimates(ctx context.Context, after shared.ID, batch int) ([]EstimateOf, error)
+	// CustomFields pages the custom field definitions in force, a deleted one left out.
+	CustomFields(ctx context.Context, after shared.ID, batch int) ([]work.CustomFieldDefinition, error)
 	// CustomRoles pages the workspace's own roles (UC-ID-26).
 	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
 	// Pages pages the workspace's living pages with their bodies, for reading offline (M3).

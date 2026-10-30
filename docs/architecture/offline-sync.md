@@ -87,7 +87,7 @@ A **null cursor is the initial synchronisation**: the current state, one kind at
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
 templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
 pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
-goals, check-ins, dashboards, sprints, entries' open sprints and estimates), paged by identifier, each row
+goals, check-ins, dashboards, sprints, entries' open sprints and estimates, custom field definitions), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -121,7 +121,11 @@ filed under the collection; every write records them - a start each member as co
 a carried entry in the next sprint and the others as removed, a planned sprint's deletion its
 entries as removed. A past membership, the burndown and the velocity are the server's, asked for
 online; while it is away the web app answers a collection's sprints from the copy. All three are
-written online only. A
+written online only. A custom field definition (`custom_field`, a deleted one left out) is filed
+under its collection, a workspace-wide one under none and reaching every member as the types do:
+a read-restricted field narrows its values (UC-ID-27), never its definition. Defining, changing
+and deleting one records it; while the server is away the web app answers the definitions in force
+from the copy, so an entry's form is drawn offline. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 
@@ -279,9 +283,9 @@ one merge rule (`core/domain/model/sync`, `Entity.Rule`):
 
 Under either rule a deletion of an entity already gone is `applied`, and a deletion is not versioned:
 the use case's own guards (a type in use, a system type) decide. A workflow is written to its
-draft; publishing it moves entries and stays online, as does the scheme. Custom field definitions,
-grants of a role, the configuration document and settings are not in the replica and have no entity
-mutation; they are written online.
+draft; publishing it moves entries and stays online, as does the scheme. Custom field definitions are in
+the replica but have no entity mutation; they, grants of a role, the configuration document and
+settings are written online.
 
 A client queues them like an entry's: the web app maps a type's, link type's, workflow's or role's
 creation, change and deletion and a link drawn or removed to the entity mutation

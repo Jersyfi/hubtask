@@ -505,3 +505,13 @@ JOIN work_item wi ON wi.tenant_id = ee.tenant_id AND wi.id = ee.entry_id AND wi.
 WHERE ee.tenant_id = current_tenant_id() AND ee.entry_id > sqlc.arg('after')
 ORDER BY ee.entry_id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotCustomFields :many
+-- The workspace's custom field definitions in force, each filed under its collection - none for a
+-- workspace-wide one; a deleted one is not walked.
+SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
+       created_at, updated_at, deleted_at, version, restricted, read_restricted
+FROM custom_field_definition
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');

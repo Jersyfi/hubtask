@@ -9,8 +9,11 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
+
+// The walk's M2 rows and the custom field definitions (offline-sync.md §3.1).
 
 // Sprints pages the workspace's sprints.
 func (SnapshotRepository) Sprints(ctx context.Context, after shared.ID, batch int) ([]planning.Sprint, error) {
@@ -84,5 +87,22 @@ func (SnapshotRepository) EntryEstimates(ctx context.Context, after shared.ID, b
 			e.Size = *row.Size
 		}
 		return repository.EstimateOf{Estimate: e, CollectionID: collection}, nil
+	})
+}
+
+// CustomFields pages the workspace's custom field definitions in force.
+func (SnapshotRepository) CustomFields(ctx context.Context, after shared.ID, batch int) ([]work.CustomFieldDefinition, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCustomFields(ctx, sqlc.SnapshotCustomFieldsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("custom fields", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCustomFieldsRow) (work.CustomFieldDefinition, error) {
+		return customFieldFrom(sqlc.FindCustomFieldRow(row))
 	})
 }
