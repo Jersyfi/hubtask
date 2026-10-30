@@ -88,6 +88,7 @@ var privateHubExemptions = map[string]string{
 	"GetAccount":                   noHub,
 	"GetGroup":                     noHub,
 	"GetOwnAccount":                noHub,
+	"GetViewAs":                    noHub + " - the caller's own session: whom it shows and until when",
 	"ListOwnIdentities":            noHub,
 	"ListOwnPasskeys":              noHub,
 	"LocateOidcFlow":               noHub,
