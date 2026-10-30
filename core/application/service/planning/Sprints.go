@@ -179,6 +179,9 @@ func (h CreateSprint) Execute(ctx context.Context, actor appshared.ActorContext,
 		if err := h.Planner.Sprints.Insert(ctx, sprint); err != nil {
 			return err
 		}
+		if err := h.Planner.sprintChanged(ctx, actor, sprint); err != nil {
+			return err
+		}
 		return h.Planner.record(ctx, actor, SprintCreatedAction, sprintTarget, sprint.ID, now,
 			audit.Change{Field: "collection_id", Classification: audit.Open, To: collection.ID.String()},
 			audit.Change{Field: "name", Classification: audit.Sensitive, To: sprint.Name},
@@ -285,6 +288,11 @@ func (h UpdateSprint) Execute(ctx context.Context, actor appshared.ActorContext,
 	}
 	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Planner.Sprints.Update(ctx, sprint, before.Version); err != nil {
+			return err
+		}
+		changed := sprint
+		changed.Version = before.Version + 1
+		if err := h.Planner.sprintChanged(ctx, actor, changed); err != nil {
 			return err
 		}
 		return h.Planner.record(ctx, actor, SprintUpdatedAction, sprintTarget, sprint.ID, now,
@@ -556,7 +564,17 @@ func (h DeleteSprint) Execute(ctx context.Context, actor appshared.ActorContext,
 	}
 	now := h.Planner.Clock.Now()
 	return h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		open, _, err := h.Planner.openMembers(ctx, sprint.ID)
+		if err != nil {
+			return err
+		}
 		if err := h.Planner.Sprints.Delete(ctx, sprint.ID); err != nil {
+			return err
+		}
+		if err := h.Planner.membershipsChanged(ctx, actor, sprint.CollectionID, "", false, entryIDs(open)); err != nil {
+			return err
+		}
+		if err := h.Planner.changed(ctx, actor, SprintEntity, sprint.ID, sprint.CollectionID, nil); err != nil {
 			return err
 		}
 		return h.Planner.record(ctx, actor, SprintDeletedAction, sprintTarget, sprint.ID, now,
@@ -620,7 +638,7 @@ func (h AddSprintEntries) Execute(ctx context.Context, actor appshared.ActorCont
 			}
 			already[m.EntryID] = true
 		}
-		added := 0
+		added := make([]shared.ID, 0, len(items))
 		for _, item := range items {
 			if already[item] {
 				continue
@@ -628,10 +646,13 @@ func (h AddSprintEntries) Execute(ctx context.Context, actor appshared.ActorCont
 			if err := h.Planner.Sprints.Add(ctx, sprint.ID, item, now, false); err != nil {
 				return err
 			}
-			added++
+			added = append(added, item)
+		}
+		if err := h.Planner.membershipsChanged(ctx, actor, sprint.CollectionID, sprint.ID, false, added); err != nil {
+			return err
 		}
 		return h.Planner.record(ctx, actor, SprintEntriesAddedAction, sprintTarget, sprint.ID, now,
-			audit.Change{Field: "entries", Classification: audit.Open, To: strconv.Itoa(added)})
+			audit.Change{Field: "entries", Classification: audit.Open, To: strconv.Itoa(len(added))})
 	})
 	return sprint, err
 }
@@ -735,18 +756,21 @@ func (h RemoveSprintEntries) Execute(ctx context.Context, actor appshared.ActorC
 	}
 	now := h.Planner.Clock.Now()
 	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		removed := 0
+		removed := make([]shared.ID, 0, len(items))
 		for _, item := range items {
 			ok, err := h.Planner.Sprints.Remove(ctx, sprint.ID, item, now)
 			if err != nil {
 				return err
 			}
 			if ok {
-				removed++
+				removed = append(removed, item)
 			}
 		}
+		if err := h.Planner.membershipsChanged(ctx, actor, sprint.CollectionID, "", false, removed); err != nil {
+			return err
+		}
 		return h.Planner.record(ctx, actor, SprintEntriesRemovedAction, sprintTarget, sprint.ID, now,
-			audit.Change{Field: "entries", Classification: audit.Open, To: strconv.Itoa(removed)})
+			audit.Change{Field: "entries", Classification: audit.Open, To: strconv.Itoa(len(removed))})
 	})
 	return sprint, err
 }
@@ -828,6 +852,12 @@ func (h StartSprint) Execute(ctx context.Context, actor appshared.ActorContext, 
 			return err
 		}
 		sprint.Version = version + 1
+		if err := h.Planner.sprintChanged(ctx, actor, sprint); err != nil {
+			return err
+		}
+		if err := h.Planner.membershipsChanged(ctx, actor, sprint.CollectionID, sprint.ID, true, entryIDs(entries)); err != nil {
+			return err
+		}
 		return h.Planner.record(ctx, actor, SprintStartedAction, sprintTarget, sprint.ID, now,
 			audit.Change{Field: "committed_count", Classification: audit.Open, To: strconv.Itoa(sprint.CommittedCount)},
 			audit.Change{Field: "committed_value", Classification: audit.Open, To: strconv.FormatFloat(sprint.CommittedValue, 'f', -1, 64)})
@@ -938,6 +968,15 @@ func (h CloseSprint) Execute(ctx context.Context, actor appshared.ActorContext, 
 				return err
 			}
 		}
+		if err := h.Planner.sprintChanged(ctx, actor, sprint); err != nil {
+			return err
+		}
+		if err := h.Planner.membershipsChanged(ctx, actor, sprint.CollectionID, carryTo, false, carried); err != nil {
+			return err
+		}
+		if err := h.Planner.membershipsChanged(ctx, actor, sprint.CollectionID, "", false, append(done, returned...)); err != nil {
+			return err
+		}
 		result.Carried, result.Returned = carried, returned
 		return h.Planner.record(ctx, actor, SprintClosedAction, sprintTarget, sprint.ID, now,
 			audit.Change{Field: "completed_count", Classification: audit.Open, To: strconv.Itoa(sprint.CompletedCount)},
@@ -950,6 +989,14 @@ func (h CloseSprint) Execute(ctx context.Context, actor appshared.ActorContext, 
 	}
 	result.Sprint = sprint
 	return result, nil
+}
+
+func entryIDs(entries []domain.SprintEntry) []shared.ID {
+	ids := make([]shared.ID, 0, len(entries))
+	for _, e := range entries {
+		ids = append(ids, e.EntryID)
+	}
+	return ids
 }
 
 func idStrings(ids []shared.ID) []string {

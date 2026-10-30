@@ -61,6 +61,9 @@ func (h SetEntryEstimate) Execute(ctx context.Context, actor appshared.ActorCont
 		if err := h.Planner.Sprints.SetEstimate(ctx, estimate); err != nil {
 			return err
 		}
+		if err := h.Planner.changed(ctx, actor, EstimateEntity, item.ID, item.CollectionID, EstimateRecord(estimate, item.CollectionID)); err != nil {
+			return err
+		}
 		old := before[item.ID]
 		return h.Planner.record(ctx, actor, EntryEstimatedAction, itemTarget, item.ID, now,
 			audit.Change{Field: "unit", Classification: audit.Open, From: string(old.Unit), To: string(estimate.Unit)},
@@ -151,6 +154,9 @@ func (h ClearEntryEstimate) Execute(ctx context.Context, actor appshared.ActorCo
 		}
 		if !cleared {
 			return shared.ErrNotFound.WithDetail("estimates.not_found")
+		}
+		if err := h.Planner.changed(ctx, actor, EstimateEntity, item.ID, item.CollectionID, nil); err != nil {
+			return err
 		}
 		return h.Planner.record(ctx, actor, EntryEstimatedAction, itemTarget, item.ID, now,
 			audit.Change{Field: "unit", Classification: audit.Open, To: ""})
