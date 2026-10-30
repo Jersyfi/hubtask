@@ -1924,6 +1924,7 @@ func run() error {
 			Aggregate: goalSummaries,
 		}.Descriptor().Handler,
 		Budgets:    timeservice.ReadBudget{Keeper: keeper}.Descriptor().Handler,
+		Schedules:  planningservice.ReadPlanSchedule{Planner: planner}.Descriptor().Handler,
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms, Jobs: jobs, Changes: changes, HLC: hybrid,
 	}
@@ -2163,6 +2164,7 @@ func run() error {
 		goalservice.ListEntryGoals{Steward: steward}.Descriptor(),
 		goalservice.ListPortfolios{Steward: steward}.Descriptor(),
 		goalservice.ReadPortfolio{Steward: steward}.Descriptor(),
+		goalservice.ReadPortfolioRoadmap{Steward: steward}.Descriptor(),
 		goalservice.CreatePortfolio{Steward: steward}.Descriptor(),
 		goalservice.UpdatePortfolio{Steward: steward}.Descriptor(),
 		goalservice.DeletePortfolio{Steward: steward}.Descriptor(),

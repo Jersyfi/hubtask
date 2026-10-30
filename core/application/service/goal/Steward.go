@@ -105,6 +105,9 @@ type Steward struct {
 	// Budgets is the time module's ReadBudget, run as the reader for a portfolio's budget roll-up
 	// (UC-GOL-03); nil rolls up none.
 	Budgets usecase.Handler
+	// Schedules is the planning module's ReadPlanSchedule, run as the reader for a roadmap's bars;
+	// nil draws lanes without bars.
+	Schedules usecase.Handler
 	// Jobs schedules a dashboard digest's mail; nil schedules none.
 	Jobs Enqueuer
 	// Changes and HLC tell offline devices of periods, goals, check-ins and dashboards; a nil
