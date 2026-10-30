@@ -496,6 +496,10 @@ const (
 	// its identifier, rescheduling itself every quarter hour; connecting seeds it, a push gone or
 	// refused for good ends it.
 	KindCalendarPush Kind = "calendar.push"
+	// KindChatBot is one chat bot's read of its room (UC-INT-18): one job per bot, deduplicated by
+	// its identifier, rescheduling itself every minute; seating or switching it on seeds it, a bot
+	// gone, off or refused its token ends it.
+	KindChatBot Kind = "chat.bot"
 
 	// KindAgentJob is one job of a shipped agent on its target (G11), deduplicated by the job's
 	// identifier; StartAgentJob stores the job and seeds it.
