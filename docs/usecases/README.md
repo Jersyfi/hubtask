@@ -38,6 +38,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history | `service/whiteboard` |
 | [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
 | [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction | `service/servicedesk` |
+| [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting | `service/timekeeping` |
 
 ## What a use case looks like
 
@@ -289,6 +290,11 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-SVC-05](./servicedesk/UC-SVC-05-ask-the-service-desk-for-help.md) | Ask the service desk for help and follow my request | servicedesk |
 | [UC-SVC-06](./servicedesk/UC-SVC-06-answer-the-usual-requests-the-usual-way.md) | Answer the usual requests the usual way | servicedesk |
 | [UC-SVC-07](./servicedesk/UC-SVC-07-learn-whether-the-requester-was-satisfied.md) | Learn whether the requester was satisfied | servicedesk |
+| [UC-TIM-01](./timekeeping/UC-TIM-01-track-my-time-on-what-i-work-on.md) | Track my time on what I work on | timekeeping |
+| [UC-TIM-02](./timekeeping/UC-TIM-02-fill-in-and-hand-in-my-week.md) | Fill in and hand in my week | timekeeping |
+| [UC-TIM-03](./timekeeping/UC-TIM-03-approve-a-teams-time.md) | Approve a team's time | timekeeping |
+| [UC-TIM-04](./timekeeping/UC-TIM-04-see-where-the-time-went.md) | See where the time went | timekeeping |
+| [UC-TIM-05](./timekeeping/UC-TIM-05-hand-time-to-accounting.md) | Hand time to accounting | timekeeping |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |

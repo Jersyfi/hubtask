@@ -744,6 +744,22 @@ deadline and a change's effectiveness check.
   **`Estimate`** (`entry_estimate`, UC-PLN-07) is an entry's size in points, hours or a T-shirt size
   counting 1, 2, 3, 5, 8 or 13 points; `Burndown` and `VelocityOf` are pure functions of a sprint,
   its memberships and the estimates.
+* **Time** (`core/domain/model/timekeeping`, M7, UC-TIM-01 … 05): a **`Record`** (`time_record`) is
+  one person's minutes on one day - 1 to 1440 - on an entry or on none, of a **`WorkType`**
+  (`time_work_type`, by key, archived rather than removed), billable or not, with a note that never
+  reaches the audit trail (rule 10). It names its entry without a foreign key: approved time is
+  accounting's and outlives a purged entry. A **`Timer`** (`time_timer`) is one per person and stops
+  into a record of the day it started in the person's zone. A **`Timesheet`** (`timesheet`) is a
+  person's week from Monday: `OPEN` → `SUBMITTED` → `APPROVED`, or `REJECTED` with a reason and open
+  again; a week without a row is open. A handed-in or approved week's records do not change; an
+  approved one - or one in the locked period - is corrected by a new record of signed minutes
+  (`CORRECTION`, naming what it corrects) in an open week. The workspace's **`Policy`**
+  (`time_policy`) is the last locked day and the visibility: `FULL`, or `AGGREGATED`, under which a
+  report over other people names nobody and withholds groups of fewer than three people
+  (`Summarise`). Other people's time is read and decided where the reader holds `APPROVE_TIME` (or
+  `MANAGE_MEMBERS`) at the workspace or at the hub or collection of the entries; nobody approves
+  their own week. `Actuals` adds everybody's minutes to an entry's estimate in hours, rolled up its
+  parents.
 * **The portal** (UC-SVC-05): a requester holds `REQUEST` at a collection serving as a service. Its
   catalogue is the top-level types the collection offers whose form names the `PORTAL` channel and
   leaves it open (opt-in per type); a request is an entry raised through `CreateWorkItem` on the

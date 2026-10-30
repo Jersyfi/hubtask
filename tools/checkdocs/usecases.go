@@ -56,6 +56,7 @@ var ucContexts = map[string]string{
 	"whiteboard":   "CNV",
 	"assets":       "AST",
 	"servicedesk":  "SVC",
+	"timekeeping":  "TIM",
 }
 
 var ucStates = map[string]bool{
