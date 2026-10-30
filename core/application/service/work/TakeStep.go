@@ -36,6 +36,8 @@ type TakeStep struct {
 	// Rules runs the STEP_TAKEN rules on the step inside its transaction (UC-FLW-04 check 4). Nil
 	// runs none: a build without the engine.
 	Rules StepRules
+	// Approvals opens the approval a step waits for (UC-APR-01). Nil refuses such a step.
+	Approvals StepApprovals
 }
 
 // StepRules runs the rules a step starts, in the step's own change: what their actions change on
@@ -116,6 +118,20 @@ func (h TakeStep) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 
 		if err := w.Gate.Forms.checkStep(ctx, actor, collection, item, step.Key); err != nil {
 			return err
+		}
+		// A step that waits for people's yes opens its approval and leaves the entry where it
+		// stands; the decision takes the step (UC-APR-01 check 3).
+		if step.Approval != nil && !TakenByApproval(ctx) {
+			if h.Approvals == nil {
+				return shared.ErrConflict.WithDetail("approvals.not_available")
+			}
+			changed = item
+			return h.Approvals.Open(ctx, actor, item, collection, workflow.Key, *step)
+		}
+		if h.Approvals != nil {
+			if err := h.Approvals.Moved(ctx, item); err != nil {
+				return err
+			}
 		}
 
 		wanted := item
