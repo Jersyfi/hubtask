@@ -88,6 +88,13 @@ type RESTDoor struct {
 	// Words are boolean members the use case reads as their word, `true` or `false`
 	// (`x-hubtask-rest-words`): a preference that has a third state, cleared.
 	Words []string
+	// DelegateTo is the controller's field that holds the connection (`x-hubtask-rest: delegated`,
+	// `x-hubtask-rest-to`): a stream, a live document or the sync protocol is a connection held
+	// rather than one use case invoked, and the door hands the request on to that adapter, or to
+	// the pending answer where it is not wired.
+	DelegateTo string
+	// Args are the signature's arguments after (w, r), passed on as they are.
+	Args []string
 	// Expand turns the `expand` query parameter's words into the boolean inputs they name
 	// (`x-hubtask-rest-expand`); a word the door does not name is refused.
 	Expand map[string]string
@@ -111,6 +118,7 @@ type pathArg struct{ Input, Value string }
 type restOperation struct {
 	OperationID string                       `yaml:"operationId"`
 	REST        string                       `yaml:"x-hubtask-rest"`
+	To          string                       `yaml:"x-hubtask-rest-to"`
 	IfMatchAs   string                       `yaml:"x-hubtask-rest-if-match"`
 	PathAs      map[string]string            `yaml:"x-hubtask-rest-path"`
 	BodyAs      string                       `yaml:"x-hubtask-rest-body"`
@@ -174,8 +182,15 @@ func restTable(raw, server []byte) ([]RESTDoor, error) {
 			case "":
 				continue
 			case "generated":
+			case "delegated":
+				door, err := delegatedDoor(path, method, op, signatures)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", op.OperationID, err)
+				}
+				doors = append(doors, door)
+				continue
 			default:
-				return nil, fmt.Errorf("%s: x-hubtask-rest %q is not \"generated\"", op.OperationID, op.REST)
+				return nil, fmt.Errorf("%s: x-hubtask-rest %q is neither \"generated\" nor \"delegated\"", op.OperationID, op.REST)
 			}
 			door, err := restDoor(doc, path, method, shared, op, signatures, bodies, texts)
 			if err != nil {
@@ -186,6 +201,26 @@ func restTable(raw, server []byte) ([]RESTDoor, error) {
 	}
 	sort.Slice(doors, func(i, j int) bool { return doors[i].OperationID < doors[j].OperationID })
 	return doors, nil
+}
+
+// delegatedDoor is an operation whose connection a named adapter holds.
+func delegatedDoor(path, method string, op restOperation, signatures map[string][]*ast.Field) (RESTDoor, error) {
+	name := upperFirst(op.OperationID)
+	door := RESTDoor{OperationID: op.OperationID, Method: strings.ToUpper(method), Path: path, DelegateTo: op.To}
+	if op.To == "" || !token.IsExported(op.To) {
+		return door, fmt.Errorf("x-hubtask-rest: delegated needs x-hubtask-rest-to naming the controller's field")
+	}
+	signature, ok := signatures[name]
+	if !ok {
+		return door, fmt.Errorf("the ServerInterface has no method %s; run oapi-codegen first", name)
+	}
+	for _, field := range signature[2:] {
+		for _, ident := range field.Names {
+			door.Params = append(door.Params, ident.Name+" "+qualified(field.Type))
+			door.Args = append(door.Args, ident.Name)
+		}
+	}
+	return door, nil
 }
 
 func restDoor(
@@ -524,6 +559,9 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 	b.WriteString("// restDoors is every operation answered by the generated mapping, by operationId.\n")
 	b.WriteString("var restDoors = map[string]restDoor{\n")
 	for _, d := range doors {
+		if d.DelegateTo != "" {
+			continue
+		}
 		extra := ""
 		if d.ShownOnce != "" {
 			extra += fmt.Sprintf(", ShownOnce: %q", d.ShownOnce)
@@ -621,6 +659,14 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 	}
 	b.WriteString("}\n")
 	for _, d := range doors {
+		if d.DelegateTo != "" {
+			signature := strings.Join(append([]string{"w http.ResponseWriter", "r *http.Request"}, d.Params...), ", ")
+			args := strings.Join(append([]string{"w", "r"}, d.Args...), ", ")
+			fmt.Fprintf(&b, "\n// %s answers %s %s by the adapter in %s, which holds the connection.\n", upperFirst(d.OperationID), d.Method, d.Path, d.DelegateTo)
+			fmt.Fprintf(&b, "func (c *RestController) %s(%s) {\n\tif c.%s == nil {\n\t\tc.pending.%s(%s)\n\t\treturn\n\t}\n\tc.%s.%s(%s)\n}\n",
+				upperFirst(d.OperationID), signature, d.DelegateTo, upperFirst(d.OperationID), args, d.DelegateTo, upperFirst(d.OperationID), args)
+			continue
+		}
 		fmt.Fprintf(&b, "\n// %s answers %s %s by the generated mapping.\n", upperFirst(d.OperationID), d.Method, d.Path)
 		fmt.Fprintf(&b, "func (c *RestController) %s(%s) {\n", upperFirst(d.OperationID),
 			strings.Join(append([]string{"w http.ResponseWriter", "r *http.Request"}, d.Params...), ", "))

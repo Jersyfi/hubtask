@@ -15202,6 +15202,8 @@
           "sync"
         ],
         "operationId": "syncPull",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Sync",
         "summary": "Fetch the changes since the cursor",
         "description": "Returns upserts, tombstones, and revocations in a stable order. The cursor is opaque.\nIf it is older than the minimum tombstone period, the server answers\n`sync.cursor_too_old`; the client must then resynchronise completely. A cursor this\ninstallation did not mint is `sync.cursor_invalid`.\n\nThe same records the stream carries, in the same order and under the same cursor - the\nstream is an accelerator over this, not a second source of truth. Records are\nfiltered by what the caller may read, per record and at the moment of the read; `has_more`\nsays the page was full and the client comes straight back. A page may carry fewer records\nthan `limit` and still have more: the cursor advances past what the caller may not see.\n\nA null cursor is an initial synchronisation: everything the caller may read, as `UPSERT`\nrecords carrying whole objects, paged, and ending in a cursor a delta resumes from.\n",
         "requestBody": {
@@ -15237,6 +15239,8 @@
           "sync"
         ],
         "operationId": "syncSnapshot",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Sync",
         "summary": "The initial synchronisation as one stream",
         "description": "What `:pull` with no cursor answers in pages, as one response:\nthe records of the initial synchronisation in the walk's order, one per line of\n`application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are\nread so that the first byte arrives before the last row is counted, and the delta cursor\nas the last line in a record of its own - `{\"cursor\": \"…\"}` - minted from the log position\nread before the first row, exactly as a page sequence's is. Permission is checked per\nrecord, a scope narrows the walk, and the device is registered by turning up.\n\nThe response is bounded the way the stream is: a deadline, a byte budget per connection,\nand the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`\nand a `Retry-After` where a pod, a workspace or a credential holds its complement. A\ndevice that lost the connection before the last line has no cursor and starts again,\nwhich is what a page sequence offers it too; the difference is one request rather than a\nthousand. A connection that ends before the cursor line never learns the cursor - which is\nthe point: a snapshot a device did not read whole is not one it may resume from.\n",
         "requestBody": {
@@ -15276,6 +15280,8 @@
           "sync"
         ],
         "operationId": "syncPush",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Sync",
         "summary": "Transmit local mutations",
         "description": "Idempotent through `op_id`. Merging happens per field; set fields as OR-sets and\npositions as fractional indices. Partial success is the normal case: rejected\nmutations do not block the others.\n",
         "requestBody": {
@@ -29442,6 +29448,8 @@
           "sync"
         ],
         "operationId": "streamChanges",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Stream",
         "summary": "The change stream, as server-sent events",
         "description": "The same change records `:pull` returns, pushed as they happen. An **accelerator, not a\nsecond source of truth**: a client that loses this connection catches up by\ncursor rather than by anything being replayed from memory, and a client that never opens it\nis not missing anything a pull would not give it.\n\n`text/event-stream`. Each event carries `id` (the cursor), `event` (the entity), and `data`\n(one change record). The `id` is what a browser's `EventSource` sends back as\n`Last-Event-ID` on its own reconnect, and what a client that manages its own connection\nshould send explicitly — either resumes exactly where the stream stopped, with no gap and no\nduplicate.\n\nA cursor older than the tombstone period is refused with `sync.cursor_too_old`, exactly as\n`:pull` refuses one: a delta across a gap would be silently wrong, so the only safe answer\nis a full resynchronisation. A cursor this installation did not mint is\n`sync.cursor_invalid`.\n\nThe stream carries everything the caller may read in their workspace, and there is no\nsubscription filter: what a client wants to see is a question about its own screen, and a\nfilter here would be a second answer to a question the authorisation already answers.\nRecords are filtered by what the caller may read, per record and at the moment the record is\nsent, rather than by anything the subscription was trusted to state. Permission lost while\nthe connection is open therefore stops the records for that container without the client\nhaving to do anything, and a client is never handed a record for a container it may not see.\n\nThe stream is capped per tenant and per credential, because a long-lived connection is a\nresource a stateless, horizontally scaled role has to bound. Over the cap, or while the\nprocess is shedding load, the answer is `503` with `Retry-After` — the connection is refused,\nnever a record dropped.\n\nA comment line is sent as a heartbeat so that proxies do not close an idle stream, and\n`SIGTERM` closes every stream inside the grace period rather than cutting them: a client\nreconnects to another pod and resumes from its cursor.\n",
         "parameters": [
@@ -29495,6 +29503,8 @@
           "sync"
         ],
         "operationId": "openRealtimeDocument",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Realtime",
         "summary": "A live document, as a WebSocket",
         "description": "Several people editing one document at once - a page, a whiteboard. The connection is a\nWebSocket (RFC 6455) carrying binary messages in the framing of the editors' shared-editing\nprotocol (synchronisation steps one and two, update, awareness): the server hands out the document's newest snapshot and every\nupdate after it, stores each update a writer sends and relays it to the other readers,\nand relays awareness - a cursor, a selection, a name - without storing it.\n\nThe server never reads an update; merging is the editors'. Updates are kept in the order\nthe server gave them, each at most 1 MiB. When the log has grown 500 updates past its\nsnapshot the server asks a writer for a new one, and the history behind a snapshot is\nremoved after the workspace's `DOCUMENT_HISTORY` period.\n\nWho may read and write a document is decided by what it belongs to, at the moment the\nconnection opens and again before every update is handed out: access ended while\nconnected closes the connection with code 4403. A reader who may not write is handed\neverything and its updates are refused (code 4403).\n\nA browser cannot set a header on a WebSocket, so a bearer may also arrive as the\nsubprotocol `hubtask.bearer.<token>` beside `hubtask.v1`; the server answers `hubtask.v1`.\nThe connections are capped per tenant and per credential like the change stream; over the\ncap the answer is `503` with `Retry-After`.\n",
         "parameters": [

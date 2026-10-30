@@ -3108,6 +3108,15 @@ func (c *RestController) OpenPrivateHub(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["openPrivateHub"], usecase.Input{"hub_id": hubId.String()}, params, &body, answerBy(privateHubAccessResponse))
 }
 
+// OpenRealtimeDocument answers GET /realtime/documents/{kind}/{documentId} by the adapter in Realtime, which holds the connection.
+func (c *RestController) OpenRealtimeDocument(w http.ResponseWriter, r *http.Request, kind string, documentId openapi_types.UUID) {
+	if c.Realtime == nil {
+		c.pending.OpenRealtimeDocument(w, r, kind, documentId)
+		return
+	}
+	c.Realtime.OpenRealtimeDocument(w, r, kind, documentId)
+}
+
 // OpenTenantPassword answers POST /admin/tenants/{tenantId}:open-password by the generated mapping.
 func (c *RestController) OpenTenantPassword(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId, params openapi.OpenTenantPasswordParams) {
 	var body openapi.OpenTenantPasswordJSONRequestBody
@@ -4528,6 +4537,15 @@ func (c *RestController) StopTimer(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["stopTimer"], usecase.Input{}, nil, &body, &answer)
 }
 
+// StreamChanges answers GET /stream by the adapter in Stream, which holds the connection.
+func (c *RestController) StreamChanges(w http.ResponseWriter, r *http.Request, params openapi.StreamChangesParams) {
+	if c.Stream == nil {
+		c.pending.StreamChanges(w, r, params)
+		return
+	}
+	c.Stream.StreamChanges(w, r, params)
+}
+
 // SubmitJumbleEntry answers POST /jumble/entries by the generated mapping.
 func (c *RestController) SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, params openapi.SubmitJumbleEntryParams) {
 	var body openapi.SubmitJumbleEntryJSONRequestBody
@@ -4577,6 +4595,33 @@ func (c *RestController) SyncLdapDirectory(w http.ResponseWriter, r *http.Reques
 	var body openapi.SyncLdapDirectoryJSONRequestBody
 	var answer openapi.LdapSyncRun
 	c.door(w, r, restDoors["syncLdapDirectory"], usecase.Input{}, params, &body, &answer)
+}
+
+// SyncPull answers POST /sync:pull by the adapter in Sync, which holds the connection.
+func (c *RestController) SyncPull(w http.ResponseWriter, r *http.Request) {
+	if c.Sync == nil {
+		c.pending.SyncPull(w, r)
+		return
+	}
+	c.Sync.SyncPull(w, r)
+}
+
+// SyncPush answers POST /sync:push by the adapter in Sync, which holds the connection.
+func (c *RestController) SyncPush(w http.ResponseWriter, r *http.Request) {
+	if c.Sync == nil {
+		c.pending.SyncPush(w, r)
+		return
+	}
+	c.Sync.SyncPush(w, r)
+}
+
+// SyncSnapshot answers POST /sync:snapshot by the adapter in Sync, which holds the connection.
+func (c *RestController) SyncSnapshot(w http.ResponseWriter, r *http.Request) {
+	if c.Sync == nil {
+		c.pending.SyncSnapshot(w, r)
+		return
+	}
+	c.Sync.SyncSnapshot(w, r)
 }
 
 // TakeBackKudos answers DELETE /items/{itemId}/kudos by the generated mapping.

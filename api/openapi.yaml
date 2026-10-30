@@ -9268,6 +9268,8 @@ paths:
     post:
       tags: [sync]
       operationId: syncPull
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Sync
       summary: Fetch the changes since the cursor
       description: |
         Returns upserts, tombstones, and revocations in a stable order. The cursor is opaque.
@@ -9301,6 +9303,8 @@ paths:
     post:
       tags: [sync]
       operationId: syncSnapshot
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Sync
       summary: The initial synchronisation as one stream
       description: |
         What `:pull` with no cursor answers in pages, as one response:
@@ -9342,6 +9346,8 @@ paths:
     post:
       tags: [sync]
       operationId: syncPush
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Sync
       summary: Transmit local mutations
       description: |
         Idempotent through `op_id`. Merging happens per field; set fields as OR-sets and
@@ -20107,6 +20113,8 @@ paths:
     get:
       tags: [sync]
       operationId: streamChanges
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Stream
       summary: The change stream, as server-sent events
       description: |
         The same change records `:pull` returns, pushed as they happen. An **accelerator, not a
@@ -20172,6 +20180,8 @@ paths:
     get:
       tags: [sync]
       operationId: openRealtimeDocument
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Realtime
       summary: A live document, as a WebSocket
       description: |
         Several people editing one document at once - a page, a whiteboard. The connection is a

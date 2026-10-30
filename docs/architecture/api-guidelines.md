@@ -51,7 +51,11 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    an address from the installation's base URL. `x-hubtask-rest-etag` may name a nested part's member (`item.version`, a moved or copied
    entry's). `x-hubtask-rest-expand: { word: input }` turns the
    `expand` parameter's words into the boolean inputs they name and refuses any other word by
-   name (`items.expand_not_supported`). `x-hubtask-rest-drop: [member]` accepts and drops a body member the contract
+   name (`items.expand_not_supported`). An operation whose connection an adapter holds rather than one use case
+   answers - the change stream, a live document, the sync protocol's pull, push and snapshot - is
+   marked `x-hubtask-rest: delegated` with `x-hubtask-rest-to: <field>`: the generated door hands
+   the request to the controller's field, or answers the pending 404 where it is not wired.
+   `x-hubtask-rest-drop: [member]` accepts and drops a body member the contract
    declares and the use case does not, as its hand-written door did, until the owner decides it
    (a schedule's `enabled`). `x-hubtask-rest-cache:
    no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be
