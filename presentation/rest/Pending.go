@@ -2929,3 +2929,19 @@ func (pending) BrowseFileStore(w http.ResponseWriter, r *http.Request, _ openapi
 func (pending) ShareFileStoreItem(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ShareFileStoreItemParams) {
 	notAvailable(w, r)
 }
+
+func (pending) ListChatBots(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateChatBot(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateChatBot(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteChatBot(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}

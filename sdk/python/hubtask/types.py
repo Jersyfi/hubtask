@@ -5805,6 +5805,41 @@ class CiAlertReceipt(TypedDict, total=False):
     unchanged: Required[int]
     entries_failed: Required[int]
 
+class ChatBot(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    collection_id: Required[str]
+    homeserver: Required[str]
+    room: Required[str]
+    bot_user: Required[str]
+    locale: str
+    unfurl: Required[bool]
+    capture: Required[bool]
+    enabled: Required[bool]
+    run_as: Required[str]
+    failure: str
+    created_at: Required[str]
+    updated_at: Required[str]
+
+class ChatBotList(TypedDict, total=False):
+    data: Required[list["ChatBot"]]
+
+class ChatBotCreate(TypedDict, total=False):
+    collection_id: Required[str]
+    homeserver: Required[str]
+    room: Required[str]
+    access_token: Required[str]
+    locale: str
+    unfurl: bool
+    capture: bool
+
+class ChatBotUpdate(TypedDict, total=False):
+    enabled: bool
+    unfurl: bool
+    capture: bool
+    collection_id: str
+    locale: str
+
 class CodeHook(TypedDict, total=False):
     id: Required[str]
     hub_id: Required[str]

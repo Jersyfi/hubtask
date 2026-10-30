@@ -843,6 +843,22 @@ class Client:
         """Add a forge hook"""
         return self._call("POST", "/hubs/{hubId}/code-hooks", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_chat_bots(self, hub_id: str) -> "ChatBotList":
+        """A hub's Matrix bots"""
+        return self._call("GET", "/hubs/{hubId}/chat-bots", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def create_chat_bot(self, hub_id: str, body: "ChatBotCreate") -> "ChatBot":
+        """Seat a Matrix bot in a room for the hub"""
+        return self._call("POST", "/hubs/{hubId}/chat-bots", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def update_chat_bot(self, bot_id: str, body: "ChatBotUpdate") -> "ChatBot":
+        """Change a Matrix bot"""
+        return self._call("PATCH", "/chat-bots/{botId}", {"botId": bot_id}, None, {}, body, "json", "application/json", "json")
+
+    def delete_chat_bot(self, bot_id: str) -> None:
+        """Remove a Matrix bot"""
+        return self._call("DELETE", "/chat-bots/{botId}", {"botId": bot_id}, None, {}, None, "none", None, "void")
+
     def update_code_hook(self, hook_id: str, body: "CodeHookUpdate") -> "CodeHook":
         """Rename a forge hook or switch it on or off"""
         return self._call("PATCH", "/code-hooks/{hookId}", {"hookId": hook_id}, None, {}, body, "json", "application/json", "json")

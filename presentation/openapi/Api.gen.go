@@ -12861,6 +12861,63 @@ type CapacityList struct {
 	Data []Capacity `json:"data"`
 }
 
+// ChatBot defines model for ChatBot.
+type ChatBot struct {
+	// BotUser The account's own Matrix identifier.
+	BotUser string `json:"bot_user"`
+	Capture bool   `json:"capture"`
+
+	// CollectionId Where captured tasks land.
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	CreatedAt    time.Time          `json:"created_at"`
+	Enabled      bool               `json:"enabled"`
+
+	// Failure The message code of the last read that did not go through.
+	Failure    *string            `json:"failure,omitempty"`
+	Homeserver string             `json:"homeserver"`
+	HubId      openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID `json:"id"`
+	Locale     *string            `json:"locale,omitempty"`
+
+	// Room The room's identifier.
+	Room string `json:"room"`
+
+	// RunAs Who the bot reads and writes as.
+	RunAs     openapi_types.UUID `json:"run_as"`
+	Unfurl    bool               `json:"unfurl"`
+	UpdatedAt time.Time          `json:"updated_at"`
+}
+
+// ChatBotCreate defines model for ChatBotCreate.
+type ChatBotCreate struct {
+	// AccessToken The bot account's access token; kept sealed, never answered.
+	AccessToken  *string            `json:"access_token,omitempty"`
+	Capture      *bool              `json:"capture,omitempty"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Homeserver The account's homeserver, its https address.
+	Homeserver string  `json:"homeserver"`
+	Locale     *string `json:"locale,omitempty"`
+
+	// Room The room's identifier, never an alias.
+	Room   string `json:"room"`
+	Unfurl *bool  `json:"unfurl,omitempty"`
+}
+
+// ChatBotList defines model for ChatBotList.
+type ChatBotList struct {
+	Data []ChatBot `json:"data"`
+}
+
+// ChatBotUpdate defines model for ChatBotUpdate.
+type ChatBotUpdate struct {
+	Capture      *bool               `json:"capture,omitempty"`
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	Enabled      *bool               `json:"enabled,omitempty"`
+	Locale       *string             `json:"locale,omitempty"`
+	Unfurl       *bool               `json:"unfurl,omitempty"`
+}
+
 // CiAlert defines model for CiAlert.
 type CiAlert struct {
 	CiId        *openapi_types.UUID `json:"ci_id,omitempty"`
@@ -26962,6 +27019,9 @@ type StartBackupJSONRequestBody = BackupStart
 // DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
 type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
 
+// UpdateChatBotJSONRequestBody defines body for UpdateChatBot for application/json ContentType.
+type UpdateChatBotJSONRequestBody = ChatBotUpdate
+
 // AttestCiJSONRequestBody defines body for AttestCi for application/json ContentType.
 type AttestCiJSONRequestBody = CiAttest
 
@@ -27153,6 +27213,9 @@ type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 
 // DefineHubCalendarJSONRequestBody defines body for DefineHubCalendar for application/json ContentType.
 type DefineHubCalendarJSONRequestBody = BusinessCalendarDefine
+
+// CreateChatBotJSONRequestBody defines body for CreateChatBot for application/json ContentType.
+type CreateChatBotJSONRequestBody = ChatBotCreate
 
 // StartCiCampaignJSONRequestBody defines body for StartCiCampaign for application/json ContentType.
 type StartCiCampaignJSONRequestBody = CiCampaignStart
@@ -28746,6 +28809,12 @@ type ServerInterface interface {
 
 	// (GET /calendar/{token}.ics)
 	GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, token string)
+	// DeleteChatBot Remove a Matrix bot
+	// (DELETE /chat-bots/{botId})
+	DeleteChatBot(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID)
+	// UpdateChatBot Change a Matrix bot
+	// (PATCH /chat-bots/{botId})
+	UpdateChatBot(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID)
 	// ReadCiCampaign A certification campaign with every CI asked
 	// (GET /ci-campaigns/{campaignId})
 	ReadCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID)
@@ -29121,6 +29190,12 @@ type ServerInterface interface {
 	// DefineHubCalendar Keep a hub's own version of a business calendar
 	// (PUT /hubs/{hubId}/business-calendars/{calendarKey})
 	DefineHubCalendar(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, calendarKey string, params DefineHubCalendarParams)
+	// ListChatBots A hub's Matrix bots
+	// (GET /hubs/{hubId}/chat-bots)
+	ListChatBots(w http.ResponseWriter, r *http.Request, hubId HubId)
+	// CreateChatBot Seat a Matrix bot in a room for the hub
+	// (POST /hubs/{hubId}/chat-bots)
+	CreateChatBot(w http.ResponseWriter, r *http.Request, hubId HubId)
 	// ListCiAlerts A hub's alerts
 	// (GET /hubs/{hubId}/ci-alerts)
 	ListCiAlerts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiAlertsParams)
@@ -36421,6 +36496,58 @@ func (siw *ServerInterfaceWrapper) GetCalendarFeedDocument(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteChatBot operation middleware
+func (siw *ServerInterfaceWrapper) DeleteChatBot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "botId" -------------
+	var botId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "botId", r.PathValue("botId"), &botId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "botId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteChatBot(w, r, botId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateChatBot operation middleware
+func (siw *ServerInterfaceWrapper) UpdateChatBot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "botId" -------------
+	var botId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "botId", r.PathValue("botId"), &botId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "botId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateChatBot(w, r, botId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadCiCampaign operation middleware
 func (siw *ServerInterfaceWrapper) ReadCiCampaign(w http.ResponseWriter, r *http.Request) {
 
@@ -41368,6 +41495,58 @@ func (siw *ServerInterfaceWrapper) DefineHubCalendar(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DefineHubCalendar(w, r, hubId, calendarKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListChatBots operation middleware
+func (siw *ServerInterfaceWrapper) ListChatBots(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListChatBots(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateChatBot operation middleware
+func (siw *ServerInterfaceWrapper) CreateChatBot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateChatBot(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -55958,6 +56137,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb/alert-intake/{tenantId}/{connectorId}", wrapper.DeliverCiAlerts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/code-hooks", wrapper.ListCodeHooks)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/code-hooks", wrapper.CreateCodeHook)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/chat-bots", wrapper.ListChatBots)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/chat-bots", wrapper.CreateChatBot)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/chat-bots/{botId}", wrapper.DeleteChatBot)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/chat-bots/{botId}", wrapper.UpdateChatBot)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/code-hooks/{hookId}", wrapper.UpdateCodeHook)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/code-hooks/{hookId}/secret", wrapper.RotateCodeHookSecret)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/code-links", wrapper.ListEntryCodeLinks)

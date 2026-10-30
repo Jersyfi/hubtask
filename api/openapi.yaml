@@ -67,6 +67,7 @@ tags:
   - name: agents
   - name: code
   - name: files
+  - name: chat
 
 x-hubtask-cli-groups:
   workflow: "the workspace's workflows and which collection runs which"
@@ -78,6 +79,7 @@ x-hubtask-cli-groups:
   whiteboard: "a hub's whiteboards: make, draw on, trash and export them"
   code: "a hub's forge hooks and an entry's commits, branches and pull requests"
   file: "an entry's files and folders in a file store: Nextcloud, SharePoint, OneDrive, WebDAV"
+  chat: "a hub's Matrix bots, which answer links to entries and make tasks of messages"
   cmdb: "the workspace's configuration item classes, relation types and sources, and a hub's inventory health"
   ci: "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact"
   business-calendar: "the workspace's business calendars: working hours, holidays and a time zone under a key"
@@ -4569,6 +4571,95 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CodeHookMinted" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/chat-bots:
+    parameters:
+      - $ref: "#/components/parameters/HubId"
+    get:
+      tags: [chat]
+      operationId: listChatBots
+      x-hubtask-rest: generated
+      x-hubtask-cli: "chat bot ls"
+      summary: A hub's Matrix bots
+      description: >
+        The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account,
+        the collection it captures into, what it does, who it acts as and its last refusal -
+        never its token. Needs READ on the hub.
+      responses:
+        "200":
+          description: The bots
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChatBotList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [chat]
+      operationId: createChatBot
+      x-hubtask-rest: generated
+      summary: Seat a Matrix bot in a room for the hub
+      description: >
+        The account named by its access token joins the room by its identifier; every minute it
+        then reads the room through the client-server API's sync. A link to one of the hub's
+        entries is answered with a notice of the entry's title, status and link - never its notes,
+        and nothing for another hub's entry; a message `!task <title>` becomes an entry in the
+        collection, answered with its link. It reads and writes as whoever last defined it, while
+        they may. The room's history before it was seated is never answered. At most ten bots per
+        hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChatBotCreate" }
+      responses:
+        "201":
+          description: Seated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChatBot" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /chat-bots/{botId}:
+    parameters:
+      - name: botId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [chat]
+      operationId: updateChatBot
+      x-hubtask-rest: generated
+      x-hubtask-cli: "chat bot set"
+      summary: Change a Matrix bot
+      description: >
+        Switches it on or off, changes what it does, its collection or its language. Whoever
+        changes it is who it acts as from then on. Needs STRUCTURE on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChatBotUpdate" }
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChatBot" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [chat]
+      operationId: deleteChatBot
+      x-hubtask-rest: generated
+      x-hubtask-cli: "chat bot rm"
+      summary: Remove a Matrix bot
+      description: >
+        Its token is forgotten and the room is read no more; the account stays in the room until
+        someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
+      responses:
+        "204":
+          description: Removed
         "4XX":
           $ref: "#/components/responses/Problem"
   /code-hooks/{hookId}:
@@ -36665,6 +36756,48 @@ components:
         unchanged: { type: integer }
         entries_failed: { type: integer }
 
+    ChatBot:
+      type: object
+      required: [id, hub_id, collection_id, homeserver, room, bot_user, unfurl, capture, enabled, run_as, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid }
+        collection_id: { type: string, format: uuid, description: "Where captured tasks land." }
+        homeserver: { type: string, format: uri }
+        room: { type: string, description: "The room's identifier." }
+        bot_user: { type: string, description: "The account's own Matrix identifier." }
+        locale: { type: string }
+        unfurl: { type: boolean }
+        capture: { type: boolean }
+        enabled: { type: boolean }
+        run_as: { type: string, format: uuid, description: "Who the bot reads and writes as." }
+        failure: { type: string, description: "The message code of the last read that did not go through." }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ChatBotList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/ChatBot" } }
+    ChatBotCreate:
+      type: object
+      required: [collection_id, homeserver, room, access_token]
+      properties:
+        collection_id: { type: string, format: uuid }
+        homeserver: { type: string, maxLength: 512, description: "The account's homeserver, its https address." }
+        room: { type: string, maxLength: 255, description: "The room's identifier, never an alias." }
+        access_token: { type: string, writeOnly: true, description: "The bot account's access token; kept sealed, never answered." }
+        locale: { type: string, maxLength: 16 }
+        unfurl: { type: boolean }
+        capture: { type: boolean }
+    ChatBotUpdate:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        unfurl: { type: boolean }
+        capture: { type: boolean }
+        collection_id: { type: string, format: uuid }
+        locale: { type: string, maxLength: 16 }
     CodeHook:
       type: object
       required: [id, hub_id, kind, name, enabled, run_as, created_at, updated_at]

@@ -12867,6 +12867,63 @@ type CapacityList struct {
 	Data []Capacity `json:"data"`
 }
 
+// ChatBot defines model for ChatBot.
+type ChatBot struct {
+	// BotUser The account's own Matrix identifier.
+	BotUser string `json:"bot_user"`
+	Capture bool   `json:"capture"`
+
+	// CollectionId Where captured tasks land.
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	CreatedAt    time.Time          `json:"created_at"`
+	Enabled      bool               `json:"enabled"`
+
+	// Failure The message code of the last read that did not go through.
+	Failure    *string            `json:"failure,omitempty"`
+	Homeserver string             `json:"homeserver"`
+	HubId      openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID `json:"id"`
+	Locale     *string            `json:"locale,omitempty"`
+
+	// Room The room's identifier.
+	Room string `json:"room"`
+
+	// RunAs Who the bot reads and writes as.
+	RunAs     openapi_types.UUID `json:"run_as"`
+	Unfurl    bool               `json:"unfurl"`
+	UpdatedAt time.Time          `json:"updated_at"`
+}
+
+// ChatBotCreate defines model for ChatBotCreate.
+type ChatBotCreate struct {
+	// AccessToken The bot account's access token; kept sealed, never answered.
+	AccessToken  *string            `json:"access_token,omitempty"`
+	Capture      *bool              `json:"capture,omitempty"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Homeserver The account's homeserver, its https address.
+	Homeserver string  `json:"homeserver"`
+	Locale     *string `json:"locale,omitempty"`
+
+	// Room The room's identifier, never an alias.
+	Room   string `json:"room"`
+	Unfurl *bool  `json:"unfurl,omitempty"`
+}
+
+// ChatBotList defines model for ChatBotList.
+type ChatBotList struct {
+	Data []ChatBot `json:"data"`
+}
+
+// ChatBotUpdate defines model for ChatBotUpdate.
+type ChatBotUpdate struct {
+	Capture      *bool               `json:"capture,omitempty"`
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	Enabled      *bool               `json:"enabled,omitempty"`
+	Locale       *string             `json:"locale,omitempty"`
+	Unfurl       *bool               `json:"unfurl,omitempty"`
+}
+
 // CiAlert defines model for CiAlert.
 type CiAlert struct {
 	CiId        *openapi_types.UUID `json:"ci_id,omitempty"`
@@ -26968,6 +27025,9 @@ type StartBackupJSONRequestBody = BackupStart
 // DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
 type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
 
+// UpdateChatBotJSONRequestBody defines body for UpdateChatBot for application/json ContentType.
+type UpdateChatBotJSONRequestBody = ChatBotUpdate
+
 // AttestCiJSONRequestBody defines body for AttestCi for application/json ContentType.
 type AttestCiJSONRequestBody = CiAttest
 
@@ -27159,6 +27219,9 @@ type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 
 // DefineHubCalendarJSONRequestBody defines body for DefineHubCalendar for application/json ContentType.
 type DefineHubCalendarJSONRequestBody = BusinessCalendarDefine
+
+// CreateChatBotJSONRequestBody defines body for CreateChatBot for application/json ContentType.
+type CreateChatBotJSONRequestBody = ChatBotCreate
 
 // StartCiCampaignJSONRequestBody defines body for StartCiCampaign for application/json ContentType.
 type StartCiCampaignJSONRequestBody = CiCampaignStart
@@ -31335,6 +31398,31 @@ type ClientInterface interface {
 	// An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner has lost the view all answer the same 404 with the same body. Distinguishing them would answer questions to whoever is trying tokens.
 	GetCalendarFeedDocument(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteChatBot Remove a Matrix bot
+	//
+	// Its token is forgotten and the room is read no more; the account stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
+	//
+	// Corresponds with DELETE /chat-bots/{botId} (the `DeleteChatBot` operationId).
+	DeleteChatBot(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateChatBotWithBody Change a Matrix bot
+	//
+	// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
+	UpdateChatBotWithBody(ctx context.Context, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateChatBot Change a Matrix bot
+	//
+	// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
+	UpdateChatBot(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadCiCampaign A certification campaign with every CI asked
 	//
 	// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
@@ -32809,6 +32897,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
 	DefineHubCalendar(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListChatBots A hub's Matrix bots
+	//
+	// The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never its token. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/chat-bots (the `ListChatBots` operationId).
+	ListChatBots(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateChatBotWithBody Seat a Matrix bot in a room for the hub
+	//
+	// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
+	CreateChatBotWithBody(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateChatBot Seat a Matrix bot in a room for the hub
+	//
+	// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
+	CreateChatBot(ctx context.Context, hubId HubId, body CreateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCiAlerts A hub's alerts
 	//
@@ -44329,6 +44442,61 @@ func (c *Client) GetCalendarFeedDocument(ctx context.Context, token string, reqE
 	return c.Client.Do(req)
 }
 
+// DeleteChatBot Remove a Matrix bot
+//
+// Its token is forgotten and the room is read no more; the account stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
+//
+// Corresponds with DELETE /chat-bots/{botId} (the `DeleteChatBot` operationId).
+func (c *Client) DeleteChatBot(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteChatBotRequest(c.Server, botId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateChatBotWithBody Change a Matrix bot
+//
+// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
+func (c *Client) UpdateChatBotWithBody(ctx context.Context, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateChatBotRequestWithBody(c.Server, botId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateChatBot Change a Matrix bot
+//
+// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
+func (c *Client) UpdateChatBot(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateChatBotRequest(c.Server, botId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadCiCampaign A certification campaign with every CI asked
 //
 // Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
@@ -47684,6 +47852,61 @@ func (c *Client) DefineHubCalendarWithBody(ctx context.Context, hubId openapi_ty
 // Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
 func (c *Client) DefineHubCalendar(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDefineHubCalendarRequest(c.Server, hubId, calendarKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListChatBots A hub's Matrix bots
+//
+// The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never its token. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/chat-bots (the `ListChatBots` operationId).
+func (c *Client) ListChatBots(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListChatBotsRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateChatBotWithBody Seat a Matrix bot in a room for the hub
+//
+// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
+func (c *Client) CreateChatBotWithBody(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateChatBotRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateChatBot Seat a Matrix bot in a room for the hub
+//
+// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
+func (c *Client) CreateChatBot(ctx context.Context, hubId HubId, body CreateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateChatBotRequest(c.Server, hubId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -68197,6 +68420,87 @@ func NewGetCalendarFeedDocumentRequest(server string, token string) (*http.Reque
 	return req, nil
 }
 
+// NewDeleteChatBotRequest constructs an http.Request for the DeleteChatBot method
+func NewDeleteChatBotRequest(server string, botId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "botId", botId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/chat-bots/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateChatBotRequest calls the generic UpdateChatBot builder with application/json body
+func NewUpdateChatBotRequest(server string, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateChatBotRequestWithBody(server, botId, "application/json", bodyReader)
+}
+
+// NewUpdateChatBotRequestWithBody constructs an http.Request for the UpdateChatBot method, with any body, and a specified content type
+func NewUpdateChatBotRequestWithBody(server string, botId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "botId", botId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/chat-bots/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReadCiCampaignRequest constructs an http.Request for the ReadCiCampaign method
 func NewReadCiCampaignRequest(server string, campaignId openapi_types.UUID) (*http.Request, error) {
 	var err error
@@ -74621,6 +74925,87 @@ func NewDefineHubCalendarRequestWithBody(server string, hubId openapi_types.UUID
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewListChatBotsRequest constructs an http.Request for the ListChatBots method
+func NewListChatBotsRequest(server string, hubId HubId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/chat-bots", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateChatBotRequest calls the generic CreateChatBot builder with application/json body
+func NewCreateChatBotRequest(server string, hubId HubId, body CreateChatBotJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateChatBotRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewCreateChatBotRequestWithBody constructs an http.Request for the CreateChatBot method, with any body, and a specified content type
+func NewCreateChatBotRequestWithBody(server string, hubId HubId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/chat-bots", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -97919,6 +98304,33 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetCalendarFeedDocumentWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetCalendarFeedDocumentResult, error)
 
+	// DeleteChatBotWithResponse Remove a Matrix bot
+	//
+	// Its token is forgotten and the room is read no more; the account stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /chat-bots/{botId} (the `DeleteChatBot` operationId).
+	DeleteChatBotWithResponse(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteChatBotResult, error)
+
+	// UpdateChatBotWithBodyWithResponse Change a Matrix bot
+	//
+	// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
+	UpdateChatBotWithBodyWithResponse(ctx context.Context, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateChatBotResult, error)
+
+	// UpdateChatBotWithResponse Change a Matrix bot
+	//
+	// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
+	UpdateChatBotWithResponse(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateChatBotResult, error)
+
 	// ReadCiCampaignWithResponse A certification campaign with every CI asked
 	//
 	// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
@@ -99545,6 +99957,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
 	DefineHubCalendarWithResponse(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineHubCalendarResult, error)
+
+	// ListChatBotsWithResponse A hub's Matrix bots
+	//
+	// The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never its token. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/chat-bots (the `ListChatBots` operationId).
+	ListChatBotsWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListChatBotsResult, error)
+
+	// CreateChatBotWithBodyWithResponse Seat a Matrix bot in a room for the hub
+	//
+	// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
+	CreateChatBotWithBodyWithResponse(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateChatBotResult, error)
+
+	// CreateChatBotWithResponse Seat a Matrix bot in a room for the hub
+	//
+	// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
+	CreateChatBotWithResponse(ctx context.Context, hubId HubId, body CreateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateChatBotResult, error)
 
 	// ListCiAlertsWithResponse A hub's alerts
 	//
@@ -115471,6 +115910,95 @@ func (r GetCalendarFeedDocumentResult) ContentType() string {
 	return ""
 }
 
+type DeleteChatBotResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteChatBotResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteChatBotResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteChatBotResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteChatBotResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteChatBotResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateChatBotResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ChatBot
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateChatBotResult) GetJSON200() *ChatBot {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateChatBotResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateChatBotResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateChatBotResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateChatBotResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateChatBotResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadCiCampaignResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -121563,6 +122091,102 @@ func (r DefineHubCalendarResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DefineHubCalendarResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListChatBotsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ChatBotList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListChatBotsResult) GetJSON200() *ChatBotList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListChatBotsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListChatBotsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListChatBotsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListChatBotsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListChatBotsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateChatBotResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *ChatBot
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateChatBotResult) GetJSON201() *ChatBot {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateChatBotResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateChatBotResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateChatBotResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateChatBotResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateChatBotResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -147003,6 +147627,51 @@ func (c *ClientWithResponses) GetCalendarFeedDocumentWithResponse(ctx context.Co
 	return ParseGetCalendarFeedDocumentResult(rsp)
 }
 
+// DeleteChatBotWithResponse Remove a Matrix bot
+//
+// Its token is forgotten and the room is read no more; the account stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /chat-bots/{botId} (the `DeleteChatBot` operationId).
+func (c *ClientWithResponses) DeleteChatBotWithResponse(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteChatBotResult, error) {
+	rsp, err := c.DeleteChatBot(ctx, botId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteChatBotResult(rsp)
+}
+
+// UpdateChatBotWithBodyWithResponse Change a Matrix bot
+//
+// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
+func (c *ClientWithResponses) UpdateChatBotWithBodyWithResponse(ctx context.Context, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateChatBotResult, error) {
+	rsp, err := c.UpdateChatBotWithBody(ctx, botId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateChatBotResult(rsp)
+}
+
+// UpdateChatBotWithResponse Change a Matrix bot
+//
+// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
+func (c *ClientWithResponses) UpdateChatBotWithResponse(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateChatBotResult, error) {
+	rsp, err := c.UpdateChatBot(ctx, botId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateChatBotResult(rsp)
+}
+
 // ReadCiCampaignWithResponse A certification campaign with every CI asked
 //
 // Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
@@ -149762,6 +150431,51 @@ func (c *ClientWithResponses) DefineHubCalendarWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseDefineHubCalendarResult(rsp)
+}
+
+// ListChatBotsWithResponse A hub's Matrix bots
+//
+// The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never its token. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/chat-bots (the `ListChatBots` operationId).
+func (c *ClientWithResponses) ListChatBotsWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListChatBotsResult, error) {
+	rsp, err := c.ListChatBots(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListChatBotsResult(rsp)
+}
+
+// CreateChatBotWithBodyWithResponse Seat a Matrix bot in a room for the hub
+//
+// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
+func (c *ClientWithResponses) CreateChatBotWithBodyWithResponse(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateChatBotResult, error) {
+	rsp, err := c.CreateChatBotWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateChatBotResult(rsp)
+}
+
+// CreateChatBotWithResponse Seat a Matrix bot in a room for the hub
+//
+// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
+func (c *ClientWithResponses) CreateChatBotWithResponse(ctx context.Context, hubId HubId, body CreateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateChatBotResult, error) {
+	rsp, err := c.CreateChatBot(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateChatBotResult(rsp)
 }
 
 // ListCiAlertsWithResponse A hub's alerts
@@ -166281,6 +166995,68 @@ func ParseGetCalendarFeedDocumentResult(rsp *http.Response) (*GetCalendarFeedDoc
 	return response, nil
 }
 
+// ParseDeleteChatBotResult parses an HTTP response from a DeleteChatBotWithResponse call
+func ParseDeleteChatBotResult(rsp *http.Response) (*DeleteChatBotResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteChatBotResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateChatBotResult parses an HTTP response from a UpdateChatBotWithResponse call
+func ParseUpdateChatBotResult(rsp *http.Response) (*UpdateChatBotResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateChatBotResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ChatBot
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadCiCampaignResult parses an HTTP response from a ReadCiCampaignWithResponse call
 func ParseReadCiCampaignResult(rsp *http.Response) (*ReadCiCampaignResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -170656,6 +171432,72 @@ func ParseDefineHubCalendarResult(rsp *http.Response) (*DefineHubCalendarResult,
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListChatBotsResult parses an HTTP response from a ListChatBotsWithResponse call
+func ParseListChatBotsResult(rsp *http.Response) (*ListChatBotsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListChatBotsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ChatBotList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateChatBotResult parses an HTTP response from a CreateChatBotWithResponse call
+func ParseCreateChatBotResult(rsp *http.Response) (*CreateChatBotResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateChatBotResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ChatBot
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

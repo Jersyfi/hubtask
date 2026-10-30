@@ -1037,6 +1037,26 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/code-hooks", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** A hub's Matrix bots */
+  listChatBots(hubId: string, options: CallOptions = {}): Promise<operations["listChatBots"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/chat-bots", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Seat a Matrix bot in a room for the hub */
+  createChatBot(hubId: string, body: NonNullable<operations["createChatBot"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createChatBot"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/chat-bots", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change a Matrix bot */
+  updateChatBot(botId: string, body: NonNullable<operations["updateChatBot"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["updateChatBot"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/chat-bots/{botId}", { "botId": botId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a Matrix bot */
+  deleteChatBot(botId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/chat-bots/{botId}", { "botId": botId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Rename a forge hook or switch it on or off */
   updateCodeHook(hookId: string, body: NonNullable<operations["updateCodeHook"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["updateCodeHook"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/code-hooks/{hookId}", { "hookId": hookId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

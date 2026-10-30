@@ -8,6 +8,7 @@ var generatedGroups = map[string]string{
 	"agent-model":       "the models the workspace's agents may call: source, region, retention and the consent",
 	"baseline":          "a plan's baselines: the agreed dates kept and compared with today's",
 	"business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
+	"chat":              "a hub's Matrix bots, which answer links to entries and make tasks of messages",
 	"ci":                "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
 	"cmdb":              "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
 	"code":              "a hub's forge hooks and an entry's commits, branches and pull requests",
@@ -398,6 +399,28 @@ var generatedCommands = []door{
 			{Name: "week_minutes", Kind: "json", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
+	{Group: "chat", Verb: "bot ls", OperationID: "listChatBots", Method: "GET", Path: "/hubs/{hubId}/chat-bots", Summary: "A hub's Matrix bots",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
+	{Group: "chat", Verb: "bot rm", OperationID: "deleteChatBot", Method: "DELETE", Path: "/chat-bots/{botId}", Summary: "Remove a Matrix bot",
+		PathParams: []doorParam{
+			{Name: "botId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "chat", Verb: "bot set", OperationID: "updateChatBot", Method: "PATCH", Path: "/chat-bots/{botId}", Summary: "Change a Matrix bot",
+		PathParams: []doorParam{
+			{Name: "botId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "capture", Kind: "boolean", Help: "", Required: false},
+			{Name: "collection_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "enabled", Kind: "boolean", Help: "", Required: false},
+			{Name: "locale", Kind: "string", Help: "", Required: false},
+			{Name: "unfurl", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
 	{Group: "ci", Verb: "alert ls", OperationID: "listCiAlerts", Method: "GET", Path: "/hubs/{hubId}/ci-alerts", Summary: "A hub's alerts",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
