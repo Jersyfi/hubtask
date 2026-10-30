@@ -1688,6 +1688,37 @@ var generatedCommands = []door{
 			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
+	{Group: "whiteboard", Verb: "comment", OperationID: "addWhiteboardComment", Method: "POST", Path: "/whiteboards/{whiteboardId}/comments", Summary: "Comment on a whiteboard",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "body", Kind: "string", Help: "", Required: true},
+			{Name: "element_id", Kind: "string", Help: "", Required: false},
+			{Name: "parent_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "x", Kind: "number", Help: "", Required: false},
+			{Name: "y", Kind: "number", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "version"}},
+	{Group: "whiteboard", Verb: "comment-rm", OperationID: "deleteWhiteboardComment", Method: "DELETE", Path: "/whiteboard-comments/{commentId}", Summary: "Take a whiteboard comment back",
+		PathParams: []doorParam{
+			{Name: "commentId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "whiteboard", Verb: "comment-set", OperationID: "changeWhiteboardComment", Method: "PATCH", Path: "/whiteboard-comments/{commentId}", Summary: "Change a whiteboard comment",
+		PathParams: []doorParam{
+			{Name: "commentId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "body", Kind: "string", Help: "", Required: false},
+			{Name: "resolved", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "version"}},
+	{Group: "whiteboard", Verb: "comments", OperationID: "listWhiteboardComments", Method: "GET", Path: "/whiteboards/{whiteboardId}/comments", Summary: "A whiteboard's comments",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "version"}},
 	{Group: "whiteboard", Verb: "create", OperationID: "createWhiteboard", Method: "POST", Path: "/hubs/{hubId}/whiteboards", Summary: "Make a new whiteboard",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},

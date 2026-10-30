@@ -78,6 +78,10 @@ type Studio struct {
 	Reader  Reader
 	// Media reads the uploads placed on a board (UC-CNV-08); nil places none.
 	Media MediaObjects
+	// People and Mentions tell the people a comment names who read the board (UC-CNV-09); either
+	// nil tells nobody.
+	People   People
+	Mentions MentionRecorder
 }
 
 func hubPath(hubID shared.ID) []identity.Scope {

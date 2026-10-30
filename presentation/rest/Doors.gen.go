@@ -23,6 +23,7 @@ var restDoors = map[string]restDoor{
 	"addOperator":           {UseCase: "AddOperator", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addPageComment":        {UseCase: "AddPageComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addSprintEntries":      {UseCase: "AddSprintEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addWhiteboardComment":  {UseCase: "AddWhiteboardComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"aggregateView":         {UseCase: "AggregateView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"agreeToTerms":          {UseCase: "AgreeToTerms", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}},
 	"aiClassify":            {UseCase: "AiClassify", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -60,6 +61,7 @@ var restDoors = map[string]restDoor{
 	"changePlan":                        {UseCase: "ChangePlan", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changePreset":                      {UseCase: "ChangePreset", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeRole":                        {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"changeWhiteboardComment":           {UseCase: "ChangeWhiteboardComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkInGoal":                       {UseCase: "CheckInGoal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"confidence"}},
 	"checkMailbox":                      {UseCase: "CheckMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkPassword":                     {UseCase: "CheckPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -173,6 +175,7 @@ var restDoors = map[string]restDoor{
 	"deleteTemplate":                    {UseCase: "DeleteTemplate", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteTimeRecord":                  {UseCase: "DeleteTimeRecord", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteWebhookSubscription":         {UseCase: "DeleteWebhookSubscription", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteWhiteboardComment":           {UseCase: "DeleteWhiteboardComment", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteWorkflow":                    {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"describeRule":                      {UseCase: "DescribeRule", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"detachMedia":                       {UseCase: "DetachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -338,6 +341,7 @@ var restDoors = map[string]restDoor{
 	"listWebhookDeliveries":             {UseCase: "ListWebhookDeliveries", Status: 200, Query: []string{"cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listWebhookSubscriptions":          {UseCase: "ListWebhookSubscriptions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWhiteboardBacklinks":           {UseCase: "ListWhiteboardBacklinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listWhiteboardComments":            {UseCase: "ListWhiteboardComments", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWhiteboardVersions":            {UseCase: "ListWhiteboardVersions", Status: 200, Query: []string{"before", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before", "limit"}},
 	"listWhiteboards":                   {UseCase: "ListWhiteboards", Status: 200, Query: []string{"trashed"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWorkTypes":                     {UseCase: "ListWorkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -687,6 +691,13 @@ func (c *RestController) AddSprintEntries(w http.ResponseWriter, r *http.Request
 	c.door(w, r, restDoors["addSprintEntries"], usecase.Input{"sprint_id": sprintId.String()}, nil, &body, &answer)
 }
 
+// AddWhiteboardComment answers POST /whiteboards/{whiteboardId}/comments by the generated mapping.
+func (c *RestController) AddWhiteboardComment(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId) {
+	var body openapi.AddWhiteboardCommentJSONRequestBody
+	var answer openapi.WhiteboardComment
+	c.door(w, r, restDoors["addWhiteboardComment"], usecase.Input{"whiteboard_id": whiteboardId.String()}, nil, &body, &answer)
+}
+
 // AggregateView answers POST /views/{viewId}:aggregate by the generated mapping.
 func (c *RestController) AggregateView(w http.ResponseWriter, r *http.Request, viewId openapi.ViewId) {
 	var answer openapi.ItemAggregateResult
@@ -917,6 +928,13 @@ func (c *RestController) ChangeRole(w http.ResponseWriter, r *http.Request, key 
 	var body openapi.ChangeRoleApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.CustomRole
 	c.door(w, r, restDoors["changeRole"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
+// ChangeWhiteboardComment answers PATCH /whiteboard-comments/{commentId} by the generated mapping.
+func (c *RestController) ChangeWhiteboardComment(w http.ResponseWriter, r *http.Request, commentId openapi_types.UUID, params openapi.ChangeWhiteboardCommentParams) {
+	var body openapi.ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody
+	var answer openapi.WhiteboardComment
+	c.door(w, r, restDoors["changeWhiteboardComment"], usecase.Input{"comment_id": commentId.String()}, params, &body, &answer)
 }
 
 // CheckInGoal answers POST /goals/{goalId}/check-ins by the generated mapping.
@@ -1590,6 +1608,11 @@ func (c *RestController) DeleteTimeRecord(w http.ResponseWriter, r *http.Request
 // DeleteWebhookSubscription answers DELETE /integrations/webhooks/{webhookId} by the generated mapping.
 func (c *RestController) DeleteWebhookSubscription(w http.ResponseWriter, r *http.Request, webhookId openapi.WebhookId) {
 	c.door(w, r, restDoors["deleteWebhookSubscription"], usecase.Input{"webhook_id": webhookId.String()}, nil, nil, nil)
+}
+
+// DeleteWhiteboardComment answers DELETE /whiteboard-comments/{commentId} by the generated mapping.
+func (c *RestController) DeleteWhiteboardComment(w http.ResponseWriter, r *http.Request, commentId openapi_types.UUID) {
+	c.door(w, r, restDoors["deleteWhiteboardComment"], usecase.Input{"comment_id": commentId.String()}, nil, nil, nil)
 }
 
 // DeleteWorkflow answers DELETE /workflows/{key} by the generated mapping.
@@ -2510,6 +2533,12 @@ func (c *RestController) ListWebhookSubscriptions(w http.ResponseWriter, r *http
 func (c *RestController) ListWhiteboardBacklinks(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId) {
 	var answer openapi.WhiteboardBacklinkList
 	c.door(w, r, restDoors["listWhiteboardBacklinks"], usecase.Input{"whiteboard_id": whiteboardId.String()}, nil, nil, &answer)
+}
+
+// ListWhiteboardComments answers GET /whiteboards/{whiteboardId}/comments by the generated mapping.
+func (c *RestController) ListWhiteboardComments(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId) {
+	var answer openapi.WhiteboardCommentList
+	c.door(w, r, restDoors["listWhiteboardComments"], usecase.Input{"whiteboard_id": whiteboardId.String()}, nil, nil, &answer)
 }
 
 // ListWhiteboardVersions answers GET /whiteboards/{whiteboardId}/versions by the generated mapping.

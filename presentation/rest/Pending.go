@@ -1954,6 +1954,22 @@ func (pending) ListWhiteboardBacklinks(w http.ResponseWriter, r *http.Request, _
 	notAvailable(w, r)
 }
 
+func (pending) ListWhiteboardComments(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) AddWhiteboardComment(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeWhiteboardComment(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ChangeWhiteboardCommentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteWhiteboardComment(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) ListWhiteboardVersions(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId, _ openapi.ListWhiteboardVersionsParams) {
 	notAvailable(w, r)
 }

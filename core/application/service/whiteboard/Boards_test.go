@@ -101,6 +101,7 @@ type store struct {
 	versions map[shared.ID][]domain.Version
 	pointing []repository.Pointing
 	media    map[shared.ID][]shared.ID
+	comments []domain.Comment
 }
 
 func (s *store) Insert(_ context.Context, board domain.Board) error {

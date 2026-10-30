@@ -2819,6 +2819,22 @@ class Client:
         """What points at a whiteboard"""
         return self._call("GET", "/whiteboards/{whiteboardId}/backlinks", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
 
+    def list_whiteboard_comments(self, whiteboard_id: str) -> "WhiteboardCommentList":
+        """A whiteboard's comments"""
+        return self._call("GET", "/whiteboards/{whiteboardId}/comments", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def add_whiteboard_comment(self, whiteboard_id: str, body: "WhiteboardCommentCreate") -> "WhiteboardComment":
+        """Comment on a whiteboard"""
+        return self._call("POST", "/whiteboards/{whiteboardId}/comments", {"whiteboardId": whiteboard_id}, None, {}, body, "json", "application/json", "json")
+
+    def change_whiteboard_comment(self, comment_id: str, body: "WhiteboardCommentChange", *, if_match: str | None = None) -> "WhiteboardComment":
+        """Change a whiteboard comment"""
+        return self._call("PATCH", "/whiteboard-comments/{commentId}", {"commentId": comment_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_whiteboard_comment(self, comment_id: str) -> None:
+        """Take a whiteboard comment back"""
+        return self._call("DELETE", "/whiteboard-comments/{commentId}", {"commentId": comment_id}, None, {}, None, "none", None, "void")
+
     def attach_whiteboard_media(self, whiteboard_id: str, body: "WhiteboardMediaPlacement") -> "WhiteboardMediaPlacement":
         """Place an uploaded file on a whiteboard"""
         return self._call("POST", "/whiteboards/{whiteboardId}/media", {"whiteboardId": whiteboard_id}, None, {}, body, "json", "application/json", "json")

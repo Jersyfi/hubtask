@@ -5171,6 +5171,37 @@ class PageBacklinkList(TypedDict, total=False):
 class PageMediaAttachment(TypedDict, total=False):
     media_id: Required[str]
 
+class WhiteboardComment(TypedDict, total=False):
+    id: Required[str]
+    whiteboard_id: Required[str]
+    parent_id: Required[str | None]
+    author_id: Required[str | None]
+    body: Required[str]
+    element_id: Required[str | None]
+    x: Required[float]
+    y: Required[float]
+    resolved: Required[bool]
+    resolved_at: Required[str | None]
+    resolved_by: Required[str | None]
+    created_at: Required[str]
+    edited_at: Required[str | None]
+    deleted: Required[bool]
+    version: Required[int]
+
+class WhiteboardCommentList(TypedDict, total=False):
+    data: Required[list["WhiteboardComment"]]
+
+class WhiteboardCommentCreate(TypedDict, total=False):
+    body: Required[str]
+    element_id: str
+    x: float
+    y: float
+    parent_id: str
+
+class WhiteboardCommentChange(TypedDict, total=False):
+    body: str
+    resolved: bool
+
 class WhiteboardMediaPlacement(TypedDict, total=False):
     media_id: Required[str]
 

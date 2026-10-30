@@ -21222,6 +21222,53 @@ type WhiteboardChange struct {
 	Title    *string              `json:"title,omitempty"`
 }
 
+// WhiteboardComment defines model for WhiteboardComment.
+type WhiteboardComment struct {
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// Body Markdown; empty once taken back.
+	Body      string     `json:"body"`
+	CreatedAt time.Time  `json:"created_at"`
+	Deleted   bool       `json:"deleted"`
+	EditedAt  *time.Time `json:"edited_at"`
+
+	// ElementId The object a thread is about; it stays at its place once the object is gone.
+	ElementId *string            `json:"element_id"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// ParentId The thread's first comment, for a reply.
+	ParentId     *openapi_types.UUID `json:"parent_id"`
+	Resolved     bool                `json:"resolved"`
+	ResolvedAt   *time.Time          `json:"resolved_at"`
+	ResolvedBy   *openapi_types.UUID `json:"resolved_by"`
+	Version      int                 `json:"version"`
+	WhiteboardId openapi_types.UUID  `json:"whiteboard_id"`
+
+	// X Where a thread is pinned on the board; 0 for a reply.
+	X float32 `json:"x"`
+	Y float32 `json:"y"`
+}
+
+// WhiteboardCommentChange defines model for WhiteboardCommentChange.
+type WhiteboardCommentChange struct {
+	Body     *string `json:"body,omitempty"`
+	Resolved *bool   `json:"resolved,omitempty"`
+}
+
+// WhiteboardCommentCreate defines model for WhiteboardCommentCreate.
+type WhiteboardCommentCreate struct {
+	Body      string              `json:"body"`
+	ElementId *string             `json:"element_id,omitempty"`
+	ParentId  *openapi_types.UUID `json:"parent_id,omitempty"`
+	X         *float32            `json:"x,omitempty"`
+	Y         *float32            `json:"y,omitempty"`
+}
+
+// WhiteboardCommentList defines model for WhiteboardCommentList.
+type WhiteboardCommentList struct {
+	Data []WhiteboardComment `json:"data"`
+}
+
 // WhiteboardCreate defines model for WhiteboardCreate.
 type WhiteboardCreate struct {
 	Elements *[]WhiteboardElement `json:"elements,omitempty"`
@@ -24502,6 +24549,12 @@ type SaveVoiceSettingsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ChangeWhiteboardCommentParams defines parameters for ChangeWhiteboardComment.
+type ChangeWhiteboardCommentParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateWhiteboardParams defines parameters for UpdateWhiteboard.
 type UpdateWhiteboardParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -25465,8 +25518,14 @@ type SaveVoiceSettingsJSONRequestBody = VoiceSettings
 // TryVoiceSentenceJSONRequestBody defines body for TryVoiceSentence for application/json ContentType.
 type TryVoiceSentenceJSONRequestBody = VoiceTry
 
+// ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody defines body for ChangeWhiteboardComment for application/merge-patch+json ContentType.
+type ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody = WhiteboardCommentChange
+
 // UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody defines body for UpdateWhiteboard for application/merge-patch+json ContentType.
 type UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody = WhiteboardChange
+
+// AddWhiteboardCommentJSONRequestBody defines body for AddWhiteboardComment for application/json ContentType.
+type AddWhiteboardCommentJSONRequestBody = WhiteboardCommentCreate
 
 // AttachWhiteboardMediaJSONRequestBody defines body for AttachWhiteboardMedia for application/json ContentType.
 type AttachWhiteboardMediaJSONRequestBody = WhiteboardMediaPlacement
@@ -27891,6 +27950,12 @@ type ServerInterface interface {
 	// TryVoiceSentence What a spoken sentence would do
 	// (POST /voice:try)
 	TryVoiceSentence(w http.ResponseWriter, r *http.Request)
+	// DeleteWhiteboardComment Take a whiteboard comment back
+	// (DELETE /whiteboard-comments/{commentId})
+	DeleteWhiteboardComment(w http.ResponseWriter, r *http.Request, commentId openapi_types.UUID)
+	// ChangeWhiteboardComment Change a whiteboard comment
+	// (PATCH /whiteboard-comments/{commentId})
+	ChangeWhiteboardComment(w http.ResponseWriter, r *http.Request, commentId openapi_types.UUID, params ChangeWhiteboardCommentParams)
 	// TrashWhiteboard Put a whiteboard in the trash
 	// (DELETE /whiteboards/{whiteboardId})
 	TrashWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
@@ -27903,6 +27968,12 @@ type ServerInterface interface {
 	// ListWhiteboardBacklinks What points at a whiteboard
 	// (GET /whiteboards/{whiteboardId}/backlinks)
 	ListWhiteboardBacklinks(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+	// ListWhiteboardComments A whiteboard's comments
+	// (GET /whiteboards/{whiteboardId}/comments)
+	ListWhiteboardComments(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+	// AddWhiteboardComment Comment on a whiteboard
+	// (POST /whiteboards/{whiteboardId}/comments)
+	AddWhiteboardComment(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
 	// AttachWhiteboardMedia Place an uploaded file on a whiteboard
 	// (POST /whiteboards/{whiteboardId}/media)
 	AttachWhiteboardMedia(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
@@ -50204,6 +50275,82 @@ func (siw *ServerInterfaceWrapper) TryVoiceSentence(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteWhiteboardComment operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWhiteboardComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "commentId" -------------
+	var commentId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "commentId", r.PathValue("commentId"), &commentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "commentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteWhiteboardComment(w, r, commentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeWhiteboardComment operation middleware
+func (siw *ServerInterfaceWrapper) ChangeWhiteboardComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "commentId" -------------
+	var commentId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "commentId", r.PathValue("commentId"), &commentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "commentId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeWhiteboardCommentParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeWhiteboardComment(w, r, commentId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // TrashWhiteboard operation middleware
 func (siw *ServerInterfaceWrapper) TrashWhiteboard(w http.ResponseWriter, r *http.Request) {
 
@@ -50323,6 +50470,58 @@ func (siw *ServerInterfaceWrapper) ListWhiteboardBacklinks(w http.ResponseWriter
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListWhiteboardBacklinks(w, r, whiteboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWhiteboardComments operation middleware
+func (siw *ServerInterfaceWrapper) ListWhiteboardComments(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWhiteboardComments(w, r, whiteboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddWhiteboardComment operation middleware
+func (siw *ServerInterfaceWrapper) AddWhiteboardComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddWhiteboardComment(w, r, whiteboardId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -51577,6 +51776,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:restore", wrapper.RestoreWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:export", wrapper.ExportWhiteboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/backlinks", wrapper.ListWhiteboardBacklinks)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/comments", wrapper.ListWhiteboardComments)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}/comments", wrapper.AddWhiteboardComment)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/whiteboard-comments/{commentId}", wrapper.DeleteWhiteboardComment)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/whiteboard-comments/{commentId}", wrapper.ChangeWhiteboardComment)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}/media", wrapper.AttachWhiteboardMedia)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions", wrapper.ListWhiteboardVersions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions/{seq}", wrapper.ReadWhiteboardVersion)

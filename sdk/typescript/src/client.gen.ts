@@ -3542,6 +3542,26 @@ export class HubtaskClient {
     return this.call("GET", "/whiteboards/{whiteboardId}/backlinks", { "whiteboardId": whiteboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** A whiteboard's comments */
+  listWhiteboardComments(whiteboardId: string, options: CallOptions = {}): Promise<operations["listWhiteboardComments"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/whiteboards/{whiteboardId}/comments", { "whiteboardId": whiteboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Comment on a whiteboard */
+  addWhiteboardComment(whiteboardId: string, body: NonNullable<operations["addWhiteboardComment"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addWhiteboardComment"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/whiteboards/{whiteboardId}/comments", { "whiteboardId": whiteboardId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change a whiteboard comment */
+  changeWhiteboardComment(commentId: string, body: NonNullable<operations["changeWhiteboardComment"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeWhiteboardComment"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/whiteboard-comments/{commentId}", { "commentId": commentId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Take a whiteboard comment back */
+  deleteWhiteboardComment(commentId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/whiteboard-comments/{commentId}", { "commentId": commentId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Place an uploaded file on a whiteboard */
   attachWhiteboardMedia(whiteboardId: string, body: NonNullable<operations["attachWhiteboardMedia"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["attachWhiteboardMedia"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/whiteboards/{whiteboardId}/media", { "whiteboardId": whiteboardId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

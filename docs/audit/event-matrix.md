@@ -1051,6 +1051,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `whiteboard.exported` | ExportWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.media_placed` | AttachWhiteboardMedia | `whiteboard` | INFO | Every time |
 | `whiteboard.read` | ListWhiteboardBacklinks | `whiteboard` | INFO | When refused |
+| `whiteboard.read` | ListWhiteboardComments | `whiteboard` | INFO | When refused |
 | `whiteboard.read` | ListWhiteboardVersions | `whiteboard` | INFO | When refused |
 | `whiteboard.read` | ListWhiteboards | `whiteboard` | INFO | When refused |
 | `whiteboard.read` | ReadWhiteboard | `whiteboard` | INFO | When refused |
@@ -1058,6 +1059,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `whiteboard.restored` | RestoreWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.trashed` | TrashWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.version_named` | NameWhiteboardVersion | `whiteboard` | INFO | Every time |
+
+## Whiteboard_comment
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `whiteboard_comment.added` | AddWhiteboardComment | `whiteboard_comment` | INFO | Every time |
+| `whiteboard_comment.changed` | ChangeWhiteboardComment | `whiteboard_comment` | INFO | Every time |
+| `whiteboard_comment.deleted` | DeleteWhiteboardComment | `whiteboard_comment` | INFO | Every time |
 
 ## Workflow
 

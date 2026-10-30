@@ -27684,6 +27684,144 @@
         }
       }
     },
+    "/whiteboards/{whiteboardId}/comments": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WhiteboardId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "listWhiteboardComments",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard comments",
+        "summary": "A whiteboard's comments",
+        "description": "The board's comments oldest first: threads with the object and the place they are pinned to, their replies, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The comments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhiteboardCommentList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "addWhiteboardComment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard comment",
+        "summary": "Comment on a whiteboard",
+        "description": "A thread pinned at a place on the board (`x`, `y`) and, when it is about an object, at that object (`element_id`); or a reply to a thread's first comment, one level deep. A person the words name as `[@Name](hubtask:person/<id>)` who reads the board is told. Needs WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhiteboardCommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Written",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhiteboardComment"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/whiteboard-comments/{commentId}": {
+      "parameters": [
+        {
+          "name": "commentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "changeWhiteboardComment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard comment-set",
+        "summary": "Change a whiteboard comment",
+        "description": "Rewrites the comment's words - its author only (`whiteboards.comment_not_own`), telling the people the new words name - or resolves or reopens its thread, which whoever may draw on the board may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhiteboardCommentChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The comment as it now is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhiteboardComment"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "deleteWhiteboardComment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard comment-rm",
+        "summary": "Take a whiteboard comment back",
+        "description": "The caller's own comment; its place in the thread stays, its words go.",
+        "responses": {
+          "204": {
+            "description": "Taken back"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/whiteboards/{whiteboardId}/media": {
       "parameters": [
         {
@@ -55449,6 +55587,161 @@
             "type": "string",
             "format": "uuid",
             "description": "A confirmed upload."
+          }
+        }
+      },
+      "WhiteboardComment": {
+        "type": "object",
+        "required": [
+          "id",
+          "whiteboard_id",
+          "parent_id",
+          "author_id",
+          "body",
+          "element_id",
+          "x",
+          "y",
+          "resolved",
+          "resolved_at",
+          "resolved_by",
+          "created_at",
+          "edited_at",
+          "deleted",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "whiteboard_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The thread's first comment, for a reply."
+          },
+          "author_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown; empty once taken back."
+          },
+          "element_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The object a thread is about; it stays at its place once the object is gone."
+          },
+          "x": {
+            "type": "number",
+            "description": "Where a thread is pinned on the board; 0 for a reply."
+          },
+          "y": {
+            "type": "number"
+          },
+          "resolved": {
+            "type": "boolean"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "resolved_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "edited_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "WhiteboardCommentList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WhiteboardComment"
+            }
+          }
+        }
+      },
+      "WhiteboardCommentCreate": {
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 65536
+          },
+          "element_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          },
+          "x": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "y": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "parent_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "WhiteboardCommentChange": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 65536
+          },
+          "resolved": {
+            "type": "boolean"
           }
         }
       },

@@ -21227,6 +21227,53 @@ type WhiteboardChange struct {
 	Title    *string              `json:"title,omitempty"`
 }
 
+// WhiteboardComment defines model for WhiteboardComment.
+type WhiteboardComment struct {
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// Body Markdown; empty once taken back.
+	Body      string     `json:"body"`
+	CreatedAt time.Time  `json:"created_at"`
+	Deleted   bool       `json:"deleted"`
+	EditedAt  *time.Time `json:"edited_at"`
+
+	// ElementId The object a thread is about; it stays at its place once the object is gone.
+	ElementId *string            `json:"element_id"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// ParentId The thread's first comment, for a reply.
+	ParentId     *openapi_types.UUID `json:"parent_id"`
+	Resolved     bool                `json:"resolved"`
+	ResolvedAt   *time.Time          `json:"resolved_at"`
+	ResolvedBy   *openapi_types.UUID `json:"resolved_by"`
+	Version      int                 `json:"version"`
+	WhiteboardId openapi_types.UUID  `json:"whiteboard_id"`
+
+	// X Where a thread is pinned on the board; 0 for a reply.
+	X float32 `json:"x"`
+	Y float32 `json:"y"`
+}
+
+// WhiteboardCommentChange defines model for WhiteboardCommentChange.
+type WhiteboardCommentChange struct {
+	Body     *string `json:"body,omitempty"`
+	Resolved *bool   `json:"resolved,omitempty"`
+}
+
+// WhiteboardCommentCreate defines model for WhiteboardCommentCreate.
+type WhiteboardCommentCreate struct {
+	Body      string              `json:"body"`
+	ElementId *string             `json:"element_id,omitempty"`
+	ParentId  *openapi_types.UUID `json:"parent_id,omitempty"`
+	X         *float32            `json:"x,omitempty"`
+	Y         *float32            `json:"y,omitempty"`
+}
+
+// WhiteboardCommentList defines model for WhiteboardCommentList.
+type WhiteboardCommentList struct {
+	Data []WhiteboardComment `json:"data"`
+}
+
 // WhiteboardCreate defines model for WhiteboardCreate.
 type WhiteboardCreate struct {
 	Elements *[]WhiteboardElement `json:"elements,omitempty"`
@@ -24507,6 +24554,12 @@ type SaveVoiceSettingsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ChangeWhiteboardCommentParams defines parameters for ChangeWhiteboardComment.
+type ChangeWhiteboardCommentParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateWhiteboardParams defines parameters for UpdateWhiteboard.
 type UpdateWhiteboardParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -25470,8 +25523,14 @@ type SaveVoiceSettingsJSONRequestBody = VoiceSettings
 // TryVoiceSentenceJSONRequestBody defines body for TryVoiceSentence for application/json ContentType.
 type TryVoiceSentenceJSONRequestBody = VoiceTry
 
+// ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody defines body for ChangeWhiteboardComment for application/merge-patch+json ContentType.
+type ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody = WhiteboardCommentChange
+
 // UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody defines body for UpdateWhiteboard for application/merge-patch+json ContentType.
 type UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody = WhiteboardChange
+
+// AddWhiteboardCommentJSONRequestBody defines body for AddWhiteboardComment for application/json ContentType.
+type AddWhiteboardCommentJSONRequestBody = WhiteboardCommentCreate
 
 // AttachWhiteboardMediaJSONRequestBody defines body for AttachWhiteboardMedia for application/json ContentType.
 type AttachWhiteboardMediaJSONRequestBody = WhiteboardMediaPlacement
@@ -34856,6 +34915,31 @@ type ClientInterface interface {
 	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
 	TryVoiceSentence(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteWhiteboardComment Take a whiteboard comment back
+	//
+	// The caller's own comment; its place in the thread stays, its words go.
+	//
+	// Corresponds with DELETE /whiteboard-comments/{commentId} (the `DeleteWhiteboardComment` operationId).
+	DeleteWhiteboardComment(ctx context.Context, commentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeWhiteboardCommentWithBody Change a whiteboard comment
+	//
+	// Rewrites the comment's words - its author only (`whiteboards.comment_not_own`), telling the people the new words name - or resolves or reopens its thread, which whoever may draw on the board may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /whiteboard-comments/{commentId} (the `ChangeWhiteboardComment` operationId).
+	ChangeWhiteboardCommentWithBody(ctx context.Context, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeWhiteboardCommentWithApplicationMergePatchPlusJSONBody Change a whiteboard comment
+	//
+	// Rewrites the comment's words - its author only (`whiteboards.comment_not_own`), telling the people the new words name - or resolves or reopens its thread, which whoever may draw on the board may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /whiteboard-comments/{commentId} (the `ChangeWhiteboardComment` operationId).
+	ChangeWhiteboardCommentWithApplicationMergePatchPlusJSONBody(ctx context.Context, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, body ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// TrashWhiteboard Put a whiteboard in the trash
 	//
 	// Puts the board in its hub's trash; `:restore` brings it back. Nothing is removed. Needs WRITE_ITEMS on the hub.
@@ -34894,6 +34978,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
 	ListWhiteboardBacklinks(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListWhiteboardComments A whiteboard's comments
+	//
+	// The board's comments oldest first: threads with the object and the place they are pinned to, their replies, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId}/comments (the `ListWhiteboardComments` operationId).
+	ListWhiteboardComments(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddWhiteboardCommentWithBody Comment on a whiteboard
+	//
+	// A thread pinned at a place on the board (`x`, `y`) and, when it is about an object, at that object (`element_id`); or a reply to a thread's first comment, one level deep. A person the words name as `[@Name](hubtask:person/<id>)` who reads the board is told. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}/comments (the `AddWhiteboardComment` operationId).
+	AddWhiteboardCommentWithBody(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddWhiteboardComment Comment on a whiteboard
+	//
+	// A thread pinned at a place on the board (`x`, `y`) and, when it is about an object, at that object (`element_id`); or a reply to a thread's first comment, one level deep. A person the words name as `[@Name](hubtask:person/<id>)` who reads the board is told. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}/comments (the `AddWhiteboardComment` operationId).
+	AddWhiteboardComment(ctx context.Context, whiteboardId WhiteboardId, body AddWhiteboardCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AttachWhiteboardMediaWithBody Place an uploaded file on a whiteboard
 	//
@@ -53731,6 +53840,61 @@ func (c *Client) TryVoiceSentence(ctx context.Context, body TryVoiceSentenceJSON
 	return c.Client.Do(req)
 }
 
+// DeleteWhiteboardComment Take a whiteboard comment back
+//
+// The caller's own comment; its place in the thread stays, its words go.
+//
+// Corresponds with DELETE /whiteboard-comments/{commentId} (the `DeleteWhiteboardComment` operationId).
+func (c *Client) DeleteWhiteboardComment(ctx context.Context, commentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteWhiteboardCommentRequest(c.Server, commentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeWhiteboardCommentWithBody Change a whiteboard comment
+//
+// Rewrites the comment's words - its author only (`whiteboards.comment_not_own`), telling the people the new words name - or resolves or reopens its thread, which whoever may draw on the board may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /whiteboard-comments/{commentId} (the `ChangeWhiteboardComment` operationId).
+func (c *Client) ChangeWhiteboardCommentWithBody(ctx context.Context, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeWhiteboardCommentRequestWithBody(c.Server, commentId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeWhiteboardCommentWithApplicationMergePatchPlusJSONBody Change a whiteboard comment
+//
+// Rewrites the comment's words - its author only (`whiteboards.comment_not_own`), telling the people the new words name - or resolves or reopens its thread, which whoever may draw on the board may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /whiteboard-comments/{commentId} (the `ChangeWhiteboardComment` operationId).
+func (c *Client) ChangeWhiteboardCommentWithApplicationMergePatchPlusJSONBody(ctx context.Context, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, body ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeWhiteboardCommentRequestWithApplicationMergePatchPlusJSONBody(c.Server, commentId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // TrashWhiteboard Put a whiteboard in the trash
 //
 // Puts the board in its hub's trash; `:restore` brings it back. Nothing is removed. Needs WRITE_ITEMS on the hub.
@@ -53810,6 +53974,61 @@ func (c *Client) UpdateWhiteboardWithApplicationMergePatchPlusJSONBody(ctx conte
 // Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
 func (c *Client) ListWhiteboardBacklinks(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListWhiteboardBacklinksRequest(c.Server, whiteboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListWhiteboardComments A whiteboard's comments
+//
+// The board's comments oldest first: threads with the object and the place they are pinned to, their replies, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.
+//
+// Corresponds with GET /whiteboards/{whiteboardId}/comments (the `ListWhiteboardComments` operationId).
+func (c *Client) ListWhiteboardComments(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWhiteboardCommentsRequest(c.Server, whiteboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddWhiteboardCommentWithBody Comment on a whiteboard
+//
+// A thread pinned at a place on the board (`x`, `y`) and, when it is about an object, at that object (`element_id`); or a reply to a thread's first comment, one level deep. A person the words name as `[@Name](hubtask:person/<id>)` who reads the board is told. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}/comments (the `AddWhiteboardComment` operationId).
+func (c *Client) AddWhiteboardCommentWithBody(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddWhiteboardCommentRequestWithBody(c.Server, whiteboardId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddWhiteboardComment Comment on a whiteboard
+//
+// A thread pinned at a place on the board (`x`, `y`) and, when it is about an object, at that object (`element_id`); or a reply to a thread's first comment, one level deep. A person the words name as `[@Name](hubtask:person/<id>)` who reads the board is told. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}/comments (the `AddWhiteboardComment` operationId).
+func (c *Client) AddWhiteboardComment(ctx context.Context, whiteboardId WhiteboardId, body AddWhiteboardCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddWhiteboardCommentRequest(c.Server, whiteboardId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -85597,6 +85816,102 @@ func NewTryVoiceSentenceRequestWithBody(server string, contentType string, body 
 	return req, nil
 }
 
+// NewDeleteWhiteboardCommentRequest constructs an http.Request for the DeleteWhiteboardComment method
+func NewDeleteWhiteboardCommentRequest(server string, commentId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "commentId", commentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboard-comments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChangeWhiteboardCommentRequestWithApplicationMergePatchPlusJSONBody calls the generic ChangeWhiteboardComment builder with application/merge-patch+json body
+func NewChangeWhiteboardCommentRequestWithApplicationMergePatchPlusJSONBody(server string, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, body ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeWhiteboardCommentRequestWithBody(server, commentId, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewChangeWhiteboardCommentRequestWithBody constructs an http.Request for the ChangeWhiteboardComment method, with any body, and a specified content type
+func NewChangeWhiteboardCommentRequestWithBody(server string, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "commentId", commentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboard-comments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewTrashWhiteboardRequest constructs an http.Request for the TrashWhiteboard method
 func NewTrashWhiteboardRequest(server string, whiteboardId WhiteboardId) (*http.Request, error) {
 	var err error
@@ -85757,6 +86072,87 @@ func NewListWhiteboardBacklinksRequest(server string, whiteboardId WhiteboardId)
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewListWhiteboardCommentsRequest constructs an http.Request for the ListWhiteboardComments method
+func NewListWhiteboardCommentsRequest(server string, whiteboardId WhiteboardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s/comments", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddWhiteboardCommentRequest calls the generic AddWhiteboardComment builder with application/json body
+func NewAddWhiteboardCommentRequest(server string, whiteboardId WhiteboardId, body AddWhiteboardCommentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddWhiteboardCommentRequestWithBody(server, whiteboardId, "application/json", bodyReader)
+}
+
+// NewAddWhiteboardCommentRequestWithBody constructs an http.Request for the AddWhiteboardComment method, with any body, and a specified content type
+func NewAddWhiteboardCommentRequestWithBody(server string, whiteboardId WhiteboardId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s/comments", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -96187,6 +96583,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
 	TryVoiceSentenceWithResponse(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*TryVoiceSentenceResult, error)
 
+	// DeleteWhiteboardCommentWithResponse Take a whiteboard comment back
+	//
+	// The caller's own comment; its place in the thread stays, its words go.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /whiteboard-comments/{commentId} (the `DeleteWhiteboardComment` operationId).
+	DeleteWhiteboardCommentWithResponse(ctx context.Context, commentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteWhiteboardCommentResult, error)
+
+	// ChangeWhiteboardCommentWithBodyWithResponse Change a whiteboard comment
+	//
+	// Rewrites the comment's words - its author only (`whiteboards.comment_not_own`), telling the people the new words name - or resolves or reopens its thread, which whoever may draw on the board may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /whiteboard-comments/{commentId} (the `ChangeWhiteboardComment` operationId).
+	ChangeWhiteboardCommentWithBodyWithResponse(ctx context.Context, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeWhiteboardCommentResult, error)
+
+	// ChangeWhiteboardCommentWithApplicationMergePatchPlusJSONBodyWithResponse Change a whiteboard comment
+	//
+	// Rewrites the comment's words - its author only (`whiteboards.comment_not_own`), telling the people the new words name - or resolves or reopens its thread, which whoever may draw on the board may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /whiteboard-comments/{commentId} (the `ChangeWhiteboardComment` operationId).
+	ChangeWhiteboardCommentWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, body ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeWhiteboardCommentResult, error)
+
 	// TrashWhiteboardWithResponse Put a whiteboard in the trash
 	//
 	// Puts the board in its hub's trash; `:restore` brings it back. Nothing is removed. Needs WRITE_ITEMS on the hub.
@@ -96231,6 +96654,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
 	ListWhiteboardBacklinksWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*ListWhiteboardBacklinksResult, error)
+
+	// ListWhiteboardCommentsWithResponse A whiteboard's comments
+	//
+	// The board's comments oldest first: threads with the object and the place they are pinned to, their replies, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId}/comments (the `ListWhiteboardComments` operationId).
+	ListWhiteboardCommentsWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*ListWhiteboardCommentsResult, error)
+
+	// AddWhiteboardCommentWithBodyWithResponse Comment on a whiteboard
+	//
+	// A thread pinned at a place on the board (`x`, `y`) and, when it is about an object, at that object (`element_id`); or a reply to a thread's first comment, one level deep. A person the words name as `[@Name](hubtask:person/<id>)` who reads the board is told. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}/comments (the `AddWhiteboardComment` operationId).
+	AddWhiteboardCommentWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddWhiteboardCommentResult, error)
+
+	// AddWhiteboardCommentWithResponse Comment on a whiteboard
+	//
+	// A thread pinned at a place on the board (`x`, `y`) and, when it is about an object, at that object (`element_id`); or a reply to a thread's first comment, one level deep. A person the words name as `[@Name](hubtask:person/<id>)` who reads the board is told. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}/comments (the `AddWhiteboardComment` operationId).
+	AddWhiteboardCommentWithResponse(ctx context.Context, whiteboardId WhiteboardId, body AddWhiteboardCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddWhiteboardCommentResult, error)
 
 	// AttachWhiteboardMediaWithBodyWithResponse Place an uploaded file on a whiteboard
 	//
@@ -128685,6 +129135,95 @@ func (r TryVoiceSentenceResult) ContentType() string {
 	return ""
 }
 
+type DeleteWhiteboardCommentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteWhiteboardCommentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteWhiteboardCommentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteWhiteboardCommentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteWhiteboardCommentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteWhiteboardCommentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeWhiteboardCommentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardComment
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeWhiteboardCommentResult) GetJSON200() *WhiteboardComment {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeWhiteboardCommentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeWhiteboardCommentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeWhiteboardCommentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeWhiteboardCommentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeWhiteboardCommentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type TrashWhiteboardResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -128871,6 +129410,102 @@ func (r ListWhiteboardBacklinksResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListWhiteboardBacklinksResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListWhiteboardCommentsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardCommentList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListWhiteboardCommentsResult) GetJSON200() *WhiteboardCommentList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListWhiteboardCommentsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListWhiteboardCommentsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWhiteboardCommentsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWhiteboardCommentsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListWhiteboardCommentsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddWhiteboardCommentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *WhiteboardComment
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AddWhiteboardCommentResult) GetJSON201() *WhiteboardComment {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddWhiteboardCommentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddWhiteboardCommentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddWhiteboardCommentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddWhiteboardCommentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddWhiteboardCommentResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -145135,6 +145770,51 @@ func (c *ClientWithResponses) TryVoiceSentenceWithResponse(ctx context.Context, 
 	return ParseTryVoiceSentenceResult(rsp)
 }
 
+// DeleteWhiteboardCommentWithResponse Take a whiteboard comment back
+//
+// The caller's own comment; its place in the thread stays, its words go.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /whiteboard-comments/{commentId} (the `DeleteWhiteboardComment` operationId).
+func (c *ClientWithResponses) DeleteWhiteboardCommentWithResponse(ctx context.Context, commentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteWhiteboardCommentResult, error) {
+	rsp, err := c.DeleteWhiteboardComment(ctx, commentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteWhiteboardCommentResult(rsp)
+}
+
+// ChangeWhiteboardCommentWithBodyWithResponse Change a whiteboard comment
+//
+// Rewrites the comment's words - its author only (`whiteboards.comment_not_own`), telling the people the new words name - or resolves or reopens its thread, which whoever may draw on the board may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /whiteboard-comments/{commentId} (the `ChangeWhiteboardComment` operationId).
+func (c *ClientWithResponses) ChangeWhiteboardCommentWithBodyWithResponse(ctx context.Context, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeWhiteboardCommentResult, error) {
+	rsp, err := c.ChangeWhiteboardCommentWithBody(ctx, commentId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeWhiteboardCommentResult(rsp)
+}
+
+// ChangeWhiteboardCommentWithApplicationMergePatchPlusJSONBodyWithResponse Change a whiteboard comment
+//
+// Rewrites the comment's words - its author only (`whiteboards.comment_not_own`), telling the people the new words name - or resolves or reopens its thread, which whoever may draw on the board may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /whiteboard-comments/{commentId} (the `ChangeWhiteboardComment` operationId).
+func (c *ClientWithResponses) ChangeWhiteboardCommentWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, commentId openapi_types.UUID, params *ChangeWhiteboardCommentParams, body ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeWhiteboardCommentResult, error) {
+	rsp, err := c.ChangeWhiteboardCommentWithApplicationMergePatchPlusJSONBody(ctx, commentId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeWhiteboardCommentResult(rsp)
+}
+
 // TrashWhiteboardWithResponse Put a whiteboard in the trash
 //
 // Puts the board in its hub's trash; `:restore` brings it back. Nothing is removed. Needs WRITE_ITEMS on the hub.
@@ -145208,6 +145888,51 @@ func (c *ClientWithResponses) ListWhiteboardBacklinksWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseListWhiteboardBacklinksResult(rsp)
+}
+
+// ListWhiteboardCommentsWithResponse A whiteboard's comments
+//
+// The board's comments oldest first: threads with the object and the place they are pinned to, their replies, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /whiteboards/{whiteboardId}/comments (the `ListWhiteboardComments` operationId).
+func (c *ClientWithResponses) ListWhiteboardCommentsWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*ListWhiteboardCommentsResult, error) {
+	rsp, err := c.ListWhiteboardComments(ctx, whiteboardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWhiteboardCommentsResult(rsp)
+}
+
+// AddWhiteboardCommentWithBodyWithResponse Comment on a whiteboard
+//
+// A thread pinned at a place on the board (`x`, `y`) and, when it is about an object, at that object (`element_id`); or a reply to a thread's first comment, one level deep. A person the words name as `[@Name](hubtask:person/<id>)` who reads the board is told. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}/comments (the `AddWhiteboardComment` operationId).
+func (c *ClientWithResponses) AddWhiteboardCommentWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddWhiteboardCommentResult, error) {
+	rsp, err := c.AddWhiteboardCommentWithBody(ctx, whiteboardId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddWhiteboardCommentResult(rsp)
+}
+
+// AddWhiteboardCommentWithResponse Comment on a whiteboard
+//
+// A thread pinned at a place on the board (`x`, `y`) and, when it is about an object, at that object (`element_id`); or a reply to a thread's first comment, one level deep. A person the words name as `[@Name](hubtask:person/<id>)` who reads the board is told. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}/comments (the `AddWhiteboardComment` operationId).
+func (c *ClientWithResponses) AddWhiteboardCommentWithResponse(ctx context.Context, whiteboardId WhiteboardId, body AddWhiteboardCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddWhiteboardCommentResult, error) {
+	rsp, err := c.AddWhiteboardComment(ctx, whiteboardId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddWhiteboardCommentResult(rsp)
 }
 
 // AttachWhiteboardMediaWithBodyWithResponse Place an uploaded file on a whiteboard
@@ -168474,6 +169199,68 @@ func ParseTryVoiceSentenceResult(rsp *http.Response) (*TryVoiceSentenceResult, e
 	return response, nil
 }
 
+// ParseDeleteWhiteboardCommentResult parses an HTTP response from a DeleteWhiteboardCommentWithResponse call
+func ParseDeleteWhiteboardCommentResult(rsp *http.Response) (*DeleteWhiteboardCommentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteWhiteboardCommentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeWhiteboardCommentResult parses an HTTP response from a ChangeWhiteboardCommentWithResponse call
+func ParseChangeWhiteboardCommentResult(rsp *http.Response) (*ChangeWhiteboardCommentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeWhiteboardCommentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardComment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseTrashWhiteboardResult parses an HTTP response from a TrashWhiteboardWithResponse call
 func ParseTrashWhiteboardResult(rsp *http.Response) (*TrashWhiteboardResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -168593,6 +169380,72 @@ func ParseListWhiteboardBacklinksResult(rsp *http.Response) (*ListWhiteboardBack
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWhiteboardCommentsResult parses an HTTP response from a ListWhiteboardCommentsWithResponse call
+func ParseListWhiteboardCommentsResult(rsp *http.Response) (*ListWhiteboardCommentsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWhiteboardCommentsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardCommentList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddWhiteboardCommentResult parses an HTTP response from a AddWhiteboardCommentWithResponse call
+func ParseAddWhiteboardCommentResult(rsp *http.Response) (*AddWhiteboardCommentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddWhiteboardCommentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest WhiteboardComment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

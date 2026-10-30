@@ -1842,6 +1842,12 @@ func run() error {
 		Boards: postgres.NewWhiteboardRepository(), Containers: containers, Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Texts: pageSpace.Pages, Entries: entryLinks, Reader: authorizer, Media: mediaObjects,
+		// The people a comment names who read the board are told (UC-CNV-09).
+		People: authorizer,
+		Mentions: notification.RecordWhiteboardMention{
+			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+			Jobs: jobs, IDs: ids, Signals: metrics,
+		},
 	}
 	// The service desk's calendars and SLA policies (M5); the clocks run on the durable timers.
 	serviceDeskStore := postgres.NewServiceDeskRepository()
@@ -2017,6 +2023,10 @@ func run() error {
 		whiteboardservice.ListWhiteboardVersions{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ReadWhiteboardVersion{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.NameWhiteboardVersion{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.AddWhiteboardComment{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ListWhiteboardComments{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ChangeWhiteboardComment{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.DeleteWhiteboardComment{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ListWhiteboardBacklinks{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.AttachWhiteboardMedia{Studio: boardStudio}.Descriptor(),
 		servicedeskservice.ListBusinessCalendars{Desk: serviceDesk}.Descriptor(),
@@ -4010,6 +4020,7 @@ func run() error {
 			Pages: postgres.NewPageRepository(),
 			// The agent its owner is told of.
 			Agents: agentStore,
+			Boards: postgres.NewWhiteboardRepository(),
 			// The entry's ticket key on the intake's address as Reply-To, so an answer becomes a
 			// comment (ADR-0094).
 			Replies: mailservice.Replies{Writer: mailWriter},
@@ -4442,13 +4453,15 @@ func run() error {
 		queueport.KindPageReviewEmail: notificationDelivery,
 		// And under an agent's notice (queue.KindAgentNoticeEmail).
 		queueport.KindAgentNoticeEmail: notificationDelivery,
-		queueport.KindWebhookDeliver:   webhookDelivery,
-		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
-		queueport.KindPlatformDeliver:  platformDelivery,
-		queueport.KindAutomationRun:    automationRun,
-		queueport.KindAutomationHTTP:   outboundCall,
-		queueport.KindBackupRun:        backupRun,
-		queueport.KindBackupVerify:     worker.BackupVerify{Performer: backupPerformer},
+		// And under a whiteboard mention's (queue.KindWhiteboardMentionEmail).
+		queueport.KindWhiteboardMentionEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:         webhookDelivery,
+		queueport.KindPlatformSweep:          worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindPlatformDeliver:        platformDelivery,
+		queueport.KindAutomationRun:          automationRun,
+		queueport.KindAutomationHTTP:         outboundCall,
+		queueport.KindBackupRun:              backupRun,
+		queueport.KindBackupVerify:           worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},
