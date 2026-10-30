@@ -10438,5 +10438,12 @@
   "email.plan_exception.subject": "Der Plan von „{title}“ liegt außerhalb seiner Toleranz",
   "email.plan_exception.subject.withheld": "Ein Plan liegt außerhalb der Toleranz, die du gesetzt hast",
   "email.plan_exception.body": "Der Plan von „{title}“ endet voraussichtlich später als seine letzte Baseline, und zwar um mehr als die Zeittoleranz, die du gesetzt hast. Öffne den Plan, um zu sehen, wie weit er sich verschoben hat, und entscheide, wie es weitergeht.\n\n{link}",
-  "email.plan_exception.body.withheld": "Ein Plan endet voraussichtlich später als seine letzte Baseline, und zwar um mehr als die Zeittoleranz, die du gesetzt hast. Öffne den Plan, um zu sehen, wie weit er sich verschoben hat, und entscheide, wie es weitergeht.\n\n{link}"
+  "email.plan_exception.body.withheld": "Ein Plan endet voraussichtlich später als seine letzte Baseline, und zwar um mehr als die Zeittoleranz, die du gesetzt hast. Öffne den Plan, um zu sehen, wie weit er sich verschoben hat, und entscheide, wie es weitergeht.\n\n{link}",
+  "app.planning.workspace_tolerance": "Zeittoleranz der Pläne",
+  "app.planning.workspace_tolerance_hint": "Wie viele Kalendertage das Ende eines Plans über seine letzte Baseline hinausrutschen darf, bevor er in Ausnahme ist. Jeder Hub und jede Sammlung erbt sie; rutscht ein Plan darüber, bekommst du eine Mail.",
+  "app.planning.tolerance_lock_workspace": "Für jeden Hub und jede Sammlung sperren",
+  "app.planning.tolerance_level_WORKSPACE": "Arbeitsbereich",
+  "app.planning.tolerance_level_INSTANCE": "Installation",
+  "app.planning.tolerance_level_PLAN": "Tarif",
+  "app.planning.tolerance_range": "Eine Toleranz ist eine ganze Zahl von 0 bis 365 Tagen."
 }

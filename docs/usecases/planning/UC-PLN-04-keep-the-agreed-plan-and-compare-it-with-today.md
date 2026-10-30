@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go, core/domain/model/planning/Tolerance_test.go, core/application/service/planning/Tolerances_test.go]
+checked_by: [core/application/service/notification/RecordPlanException_test.go, core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go, core/domain/model/planning/Tolerance_test.go, core/application/service/planning/Tolerances_test.go]
 ---
 
 # Keep the agreed plan and compare it with today
@@ -42,6 +42,11 @@ The comparison shows all three.
    locked them; once the forecast end lies past the latest baseline's by more than the tolerance,
    the plan is in exception: the *Plan* screen shows it to every reader and the exception is in the
    audit trail (`plan_tolerance.exceeded`).
+7. Whoever may shape the workspace sets the tolerance every hub and collection inherits, locked for
+   them when asked; it is a block of the workspace's configuration document.
+8. A plan found in exception is told by mail to the person who decided its tolerance at the level
+   it comes from - never to the reader looking at it - once per baseline; a new baseline may raise
+   the next.
 
 ## Where it ends
 

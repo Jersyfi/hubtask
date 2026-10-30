@@ -197,6 +197,7 @@ export type {
   PlanBaselineList,
   PlanTolerance,
   PortfolioRoadmap,
+  WorkspaceTolerance,
   BaselineVariance,
   BaselineComparison,
   Sprint,

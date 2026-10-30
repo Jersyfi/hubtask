@@ -10441,5 +10441,12 @@
   "email.plan_exception.subject": "The plan of “{title}” is beyond its tolerance",
   "email.plan_exception.subject.withheld": "A plan is beyond the tolerance you set",
   "email.plan_exception.body": "The plan of “{title}” is expected to end later than its latest baseline by more than the time tolerance you set. Open the plan to see how far it slipped and decide what happens next.\n\n{link}",
-  "email.plan_exception.body.withheld": "A plan is expected to end later than its latest baseline by more than the time tolerance you set. Open the plan to see how far it slipped and decide what happens next.\n\n{link}"
+  "email.plan_exception.body.withheld": "A plan is expected to end later than its latest baseline by more than the time tolerance you set. Open the plan to see how far it slipped and decide what happens next.\n\n{link}",
+  "app.planning.workspace_tolerance": "Plans' time tolerance",
+  "app.planning.workspace_tolerance_hint": "How many calendar days a plan's end may slip past its latest baseline before it is in exception. Every hub and collection inherits it; when a plan slips beyond it, you are told by mail.",
+  "app.planning.tolerance_lock_workspace": "Lock it for every hub and collection",
+  "app.planning.tolerance_level_WORKSPACE": "workspace",
+  "app.planning.tolerance_level_INSTANCE": "installation",
+  "app.planning.tolerance_level_PLAN": "plan",
+  "app.planning.tolerance_range": "A tolerance is a whole number of days from 0 to 365."
 }
