@@ -86,7 +86,8 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 		Summary: "The templates the reader may take - bundles of building blocks, each version kept - with the " +
 			"newest version of each, the version the workspace took and whether an update is available. " +
 			"Every preset is among them as a template of its structure part: Hubtask's by its key (list, " +
-			"tasks, project, flow), the installation's, the workspace's and the reader's own by identifier.",
+			"tasks, project, flow), the installation's, the workspace's and the reader's own by identifier - and " +
+			"Hubtask's own document templates (itil_service_desk).",
 		SideEffects: "None. Reads only.",
 		TokenScope:  scopeRead,
 		ReadOnly:    true,

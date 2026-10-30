@@ -10251,5 +10251,6 @@
   "email.approval_overdue.subject": "Eine Freigabe, um die du gebeten hast, ist überfällig: „{title}“",
   "email.approval_overdue.subject.withheld": "Eine Freigabe, um die du gebeten hast, ist überfällig",
   "email.approval_overdue.body": "Die Freigabe, um die du an „{title}“ gebeten hast, hat ihre Stunden ohne alle Antworten überschritten. Wer noch gefragt ist, wurde erinnert.\n\n{link}",
-  "email.approval_overdue.body.withheld": "Eine Freigabe, um die du gebeten hast, hat ihre Stunden ohne alle Antworten überschritten. Wer noch gefragt ist, wurde erinnert.\n\n{link}"
+  "email.approval_overdue.body.withheld": "Eine Freigabe, um die du gebeten hast, hat ihre Stunden ohne alle Antworten überschritten. Wer noch gefragt ist, wurde erinnert.\n\n{link}",
+  "app.structure.preset.ITIL_SERVICE_DESK": "ITIL-Servicedesk"
 }

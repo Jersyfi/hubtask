@@ -10254,5 +10254,6 @@
   "email.approval_overdue.subject": "An approval you asked for is overdue: “{title}”",
   "email.approval_overdue.subject.withheld": "An approval you asked for is overdue",
   "email.approval_overdue.body": "The approval you asked for on “{title}” has run past its hours without every answer. The people still asked were reminded.\n\n{link}",
-  "email.approval_overdue.body.withheld": "An approval you asked for has run past its hours without every answer. The people still asked were reminded.\n\n{link}"
+  "email.approval_overdue.body.withheld": "An approval you asked for has run past its hours without every answer. The people still asked were reminded.\n\n{link}",
+  "app.structure.preset.ITIL_SERVICE_DESK": "ITIL service desk"
 }

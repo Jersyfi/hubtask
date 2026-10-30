@@ -1,0 +1,671 @@
+{
+  "key": "itil_service_desk",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "roles": {
+      "cab_member": {
+        "name": "CAB member",
+        "permissions": [
+          "READ",
+          "COMMENT"
+        ]
+      }
+    },
+    "fields": {
+      "impact": {
+        "kind": "SELECT",
+        "options": [
+          "High",
+          "Medium",
+          "Low"
+        ],
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "urgency": {
+        "kind": "SELECT",
+        "options": [
+          "High",
+          "Medium",
+          "Low"
+        ],
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "priority": {
+        "kind": "SELECT",
+        "options": [
+          "P1",
+          "P2",
+          "P3",
+          "P4"
+        ],
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "incident": {
+        "level": "TASK",
+        "name": "Incident",
+        "icon": "circle-alert",
+        "color_token": "red",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "request",
+              "name": "Request"
+            },
+            {
+              "key": "triage",
+              "name": "Triage"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "request",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "request"
+            },
+            {
+              "key": "custom_fields.impact",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.urgency",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.priority",
+              "section": "triage"
+            }
+          ],
+          "channels": [
+            {
+              "channel": "PORTAL",
+              "hidden": [
+                "custom_fields.priority"
+              ]
+            }
+          ]
+        }
+      },
+      "service_request": {
+        "level": "TASK",
+        "name": "Service request",
+        "icon": "inbox",
+        "color_token": "blue",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "request",
+              "name": "Request"
+            },
+            {
+              "key": "triage",
+              "name": "Triage"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "request",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "request"
+            },
+            {
+              "key": "custom_fields.impact",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.urgency",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.priority",
+              "section": "triage"
+            }
+          ],
+          "channels": [
+            {
+              "channel": "PORTAL",
+              "hidden": [
+                "custom_fields.priority"
+              ]
+            }
+          ]
+        }
+      },
+      "problem": {
+        "level": "TASK",
+        "name": "Problem",
+        "icon": "search",
+        "color_token": "amber",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "request",
+              "name": "Request"
+            },
+            {
+              "key": "triage",
+              "name": "Triage"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "request",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "request"
+            },
+            {
+              "key": "custom_fields.impact",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.urgency",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.priority",
+              "section": "triage"
+            }
+          ]
+        }
+      },
+      "change": {
+        "level": "TASK",
+        "name": "Change",
+        "icon": "git-branch",
+        "color_token": "violet",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "request",
+              "name": "Request"
+            },
+            {
+              "key": "triage",
+              "name": "Triage"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "request",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "request"
+            },
+            {
+              "key": "custom_fields.impact",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.urgency",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.priority",
+              "section": "triage"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "incident": {
+        "name": "Incident",
+        "shape": {
+          "initial": "new",
+          "statuses": [
+            {
+              "key": "new",
+              "name": "New",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "waiting",
+              "name": "Waiting",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "resolved",
+              "name": "Resolved",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "closed",
+              "name": "Closed",
+              "category": "DONE",
+              "color_token": "slate"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "new"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "wait",
+              "name": "Wait for requester",
+              "from": [
+                "in_progress"
+              ],
+              "to": "waiting"
+            },
+            {
+              "key": "resume",
+              "name": "Resume",
+              "from": [
+                "waiting"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "resolve",
+              "name": "Resolve",
+              "from": [
+                "new",
+                "in_progress",
+                "waiting"
+              ],
+              "to": "resolved"
+            },
+            {
+              "key": "close",
+              "name": "Close",
+              "from": [
+                "resolved"
+              ],
+              "to": "closed"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "resolved"
+              ],
+              "to": "in_progress"
+            }
+          ]
+        }
+      },
+      "service_request": {
+        "name": "Service request",
+        "shape": {
+          "initial": "new",
+          "statuses": [
+            {
+              "key": "new",
+              "name": "New",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "waiting",
+              "name": "Waiting",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "fulfilled",
+              "name": "Fulfilled",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "new"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "wait",
+              "name": "Wait for requester",
+              "from": [
+                "in_progress"
+              ],
+              "to": "waiting"
+            },
+            {
+              "key": "resume",
+              "name": "Resume",
+              "from": [
+                "waiting"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "fulfil",
+              "name": "Fulfil",
+              "from": [
+                "new",
+                "in_progress",
+                "waiting"
+              ],
+              "to": "fulfilled"
+            }
+          ]
+        }
+      },
+      "problem": {
+        "name": "Problem",
+        "shape": {
+          "initial": "new",
+          "statuses": [
+            {
+              "key": "new",
+              "name": "New",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "investigating",
+              "name": "Investigating",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "known_error",
+              "name": "Known error",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "resolved",
+              "name": "Resolved",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "investigate",
+              "name": "Investigate",
+              "from": [
+                "new"
+              ],
+              "to": "investigating"
+            },
+            {
+              "key": "record_known_error",
+              "name": "Record known error",
+              "from": [
+                "investigating"
+              ],
+              "to": "known_error"
+            },
+            {
+              "key": "resolve",
+              "name": "Resolve",
+              "from": [
+                "investigating",
+                "known_error"
+              ],
+              "to": "resolved"
+            }
+          ]
+        }
+      },
+      "change": {
+        "name": "Change",
+        "shape": {
+          "initial": "draft",
+          "statuses": [
+            {
+              "key": "draft",
+              "name": "Draft",
+              "category": "BACKLOG",
+              "color_token": "slate"
+            },
+            {
+              "key": "assessment",
+              "name": "Assessment",
+              "category": "TODO",
+              "color_token": "blue"
+            },
+            {
+              "key": "approved",
+              "name": "Approved",
+              "category": "IN_PROGRESS",
+              "color_token": "teal"
+            },
+            {
+              "key": "implementing",
+              "name": "Implementing",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "declined",
+              "name": "Declined",
+              "category": "DONE",
+              "color_token": "red"
+            }
+          ],
+          "steps": [
+            {
+              "key": "submit",
+              "name": "Submit for assessment",
+              "from": [
+                "draft"
+              ],
+              "to": "assessment"
+            },
+            {
+              "key": "approve",
+              "name": "Approve",
+              "from": [
+                "assessment"
+              ],
+              "to": "approved",
+              "approval": {
+                "levels": [
+                  {
+                    "roles": [
+                      "cab_member"
+                    ],
+                    "rule": "ANY"
+                  }
+                ],
+                "decline_to": "declined",
+                "due_hours": 72
+              }
+            },
+            {
+              "key": "implement",
+              "name": "Implement",
+              "from": [
+                "approved"
+              ],
+              "to": "implementing"
+            },
+            {
+              "key": "complete",
+              "name": "Complete",
+              "from": [
+                "implementing"
+              ],
+              "to": "done"
+            }
+          ]
+        }
+      }
+    },
+    "business_calendars": {
+      "office": {
+        "name": "Office hours",
+        "zone": "Europe/Berlin",
+        "hours": [
+          {
+            "day": "MONDAY",
+            "from": "08:00",
+            "to": "18:00"
+          },
+          {
+            "day": "TUESDAY",
+            "from": "08:00",
+            "to": "18:00"
+          },
+          {
+            "day": "WEDNESDAY",
+            "from": "08:00",
+            "to": "18:00"
+          },
+          {
+            "day": "THURSDAY",
+            "from": "08:00",
+            "to": "18:00"
+          },
+          {
+            "day": "FRIDAY",
+            "from": "08:00",
+            "to": "18:00"
+          }
+        ],
+        "holidays": []
+      }
+    },
+    "sla_policies": {
+      "incidents": {
+        "name": "Incidents",
+        "calendar": "office",
+        "entry_types": [
+          "incident"
+        ],
+        "priority_field": "priority",
+        "position": 1,
+        "enabled": true,
+        "goals": [
+          {
+            "kind": "FIRST_RESPONSE",
+            "minutes": 480,
+            "by_priority": {
+              "P1": 15,
+              "P2": 60,
+              "P3": 240,
+              "P4": 480
+            },
+            "pause_statuses": [
+              "waiting"
+            ],
+            "warn_percent": 80
+          },
+          {
+            "kind": "RESOLUTION",
+            "minutes": 2880,
+            "by_priority": {
+              "P1": 240,
+              "P2": 480,
+              "P3": 1440,
+              "P4": 2880
+            },
+            "pause_statuses": [
+              "waiting"
+            ],
+            "warn_percent": 80
+          }
+        ]
+      },
+      "requests": {
+        "name": "Service requests",
+        "calendar": "office",
+        "entry_types": [
+          "service_request"
+        ],
+        "position": 2,
+        "enabled": true,
+        "goals": [
+          {
+            "kind": "FIRST_RESPONSE",
+            "minutes": 480,
+            "pause_statuses": [
+              "waiting"
+            ],
+            "warn_percent": 80
+          },
+          {
+            "kind": "RESOLUTION",
+            "minutes": 2400,
+            "pause_statuses": [
+              "waiting"
+            ],
+            "warn_percent": 80
+          }
+        ]
+      }
+    },
+    "reply_templates": {
+      "acknowledge": {
+        "name": "We have your request",
+        "body": "Hello {{requester.name}},\n\nthank you - we have your request “{{entry.title}}” ({{entry.id}}) and are working on it.\n\n{{agent.name}}"
+      },
+      "more_information": {
+        "name": "We need more information",
+        "body": "Hello {{requester.name}},\n\nto go on with “{{entry.title}}” we need a little more from you. Could you tell us more?\n\n{{agent.name}}"
+      },
+      "resolved": {
+        "name": "Resolved",
+        "body": "Hello {{requester.name}},\n\nwe have resolved “{{entry.title}}”. If something is still wrong, just answer this message.\n\n{{agent.name}}"
+      }
+    }
+  }
+}

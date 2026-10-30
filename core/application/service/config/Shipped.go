@@ -5,7 +5,10 @@ package config
 
 import (
 	"context"
+	"embed"
+	"encoding/json"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/service/work"
@@ -31,11 +34,18 @@ const (
 // the installation's bound, a person's own to that person alone - and none is lost (templates.md
 // §1). Hubtask's carry their key as the name, which a client names in the reader's language
 // (rule 8).
+//
+// Hubtask's document templates follow them (bundledTemplates): offered to every reader who may
+// read the templates at all, a preset withheld or not.
 func (d Desk) presetTemplates(ctx context.Context, actor appshared.ActorContext) ([]domain.Template, error) {
+	bundled, err := bundledTemplates()
+	if err != nil {
+		return nil, err
+	}
 	answer, err := d.Catalogue.Invoke(ctx, work.ListPresetsName, actor, nil)
 	if err != nil {
 		if withheld(err) {
-			return nil, nil
+			return bundled, nil
 		}
 		return nil, err
 	}
@@ -52,8 +62,56 @@ func (d Desk) presetTemplates(ctx context.Context, actor appshared.ActorContext)
 			out = append(out, template)
 		}
 	}
-	return out, nil
+	return append(out, bundled...), nil
 }
+
+// shipped holds Hubtask's document templates, one file each: a template of the HUBTASK origin is
+// the release's, read once (templates.md §2). Its words are the template's own, which the
+// workspace takes as its own vocabulary and renames at will - the template is content, not a
+// sentence the backend says (rule 8).
+//
+//go:embed shipped/*.json
+var shipped embed.FS
+
+var bundled = sync.OnceValues(func() ([]domain.Template, error) {
+	entries, err := shipped.ReadDir("shipped")
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Template, 0, len(entries))
+	for _, entry := range entries {
+		raw, err := shipped.ReadFile("shipped/" + entry.Name())
+		if err != nil {
+			return nil, err
+		}
+		var file struct {
+			Key      string         `json:"key"`
+			Version  int            `json:"version"`
+			Document map[string]any `json:"document"`
+		}
+		if err := json.Unmarshal(raw, &file); err != nil {
+			return nil, err
+		}
+		document := domain.Document{}
+		for name, rawSection := range file.Document {
+			section := domain.Section{}
+			blocks, _ := rawSection.(map[string]any)
+			for key, rawBlock := range blocks {
+				block, _ := rawBlock.(map[string]any)
+				section[key] = domain.Block(block)
+			}
+			document[name] = section
+		}
+		out = append(out, domain.Template{
+			Key: file.Key, Version: file.Version, Name: file.Key, Origin: domain.OriginHubtask,
+			Document: document, CreatedAt: shippedAt,
+		})
+	}
+	return out, nil
+})
+
+// bundledTemplates answers Hubtask's document templates.
+func bundledTemplates() ([]domain.Template, error) { return bundled() }
 
 func presetTemplate(row map[string]any) (domain.Template, bool) {
 	structure := domain.Section{}
@@ -102,6 +160,13 @@ func reservedKey(key string) bool {
 	for _, preset := range workmodel.BuiltInPresets() {
 		if key == strings.ToLower(string(preset.Key)) {
 			return true
+		}
+	}
+	if templates, err := bundledTemplates(); err == nil {
+		for _, template := range templates {
+			if key == template.Key {
+				return true
+			}
 		}
 	}
 	for _, prefix := range []string{installationPrefix, workspacePrefix, ownPrefix} {
