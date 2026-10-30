@@ -157,6 +157,9 @@ export function widgetWrite(widget: DashboardWidget): DashboardWidgetWrite {
   if (widget.source === 'VIEW' && widget.view_id) write.view_id = widget.view_id;
   if (widget.source === 'QUERY' && widget.query) write.query = widget.query;
   if (widget.source === 'GOALS') write.goal_ids = [...widget.goal_ids];
+  // The replica hands the column on as stored, without the keys a widget does not use.
+  if (widget.source !== 'GOALS' && widget.compare) write.compare = { ...widget.compare };
+  if (widget.source !== 'GOALS' && widget.cumulative) write.cumulative = true;
   return write;
 }
 
@@ -174,6 +177,9 @@ export interface FigureRow {
   /** The value as the server wrote it, so that money keeps its digits in the table. */
   readonly text: string;
   readonly count?: number;
+  /** The server's running total up to this period, for a cumulative widget. */
+  readonly running?: number;
+  readonly runningText?: string;
   readonly goalId?: string;
   readonly status?: string;
 }
@@ -206,6 +212,7 @@ export function figureRows(data: readonly Record<string, unknown>[]): FigureRow[
     const parsed = raw === undefined ? Number.NaN : Number(raw);
     const value = Number.isFinite(parsed) ? parsed : count;
     const both = group !== undefined && period !== undefined;
+    const running = asText(row['running']);
     return {
       key: `${group ?? ''}|${period ?? ''}|${i}`,
       label: both ? group : (group ?? period ?? ''),
@@ -213,8 +220,85 @@ export function figureRows(data: readonly Record<string, unknown>[]): FigureRow[
       value,
       text: raw ?? String(count),
       count,
+      ...(running !== undefined && Number.isFinite(Number(running)) ? { running: Number(running), runningText: running } : {}),
     };
   });
+}
+
+/** Rows as a cumulative widget draws them: each period's running total in place of its own value. */
+export function runningRows(rows: readonly FigureRow[]): FigureRow[] {
+  return rows.map((row) => (row.running === undefined ? row : { ...row, value: row.running, text: row.runningText ?? String(row.running) }));
+}
+
+/** `remaining` as `GET /dashboards/{id}/figures` answers it, as rows. */
+export function leftRows(data: readonly Record<string, unknown>[] | null | undefined): FigureRow[] {
+  return (data ?? []).map((row, i) => {
+    const group = asText(row['group']);
+    const period = asText(row['period']);
+    const text = asText(row['value']) ?? '';
+    const both = group !== undefined && period !== undefined;
+    return {
+      key: `left|${group ?? ''}|${period ?? ''}|${i}`,
+      label: both ? group : (group ?? period ?? ''),
+      ...(both ? { column: period } : {}),
+      value: Number.isFinite(Number(text)) ? Number(text) : 0,
+      text,
+    };
+  });
+}
+
+/** Several series of one widget side by side: one line per label, one value per series. */
+export interface SeriesTable {
+  readonly labels: readonly string[];
+  readonly series: readonly { readonly name: string; readonly values: readonly (number | undefined)[]; readonly texts: readonly string[] }[];
+}
+
+/**
+ * Series aligned by their labels - each row's label and column, sorted as periods sort. A
+ * cumulative series carries its last running total over a label it holds no row for, which is
+ * what the server's running total is there; any other leaves the cell empty.
+ */
+export function seriesTable(series: readonly { name: string; rows: readonly FigureRow[]; isRunning?: boolean }[]): SeriesTable {
+  const nameOf = (row: FigureRow) => (row.column === undefined ? row.label : `${row.label} ${row.column}`);
+  const labels = [...new Set(series.flatMap((each) => each.rows.map(nameOf)))].sort();
+  return {
+    labels,
+    series: series.map((each) => {
+      const at = new Map(each.rows.map((row) => [nameOf(row), row] as const));
+      let last: FigureRow | undefined;
+      const cells = labels.map((label) => {
+        const row = at.get(label);
+        if (row) last = row;
+        return row ?? (each.isRunning ? last : undefined);
+      });
+      return { name: each.name, values: cells.map((row) => row?.value), texts: cells.map((row) => row?.text ?? '') };
+    }),
+  };
+}
+
+/** One SVG `points` attribute per series on a shared scale; a missing value breaks nothing, it is skipped. */
+export function seriesLines(table: SeriesTable, width: number, height: number): string[] {
+  const top = Math.max(0, ...table.series.flatMap((each) => each.values.filter((v): v is number => v !== undefined)));
+  const n = table.labels.length;
+  const step = n > 1 ? width / (n - 1) : 0;
+  return table.series.map((each) => each.values
+    .map((v, i) => (v === undefined ? undefined : `${round(n > 1 ? i * step : width / 2)},${round(top > 0 ? height - (Math.max(v, 0) / top) * height : height)}`))
+    .filter((point) => point !== undefined)
+    .join(' '));
+}
+
+/** Bars of several series side by side per label, on a shared scale; series n takes colour n. */
+export function seriesBars(table: SeriesTable, width: number, height: number): Bar[] {
+  const n = table.labels.length;
+  if (n === 0 || table.series.length === 0) return [];
+  const top = Math.max(0, ...table.series.flatMap((each) => each.values.filter((v): v is number => v !== undefined)));
+  const slot = width / n;
+  const gap = slot * 0.2;
+  const bar = (slot - gap) / table.series.length;
+  return table.series.flatMap((each, s) => each.values.map((v, i) => {
+    const h = top > 0 && v !== undefined ? (Math.max(v, 0) / top) * height : 0;
+    return { key: `${s}|${i}`, x: i * slot + gap / 2 + s * bar, y: height - h, width: bar, height: h, series: seriesOf(s) };
+  }));
 }
 
 /** The total a NUMBER widget shows: the sum of its rows' values. */

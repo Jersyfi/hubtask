@@ -7,11 +7,13 @@
   // system's label colours by series (rule 15); the table's swatch says which row is which.
   //
   // Nothing is computed here but the layout: the rows are the server's, counted for this reader.
+  // A widget of two series - created beside resolved, and with running totals what is left - is
+  // handed over as one table of series, drawn as grouped bars or one line per series.
 
   import { ProgressBar, Table, VisuallyHidden, type Column } from '@hubtask/design-system/components';
 
   import {
-    barLayout, linePoints, matrixOf, percentOf, pieSlices, seriesOf, totalOf, type FigureRow,
+    barLayout, linePoints, matrixOf, percentOf, pieSlices, seriesBars, seriesLines, seriesOf, totalOf, type FigureRow, type SeriesTable,
   } from '../data/goals.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
@@ -19,12 +21,17 @@
     title: string;
     chart: 'NUMBER' | 'BAR' | 'PIE' | 'LINE' | 'TABLE' | 'MATRIX' | 'PROGRESS';
     rows: readonly FigureRow[];
+    /** Two series or more, aligned by period; drawn in place of `rows` where given. */
+    table?: SeriesTable;
   }
 
-  const { title, chart, rows }: Props = $props();
+  const { title, chart, rows, table }: Props = $props();
 
   const W = 400;
   const H = 160;
+  const multi = $derived(table !== undefined && (chart === 'BAR' || chart === 'LINE' || chart === 'TABLE'));
+  const multiBars = $derived(multi && table && chart === 'BAR' ? seriesBars(table, W, H) : []);
+  const multiLines = $derived(multi && table && chart === 'LINE' ? seriesLines(table, W, H) : []);
   const bars = $derived(chart === 'BAR' ? barLayout(rows, W, H) : []);
   const slices = $derived(chart === 'PIE' ? pieSlices(rows) : []);
   const line = $derived(chart === 'LINE' ? linePoints(rows, W, H) : '');
@@ -39,7 +46,40 @@
   const labelText = (row: FigureRow) => row.label === '' ? t('app.dashboards.no_value') : row.label;
 </script>
 
-{#if rows.length === 0}
+{#if multi && table}
+  {#if table.labels.length === 0}
+    <p class="quiet">{t('app.dashboards.no_rows')}</p>
+  {:else}
+    {@const multiSummary = t('app.dashboards.series_summary', { title, count: String(table.labels.length), series: table.series.map((each) => each.name).join(', ') })}
+    <div class="figure" data-chart={chart}>
+      {#if chart === 'BAR'}
+        <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={multiSummary}>
+          {#each multiBars as bar (bar.key)}<rect x={bar.x} y={bar.y} width={bar.width} height={bar.height} data-series={bar.series} />{/each}
+        </svg>
+      {:else if chart === 'LINE'}
+        <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={multiSummary}>
+          {#each multiLines as points, s (s)}<polyline {points} data-series={seriesOf(s)} />{/each}
+        </svg>
+      {/if}
+      <div class="scroll table" class:only={chart === 'TABLE'}>
+        <table class="matrix">
+          <caption><VisuallyHidden>{title}</VisuallyHidden></caption>
+          <thead>
+            <tr>
+              <th scope="col">{t('app.dashboards.col_period')}</th>
+              {#each table.series as each, s (s)}<th scope="col" class="value"><span class="swatch" data-series={seriesOf(s)} aria-hidden="true"></span>{each.name}</th>{/each}
+            </tr>
+          </thead>
+          <tbody>
+            {#each table.labels as label, i (label)}
+              <tr><th scope="row">{label || t('app.dashboards.no_value')}</th>{#each table.series as each, s (s)}<td class="cell">{each.texts[i]}</td>{/each}</tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {/if}
+{:else if rows.length === 0}
   <p class="quiet">{t('app.dashboards.no_rows')}</p>
 {:else}
   <div class="figure" data-chart={chart}>

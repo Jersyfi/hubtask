@@ -12,6 +12,9 @@
   // **No figure is stored or computed here** (check 2): the figures are read again after a save,
   // and a widget's table is handed over as a CSV file of the rows it shows.
   //
+  // **Two series** (check 15): a widget may draw resolved beside created, each period as its
+  // running total, and with both what is left - every number the server's.
+  //
   // **By mail** (check 9): every reader may have the dashboard sent to them, daily or on one
   // weekday at an hour of their zone; the server computes the mail as them when it is sent.
 
@@ -25,7 +28,8 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    MAX_WIDGETS, csvOf, dashboardPath, digestPath, figureRows, figuresPath, goals, moved, nextBox, readingOrder, resized, widgetWrite,
+    MAX_WIDGETS, csvOf, dashboardPath, digestPath, figureRows, figuresPath, goals, leftRows, moved, nextBox, readingOrder, resized, runningRows,
+    seriesTable, widgetWrite, type FigureRow, type SeriesTable,
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
   import { views } from '../lib/data/views.svelte.ts';
@@ -203,18 +207,46 @@
   // --- Figures ----------------------------------------------------------------------------------
 
   const figureOf = (id: string | undefined) => (id ? figures?.widgets.find((each) => each.id === id) : undefined);
-  function exportWidget(title: string, id: string | undefined, asSheet = false) {
-    const rows = figureRows(figureOf(id)?.data ?? []);
-    const heads = [t('app.dashboards.col_group'), t('app.dashboards.col_period'), t('app.dashboards.col_value')];
+  /** A widget's own rows, as running totals where it is cumulative. */
+  function rowsOf(widget: DashboardWidgetWrite): FigureRow[] {
+    const rows = figureRows(figureOf(widget.id)?.data ?? []);
+    return widget.cumulative ? runningRows(rows) : rows;
+  }
+  /** A widget with a second series as one table: its own, the second, and with running totals what is left. */
+  function tableOf(widget: DashboardWidgetWrite): SeriesTable | undefined {
+    const figure = figureOf(widget.id);
+    if (!widget.compare || !figure) return undefined;
+    const running = widget.cumulative === true;
+    const second = figureRows(figure.compare?.data ?? []);
+    return seriesTable([
+      { name: widget.compare.first_title, rows: rowsOf(widget), isRunning: running },
+      ...(figure.compare?.error ? [] : [{ name: widget.compare.title, rows: running ? runningRows(second) : second, isRunning: running }]),
+      ...(figure.remaining ? [{ name: t('app.dashboards.series_left'), rows: leftRows(figure.remaining) }] : []),
+    ]);
+  }
+  function exportWidget(widget: DashboardWidgetWrite, asSheet = false) {
+    const title = widget.title;
+    const table = tableOf(widget);
+    if (table) {
+      exportTable(title, [t('app.dashboards.col_period'), ...table.series.map((each) => each.name)],
+        table.labels.map((label, i) => [label, ...table.series.map((each) => ({ text: each.texts[i] ?? '', value: each.values[i] }))]), asSheet);
+      return;
+    }
+    const rows = rowsOf(widget);
+    exportTable(title, [t('app.dashboards.col_group'), t('app.dashboards.col_period'), t('app.dashboards.col_value')],
+      rows.map((row) => [row.label, row.column ?? '', { text: row.text, value: row.value }]), asSheet);
+  }
+  type Cell = string | { text: string; value: number | undefined };
+  function exportTable(title: string, heads: string[], lines: Cell[][], asSheet: boolean) {
     const name = title.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 60) || 'widget';
     if (asSheet) {
       // A number stays a number in a sheet, so the value is the row's own, not its text.
-      const sheet = xlsxOf('Widget', heads, rows.map((row) => [row.label, row.column ?? '', row.text === '' ? '' : row.value]));
+      const sheet = xlsxOf('Widget', heads, lines.map((line) => line.map((cell) => (typeof cell === 'string' ? cell : cell.text === '' || cell.value === undefined ? '' : cell.value))));
       platform.saveFile(new Blob([sheet as BlobPart], { type: SPREADSHEET_TYPE }), `${name}.xlsx`);
       toast.show({ text: t('app.dashboards.exported_sheet', { title }), tone: 'success' });
       return;
     }
-    const csv = csvOf(heads, rows.map((row) => [row.label, row.column ?? '', row.text]));
+    const csv = csvOf(heads, lines.map((line) => line.map((cell) => (typeof cell === 'string' ? cell : cell.text))));
     platform.saveFile(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${name}.csv`);
     toast.show({ text: t('app.dashboards.exported', { title }), tone: 'success' });
   }
@@ -276,8 +308,8 @@
             <header class="widget-head">
               <h2 class="heading">{each.widget.title}</h2>
               {#if !isEditing && figure && !figure.error}
-                <IconButton icon="file-text" size="sm" tone="subtle" label={t('app.dashboards.export', { title: each.widget.title })} onclick={() => exportWidget(each.widget.title, each.widget.id)} />
-                <IconButton icon="layout-template" size="sm" tone="subtle" label={t('app.dashboards.export_sheet', { title: each.widget.title })} onclick={() => exportWidget(each.widget.title, each.widget.id, true)} />
+                <IconButton icon="file-text" size="sm" tone="subtle" label={t('app.dashboards.export', { title: each.widget.title })} onclick={() => exportWidget(each.widget)} />
+                <IconButton icon="layout-template" size="sm" tone="subtle" label={t('app.dashboards.export_sheet', { title: each.widget.title })} onclick={() => exportWidget(each.widget, true)} />
               {/if}
             </header>
             {#if isEditing}
@@ -302,8 +334,9 @@
             {:else if figure.error}
               <p class="refused" role="status">{t(figure.error)}</p>
             {:else}
-              <WidgetChart title={each.widget.title} chart={each.widget.chart} rows={figureRows(figure.data)} />
-              {#if figure.truncated}<p class="quiet">{t('app.dashboards.truncated')}</p>{/if}
+              <WidgetChart title={each.widget.title} chart={each.widget.chart} rows={rowsOf(each.widget)} table={tableOf(each.widget)} />
+              {#if figure.compare?.error}<p class="refused" role="status">{t('app.dashboards.series_refused', { title: each.widget.compare?.title ?? '', reason: t(figure.compare.error) })}</p>{/if}
+              {#if figure.truncated || figure.compare?.truncated}<p class="quiet">{t('app.dashboards.truncated')}</p>{/if}
             {/if}
           </article>
         {/each}

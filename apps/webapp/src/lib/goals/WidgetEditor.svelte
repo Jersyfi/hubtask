@@ -14,9 +14,13 @@
   // recorded on them, or the pages of the spaces in scope. Each source offers only what the
   // grammar takes of it - links and pages are counted, time is summed by its minutes, and a page
   // is no entry, so its summary has no line and no collection for a scope.
+  //
+  // **A second series** (check 15) is the same summary cut by another stamp - resolved beside
+  // created -, optionally with a line of its own; a running total draws each period as the sum up
+  // to it, and with both the server answers what is left between them, a burndown.
 
   import { untrack } from 'svelte';
-  import { Button, CheckboxGroup, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Button, Checkbox, CheckboxGroup, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
   import type { DashboardWidgetWrite, Goal, SavedView } from '@hubtask/sync-engine';
 
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -57,7 +61,17 @@
   const kept = asked.filter;
 
   // svelte-ignore state_referenced_locally
+  const comparedAsked = (widget?.compare?.query ?? {}) as { filter?: unknown; include_archived?: boolean; aggregate?: Aggregate };
+  const comparedKept = comparedAsked.filter;
+
+  // svelte-ignore state_referenced_locally
   const draft = $state({
+    hasCompare: widget?.compare != null,
+    firstTitle: widget?.compare?.first_title ?? '',
+    secondTitle: widget?.compare?.title ?? '',
+    secondStamp: comparedAsked.aggregate?.bucket?.field ?? 'completed_at',
+    secondLine: '',
+    cumulative: widget?.cumulative === true,
     title: widget?.title ?? '',
     chart: (widget?.chart ?? 'BAR') as Chart,
     source: (widget?.source ?? 'QUERY') as Source,
@@ -120,6 +134,14 @@
     return first ? t(first.code, first.params) : undefined;
   });
 
+  const compiledSecond = $derived(compile(parse(draft.secondLine), context));
+  const secondLineError = $derived.by(() => {
+    if (compiledSecond.q && compiledSecond.q.trim() !== '') return t('app.dashboards.line_words');
+    const first = compiledSecond.problems[0];
+    return first ? t(first.code, first.params) : undefined;
+  });
+  const drawsSeries = $derived(draft.source !== 'GOALS' && (draft.chart === 'BAR' || draft.chart === 'LINE' || draft.chart === 'TABLE'));
+
   const problem = $derived.by(() => {
     if (draft.title.trim() === '') return t('app.dashboards.widget_title_needed');
     if (draft.chart === 'PROGRESS' && draft.source !== 'GOALS') return t('dashboards.chart_invalid');
@@ -128,6 +150,13 @@
     if (draft.source === 'QUERY') {
       if (lineError && draft.summarySource !== 'pages') return lineError;
       if (draft.fn !== 'COUNT' && draft.summarySource !== 'time' && draft.field.trim() === '') return t('app.dashboards.measure_needed');
+      if (drawsSeries && draft.cumulative && draft.period === '') return t('dashboards.cumulative_periods');
+      if (drawsSeries && draft.cumulative && draft.fn !== 'COUNT' && draft.fn !== 'SUM') return t('dashboards.cumulative_function');
+      if (drawsSeries && draft.hasCompare) {
+        if (draft.firstTitle.trim() === '' || draft.secondTitle.trim() === '') return t('app.dashboards.series_names_needed');
+        if (draft.period === '') return t('app.dashboards.series_period_needed');
+        if (secondLineError && draft.summarySource !== 'pages') return secondLineError;
+      }
     }
     return undefined;
   });
@@ -159,7 +188,26 @@
           : { ...(compiled.filter ? { filter: compiled.filter } : {}), ...(compiled.includeArchived ? { include_archived: true } : {}) }),
         aggregate,
       };
+      if (drawsSeries && draft.hasCompare && draft.period) {
+        write.compare = {
+          first_title: draft.firstTitle.trim(),
+          title: draft.secondTitle.trim(),
+          query: {
+            ...write.query,
+            ...(draft.summarySource === 'pages' ? {} : draft.secondLine.trim() === ''
+              ? comparedKept !== undefined
+                ? { filter: comparedKept, ...(comparedAsked.include_archived ? { include_archived: true } : {}) }
+                : {}
+              : { filter: compiledSecond.filter, ...(compiledSecond.includeArchived ? { include_archived: true } : {}) }),
+            aggregate: { ...aggregate, bucket: { field: draft.secondStamp, period: draft.period } },
+          },
+        };
+        if (draft.secondLine.trim() !== '' && !compiledSecond.filter) delete (write.compare.query as { filter?: unknown }).filter;
+      }
     }
+    // A saved view's second series is asked through the contract; the form keeps it as it was.
+    if (draft.source === 'VIEW' && widget?.compare && drawsSeries) write.compare = widget.compare;
+    if (drawsSeries && draft.cumulative) write.cumulative = true;
     onsave(write);
   }
 </script>
@@ -201,6 +249,24 @@
           options={stamps.map((field) => ({ value: field, label: field }))} />
       {/if}
     </Inline>
+  {/if}
+
+  {#if drawsSeries}
+    <Checkbox label={t('app.dashboards.cumulative')} hint={t('app.dashboards.cumulative_hint')} bind:checked={draft.cumulative} />
+    {#if draft.source === 'QUERY'}
+      <Checkbox label={t('app.dashboards.series_second')} hint={t('app.dashboards.series_second_hint')} bind:checked={draft.hasCompare} />
+      {#if draft.hasCompare}
+        <Inline gap="100" isWrapping>
+          <Input label={t('app.dashboards.series_first_name')} bind:value={draft.firstTitle} maxlength={200} />
+          <Input label={t('app.dashboards.series_second_name')} bind:value={draft.secondTitle} maxlength={200} />
+        </Inline>
+        <Select label={t('app.dashboards.series_second_stamp')} bind:value={draft.secondStamp}
+          options={stamps.map((field) => ({ value: field, label: field }))} />
+        {#if draft.summarySource !== 'pages'}
+          <Input label={t('app.dashboards.series_second_line')} hint={comparedKept !== undefined && draft.secondLine.trim() === '' ? t('app.dashboards.line_kept') : t('app.dashboards.series_second_line_hint')} bind:value={draft.secondLine} error={secondLineError} spellcheck={false} />
+        {/if}
+      {/if}
+    {/if}
   {/if}
 
   <Inline justify="end"><Button disabledReason={problem} onclick={save}>{t('app.goals.save')}</Button></Inline>

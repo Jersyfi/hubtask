@@ -8,7 +8,8 @@ import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 
 import {
   alignmentTree, barLayout, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
-  percentText, pieSlices, readingOrder, resized, seriesOf, totalOf, widgetWrite,
+  leftRows, percentText, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
+  widgetWrite,
 } from './goals.ts';
 
 const goal = (id: string, parent: string | null, progress: number | null = null): Goal => ({
@@ -101,11 +102,49 @@ test('a widget stays on the twelve-column grid', () => {
   assert.deepEqual(resized({ x: 8, y: 0, w: 4, h: 4 }, 4, -1), { x: 4, y: 0, w: 8, h: 3 });
   assert.deepEqual(nextBox([{ x: 0, y: 0, w: 6, h: 4 }, { x: 6, y: 2, w: 6, h: 4 }]), { x: 0, y: 6, w: 6, h: 4 });
   assert.deepEqual(readingOrder([{ x: 6, y: 0, w: 1, h: 1 }, { x: 0, y: 1, w: 1, h: 1 }, { x: 0, y: 0, w: 1, h: 1 }]).map((b) => `${b.x}${b.y}`), ['00', '60', '01']);
-  const widget: DashboardWidget = { id: 'w', title: 'Open', chart: 'NUMBER', source: 'VIEW', view_id: 'v', query: null, goal_ids: [], x: 0, y: 0, w: 3, h: 2 };
+  const widget: DashboardWidget = { id: 'w', title: 'Open', chart: 'NUMBER', source: 'VIEW', view_id: 'v', query: null, goal_ids: [], compare: null, cumulative: false, x: 0, y: 0, w: 3, h: 2 };
   assert.deepEqual(widgetWrite(widget), { id: 'w', title: 'Open', chart: 'NUMBER', source: 'VIEW', view_id: 'v', x: 0, y: 0, w: 3, h: 2 });
 });
 
 // UC-GOL-04 check 8: a widget's table is handed over as CSV, a formula never running.
 test('a table becomes CSV with formulas defused', () => {
   assert.equal(csvOf(['Group', 'Count'], [['=SUM(A1)', 2], ['a, b', 3]]), "Group,Count\r\n'=SUM(A1),2\r\n\"a, b\",3\r\n");
+});
+
+// UC-GOL-04 check 15: created beside resolved, each as its running total, and what is left.
+test('two series and what is left line up by period', () => {
+  const created = runningRows(figureRows([
+    { group: null, period: '2026-10-01', count: 5, value: null, running: '5' },
+    { group: null, period: '2026-10-03', count: 2, value: null, running: '7' },
+  ]));
+  const resolved = runningRows(figureRows([
+    { group: null, period: '2026-10-02', count: 1, value: null, running: '1' },
+    { group: null, period: '2026-10-03', count: 4, value: null, running: '5' },
+  ]));
+  const left = leftRows([{ group: null, period: '2026-10-01', value: '5' }, { group: null, period: '2026-10-02', value: '4' }, { group: null, period: '2026-10-03', value: '2' }]);
+  assert.deepEqual(created.map((row) => row.value), [5, 7]);
+  const table = seriesTable([{ name: 'Created', rows: created, isRunning: true }, { name: 'Resolved', rows: resolved, isRunning: true }, { name: 'Left', rows: left }]);
+  assert.deepEqual(table.labels, ['2026-10-01', '2026-10-02', '2026-10-03']);
+  assert.deepEqual(table.series[0]?.texts, ['5', '5', '7'], 'a running total carries over a day without a row');
+  assert.deepEqual(table.series[1]?.texts, ['', '1', '5']);
+  assert.deepEqual(table.series[2]?.values, [5, 4, 2]);
+  const lines = seriesLines(table, 100, 70);
+  assert.equal(lines.length, 3);
+  assert.equal(lines[1], '50,60 100,20');
+  const bars = seriesBars(table, 300, 70);
+  assert.equal(bars.length, 9);
+  assert.equal(bars[0]?.height, 50);
+  const plain = seriesTable([{ name: 'a', rows: figureRows([{ group: 'x', period: null, count: 1, value: null }]) }, { name: 'b', rows: [] }]);
+  assert.deepEqual(plain.series[1]?.texts, ['']);
+});
+
+test('a widget keeps its second series and running total when written back', () => {
+  const widget = {
+    id: 'w', title: 'Flow', chart: 'LINE', source: 'QUERY', view_id: null, query: { aggregate: {} }, goal_ids: [],
+    compare: { first_title: 'Created', title: 'Resolved', query: { aggregate: {} } }, cumulative: true, x: 0, y: 0, w: 6, h: 4,
+  } as DashboardWidget;
+  const write = widgetWrite(widget);
+  assert.equal(write.cumulative, true);
+  assert.equal(write.compare?.title, 'Resolved');
+  assert.equal(widgetWrite({ ...widget, compare: null, cumulative: false }).compare, undefined);
 });
