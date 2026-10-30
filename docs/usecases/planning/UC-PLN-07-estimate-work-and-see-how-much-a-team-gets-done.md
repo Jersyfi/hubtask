@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/planning/Sprint_test.go, core/application/service/planning/Sprints_test.go, test/integration/sprint_repository_test.go, apps/webapp/src/lib/data/sprints.test.ts]
+checked_by: [core/domain/model/planning/Sprint_test.go, core/application/service/planning/Sprints_test.go, test/integration/sprint_repository_test.go, apps/webapp/src/lib/data/sprints.test.ts, apps/webapp/e2e/sprints.test.mjs]
 ---
 
 # Estimate work and see how much a team gets done

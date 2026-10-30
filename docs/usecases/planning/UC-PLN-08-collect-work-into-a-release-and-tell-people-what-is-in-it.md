@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-04, P-05, P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/planning/Release_test.go, core/application/service/planning/Releases_test.go, test/integration/release_repository_test.go, core/application/service/sync/InitialSyncReleases_test.go, apps/webapp/src/lib/data/releases.test.ts, apps/webapp/src/lib/data/replica.test.ts]
+checked_by: [core/domain/model/planning/Release_test.go, core/application/service/planning/Releases_test.go, test/integration/release_repository_test.go, core/application/service/sync/InitialSyncReleases_test.go, apps/webapp/src/lib/data/releases.test.ts, apps/webapp/src/lib/data/replica.test.ts, apps/webapp/e2e/sprints.test.mjs]
 ---
 
 # Collect work into a release and tell people what is in it
