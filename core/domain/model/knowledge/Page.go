@@ -63,13 +63,19 @@ type Page struct {
 	VerifiedUntil *time.Time
 	VerifiedAt    *time.Time
 	VerifiedBy    shared.ID
-	ArchivedAt    *time.Time
-	DeletedAt     *time.Time
-	CreatedBy     shared.ID
-	CreatedAt     time.Time
-	UpdatedBy     shared.ID
-	UpdatedAt     time.Time
-	Version       int
+	// Restricted marks a page that names who of its hub's readers may read it (Readers); the
+	// people are kept beside the page.
+	Restricted bool
+	// DailyFor is the day a daily note of a personal space is for (UC-DOC-07); nil for any other
+	// page.
+	DailyFor   *time.Time
+	ArchivedAt *time.Time
+	DeletedAt  *time.Time
+	CreatedBy  shared.ID
+	CreatedAt  time.Time
+	UpdatedBy  shared.ID
+	UpdatedAt  time.Time
+	Version    int
 }
 
 // IsArchived reports whether the page is archived: hidden from the tree's default and from search,
