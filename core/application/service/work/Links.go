@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
@@ -180,9 +181,14 @@ func anchorOrNil(anchor string) any {
 
 // LinkOutput is a link as one of its ends reads it (schema EntryLink).
 func LinkOutput(link domain.EntryLink) usecase.Output {
+	kind := link.Timing.Kind
+	if kind == "" {
+		kind = planning.FinishToStart
+	}
 	return usecase.Output{
 		"id": link.ID.String(), "type": link.Type, "source_id": link.SourceID.String(),
 		"target_id": link.TargetID.String(), "created_at": link.CreatedAt,
+		"dependency_kind": string(kind), "lag_days": link.Timing.LagDays,
 	}
 }
 
