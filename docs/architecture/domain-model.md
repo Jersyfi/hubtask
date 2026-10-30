@@ -703,6 +703,20 @@ deadline and a change's effectiveness check.
   come. It keeps a copy of the calendar it was armed on, so a calendar changed later moves no
   clock already running. Durable: a row in `durable_timer`, fired by the `timer.fire` job of its
   tenant, never a sleeping process.
+* **`Calendar`** (`core/domain/model/servicedesk`, UC-SVC-01): a workspace's business calendar
+  under a key (`business_calendar`). A calendar an SLA policy names cannot be deleted.
+* **`SlaPolicy`** (UC-SVC-02): the entry types it measures, a `FIRST_RESPONSE` and a `RESOLUTION`
+  goal - a target in working minutes, narrower per option of a priority field, the workflow
+  statuses it stands still in, the share at which it is at risk -, a calendar by key or none
+  (around the clock), a position and a switch. An entry is measured by the first enabled policy by
+  position that covers its type, armed when it appears or takes the type (the `SlaClocks` outbox
+  subscriber, counted at the event's moment): one `SLA` timer per goal and one for its warning
+  share. A comment by somebody other than who raised the entry meets the first response, the
+  completion every goal; the trash stands them still. **`EntrySla`** (`entry_sla`) is what became
+  of each goal - target, standing (`RUNNING`, `PAUSED`, `MET`, `BREACHED`), due, at risk, met,
+  breached -, the record the archive carries and a report counts; the timer is only its clock. A
+  warning timer running out announces `item.sla_at_risk`, the goal's `item.sla_breached`, once each;
+  an escalation is a rule on them.
 
 ---
 
