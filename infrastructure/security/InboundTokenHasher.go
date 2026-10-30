@@ -74,3 +74,15 @@ func NewSetupCodeHasher(installationSecret secret.Secret) InboundTokenHasher {
 	mac.Write([]byte(setupCodePepperInfo))
 	return InboundTokenHasher{pepper: mac.Sum(nil)}
 }
+
+// pageLinkPepperInfo separates a page's public link tokens from every other secret the
+// installation key protects.
+const pageLinkPepperInfo = "hubtask/page-public-link/v1"
+
+// NewPageLinkHasher is the same construction under the public page link's own purpose label: a
+// 256-bit token, looked up on every opening, so a keyed hash and no slow one.
+func NewPageLinkHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(pageLinkPepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}

@@ -305,3 +305,22 @@ RETURNING hub_id;
 SELECT id FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND daily_for = sqlc.arg('day')
   AND deleted_at IS NULL;
+
+-- name: PutPagePublicLink :exec
+-- One link per page: a new token replaces the old, which stops answering.
+INSERT INTO page_public_link (tenant_id, page_id, token_hash, created_by, created_at)
+VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('token_hash'), sqlc.arg('created_by'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at;
+
+-- name: FindPagePublicLink :one
+SELECT page_id, created_by, created_at FROM page_public_link
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
+
+-- name: FindPagePublicLinkByHash :one
+-- The unauthenticated route's lookup: bounded to the token's tenant by row level security.
+SELECT page_id, created_by, created_at FROM page_public_link
+WHERE token_hash = sqlc.arg('token_hash');
+
+-- name: DeletePagePublicLink :execrows
+DELETE FROM page_public_link WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');

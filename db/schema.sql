@@ -1709,6 +1709,22 @@ CREATE TABLE personal_space (
 );
 GRANT SELECT, INSERT, UPDATE, DELETE ON personal_space TO hubtask_app;
 
+-- Migration 0262: a page opened read-only by a link (UC-DOC-08); only the token's hash is kept.
+CREATE TABLE page_public_link (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  token_hash bytea NOT NULL,
+  created_by uuid NOT NULL,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id),
+  CONSTRAINT page_public_link_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_public_link_created_by_fkey FOREIGN KEY (tenant_id, created_by)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX page_public_link_token_uq ON page_public_link (token_hash);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_public_link TO hubtask_app;
+
 CREATE OR REPLACE FUNCTION page_reference_of_body() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -3641,7 +3657,8 @@ BEGIN
     'config_sandbox',
     'work_item_announcement','work_item_flow','work_item_retention','durable_timer',
     'realtime_document','realtime_update','realtime_snapshot',
-    'page','page_version','page_comment','page_reference','page_restriction','page_share','personal_space'
+    'page','page_version','page_comment','page_reference','page_restriction','page_share','personal_space',
+    'page_public_link'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

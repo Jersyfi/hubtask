@@ -2024,6 +2024,14 @@ type PageComment struct {
 	Version    int32
 }
 
+type PagePublicLink struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	TokenHash []byte
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type PageReference struct {
 	TenantID   pgtype.UUID
 	PageID     pgtype.UUID

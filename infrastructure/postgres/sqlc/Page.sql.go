@@ -48,6 +48,18 @@ func (q *Queries) CountHubPages(ctx context.Context, hubID pgtype.UUID) (int64, 
 	return count, err
 }
 
+const deletePagePublicLink = `-- name: DeletePagePublicLink :execrows
+DELETE FROM page_public_link WHERE tenant_id = current_tenant_id() AND page_id = $1
+`
+
+func (q *Queries) DeletePagePublicLink(ctx context.Context, pageID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePagePublicLink, pageID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deletePageShare = `-- name: DeletePageShare :execrows
 DELETE FROM page_share
 WHERE tenant_id = current_tenant_id() AND page_id = $1 AND account_id = $2
@@ -261,6 +273,43 @@ func (q *Queries) FindPageForUpdate(ctx context.Context, id pgtype.UUID) (FindPa
 		&i.Restricted,
 		&i.DailyFor,
 	)
+	return i, err
+}
+
+const findPagePublicLink = `-- name: FindPagePublicLink :one
+SELECT page_id, created_by, created_at FROM page_public_link
+WHERE tenant_id = current_tenant_id() AND page_id = $1
+`
+
+type FindPagePublicLinkRow struct {
+	PageID    pgtype.UUID
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) FindPagePublicLink(ctx context.Context, pageID pgtype.UUID) (FindPagePublicLinkRow, error) {
+	row := q.db.QueryRow(ctx, findPagePublicLink, pageID)
+	var i FindPagePublicLinkRow
+	err := row.Scan(&i.PageID, &i.CreatedBy, &i.CreatedAt)
+	return i, err
+}
+
+const findPagePublicLinkByHash = `-- name: FindPagePublicLinkByHash :one
+SELECT page_id, created_by, created_at FROM page_public_link
+WHERE token_hash = $1
+`
+
+type FindPagePublicLinkByHashRow struct {
+	PageID    pgtype.UUID
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+// The unauthenticated route's lookup: bounded to the token's tenant by row level security.
+func (q *Queries) FindPagePublicLinkByHash(ctx context.Context, tokenHash []byte) (FindPagePublicLinkByHashRow, error) {
+	row := q.db.QueryRow(ctx, findPagePublicLinkByHash, tokenHash)
+	var i FindPagePublicLinkByHashRow
+	err := row.Scan(&i.PageID, &i.CreatedBy, &i.CreatedAt)
 	return i, err
 }
 
@@ -1271,6 +1320,31 @@ func (q *Queries) PagesSharedWith(ctx context.Context, arg PagesSharedWithParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const putPagePublicLink = `-- name: PutPagePublicLink :exec
+INSERT INTO page_public_link (tenant_id, page_id, token_hash, created_by, created_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4)
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+`
+
+type PutPagePublicLinkParams struct {
+	PageID    pgtype.UUID
+	TokenHash []byte
+	CreatedBy pgtype.UUID
+	At        pgtype.Timestamptz
+}
+
+// One link per page: a new token replaces the old, which stops answering.
+func (q *Queries) PutPagePublicLink(ctx context.Context, arg PutPagePublicLinkParams) error {
+	_, err := q.db.Exec(ctx, putPagePublicLink,
+		arg.PageID,
+		arg.TokenHash,
+		arg.CreatedBy,
+		arg.At,
+	)
+	return err
 }
 
 const restorePageSubtree = `-- name: RestorePageSubtree :execrows
