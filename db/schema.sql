@@ -476,8 +476,15 @@ CREATE TABLE session (
   -- Which provider opened it, for a session opened through one (migration 0111): named in the
   -- session list. No foreign key - a removed provider is no reason to touch the sessions it opened.
   signed_in_provider_id uuid,
+  -- *View as* (UC-ID-29, migration 0258): the person this session shows the app as, and until when.
+  -- NULL is "not viewing as anybody"; one deleted while being viewed ends the view.
+  viewing_as       uuid,
+  viewing_as_until timestamptz,
   CONSTRAINT session_account_fkey FOREIGN KEY (tenant_id, account_id)
-    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT session_viewing_as_fkey FOREIGN KEY (tenant_id, viewing_as)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (viewing_as),
+  CONSTRAINT session_viewing_as_check CHECK ((viewing_as IS NULL) OR (viewing_as_until IS NOT NULL))
 );
 CREATE INDEX session_grant_idx ON session (grant_id) WHERE grant_id IS NOT NULL;
 CREATE UNIQUE INDEX session_tenant_id_uq ON session (tenant_id, id);
