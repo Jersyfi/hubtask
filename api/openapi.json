@@ -13809,6 +13809,9 @@
           "auth"
         ],
         "operationId": "createAccessToken",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-shown-once": "token",
+        "x-hubtask-rest-location": "/auth/tokens/{id}",
         "summary": "Mint a personal access token",
         "description": "Answers the credential, in clear, for the only time. What is stored is its hash keyed on the installation secret under its own purpose label, so a hash from here can never be replayed as a signed cursor or a calendar feed token, and nothing can turn the stored value back into the token.\nThe expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.\nThe scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.\nAsking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.\nA token for a service account is held to the role ceiling: an owner mints one for any service account, an administrator only for one whose roles are all at or below their own - otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.\n",
         "parameters": [
@@ -16054,6 +16057,11 @@
           "admin"
         ],
         "operationId": "withdrawInstanceIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "identityProviderResponse",
+        "x-hubtask-rest-path": {
+          "providerId": "id"
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -16971,6 +16979,11 @@
           "auth"
         ],
         "operationId": "offerIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "identityProviderResponse",
+        "x-hubtask-rest-path": {
+          "providerId": "id"
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -17685,6 +17698,8 @@
           "ai"
         ],
         "operationId": "configureAiProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "aiProviderResponse",
         "summary": "Configure the workspace's AI provider",
         "description": "Sets the provider whole - the kind, the endpoint, the models, the jurisdiction it operates in, the key, and whether AI processing is allowed here.\nA provider whose `jurisdiction` is `THIRD_COUNTRY` is refused unless the operator of this installation has confirmed third-country transfers (`HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER`). The confirmation is the installation's rather than the workspace's on purpose: it is the operator who signs the processing agreement and who owes the transfer impact assessment, and a workspace administrator cannot take that on for them. Refused as `403 forbidden`, detail code `ai.third_country_not_confirmed`.\nThe key is sealed on the way in and appears in no answer afterwards. Auditable - the entry names the provider, the jurisdiction and the models, and never the key.\n",
         "requestBody": {
@@ -18282,6 +18297,8 @@
           "privacy"
         ],
         "operationId": "createDataSubjectRequest",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "dataSubjectRequestResponse",
         "summary": "Record a right somebody has exercised",
         "description": "Opens the case with its statutory deadline - thirty days from receipt unless the caller\nnames a different one, because the period is a legal matter and an installation may have\nto answer sooner. Nothing is collected, exported or erased by this call: what happens next\nis the controller's decision, taken by moving the case to `IN_PROGRESS`.\n\n`RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:\na deadline somebody is answerable for is worth recording whether or not the work needs a special path.\n",
         "parameters": [
@@ -21916,6 +21933,7 @@
           "containers"
         ],
         "operationId": "changePreset",
+        "x-hubtask-rest": "generated",
         "summary": "Renames or changes a saved preset",
         "description": "Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.\n",
         "parameters": [

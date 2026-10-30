@@ -10,7 +10,6 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -25,46 +24,6 @@ const (
 	withdrawConsentUseCase          = "WithdrawConsent"
 	listConsentsUseCase             = "ListConsents"
 )
-
-// CreateDataSubjectRequest answers POST /privacy/requests.
-func (c *RestController) CreateDataSubjectRequest(
-	w http.ResponseWriter, r *http.Request, _ openapi.CreateDataSubjectRequestParams,
-) {
-	var body openapi.DataSubjectRequestCreate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"kind": string(body.Kind)}
-	if body.Scope != nil {
-		in["scope"] = string(*body.Scope)
-	}
-	if body.SubjectAccountId != nil {
-		in["subject_account_id"] = body.SubjectAccountId.String()
-	}
-	if body.SubjectEmail != nil {
-		in["subject_email"] = string(*body.SubjectEmail)
-	}
-	if body.ReceivedOn != nil {
-		in["received_on"] = body.ReceivedOn.String()
-	}
-	if body.DueAt != nil {
-		in["due_at"] = body.DueAt.UTC().Format(time.RFC3339Nano)
-	}
-	if body.TargetId != nil {
-		in["target_id"] = body.TargetId.String()
-	}
-	if body.Notes != nil {
-		in["notes"] = *body.Notes
-	}
-
-	out, ok := c.read(w, r, createDataSubjectRequestUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, dataSubjectRequestResponse(out))
-}
 
 // dataSubjectRequestResponse maps one case onto the contract's schema.
 func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {

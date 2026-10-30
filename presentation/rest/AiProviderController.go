@@ -4,63 +4,14 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 // The AI provider's configuration use cases.
-const (
-	configureAiProviderUseCase = "ConfigureAiProvider"
-)
-
-// ConfigureAiProvider answers PUT /ai-provider.
-func (c *RestController) ConfigureAiProvider(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.AiProviderConfiguration
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{
-		"kind":         string(body.Kind),
-		"jurisdiction": string(body.Jurisdiction),
-	}
-	if body.BaseUrl != nil {
-		in["base_url"] = *body.BaseUrl
-	}
-	if body.CompletionModel != nil {
-		in["completion_model"] = *body.CompletionModel
-	}
-	if body.EmbeddingModel != nil {
-		in["embedding_model"] = *body.EmbeddingModel
-	}
-	if body.ProcessingAllowed != nil {
-		in["processing_allowed"] = *body.ProcessingAllowed
-	}
-	// Absent keeps the stored key and present-but-empty clears it, which is the one field here
-	// where the difference is the whole meaning - so the pointer is read rather than dereferenced
-	// into a value that would lose it.
-	if body.ApiKey != nil {
-		in["api_key"] = *body.ApiKey
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), configureAiProviderUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, aiProviderResponse(out))
-}
+const ()
 
 // aiProviderResponse maps the use case's answer. The API key is not among the fields, because it
 // is not among the use case's either - there is no call that answers it.

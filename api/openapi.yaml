@@ -9124,6 +9124,9 @@ paths:
     post:
       tags: [auth]
       operationId: createAccessToken
+      x-hubtask-rest: generated
+      x-hubtask-rest-shown-once: token
+      x-hubtask-rest-location: /auth/tokens/{id}
       summary: Mint a personal access token
       description: >
         Answers the credential, in clear, for the only time. What is stored is its hash keyed on
@@ -10855,6 +10858,9 @@ paths:
     post:
       tags: [admin]
       operationId: withdrawInstanceIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: identityProviderResponse
+      x-hubtask-rest-path: { providerId: id }
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Announce the withdrawal of an offered provider, or withdraw it now
@@ -11668,6 +11674,9 @@ paths:
     post:
       tags: [auth]
       operationId: offerIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: identityProviderResponse
+      x-hubtask-rest-path: { providerId: id }
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Switch a provider on or off as a way in here
@@ -12302,6 +12311,8 @@ paths:
     put:
       tags: [ai]
       operationId: configureAiProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: aiProviderResponse
       summary: Configure the workspace's AI provider
       description: >
         Sets the provider whole - the kind, the endpoint, the models, the jurisdiction it operates
@@ -12766,6 +12777,8 @@ paths:
     post:
       tags: [privacy]
       operationId: createDataSubjectRequest
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: dataSubjectRequestResponse
       summary: Record a right somebody has exercised
       description: |
         Opens the case with its statutory deadline - thirty days from receipt unless the caller
@@ -15267,6 +15280,7 @@ paths:
     patch:
       tags: [containers]
       operationId: changePreset
+      x-hubtask-rest: generated
       summary: Renames or changes a saved preset
       description: >
         Renames a saved preset, copies a hub's or collection's structure in force into it again

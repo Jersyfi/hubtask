@@ -4,96 +4,18 @@
 package rest
 
 import (
-	"bytes"
-	"io"
 	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 // The relying party's configuration use cases.
 const (
-	offerIdentityProviderUseCase            = "OfferIdentityProvider"
-	countAccountsWithoutProviderUseCase     = "CountAccountsWithoutProvider"
-	withdrawInstanceIdentityProviderUseCase = "WithdrawInstanceIdentityProvider"
+	countAccountsWithoutProviderUseCase = "CountAccountsWithoutProvider"
 )
-
-// OfferIdentityProvider answers POST /identity-providers/{providerId}:offer.
-func (c *RestController) OfferIdentityProvider(
-	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
-	params openapi.OfferIdentityProviderParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.ProviderOffer
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), offerIdentityProviderUseCase, actorOf(r), usecase.Input{
-		"id":            providerID.String(),
-		"offered":       body.Offered,
-		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
-}
-
-// WithdrawInstanceIdentityProvider answers POST /admin/identity-providers/{providerId}:withdraw.
-//
-// The body is optional: none is the default notice. Read whole and decoded only when something
-// arrived, so an empty request is the fourteen days rather than a malformed one.
-func (c *RestController) WithdrawInstanceIdentityProvider(
-	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
-	params openapi.WithdrawInstanceIdentityProviderParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	raw, err := io.ReadAll(r.Body)
-	if err != nil {
-		WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.body_unreadable").WithCause(err), requestID)
-		return
-	}
-	var body openapi.ProviderWithdrawal
-	if len(bytes.TrimSpace(raw)) > 0 {
-		if err := decodeFrom(bytes.NewReader(raw), &body); err != nil {
-			WriteProblem(w, err, requestID)
-			return
-		}
-	}
-
-	in := usecase.Input{
-		"id":            providerID.String(),
-		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-	}
-	if body.WithdrawAt != nil {
-		in["withdraw_at"] = body.WithdrawAt.UTC().Format(time.RFC3339)
-	}
-	if body.ConfirmCount != nil {
-		in["confirm_count"] = *body.ConfirmCount
-	}
-	out, err := c.UseCases.Invoke(r.Context(), withdrawInstanceIdentityProviderUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
-}
 
 // identityProvidersResponse maps the collection.
 func identityProvidersResponse(out usecase.Output) []openapi.IdentityProvider {

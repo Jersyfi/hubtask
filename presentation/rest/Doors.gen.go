@@ -55,6 +55,7 @@ var restDoors = map[string]restDoor{
 	"changeLinkType":                    {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changePageComment":                 {UseCase: "ChangePageComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changePassword":                    {UseCase: "ChangePassword", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"changePreset":                      {UseCase: "ChangePreset", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeRole":                        {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkInGoal":                       {UseCase: "CheckInGoal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"confidence"}},
 	"checkMailbox":                      {UseCase: "CheckMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -73,6 +74,7 @@ var restDoors = map[string]restDoor{
 	"completeMailboxAuthorization":      {UseCase: "CompleteMailboxAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeProviderConnect":           {UseCase: "CompleteProviderConnect", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeWorkItem":                  {UseCase: "CompleteWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"configureAiProvider":               {UseCase: "ConfigureAiProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"configureAuditAnchoring":           {UseCase: "ConfigureAuditAnchoring", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"configureFirstIdentityProvider":    {UseCase: "ConfigureFirstIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"configureIdentityProvider":         {UseCase: "ConfigureIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
@@ -85,9 +87,11 @@ var restDoors = map[string]restDoor{
 	"copyTimesheetWeek":                 {UseCase: "CopyTimesheetWeek", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"correctTimeRecord":                 {UseCase: "CorrectTimeRecord", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
 	"countAccountsWithoutProvider":      {UseCase: "CountAccountsWithoutProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"createAccessToken":                 {UseCase: "CreateAccessToken", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/auth/tokens/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "token"},
 	"createBucket":                      {UseCase: "CreateBucket", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/buckets/{id}", NullClears: false, Integers: []string{"wip_limit"}},
 	"createCi":                          {UseCase: "CreateCi", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/cis/{id}", NullClears: false, Integers: []string(nil)},
 	"createDashboard":                   {UseCase: "CreateDashboard", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"createDataSubjectRequest":          {UseCase: "CreateDataSubjectRequest", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createEntryType":                   {UseCase: "CreateEntryType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"createGoal":                        {UseCase: "CreateGoal", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createGroup":                       {UseCase: "CreateGroup", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/groups/{id}", NullClears: false, Integers: []string(nil)},
@@ -319,6 +323,7 @@ var restDoors = map[string]restDoor{
 	"movePage":                          {UseCase: "MovePage", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"namePageVersion":                   {UseCase: "NamePageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"nameWhiteboardVersion":             {UseCase: "NameWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"offerIdentityProvider":             {UseCase: "OfferIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"openPrivateHub":                    {UseCase: "OpenPrivateHub", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"openTenantPassword":                {UseCase: "OpenTenantPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hours"}},
 	"planConfig":                        {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
@@ -553,6 +558,7 @@ var restDoors = map[string]restDoor{
 	"verifyPage":                        {UseCase: "VerifyPage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"withdrawConsent":                   {UseCase: "WithdrawConsent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"withdrawInstallationPreset":        {UseCase: "WithdrawInstallationPreset", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"withdrawInstanceIdentityProvider":  {UseCase: "WithdrawInstanceIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"confirm_count"}},
 	"withdrawPreset":                    {UseCase: "WithdrawPreset", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"withdrawTimesheet":                 {UseCase: "WithdrawTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"writeConfigSandbox":                {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -817,6 +823,13 @@ func (c *RestController) ChangePassword(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["changePassword"], usecase.Input{}, params, &body, nil)
 }
 
+// ChangePreset answers PATCH /presets/{presetId} by the generated mapping.
+func (c *RestController) ChangePreset(w http.ResponseWriter, r *http.Request, presetId openapi.PresetId, params openapi.ChangePresetParams) {
+	var body openapi.ChangePresetJSONRequestBody
+	var answer openapi.Preset
+	c.door(w, r, restDoors["changePreset"], usecase.Input{"preset_id": presetId.String()}, params, &body, &answer)
+}
+
 // ChangeRole answers PATCH /roles/{key} by the generated mapping.
 func (c *RestController) ChangeRole(w http.ResponseWriter, r *http.Request, key string, params openapi.ChangeRoleParams) {
 	var body openapi.ChangeRoleApplicationMergePatchPlusJSONRequestBody
@@ -925,6 +938,12 @@ func (c *RestController) CompleteWorkItem(w http.ResponseWriter, r *http.Request
 	c.door(w, r, restDoors["completeWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
 }
 
+// ConfigureAiProvider answers PUT /ai-provider by the generated mapping.
+func (c *RestController) ConfigureAiProvider(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ConfigureAiProviderJSONRequestBody
+	c.door(w, r, restDoors["configureAiProvider"], usecase.Input{}, nil, &body, answerBy(aiProviderResponse))
+}
+
 // ConfigureAuditAnchoring answers PUT /audit/anchoring by the generated mapping.
 func (c *RestController) ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request) {
 	var body openapi.ConfigureAuditAnchoringJSONRequestBody
@@ -999,6 +1018,13 @@ func (c *RestController) CountAccountsWithoutProvider(w http.ResponseWriter, r *
 	c.door(w, r, restDoors["countAccountsWithoutProvider"], usecase.Input{}, nil, nil, &answer)
 }
 
+// CreateAccessToken answers POST /auth/tokens by the generated mapping.
+func (c *RestController) CreateAccessToken(w http.ResponseWriter, r *http.Request, params openapi.CreateAccessTokenParams) {
+	var body openapi.CreateAccessTokenJSONRequestBody
+	var answer openapi.AccessTokenSecret
+	c.door(w, r, restDoors["createAccessToken"], usecase.Input{}, params, &body, &answer)
+}
+
 // CreateBucket answers POST /containers/{containerId}/buckets by the generated mapping.
 func (c *RestController) CreateBucket(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
 	var body openapi.CreateBucketJSONRequestBody
@@ -1017,6 +1043,12 @@ func (c *RestController) CreateDashboard(w http.ResponseWriter, r *http.Request)
 	var body openapi.CreateDashboardJSONRequestBody
 	var answer openapi.Dashboard
 	c.door(w, r, restDoors["createDashboard"], usecase.Input{}, nil, &body, &answer)
+}
+
+// CreateDataSubjectRequest answers POST /privacy/requests by the generated mapping.
+func (c *RestController) CreateDataSubjectRequest(w http.ResponseWriter, r *http.Request, params openapi.CreateDataSubjectRequestParams) {
+	var body openapi.CreateDataSubjectRequestJSONRequestBody
+	c.door(w, r, restDoors["createDataSubjectRequest"], usecase.Input{}, params, &body, answerBy(dataSubjectRequestResponse))
 }
 
 // CreateEntryType answers POST /entry-types by the generated mapping.
@@ -2330,6 +2362,12 @@ func (c *RestController) NameWhiteboardVersion(w http.ResponseWriter, r *http.Re
 	var body openapi.NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.PageVersionNamed
 	c.door(w, r, restDoors["nameWhiteboardVersion"], usecase.Input{"whiteboard_id": whiteboardId.String(), "seq": seq}, nil, &body, &answer)
+}
+
+// OfferIdentityProvider answers POST /identity-providers/{providerId}:offer by the generated mapping.
+func (c *RestController) OfferIdentityProvider(w http.ResponseWriter, r *http.Request, providerId openapi.ProviderId, params openapi.OfferIdentityProviderParams) {
+	var body openapi.OfferIdentityProviderJSONRequestBody
+	c.door(w, r, restDoors["offerIdentityProvider"], usecase.Input{"id": providerId.String()}, params, &body, answerBy(identityProviderResponse))
 }
 
 // OpenPrivateHub answers POST /private-hubs/{hubId}/accesses by the generated mapping.
@@ -3730,6 +3768,12 @@ func (c *RestController) WithdrawConsent(w http.ResponseWriter, r *http.Request)
 // WithdrawInstallationPreset answers DELETE /admin/presets/{presetId} by the generated mapping.
 func (c *RestController) WithdrawInstallationPreset(w http.ResponseWriter, r *http.Request, presetId openapi.PresetId, params openapi.WithdrawInstallationPresetParams) {
 	c.door(w, r, restDoors["withdrawInstallationPreset"], usecase.Input{"preset_id": presetId.String()}, params, nil, nil)
+}
+
+// WithdrawInstanceIdentityProvider answers POST /admin/identity-providers/{providerId}:withdraw by the generated mapping.
+func (c *RestController) WithdrawInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId openapi.ProviderId, params openapi.WithdrawInstanceIdentityProviderParams) {
+	var body openapi.WithdrawInstanceIdentityProviderJSONRequestBody
+	c.door(w, r, restDoors["withdrawInstanceIdentityProvider"], usecase.Input{"id": providerId.String()}, params, &body, answerBy(identityProviderResponse))
 }
 
 // WithdrawPreset answers DELETE /presets/{presetId} by the generated mapping.

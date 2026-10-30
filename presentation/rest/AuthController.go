@@ -4,10 +4,6 @@
 package rest
 
 import (
-	"net/http"
-	"time"
-
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -17,53 +13,7 @@ import (
 // does is map a request to an input and an answer to a document - and, once, carry a plaintext
 // from the mint to the response without letting it touch anything else on the way.
 
-const (
-	createAccessTokenUseCase = "CreateAccessToken"
-)
-
-// CreateAccessToken answers POST /auth/tokens.
-func (c *RestController) CreateAccessToken(
-	w http.ResponseWriter, r *http.Request, params openapi.CreateAccessTokenParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.AccessTokenCreate
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-
-		scopes := make([]any, 0, len(body.Scopes))
-		for _, scope := range body.Scopes {
-			scopes = append(scopes, scope)
-		}
-		return c.UseCases.Invoke(r.Context(), createAccessTokenUseCase, actor, usecase.Input{
-			"name":   body.Name,
-			"scopes": scopes,
-			// RFC 3339 is the one spelling the contract declares, and the generated type has
-			// already parsed it; formatting it back is what keeps the catalogue's input the same
-			// shape whichever channel filled it.
-			"expires_at":    body.ExpiresAt.Format(time.RFC3339),
-			"account_id":    optionalUUIDField(body.AccountId),
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(out usecase.Output) {
-		minted := openapi.AccessTokenSecret{
-			Id:         uuidValue(out.String("id")),
-			AccountId:  uuidValue(out.String("account_id")),
-			Name:       out.String("name"),
-			Scopes:     scopeList(out["scopes"]),
-			ExpiresAt:  timeValue(out["expires_at"]),
-			CreatedAt:  timeValue(out["created_at"]),
-			LastUsedAt: optionalTimeField(out["last_used_at"]),
-			RevokedAt:  optionalTimeField(out["revoked_at"]),
-			// The one response in the whole API that carries a credential. It is here and in no
-			// projection, which is what makes "shown once" a property of the code rather than a
-			// promise in the documentation.
-			Token: out.String("token"),
-		}
-		w.Header().Set("Location", APIBasePath+"/auth/tokens/"+minted.Id.String())
-		writeJSON(w, r, http.StatusCreated, minted)
-	})
-}
+const ()
 
 func accessTokenResponse(out usecase.Output) openapi.AccessToken {
 	return openapi.AccessToken{

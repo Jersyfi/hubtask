@@ -18,7 +18,6 @@ const (
 	setContainerStructureUseCase     = "SetContainerStructure"
 	previewContainerStructureUseCase = "PreviewContainerStructure"
 	setWorkspaceStructureUseCase     = "SetWorkspaceStructure"
-	changePresetUseCase              = "ChangePreset"
 )
 
 // SetContainerStructure answers PATCH /containers/{containerId}/structure.
@@ -209,43 +208,6 @@ func (c *RestController) SetWorkspaceStructure(
 	}
 	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, answer)
-}
-
-// ChangePreset answers PATCH /presets/{presetId}.
-func (c *RestController) ChangePreset(
-	w http.ResponseWriter, r *http.Request, presetID openapi.PresetId, params openapi.ChangePresetParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.PresetUpdate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{"preset_id": presetID.String(), "container_id": optionalUUIDField(body.ContainerId)}
-	if body.Name != nil {
-		in["name"] = *body.Name
-	}
-	if body.Settings != nil {
-		var settings map[string]any
-		if err := throughJSON(body.Settings, &settings); err != nil {
-			WriteProblem(w, err, requestID)
-			return
-		}
-		in["settings"] = settings
-	}
-	if version, ok := versionFromIfMatch(params.IfMatch); ok {
-		in["expected_version"] = version
-	}
-	out, err := c.UseCases.Invoke(r.Context(), changePresetUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writePreset(w, r, http.StatusOK, out)
 }
 
 func writePreset(w http.ResponseWriter, r *http.Request, status int, out usecase.Output) {
