@@ -784,6 +784,8 @@ func run() error {
 		importdomain.KindTrello:        importadapter.Trello{},
 		importdomain.KindGoogleTasks:   importadapter.GoogleTasks{},
 		importdomain.KindMicrosoftTodo: importadapter.MicrosoftTodo{},
+		importdomain.KindIssueTracker:  importadapter.IssueTracker{},
+		importdomain.KindWiki:          importadapter.Wiki{},
 	}
 	importKinds := make([]importdomain.Kind, 0, len(importConverters))
 	for kind := range importConverters {

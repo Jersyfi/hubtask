@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -22,8 +23,8 @@ const importsPath = "/imports"
 func importGroup() group {
 	return group{
 		name:    "import",
-		summary: "bring another system's entries in: a CSV, a Trello board, a Google Tasks export, a Microsoft To Do dump",
-		usage:   "<csv|trello|google-tasks|microsoft-todo> <file> --hub <id> [--collection <id>] [--map <field>=<column>]... [--wait <d>]",
+		summary: "bring another system's entries in: a CSV, a Trello board, a Google Tasks export, a Microsoft To Do dump, Jira projects, a Confluence space",
+		usage:   "<csv|trello|google-tasks|microsoft-todo|jira|confluence> <file> --hub <id> [--collection <id>] [--map <field>=<column>]... [--wait <d>]",
 		run:     importRun,
 		// The job is followed to its end: bounded by --wait rather than by the per-command
 		// deadline, which a file of a few thousand rows would outrun.
@@ -37,6 +38,8 @@ var importKinds = map[string]openapi.ImportKind{
 	"google-tasks":   openapi.ImportKindGOOGLETASKS,
 	"microsoft-todo": openapi.ImportKindMICROSOFTTODO,
 	"todo":           openapi.ImportKindMICROSOFTTODO,
+	"jira":           openapi.ImportKindJIRA,
+	"confluence":     openapi.ImportKindCONFLUENCE,
 }
 
 // graphRequests is what `hubctl import microsoft-todo` without a file prints: the two requests
@@ -119,7 +122,7 @@ func importRun(ctx context.Context, cli *CLI, args []string) error {
 	var staged openapi.MediaObject
 	if err := client.Post(ctx, mediaPath, openapi.MediaUploadRequest{
 		Size: int64(len(data)), Usage: openapi.MediaUploadRequestUsageIMPORT, FileName: &fileName,
-		ContentType: optional(importContentType(kind)),
+		ContentType: optional(importContentType(kind, data)),
 	}, &staged); err != nil {
 		return err
 	}
@@ -158,9 +161,14 @@ func importRun(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(run, importTable(run))
 }
 
-func importContentType(kind openapi.ImportKind) string {
+// importContentType is the claim the server holds against the bytes: a ZIP - a wiki's export,
+// or an issue tracker's answers with their attachments - says so by its first bytes.
+func importContentType(kind openapi.ImportKind, data []byte) string {
 	if kind == openapi.ImportKindCSV {
 		return "text/csv"
+	}
+	if bytes.HasPrefix(data, []byte("PK\x03\x04")) {
+		return "application/zip"
 	}
 	return "application/json"
 }
