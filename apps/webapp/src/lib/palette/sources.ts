@@ -208,6 +208,7 @@ export function placeOffers(reach: Reach, t: Translate): readonly Offer[] {
       isAdministrationReachable: reach.isAdministrationReachable,
       isInstanceReachable: reach.isInstanceReachable,
       isSingleWorkspace: reach.isSingleWorkspace,
+      modulesOn: reach.modulesOn,
     }).map(
       (destination): Offer => ({
         kind: 'place',

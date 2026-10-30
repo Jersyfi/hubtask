@@ -85,6 +85,8 @@ export const ROUTES: readonly Route[] = [
   // The workspace's entry types, where the workflows module is on (UC-FLW-01 check 1).
   { name: 'entry-types', pattern: '/administration/types', area: 'administration' },
   { name: 'link-types', pattern: '/administration/link-types', area: 'administration' },
+  // The time policy and the kinds of work, where the time module is on (UC-TIM-03 check 4).
+  { name: 'time-settings', pattern: '/administration/time', area: 'administration' },
   { name: 'cmdb', pattern: '/administration/configuration-items', area: 'administration' },
   { name: 'changes', pattern: '/administration/changes', area: 'administration' },
   // The workflow designer, where the workflows module is on (UC-FLW-02 check 2).
@@ -115,6 +117,9 @@ export const ROUTES: readonly Route[] = [
   // is the work rather than the administration of it. The workspace's own: drawn for somebody who
   // reads the workspace itself, and inside it each control only for the permission it needs.
   { name: 'jumble', pattern: '/jumble' },
+  // The reader's time (M7): their week, the weeks waiting for their decision, and the report, as
+  // tabs (`?tab=`). End-user: recording one's own time is the work, not its administration.
+  { name: 'time', pattern: '/time' },
   { name: 'trash', pattern: '/trash' },
   { name: 'archive', pattern: '/archive' },
   // The address the board's cards and the search results link to. An entry is
@@ -133,6 +138,9 @@ export const ROUTES: readonly Route[] = [
   { name: 'collection-plan', pattern: '/collections/:id/plan' },
   // A collection's sprints (M2): the sprints, the backlog, the burndown and the velocity.
   { name: 'collection-sprints', pattern: '/collections/:id/sprints' },
+  // A hub's or a collection's estimates against the time recorded (M7, UC-TIM-04 check 6).
+  { name: 'hub-actuals', pattern: '/hubs/:id/actuals' },
+  { name: 'collection-actuals', pattern: '/collections/:id/actuals' },
   // A hub's assets (M6) by section, and one configuration item, addressed by itself because an
   // impact, a duplicate or a health problem links it without its hub.
   { name: 'hub-assets', pattern: '/hubs/:id/assets' },

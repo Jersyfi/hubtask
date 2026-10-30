@@ -257,6 +257,7 @@
       // has been read, which is the third value every capability question here has.
       isInstanceReachable: manifest.isInstanceReachable,
       isSingleWorkspace: manifest.isSingleTenant,
+      modulesOn: manifest.value?.modules_on,
     }),
   );
   /** The bottom bar: the primary group and "You", the account group's head on a phone. */

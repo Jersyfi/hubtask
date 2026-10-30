@@ -65,6 +65,8 @@ export interface Destination {
   readonly routes: readonly string[];
   /** ADR-0032's area, where the row is one the mobile build treats differently. */
   readonly area?: Area;
+  /** The suite module whose screen this is: the row is drawn only where it is on (UC-INS-21). */
+  readonly module?: string;
 }
 
 export const DESTINATIONS: readonly Destination[] = [
@@ -88,6 +90,10 @@ export const DESTINATIONS: readonly Destination[] = [
   // is a way through rather than a notice, so the tour and the installation do not share the
   // outlined `info`: two rows of one menu would say the same thing with one mark.
   { id: 'profile', group: 'account', icon: 'user', code: 'app.nav.profile', target: { kind: 'route', path: '/profile' }, routes: ['profile', 'tokens'], area: 'profile' },
+  // The reader's own time (M7): their week, the weeks they decide and the report. The account's,
+  // behind the avatar, because it is about the reader rather than a place of the workspace; drawn
+  // only where the time module is on.
+  { id: 'time', group: 'account', icon: 'clock', code: 'app.nav.time', target: { kind: 'route', path: '/time' }, routes: ['time'], module: 'TIME' },
   { id: 'administration', group: 'account', icon: 'settings', code: 'app.nav.administration', target: { kind: 'route', path: '/administration' }, routes: ['administration'], area: 'administration' },
   // The level above the workspaces (ADR-0070 §5). Drawn only for an account in the operator
   // register, which the manifest answers — never compiled in, and **absent** rather than disabled
@@ -208,6 +214,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'workflows', icon: 'git-branch', code: 'app.workflow_designer.title', path: '/administration/workflows', routes: ['workflows'], module: 'WORKFLOWS' },
       // Links are the core's, not a module's (UC-PLN-01 check 5): the row is there in every workspace.
       { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'] },
+      { id: 'time-settings', icon: 'clock', code: 'app.time_settings.title', path: '/administration/time', routes: ['time-settings'], module: 'TIME' },
       { id: 'cmdb', icon: 'shield', code: 'app.cmdb_admin.title', path: '/administration/configuration-items', routes: ['cmdb'], module: 'ASSETS' },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
@@ -515,7 +522,10 @@ export function account(options: {
   readonly isInstanceReachable: boolean;
   /** A single-workspace installation, where the installation is the administration's last group. */
   readonly isSingleWorkspace?: boolean;
+  /** The modules switched on (`modules_on`); a row of a module that is off is not drawn. */
+  readonly modulesOn?: readonly string[];
 }): readonly Destination[] {
+  const on = options.modulesOn ?? [];
   const place = installationPlace({
     isInstanceReachable: options.isInstanceReachable,
     isAdministrationReachable: options.isAdministrationReachable,
@@ -523,6 +533,7 @@ export function account(options: {
   });
   return DESTINATIONS.filter((destination) => {
     if (destination.group !== 'account') return false;
+    if (destination.module && !on.includes(destination.module)) return false;
     if (destination.area === 'administration') return options.isAdministrationReachable;
     if (destination.area === 'instance') return place === 'menu';
     return true;

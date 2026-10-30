@@ -865,6 +865,10 @@
       actions.push({ label: t('app.planning.title'), icon: 'calendar', onclick: () => onnavigate(`${base}/plan`) });
       if (container.type !== 'HUB') actions.push({ label: t('app.sprints.title'), icon: 'repeat', onclick: () => onnavigate(`/collections/${id}/sprints`) });
     }
+    if (on.includes('TIME')) {
+      const base = container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`;
+      actions.push({ label: t('app.actuals.title'), icon: 'clock', onclick: () => onnavigate(`${base}/actuals`) });
+    }
     if (container.type !== 'HUB') return actions;
     if (on.includes('KNOWLEDGE')) actions.push({ label: t('app.pages.title'), icon: 'book-open', onclick: () => onnavigate(`/hubs/${id}/pages`) });
     if (on.includes('WHITEBOARD')) actions.push({ label: t('app.whiteboards.title'), icon: 'layout-template', onclick: () => onnavigate(`/hubs/${id}/whiteboards`) });

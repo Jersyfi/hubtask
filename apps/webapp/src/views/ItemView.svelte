@@ -94,6 +94,7 @@
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import LinksSection from '../lib/entries/LinksSection.svelte';
+  import EntryTimer from '../lib/time/EntryTimer.svelte';
   import StepControl from '../lib/entries/StepControl.svelte';
   import MentionDialog from '../lib/entries/MentionDialog.svelte';
   import { inserted } from '../lib/data/links.ts';
@@ -1345,6 +1346,10 @@
           </Stack></div>
         {/if}
 
+        <!-- The reader's timer on this entry, where the time module is on (UC-TIM-01 check 8). -->
+        {#if manifest.value?.modules_on?.includes('TIME')}
+          {#key item.id}<EntryTimer itemId={item.id} onnavigate={(path) => onnavigate?.(path)} />{/key}
+        {/if}
         <!-- The entry's status and the steps the reader may take (UC-FLW-03). -->
         {#key item.id}<StepControl {item} />{/key}
         <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so

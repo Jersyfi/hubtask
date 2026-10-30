@@ -77,6 +77,9 @@
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     PlanView: () => import('./views/PlanView.svelte'),
     SprintView: () => import('./views/SprintView.svelte'),
+    TimeView: () => import('./views/TimeView.svelte'),
+    ActualsView: () => import('./views/ActualsView.svelte'),
+    TimeSettingsView: () => import('./views/TimeSettingsView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
     ChangesView: () => import('./views/ChangesView.svelte'),
     WorkflowsView: () => import('./views/WorkflowsView.svelte'),
@@ -342,6 +345,8 @@
     <LazyView load={views.EntryTypesView} />
   {:else if route.name === 'link-types'}
     <LazyView load={views.LinkTypesView} />
+  {:else if route.name === 'time-settings'}
+    <LazyView load={views.TimeSettingsView} />
   {:else if route.name === 'cmdb'}
     <LazyView load={views.CmdbView} />
   {:else if route.name === 'changes'}
@@ -409,6 +414,12 @@
   {:else if route.name === 'hub-plan' || route.name === 'collection-plan'}
     {#key route.path}
       <LazyView load={views.PlanView} props={{ planId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'time'}
+    <LazyView load={views.TimeView} props={{ tab: route.query['tab'], week: route.query['week'], onnavigate: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'hub-actuals' || route.name === 'collection-actuals'}
+    {#key route.path}
+      <LazyView load={views.ActualsView} props={{ planId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'collection-sprints'}
     {#key route.path}
