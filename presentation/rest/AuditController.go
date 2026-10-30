@@ -4,13 +4,11 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -18,72 +16,23 @@ import (
 // application layer, and a refusal is recorded there - an adapter that narrowed the filter itself
 // would be an adapter deciding a permission (ADR-0005).
 
-const (
-	listAuditEntriesUseCase = "ListAuditEntries"
-	verifyAuditChainUseCase = "VerifyAuditChain"
-	exportAuditTrailUseCase = "ExportAuditTrail"
-)
 
-// ListAuditEntries answers GET /audit.
+// auditPageResponse draws GET /audit's page (x-hubtask-rest-list: whole).
 //
 // The page is spelled `items` and `next_cursor` here rather than the `data`/`page` shape every
-// other list uses, because that is what the contract declares for this path.
-// The catalogue answers the ordinary shape and this is the one place it is renamed; renaming it in
-// the contract instead would break whatever already reads it.
-func (c *RestController) ListAuditEntries(
-	w http.ResponseWriter, r *http.Request, params openapi.ListAuditEntriesParams,
-) {
-	in := usecase.Input{
-		"action":      optionalStringField(params.Action),
-		"actor_id":    optionalUUIDField(params.ActorId),
-		"target_type": optionalStringField(params.TargetType),
-		"target_id":   optionalUUIDField(params.TargetId),
-		"cursor":      optionalStringField(params.Cursor),
-		"size":        optionalIntField(params.Limit),
-	}
-	if params.From != nil {
-		in["from"] = params.From.UTC().Format(time.RFC3339Nano)
-	}
-	if params.To != nil {
-		in["to"] = params.To.UTC().Format(time.RFC3339Nano)
-	}
-	if params.Outcome != nil {
-		in["outcome"] = string(*params.Outcome)
-	}
-
-	out, ok := c.read(w, r, listAuditEntriesUseCase, in)
-	if !ok {
-		return
-	}
-
+// other list uses, because that is what the contract declares for this path. The catalogue
+// answers the ordinary shape and this is the one place it is renamed.
+func auditPageResponse(out usecase.Output) auditPage {
 	page := auditPage{Items: []openapi.AuditEntry{}}
 	for _, row := range rowsOf(out) {
 		page.Items = append(page.Items, auditEntryResponse(row))
 	}
 	page.NextCursor = pageResponse(out).NextCursor
-	writeJSON(w, r, http.StatusOK, page)
+	return page
 }
 
-// VerifyAuditChain answers POST /audit:verify.
-func (c *RestController) VerifyAuditChain(w http.ResponseWriter, r *http.Request) {
-	var body openapi.VerifyAuditChainJSONBody
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{
-		"from": body.From.UTC().Format(time.RFC3339Nano),
-		"to":   body.To.UTC().Format(time.RFC3339Nano),
-	}
-	if body.Anchors != nil {
-		in["anchors"] = *body.Anchors
-	}
-	out, ok := c.read(w, r, verifyAuditChainUseCase, in)
-	if !ok {
-		return
-	}
-
+// auditVerificationResponse draws POST /audit:verify's answer.
+func auditVerificationResponse(out usecase.Output) auditVerification {
 	answer := auditVerification{
 		Valid:    boolAt(out, "valid"),
 		Checked:  out.Int("checked"),
@@ -112,38 +61,7 @@ func (c *RestController) VerifyAuditChain(w http.ResponseWriter, r *http.Request
 	if code, ok := out["anchor_error_code"].(string); ok && code != "" {
 		answer.AnchorErrorCode = &code
 	}
-	writeJSON(w, r, http.StatusOK, answer)
-}
-
-// ExportAuditTrail answers POST /audit:export.
-//
-// A `202` with the job to poll. The archive lands at the backup target the caller named rather than
-// at a URL this server can hand back, so the reference carries no `result_url`: an export is at
-// somebody else's machine, which is where the caller asked for it.
-func (c *RestController) ExportAuditTrail(w http.ResponseWriter, r *http.Request) {
-	var body openapi.AuditExport
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{
-		"from":      body.From.UTC().Format(time.RFC3339Nano),
-		"to":        body.To.UTC().Format(time.RFC3339Nano),
-		"target_id": body.TargetId.String(),
-	}
-	if body.Format != nil {
-		in["format"] = string(*body.Format)
-	}
-
-	out, ok := c.read(w, r, exportAuditTrailUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusAccepted, openapi.JobRef{
-		JobId:  uuidValue(out.String("job_id")),
-		Status: openapi.JobStatusQUEUED,
-	})
+	return answer
 }
 
 // auditVerification is the answer of POST /audit:verify, which the contract declares inline. The

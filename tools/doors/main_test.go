@@ -233,3 +233,25 @@ func TestARequestInputIsOneARequestCarries(t *testing.T) {
 		}
 	}
 }
+
+// A cache mark is one the adapter honours, and a whole-answer mark needs the mapper that draws it.
+func TestACacheAndAWholeAnswerAreDeclaredMarks(t *testing.T) {
+	server := []byte("package openapi\ntype ChangeThingApplicationMergePatchPlusJSONRequestBody = ThingChange\ntype ServerInterface interface {\n\tChangeThing(w http.ResponseWriter, r *http.Request, thingId string)\n}\n")
+	for mark, fails := range map[string]bool{
+		"x-hubtask-rest-cache: no-store": false,
+		"x-hubtask-rest-cache: private":  true,
+		"x-hubtask-rest-list: whole":     true,
+		"x-hubtask-rest-list: whole\n      x-hubtask-rest-answer: thingResponse": false,
+	} {
+		marked := strings.Replace(contract, `      x-hubtask-cli: "thing set"`, `      x-hubtask-cli: "thing set"
+      x-hubtask-rest: generated
+      `+mark, 1)
+		doors, err := restTable([]byte(marked), server)
+		if (err != nil) != fails {
+			t.Fatalf("%s: %v", mark, err)
+		}
+		if !fails && strings.Contains(mark, "cache") && !doors[0].NoStore {
+			t.Errorf("%s: the door is %+v", mark, doors[0])
+		}
+	}
+}

@@ -4,11 +4,9 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -71,35 +69,6 @@ func passwordOpeningResponse(opening usecase.Output) *openapi.PasswordOpening {
 		Requester: opening.String("requester"),
 		Reason:    opening.String("reason"),
 	}
-}
-
-// UpdateTenantQuotas answers PATCH /admin/tenants/{tenantId}/quotas. The body is read as a raw
-// document rather than the generated struct: "absent", "null" and "0" are three different
-// instructions, and a Go pointer can only carry two of them.
-func (c *RestController) UpdateTenantQuotas(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body map[string]any
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), updateTenantQuotasUseCase, actorOf(r), usecase.Input{
-		"tenant_id": tenantID.String(),
-		"quotas":    body,
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, quotaStandingsResponse(out))
 }
 
 func quotaStandingsResponse(out usecase.Output) []openapi.QuotaStanding {

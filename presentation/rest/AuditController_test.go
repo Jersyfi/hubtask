@@ -157,7 +157,7 @@ func TestEveryFilterReachesTheCatalogue(t *testing.T) {
 	if registry.in["from"] != "2026-08-01T00:00:00Z" {
 		t.Errorf("the start of the period reached the catalogue as %v", registry.in["from"])
 	}
-	if registry.name != listAuditEntriesUseCase {
+	if registry.name != "ListAuditEntries" {
 		t.Errorf("the request ran %q", registry.name)
 	}
 }
@@ -222,7 +222,7 @@ func TestAnIntactChainAnswersWithExplicitNulls(t *testing.T) {
 			t.Errorf("the answer %s is missing %s", body, wanted)
 		}
 	}
-	if registry.in["from"] != "2026-08-01T00:00:00Z" || registry.name != verifyAuditChainUseCase {
+	if registry.in["from"] != "2026-08-01T00:00:00Z" || registry.name != "VerifyAuditChain" {
 		t.Errorf("the check ran %q with %v", registry.name, registry.in)
 	}
 }
@@ -280,7 +280,7 @@ func TestAnExportIsAcceptedAsAJob(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), `"job_id":"0192f000-0000-7000-8000-0000000000c1"`) {
 		t.Errorf("the job reference came back as %s", recorder.Body)
 	}
-	if registry.name != exportAuditTrailUseCase {
+	if registry.name != "ExportAuditTrail" {
 		t.Errorf("the request ran %q", registry.name)
 	}
 	for field, want := range map[string]any{

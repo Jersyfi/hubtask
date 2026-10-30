@@ -41,7 +41,10 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    the contract's names; a test holds each mapping's query, version and proof to the descriptor's
    declared input. An answer drawn by one of the adapter's shared mappers (an entry, by
    `workItemResponse`) names it with `x-hubtask-rest-answer`; for a bare-array or paged answer
-   the named mapper draws one row, so a mapper that draws the whole list keeps its handler. `x-hubtask-cli` names
+   the named mapper draws one row, and `x-hubtask-rest-list: whole` has it draw the whole answer
+   instead (a page with members beside its rows, a list spelled otherwise). `x-hubtask-rest-cache:
+   no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be
+   stored. `x-hubtask-cli` names
    the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`; a hand-written
    command of the same name is kept.
 2. **One major path:** `/api/v1`. Additive changes (new fields, new endpoints, new enum values in *responses*) are compatible and need no new version.

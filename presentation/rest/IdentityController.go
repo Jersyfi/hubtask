@@ -114,21 +114,9 @@ func notificationPreferenceResponse(out usecase.Output) openapi.NotificationPref
 	}
 }
 
-// ListMemberships answers GET /memberships.
-//
-// Through the shared read helper rather than the identity one: a list is mapped row by row from
-// the catalogue's page shape, which is what `rowsOf` and `pageResponse` exist for.
-func (c *RestController) ListMemberships(w http.ResponseWriter, r *http.Request, params openapi.ListMembershipsParams) {
-	out, ok := c.read(w, r, listMembershipsUseCase, usecase.Input{
-		"scope_type": string(params.ScopeType),
-		"scope_id":   optionalUUIDField(params.ScopeId),
-		"cursor":     optionalStringField(params.Cursor),
-		"size":       optionalIntField(params.Size),
-	})
-	if !ok {
-		return
-	}
-
+// membershipPageResponse draws GET /memberships' page, the roles the caller may grant beside its
+// rows (x-hubtask-rest-list: whole).
+func membershipPageResponse(out usecase.Output) openapi.MembershipPage {
 	page := openapi.MembershipPage{
 		Data: []openapi.Membership{}, Page: pageResponse(out), GrantableRoles: []openapi.MembershipRole{},
 	}
@@ -138,7 +126,7 @@ func (c *RestController) ListMemberships(w http.ResponseWriter, r *http.Request,
 	for _, row := range rowsOf(out) {
 		page.Data = append(page.Data, membershipResponse(row))
 	}
-	writeJSON(w, r, http.StatusOK, page)
+	return page
 }
 
 // versionFromIfMatch reads the version out of an entity tag.

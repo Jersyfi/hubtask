@@ -79,6 +79,12 @@ type RESTDoor struct {
 	// ReadOnly are the body's members the contract marks read-only: the answer's, sent back by a
 	// client that saves what it read, and never an input.
 	ReadOnly []string
+	// AnswerWhole says the named mapper draws the whole answer, a list or a page with members
+	// beside its rows included (`x-hubtask-rest-list: whole`).
+	AnswerWhole bool
+	// NoStore marks the answer `Cache-Control: no-store` (`x-hubtask-rest-cache: no-store`): a
+	// read sent as a POST whose answer is made of the caller's words.
+	NoStore bool
 }
 
 // requestInputs are the inputs a door can draw from the request rather than from its members.
@@ -102,6 +108,7 @@ type restOperation struct {
 	UseCase     string                       `yaml:"x-hubtask-rest-use-case"`
 	Request     []string                     `yaml:"x-hubtask-rest-request"`
 	Flatten     map[string]map[string]string `yaml:"x-hubtask-rest-flatten"`
+	Cache       string                       `yaml:"x-hubtask-rest-cache"`
 	Alternate   *struct {
 		When   string `yaml:"when"`
 		Answer string `yaml:"answer"`
@@ -182,6 +189,13 @@ func restDoor(
 		}
 	}
 	door.Request = op.Request
+	switch op.Cache {
+	case "":
+	case "no-store":
+		door.NoStore = true
+	default:
+		return door, fmt.Errorf("x-hubtask-rest-cache %q is not \"no-store\"", op.Cache)
+	}
 	if op.UseCase != "" {
 		// Two doors onto one use case - creating and replacing, told apart by an identifier.
 		door.UseCase = op.UseCase
@@ -291,12 +305,18 @@ func restDoor(
 		door.Empty = len(response.Content) == 0 && door.Status != 204
 		if content, ok := response.Content["application/json"]; ok {
 			answer := doc.composed(content.Schema)
-			door.AnswerRows = answer.Type == "array"
+			if op.List == "whole" {
+				if door.AnswerBy == "" {
+					return door, fmt.Errorf("x-hubtask-rest-list: whole needs x-hubtask-rest-answer")
+				}
+				door.AnswerWhole = true
+			}
+			door.AnswerRows = answer.Type == "array" && !door.AnswerWhole
 			_, paged := answer.Properties["page"]
-			if data, listed := answer.Properties["data"]; listed && data.Type == "array" && door.AnswerBy != "" {
+			if data, listed := answer.Properties["data"]; listed && data.Type == "array" && door.AnswerBy != "" && !door.AnswerWhole {
 				door.AnswerPage, door.AnswerData = paged, !paged && op.List == "data"
 			}
-			if op.List != "" && !door.AnswerData {
+			if op.List != "" && !door.AnswerData && !door.AnswerWhole {
 				return door, fmt.Errorf("x-hubtask-rest-list %q needs an answer listed under data, without a page, and its mapper", op.List)
 			}
 			if door.AnswerRows && door.AnswerBy == "" {
@@ -481,6 +501,9 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 				parts = append(parts, fmt.Sprintf("%q: {%s}", name, strings.Join(pairs, ", ")))
 			}
 			extra += ", Flatten: map[string]map[string]string{" + strings.Join(parts, ", ") + "}"
+		}
+		if d.NoStore {
+			extra += ", NoStore: true"
 		}
 		if d.AlternateWhen != "" {
 			extra += fmt.Sprintf(", AlternateWhen: %q, AlternateStatus: %d, AlternateBy: answerBy(%s)", d.AlternateWhen, d.AlternateStatus, d.AlternateBy)

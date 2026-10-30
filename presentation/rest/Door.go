@@ -74,6 +74,8 @@ type restDoor struct {
 	// ReadOnly are the body's read-only members: the answer's, sent back by a client that saves
 	// what it read, and dropped rather than refused as an input nobody declares.
 	ReadOnly []string
+	// NoStore marks the answer no-store: a read sent as a POST, made of the caller's words.
+	NoStore bool
 }
 
 // input is the name the use case reads a query parameter by.
@@ -186,6 +188,9 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 	if d.AlternateWhen != "" && out[d.AlternateWhen] == true {
 		writeJSON(w, r, d.AlternateStatus, d.AlternateBy(out))
 		return
+	}
+	if d.NoStore {
+		w.Header().Set("Cache-Control", "no-store")
 	}
 	if d.ShownOnce != "" && out.String(d.ShownOnce) != "" {
 		w.Header().Set("Cache-Control", "no-store")

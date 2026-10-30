@@ -8309,6 +8309,10 @@ paths:
     get:
       tags: [audit]
       operationId: listAuditEntries
+      x-hubtask-rest: generated
+      x-hubtask-rest-query: { limit: size }
+      x-hubtask-rest-list: whole
+      x-hubtask-rest-answer: auditPageResponse
       summary: Query audit entries
       description: |
         Requires the `audit:read` scope. Who sees what follows the audit trail's own rule rather
@@ -8350,6 +8354,8 @@ paths:
     post:
       tags: [audit]
       operationId: verifyAuditChain
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: auditVerificationResponse
       summary: Verify the integrity of the audit chain
       description: |
         Checks the hash chain and the absence of gaps over a period. Requires the `audit:read`
@@ -8477,6 +8483,8 @@ paths:
     post:
       tags: [audit]
       operationId: exportAuditTrail
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedJob
       summary: Export the audit trail over a period
       description: |
         Requires the `audit:export` scope and the right to the whole trail. The archive is
@@ -13073,6 +13081,10 @@ paths:
     patch:
       tags: [admin]
       operationId: updateTenantQuotas
+      x-hubtask-rest: generated
+      x-hubtask-rest-body: quotas
+      x-hubtask-rest-list: whole
+      x-hubtask-rest-answer: quotaStandingsResponse
       summary: Set a workspace's quotas
       description: >
         The operator's write: each provided key becomes the workspace's ceiling, an
@@ -14184,6 +14196,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: findDuplicatesByTitle
+      x-hubtask-rest: generated
+      x-hubtask-rest-cache: no-store
       summary: Which entries look like a title that is not an entry yet
       description: >
         Answers the entries whose meaning sits near the words of a title somebody is typing, before
@@ -15187,6 +15201,9 @@ paths:
     get:
       tags: [identity]
       operationId: listMemberships
+      x-hubtask-rest: generated
+      x-hubtask-rest-list: whole
+      x-hubtask-rest-answer: membershipPageResponse
       summary: Who holds a role at a scope
       description: |
         The memberships granted **at** the scope named — an account or a group, a role, an

@@ -13663,6 +13663,12 @@
           "audit"
         ],
         "operationId": "listAuditEntries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-query": {
+          "limit": "size"
+        },
+        "x-hubtask-rest-list": "whole",
+        "x-hubtask-rest-answer": "auditPageResponse",
         "summary": "Query audit entries",
         "description": "Requires the `audit:read` scope. Who sees what follows the audit trail's own rule rather\nthan the ordinary role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own\ntenant, and everybody else reads their own events - transparency towards the employee\nrather than a lesser administrator's view. A request that names somebody else's\n`actor_id` without the right to the whole trail is refused, and the refusal is itself an\nentry. Filtering by period, action, actor, target, and outcome; cursor pagination.\n\nA read that succeeds is not itself recorded. A trail that grew by being read would bury\nwhat it is for - the second page would contain the reading of the first - and reading is\nnot among the events that must be recorded. What is recorded is the refusal, and the export.\n",
         "parameters": [
@@ -13784,6 +13790,8 @@
           "audit"
         ],
         "operationId": "verifyAuditChain",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "auditVerificationResponse",
         "summary": "Verify the integrity of the audit chain",
         "description": "Checks the hash chain and the absence of gaps over a period. Requires the `audit:read`\nscope and the right to the whole trail: a chain checked over one actor's entries would be\na chain with every other entry missing, and would answer \"broken\" for a trail that is\nintact.\n\nA clean check records nothing. A break is recorded as a critical entry of its own,\nbecause an auditor reading the trail months later has to be able to see that somebody\nnoticed, and when.\n",
         "requestBody": {
@@ -13941,6 +13949,8 @@
           "audit"
         ],
         "operationId": "exportAuditTrail",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedJob",
         "summary": "Export the audit trail over a period",
         "description": "Requires the `audit:export` scope and the right to the whole trail. The archive is\nwritten to a backup target - JSON Lines or CSV, with a checksum manifest and the period\nit covers - because an export over four hundred days is not something a request can\nhold; this answers a `JobRef` and the work happens in the background.\n\nThe export produces an audit entry of its own. A copy of the evidence\nleaving the installation is itself an event an auditor asks about, and it is the first\n`audit.*` action the system records about itself.\n",
         "requestBody": {
@@ -19710,6 +19720,10 @@
           "admin"
         ],
         "operationId": "updateTenantQuotas",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-body": "quotas",
+        "x-hubtask-rest-list": "whole",
+        "x-hubtask-rest-answer": "quotaStandingsResponse",
         "summary": "Set a workspace's quotas",
         "description": "The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and \"who moved the wall\" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "requestBody": {
@@ -20962,6 +20976,8 @@
           "suggestions"
         ],
         "operationId": "findDuplicatesByTitle",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-cache": "no-store",
         "summary": "Which entries look like a title that is not an entry yet",
         "description": "Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating \"Book the tiler\" learns that \"Call the tiler about Thursday\" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.\nThe words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.\nThe nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.\n",
         "requestBody": {
@@ -22223,6 +22239,9 @@
           "identity"
         ],
         "operationId": "listMemberships",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-list": "whole",
+        "x-hubtask-rest-answer": "membershipPageResponse",
         "summary": "Who holds a role at a scope",
         "description": "The memberships granted **at** the scope named — an account or a group, a role, an\nidentifier — and none granted elsewhere. A membership applies downwards, so what is in\nforce at a collection is this list plus what its hub and the workspace grant; the client\ncomposes that path itself, because it knows the path it is on. An `effective` listing that\nwalked it server-side is deliberately not offered until a second caller wants one.\n\nA row carries an identifier and no label, for the reason every record that says *who*\ndoes: the name is one request away (`GET /accounts/{accountId}`, `GET /groups/{groupId}`).\n\nWho may read is `READ` at the scope: a member of a hub seeing who else is in it is what\nmakes a shared workspace legible, and what a name reveals is already kept minimal. A scope\nthe caller holds nothing on is not found, in the words a missing one produces. The workspace itself (`scope_type: TENANT`) is the one scope whose\nexistence is no secret, so a refusal there is a refusal.\n",
         "parameters": [
