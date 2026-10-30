@@ -771,6 +771,18 @@ func (q *Queries) ClearPageComment(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPagePublicLink = `-- name: ClearPagePublicLink :execrows
+DELETE FROM page_public_link
+`
+
+func (q *Queries) ClearPagePublicLink(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPagePublicLink)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPageRestriction = `-- name: ClearPageRestriction :execrows
 DELETE FROM page_restriction
 `
@@ -1987,6 +1999,19 @@ SELECT EXISTS (SELECT 1 FROM page_comment WHERE id = ($1::jsonb->>'id')::uuid) A
 
 func (q *Queries) HoldsPageComment(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPageComment, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPagePublicLink = `-- name: HoldsPagePublicLink :one
+SELECT EXISTS (
+  SELECT 1 FROM page_public_link WHERE page_id = ($1::jsonb->>'page_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPagePublicLink(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPagePublicLink, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4908,6 +4933,34 @@ type ImportPageCommentParams struct {
 
 func (q *Queries) ImportPageComment(ctx context.Context, arg ImportPageCommentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPageComment, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPagePublicLink = `-- name: ImportPagePublicLink :execrows
+INSERT INTO page_public_link (tenant_id, page_id, token_hash, created_by, created_at)
+SELECT r.tenant_id, r.page_id, r.token_hash, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::page_public_link,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE r.token_hash IS NOT NULL
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportPagePublicLinkParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// An export carries no token hash (tenant-export.md §9): such a link is skipped, and its page
+// is made a new link after the import.
+func (q *Queries) ImportPagePublicLink(ctx context.Context, arg ImportPagePublicLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPagePublicLink, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

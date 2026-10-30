@@ -2200,6 +2200,28 @@ SELECT EXISTS (
 -- name: ClearPersonalSpace :execrows
 DELETE FROM personal_space;
 
+-- name: ImportPagePublicLink :execrows
+-- An export carries no token hash (tenant-export.md §9): such a link is skipped, and its page
+-- is made a new link after the import.
+INSERT INTO page_public_link (tenant_id, page_id, token_hash, created_by, created_at)
+SELECT r.tenant_id, r.page_id, r.token_hash, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::page_public_link,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE r.token_hash IS NOT NULL
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPagePublicLink :one
+SELECT EXISTS (
+  SELECT 1 FROM page_public_link WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+) AS held;
+
+-- name: ClearPagePublicLink :execrows
+DELETE FROM page_public_link;
+
 -- name: ImportRealtimeDocument :execrows
 -- A live document's head, log and snapshots (migration 0230): written once each, so an overwrite
 -- has only the head's places to bring back.

@@ -109,6 +109,7 @@ var subjectColumns = map[string][]string{
 	"page_restriction": {"account_id", "granted_by"},
 	"page_share":       {"account_id", "granted_by"},
 	"personal_space":   {"account_id"},
+	"page_public_link": {"created_by"},
 	// The whiteboards they made or last drew on (M4).
 	"whiteboard":         {"created_by", "updated_by"},
 	"whiteboard_version": {"author_id"},

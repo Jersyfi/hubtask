@@ -857,6 +857,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"page_public_link": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPagePublicLinks(ctx, sqlc.ExportPagePublicLinksParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPagePublicLinksRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"personal_space": {
 		delta: false,
 		keys:  1,

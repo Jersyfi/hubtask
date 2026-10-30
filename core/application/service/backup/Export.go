@@ -149,6 +149,7 @@ var redactedFields = map[string][]string{
 	"automation_rule":      {"inbound_token_hash"},
 	"webhook_subscription": {"secret_enc", "secret_key_id", "previous_secret_enc", "previous_secret_key_id", "previous_secret_until"},
 	"calendar_feed":        {"token_hash"},
+	"page_public_link":     {"token_hash"},
 	"cmdb_connector":       {"credential_enc", "credential_key_id"},
 	// A passkey leaves as what the person sees of it - its name and dates - and never as a
 	// credential: without its identifier, key and handle it opens nothing, and an import skips it.

@@ -644,6 +644,14 @@ var entities = []Entity{
 			{Field: "hub_id", Table: "container"},
 		},
 	},
+	// A page's public link (migration 0262): its token's hash leaves in a backup only (§9).
+	{
+		Name: "page_public_links", Table: "page_public_link", Whole: true, Later: true, Keys: []string{"page_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "created_by", Table: "account"},
+		},
+	},
 	// The whiteboard module's boards (migration 0233, M4). Whole and unmarked, as a page is: a
 	// board leaves without a marker when its hub is purged. Its scene is JSON in the contract's
 	// shape; where it points is rebuilt by the trigger.

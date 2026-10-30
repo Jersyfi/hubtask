@@ -2941,6 +2941,51 @@ func (q *Queries) ExportPageComments(ctx context.Context, arg ExportPageComments
 	return items, nil
 }
 
+const exportPagePublicLinks = `-- name: ExportPagePublicLinks :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (l.page_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(l) - 'tenant_id')::jsonb AS payload,
+         l.page_id AS key_1
+  FROM page_public_link l
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPagePublicLinksParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPagePublicLinksRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPagePublicLinks(ctx context.Context, arg ExportPagePublicLinksParams) ([]ExportPagePublicLinksRow, error) {
+	rows, err := q.db.Query(ctx, exportPagePublicLinks, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPagePublicLinksRow{}
+	for rows.Next() {
+		var i ExportPagePublicLinksRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPageRestrictions = `-- name: ExportPageRestrictions :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

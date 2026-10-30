@@ -711,6 +711,17 @@ var importers = map[string]importer{
 			return queries.ClearPageShare(ctx)
 		},
 	},
+	"page_public_link": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportPagePublicLink(ctx, sqlc.ImportPagePublicLinkParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPagePublicLink(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPagePublicLink(ctx)
+		},
+	},
 	"personal_space": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportPersonalSpace(ctx, sqlc.ImportPersonalSpaceParams{Payload: payload, Overwrite: overwrite})

@@ -221,6 +221,7 @@ re-mints identities must rewrite exactly these).
 | 103 | `page_restrictions` | `page_restriction` | `page_id/account_id` | `page_id`→pages, `account_id`→accounts, `granted_by`→accounts (cleared when absent) (the people a restricted page names, migration 0261; `page.restricted` says a page is restricted, so a restriction whose people are gone stays closed) |
 | 104 | `page_shares` | `page_share` | `page_id/account_id` | `page_id`→pages, `account_id`→accounts, `granted_by`→accounts (cleared when absent) (a page shared read-only with one person beside its hub, UC-DOC-08) |
 | 105 | `personal_spaces` | `personal_space` | `account_id` | `account_id`→accounts, `hub_id`→containers (the private hub that is a person's own notes, UC-DOC-07) |
+| 106 | `page_public_links` | `page_public_link` | `page_id` | `page_id`→pages, `created_by`→accounts (a page opened read-only by a link, UC-DOC-08; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
@@ -316,6 +317,7 @@ is absent from the record, not null. The redacted fields, exhaustively:
 | `automation_rules` | `inbound_token_hash` |
 | `webhook_subscriptions` | `secret_enc`, `secret_key_id`, `previous_secret_enc`, `previous_secret_key_id`, `previous_secret_until` — a chat room's Matrix token or incoming webhook address is its `secret_enc` ([automation.md](./automation.md) §3.4), so a room leaves by its format, server, room and language alone |
 | `calendar_feeds` | `token_hash` |
+| `page_public_links` | `token_hash` |
 | `cmdb_connectors` | `credential_enc`, `credential_key_id` |
 | `webauthn_credentials` | `credential_id`, `public_key`, `user_handle` — the passkey leaves by name and dates, and an import skips it ([identity.md](./identity.md) §23.5) |
 
