@@ -124,7 +124,8 @@ function n8nQuery(parameter) {
   const type = schema.enum ? 'options' : (N8N_TYPE[schema.type] ?? 'string');
   const property = {
     displayName: words(parameter.name),
-    name: parameter.name,
+    // n8n names a property by an identifier; OData's `$top` is sent as itself all the same.
+    name: parameter.name.replace(/\W/g, ''),
     type,
     default: type === 'boolean' ? false : type === 'number' ? 0 : type === 'options' ? schema.enum[0] : '',
     description: firstSentence(parameter.description),

@@ -44,6 +44,13 @@ test('every operation of the contract is an operation of the node, under its tag
   assert.equal(contract.tags.length, description.properties[0].options.length);
 });
 
+test('a query parameter that is no identifier is sent under its own name', () => {
+  const { description } = generate({ document, events });
+  const options = description.properties.find((p) => p.name === 'options' && p.displayOptions.show.operation?.includes('getDataFeedEntries'));
+  const top = options.options.find((option) => option.routing.send.property === '$top');
+  assert.equal(top.name, 'top');
+});
+
 test('a path parameter is a required property under its operation, and the url names it', () => {
   const { description } = generate({ document, events });
   const operation = description.properties.find((p) => p.name === 'operation' && p.displayOptions.show.resource[0] === 'items');
