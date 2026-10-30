@@ -371,7 +371,13 @@ Every preset is a template of its structure part, read through `ListPresets` so 
 the presets are: Hubtask's four by key (`list@1` … `flow@1`, origin `HUBTASK`), the installation's,
 the workspace's and a person's own by identifier (`installation_<id>`, `preset_<id>`, `own_<id>` at
 the preset's version); a workspace template may not take one of those keys
-(`config.template_key_shipped`). The four tables are in the workspace
+(`config.template_key_shipped`). A **hub template** carries a hub part beside the workspace's
+(`config_template.hub_document`, migration 0271): a hub's own document, published from a hub
+(`hub_id`) or named (`hub_document`) and linted as an empty hub would take it. A hub takes it with
+`hub_id` on the plan and the apply, once the workspace took the template
+(`config.template_workspace_first`; one without a hub part is `config.template_not_for_hubs`), and
+the part taken is that hub's base (`config_hub_template_use`). The ITIL template's hub part says
+which of its workflows each of its types follows in the hub. The five tables are in the workspace
 archive (tenant-export.md §6).
 A plan also says what it **reaches** beyond the configuration, in counts: the entries a workflow's
 new shape moves (its publish preview, `PreviewWorkflowPublish`, given the shape the plan sets - a
