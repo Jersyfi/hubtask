@@ -11166,6 +11166,9 @@ paths:
         it off, and when discovery cannot be reached - a degradation in which local accounts keep
         signing in.
 
+        A `SAML` provider answers its single sign-on address carrying the authentication request
+        and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.
+
         A sign-in begun on the invitation card carries the invitation's token, and the flow
         remembers the invited account it accepts; an invitation that cannot be
         redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
@@ -11277,6 +11280,57 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MfaChallenge"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/saml:acs:
+    post:
+      tags: [auth]
+      operationId: receiveSamlResponse
+      security: []
+      summary: Receive a SAML provider's answer
+      description: >
+        This installation's assertion consumer service, the one address every SAML provider posts its
+        answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept
+        on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to
+        `/auth/callback` on this installation's address with a fresh single-use `code` and the
+        `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback`
+        exactly as an OpenID Connect provider's return does. There the answer is verified in full.
+
+        An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one
+        larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/SamlPost"
+      responses:
+        "303":
+          description: On to the callback, with the code and the state
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/saml:metadata:
+    get:
+      tags: [auth]
+      operationId: getSamlMetadata
+      security: []
+      summary: This installation's SAML service provider metadata
+      description: >
+        The metadata a SAML provider is registered with: the entity ID a workspace's SAML provider
+        uses unless it names its own (`client_id`), and the assertion consumer service on this
+        installation's address. Authentication requests are not signed; assertions must be.
+        Nothing in it is a workspace's.
+      responses:
+        "200":
+          description: The metadata
+          content:
+            application/samlmetadata+xml:
+              schema: { type: string }
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -22454,6 +22508,18 @@ components:
           type: string
           description: The handle `/auth/oidc:start` answered.
 
+    SamlPost:
+      type: object
+      description: A SAML provider's answer, as the HTTP-POST binding carries it.
+      required: [SAMLResponse, RelayState]
+      properties:
+        SAMLResponse:
+          type: string
+          description: The base64 `samlp:Response`.
+        RelayState:
+          type: string
+          description: The state `/auth/oidc:start` answered, carried through the provider.
+
     OidcLocate:
       type: object
       description: The state a provider's return carried.
@@ -23755,6 +23821,17 @@ components:
             What somebody this provider brings in new gets instead of a role: membership of this
             group of the workspace, and with it whatever the group holds. Null when a role or
             nothing is set; set to null when the group is deleted.
+        saml_sso_url:
+          type: [string, "null"]
+          format: uri
+          description: >
+            For a `SAML` provider: its single sign-on address (HTTP-Redirect binding), https. Null
+            for every other kind.
+        saml_certificate:
+          type: [string, "null"]
+          description: >
+            For a `SAML` provider: the certificates its assertions are signed with, PEM, one or two
+            (a rollover). Public keys, so answered again. Null for every other kind.
         created_at: { type: string, format: date-time }
         updated_at: { type: [string, "null"], format: date-time }
         version:
@@ -23771,10 +23848,14 @@ components:
 
     IdentityProviderKind:
       type: string
-      enum: [GENERIC, GOOGLE, MICROSOFT]
+      enum: [GENERIC, GOOGLE, MICROSOFT, SAML]
       description: >
         The preset a provider was configured from, which decides the mark its button draws
         `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo.
+        `SAML` is a SAML 2.0 identity provider rather than OpenID Connect: the issuer is its entity
+        ID, `client_id` this workspace's entity ID with it, and `saml_sso_url` and
+        `saml_certificate` take the place of discovery and a client secret. It draws the letter
+        tile, is a workspace's own provider only, and is stated, never read from the issuer.
         A stated kind the issuer does not belong to is refused: a Google mark over somebody else's
         issuer is borrowed trust on a sign-in screen.
 
@@ -23892,6 +23973,23 @@ components:
             group of the workspace. The same refusals as `newcomer_role`, and a group that holds
             `OWNER` anywhere is refused like the role (`identity_provider.newcomers_owner`); a group
             this workspace does not have answers `groups.not_found`.
+        saml_sso_url:
+          type: [string, "null"]
+          format: uri
+          description: >
+            Required for `kind` `SAML`, refused for every other kind: the provider's single sign-on
+            address, https (`identity_provider.saml_sso_url_invalid`).
+        saml_certificate:
+          type: [string, "null"]
+          maxLength: 20000
+          description: >
+            Required for `kind` `SAML`, refused for every other kind: one or two PEM certificates the
+            provider signs its assertions with, each valid now
+            (`identity_provider.saml_certificate_invalid`, `identity_provider.saml_certificate_expired`).
+            A `SAML` provider takes no `client_secret` (`identity_provider.saml_no_secret`); its
+            `issuer` is the provider's entity ID, compared exactly, and `client_id` this workspace's
+            entity ID, which every assertion's audience must name. Offered by the installation it is
+            refused (`identity_provider.saml_workspace_only`).
 
     ProviderWithdrawal:
       type: object
@@ -23965,6 +24063,14 @@ components:
           description: >
             This installation's own callback, which every registration form asks for. Nothing about
             it comes from a request.
+        metadata_url:
+          type: [string, "null"]
+          format: uri
+          readOnly: true
+          description: >
+            For `SAML`: this installation's service provider metadata, whose address is also the
+            entity ID a form suggests for `client_id`; `redirect_uri` is then the assertion consumer
+            service. Absent for every other kind.
         instructions:
           type: string
           description: >

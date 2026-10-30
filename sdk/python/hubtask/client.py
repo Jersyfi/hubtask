@@ -1731,6 +1731,14 @@ class Client:
         """Finish the sign-in with the code the provider issued"""
         return self._call("POST", "/auth/oidc:callback", {}, None, {}, body, "json", "application/json", "json")
 
+    def receive_saml_response(self, body: bytes) -> None:
+        """Receive a SAML provider's answer"""
+        return self._call("POST", "/auth/saml:acs", {}, None, {}, body, "raw", "application/x-www-form-urlencoded", "void")
+
+    def get_saml_metadata(self) -> bytes:
+        """This installation's SAML service provider metadata"""
+        return self._call("GET", "/auth/saml:metadata", {}, None, {}, None, "none", None, "raw")
+
     def locate_oidc_flow(self, body: "OidcLocate") -> "OidcLocated":
         """Where a provider's return belongs"""
         return self._call("POST", "/auth/oidc:locate", {}, None, {}, body, "json", "application/json", "json")

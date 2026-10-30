@@ -13,7 +13,7 @@
 -- above the default it inherited - and the sealed secret is in none of it.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -26,7 +26,7 @@ ORDER BY (tenant_id IS NULL), position, created_at, id;
 -- it by name below, so a read cannot spill it by accident.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -39,7 +39,7 @@ WHERE id = sqlc.arg('id');
 -- deliberate call and not a field that happens to be in a struct somebody logged.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled,
-  withdraw_at, newcomer_role, newcomer_group_id
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate
 FROM identity_provider
 WHERE id = sqlc.arg('id');
 
@@ -56,18 +56,19 @@ SELECT count(*) FROM identity_provider WHERE tenant_id = current_tenant_id();
 INSERT INTO identity_provider
   (id, tenant_id, issuer, client_id, client_secret_enc, client_secret_key_id,
    display_name, kind, provisioning, position, allowed_email_domains, allowed_directories,
-   enabled, created_at, newcomer_role, newcomer_group_id)
+   enabled, created_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('issuer'), sqlc.arg('client_id'),
   sqlc.arg('client_secret_enc'), sqlc.arg('client_secret_key_id'),
   sqlc.arg('display_name'), sqlc.arg('kind'), sqlc.arg('provisioning'), sqlc.arg('position'),
   sqlc.arg('allowed_email_domains'), sqlc.arg('allowed_directories'),
   sqlc.arg('enabled'), sqlc.arg('now'),
-  sqlc.narg('newcomer_role')::membership_role, sqlc.narg('newcomer_group_id')::uuid
+  sqlc.narg('newcomer_role')::membership_role, sqlc.narg('newcomer_group_id')::uuid,
+  sqlc.narg('saml_sso_url'), sqlc.narg('saml_certificate')
 )
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -97,13 +98,15 @@ UPDATE identity_provider SET
   allowed_directories   = sqlc.arg('allowed_directories'),
   newcomer_role         = sqlc.narg('newcomer_role')::membership_role,
   newcomer_group_id     = sqlc.narg('newcomer_group_id')::uuid,
+  saml_sso_url          = sqlc.narg('saml_sso_url'),
+  saml_certificate      = sqlc.narg('saml_certificate'),
   enabled               = coalesce(sqlc.narg('enabled'), enabled),
   updated_at            = sqlc.arg('now'),
   version               = version + 1
 WHERE id = sqlc.arg('id')
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -121,7 +124,7 @@ UPDATE identity_provider SET
 WHERE id = sqlc.arg('id') AND tenant_id IS NULL
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -176,7 +179,21 @@ WHERE state_hash = sqlc.arg('state_hash')
   AND consumed_at IS NULL
   AND expires_at > sqlc.arg('now')
 RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id, created_at,
-  terms_url, terms_version;
+  terms_url, terms_version, saml_response, saml_handoff_hash;
+
+-- name: KeepSamlAnswer :one
+-- The assertion consumer service's one write (identity.md §26): the answer of a SAML provider, kept
+-- on the live sign-in its RelayState names, once. Nothing is verified here and nothing is spent; a
+-- second answer for the same flow, or one for a flow of another kind, matches no row.
+UPDATE oidc_flow SET saml_response = sqlc.arg('saml_response'),
+  saml_handoff_hash = sqlc.arg('saml_handoff_hash')
+WHERE state_hash = sqlc.arg('state_hash')
+  AND session_id IS NULL
+  AND consumed_at IS NULL
+  AND saml_response IS NULL
+  AND expires_at > sqlc.arg('now')
+  AND provider_id IN (SELECT id FROM identity_provider WHERE kind = 'SAML')
+RETURNING id;
 
 -- name: ConsumeStepUpOidcFlow :one
 -- The step-up's: only a flow bound to this very session, judged and burned in the same statement. A

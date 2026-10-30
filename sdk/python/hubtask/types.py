@@ -282,6 +282,11 @@ class OidcCallback(TypedDict, total=False):
     code: Required[str]
     state: Required[str]
 
+class SamlPost(TypedDict, total=False):
+    """A SAML provider's answer, as the HTTP-POST binding carries it."""
+    SAMLResponse: Required[str]
+    RelayState: Required[str]
+
 class OidcLocate(TypedDict, total=False):
     """The state a provider's return carried."""
     state: Required[str]
@@ -702,6 +707,8 @@ class IdentityProvider(TypedDict, total=False):
     allowed_directories: Required[list[str]]
     newcomer_role: "MembershipRole" | Any
     newcomer_group_id: str | None
+    saml_sso_url: str | None
+    saml_certificate: str | None
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
@@ -709,7 +716,7 @@ class IdentityProvider(TypedDict, total=False):
 class ProviderOffer(TypedDict, total=False):
     offered: Required[bool]
 
-IdentityProviderKind = Literal["GENERIC", "GOOGLE", "MICROSOFT"]
+IdentityProviderKind = Literal["GENERIC", "GOOGLE", "MICROSOFT", "SAML"]
 
 IdentityProviderProvisioning = Literal["INVITED_ONLY", "DOMAINS", "ANY"]
 
@@ -727,6 +734,8 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     allowed_directories: list[str]
     newcomer_role: "MembershipRole" | Any
     newcomer_group_id: str | None
+    saml_sso_url: str | None
+    saml_certificate: str | None
 
 class ProviderWithdrawal(TypedDict, total=False):
     """When an offered provider is withdrawn, and for *Withdraw now* the count confirmed."""
@@ -743,6 +752,7 @@ class IdentityProviderPreset(TypedDict, total=False):
     provisioning: Required[list["IdentityProviderProvisioning"]]
     installation_provisioning: Required[list["IdentityProviderProvisioning"]]
     redirect_uri: Required[str]
+    metadata_url: str | None
     instructions: Required[str]
     particular: str | None
     directory_claim: str | None

@@ -2945,3 +2945,11 @@ func (pending) UpdateChatBot(w http.ResponseWriter, r *http.Request, _ openapi_t
 func (pending) DeleteChatBot(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+
+func (pending) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) GetSamlMetadata(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

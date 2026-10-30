@@ -5037,6 +5037,7 @@ const (
 	IdentityProviderKindGENERIC   IdentityProviderKind = "GENERIC"
 	IdentityProviderKindGOOGLE    IdentityProviderKind = "GOOGLE"
 	IdentityProviderKindMICROSOFT IdentityProviderKind = "MICROSOFT"
+	IdentityProviderKindSAML      IdentityProviderKind = "SAML"
 )
 
 // Valid indicates whether the value is a known member of the IdentityProviderKind enum.
@@ -5047,6 +5048,8 @@ func (e IdentityProviderKind) Valid() bool {
 	case IdentityProviderKindGOOGLE:
 		return true
 	case IdentityProviderKindMICROSOFT:
+		return true
+	case IdentityProviderKindSAML:
 		return true
 	default:
 		return false
@@ -16303,7 +16306,7 @@ type IdentityProvider struct {
 	// Issuer The provider's issuer identifier. Every ID token must name it exactly - a token whose `iss` differs is refused, which is the first check of the token.
 	Issuer string `json:"issuer"`
 
-	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. `SAML` is a SAML 2.0 identity provider rather than OpenID Connect: the issuer is its entity ID, `client_id` this workspace's entity ID with it, and `saml_sso_url` and `saml_certificate` take the place of discovery and a client secret. It draws the letter tile, is a workspace's own provider only, and is stated, never read from the issuer. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
 	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace, and with it whatever the group holds. Null when a role or nothing is set; set to null when the group is deleted.
@@ -16325,6 +16328,12 @@ type IdentityProvider struct {
 	// `INVITED_ONLY` admits anyone the provider vouched for and creates nothing: a verified address that meets no account here is refused. `DOMAINS` admits **only** addresses inside `allowed_email_domains`, and creates an account for one that meets none - so an empty list admits nobody, because the list is the mode. `ANY` admits every address the provider says it verified and creates what is missing, which is for a provider that *is* the workspace's directory.
 	// An address the provider did not vouch for is admitted by none of the three.
 	Provisioning IdentityProviderProvisioning `json:"provisioning"`
+
+	// SamlCertificate For a `SAML` provider: the certificates its assertions are signed with, PEM, one or two (a rollover). Public keys, so answered again. Null for every other kind.
+	SamlCertificate *string `json:"saml_certificate,omitempty"`
+
+	// SamlSsoUrl For a `SAML` provider: its single sign-on address (HTTP-Redirect binding), https. Null for every other kind.
+	SamlSsoUrl *string `json:"saml_sso_url,omitempty"`
 
 	// Scope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
 	Scope     IdentityProviderScope `json:"scope"`
@@ -16376,9 +16385,15 @@ type IdentityProviderConfiguration struct {
 
 	// Provisioning Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public provider, `DOMAINS` for everything else.
 	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`
+
+	// SamlCertificate Required for `kind` `SAML`, refused for every other kind: one or two PEM certificates the provider signs its assertions with, each valid now (`identity_provider.saml_certificate_invalid`, `identity_provider.saml_certificate_expired`). A `SAML` provider takes no `client_secret` (`identity_provider.saml_no_secret`); its `issuer` is the provider's entity ID, compared exactly, and `client_id` this workspace's entity ID, which every assertion's audience must name. Offered by the installation it is refused (`identity_provider.saml_workspace_only`).
+	SamlCertificate *string `json:"saml_certificate,omitempty"`
+
+	// SamlSsoUrl Required for `kind` `SAML`, refused for every other kind: the provider's single sign-on address, https (`identity_provider.saml_sso_url_invalid`).
+	SamlSsoUrl *string `json:"saml_sso_url,omitempty"`
 }
 
-// IdentityProviderKind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+// IdentityProviderKind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. `SAML` is a SAML 2.0 identity provider rather than OpenID Connect: the issuer is its entity ID, `client_id` this workspace's entity ID with it, and `saml_sso_url` and `saml_certificate` take the place of discovery and a client secret. It draws the letter tile, is a workspace's own provider only, and is stated, never read from the issuer. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 type IdentityProviderKind string
 
 // IdentityProviderPreset What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it.
@@ -16398,8 +16413,11 @@ type IdentityProviderPreset struct {
 	// Issuer The one issuer this provider has for every account, which a form fills in when the provider is chosen. Absent where each organisation has an issuer of its own.
 	Issuer *string `json:"issuer,omitempty"`
 
-	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. `SAML` is a SAML 2.0 identity provider rather than OpenID Connect: the issuer is its entity ID, `client_id` this workspace's entity ID with it, and `saml_sso_url` and `saml_certificate` take the place of discovery and a client secret. It draws the letter tile, is a workspace's own provider only, and is stated, never read from the issuer. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
+
+	// MetadataUrl For `SAML`: this installation's service provider metadata, whose address is also the entity ID a form suggests for `client_id`; `redirect_uri` is then the assertion consumer service. Absent for every other kind.
+	MetadataUrl *string `json:"metadata_url,omitempty"`
 
 	// Particular A message code for the one thing about this provider that is not like the others - Google's single issuer for every account there is, Microsoft's directory-specific issuer. Absent where there is none.
 	Particular *string `json:"particular,omitempty"`
@@ -20868,6 +20886,15 @@ type RuleTriggerKind string
 type RuleTriggerPress struct {
 	// ItemId The entry a macro is pressed on.
 	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+}
+
+// SamlPost A SAML provider's answer, as the HTTP-POST binding carries it.
+type SamlPost struct {
+	// RelayState The state `/auth/oidc:start` answered, carried through the provider.
+	RelayState string `json:"RelayState"`
+
+	// SAMLResponse The base64 `samlp:Response`.
+	SAMLResponse string `json:"SAMLResponse"`
 }
 
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
@@ -26953,6 +26980,9 @@ type ForgetPasswordJSONRequestBody = PasswordForgot
 // ResetPasswordJSONRequestBody defines body for ResetPassword for application/json ContentType.
 type ResetPasswordJSONRequestBody = PasswordReset
 
+// ReceiveSamlResponseFormdataRequestBody defines body for ReceiveSamlResponse for application/x-www-form-urlencoded ContentType.
+type ReceiveSamlResponseFormdataRequestBody = SamlPost
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -28632,6 +28662,12 @@ type ServerInterface interface {
 	// ResetPassword Spend a reset link and set the password
 	// (POST /auth/password:reset)
 	ResetPassword(w http.ResponseWriter, r *http.Request)
+	// ReceiveSamlResponse Receive a SAML provider's answer
+	// (POST /auth/saml:acs)
+	ReceiveSamlResponse(w http.ResponseWriter, r *http.Request)
+	// GetSamlMetadata This installation's SAML service provider metadata
+	// (GET /auth/saml:metadata)
+	GetSamlMetadata(w http.ResponseWriter, r *http.Request)
 	// ListServiceAccounts The workspace's service accounts
 	// (GET /auth/service-accounts)
 	ListServiceAccounts(w http.ResponseWriter, r *http.Request)
@@ -34861,6 +34897,34 @@ func (siw *ServerInterfaceWrapper) ResetPassword(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ResetPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReceiveSamlResponse operation middleware
+func (siw *ServerInterfaceWrapper) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReceiveSamlResponse(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSamlMetadata operation middleware
+func (siw *ServerInterfaceWrapper) GetSamlMetadata(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSamlMetadata(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -56359,6 +56423,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/service-accounts", wrapper.CreateServiceAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:start", wrapper.StartOidcSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:callback", wrapper.CompleteOidcSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/saml:acs", wrapper.ReceiveSamlResponse)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/saml:metadata", wrapper.GetSamlMetadata)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:locate", wrapper.LocateOidcFlow)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants", wrapper.ListTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)

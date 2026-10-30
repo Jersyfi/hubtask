@@ -2181,6 +2181,18 @@ export class HubtaskClient {
     return this.call("POST", "/auth/oidc:callback", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Receive a SAML provider's answer
+   * Public: sent without a bearer where the client holds none. */
+  receiveSamlResponse(body: BodyInit, options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/auth/saml:acs", {  }, undefined, {  }, body, "raw", "application/x-www-form-urlencoded", "void", options.signal);
+  }
+
+  /** This installation's SAML service provider metadata
+   * Public: sent without a bearer where the client holds none. */
+  getSamlMetadata(options: CallOptions = {}): Promise<Response> {
+    return this.call("GET", "/auth/saml:metadata", {  }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
+  }
+
   /** Where a provider's return belongs
    * Public: sent without a bearer where the client holds none. */
   locateOidcFlow(body: NonNullable<operations["locateOidcFlow"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["locateOidcFlow"]['responses'][200]['content']["application/json"]> {

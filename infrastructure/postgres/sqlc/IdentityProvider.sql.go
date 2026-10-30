@@ -134,7 +134,7 @@ WHERE state_hash = $2
   AND consumed_at IS NULL
   AND expires_at > $1
 RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id, created_at,
-  terms_url, terms_version
+  terms_url, terms_version, saml_response, saml_handoff_hash
 `
 
 type ConsumeOidcFlowParams struct {
@@ -152,6 +152,8 @@ type ConsumeOidcFlowRow struct {
 	CreatedAt        pgtype.Timestamptz
 	TermsUrl         *string
 	TermsVersion     *string
+	SamlResponse     *string
+	SamlHandoffHash  []byte
 }
 
 // Judged and burned in one statement, ConsumeOauthCode's discipline: unexpired and unconsumed,
@@ -170,6 +172,8 @@ func (q *Queries) ConsumeOidcFlow(ctx context.Context, arg ConsumeOidcFlowParams
 		&i.CreatedAt,
 		&i.TermsUrl,
 		&i.TermsVersion,
+		&i.SamlResponse,
+		&i.SamlHandoffHash,
 	)
 	return i, err
 }
@@ -353,7 +357,7 @@ func (q *Queries) FindAccountByProviderSubject(ctx context.Context, arg FindAcco
 const findIdentityProviderByID = `-- name: FindIdentityProviderByID :one
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -380,6 +384,8 @@ type FindIdentityProviderByIDRow struct {
 	WithdrawAt          pgtype.Timestamptz
 	NewcomerRole        *MembershipRole
 	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
 	OfferedWorkspaces   int32
 }
 
@@ -406,6 +412,8 @@ func (q *Queries) FindIdentityProviderByID(ctx context.Context, id pgtype.UUID) 
 		&i.WithdrawAt,
 		&i.NewcomerRole,
 		&i.NewcomerGroupID,
+		&i.SamlSsoUrl,
+		&i.SamlCertificate,
 		&i.OfferedWorkspaces,
 	)
 	return i, err
@@ -414,7 +422,7 @@ func (q *Queries) FindIdentityProviderByID(ctx context.Context, id pgtype.UUID) 
 const findIdentityProviderSecret = `-- name: FindIdentityProviderSecret :one
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled,
-  withdraw_at, newcomer_role, newcomer_group_id
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate
 FROM identity_provider
 WHERE id = $1
 `
@@ -436,6 +444,8 @@ type FindIdentityProviderSecretRow struct {
 	WithdrawAt          pgtype.Timestamptz
 	NewcomerRole        *MembershipRole
 	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
 }
 
 // The token exchange's own read, separate from the one above so that opening the envelope is a
@@ -460,6 +470,8 @@ func (q *Queries) FindIdentityProviderSecret(ctx context.Context, id pgtype.UUID
 		&i.WithdrawAt,
 		&i.NewcomerRole,
 		&i.NewcomerGroupID,
+		&i.SamlSsoUrl,
+		&i.SamlCertificate,
 	)
 	return i, err
 }
@@ -468,18 +480,19 @@ const insertIdentityProvider = `-- name: InsertIdentityProvider :one
 INSERT INTO identity_provider
   (id, tenant_id, issuer, client_id, client_secret_enc, client_secret_key_id,
    display_name, kind, provisioning, position, allowed_email_domains, allowed_directories,
-   enabled, created_at, newcomer_role, newcomer_group_id)
+   enabled, created_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5,
   $6, $7, $8, $9,
   $10, $11,
   $12, $13,
-  $14::membership_role, $15::uuid
+  $14::membership_role, $15::uuid,
+  $16, $17
 )
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -502,6 +515,8 @@ type InsertIdentityProviderParams struct {
 	Now                 pgtype.Timestamptz
 	NewcomerRole        *MembershipRole
 	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
 }
 
 type InsertIdentityProviderRow struct {
@@ -522,6 +537,8 @@ type InsertIdentityProviderRow struct {
 	WithdrawAt          pgtype.Timestamptz
 	NewcomerRole        *MembershipRole
 	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
 	OfferedWorkspaces   int32
 }
 
@@ -546,6 +563,8 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 		arg.Now,
 		arg.NewcomerRole,
 		arg.NewcomerGroupID,
+		arg.SamlSsoUrl,
+		arg.SamlCertificate,
 	)
 	var i InsertIdentityProviderRow
 	err := row.Scan(
@@ -566,6 +585,8 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 		&i.WithdrawAt,
 		&i.NewcomerRole,
 		&i.NewcomerGroupID,
+		&i.SamlSsoUrl,
+		&i.SamlCertificate,
 		&i.OfferedWorkspaces,
 	)
 	return i, err
@@ -620,6 +641,40 @@ func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) 
 		arg.Connect,
 	)
 	return err
+}
+
+const keepSamlAnswer = `-- name: KeepSamlAnswer :one
+UPDATE oidc_flow SET saml_response = $1,
+  saml_handoff_hash = $2
+WHERE state_hash = $3
+  AND session_id IS NULL
+  AND consumed_at IS NULL
+  AND saml_response IS NULL
+  AND expires_at > $4
+  AND provider_id IN (SELECT id FROM identity_provider WHERE kind = 'SAML')
+RETURNING id
+`
+
+type KeepSamlAnswerParams struct {
+	SamlResponse    *string
+	SamlHandoffHash []byte
+	StateHash       []byte
+	Now             pgtype.Timestamptz
+}
+
+// The assertion consumer service's one write (identity.md §26): the answer of a SAML provider, kept
+// on the live sign-in its RelayState names, once. Nothing is verified here and nothing is spent; a
+// second answer for the same flow, or one for a flow of another kind, matches no row.
+func (q *Queries) KeepSamlAnswer(ctx context.Context, arg KeepSamlAnswerParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, keepSamlAnswer,
+		arg.SamlResponse,
+		arg.SamlHandoffHash,
+		arg.StateHash,
+		arg.Now,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const linkAccountIdentity = `-- name: LinkAccountIdentity :execrows
@@ -697,7 +752,7 @@ const listIdentityProviders = `-- name: ListIdentityProviders :many
 
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -724,6 +779,8 @@ type ListIdentityProvidersRow struct {
 	WithdrawAt          pgtype.Timestamptz
 	NewcomerRole        *MembershipRole
 	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
 	OfferedWorkspaces   int32
 }
 
@@ -765,6 +822,8 @@ func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProv
 			&i.WithdrawAt,
 			&i.NewcomerRole,
 			&i.NewcomerGroupID,
+			&i.SamlSsoUrl,
+			&i.SamlCertificate,
 			&i.OfferedWorkspaces,
 		); err != nil {
 			return nil, err
@@ -867,7 +926,7 @@ UPDATE identity_provider SET
 WHERE id = $3 AND tenant_id IS NULL
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -898,6 +957,8 @@ type SetProviderWithdrawalRow struct {
 	WithdrawAt          pgtype.Timestamptz
 	NewcomerRole        *MembershipRole
 	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
 	OfferedWorkspaces   int32
 }
 
@@ -925,6 +986,8 @@ func (q *Queries) SetProviderWithdrawal(ctx context.Context, arg SetProviderWith
 		&i.WithdrawAt,
 		&i.NewcomerRole,
 		&i.NewcomerGroupID,
+		&i.SamlSsoUrl,
+		&i.SamlCertificate,
 		&i.OfferedWorkspaces,
 	)
 	return i, err
@@ -959,13 +1022,15 @@ UPDATE identity_provider SET
   allowed_directories   = $10,
   newcomer_role         = $11::membership_role,
   newcomer_group_id     = $12::uuid,
-  enabled               = coalesce($13, enabled),
-  updated_at            = $14,
+  saml_sso_url          = $13,
+  saml_certificate      = $14,
+  enabled               = coalesce($15, enabled),
+  updated_at            = $16,
   version               = version + 1
-WHERE id = $15
+WHERE id = $17
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, newcomer_role, newcomer_group_id,
+  withdraw_at, newcomer_role, newcomer_group_id, saml_sso_url, saml_certificate,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -985,6 +1050,8 @@ type UpdateIdentityProviderParams struct {
 	AllowedDirectories  []string
 	NewcomerRole        *MembershipRole
 	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
 	Enabled             *bool
 	Now                 pgtype.Timestamptz
 	ID                  pgtype.UUID
@@ -1008,6 +1075,8 @@ type UpdateIdentityProviderRow struct {
 	WithdrawAt          pgtype.Timestamptz
 	NewcomerRole        *MembershipRole
 	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
 	OfferedWorkspaces   int32
 }
 
@@ -1035,6 +1104,8 @@ func (q *Queries) UpdateIdentityProvider(ctx context.Context, arg UpdateIdentity
 		arg.AllowedDirectories,
 		arg.NewcomerRole,
 		arg.NewcomerGroupID,
+		arg.SamlSsoUrl,
+		arg.SamlCertificate,
 		arg.Enabled,
 		arg.Now,
 		arg.ID,
@@ -1058,6 +1129,8 @@ func (q *Queries) UpdateIdentityProvider(ctx context.Context, arg UpdateIdentity
 		&i.WithdrawAt,
 		&i.NewcomerRole,
 		&i.NewcomerGroupID,
+		&i.SamlSsoUrl,
+		&i.SamlCertificate,
 		&i.OfferedWorkspaces,
 	)
 	return i, err

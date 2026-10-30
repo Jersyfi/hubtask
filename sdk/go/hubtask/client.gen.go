@@ -5043,6 +5043,7 @@ const (
 	IdentityProviderKindGENERIC   IdentityProviderKind = "GENERIC"
 	IdentityProviderKindGOOGLE    IdentityProviderKind = "GOOGLE"
 	IdentityProviderKindMICROSOFT IdentityProviderKind = "MICROSOFT"
+	IdentityProviderKindSAML      IdentityProviderKind = "SAML"
 )
 
 // Valid indicates whether the value is a known member of the IdentityProviderKind enum.
@@ -5053,6 +5054,8 @@ func (e IdentityProviderKind) Valid() bool {
 	case IdentityProviderKindGOOGLE:
 		return true
 	case IdentityProviderKindMICROSOFT:
+		return true
+	case IdentityProviderKindSAML:
 		return true
 	default:
 		return false
@@ -16309,7 +16312,7 @@ type IdentityProvider struct {
 	// Issuer The provider's issuer identifier. Every ID token must name it exactly - a token whose `iss` differs is refused, which is the first check of the token.
 	Issuer string `json:"issuer"`
 
-	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. `SAML` is a SAML 2.0 identity provider rather than OpenID Connect: the issuer is its entity ID, `client_id` this workspace's entity ID with it, and `saml_sso_url` and `saml_certificate` take the place of discovery and a client secret. It draws the letter tile, is a workspace's own provider only, and is stated, never read from the issuer. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
 	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace, and with it whatever the group holds. Null when a role or nothing is set; set to null when the group is deleted.
@@ -16331,6 +16334,12 @@ type IdentityProvider struct {
 	// `INVITED_ONLY` admits anyone the provider vouched for and creates nothing: a verified address that meets no account here is refused. `DOMAINS` admits **only** addresses inside `allowed_email_domains`, and creates an account for one that meets none - so an empty list admits nobody, because the list is the mode. `ANY` admits every address the provider says it verified and creates what is missing, which is for a provider that *is* the workspace's directory.
 	// An address the provider did not vouch for is admitted by none of the three.
 	Provisioning IdentityProviderProvisioning `json:"provisioning"`
+
+	// SamlCertificate For a `SAML` provider: the certificates its assertions are signed with, PEM, one or two (a rollover). Public keys, so answered again. Null for every other kind.
+	SamlCertificate *string `json:"saml_certificate,omitempty"`
+
+	// SamlSsoUrl For a `SAML` provider: its single sign-on address (HTTP-Redirect binding), https. Null for every other kind.
+	SamlSsoUrl *string `json:"saml_sso_url,omitempty"`
 
 	// Scope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
 	Scope     IdentityProviderScope `json:"scope"`
@@ -16382,9 +16391,15 @@ type IdentityProviderConfiguration struct {
 
 	// Provisioning Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public provider, `DOMAINS` for everything else.
 	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`
+
+	// SamlCertificate Required for `kind` `SAML`, refused for every other kind: one or two PEM certificates the provider signs its assertions with, each valid now (`identity_provider.saml_certificate_invalid`, `identity_provider.saml_certificate_expired`). A `SAML` provider takes no `client_secret` (`identity_provider.saml_no_secret`); its `issuer` is the provider's entity ID, compared exactly, and `client_id` this workspace's entity ID, which every assertion's audience must name. Offered by the installation it is refused (`identity_provider.saml_workspace_only`).
+	SamlCertificate *string `json:"saml_certificate,omitempty"`
+
+	// SamlSsoUrl Required for `kind` `SAML`, refused for every other kind: the provider's single sign-on address, https (`identity_provider.saml_sso_url_invalid`).
+	SamlSsoUrl *string `json:"saml_sso_url,omitempty"`
 }
 
-// IdentityProviderKind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+// IdentityProviderKind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. `SAML` is a SAML 2.0 identity provider rather than OpenID Connect: the issuer is its entity ID, `client_id` this workspace's entity ID with it, and `saml_sso_url` and `saml_certificate` take the place of discovery and a client secret. It draws the letter tile, is a workspace's own provider only, and is stated, never read from the issuer. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 type IdentityProviderKind string
 
 // IdentityProviderPreset What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it.
@@ -16404,8 +16419,11 @@ type IdentityProviderPreset struct {
 	// Issuer The one issuer this provider has for every account, which a form fills in when the provider is chosen. Absent where each organisation has an issuer of its own.
 	Issuer *string `json:"issuer,omitempty"`
 
-	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. `SAML` is a SAML 2.0 identity provider rather than OpenID Connect: the issuer is its entity ID, `client_id` this workspace's entity ID with it, and `saml_sso_url` and `saml_certificate` take the place of discovery and a client secret. It draws the letter tile, is a workspace's own provider only, and is stated, never read from the issuer. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
+
+	// MetadataUrl For `SAML`: this installation's service provider metadata, whose address is also the entity ID a form suggests for `client_id`; `redirect_uri` is then the assertion consumer service. Absent for every other kind.
+	MetadataUrl *string `json:"metadata_url,omitempty"`
 
 	// Particular A message code for the one thing about this provider that is not like the others - Google's single issuer for every account there is, Microsoft's directory-specific issuer. Absent where there is none.
 	Particular *string `json:"particular,omitempty"`
@@ -20874,6 +20892,15 @@ type RuleTriggerKind string
 type RuleTriggerPress struct {
 	// ItemId The entry a macro is pressed on.
 	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+}
+
+// SamlPost A SAML provider's answer, as the HTTP-POST binding carries it.
+type SamlPost struct {
+	// RelayState The state `/auth/oidc:start` answered, carried through the provider.
+	RelayState string `json:"RelayState"`
+
+	// SAMLResponse The base64 `samlp:Response`.
+	SAMLResponse string `json:"SAMLResponse"`
 }
 
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
@@ -26959,6 +26986,9 @@ type ForgetPasswordJSONRequestBody = PasswordForgot
 // ResetPasswordJSONRequestBody defines body for ResetPassword for application/json ContentType.
 type ResetPasswordJSONRequestBody = PasswordReset
 
+// ReceiveSamlResponseFormdataRequestBody defines body for ReceiveSamlResponse for application/x-www-form-urlencoded ContentType.
+type ReceiveSamlResponseFormdataRequestBody = SamlPost
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -30500,6 +30530,7 @@ type ClientInterface interface {
 	// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the workspace's address, or the tenant header at the installation's own address - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+	// A `SAML` provider answers its single sign-on address carrying the authentication request and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.
 	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
@@ -30513,6 +30544,7 @@ type ClientInterface interface {
 	// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the workspace's address, or the tenant header at the installation's own address - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+	// A `SAML` provider answers its single sign-on address carrying the authentication request and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.
 	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
@@ -30608,6 +30640,33 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
 	ResetPassword(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReceiveSamlResponseWithBody Receive a SAML provider's answer
+	//
+	// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
+	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/saml:acs (the `ReceiveSamlResponse` operationId).
+	ReceiveSamlResponseWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReceiveSamlResponseWithFormdataBody Receive a SAML provider's answer
+	//
+	// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
+	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+	//
+	// Takes a body of the `application/x-www-form-urlencoded` content type.
+	//
+	// Corresponds with POST /auth/saml:acs (the `ReceiveSamlResponse` operationId).
+	ReceiveSamlResponseWithFormdataBody(ctx context.Context, body ReceiveSamlResponseFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSamlMetadata This installation's SAML service provider metadata
+	//
+	// The metadata a SAML provider is registered with: the entity ID a workspace's SAML provider uses unless it names its own (`client_id`), and the assertion consumer service on this installation's address. Authentication requests are not signed; assertions must be. Nothing in it is a workspace's.
+	//
+	// Corresponds with GET /auth/saml:metadata (the `GetSamlMetadata` operationId).
+	GetSamlMetadata(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListServiceAccounts The workspace's service accounts
 	//
@@ -42634,6 +42693,7 @@ func (c *Client) LocateOidcFlow(ctx context.Context, body LocateOidcFlowJSONRequ
 // The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the workspace's address, or the tenant header at the installation's own address - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+// A `SAML` provider answers its single sign-on address carrying the authentication request and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.
 // A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 // A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
@@ -42657,6 +42717,7 @@ func (c *Client) StartOidcSignInWithBody(ctx context.Context, contentType string
 // The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the workspace's address, or the tenant header at the installation's own address - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+// A `SAML` provider answers its single sign-on address carrying the authentication request and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.
 // A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 // A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
@@ -42833,6 +42894,63 @@ func (c *Client) ResetPasswordWithBody(ctx context.Context, contentType string, 
 // Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
 func (c *Client) ResetPassword(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResetPasswordRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReceiveSamlResponseWithBody Receive a SAML provider's answer
+//
+// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
+// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/saml:acs (the `ReceiveSamlResponse` operationId).
+func (c *Client) ReceiveSamlResponseWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReceiveSamlResponseRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReceiveSamlResponseWithFormdataBody Receive a SAML provider's answer
+//
+// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
+// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+//
+// Takes a body of the `application/x-www-form-urlencoded` content type.
+//
+// Corresponds with POST /auth/saml:acs (the `ReceiveSamlResponse` operationId).
+func (c *Client) ReceiveSamlResponseWithFormdataBody(ctx context.Context, body ReceiveSamlResponseFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReceiveSamlResponseRequestWithFormdataBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetSamlMetadata This installation's SAML service provider metadata
+//
+// The metadata a SAML provider is registered with: the entity ID a workspace's SAML provider uses unless it names its own (`client_id`), and the assertion consumer service on this installation's address. Authentication requests are not signed; assertions must be. Nothing in it is a workspace's.
+//
+// Corresponds with GET /auth/saml:metadata (the `GetSamlMetadata` operationId).
+func (c *Client) GetSamlMetadata(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSamlMetadataRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -65962,6 +66080,73 @@ func NewResetPasswordRequestWithBody(server string, contentType string, body io.
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReceiveSamlResponseRequestWithFormdataBody calls the generic ReceiveSamlResponse builder with application/x-www-form-urlencoded body
+func NewReceiveSamlResponseRequestWithFormdataBody(server string, body ReceiveSamlResponseFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewReceiveSamlResponseRequestWithBody(server, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewReceiveSamlResponseRequestWithBody constructs an http.Request for the ReceiveSamlResponse method, with any body, and a specified content type
+func NewReceiveSamlResponseRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/saml:acs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetSamlMetadataRequest constructs an http.Request for the GetSamlMetadata method
+func NewGetSamlMetadataRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/saml:metadata")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -97332,6 +97517,7 @@ type ClientWithResponsesInterface interface {
 	// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the workspace's address, or the tenant header at the installation's own address - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+	// A `SAML` provider answers its single sign-on address carrying the authentication request and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.
 	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
@@ -97345,6 +97531,7 @@ type ClientWithResponsesInterface interface {
 	// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the workspace's address, or the tenant header at the installation's own address - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+	// A `SAML` provider answers its single sign-on address carrying the authentication request and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.
 	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
@@ -97440,6 +97627,35 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
 	ResetPasswordWithResponse(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ResetPasswordResult, error)
+
+	// ReceiveSamlResponseWithBodyWithResponse Receive a SAML provider's answer
+	//
+	// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
+	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/saml:acs (the `ReceiveSamlResponse` operationId).
+	ReceiveSamlResponseWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReceiveSamlResponseResult, error)
+
+	// ReceiveSamlResponseWithFormdataBodyWithResponse Receive a SAML provider's answer
+	//
+	// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
+	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+	//
+	// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/saml:acs (the `ReceiveSamlResponse` operationId).
+	ReceiveSamlResponseWithFormdataBodyWithResponse(ctx context.Context, body ReceiveSamlResponseFormdataRequestBody, reqEditors ...RequestEditorFn) (*ReceiveSamlResponseResult, error)
+
+	// GetSamlMetadataWithResponse This installation's SAML service provider metadata
+	//
+	// The metadata a SAML provider is registered with: the entity ID a workspace's SAML provider uses unless it names its own (`client_id`), and the assertion consumer service on this installation's address. Authentication requests are not signed; assertions must be. Nothing in it is a workspace's.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /auth/saml:metadata (the `GetSamlMetadata` operationId).
+	GetSamlMetadataWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSamlMetadataResult, error)
 
 	// ListServiceAccountsWithResponse The workspace's service accounts
 	//
@@ -113054,6 +113270,95 @@ func (r ResetPasswordResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ResetPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ReceiveSamlResponseResult303Headers the declared response headers of an HTTP 303 response for ReceiveSamlResponse
+type ReceiveSamlResponseResult303Headers struct {
+	Location *string
+}
+
+type ReceiveSamlResponseResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers303 the parsed response headers for an HTTP 303 response
+	Headers303 *ReceiveSamlResponseResult303Headers
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReceiveSamlResponseResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReceiveSamlResponseResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReceiveSamlResponseResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReceiveSamlResponseResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReceiveSamlResponseResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetSamlMetadataResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetSamlMetadataResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetSamlMetadataResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSamlMetadataResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSamlMetadataResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetSamlMetadataResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -146109,6 +146414,7 @@ func (c *ClientWithResponses) LocateOidcFlowWithResponse(ctx context.Context, bo
 // The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the workspace's address, or the tenant header at the installation's own address - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+// A `SAML` provider answers its single sign-on address carrying the authentication request and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.
 // A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 // A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
@@ -146128,6 +146434,7 @@ func (c *ClientWithResponses) StartOidcSignInWithBodyWithResponse(ctx context.Co
 // The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the workspace's address, or the tenant header at the installation's own address - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+// A `SAML` provider answers its single sign-on address carrying the authentication request and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.
 // A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 // A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
@@ -146276,6 +146583,53 @@ func (c *ClientWithResponses) ResetPasswordWithResponse(ctx context.Context, bod
 		return nil, err
 	}
 	return ParseResetPasswordResult(rsp)
+}
+
+// ReceiveSamlResponseWithBodyWithResponse Receive a SAML provider's answer
+//
+// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
+// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/saml:acs (the `ReceiveSamlResponse` operationId).
+func (c *ClientWithResponses) ReceiveSamlResponseWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReceiveSamlResponseResult, error) {
+	rsp, err := c.ReceiveSamlResponseWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReceiveSamlResponseResult(rsp)
+}
+
+// ReceiveSamlResponseWithFormdataBodyWithResponse Receive a SAML provider's answer
+//
+// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
+// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+//
+// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/saml:acs (the `ReceiveSamlResponse` operationId).
+func (c *ClientWithResponses) ReceiveSamlResponseWithFormdataBodyWithResponse(ctx context.Context, body ReceiveSamlResponseFormdataRequestBody, reqEditors ...RequestEditorFn) (*ReceiveSamlResponseResult, error) {
+	rsp, err := c.ReceiveSamlResponseWithFormdataBody(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReceiveSamlResponseResult(rsp)
+}
+
+// GetSamlMetadataWithResponse This installation's SAML service provider metadata
+//
+// The metadata a SAML provider is registered with: the entity ID a workspace's SAML provider uses unless it names its own (`client_id`), and the assertion consumer service on this installation's address. Authentication requests are not signed; assertions must be. Nothing in it is a workspace's.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /auth/saml:metadata (the `GetSamlMetadata` operationId).
+func (c *ClientWithResponses) GetSamlMetadataWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSamlMetadataResult, error) {
+	rsp, err := c.GetSamlMetadata(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSamlMetadataResult(rsp)
 }
 
 // ListServiceAccountsWithResponse The workspace's service accounts
@@ -164990,6 +165344,74 @@ func ParseResetPasswordResult(rsp *http.Response) (*ResetPasswordResult, error) 
 		}
 		response.JSON202 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReceiveSamlResponseResult parses an HTTP response from a ReceiveSamlResponseWithResponse call
+func ParseReceiveSamlResponseResult(rsp *http.Response) (*ReceiveSamlResponseResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReceiveSamlResponseResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 303:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 303:
+		var headers ReceiveSamlResponseResult303Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uri"}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers303 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseGetSamlMetadataResult parses an HTTP response from a GetSamlMetadataWithResponse call
+func ParseGetSamlMetadataResult(rsp *http.Response) (*GetSamlMetadataResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSamlMetadataResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

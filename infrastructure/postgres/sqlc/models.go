@@ -1861,6 +1861,8 @@ type IdentityProvider struct {
 	WithdrawAt         pgtype.Timestamptz
 	NewcomerRole       *MembershipRole
 	NewcomerGroupID    pgtype.UUID
+	SamlSsoUrl         *string
+	SamlCertificate    *string
 }
 
 type ImportRun struct {
@@ -2234,6 +2236,8 @@ type OidcFlow struct {
 	TermsUrl         *string
 	TermsVersion     *string
 	Connect          bool
+	SamlResponse     *string
+	SamlHandoffHash  []byte
 }
 
 type Operator struct {
