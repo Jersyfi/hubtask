@@ -33,6 +33,7 @@
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import WidgetChart from '../lib/goals/WidgetChart.svelte';
+  import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import WidgetEditor from '../lib/goals/WidgetEditor.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -67,7 +68,7 @@
   $effect(() => frame.entitle(dashboard ? dashboard.name : t('app.dashboards.dashboard')));
 
   /** A private dashboard is its owner's; a shared one is changed by whoever the server lets. */
-  const mayEdit = $derived(dashboard !== undefined && (dashboard.sharing === 'SCOPE' || dashboard.owner_id === actor.account?.id));
+  const mayEdit = $derived(dashboard !== undefined && (dashboard.sharing !== 'PRIVATE' || dashboard.owner_id === actor.account?.id));
   const placeName = $derived(dashboard?.hub_id ? (containers.find(dashboard.hub_id)?.name ?? t('app.goals.hub_unread')) : t('app.goals.workspace'));
   const locale = $derived(messages.locale);
 
@@ -102,7 +103,7 @@
   async function saveLayout() {
     const at = dashboard;
     if (!at) return;
-    const ok = await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, widgets: layout }), t('app.dashboards.saved'));
+    const ok = await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, group_ids: at.group_ids ?? [], widgets: layout }), t('app.dashboards.saved'));
     if (ok) isEditing = false;
   }
 
@@ -142,11 +143,11 @@
   // --- Name and sharing, deleting ---------------------------------------------------------------
 
   let isRenaming = $state(false);
-  const draft = $state({ name: '', sharing: 'PRIVATE' as 'PRIVATE' | 'SCOPE' });
+  const draft = $state({ name: '', sharing: 'PRIVATE' as Sharing, groupIds: [] as string[] });
   async function saveName() {
     const at = dashboard;
     if (!at) return;
-    const ok = await act(() => goals.updateDashboard(at, { name: draft.name.trim(), sharing: draft.sharing, widgets: at.widgets.map(widgetWrite) }), t('app.dashboards.saved'));
+    const ok = await act(() => goals.updateDashboard(at, { name: draft.name.trim(), sharing: draft.sharing, group_ids: draft.sharing === 'GROUPS' ? draft.groupIds : [], widgets: at.widgets.map(widgetWrite) }), t('app.dashboards.saved'));
     if (ok) isRenaming = false;
   }
   let isDeleting = $state(false);
@@ -248,7 +249,7 @@
       onselect: (id: string) => {
         if (id === 'digest') isDigestOpen = true;
         if (id === 'cancel') isEditing = false;
-        if (id === 'rename' && dashboard) { draft.name = dashboard.name; draft.sharing = dashboard.sharing; isRenaming = true; }
+        if (id === 'rename' && dashboard) { draft.name = dashboard.name; draft.sharing = dashboard.sharing; draft.groupIds = [...(dashboard.group_ids ?? [])]; isRenaming = true; }
         if (id === 'delete') isDeleting = true;
       },
     } : undefined}
@@ -342,9 +343,8 @@
   <Dialog bind:isOpen={isRenaming} title={t('app.dashboards.rename')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.dashboards.col_name')} bind:value={draft.name} maxlength={200} />
-      <Select label={t('app.dashboards.col_sharing')} hint={t('app.dashboards.sharing_hint')} bind:value={draft.sharing}
-        options={[{ value: 'PRIVATE', label: t('app.dashboards.sharing_PRIVATE') }, { value: 'SCOPE', label: t('app.dashboards.sharing_SCOPE') }]} />
-      <Inline justify="end"><Button disabledReason={draft.name.trim() === '' ? t('app.dashboards.name_needed') : undefined} onclick={() => void saveName()}>{t('app.goals.save')}</Button></Inline>
+      <SharingPicker bind:sharing={draft.sharing} bind:groupIds={draft.groupIds} />
+      <Inline justify="end"><Button disabledReason={draft.name.trim() === '' ? t('app.dashboards.name_needed') : draft.sharing === 'GROUPS' && draft.groupIds.length === 0 ? t('app.dashboards.groups_needed') : undefined} onclick={() => void saveName()}>{t('app.goals.save')}</Button></Inline>
     </Stack>
   </Dialog>
 {/if}

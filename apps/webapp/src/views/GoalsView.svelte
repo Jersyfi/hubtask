@@ -32,6 +32,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import { goalTone } from '../lib/goals/tone.ts';
 
   interface Props {
@@ -218,12 +219,13 @@
   ]);
 
   let isBuilding = $state(false);
-  const dashboardDraft = $state({ name: '', place: '', sharing: 'PRIVATE' as 'PRIVATE' | 'SCOPE' });
+  const dashboardDraft = $state({ name: '', place: '', sharing: 'PRIVATE' as Sharing, groupIds: [] as string[] });
   async function createDashboard() {
     const ok = await act(async () => {
       const made = await goals.createDashboard({
         name: dashboardDraft.name.trim(),
         sharing: dashboardDraft.sharing,
+        ...(dashboardDraft.sharing === 'GROUPS' ? { group_ids: dashboardDraft.groupIds } : {}),
         ...(dashboardDraft.place ? { hub_id: dashboardDraft.place } : {}),
       });
       onnavigate(`/dashboards/${made.id}`);
@@ -234,7 +236,7 @@
   const secondary = $derived.by(() => {
     if (current === 'goals' && chosen?.state === 'OPEN' && placeChoices.length > 0) return [{ label: t('app.goals.new_goal'), icon: 'plus' as const, onclick: openSetting }] as const;
     if (current === 'portfolios' && holdsHere('WRITE_ITEMS') === true) return [{ label: t('app.portfolios.new'), icon: 'plus' as const, onclick: () => { portfolioDraft.name = ''; portfolioDraft.description = ''; portfolioDraft.parent = ''; isGathering = true; } }] as const;
-    if (current === 'dashboards') return [{ label: t('app.dashboards.new'), icon: 'plus' as const, onclick: () => { dashboardDraft.name = ''; dashboardDraft.place = hub ?? ''; dashboardDraft.sharing = 'PRIVATE'; isBuilding = true; } }] as const;
+    if (current === 'dashboards') return [{ label: t('app.dashboards.new'), icon: 'plus' as const, onclick: () => { dashboardDraft.name = ''; dashboardDraft.place = hub ?? ''; dashboardDraft.sharing = 'PRIVATE'; dashboardDraft.groupIds = []; isBuilding = true; } }] as const;
     return [] as const;
   });
 </script>
@@ -405,10 +407,9 @@
       <Input label={t('app.dashboards.col_name')} bind:value={dashboardDraft.name} maxlength={200} />
       <Select label={t('app.goals.col_place')} bind:value={dashboardDraft.place}
         options={[{ value: '', label: t('app.goals.workspace') }, ...containers.hubs.map((each) => ({ value: each.id, label: each.name }))]} />
-      <Select label={t('app.dashboards.col_sharing')} hint={t('app.dashboards.sharing_hint')} bind:value={dashboardDraft.sharing}
-        options={[{ value: 'PRIVATE', label: t('app.dashboards.sharing_PRIVATE') }, { value: 'SCOPE', label: t('app.dashboards.sharing_SCOPE') }]} />
+      <SharingPicker bind:sharing={dashboardDraft.sharing} bind:groupIds={dashboardDraft.groupIds} />
       <Inline justify="end">
-        <Button disabledReason={dashboardDraft.name.trim() === '' ? t('app.dashboards.name_needed') : undefined} onclick={() => void createDashboard()}>{t('app.dashboards.create')}</Button>
+        <Button disabledReason={dashboardDraft.name.trim() === '' ? t('app.dashboards.name_needed') : dashboardDraft.sharing === 'GROUPS' && dashboardDraft.groupIds.length === 0 ? t('app.dashboards.groups_needed') : undefined} onclick={() => void createDashboard()}>{t('app.dashboards.create')}</Button>
       </Inline>
     </Stack>
   </Dialog>
