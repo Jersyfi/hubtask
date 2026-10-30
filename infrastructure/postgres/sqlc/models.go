@@ -359,6 +359,7 @@ type Account struct {
 	TermsVersion          *string
 	TermsAgreedAt         pgtype.Timestamptz
 	AvatarMediaID         pgtype.UUID
+	ExternalID            *string
 }
 
 type AccountGroup struct {
@@ -368,6 +369,7 @@ type AccountGroup struct {
 	Description *string
 	CreatedAt   pgtype.Timestamptz
 	Version     int32
+	ExternalID  *string
 }
 
 type AccountGroupMember struct {

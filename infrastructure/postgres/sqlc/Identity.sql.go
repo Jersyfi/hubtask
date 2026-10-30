@@ -95,6 +95,41 @@ func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.U
 	return items, nil
 }
 
+const accountExternalIDs = `-- name: AccountExternalIDs :many
+
+SELECT id, external_id::text AS external_id FROM account
+WHERE id = ANY($1::uuid[]) AND external_id IS NOT NULL AND deleted_at IS NULL
+`
+
+type AccountExternalIDsRow struct {
+	ID         pgtype.UUID
+	ExternalID string
+}
+
+// ============================= Directory ==============================
+// What a directory provisions over SCIM (UC-ID-28): the identifier it knows a person or a group
+// by, and the people it switches off and on. The workspace's own rules - who may, the last owner,
+// the people limit - are the application's; these statements only write what it decided.
+func (q *Queries) AccountExternalIDs(ctx context.Context, ids []pgtype.UUID) ([]AccountExternalIDsRow, error) {
+	rows, err := q.db.Query(ctx, accountExternalIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AccountExternalIDsRow{}
+	for rows.Next() {
+		var i AccountExternalIDsRow
+		if err := rows.Scan(&i.ID, &i.ExternalID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const accountsOfKind = `-- name: AccountsOfKind :many
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
@@ -226,6 +261,28 @@ func (q *Queries) AdministratorsAlongPath(ctx context.Context, arg Administrator
 		return nil, err
 	}
 	return items, nil
+}
+
+const countDirectoryAccounts = `-- name: CountDirectoryAccounts :one
+SELECT count(*) FROM account WHERE kind = 'USER' AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+`
+
+func (q *Queries) CountDirectoryAccounts(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countDirectoryAccounts)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countDirectoryGroups = `-- name: CountDirectoryGroups :one
+SELECT count(*) FROM account_group
+`
+
+func (q *Queries) CountDirectoryGroups(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countDirectoryGroups)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const countPeople = `-- name: CountPeople :one
@@ -612,6 +669,18 @@ func (q *Queries) FindAccountBySignInName(ctx context.Context, signInName *strin
 	return i, err
 }
 
+const findAccountIDByExternalID = `-- name: FindAccountIDByExternalID :one
+SELECT id FROM account
+WHERE external_id = $1 AND kind = 'USER' AND deleted_at IS NULL
+`
+
+func (q *Queries) FindAccountIDByExternalID(ctx context.Context, externalID *string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findAccountIDByExternalID, externalID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const findGroup = `-- name: FindGroup :one
 
 SELECT id, tenant_id, name, description, version FROM account_group WHERE id = $1
@@ -638,6 +707,29 @@ func (q *Queries) FindGroup(ctx context.Context, id pgtype.UUID) (FindGroupRow, 
 		&i.Version,
 	)
 	return i, err
+}
+
+const findGroupIDByExternalID = `-- name: FindGroupIDByExternalID :one
+SELECT id FROM account_group WHERE external_id = $1
+`
+
+func (q *Queries) FindGroupIDByExternalID(ctx context.Context, externalID *string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findGroupIDByExternalID, externalID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const findGroupIDByName = `-- name: FindGroupIDByName :one
+SELECT id FROM account_group WHERE lower(name) = lower($1)
+`
+
+// Compared as the uniqueness index compares (account_group_name_uq).
+func (q *Queries) FindGroupIDByName(ctx context.Context, name string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findGroupIDByName, name)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const findMembership = `-- name: FindMembership :one
@@ -709,6 +801,36 @@ func (q *Queries) GrantMembership(ctx context.Context, arg GrantMembershipParams
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const groupExternalIDs = `-- name: GroupExternalIDs :many
+SELECT id, external_id::text AS external_id FROM account_group
+WHERE id = ANY($1::uuid[]) AND external_id IS NOT NULL
+`
+
+type GroupExternalIDsRow struct {
+	ID         pgtype.UUID
+	ExternalID string
+}
+
+func (q *Queries) GroupExternalIDs(ctx context.Context, ids []pgtype.UUID) ([]GroupExternalIDsRow, error) {
+	rows, err := q.db.Query(ctx, groupExternalIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GroupExternalIDsRow{}
+	for rows.Next() {
+		var i GroupExternalIDsRow
+		if err := rows.Scan(&i.ID, &i.ExternalID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const groupHoldsRoleUnderHub = `-- name: GroupHoldsRoleUnderHub :one
@@ -1272,6 +1394,69 @@ func (q *Queries) MembershipsOfGroup(ctx context.Context, groupID pgtype.UUID) (
 	return items, nil
 }
 
+const pageDirectoryAccounts = `-- name: PageDirectoryAccounts :many
+SELECT id FROM account
+WHERE kind = 'USER' AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+ORDER BY created_at, id
+OFFSET $1 LIMIT $2
+`
+
+type PageDirectoryAccountsParams struct {
+	RowOffset int32
+	RowLimit  int32
+}
+
+// SCIM pages by position (RFC 7644 §3.4.2.4); (created_at, id) keeps the order stable.
+func (q *Queries) PageDirectoryAccounts(ctx context.Context, arg PageDirectoryAccountsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, pageDirectoryAccounts, arg.RowOffset, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pageDirectoryGroups = `-- name: PageDirectoryGroups :many
+SELECT id FROM account_group ORDER BY created_at, id
+OFFSET $1 LIMIT $2
+`
+
+type PageDirectoryGroupsParams struct {
+	RowOffset int32
+	RowLimit  int32
+}
+
+func (q *Queries) PageDirectoryGroups(ctx context.Context, arg PageDirectoryGroupsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, pageDirectoryGroups, arg.RowOffset, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeGroupMember = `-- name: RemoveGroupMember :exec
 DELETE FROM account_group_member
 WHERE group_id = $1 AND account_id = $2
@@ -1431,6 +1616,65 @@ type SetAccountAvatarParams struct {
 // An erased account has no picture to set: its anonymisation cleared it.
 func (q *Queries) SetAccountAvatar(ctx context.Context, arg SetAccountAvatarParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setAccountAvatar, arg.AvatarMediaID, arg.UpdatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setAccountDirectoryStatus = `-- name: SetAccountDirectoryStatus :execrows
+UPDATE account SET status = $1, updated_at = $2, version = version + 1
+WHERE id = $3 AND kind = 'USER' AND deleted_at IS NULL
+  AND status IN ('ACTIVE', 'INVITED', 'DISABLED')
+`
+
+type SetAccountDirectoryStatusParams struct {
+	Status AccountStatus
+	Now    pgtype.Timestamptz
+	ID     pgtype.UUID
+}
+
+// Only between the states a directory may move a person between. A restricted account (Art. 18)
+// or an anonymised one is never touched here: switching it on again would lift a restriction
+// nobody asked to lift (data-protection.md §4).
+func (q *Queries) SetAccountDirectoryStatus(ctx context.Context, arg SetAccountDirectoryStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setAccountDirectoryStatus, arg.Status, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setAccountExternalID = `-- name: SetAccountExternalID :execrows
+UPDATE account SET external_id = $1, updated_at = $2
+WHERE id = $3 AND kind = 'USER' AND deleted_at IS NULL
+`
+
+type SetAccountExternalIDParams struct {
+	ExternalID *string
+	Now        pgtype.Timestamptz
+	ID         pgtype.UUID
+}
+
+func (q *Queries) SetAccountExternalID(ctx context.Context, arg SetAccountExternalIDParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setAccountExternalID, arg.ExternalID, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setGroupExternalID = `-- name: SetGroupExternalID :execrows
+UPDATE account_group SET external_id = $1 WHERE id = $2
+`
+
+type SetGroupExternalIDParams struct {
+	ExternalID *string
+	ID         pgtype.UUID
+}
+
+func (q *Queries) SetGroupExternalID(ctx context.Context, arg SetGroupExternalIDParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setGroupExternalID, arg.ExternalID, arg.ID)
 	if err != nil {
 		return 0, err
 	}

@@ -399,6 +399,62 @@ WHERE group_id = sqlc.arg('group_id') AND account_id = sqlc.arg('account_id');
 -- name: GroupMembers :many
 SELECT account_id FROM account_group_member WHERE group_id = sqlc.arg('group_id');
 
+-- ============================= Directory ==============================
+-- What a directory provisions over SCIM (UC-ID-28): the identifier it knows a person or a group
+-- by, and the people it switches off and on. The workspace's own rules - who may, the last owner,
+-- the people limit - are the application's; these statements only write what it decided.
+
+-- name: AccountExternalIDs :many
+SELECT id, external_id::text AS external_id FROM account
+WHERE id = ANY(sqlc.arg('ids')::uuid[]) AND external_id IS NOT NULL AND deleted_at IS NULL;
+
+-- name: FindAccountIDByExternalID :one
+SELECT id FROM account
+WHERE external_id = sqlc.arg('external_id') AND kind = 'USER' AND deleted_at IS NULL;
+
+-- name: SetAccountExternalID :execrows
+UPDATE account SET external_id = sqlc.narg('external_id'), updated_at = sqlc.arg('now')
+WHERE id = sqlc.arg('id') AND kind = 'USER' AND deleted_at IS NULL;
+
+-- name: SetAccountDirectoryStatus :execrows
+-- Only between the states a directory may move a person between. A restricted account (Art. 18)
+-- or an anonymised one is never touched here: switching it on again would lift a restriction
+-- nobody asked to lift (data-protection.md §4).
+UPDATE account SET status = sqlc.arg('status'), updated_at = sqlc.arg('now'), version = version + 1
+WHERE id = sqlc.arg('id') AND kind = 'USER' AND deleted_at IS NULL
+  AND status IN ('ACTIVE', 'INVITED', 'DISABLED');
+
+-- name: PageDirectoryAccounts :many
+-- SCIM pages by position (RFC 7644 §3.4.2.4); (created_at, id) keeps the order stable.
+SELECT id FROM account
+WHERE kind = 'USER' AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+ORDER BY created_at, id
+OFFSET sqlc.arg('row_offset') LIMIT sqlc.arg('row_limit');
+
+-- name: CountDirectoryAccounts :one
+SELECT count(*) FROM account WHERE kind = 'USER' AND deleted_at IS NULL AND status <> 'ANONYMIZED';
+
+-- name: GroupExternalIDs :many
+SELECT id, external_id::text AS external_id FROM account_group
+WHERE id = ANY(sqlc.arg('ids')::uuid[]) AND external_id IS NOT NULL;
+
+-- name: FindGroupIDByExternalID :one
+SELECT id FROM account_group WHERE external_id = sqlc.arg('external_id');
+
+-- name: FindGroupIDByName :one
+-- Compared as the uniqueness index compares (account_group_name_uq).
+SELECT id FROM account_group WHERE lower(name) = lower(sqlc.arg('name'));
+
+-- name: SetGroupExternalID :execrows
+UPDATE account_group SET external_id = sqlc.narg('external_id') WHERE id = sqlc.arg('id');
+
+-- name: PageDirectoryGroups :many
+SELECT id FROM account_group ORDER BY created_at, id
+OFFSET sqlc.arg('row_offset') LIMIT sqlc.arg('row_limit');
+
+-- name: CountDirectoryGroups :one
+SELECT count(*) FROM account_group;
+
 -- ============================ Memberships =============================
 
 -- name: GrantMembership :execrows
