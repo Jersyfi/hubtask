@@ -24,7 +24,8 @@ const (
 type Usage struct {
 	ActionsLastHour int
 	TokensToday     int64
-	RunsNow         int
+	// RunsNow counts its jobs still running (Job.Running).
+	RunsNow int
 }
 
 // Situation is everything an act is judged on besides the act itself.
@@ -59,7 +60,12 @@ func (a Agent) Admit(class Class, s Situation) (Decision, error) {
 		return DecisionRefused, shared.ErrRateLimited.WithDetail("agents.budget_spent").
 			WithParams(map[string]string{"budget": "actions_per_hour", "renews_at": s.HourEnds.UTC().Format(time.RFC3339)})
 	}
-	switch a.Policy.For(class) {
+	rule := a.Policy.For(class)
+	if a.Kind.Builtin() && class != ClassRead && rule != RuleNever {
+		// G11: a shipped agent proposes and a person applies - whatever its policy would allow.
+		rule = RuleApproval
+	}
+	switch rule {
 	case RuleAllow:
 		return DecisionAllowed, nil
 	case RuleNotify:

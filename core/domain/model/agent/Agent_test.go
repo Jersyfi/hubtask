@@ -105,8 +105,13 @@ func TestTheKillSwitchStopsEveryAct(t *testing.T) {
 	a := valid()
 	a.Status = StatusActive
 	a.ApprovedAt = &at
+	a.Kind = KindExternal
 	a.Policy = Policy{Reversible: RuleAllow, Irreversible: RuleApproval}
 	suspended, _ := a.Suspend("owner", at)
+	shipped := a
+	shipped.Kind = KindTicketTriage
+	never := shipped
+	never.Policy.Reversible = RuleNever
 
 	cases := []struct {
 		name     string
@@ -123,6 +128,9 @@ func TestTheKillSwitchStopsEveryAct(t *testing.T) {
 		{"the agent suspended", suspended, ClassRead, Situation{}, DecisionRefused, "agents.suspended"},
 		{"over budget", a, ClassReversible, Situation{Usage: Usage{ActionsLastHour: 120}}, DecisionRefused, "agents.budget_spent"},
 		{"a read over budget", a, ClassRead, Situation{Usage: Usage{ActionsLastHour: 999}}, DecisionAllowed, ""},
+		{"a shipped agent's write waits though allowed", shipped, ClassReversible, Situation{}, DecisionHeld, ""},
+		{"a shipped agent reads", shipped, ClassRead, Situation{}, DecisionAllowed, ""},
+		{"a shipped agent's write never done", never, ClassReversible, Situation{}, DecisionRefused, "agents.act_never"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

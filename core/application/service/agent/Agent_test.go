@@ -410,7 +410,7 @@ func TestTheGateHoldsAnAgentToItsGovernance(t *testing.T) {
 func TestTheKillSwitchesAndTheBudgetStopAnAgent(t *testing.T) {
 	f := newFixture()
 	a := f.register(t, usecase.Input{
-		"policy": map[string]any{"reversible": "ALLOW"}, "budget": map[string]any{"actions_per_hour": float64(1)},
+		"kind": "EXTERNAL", "policy": map[string]any{"reversible": "ALLOW"}, "budget": map[string]any{"actions_per_hour": float64(1)},
 	})
 	f.live(t, a)
 	write := usecase.Descriptor{Name: "UpdateWorkItem"}
