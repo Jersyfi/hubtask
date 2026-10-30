@@ -77,3 +77,11 @@ type WeekStarts interface {
 	// catalogue is - `de-AT` reads `de`'s row - and `MONDAY` for a locale nothing here knows.
 	WeekStartOf(locale string) string
 }
+
+// DecimalSeparators answers the character between the integer and the fraction where a locale is
+// spoken, for a number a mail carries (i18n-l10n.md §4).
+type DecimalSeparators interface {
+	// DecimalSeparatorOf answers it for a BCP 47 tag, resolved as WeekStartOf resolves one, and
+	// `.` for a locale nothing here knows.
+	DecimalSeparatorOf(locale string) string
+}

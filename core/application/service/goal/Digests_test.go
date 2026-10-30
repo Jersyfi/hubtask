@@ -238,3 +238,18 @@ func TestADigestMailsTheSubscribersOwnTotals(t *testing.T) {
 		t.Fatalf("the schedule outlived its subscriber: %v %v", next, err)
 	}
 }
+
+// A total's fraction is written after the subscriber's separator, exact and ungrouped.
+func TestADigestTotalReadsInTheSubscribersLocale(t *testing.T) {
+	widget := shared.MustParseID("018f0000-0000-7000-8000-0000000000d1")
+	board := domain.Dashboard{Widgets: []domain.Widget{{ID: widget, Title: "Hours", Chart: domain.ChartNumber}}}
+	figures := usecase.Output{"widgets": []usecase.Output{{"id": widget.String(), "data": []usecase.Output{
+		{"value": "1234.50"}, {"value": "0.25"},
+	}}}}
+	render := func(code string, params map[string]string) string { return echo{}.Render("", code, params) }
+	for separator, want := range map[string]string{",": "total=1234,75", ".": "total=1234.75"} {
+		if got := digestLines(board, figures, true, separator, render); !strings.Contains(got, want) {
+			t.Errorf("with %q the line is %q, want %s", separator, got, want)
+		}
+	}
+}

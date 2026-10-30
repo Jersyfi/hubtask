@@ -252,6 +252,8 @@ type DashboardDigests struct {
 	Addresses   DigestAddresses
 	Mail        mail.Sender
 	Renderer    i18n.Renderer
+	// Decimals writes a total's fraction with the subscriber's separator; nil keeps the point.
+	Decimals i18n.DecimalSeparators
 	// Background runs the job's own transactions, outside any request.
 	Background     persistence.UnitOfWork
 	FallbackLocale string
@@ -346,7 +348,11 @@ func (r DashboardDigests) compose(ctx context.Context, actor appshared.ActorCont
 	if locale == "" {
 		locale = r.FallbackLocale
 	}
-	lines := digestLines(dashboard, figures, read.titles, func(code string, params map[string]string) string {
+	separator := "."
+	if r.Decimals != nil {
+		separator = r.Decimals.DecimalSeparatorOf(locale)
+	}
+	lines := digestLines(dashboard, figures, read.titles, separator, func(code string, params map[string]string) string {
 		return r.Renderer.Render(locale, code, params)
 	})
 	link := ""
@@ -368,8 +374,9 @@ func (r DashboardDigests) compose(ctx context.Context, actor appshared.ActorCont
 }
 
 // digestLines is one line per NUMBER widget in reading order: its title and total, or that the
-// subscriber cannot compute it; numbered instead of titled where no title may travel.
-func digestLines(d domain.Dashboard, figures usecase.Output, titles bool, render func(string, map[string]string) string) string {
+// subscriber cannot compute it; numbered instead of titled where no title may travel. A total is
+// exact, its fraction after the subscriber's separator and its digits ungrouped (i18n-l10n.md §3).
+func digestLines(d domain.Dashboard, figures usecase.Output, titles bool, separator string, render func(string, map[string]string) string) string {
 	byID := map[string]usecase.Output{}
 	if widgets, ok := figures["widgets"].([]usecase.Output); ok {
 		for _, w := range widgets {
@@ -395,7 +402,7 @@ func digestLines(d domain.Dashboard, figures usecase.Output, titles bool, render
 		if figure != nil && figure["error"] == nil {
 			total, has = domain.Total(rowsOf(figure["data"]))
 		}
-		params["total"] = total
+		params["total"] = strings.Replace(total, ".", separator, 1)
 		switch {
 		case !has:
 			delete(params, "total")

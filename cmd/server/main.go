@@ -4573,7 +4573,7 @@ func run() error {
 		// A dashboard's digest by mail, computed as its subscriber (UC-GOL-04).
 		queueport.KindDashboardDigest: worker.DashboardDigest{Digests: goalservice.DashboardDigests{
 			Steward: steward, Accounts: accounts, Preferences: notificationPreferences,
-			Addresses: workspaceAddress(cfg), Mail: mailSender, Renderer: renderer,
+			Addresses: workspaceAddress(cfg), Mail: mailSender, Renderer: renderer, Decimals: renderer,
 			Background: backgroundWork, FallbackLocale: cfg.Locale.DefaultLocale,
 		}},
 		queueport.KindAutomationCheck:      worker.AutomationCheck{Check: ruleCheck},
