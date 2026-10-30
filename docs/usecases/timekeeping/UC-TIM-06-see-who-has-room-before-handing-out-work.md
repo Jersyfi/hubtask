@@ -5,9 +5,9 @@ context: timekeeping
 actors: [PE-planner, PE-member, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-14, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/timekeeping/Resources_test.go, core/application/service/timekeeping/Resources_test.go, test/integration/time_resources_test.go]
+checked_by: [core/domain/model/timekeeping/Resources_test.go, core/application/service/timekeeping/Resources_test.go, test/integration/time_resources_test.go, apps/webapp/src/lib/data/time.test.ts]
 ---
 
 # See who has room before handing out work
@@ -42,10 +42,6 @@ minutes; the lead's week is empty, so the next entry goes to him.
 6. REST, MCP and hubctl read the workload and write a capacity alike.
 7. The web app shows a plan's workload as a heatmap of people by weeks, and a person writes their
    capacity on *My time*.
-
-## Today
-
-* Check 7: not met - the web app shows no workload or capacity yet (S-20).
 
 ## Where it ends
 

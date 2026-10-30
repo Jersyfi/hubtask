@@ -5,9 +5,9 @@ context: timekeeping
 actors: [PE-member, PE-planner, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-14, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/timekeeping/Resources_test.go, core/application/service/timekeeping/Resources_test.go, test/integration/time_resources_test.go]
+checked_by: [core/domain/model/timekeeping/Resources_test.go, core/application/service/timekeeping/Resources_test.go, test/integration/time_resources_test.go, apps/webapp/src/lib/data/time.test.ts]
 ---
 
 # Record absences and holidays once for every plan
@@ -37,10 +37,6 @@ the workload of every hub she works in gives her no minutes then. When she falls
 6. REST, MCP and hubctl record and read absences alike.
 7. The web app shows the shared calendar of absences by month, and a person records, changes and
    removes their own there.
-
-## Today
-
-* Check 7: not met - the web app shows no calendar of absences yet (S-20).
 
 ## Where it ends
 

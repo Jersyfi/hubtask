@@ -5,9 +5,9 @@ context: timekeeping
 actors: [PE-planner, PE-owner, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-14, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/timekeeping/Costs_test.go, core/application/service/timekeeping/Resources_test.go, test/integration/time_resources_test.go]
+checked_by: [core/domain/model/timekeeping/Costs_test.go, core/application/service/timekeeping/Resources_test.go, test/integration/time_resources_test.go, apps/webapp/src/lib/data/time.test.ts]
 ---
 
 # Keep a project within its budget
@@ -40,10 +40,6 @@ designer role's in the hub is 60.00. An hour of Ana's on 2 November and two on 3
 7. REST, MCP and hubctl read and write rates, budgets and the burn alike.
 8. The web app shows the rates under *How we work*, and a plan's budget with its burn on the plan's
    actuals.
-
-## Today
-
-* Check 8: not met - the web app shows no rates or budget yet (S-20).
 
 ## Where it ends
 
