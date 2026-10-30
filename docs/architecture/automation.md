@@ -523,6 +523,35 @@ The **n8n community node** (`packages/n8n-nodes-hubtask`) and the **Zapier app**
 per event type — and a test per package proves them complete
 ([ADR-0058](../adr/ADR-0058-connector-packages.md)).
 
+### 3.4 Chat rooms
+
+A subscription's `format` says what its target receives
+([UC-INT-12](../usecases/integration/UC-INT-12-tell-our-chat-room-what-happens.md)): `CLOUDEVENTS`
+(the default, §3.1) or a chat room's sentence - `MATRIX`, `SLACK`, `MATTERMOST`, `TEAMS`. A chat
+room is the same subscription: its types, filter, scope, retries, dead letter, switching off and the
+plan's bounds are §3.1's, and only the body and the credential differ. The format names a wire
+protocol, as an import format does (engineering-guidelines.md §2, item 17).
+
+* **The sentence** is the catalogue's `chat.<entity>_<verb>` in the subscription's `locale` (absent
+  is the source language; `chat.event_other` for a type without one), the entry's title where the
+  event carries it, and a link to the entry under the installation's base address - never a note,
+  a comment's body or any other field a person wrote ([data-protection.md](./data-protection.md)
+  §9's rule for mail). Matrix receives an `m.notice` with an HTML body; Slack its `text`; Mattermost
+  Markdown with the title escaped; Teams an Adaptive Card whose link is an action.
+* **Matrix**: `target_url` is the homeserver, `room` a room identifier (`!opaque:server`; an alias
+  is refused), and `credential` the sending account's access token, sealed in the secret's place
+  and never answered. A delivery is `PUT /_matrix/client/v3/rooms/{room}/send/m.room.message/
+  hubtask-{event id}`, so a retry of one event is one notice.
+* **Slack, Mattermost, Teams**: `target_url` is given as the room's incoming webhook address. It
+  admits whoever holds it, so it is sealed in the secret's place and the stored, listed and audited
+  target is its origin alone; a delivery whose opened address left that origin sends nothing and
+  ends `webhooks.target_mismatch`.
+* **Not signed, not rotated, not moved**: a chat room carries no `X-Hubtask-Signature`, its creation
+  answers an empty `secret`, a rotation is refused (`webhooks.chat_not_signed`) and so is a new
+  target (`webhooks.target_fixed_for_chat`) - another room is another subscription. The format is
+  fixed at creation. The trail records the format and the Matrix room, never the credential.
+* Link unfurls and commands from a room are not built (UC-INT-12, *Where it ends*).
+
 ---
 
 ## 4. Why automation is its own service

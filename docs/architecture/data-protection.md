@@ -359,6 +359,7 @@ tenants, data categories and period within 72 hours
 | Avatar retrieval from third-party services (Gravatar and similar) | Off (it leaks IP addresses to third parties) |
 | Full IP addresses in logs | No, truncated |
 | Email notifications containing task content | Title and link only, no full text; switchable |
+| Chat room notifications (UC-INT-12) | Title and link only, never a note or a comment; only where an administrator subscribed the room |
 | Visibility of profile data to other tenant members | Minimal (display name, avatar) |
 | Retention | The shortest defensible periods (§5) |
 

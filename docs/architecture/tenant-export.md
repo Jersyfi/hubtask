@@ -311,7 +311,7 @@ is absent from the record, not null. The redacted fields, exhaustively:
 |---|---|
 | `accounts` | `password_hash`, `redemption_token_hash` |
 | `automation_rules` | `inbound_token_hash` |
-| `webhook_subscriptions` | `secret_enc`, `secret_key_id`, `previous_secret_enc`, `previous_secret_key_id`, `previous_secret_until` |
+| `webhook_subscriptions` | `secret_enc`, `secret_key_id`, `previous_secret_enc`, `previous_secret_key_id`, `previous_secret_until` — a chat room's Matrix token or incoming webhook address is its `secret_enc` ([automation.md](./automation.md) §3.4), so a room leaves by its format, server, room and language alone |
 | `calendar_feeds` | `token_hash` |
 | `cmdb_connectors` | `credential_enc`, `credential_key_id` |
 | `webauthn_credentials` | `credential_id`, `public_key`, `user_handle` — the passkey leaves by name and dates, and an import skips it ([identity.md](./identity.md) §23.5) |
