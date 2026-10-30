@@ -1233,6 +1233,44 @@ type CmdbSource struct {
 	Version   int32
 }
 
+type CodeDeliverySeen struct {
+	TenantID pgtype.UUID
+	HookID   pgtype.UUID
+	Digest   []byte
+	SeenAt   pgtype.Timestamptz
+}
+
+type CodeHook struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	HubID          pgtype.UUID
+	Kind           string
+	Name           string
+	Enabled        bool
+	Salt           string
+	RunAs          pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	LastDeliveryAt pgtype.Timestamptz
+}
+
+type CodeLink struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	ItemID     pgtype.UUID
+	HubID      pgtype.UUID
+	HookID     pgtype.UUID
+	Kind       string
+	Repository string
+	Ref        string
+	Title      string
+	Url        string
+	Author     string
+	State      string
+	HappenedAt pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+}
+
 type Comment struct {
 	ID              pgtype.UUID
 	TenantID        pgtype.UUID
