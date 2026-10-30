@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"errors"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestAChatRoomRoundTripsAndStaysInItsWorkspace(t *testing.T) {
 		ID: freshID(t), TenantID: tenantA, CreatedBy: authorA,
 		TargetURL:  "https://matrix.example.org",
 		EventTypes: []string{string(event.ItemCompleted)},
-		Chat:       domain.ChatTarget{Format: domain.FormatMatrix, Room: "!" + freshName(t) + ":example.org", Locale: "de"},
+		Chat:       domain.ChatTarget{Format: domain.FormatMatrix, Room: fmt.Sprintf("!room%d:example.org", fixtureCounter.Add(1)), Locale: "de"},
 		Now:        time.Now().UTC(),
 	})
 	if err != nil {
