@@ -782,7 +782,7 @@
   .cell[data-filled][data-summary] { block-size: var(--sp-050); background: var(--text-secondary); }
 
   /* The chain that decides the end. The tint is not alone: the caller's table says "critical". */
-  .cell[data-filled][data-critical] { background: var(--status-danger-text); }
+  .cell[data-filled][data-critical] { background: var(--status-danger-accent); }
 
   /* A milestone is a diamond on its day, not a one-day bar: a date without a duration. */
   .cell[data-filled][data-milestone] {
@@ -800,7 +800,7 @@
     rotate: 45deg;
   }
 
-  .cell[data-filled][data-milestone][data-critical]::before { background: var(--status-danger-text); }
+  .cell[data-filled][data-milestone][data-critical]::before { background: var(--status-danger-accent); }
 
   /* The knob after a bar's end, which a dependency is drawn from. */
   .knob {
