@@ -25891,7 +25891,16 @@ components:
       required: [name]
       properties:
         name: { type: string, minLength: 1, maxLength: 200 }
-        sharing: { type: string, enum: [PRIVATE, SCOPE] }
+        sharing:
+          type: string
+          enum: [PRIVATE, SCOPE, GROUPS]
+          description: "PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it."
+        group_ids:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, format: uuid }
+          description: "For GROUPS: the groups whose members see it, each where they read its place."
         widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
 
     DashboardCreate:
@@ -25899,7 +25908,16 @@ components:
       required: [name]
       properties:
         name: { type: string, minLength: 1, maxLength: 200 }
-        sharing: { type: string, enum: [PRIVATE, SCOPE] }
+        sharing:
+          type: string
+          enum: [PRIVATE, SCOPE, GROUPS]
+          description: "PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it."
+        group_ids:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, format: uuid }
+          description: "For GROUPS: the groups whose members see it, each where they read its place."
         widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
         hub_id: { type: string, format: uuid, description: "The hub it belongs to; the workspace's without." }
 
@@ -25911,7 +25929,13 @@ components:
         hub_id: { type: string, format: uuid, nullable: true }
         owner_id: { type: string, format: uuid, nullable: true }
         name: { type: string }
-        sharing: { type: string, enum: [PRIVATE, SCOPE] }
+        sharing: { type: string, enum: [PRIVATE, SCOPE, GROUPS] }
+        group_ids:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, format: uuid }
+          description: "For GROUPS: the groups whose members see it, each where they read its place."
         widgets: { type: array, items: { $ref: "#/components/schemas/DashboardWidget" } }
         version: { type: integer }
 

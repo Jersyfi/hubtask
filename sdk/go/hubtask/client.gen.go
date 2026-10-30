@@ -3467,6 +3467,7 @@ func (e CustomRoleGrantCreateScopeType) Valid() bool {
 
 // Defines values for DashboardSharing.
 const (
+	DashboardSharingGROUPS  DashboardSharing = "GROUPS"
 	DashboardSharingPRIVATE DashboardSharing = "PRIVATE"
 	DashboardSharingSCOPE   DashboardSharing = "SCOPE"
 )
@@ -3474,6 +3475,8 @@ const (
 // Valid indicates whether the value is a known member of the DashboardSharing enum.
 func (e DashboardSharing) Valid() bool {
 	switch e {
+	case DashboardSharingGROUPS:
+		return true
 	case DashboardSharingPRIVATE:
 		return true
 	case DashboardSharingSCOPE:
@@ -3485,6 +3488,7 @@ func (e DashboardSharing) Valid() bool {
 
 // Defines values for DashboardCreateSharing.
 const (
+	DashboardCreateSharingGROUPS  DashboardCreateSharing = "GROUPS"
 	DashboardCreateSharingPRIVATE DashboardCreateSharing = "PRIVATE"
 	DashboardCreateSharingSCOPE   DashboardCreateSharing = "SCOPE"
 )
@@ -3492,6 +3496,8 @@ const (
 // Valid indicates whether the value is a known member of the DashboardCreateSharing enum.
 func (e DashboardCreateSharing) Valid() bool {
 	switch e {
+	case DashboardCreateSharingGROUPS:
+		return true
 	case DashboardCreateSharingPRIVATE:
 		return true
 	case DashboardCreateSharingSCOPE:
@@ -3647,6 +3653,7 @@ func (e DashboardWidgetWriteSource) Valid() bool {
 
 // Defines values for DashboardWriteSharing.
 const (
+	DashboardWriteSharingGROUPS  DashboardWriteSharing = "GROUPS"
 	DashboardWriteSharingPRIVATE DashboardWriteSharing = "PRIVATE"
 	DashboardWriteSharingSCOPE   DashboardWriteSharing = "SCOPE"
 )
@@ -3654,6 +3661,8 @@ const (
 // Valid indicates whether the value is a known member of the DashboardWriteSharing enum.
 func (e DashboardWriteSharing) Valid() bool {
 	switch e {
+	case DashboardWriteSharingGROUPS:
+		return true
 	case DashboardWriteSharingPRIVATE:
 		return true
 	case DashboardWriteSharingSCOPE:
@@ -14140,13 +14149,15 @@ type DailyNoteOpen struct {
 
 // Dashboard defines model for Dashboard.
 type Dashboard struct {
-	HubId   openapi_types.UUID `json:"hub_id"`
-	Id      openapi_types.UUID `json:"id"`
-	Name    string             `json:"name"`
-	OwnerId openapi_types.UUID `json:"owner_id"`
-	Sharing DashboardSharing   `json:"sharing"`
-	Version int                `json:"version"`
-	Widgets []DashboardWidget  `json:"widgets"`
+	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
+	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
+	HubId    openapi_types.UUID    `json:"hub_id"`
+	Id       openapi_types.UUID    `json:"id"`
+	Name     string                `json:"name"`
+	OwnerId  openapi_types.UUID    `json:"owner_id"`
+	Sharing  DashboardSharing      `json:"sharing"`
+	Version  int                   `json:"version"`
+	Widgets  []DashboardWidget     `json:"widgets"`
 }
 
 // DashboardSharing defines model for Dashboard.Sharing.
@@ -14154,14 +14165,19 @@ type DashboardSharing string
 
 // DashboardCreate defines model for DashboardCreate.
 type DashboardCreate struct {
+	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
+	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
+
 	// HubId The hub it belongs to; the workspace's without.
-	HubId   *openapi_types.UUID     `json:"hub_id,omitempty"`
-	Name    string                  `json:"name"`
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Name  string              `json:"name"`
+
+	// Sharing PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it.
 	Sharing *DashboardCreateSharing `json:"sharing,omitempty"`
 	Widgets *[]DashboardWidgetWrite `json:"widgets,omitempty"`
 }
 
-// DashboardCreateSharing defines model for DashboardCreate.Sharing.
+// DashboardCreateSharing PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it.
 type DashboardCreateSharing string
 
 // DashboardDigest defines model for DashboardDigest.
@@ -14269,12 +14285,16 @@ type DashboardWidgetWriteSource string
 
 // DashboardWrite defines model for DashboardWrite.
 type DashboardWrite struct {
-	Name    string                  `json:"name"`
+	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
+	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
+	Name     string                `json:"name"`
+
+	// Sharing PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it.
 	Sharing *DashboardWriteSharing  `json:"sharing,omitempty"`
 	Widgets *[]DashboardWidgetWrite `json:"widgets,omitempty"`
 }
 
-// DashboardWriteSharing defines model for DashboardWrite.Sharing.
+// DashboardWriteSharing PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it.
 type DashboardWriteSharing string
 
 // DataSubjectRequest defines model for DataSubjectRequest.

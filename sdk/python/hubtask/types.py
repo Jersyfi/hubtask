@@ -1857,12 +1857,14 @@ class DashboardWidget(TypedDict, total=False):
 
 class DashboardWrite(TypedDict, total=False):
     name: Required[str]
-    sharing: Literal["PRIVATE", "SCOPE"]
+    sharing: Literal["PRIVATE", "SCOPE", "GROUPS"]
+    group_ids: list[str]
     widgets: list["DashboardWidgetWrite"]
 
 class DashboardCreate(TypedDict, total=False):
     name: Required[str]
-    sharing: Literal["PRIVATE", "SCOPE"]
+    sharing: Literal["PRIVATE", "SCOPE", "GROUPS"]
+    group_ids: list[str]
     widgets: list["DashboardWidgetWrite"]
     hub_id: str
 
@@ -1871,7 +1873,8 @@ class Dashboard(TypedDict, total=False):
     hub_id: Required[str | None]
     owner_id: Required[str | None]
     name: Required[str]
-    sharing: Required[Literal["PRIVATE", "SCOPE"]]
+    sharing: Required[Literal["PRIVATE", "SCOPE", "GROUPS"]]
+    group_ids: list[str]
     widgets: Required[list["DashboardWidget"]]
     version: Required[int]
 

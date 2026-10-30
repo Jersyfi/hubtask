@@ -818,9 +818,10 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "version"}},
 	{Group: "dashboard", Verb: "add", OperationID: "createDashboard", Method: "POST", Path: "/dashboards", Summary: "Create a dashboard",
 		Body: []doorParam{
+			{Name: "group_ids", Kind: "strings", Help: "For GROUPS: the groups whose members see it, each where they read its place", Required: false},
 			{Name: "hub_id", Kind: "uuid", Help: "The hub it belongs to; the workspace's without", Required: false},
 			{Name: "name", Kind: "string", Help: "", Required: true},
-			{Name: "sharing", Kind: "string", Help: "", Required: false},
+			{Name: "sharing", Kind: "string", Help: "PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read …", Required: false},
 			{Name: "widgets", Kind: "json", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "version"}},
@@ -870,8 +871,9 @@ var generatedCommands = []door{
 			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
 		},
 		Body: []doorParam{
+			{Name: "group_ids", Kind: "strings", Help: "For GROUPS: the groups whose members see it, each where they read its place", Required: false},
 			{Name: "name", Kind: "string", Help: "", Required: true},
-			{Name: "sharing", Kind: "string", Help: "", Required: false},
+			{Name: "sharing", Kind: "string", Help: "PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read …", Required: false},
 			{Name: "widgets", Kind: "json", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "version"}},

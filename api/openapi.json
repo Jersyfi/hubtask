@@ -40120,8 +40120,20 @@
             "type": "string",
             "enum": [
               "PRIVATE",
-              "SCOPE"
-            ]
+              "SCOPE",
+              "GROUPS"
+            ],
+            "description": "PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it."
+          },
+          "group_ids": {
+            "type": "array",
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "For GROUPS: the groups whose members see it, each where they read its place."
           },
           "widgets": {
             "type": "array",
@@ -40147,8 +40159,20 @@
             "type": "string",
             "enum": [
               "PRIVATE",
-              "SCOPE"
-            ]
+              "SCOPE",
+              "GROUPS"
+            ],
+            "description": "PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it."
+          },
+          "group_ids": {
+            "type": "array",
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "For GROUPS: the groups whose members see it, each where they read its place."
           },
           "widgets": {
             "type": "array",
@@ -40197,8 +40221,19 @@
             "type": "string",
             "enum": [
               "PRIVATE",
-              "SCOPE"
+              "SCOPE",
+              "GROUPS"
             ]
+          },
+          "group_ids": {
+            "type": "array",
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "For GROUPS: the groups whose members see it, each where they read its place."
           },
           "widgets": {
             "type": "array",
