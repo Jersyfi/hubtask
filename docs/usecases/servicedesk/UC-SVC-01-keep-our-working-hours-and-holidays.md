@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Sla_test.go, core/domain/model/calendar/BusinessCalendar_test.go, core/application/service/servicedesk/Clocks_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
+checked_by: [core/domain/model/servicedesk/Sla_test.go, core/domain/model/calendar/BusinessCalendar_test.go, core/application/service/servicedesk/Clocks_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, core/application/service/servicedesk/HubCalendars_test.go, test/integration/service_desk_hub_calendar_test.go]
 ---
 
 # Keep our working hours and holidays
@@ -26,8 +26,9 @@ Lena runs the IT desk of a district office. She defines the calendar *office*: M
 2. Defining a calendar again under its key replaces it; a clock already running keeps the calendar it was armed on.
 3. A calendar an SLA policy names cannot be deleted (`calendars.in_use`); an unused one can.
 4. Any member of the workspace reads the calendars; another workspace neither reads one nor names it in a policy.
+5. Somebody holding STRUCTURE on a hub keeps the hub's own version of a workspace calendar under its key - its own hours, holidays and zone -, and every policy naming the key counts on it for the hub's entries; a key the workspace holds no calendar under is refused, a workspace calendar a hub keeps its own version of cannot be deleted (`calendars.in_use`), and dropping the hub's version counts the hub's entries on the workspace's again.
 
 ## Where it ends
 
-* One calendar per key at the workspace; a hub or an installation has no calendar of its own yet.
+* One calendar per key at the workspace, and one version of it per hub; an installation has no calendar of its own yet.
 * A holiday is a whole local day; half days are spans of their own weekday.

@@ -716,7 +716,10 @@ deadline and a change's effectiveness check.
   clock already running. Durable: a row in `durable_timer`, fired by the `timer.fire` job of its
   tenant, never a sleeping process.
 * **`Calendar`** (`core/domain/model/servicedesk`, UC-SVC-01): a workspace's business calendar
-  under a key (`business_calendar`). A calendar an SLA policy names cannot be deleted.
+  under a key (`business_calendar`). A calendar an SLA policy names cannot be deleted. A hub may
+  keep its own version of one under the same key (`hub_business_calendar`, `HubID` set): a policy
+  naming the key arms the goals of the hub's entries on it, and a workspace calendar a hub keeps
+  its own version of cannot be deleted either.
 * **`SlaPolicy`** (UC-SVC-02): the entry types it measures, a `FIRST_RESPONSE` and a `RESOLUTION`
   goal - a target in working minutes, narrower per option of a priority field, the workflow
   statuses it stands still in, the share at which it is at risk -, a calendar by key or none
