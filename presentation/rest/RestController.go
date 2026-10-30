@@ -89,6 +89,9 @@ type RestController struct {
 	// MailIntake serves the mail door beside it: the same credential, and a body that is
 	// the message itself rather than a shape somebody had to agree on.
 	MailIntake MailDeliverer
+	// CodeIntake serves the forge hooks: GitHub, GitLab, Forgejo and Gitea post their pushes and
+	// pull requests. Nil leaves the route answering the pending 404.
+	CodeIntake CodeDeliverer
 	// CmdbAlerts serves the CMDB's alert intakes, for the same reasons: a monitoring program holds
 	// the credential, not a person. Nil leaves the route answering the pending 404.
 	CmdbAlerts CmdbAlertDeliverer
