@@ -112,22 +112,26 @@
         <ol class="replies">
           {#each detail.comments as comment (comment.id)}
             <li class:mine={comment.mine}>
-              <span class="who">{comment.mine ? t('app.portal.you') : t('app.portal.team')} · {at(comment.created_at)}</span>
+              <span class="who">{comment.mine ? t('app.portal.you') : comment.by_requester ? t('app.portal.colleague') : t('app.portal.team')} · {at(comment.created_at)}</span>
               <p class="body">{comment.body ?? ''}</p>
             </li>
           {/each}
         </ol>
-        <form onsubmit={(event) => void send(event)}>
-          <Stack gap="100">
-            <Textarea label={t('app.portal.answer')} rows={3} bind:value={answer} />
-            <div><Button type="submit" tone="secondary" icon="send" isBusy={isAnswering} busyLabel={t('app.portal.sending')}
-              disabledReason={answer.trim() === '' ? t('app.portal.answer_first') : undefined}>{t('app.portal.send')}</Button></div>
-          </Stack>
-        </form>
+        {#if detail.is_own !== false}
+          <form onsubmit={(event) => void send(event)}>
+            <Stack gap="100">
+              <Textarea label={t('app.portal.answer')} rows={3} bind:value={answer} />
+              <div><Button type="submit" tone="secondary" icon="send" isBusy={isAnswering} busyLabel={t('app.portal.sending')}
+                disabledReason={answer.trim() === '' ? t('app.portal.answer_first') : undefined}>{t('app.portal.send')}</Button></div>
+            </Stack>
+          </form>
+        {:else}
+          <p class="quiet">{t('app.portal.colleague_request')}</p>
+        {/if}
       </Stack>
     </section>
 
-    {#if detail.is_completed}
+    {#if detail.is_completed && detail.is_own !== false}
       <section aria-labelledby="portal-rating">
         <form onsubmit={(event) => void rate(event)}>
           <Stack gap="100">

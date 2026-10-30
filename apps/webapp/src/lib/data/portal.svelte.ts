@@ -15,6 +15,8 @@ const query = (collectionId: string) => `collection_id=${encodeURIComponent(coll
 
 export const cataloguePath = (collectionId: string) => `/request-catalogue?${query(collectionId)}`;
 export const myRequestsPath = (collectionId: string) => `/requests?${query(collectionId)}`;
+/** The requests of the reader's whole organisation, where it shares them (UC-SVC-11 check 3). */
+export const organisationRequestsPath = (collectionId: string) => `/requests?${query(collectionId)}&scope=ORGANISATION`;
 export const myRequestPath = (itemId: string) => `/requests/${itemId}`;
 export const articlePath = (collectionId: string, pageId: string) => `/articles/${pageId}?${query(collectionId)}`;
 export function suggestionsPath(collectionId: string, text: string): string {
@@ -32,7 +34,7 @@ class Portal {
   raise(collectionId: string, draft: RequestDraft): Promise<PortalRequest> {
     return engine.mutate<PortalRequest>('POST', '/requests', { collection_id: collectionId, ...draft }, {
       idempotencyKey: crypto.randomUUID(),
-      invalidates: [myRequestsPath(collectionId)],
+      invalidates: [myRequestsPath(collectionId), organisationRequestsPath(collectionId)],
     });
   }
 

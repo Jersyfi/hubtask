@@ -6,6 +6,8 @@
   // check 3), and the reader's own requests there (check 3). A requester reaches it by the address
   // the team gives them; nothing here reads the team's side of a collection. The approvals waiting
   // for the reader's yes are decided here too (UC-SVC-09 check 5), without a link to the entry.
+  // Where the reader's organisation shares its requests, its colleagues' are one choice away
+  // (UC-SVC-11 check 5); the list is asked for only once chosen.
 
   import { untrack } from 'svelte';
   import {
@@ -15,7 +17,7 @@
 
   import { myApprovalsPath } from '../lib/data/approvals.svelte.ts';
 
-  import { cataloguePath, myRequestsPath, portal } from '../lib/data/portal.svelte.ts';
+  import { cataloguePath, myRequestsPath, organisationRequestsPath, portal } from '../lib/data/portal.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -26,6 +28,7 @@
   import { answersOf, askable, deflectionText } from '../lib/portal/portal.ts';
   import { renderProblem } from '../lib/problem.ts';
   import ApprovalCard from '../lib/servicedesk/ApprovalCard.svelte';
+  import { offersOrganisation } from '../lib/servicedesk/organisations.ts';
 
   const { collectionId, onnavigate }: { collectionId: string; onnavigate?: (path: string) => void } = $props();
 
@@ -38,8 +41,16 @@
 
   const kinds = $derived(catalogue.state.status === 'ready' ? catalogue.state.data.data : []);
   const failure = $derived(catalogue.state.status === 'failed' ? renderProblem(catalogue.state.error, messages) : undefined);
-  const requests = $derived(mine.state.status === 'ready' ? mine.state.data.data : []);
-  const hasMore = $derived(mine.state.status === 'ready' && Boolean(mine.state.data.page_info.next_cursor));
+  const organisation = $derived(mine.state.status === 'ready' ? mine.state.data.organisation : undefined);
+  const offered = $derived(offersOrganisation(organisation));
+  let scope = $state<'MINE' | 'ORGANISATION'>('MINE');
+  let theirs = $state<ReturnType<typeof resource<PortalRequestPage>> | undefined>(undefined);
+  $effect(() => {
+    if (scope === 'ORGANISATION' && !theirs) theirs = untrack(() => resource<PortalRequestPage>(organisationRequestsPath(collectionId)));
+  });
+  const shown = $derived(scope === 'ORGANISATION' && offered && theirs ? theirs : mine);
+  const requests = $derived(shown.state.status === 'ready' ? shown.state.data.data : []);
+  const hasMore = $derived(shown.state.status === 'ready' && Boolean(shown.state.data.page_info.next_cursor));
 
   let kind = $state('');
   let title = $state('');
@@ -85,7 +96,7 @@
   async function more() {
     isLoadingMore = true;
     try {
-      await mine.loadMore();
+      await shown.loadMore();
     } finally {
       isLoadingMore = false;
     }
@@ -142,9 +153,14 @@
   <section aria-labelledby="portal-mine">
     <Stack gap="100">
       <h2 class="heading" id="portal-mine">{t('app.portal.mine')}</h2>
-      {#if mine.state.status === 'ready' && requests.length === 0}
+      {#if offered}
+        <Radio label={t('app.portal.whose')} name="portal-whose" bind:value={scope}
+          options={[{ value: 'MINE', label: t('app.portal.whose_mine') },
+            { value: 'ORGANISATION', label: t('app.portal.whose_organisation', { name: organisation?.name ?? '' }) }]} />
+      {/if}
+      {#if shown.state.status === 'ready' && requests.length === 0}
         <p class="quiet">{t('app.portal.mine_none')}</p>
-      {:else if mine.state.status === 'ready'}
+      {:else if shown.state.status === 'ready'}
         {#each requests as request (request.id)}
           <ListRow href={`/portal/requests/${request.id}`} onactivate={() => onnavigate?.(`/portal/requests/${request.id}`)}>
             {request.title}
@@ -153,6 +169,7 @@
                 {request.is_completed ? t('app.portal.resolved') : (request.status ?? t('app.portal.open'))}
               </Badge>
               {formatDateTime(request.created_at, messages.locale)}
+              {#if request.is_own === false}<Badge tone="neutral" size="sm">{t('app.portal.colleague')}</Badge>{/if}
             </span>
           </ListRow>
         {/each}

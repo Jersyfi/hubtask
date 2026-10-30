@@ -8,7 +8,8 @@
  */
 
 import type {
-  BusinessCalendar, BusinessCalendarDefine, RenderedReply, ReplyTemplate, ReplyTemplateDefine, SlaPolicy, SlaPolicyDefine,
+  BusinessCalendar, BusinessCalendarDefine, RenderedReply, ReplyTemplate, ReplyTemplateDefine, RequesterOrganisation,
+  RequesterOrganisationDefine, SlaPolicy, SlaPolicyDefine,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -16,6 +17,7 @@ import { engine } from './engine.ts';
 export const calendarsPath = '/business-calendars';
 export const policiesPath = '/sla-policies';
 export const repliesPath = '/reply-templates';
+export const organisationsPath = '/requester-organisations';
 export const hubCalendarsPath = (hubId: string) => `/hubs/${hubId}/business-calendars`;
 export const entrySlaPath = (itemId: string) => `/items/${itemId}/sla`;
 export const slaReportPath = (from: string, to: string) => `/sla-report?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
@@ -52,6 +54,15 @@ class Desk {
 
   deleteReply(key: string): Promise<unknown> {
     return engine.mutate('DELETE', `${repliesPath}/${key}`, undefined, { invalidates: [repliesPath] });
+  }
+
+  /** A portal organisation by its mail domains (UC-SVC-11). */
+  defineOrganisation(key: string, body: RequesterOrganisationDefine): Promise<RequesterOrganisation> {
+    return engine.mutate<RequesterOrganisation>('PUT', `${organisationsPath}/${key}`, body, { invalidates: [organisationsPath] });
+  }
+
+  deleteOrganisation(key: string): Promise<unknown> {
+    return engine.mutate('DELETE', `${organisationsPath}/${key}`, undefined, { invalidates: [organisationsPath] });
   }
 
   /** A canned reply filled for the entry; it sends nothing. */

@@ -3,7 +3,8 @@
 <script lang="ts">
   // *Service desk* under *How we work*, where the service desk is on: the workspace's business
   // calendars (UC-SVC-01), its SLA policies (UC-SVC-02 check 1), its canned replies (UC-SVC-06
-  // check 1) and how the goals of a period stood (UC-SVC-02 check 7), as tabs.
+  // check 1), the portal's organisations (UC-SVC-11 check 5) and how the goals of a period stood
+  // (UC-SVC-02 check 7), as tabs.
   //
   // **What the reader may never do is not drawn** (P-05): defining and deleting need STRUCTURE at
   // the workspace, and so does the report; a member without it reads the calendars, policies and
@@ -13,10 +14,12 @@
   import {
     Badge, Button, Checkbox, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
   } from '@hubtask/design-system/components';
-  import type { BusinessCalendarList, ReplyTemplateList, SlaPolicy, SlaPolicyList, SlaReport } from '@hubtask/sync-engine';
+  import type {
+    BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaPolicy, SlaPolicyList, SlaReport,
+  } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
-  import { calendarsPath, desk, policiesPath, repliesPath, slaReportPath } from '../lib/data/desk.svelte.ts';
+  import { calendarsPath, desk, organisationsPath, policiesPath, repliesPath, slaReportPath } from '../lib/data/desk.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { keyFrom } from '../lib/data/entrytypes.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
@@ -26,11 +29,12 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { WEEKDAYS, byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, reportRows } from '../lib/servicedesk/desk.ts';
+  import { domainsOf } from '../lib/servicedesk/organisations.ts';
 
   $effect(() => page.entitle(t('app.desk.title')));
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
 
-  const TABS = ['calendars', 'policies', 'replies', 'report'] as const;
+  const TABS = ['calendars', 'policies', 'replies', 'organisations', 'report'] as const;
   let current = $state<(typeof TABS)[number]>('calendars');
 
   const calendars = untrack(() => resource<BusinessCalendarList>(calendarsPath));
@@ -39,6 +43,8 @@
   const calendarRows = $derived(calendars.state.status === 'ready' ? calendars.state.data.data : undefined);
   const policyRows = $derived(policies.state.status === 'ready' ? policies.state.data.data : undefined);
   const replyRows = $derived(replies.state.status === 'ready' ? replies.state.data.data : undefined);
+  const organisations = untrack(() => resource<RequesterOrganisationList>(organisationsPath));
+  const organisationRows = $derived(organisations.state.status === 'ready' ? organisations.state.data.data : undefined);
 
   let refusal = $state<string | undefined>(undefined);
   let isSaving = $state(false);
@@ -123,6 +129,18 @@
     const key = reply.key || keyFrom(reply.name);
     const saved = await attempt(() => desk.defineReply(key, { name: reply.name.trim(), body: reply.body }), 'app.desk.reply_saved');
     if (saved) reply = { key: '', name: '', body: '' };
+  }
+
+  // A portal organisation: its people by the mail domain of their address; sharing off unless set.
+  const emptyOrganisation = () => ({ key: '', name: '', domains: '', shares: false });
+  let organisation = $state(emptyOrganisation());
+  async function saveOrganisation(event: SubmitEvent) {
+    event.preventDefault();
+    const key = organisation.key || keyFrom(organisation.name);
+    const saved = await attempt(() => desk.defineOrganisation(key, {
+      name: organisation.name.trim(), domains: domainsOf(organisation.domains), shares_requests: organisation.shares,
+    }), 'app.desk.organisation_saved');
+    if (saved) organisation = emptyOrganisation();
   }
 
   // The report over the last thirty days by default.
@@ -271,6 +289,43 @@
               <Textarea label={t('app.desk.reply_body')} hint={t('app.desk.reply_body_hint')} rows={5} bind:value={reply.body} />
               <div><Button type="submit" tone="secondary" icon="message-square" isBusy={isSaving} busyLabel={t('app.desk.saving')}>
                 {reply.key ? t('app.desk.replace') : t('app.desk.add_reply')}</Button></div>
+            </Stack>
+          </form>
+        {/if}
+      </Stack>
+    {:else if current === 'organisations'}
+      <Stack gap="150">
+        <p class="quiet">{t('app.desk.organisations_intro')}</p>
+        {#if !organisationRows}<Skeleton lines={3} />{:else if organisationRows.length === 0}<p class="quiet">{t('app.desk.organisations_none')}</p>{/if}
+        <ul class="rows">
+          {#each organisationRows ?? [] as row (row.key)}
+            <li data-organisation-row>
+              <Inline gap="100" align="center" justify="between">
+                <span><strong>{row.name}</strong> · {row.domains.join(', ')}</span>
+                <Inline gap="050" align="center">
+                  {#if row.shares_requests}<Badge tone="info" size="sm">{t('app.desk.organisation_shares')}</Badge>{/if}
+                  {#if mayShape}
+                    <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.desk.edit')}
+                      onclick={() => (organisation = { key: row.key, name: row.name, domains: row.domains.join(', '), shares: row.shares_requests })} />
+                    <IconButton icon="trash" size="sm" tone="subtle" label={t('app.desk.delete')}
+                      onclick={() => void attempt(() => desk.deleteOrganisation(row.key), 'app.desk.deleted')} />
+                  {/if}
+                </Inline>
+              </Inline>
+            </li>
+          {/each}
+        </ul>
+        {#if mayShape}
+          <form class="panel" onsubmit={(event) => void saveOrganisation(event)}>
+            <Stack gap="100">
+              <Input label={t('app.desk.name')} bind:value={organisation.name} required />
+              <Textarea label={t('app.desk.organisation_domains')} hint={t('app.desk.organisation_domains_hint')} rows={2}
+                bind:value={organisation.domains} />
+              <Switch label={t('app.desk.organisation_share')} checked={organisation.shares}
+                onchange={(event: Event) => (organisation.shares = (event.currentTarget as HTMLInputElement).checked)} />
+              <div><Button type="submit" tone="secondary" icon="users" isBusy={isSaving} busyLabel={t('app.desk.saving')}
+                disabledReason={domainsOf(organisation.domains).length === 0 ? t('app.desk.organisation_domains_first') : undefined}>
+                {organisation.key ? t('app.desk.replace') : t('app.desk.add_organisation')}</Button></div>
             </Stack>
           </form>
         {/if}
