@@ -5671,6 +5671,7 @@ ALTER TABLE plan_baseline FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON plan_baseline
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON plan_baseline TO hubtask_app;
+GRANT UPDATE (entry_count) ON plan_baseline TO hubtask_app;
 
 CREATE TABLE plan_baseline_entry (
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -6123,6 +6124,7 @@ CREATE TABLE dashboard (
     FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX dashboard_hub_idx ON dashboard (tenant_id, hub_id);
+CREATE UNIQUE INDEX dashboard_tenant_id_uq ON dashboard (tenant_id, id);
 ALTER TABLE dashboard ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dashboard FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON dashboard
@@ -6132,7 +6134,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON dashboard TO hubtask_app;
 CREATE TABLE dashboard_digest (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  dashboard_id uuid NOT NULL REFERENCES dashboard(id) ON DELETE CASCADE,
+  dashboard_id uuid NOT NULL,
   account_id   uuid NOT NULL,
   cadence      text NOT NULL CHECK (cadence IN ('DAILY', 'WEEKLY')),
   weekday      smallint NOT NULL DEFAULT 0 CHECK (weekday BETWEEN 0 AND 7),
@@ -6143,7 +6145,10 @@ CREATE TABLE dashboard_digest (
   created_at   timestamptz NOT NULL,
   updated_at   timestamptz NOT NULL,
   CHECK ((cadence = 'WEEKLY') = (weekday > 0)),
-  UNIQUE (tenant_id, dashboard_id, account_id)
+  UNIQUE (tenant_id, dashboard_id, account_id),
+  -- Tenant-first since migration 0281 (ADR-0024).
+  CONSTRAINT dashboard_digest_dashboard_fkey
+    FOREIGN KEY (tenant_id, dashboard_id) REFERENCES dashboard (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX dashboard_digest_account_idx ON dashboard_digest (tenant_id, account_id);
 ALTER TABLE dashboard_digest ENABLE ROW LEVEL SECURITY;
@@ -6216,7 +6221,7 @@ ALTER TABLE agent_model ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_model FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON agent_model
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
-GRANT SELECT, INSERT, UPDATE ON agent_model TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON agent_model TO hubtask_app;
 
 CREATE TABLE agent (
   id                      uuid PRIMARY KEY,
@@ -6253,7 +6258,7 @@ ALTER TABLE agent ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON agent
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
-GRANT SELECT, INSERT, UPDATE ON agent TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON agent TO hubtask_app;
 
 CREATE TABLE agent_halt (
   id        uuid PRIMARY KEY,
@@ -6266,7 +6271,7 @@ ALTER TABLE agent_halt ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_halt FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON agent_halt
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
-GRANT SELECT, INSERT, UPDATE ON agent_halt TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON agent_halt TO hubtask_app;
 
 CREATE TABLE agent_request (
   id         uuid PRIMARY KEY,
@@ -6345,7 +6350,7 @@ ALTER TABLE agent_eval_run ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_eval_run FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON agent_eval_run
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
-GRANT SELECT, INSERT ON agent_eval_run TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON agent_eval_run TO hubtask_app;
 
 CREATE TABLE ai_provenance (
   id             uuid PRIMARY KEY,
@@ -6366,7 +6371,7 @@ ALTER TABLE ai_provenance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_provenance FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON ai_provenance
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
-GRANT SELECT, INSERT ON ai_provenance TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON ai_provenance TO hubtask_app;
 
 CREATE TABLE agent_job (
   id          uuid PRIMARY KEY,
