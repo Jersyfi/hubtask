@@ -293,6 +293,9 @@ export type SlaPolicyDefine = components['schemas']['SlaPolicyDefine'];
 export type ReplyTemplate = components['schemas']['ReplyTemplate'];
 export type ReplyTemplateList = components['schemas']['ReplyTemplateList'];
 export type ReplyTemplateDefine = components['schemas']['ReplyTemplateDefine'];
+export type Approval = components['schemas']['Approval'];
+export type ApprovalList = components['schemas']['ApprovalList'];
+export type ApprovalDelegation = components['schemas']['ApprovalDelegation'];
 /** A hub's whiteboards and the objects on them (M4). */
 export type Whiteboard = components['schemas']['Whiteboard'];
 export type WhiteboardRead = components['schemas']['WhiteboardRead'];
