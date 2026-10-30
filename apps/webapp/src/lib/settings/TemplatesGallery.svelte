@@ -5,7 +5,9 @@
   // take, by its four origins, with its version, the version the workspace took and *Update
   // available*. Taking or updating is a plan first - the dialog shows what it changes, and an
   // update lists each change the template made, a change the workspace made itself unticked until
-  // the person ticks it - and the apply is exactly that plan, recording `template@version`.
+  // the person ticks it - and the apply is exactly that plan, recording `template@version`. In a
+  // hub's settings, the templates with a hub part: the hub takes that part for itself, once the
+  // workspace took the template (templates.md §1).
 
   import { untrack } from 'svelte';
   import { Banner, Button, Checkbox, Dialog, Spinner, Stack } from '@hubtask/design-system/components';
@@ -17,8 +19,18 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
+  interface Props {
+    /** A hub taking a template's hub part; omitted is the workspace. */
+    hubId?: string;
+  }
+
+  const { hubId }: Props = $props();
+
   let list = $state<ResourceState<ConfigTemplateList>>();
-  $effect(() => untrack(() => config.templates((next) => (list = next))));
+  $effect(() => {
+    const hub = hubId;
+    return untrack(() => config.templates((next) => (list = next), hub));
+  });
 
   const groups = $derived(list?.status === 'ready' ? byOrigin(list.data.data) : []);
   const refusal = $derived(list?.status === 'failed' ? renderProblem(list.error, messages) : undefined);
@@ -39,7 +51,7 @@
     chosen = template;
     acknowledged = false;
     try {
-      plan = await config.planTemplate(template.key);
+      plan = await config.planTemplate(template.key, undefined, hubId);
       take = takenFirst(plan.upgrade);
       isOpen = true;
     } catch (error) {
@@ -53,7 +65,7 @@
     if (!chosen) return;
     take = isTaken ? [...take, path] : take.filter((each) => each !== path);
     try {
-      plan = await config.planTemplate(chosen.key, take);
+      plan = await config.planTemplate(chosen.key, take, hubId);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
@@ -78,12 +90,14 @@
 </script>
 
 <section class="block" aria-labelledby="templates-gallery" data-templates>
-  <h2 id="templates-gallery">{t('app.templates.gallery')}</h2>
-  <p class="quiet">{t('app.templates.about')}</p>
+  <h2 id="templates-gallery">{t(hubId ? 'app.templates.hub_gallery' : 'app.templates.gallery')}</h2>
+  <p class="quiet">{t(hubId ? 'app.templates.hub_about' : 'app.templates.about')}</p>
   {#if refusal}
     <Banner tone="danger" title={refusal.message} />
   {:else if list?.status !== 'ready'}
     <Spinner label={t('app.templates.reading')} />
+  {:else if hubId && groups.length === 0}
+    <p class="quiet" data-no-hub-templates>{t('app.templates.hub_none')}</p>
   {:else}
     {#each groups as group (group.origin)}
       <div class="origin" data-origin={group.origin}>

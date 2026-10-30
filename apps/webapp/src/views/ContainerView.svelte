@@ -134,6 +134,7 @@
     HandleField: () => import('../lib/mail/HandleField.svelte'),
     ContainerEditDialog: () => import('../lib/workspace/ContainerEditDialog.svelte'),
     HubCalendars: () => import('../lib/servicedesk/HubCalendars.svelte'),
+    TemplatesGallery: () => import('../lib/settings/TemplatesGallery.svelte'),
   };
 
   interface Props {
@@ -1229,6 +1230,7 @@
         {/snippet}
         {#snippet modulesTab()}
           <LazyView load={settingsParts.ModuleSwitches} props={{ hubId: container.id }} />
+          <LazyView load={settingsParts.TemplatesGallery} props={{ hubId: container.id }} />
         {/snippet}
         {#snippet calendarsTab()}
           <LazyView load={settingsParts.HubCalendars} props={{ hubId: container.id, mayShape }} />

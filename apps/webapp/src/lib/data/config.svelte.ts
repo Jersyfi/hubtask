@@ -23,6 +23,17 @@ const SANDBOX = '/config/sandbox';
 // What an apply can change: every block of the document, and what the capabilities answer of it.
 const TOUCHED = ['/config', TEMPLATES, '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
 
+/** The templates a hub can take, or the workspace's. */
+function templatesPath(hubId?: string): string {
+  return hubId ? `${TEMPLATES}?hub_id=${encodeURIComponent(hubId)}` : TEMPLATES;
+}
+
+/** What a hub's apply changes besides the workspace's reads: the hub's own document and blocks. */
+function hubTouched(hubId: string): string[] {
+  const hub = encodeURIComponent(hubId);
+  return [templatesPath(hubId), `${DOCUMENT}?hub_id=${hub}`, `/tenant/modules?hub_id=${hub}`, `/containers/${hub}`, `/hubs/${hub}/business-calendars`];
+}
+
 class Config {
   /** Reads the versions, newest first. **From `untrack`**. */
   versions(onNext: (state: ResourceState<ConfigVersionList>) => void): () => void {
@@ -58,24 +69,35 @@ class Config {
     });
   }
 
-  /** Reads the templates the reader may take, the newest version of each. **From `untrack`**. */
-  templates(onNext: (state: ResourceState<ConfigTemplateList>) => void): () => void {
-    return engine.subscribe<ConfigTemplateList>({ path: TEMPLATES }, onNext);
+  /**
+   * Reads the templates the reader may take, the newest version of each - or with a hub, those a
+   * hub can take and the version that hub took. **From `untrack`**.
+   */
+  templates(onNext: (state: ResourceState<ConfigTemplateList>) => void, hubId?: string): () => void {
+    return engine.subscribe<ConfigTemplateList>({ path: templatesPath(hubId) }, onNext);
   }
 
   /**
    * Plans taking a template, or upgrading to its newer version: `take` names the upgrade's changes
    * to take, omitted taking every one the workspace did not change itself. Writes nothing.
    */
-  async planTemplate(key: string, take?: readonly string[]): Promise<ConfigTemplatePlan> {
-    return engine.mutate<ConfigTemplatePlan>('POST', `${TEMPLATES}/${encodeURIComponent(key)}:plan`, take ? { take: [...take] } : {});
+  async planTemplate(key: string, take?: readonly string[], hubId?: string): Promise<ConfigTemplatePlan> {
+    return engine.mutate<ConfigTemplatePlan>('POST', `${TEMPLATES}/${encodeURIComponent(key)}:plan`, {
+      ...(take ? { take: [...take] } : {}),
+      ...(hubId ? { hub_id: hubId } : {}),
+    });
   }
 
-  /** Applies a template's plan by its hash, recording the template's provenance. */
+  /**
+   * Applies a template's plan by its hash, recording the template's provenance: a hub's plan to
+   * that hub's own document.
+   */
   async applyTemplate(plan: ConfigTemplatePlan, acknowledge: boolean): Promise<ConfigApplyResult> {
+    const hubId = plan.hub_id ?? undefined;
     return engine.mutate<ConfigApplyResult>('POST', '/config:apply', {
       document: plan.document, mode: plan.mode, plan_hash: plan.plan_hash ?? '', template: plan.template, acknowledge,
-    }, { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHED });
+      ...(hubId ? { hub_id: hubId } : {}),
+    }, { idempotencyKey: crypto.randomUUID(), invalidates: hubId ? [...TOUCHED, ...hubTouched(hubId)] : TOUCHED });
   }
 
   /** Reads the sandbox and the plan of promoting it. **From `untrack`**. */
