@@ -451,3 +451,18 @@ test('a collection\'s sprints are answered from the copy', async () => {
   const active = await storeFor({ path: `/collections/${COLLECTION}/sprints?state=ACTIVE` }, storage) as { data: Record<string, unknown>[] };
   assert.deepEqual(active.data.map((row) => row.id), ['s-2']);
 });
+
+// A form drawn offline: the definitions in force are answered from the copy - the workspace's
+// alone without a collection, with a collection's own after them, never another collection's.
+test('the custom field definitions in force are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const field = (id: string, fields: Record<string, unknown>) => storage.put('custom_fields', id, record({ id, ...fields }));
+  await field('f-wide', { key: 'cost_centre', collection_id: null });
+  await field('f-own', { key: 'priority', collection_id: COLLECTION });
+  await field('f-other', { key: 'secret', collection_id: 'c-other' });
+
+  const wide = await storeFor({ path: '/custom-fields' }, storage) as Record<string, unknown>[];
+  assert.deepEqual(wide.map((row) => row.id), ['f-wide']);
+  const inCollection = await storeFor({ path: `/custom-fields?collection_id=${COLLECTION}` }, storage) as Record<string, unknown>[];
+  assert.deepEqual(inCollection.map((row) => row.id), ['f-wide', 'f-own']);
+});

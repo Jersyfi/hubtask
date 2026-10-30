@@ -388,6 +388,20 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   const inventory = await cmdbFor(pathname, query, storage);
   if (inventory !== NOT_CMDB) return inventory;
 
+  // The custom field definitions in force while the server is away: the workspace's and, named a
+  // collection, its own - a bare array in the server's order, the workspace's first, then by key.
+  if (pathname === '/custom-fields') {
+    const collectionId = query.get('collection_id');
+    const rows = (await documents(storage, 'custom_fields'))
+      .filter((row) => row.collection_id == null || (collectionId !== null && row.collection_id === collectionId))
+      .sort((a, b) => {
+        const x = `${a.collection_id == null ? '0' : `1${String(a.collection_id)}`}\u0000${String(a.key)}`;
+        const y = `${b.collection_id == null ? '0' : `1${String(b.collection_id)}`}\u0000${String(b.key)}`;
+        return x < y ? -1 : x > y ? 1 : 0;
+      });
+    return rows;
+  }
+
   // A collection's sprints read while the server is away (M2), in the server's order - the latest
   // start first. The burndown and the velocity are computed by the server and wait for it.
   match = /^\/collections\/([^/:]+)\/sprints$/.exec(pathname);
