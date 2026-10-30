@@ -35,6 +35,7 @@ func TestTheCatalogueKnowsItsPermissionsAndRefusesOthers(t *testing.T) {
 		{"READ", true},
 		{"WRITE_ASSIGNED", true},
 		{"REQUEST", true},
+		{"APPROVE_TIME", true},
 		{"FIELD_WRITE:cost", true},
 		{"FIELD_READ:cost", true},
 		{"FIELD_READ:", false},

@@ -23,6 +23,10 @@ const (
 	// PermissionRequest is the requester's: raising a request through the portal and following
 	// the requester's own requests, and nothing else (the requester principal, F-7).
 	PermissionRequest Permission = "REQUEST"
+	// PermissionApproveTime is approving or sending back other people's weeks of time and reading
+	// their time where the entries lie (UC-TIM-03): a project lead's, granted at a hub. The shipped
+	// roles reach it through MANAGE_MEMBERS, which every time use case accepts as well.
+	PermissionApproveTime Permission = "APPROVE_TIME"
 )
 
 // The two families of the catalogue that name an object: a field's permission and a step's.
@@ -100,6 +104,7 @@ var base = []baseEntry{
 	{PermissionAutomation, "how_we_work"},
 	{PermissionDeleteContainer, "how_we_work"},
 	{PermissionManageMembers, "people"},
+	{PermissionApproveTime, "people"},
 	{PermissionReadConfiguration, "evidence"},
 	{PermissionAuditRead, "evidence"},
 	{PermissionRequest, "portal"},

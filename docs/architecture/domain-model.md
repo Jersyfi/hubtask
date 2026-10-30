@@ -468,6 +468,11 @@ subscriptions — never a secret. Every configuration read also accepts `STRUCTU
 a rung on the ladder: without `READ`, every use case over containers, entries and comments refuses
 it ([audit.md](./audit.md) §5, §9).
 
+**Approve time** (`APPROVE_TIME`) is a permission a custom role names (UC-ID-26): approving or
+sending back other people's weeks of time and reading their time where its entries lie, granted to
+a project lead at a hub (UC-TIM-03). The shipped roles hold it through `MANAGE_MEMBERS`, which every
+time use case accepts as well; nobody approves their own week.
+
 **Nobody grants above their own role.** Handing out a role at a scope needs `MANAGE_MEMBERS` there
 **and** a role along the scope's path at least as strong as the one handed out, in the order of the
 table (`AUDITOR` last): an owner gives any role, an administrator any but `OWNER`, the owner of a hub

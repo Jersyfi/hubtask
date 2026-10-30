@@ -7500,6 +7500,7 @@
   "app.permissions.name.write_assigned": "Write own entries",
   "app.permissions.name.comment": "Comment",
   "app.permissions.name.request": "Raise requests",
+  "app.permissions.name.approve_time": "Approve time",
   "app.roles.family_field": "Every restricted field",
   "app.roles.family_step": "Every workflow step",
   "app.roles.field_write": "Write the field {field}",
