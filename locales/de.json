@@ -10306,7 +10306,7 @@
   "app.desk.add_policy": "Richtlinie hinzufügen",
   "app.desk.policy_saved": "Die Richtlinie ist gespeichert.",
   "app.desk.reply_body": "Text",
-  "app.desk.reply_body_hint": "Darf {{entry.title}}, {{entry.id}}, {{requester.name}} und {{agent.name}} nennen.",
+  "app.desk.reply_body_hint": "Darf '{{entry.title}}', '{{entry.id}}', '{{requester.name}}' und '{{agent.name}}' nennen.",
   "app.desk.add_reply": "Textbaustein hinzufügen",
   "app.desk.reply_saved": "Der Textbaustein ist gespeichert.",
   "app.desk.count": "Zählen",

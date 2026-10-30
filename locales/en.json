@@ -10309,7 +10309,7 @@
   "app.desk.add_policy": "Add the policy",
   "app.desk.policy_saved": "The policy is saved.",
   "app.desk.reply_body": "Text",
-  "app.desk.reply_body_hint": "May name {{entry.title}}, {{entry.id}}, {{requester.name}} and {{agent.name}}.",
+  "app.desk.reply_body_hint": "May name '{{entry.title}}', '{{entry.id}}', '{{requester.name}}' and '{{agent.name}}'.",
   "app.desk.add_reply": "Add the reply",
   "app.desk.reply_saved": "The canned reply is saved.",
   "app.desk.count": "Count",
