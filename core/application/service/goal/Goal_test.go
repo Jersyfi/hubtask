@@ -426,7 +426,7 @@ func (b *budgets) Invoke(_ context.Context, _ appshared.ActorContext, in usecase
 	}, nil
 }
 
-// UC-GOL-03: the portfolio's budget is its projects' budgets rolled up from the time module's,
+// UC-GOL-03 check 9: the portfolio's budget is its projects' budgets rolled up from the time module's,
 // shown only to whoever manages costs there.
 func TestAPortfolioRollsUpItsBudgetsForWhoeverManagesCosts(t *testing.T) {
 	s, _, _, _ := newSteward(t)

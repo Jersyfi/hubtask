@@ -42,8 +42,11 @@ Ana's update "late, at risk" makes the programme at risk.
 7. REST, MCP and hubctl keep portfolios and their updates alike.
 8. The web app shows a portfolio as a table with each project's dates, health and progress, and its
    updates.
+9. For a reader who manages costs at a project (`MANAGE_COSTS`, or `MANAGE_MEMBERS`), the portfolio
+   read alone shows the project's budget and burn as the time module answers them, and their sum -
+   money only while every budget is in one currency; nobody else sees a budget.
 
 ## Where it ends
 
-* No budget roll-up across a portfolio's projects yet, no portfolio timeline or workload view.
+* No portfolio timeline or workload view.
 * No scheduled status reports and no intake of proposals into projects.

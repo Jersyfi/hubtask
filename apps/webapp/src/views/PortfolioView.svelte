@@ -29,6 +29,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { platform } from '../lib/platform/index.ts';
+  import { minutesText, moneyText } from '../lib/data/time.ts';
   import { renderProblem } from '../lib/problem.ts';
 
   interface Props {
@@ -77,6 +78,8 @@
     }
   }
 
+  // The budgets are MANAGE_COSTS's (UC-GOL-03): the server sends them only to whoever manages costs.
+  const hasBudgets = $derived(portfolio?.items.some((item) => item.budget) === true);
   const columns = $derived<Column[]>([
     { id: 'project', label: t('app.portfolios.col_project') },
     { id: 'start', label: t('app.portfolios.col_start') },
@@ -85,6 +88,7 @@
     { id: 'entries', label: t('app.portfolios.col_entries'), align: 'end' },
     { id: 'done', label: t('app.portfolios.col_done'), align: 'end' },
     { id: 'progress', label: t('app.goals.col_progress') },
+    ...(hasBudgets ? [{ id: 'budget', label: t('app.portfolios.col_budget'), align: 'end' as const }] : []),
     ...(mayWrite ? [{ id: 'actions', label: t('app.goals.actions'), isLabelHidden: true }] : []),
   ]);
   const updateColumns = $derived<Column[]>([
@@ -93,6 +97,12 @@
     { id: 'health', label: t('app.portfolios.col_health') },
     { id: 'summary', label: t('app.portfolios.summary') },
   ]);
+  type Burn = { budget_minutes: number; minutes: number; budget_amount_minor: number | null; amount_minor: number | null; currency: string };
+  function burnText(burn: Burn): string {
+    const time = t('app.portfolios.burn_time', { used: minutesText(burn.minutes), budget: minutesText(burn.budget_minutes) });
+    if (!burn.currency || burn.budget_amount_minor === null || burn.amount_minor === null || burn.budget_amount_minor <= 0) return time;
+    return t('app.portfolios.burn_both', { time, used: moneyText(burn.amount_minor, burn.currency, locale), budget: moneyText(burn.budget_amount_minor, burn.currency, locale) });
+  }
   const projectPath = (kind: string, id: string) => (kind === 'HUB' ? `/hubs/${id}` : `/collections/${id}`);
 
   function exportTable() {
@@ -226,6 +236,9 @@
         <ProgressBar label={t('app.goals.progress_of', { title: portfolio.name })} value={percentOf(portfolio.progress)} valueLabel={t('app.goals.percent', { percent: percentText(portfolio.progress) })} />
       {/if}
       {#if portfolio.description}<p class="description">{portfolio.description}</p>{/if}
+      {#if portfolio.budget}
+        <p class="quiet">{t('app.portfolios.budget_total', { count: portfolio.budget.projects, burn: burnText(portfolio.budget) })}{#if portfolio.budget.mixed_currencies} {t('app.portfolios.mixed_currencies')}{/if}</p>
+      {/if}
       {#if portfolio.latest_update}
         <Banner tone={goalTone(portfolio.latest_update.status) === 'neutral' ? 'info' : (goalTone(portfolio.latest_update.status) as 'success' | 'warning' | 'danger')}
           title={t('app.portfolios.latest', { when: formatDateTime(portfolio.latest_update.created_at, locale), name: personName(portfolio.latest_update.author_id) })}>
@@ -248,6 +261,7 @@
               <td class="number">{item.entries ?? ''}</td>
               <td class="number">{item.done ?? ''}</td>
               <td class="progress">{#if item.progress !== null}<ProgressBar size="sm" label={t('app.goals.progress_of', { title: item.name })} value={percentOf(item.progress)} valueLabel={t('app.goals.percent', { percent: percentText(item.progress) })} />{/if}</td>
+              {#if hasBudgets}<td class="number" class:over={item.budget?.over_time || item.budget?.over_money}>{item.budget ? burnText(item.budget) : ''}</td>{/if}
               {#if mayWrite}
                 <td>
                   <Inline gap="050">
@@ -343,6 +357,7 @@
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .over { color: var(--text-danger); }
   .progress { min-width: var(--layout-board-column); }
   .clip { max-inline-size: var(--layout-panel-width); white-space: pre-wrap; }
   .plain { margin: 0; padding-inline-start: var(--sp-200); }
