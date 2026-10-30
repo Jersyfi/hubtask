@@ -25,6 +25,7 @@ import type { Account, OwnAccountUpdate, ResourceState } from '@hubtask/sync-eng
 import { deviceZone } from '../i18n/zone.ts';
 import { platform } from '../platform/index.ts';
 import { engine } from './engine.ts';
+import { viewAs } from './viewas.svelte.ts';
 
 const PATH = '/accounts/me';
 
@@ -174,7 +175,8 @@ class Actor {
       }
       // Remembered beside the pair, so that a tab reloading while the server is away still knows
       // whose replica to open.
-      if (next.status === 'ready') platform.rememberAccount(next.data.id);
+      // Not the person a view shows (UC-ID-29): their replica is never opened on this device.
+      if (next.status === 'ready' && !viewAs.running) platform.rememberAccount(next.data.id);
       this.#state = next;
     });
   }

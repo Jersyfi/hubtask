@@ -37,6 +37,7 @@
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
+  import { viewAs } from '../lib/data/viewas.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
@@ -90,6 +91,20 @@
 
   /** Whether the reader may ask what somebody else holds: what `GET /access/explain` asks. */
   const mayViewAs = $derived(holdsHere('MANAGE_MEMBERS') === true || holdsHere('READ_CONFIGURATION') === true);
+  /** Whether the reader may look at somebody's screens (UC-ID-29): what `POST /auth/sessions:view-as` asks. */
+  const mayViewScreens = $derived(holdsHere('MANAGE_MEMBERS') === true && !viewAs.running);
+  let viewingScreens = $state<string | undefined>(undefined);
+
+  async function viewScreens(accountId: string): Promise<void> {
+    viewingScreens = accountId;
+    failure = undefined;
+    try {
+      await viewAs.start(accountId);
+    } catch (error) {
+      failure = renderProblem(error as never, messages).message;
+      viewingScreens = undefined;
+    }
+  }
 
   function select(next: string): void {
     onnavigate?.(next === 'people' ? '/administration/people' : `/administration/people?tab=${next}`);
@@ -675,6 +690,18 @@
                        place, what they may do, and whether and why for a chosen permission. -->
                   <Button size="sm" tone="subtle" onclick={() => onnavigate?.(`/administration/people?tab=permissions&person=${holder.accountId}`)}>
                     {t('app.people.view_as')}
+                  </Button>
+                {/if}
+                {#if holder.accountId && mayViewScreens && holder.accountId !== actor.account?.id && statusOf(holder.accountId) === 'ACTIVE'}
+                  <!-- Their screens (UC-ID-29): the app as they see it, read only, for half an hour. -->
+                  <Button
+                    size="sm"
+                    tone="subtle"
+                    isBusy={viewingScreens === holder.accountId}
+                    busyLabel={t('app.people.working')}
+                    onclick={() => void viewScreens(holder.accountId as string)}
+                  >
+                    {t('app.view_as.start')}
                   </Button>
                 {/if}
                 {#if statusOf(holder.accountId) === 'INVITED' && (way === 'mail' || mayWayIn(holder))}

@@ -10,6 +10,8 @@
   //
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011).
+  import { untrack } from 'svelte';
+
   import AppFrame from './lib/frame/AppFrame.svelte';
   import LazyView from './lib/frame/LazyView.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
@@ -20,6 +22,7 @@
   import { manifest } from './lib/data/capabilities.svelte.ts';
   import { holdsHere, reachesAdministrationArea } from './lib/data/capability.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
+  import { viewAs } from './lib/data/viewas.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
   import ContainerView from './views/ContainerView.svelte';
@@ -216,9 +219,16 @@
    */
   const liveAccountId = $derived(
     // The account from `/accounts/me`, or the one remembered beside the pair when the server
-    // cannot be reached: a tab reloading offline still opens its replica.
-    session.isSignedIn ? (actor.account?.id ?? platform.lastAccount()) : undefined,
+    // cannot be reached: a tab reloading offline still opens its replica. Not while the session
+    // shows the app as another person (UC-ID-29): a view is online only, and no copy is kept.
+    session.isSignedIn && viewAs.settled && !viewAs.running
+      ? (actor.account?.id ?? platform.lastAccount())
+      : undefined,
   );
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return untrack(() => viewAs.open());
+  });
   $effect(() => {
     const accountId = liveAccountId;
     if (!accountId) return;
