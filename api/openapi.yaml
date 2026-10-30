@@ -8529,6 +8529,8 @@ paths:
     post:
       tags: [backup]
       operationId: createBackupTarget
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupTargetResponse
       summary: Create a backup target
       description: |
         Requires instance administrator rights (tenant-owned targets only when enabled).
@@ -11891,6 +11893,8 @@ paths:
     post:
       tags: [admin]
       operationId: createInstanceBackupTarget
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupTargetResponse
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Configure a backup target of the installation

@@ -4,66 +4,13 @@
 package rest
 
 import (
-	"net/http"
-
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 const (
 	createBackupTargetUseCase = "CreateBackupTarget"
 )
-
-// CreateBackupTarget answers POST /backup-targets.
-func (c *RestController) CreateBackupTarget(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	var body openapi.BackupTargetCreate
-	if err := decodeFrom(r.Body, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in, err := backupTargetInput(body)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, ok := c.read(w, r, createBackupTargetUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, backupTargetResponse(out))
-}
-
-// backupTargetInput is a target's body as the catalogue reads it - for a workspace's target and
-// the installation's alike.
-func backupTargetInput(body openapi.BackupTargetCreate) (usecase.Input, error) {
-	// The one field of the contract this installation does not serve yet, and it is refused
-	// rather than ignored. A passphrase that had no effect would leave somebody believing their
-	// archives are protected by it; the key it derives is the archive writer's business, and the
-	// archive writer arrives with the backup run.
-	if body.EncryptionPassphrase != nil && *body.EncryptionPassphrase != "" {
-		return nil, errPassphraseNotAvailable
-	}
-	in := usecase.Input{
-		"name":   body.Name,
-		"kind":   string(body.Kind),
-		"config": body.Config,
-	}
-	if body.Credentials != nil {
-		in["credentials"] = *body.Credentials
-	}
-	if body.EncryptionMode != nil {
-		in["encryption_mode"] = string(*body.EncryptionMode)
-	}
-	if body.InsecureAcknowledged != nil {
-		in["insecure_acknowledged"] = *body.InsecureAcknowledged
-	}
-	return in, nil
-}
 
 // backupProbeResponse maps a probe.
 func backupProbeResponse(out usecase.Output) openapi.BackupTargetProbe {

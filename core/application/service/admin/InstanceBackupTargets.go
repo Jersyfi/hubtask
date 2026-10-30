@@ -262,6 +262,9 @@ func (h CreateInstanceBackupTarget) Descriptor() usecase.Descriptor {
 func (h CreateInstanceBackupTarget) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	if err := backupservice.RefusePassphrase(in); err != nil {
+		return nil, err
+	}
 	target, err := h.Execute(ctx, actor, backupservice.CreateCommandOf(in), in.String("step_up_token"))
 	if err != nil {
 		return nil, err

@@ -110,6 +110,7 @@ var restDoors = map[string]restDoor{
 	"correctTimeRecord":                 {UseCase: "CorrectTimeRecord", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
 	"countAccountsWithoutProvider":      {UseCase: "CountAccountsWithoutProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createAccessToken":                 {UseCase: "CreateAccessToken", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/auth/tokens/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "token"},
+	"createBackupTarget":                {UseCase: "CreateBackupTarget", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createBucket":                      {UseCase: "CreateBucket", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/buckets/{id}", NullClears: false, Integers: []string{"wip_limit"}},
 	"createChatBot":                     {UseCase: "CreateChatBot", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createCi":                          {UseCase: "CreateCi", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/cis/{id}", NullClears: false, Integers: []string(nil)},
@@ -123,6 +124,7 @@ var restDoors = map[string]restDoor{
 	"createIdentityProvider":            {UseCase: "ConfigureIdentityProvider", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"createInstallationPreset":          {UseCase: "CreateInstallationPreset", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createInstanceAiProvider":          {UseCase: "ConfigureInstanceAiProvider", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"createInstanceBackupTarget":        {UseCase: "CreateInstanceBackupTarget", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createInstanceIdentityProvider":    {UseCase: "ConfigureInstanceIdentityProvider", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"createLabel":                       {UseCase: "CreateLabel", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/labels/{id}", NullClears: false, Integers: []string(nil)},
 	"createLinkType":                    {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
@@ -1313,6 +1315,12 @@ func (c *RestController) CreateAccessToken(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["createAccessToken"], usecase.Input{}, params, &body, &answer)
 }
 
+// CreateBackupTarget answers POST /backup-targets by the generated mapping.
+func (c *RestController) CreateBackupTarget(w http.ResponseWriter, r *http.Request) {
+	var body openapi.CreateBackupTargetJSONRequestBody
+	c.door(w, r, restDoors["createBackupTarget"], usecase.Input{}, nil, &body, answerBy(backupTargetResponse))
+}
+
 // CreateBucket answers POST /containers/{containerId}/buckets by the generated mapping.
 func (c *RestController) CreateBucket(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
 	var body openapi.CreateBucketJSONRequestBody
@@ -1396,6 +1404,12 @@ func (c *RestController) CreateInstallationPreset(w http.ResponseWriter, r *http
 func (c *RestController) CreateInstanceAiProvider(w http.ResponseWriter, r *http.Request) {
 	var body openapi.CreateInstanceAiProviderJSONRequestBody
 	c.door(w, r, restDoors["createInstanceAiProvider"], usecase.Input{}, nil, &body, answerBy(offeredAiModelResponse))
+}
+
+// CreateInstanceBackupTarget answers POST /admin/backup-targets by the generated mapping.
+func (c *RestController) CreateInstanceBackupTarget(w http.ResponseWriter, r *http.Request, params openapi.CreateInstanceBackupTargetParams) {
+	var body openapi.CreateInstanceBackupTargetJSONRequestBody
+	c.door(w, r, restDoors["createInstanceBackupTarget"], usecase.Input{}, params, &body, answerBy(backupTargetResponse))
 }
 
 // CreateInstanceIdentityProvider answers POST /admin/identity-providers by the generated mapping.

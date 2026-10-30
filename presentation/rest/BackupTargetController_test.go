@@ -142,10 +142,8 @@ func TestATargetIsCreatedAndAnsweredWithItsWarnings(t *testing.T) {
 	}
 }
 
-// The one field of the contract this installation does not serve yet, and it is refused rather
-// than ignored: a passphrase with no effect would leave somebody believing their archives are
-// protected by it.
-func TestAnEncryptionPassphraseIsRefusedRatherThanIgnored(t *testing.T) {
+// A passphrase reaches the use case as it arrived; whether it is served is the use case's (rule 2).
+func TestAnEncryptionPassphraseReachesTheUseCase(t *testing.T) {
 	registry := &catalogue{out: backupTargetOutput()}
 
 	recorder := callBackup(t, registry, http.MethodPost, "/backup-targets", `{
@@ -153,14 +151,8 @@ func TestAnEncryptionPassphraseIsRefusedRatherThanIgnored(t *testing.T) {
 		"encryption_passphrase": "correct horse battery staple"
 	}`)
 
-	if recorder.Code != http.StatusUnprocessableEntity && recorder.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
-	}
-	if registry.invoked {
-		t.Fatal("the catalogue was called with a passphrase it cannot use")
-	}
-	if !strings.Contains(recorder.Body.String(), "backup.encryption_passphrase_not_available") {
-		t.Fatalf("the refusal says %s", recorder.Body)
+	if recorder.Code != http.StatusCreated || registry.in["encryption_passphrase"] != "correct horse battery staple" {
+		t.Fatalf("status = %d, input = %v", recorder.Code, registry.in)
 	}
 }
 

@@ -14019,6 +14019,8 @@
           "backup"
         ],
         "operationId": "createBackupTarget",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupTargetResponse",
         "summary": "Create a backup target",
         "description": "Requires instance administrator rights (tenant-owned targets only when enabled).\nCredentials are stored encrypted and never returned. An unencrypted backup and the\nFTP protocol both require `insecure_acknowledged: true`.\nAuditable.\n",
         "requestBody": {
@@ -18072,6 +18074,8 @@
           "admin"
         ],
         "operationId": "createInstanceBackupTarget",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupTargetResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
