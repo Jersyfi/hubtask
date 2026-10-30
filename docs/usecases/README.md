@@ -263,6 +263,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-PLN-06](./planning/UC-PLN-06-plan-a-sprint-run-it-and-close-it.md) | Plan a sprint, run it and close it | planning |
 | [UC-PLN-07](./planning/UC-PLN-07-estimate-work-and-see-how-much-a-team-gets-done.md) | Estimate work and see how much a team gets done | planning |
 | [UC-PLN-08](./planning/UC-PLN-08-collect-work-into-a-release-and-tell-people-what-is-in-it.md) | Collect work into a release and tell people what is in it | planning |
+| [UC-PLN-09](./planning/UC-PLN-09-bring-a-plan-in-from-a-project-file.md) | Bring a plan in from a project file | planning |
 | [UC-DOC-01](./knowledge/UC-DOC-01-write-a-page-in-a-hub-and-find-it-again.md) | Write a page in a hub and find it again | knowledge |
 | [UC-DOC-02](./knowledge/UC-DOC-02-write-a-page-together-at-the-same-time.md) | Write a page together at the same time | knowledge |
 | [UC-DOC-03](./knowledge/UC-DOC-03-turn-a-line-of-a-page-into-a-task-and-keep-them-linked.md) | Turn a line of a page into a task and keep them linked | knowledge |
