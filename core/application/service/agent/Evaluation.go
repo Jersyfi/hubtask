@@ -6,6 +6,7 @@ package agent
 import (
 	"context"
 	"strconv"
+	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -21,6 +22,7 @@ const (
 	ListAgentCasesName        = "ListAgentCases"
 	RemoveAgentCaseName       = "RemoveAgentCase"
 	RecordAgentEvaluationName = "RecordAgentEvaluation"
+	RunAgentEvaluationName    = "RunAgentEvaluation"
 	ListAgentEvaluationsName  = "ListAgentEvaluations"
 )
 
@@ -225,38 +227,162 @@ func (h RecordAgentEvaluation) Descriptor() usecase.Descriptor {
 				}
 				answers[caseID] = answer
 			}
-			var run domain.Run
-			err = d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-				a, err := d.Store.FindAgent(ctx, id)
-				if err != nil {
-					return err
-				}
-				revision, _, err := d.modelRevision(ctx, a)
-				if err != nil {
-					return err
-				}
-				cases, err := d.Store.ListCases(ctx, id, domain.MaxCases)
-				if err != nil {
-					return err
-				}
-				if len(cases) == 0 {
-					return shared.ErrConflict.WithDetail("agent_cases.none")
-				}
-				run = Score(cases, answers)
-				run.ID, run.AgentID, run.ModelRevision, run.By, run.At = d.IDs.NewID(), id, revision, actor.AccountID, d.Clock.Now()
-				if err := d.Store.InsertRun(ctx, run); err != nil {
-					return err
-				}
-				return d.record(ctx, actor, EvaluatedAction, agentTarget, id, audit.SeverityNotice,
-					open("cases", strconv.Itoa(run.Cases)), open("passed", strconv.Itoa(run.Passed)),
-					open("model_revision", strconv.Itoa(revision)))
-			})
+			run, err := d.scoreRun(ctx, actor, id, func([]domain.Case) map[string]map[string]any { return answers })
 			if err != nil {
 				return nil, err
 			}
 			return RunOutput(run), nil
 		}),
 	}
+}
+
+// scoreRun compares the answers to the agent's set with what each case expects and records the
+// run for the model's revision as it now stands, in one transaction.
+func (d Desk) scoreRun(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, answer func([]domain.Case) map[string]map[string]any,
+) (domain.Run, error) {
+	var run domain.Run
+	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		a, err := d.Store.FindAgent(ctx, id)
+		if err != nil {
+			return err
+		}
+		revision, _, err := d.modelRevision(ctx, a)
+		if err != nil {
+			return err
+		}
+		cases, err := d.Store.ListCases(ctx, id, domain.MaxCases)
+		if err != nil {
+			return err
+		}
+		if len(cases) == 0 {
+			return shared.ErrConflict.WithDetail("agent_cases.none")
+		}
+		run = Score(cases, answer(cases))
+		run.ID, run.AgentID, run.ModelRevision, run.By, run.At = d.IDs.NewID(), id, revision, actor.AccountID, d.Clock.Now()
+		if err := d.Store.InsertRun(ctx, run); err != nil {
+			return err
+		}
+		return d.record(ctx, actor, EvaluatedAction, agentTarget, id, audit.SeverityNotice,
+			open("cases", strconv.Itoa(run.Cases)), open("passed", strconv.Itoa(run.Passed)),
+			open("model_revision", strconv.Itoa(revision)))
+	})
+	return run, err
+}
+
+// RunAgentEvaluation has a shipped agent answer its own set (G7): each case's title and notes are
+// the material its job would read. The CIs are read with the caller's rights, because an agent
+// that is not live yet passes no gate; the answers are compared as a recorded run's are.
+type RunAgentEvaluation struct{ Desk Desk }
+
+func (h RunAgentEvaluation) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name:       RunAgentEvaluationName,
+		Module:     moduleOf(),
+		Permission: service.PermissionManageMembers,
+		Summary: "Has a shipped agent answer its own evaluation set: a knowledge draft answers title and body " +
+			"from each case, a CI suggestion and a ticket triage the names of the hub's CIs a case's text " +
+			"names. Compared and recorded as a recorded run is; a duplicate review and an agent built " +
+			"elsewhere are evaluated by answers somebody sends. Needs MANAGE_MEMBERS at the workspace.",
+		SideEffects: "Writes the run's counts and an audit entry; no answer is kept.",
+		TokenScope:  scopeWrite,
+		Input: []usecase.Field{
+			{Name: "agent_id", Kind: usecase.KindID, Required: true},
+			{Name: "hub_id", Kind: usecase.KindID, Description: "The hub whose CIs a CI suggestion or a triage matches."},
+		},
+		Audit:    usecase.AuditDeclaration{Action: EvaluatedAction, TargetType: agentTarget, Severity: audit.SeverityNotice, Required: true},
+		Activity: usecase.ActivityDeclaration{Exempt: "a run is no entry."},
+		Handler:  usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h RunAgentEvaluation) invoke(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	if err := notAgent(actor, "agents.agent_evaluates_not"); err != nil {
+		return nil, err
+	}
+	d := h.Desk
+	id, err := in.ID("agent_id")
+	if err != nil {
+		return nil, err
+	}
+	if err := d.administer(ctx, actor, EvaluatedAction, scopeWrite, agentTarget, id); err != nil {
+		return nil, err
+	}
+	a, err := d.find(ctx, actor, id)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	switch a.Kind {
+	case domain.KindKnowledgeDraft:
+	case domain.KindCISuggestion, domain.KindTicketTriage:
+		if in.String("hub_id") == "" {
+			return nil, shared.ErrValidation.WithDetail("agents.evaluation_hub_required").
+				WithFields(shared.FieldError{Path: "/hub_id", Code: "agents.evaluation_hub_required"})
+		}
+		if names, err = d.ciNames(ctx, actor, in.String("hub_id")); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, shared.ErrConflict.WithDetail("agents.evaluation_by_answers")
+	}
+	run, err := d.scoreRun(ctx, actor, id, func(cases []domain.Case) map[string]map[string]any {
+		return AnswerCases(a.Kind, cases, names)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return RunOutput(run), nil
+}
+
+// ciNames reads a hub's CI names as the caller, at most the pages a job reads.
+func (d Desk) ciNames(ctx context.Context, actor appshared.ActorContext, hub string) ([]string, error) {
+	var names []string
+	after := ""
+	for page := 0; page < 10; page++ {
+		in := usecase.Input{"hub_id": hub, "limit": 500}
+		if after != "" {
+			in["after"] = after
+		}
+		out, err := d.Catalogue.Invoke(ctx, listCisName, actor, in)
+		if err != nil {
+			return nil, err
+		}
+		for _, ci := range outputs(out["data"]) {
+			if name := strings.TrimSpace(ci.String("name")); len([]rune(name)) >= minCiName {
+				names = append(names, name)
+			}
+		}
+		next, _ := out["next"].(string)
+		if next == "" {
+			break
+		}
+		after = next
+	}
+	return names, nil
+}
+
+// AnswerCases is what a shipped agent answers to each case, by the rule its job follows: a
+// knowledge draft's title and body, the CIs a text names. The triage's labels come from the
+// classifier on an entry and are not answered here; a case expecting them fails.
+func AnswerCases(kind domain.Kind, cases []domain.Case, ciNames []string) map[string]map[string]any {
+	answers := make(map[string]map[string]any, len(cases))
+	for _, c := range cases {
+		switch kind {
+		case domain.KindKnowledgeDraft:
+			answers[c.ID.String()] = map[string]any{"title": strings.TrimSpace(c.Title), "body": strings.TrimSpace(c.Notes)}
+		default:
+			words := normalised(c.Title + "\n" + c.Notes)
+			named := []any{}
+			for _, name := range ciNames {
+				if containsWords(words, normalised(name)) {
+					named = append(named, name)
+				}
+			}
+			answers[c.ID.String()] = map[string]any{"cis": named}
+		}
+	}
+	return answers
 }
 
 // Score compares answers, keyed by case, with a set: a case unanswered fails.

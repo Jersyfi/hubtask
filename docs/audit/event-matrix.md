@@ -64,6 +64,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `agent.case_removed` | RemoveAgentCase | `agent` | INFO | Every time |
 | `agent.changed` | ChangeAgent | `agent` | NOTICE | Every time |
 | `agent.evaluated` | RecordAgentEvaluation | `agent` | NOTICE | Every time |
+| `agent.evaluated` | RunAgentEvaluation | `agent` | NOTICE | Every time |
 | `agent.halt_set` | SetAgentHalt | `agent` | WARNING | Every time |
 | `agent.job_started` | StartAgentJob | `agent` | NOTICE | Every time |
 | `agent.read` | ListAgentActions | `agent` | INFO | When refused |

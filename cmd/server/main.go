@@ -1943,6 +1943,7 @@ func run() error {
 		agentservice.ListAgentCases{Desk: agentDesk}.Descriptor(),
 		agentservice.RemoveAgentCase{Desk: agentDesk}.Descriptor(),
 		agentservice.RecordAgentEvaluation{Desk: agentDesk}.Descriptor(),
+		agentservice.RunAgentEvaluation{Desk: agentDesk}.Descriptor(),
 		agentservice.ListAgentEvaluations{Desk: agentDesk}.Descriptor(),
 		agentservice.ListValueProvenance{Desk: agentDesk}.Descriptor(),
 		agentservice.StartAgentJob{Desk: agentDesk}.Descriptor(),

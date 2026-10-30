@@ -571,3 +571,49 @@ func TestTheGateLetsEveryOtherActorThrough(t *testing.T) {
 		t.Fatalf("ran %d, ledger %d", ran, len(f.store.actions))
 	}
 }
+
+// UC-AGT-04 check 7: a shipped agent answers its own set from each case's text - a knowledge draft
+// its title and body, a CI suggestion the CIs the text names - and the server scores the run; a
+// duplicate review is evaluated by answers somebody sends, and a CI suggestion needs its hub.
+func TestAShippedAgentAnswersItsOwnSet(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	draft := f.register(t, usecase.Input{"kind": "KNOWLEDGE_DRAFT"})
+	for _, c := range []usecase.Input{
+		{"title": "Reset the VPN", "notes": "Restart the client.", "expected": map[string]any{"title": "Reset the VPN", "body": "Restart the client."}},
+		{"title": "Printer jams", "expected": map[string]any{"title": "Something else"}},
+	} {
+		c["agent_id"] = draft.ID.String()
+		if _, err := (AddAgentCase{Desk: f.desk}).Descriptor().Handler.Invoke(ctx, person(admin), c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run := RunAgentEvaluation{Desk: f.desk}.Descriptor().Handler
+	out, err := run.Invoke(ctx, person(admin), usecase.Input{"agent_id": draft.ID.String()})
+	if err != nil || out["cases"] != 2 || out["passed"] != 1 || out["accuracy"] != 50 {
+		t.Fatalf("run = %v %v", out, err)
+	}
+	if _, err := run.Invoke(ctx, person(ana), usecase.Input{"agent_id": draft.ID.String()}); err == nil {
+		t.Fatal("somebody who administers no agent ran an evaluation")
+	}
+
+	cis := f.register(t, usecase.Input{"kind": "CI_SUGGESTION"})
+	if _, err := run.Invoke(ctx, person(admin), usecase.Input{"agent_id": cis.ID.String()}); code(err) != "agents.evaluation_hub_required" {
+		t.Fatalf("a CI suggestion without its hub = %v", err)
+	}
+	dup := f.register(t, usecase.Input{"kind": "DUPLICATE_REVIEW"})
+	if _, err := run.Invoke(ctx, person(admin), usecase.Input{"agent_id": dup.ID.String()}); code(err) != "agents.evaluation_by_answers" {
+		t.Fatalf("a duplicate review = %v", err)
+	}
+
+	answers := AnswerCases(domain.KindCISuggestion, []domain.Case{
+		{ID: "c1", Title: "The printer-3 on floor 3 is down", Notes: "and Router-2 blinks"},
+		{ID: "c2", Title: "Nothing named"},
+	}, []string{"Printer-3", "Router-2", "Switch"})
+	if got := answers["c1"]["cis"]; !domain.Matches(map[string]any{"cis": []any{"Router-2", "Printer-3"}}, map[string]any{"cis": got}) {
+		t.Fatalf("named = %v", got)
+	}
+	if got, _ := answers["c2"]["cis"].([]any); len(got) != 0 {
+		t.Fatalf("a text naming nothing answered %v", got)
+	}
+}
