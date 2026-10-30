@@ -32,6 +32,8 @@ export function goalsPath(periodId?: string, hubId?: string): string {
   return text === '' ? '/goals' : `/goals?${text}`;
 }
 export const goalPath = (goalId: string) => `/goals/${goalId}`;
+/** The goals an entry serves that the reader may read. */
+export const entryGoalsPath = (itemId: string) => `/items/${itemId}/goals`;
 export const checkInsPath = (goalId: string) => `/goals/${goalId}/check-ins`;
 export const portfolioPath = (portfolioId: string) => `/portfolios/${portfolioId}`;
 export const updatesPath = (portfolioId: string) => `/portfolios/${portfolioId}/updates`;

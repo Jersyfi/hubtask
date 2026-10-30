@@ -8874,6 +8874,7 @@
   "app.goals.delete_hint": "Seine Schlüsselergebnisse, Verknüpfungen und Check-ins gehen mit; die Ziele darunter rücken auf, die Einträge bleiben.",
   "app.goals.deleted": "{title} gelöscht.",
   "app.goals.summary": "Auf einen Blick",
+  "app.goals.served": "Dient {count, plural, one {einem Ziel} other {# Zielen}}",
   "app.goals.owned_by": "Verantwortlich: {name}",
   "app.goals.serves": "Dient",
   "app.goals.description": "Beschreibung",

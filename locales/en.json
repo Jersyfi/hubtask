@@ -8877,6 +8877,7 @@
   "app.goals.delete_hint": "Its key results, links and check-ins go with it; the goals under it move up and the entries stay.",
   "app.goals.deleted": "{title} deleted.",
   "app.goals.summary": "At a glance",
+  "app.goals.served": "Serves {count, plural, one {a goal} other {# goals}}",
   "app.goals.owned_by": "Owner: {name}",
   "app.goals.serves": "Serves",
   "app.goals.description": "Description",

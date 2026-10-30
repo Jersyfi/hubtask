@@ -95,6 +95,7 @@
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import LinksSection from '../lib/entries/LinksSection.svelte';
   import EntryTimer from '../lib/time/EntryTimer.svelte';
+  import EntryGoals from '../lib/goals/EntryGoals.svelte';
   import StepControl from '../lib/entries/StepControl.svelte';
   import MentionDialog from '../lib/entries/MentionDialog.svelte';
   import { inserted } from '../lib/data/links.ts';
@@ -1355,6 +1356,10 @@
         <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so
              each entry reads its own. -->
         {#key item.id}<LinksSection {item} mayChange={isWritable} />{/key}
+        <!-- The goals the entry serves, where the goals module is on (UC-GOL-01 check 4). -->
+        {#if manifest.value?.modules_on?.includes('GOALS')}
+          {#key item.id}<EntryGoals itemId={item.id} />{/key}
+        {/if}
 
         <Tabs
           label={t('app.item.tabs')}
