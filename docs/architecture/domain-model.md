@@ -1008,6 +1008,16 @@ agent's tokens per day and its runs at once (a job counts for a lease of fifteen
 runs as the agent's own account through the catalogue, and keeps how it ended, what it proposed and
 the tokens it spent, never what it read (migration 0252, archived).
 
+### 3.13 Code from a forge (context: Integration, M10)
+
+A hub's **`Hook`** is one forge's door into it - GitHub, GitLab, or Forgejo and Gitea in one shape
+- with a name, on or off, the person it writes as, and a salt its secret is derived from; it is
+switched off, never removed. An entry's **`Link`** is a commit, a branch or a pull request whose
+text named the entry's key, one per entry, hook, kind, repository and reference, with its title,
+address, the forge's account name and its state (`PUSHED`, `OPEN`, `MERGED`, `CLOSED`) as the forge
+last told it; a signal older than the one it follows is ignored and a merge is final
+(UC-INT-13, migration 0275, archived).
+
 ## 4. Domain events
 
 Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,

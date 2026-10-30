@@ -552,6 +552,29 @@ protocol, as an import format does (engineering-guidelines.md §2, item 17).
   fixed at creation. The trail records the format and the Matrix room, never the credential.
 * Link unfurls and commands from a room are not built (UC-INT-12, *Where it ends*).
 
+### 3.5 Code from a forge
+
+A hub's forge hooks ([UC-INT-13](../usecases/integration/UC-INT-13-see-the-code-that-names-an-entry.md))
+take GitHub's, GitLab's, Forgejo's and Gitea's webhooks at `POST /code-intake/{tenantId}/{hookId}`
+and keep each commit, branch and pull request on the hub's entries whose key it names. The kind
+names a wire protocol (engineering-guidelines.md §2, item 17); nothing calls the forge.
+
+* **Trust**: GitHub signs the body with the hook's secret (`X-Hub-Signature-256: sha256=…`),
+  Forgejo and Gitea likewise without the prefix (`X-Forgejo-Signature`, `X-Gitea-Signature`),
+  GitLab sends the secret itself (`X-Gitlab-Token`). The secret is derived, never stored:
+  HMAC-SHA-256 under the installation key's own purpose label over the workspace, the hook and the
+  hook's salt; drawing a new secret draws a new salt (security.md §5). A delivery is remembered
+  three days by the forge's delivery identifier (`code_delivery_seen`) and one repeated is refused.
+  Every refusal is one `404`, `forge.hook_not_found`.
+* **Who writes**: a delivery writes as the person who last defined the hook, only while they hold
+  WRITE_ITEMS on the hub, and only on the hub's own live entries; a key is read as the mail intake
+  reads one (`HANDLE-42`, standing alone before its number ends, at most ten a signal).
+* **Order**: a link follows the forge's own moment; an older signal is ignored and a merged pull
+  request stays merged. A push names its branch (closed when deleted) and its commits; a pull
+  request (GitLab's merge request) its title, branch and description.
+* **Offline**: a link is the change log's `code_link`, filed under its entry's collection.
+* **Retention**: a hook is switched off, never removed; its links go with their entry.
+
 ---
 
 ## 4. Why automation is its own service

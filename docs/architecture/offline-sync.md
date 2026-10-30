@@ -158,7 +158,9 @@ and `ReadEntrySla` ask; every write of one records it as now stored, the stores 
 announcing it, so the clocks and the timers do too. An approval's record grants nobody the leave to
 decide: who may is asked online, and a decision needs the server; the reader's own waiting list
 (`/approvals`) is read online for the same reason. While the server is away the web app answers an
-entry's goals and approvals from the copy. A
+entry's goals and approvals from the copy. An entry's commits, branches and pull requests
+(`code_link`, UC-INT-13) are filed under its collection too and read from the copy while the
+server is away; a forge's hooks are read online. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 
