@@ -97,6 +97,8 @@ export function collectionOf(entity: string): string {
       return 'goal_check_ins';
     case 'dashboard':
       return 'dashboards';
+    case 'portfolio':
+      return 'portfolios';
     case 'role_grant':
       return 'role_grants';
     case 'page':

@@ -190,3 +190,42 @@ func TestADashboardDigestStaysInItsWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The walk's portfolios stay in their workspace, each with its projects (offline-sync.md §3.1).
+func TestThePortfolioWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewGoalRepository()
+	snapshot := postgres.NewSnapshotRepository()
+	_, collection, _ := seedPlan(ctx, t, tenantA)
+	now := time.Date(2026, 11, 3, 17, 0, 0, 0, time.UTC)
+	portfolio := goal.Portfolio{
+		ID: freshID(t), Name: "Walked", OwnerID: authorA, Status: goal.StatusOnTrack,
+		Items: []goal.PortfolioItem{{ContainerID: collection, Status: goal.StatusOnTrack}},
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return store.InsertPortfolio(ctx, portfolio, authorA, now)
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	walked := func(tenant shared.ID) (projects int, seen bool) {
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			list, err := snapshot.Portfolios(ctx, "", 5000)
+			for _, p := range list {
+				if p.ID == portfolio.ID {
+					seen, projects = true, len(p.Items)
+				}
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return projects, seen
+	}
+	if projects, seen := walked(tenantA); !seen || projects != 1 {
+		t.Errorf("the workspace's walk = %v with %d projects, want the portfolio with its project", seen, projects)
+	}
+	if _, seen := walked(tenantB); seen {
+		t.Error("the workspace next door walked the portfolio")
+	}
+}

@@ -61,6 +61,7 @@ type snapshotStore struct {
 	absences    []timekeeping.Absence
 	rates       []timekeeping.CostRate
 	budgets     []timekeeping.Budget
+	portfolios  []goal.Portfolio
 	// groups are the groups the reader is in.
 	groups map[shared.ID]bool
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.

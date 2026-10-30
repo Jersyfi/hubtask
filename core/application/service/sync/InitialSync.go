@@ -42,6 +42,7 @@ var walkKinds = []string{
 	entitySprint, entitySprintEntry, entityEstimate, entityCustomField,
 	entityTimeRecord, entityTimer, entityWorkTypes, entityTimePolicy,
 	entityTimesheet, entityCapacities, entityAbsence, entityCostRates, entityBudget,
+	entityPortfolio,
 }
 
 const (
@@ -85,6 +86,8 @@ const (
 	entityGoal        = goalservice.GoalEntity
 	entityGoalCheckIn = goalservice.CheckInEntity
 	entityDashboard   = goalservice.DashboardEntity
+	// entityPortfolio is workspace-wide, its projects narrowed to the reader's (UC-GOL-03).
+	entityPortfolio = goalservice.PortfolioEntity
 	// entitySprint is a sprint, entitySprintEntry an entry's open sprint and entityEstimate an
 	// entry's estimate, each filed under the collection (M2); walked last, for the schedule's
 	// reason.
@@ -176,7 +179,7 @@ func (p PullChanges) walk(
 				}
 				continue
 			}
-			if row.payload, err = p.Stream.narrowed(ctx, actor, &lens, row.entity, seen, row.payload); err != nil {
+			if row.payload, err = p.Stream.narrowed(ctx, actor, &lens, row.entity, seen, row.payload, resolved); err != nil {
 				return Batch{}, err
 			}
 			records = append(records, Record{
@@ -637,6 +640,18 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityGoalCheckIn, entityID: c.CheckIn.ID, containerID: c.HubID,
 				payload: goalservice.CheckInRecord(c.CheckIn), key: c.CheckIn.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityPortfolio:
+		portfolios, err := p.Snapshot.Portfolios(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(portfolios))
+		for _, portfolio := range portfolios {
+			rows = append(rows, walkRow{
+				entity: entityPortfolio, entityID: portfolio.ID, payload: goalservice.PortfolioRecord(portfolio), key: portfolio.ID.String(),
 			})
 		}
 		return rows, nil

@@ -1894,6 +1894,59 @@ func (q *Queries) SnapshotPages(ctx context.Context, arg SnapshotPagesParams) ([
 	return items, nil
 }
 
+const snapshotPortfolios = `-- name: SnapshotPortfolios :many
+SELECT id, parent_id, name, description, owner_id, status, version
+FROM portfolio
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotPortfoliosParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotPortfoliosRow struct {
+	ID          pgtype.UUID
+	ParentID    pgtype.UUID
+	Name        string
+	Description string
+	OwnerID     pgtype.UUID
+	Status      string
+	Version     int32
+}
+
+// The workspace's portfolios (migration 0248), paged by identifier; their projects are read
+// beside them.
+func (q *Queries) SnapshotPortfolios(ctx context.Context, arg SnapshotPortfoliosParams) ([]SnapshotPortfoliosRow, error) {
+	rows, err := q.db.Query(ctx, snapshotPortfolios, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotPortfoliosRow{}
+	for rows.Next() {
+		var i SnapshotPortfoliosRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ParentID,
+			&i.Name,
+			&i.Description,
+			&i.OwnerID,
+			&i.Status,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotRecurrenceRules = `-- name: SnapshotRecurrenceRules :many
 SELECT rr.id, rr.tenant_id, rr.source_item_id, rr.rrule, rr.time_zone, rr.mode, rr.horizon_days,
        rr.ends_at, rr.max_count, rr.last_materialized_at, rr.created_at, rr.updated_at, rr.version,

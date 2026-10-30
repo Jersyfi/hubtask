@@ -87,7 +87,7 @@ A **null cursor is the initial synchronisation**: the current state, one kind at
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
 templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
 pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
-goals, check-ins, dashboards, sprints, entries' open sprints and estimates, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets), paged by identifier, each row
+goals, check-ins, dashboards, sprints, entries' open sprints and estimates, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -137,6 +137,11 @@ record per person) are theirs alone in the same way; the absences (`time_absence
 calendar and reach every member; the cost rates (`time_cost_rates`, one record under the
 workspace's identifier) and a budget (`time_budget`, filed under its hub or collection, never its
 burn) reach only whoever holds `MANAGE_COSTS` there, as `ListCostRates` and `ReadBudget` ask. A
+portfolio (`portfolio`) is filed under no container and reaches whoever may read at the workspace,
+as `ListPortfolios` answers it; its record names each project by its container, and the walk and
+the stream keep of them only those the reader may read - each judged as a change filed under it -,
+so one record is narrowed per reader. Its names, counts and budgets are read for the reader online
+or from the reader's own copy of the containers. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 

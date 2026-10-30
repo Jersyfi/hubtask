@@ -197,6 +197,8 @@ type Snapshot interface {
 	Goals(ctx context.Context, after shared.ID, batch int) ([]goal.Goal, error)
 	GoalCheckIns(ctx context.Context, after shared.ID, batch int) ([]GoalCheckIn, error)
 	Dashboards(ctx context.Context, after shared.ID, batch int) ([]goal.Dashboard, error)
+	// Portfolios pages the workspace's portfolios with every project; the walk narrows them.
+	Portfolios(ctx context.Context, after shared.ID, batch int) ([]goal.Portfolio, error)
 	// CIRelations pages the relations between them.
 	CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error)
 	// CmdbCatalogue reads the workspace's own classes and relation types.

@@ -320,7 +320,7 @@ func (s StreamChanges) page(
 		if !costs {
 			continue
 		}
-		if entry.Payload, err = s.narrowed(ctx, actor, &lens, entry.Entity, seen, entry.Payload); err != nil {
+		if entry.Payload, err = s.narrowed(ctx, actor, &lens, entry.Entity, seen, entry.Payload, resolved); err != nil {
 			return Batch{}, err
 		}
 		records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
@@ -336,13 +336,17 @@ func (s StreamChanges) page(
 	}, nil
 }
 
-// narrowed takes from an entry's record the fields hidden from the reader in its collection; the
-// lens is started on the first entry a page meets, and a record of anything else passes as it is.
-// ForACopy, for the reason mayRead asks so: what passes here lands in a replica.
+// narrowed takes from an entry's record the fields hidden from the reader in its collection, and
+// from a portfolio's the projects the reader may not read; the lens is started on the first entry
+// a page meets, and a record of anything else passes as it is. ForACopy, for the reason mayRead
+// asks so: what passes here lands in a replica.
 func (s StreamChanges) narrowed(
 	ctx context.Context, actor appshared.ActorContext, lens **workservice.FieldLens, entity string,
-	seen visibility, payload map[string]any,
+	seen visibility, payload map[string]any, resolved map[shared.ID]visibility,
 ) (map[string]any, error) {
+	if entity == entityPortfolio && payload != nil {
+		return s.portfolioNarrowed(ctx, actor, payload, resolved)
+	}
 	if entity != entityItem || payload == nil || !s.Fields.Wired() || seen.container.ID.IsZero() {
 		return payload, nil
 	}
@@ -358,6 +362,35 @@ func (s StreamChanges) narrowed(
 		return nil, err
 	}
 	return workservice.PayloadWithout(payload, keys), nil
+}
+
+// portfolioNarrowed keeps of a portfolio's projects those the reader may read, as ReadPortfolio
+// answers them: each judged as a change filed under it would be, the answer remembered for the page.
+func (s StreamChanges) portfolioNarrowed(
+	ctx context.Context, actor appshared.ActorContext, payload map[string]any, resolved map[shared.ID]visibility,
+) (map[string]any, error) {
+	items, _ := payload["items"].([]any)
+	kept := make([]any, 0, len(items))
+	for _, item := range items {
+		project, _ := item.(map[string]any)
+		id, _ := project["container_id"].(string)
+		if id == "" {
+			continue
+		}
+		seen, err := s.mayRead(ctx, actor, entityPortfolio, shared.ID(id), resolved)
+		if err != nil {
+			return nil, err
+		}
+		if seen.allowed {
+			kept = append(kept, project)
+		}
+	}
+	out := make(map[string]any, len(payload))
+	for key, value := range payload {
+		out[key] = value
+	}
+	out["items"] = kept
+	return out, nil
 }
 
 // visibility is what one container lookup settles for the rest of a page: whether the actor may

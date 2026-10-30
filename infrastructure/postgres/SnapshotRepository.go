@@ -668,3 +668,24 @@ func (SnapshotRepository) Dashboards(ctx context.Context, after shared.ID, batch
 		return dashboardOf(sqlc.ListDashboardsRow(r))
 	})
 }
+
+// Portfolios pages the workspace's portfolios with their projects.
+func (SnapshotRepository) Portfolios(ctx context.Context, after shared.ID, batch int) ([]goal.Portfolio, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotPortfolios(ctx, sqlc.SnapshotPortfoliosParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("portfolios", err)
+	}
+	out, err := mapRows(rows, func(r sqlc.SnapshotPortfoliosRow) (goal.Portfolio, error) {
+		return portfolioOf(sqlc.ListPortfoliosRow(r))
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, withItems(ctx, queries, out)
+}

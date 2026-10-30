@@ -550,3 +550,12 @@ FROM time_budget
 WHERE tenant_id = current_tenant_id() AND plan_id > sqlc.arg('after')
 ORDER BY plan_id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotPortfolios :many
+-- The workspace's portfolios (migration 0248), paged by identifier; their projects are read
+-- beside them.
+SELECT id, parent_id, name, description, owner_id, status, version
+FROM portfolio
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
