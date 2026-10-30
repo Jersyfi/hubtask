@@ -5,9 +5,9 @@ context: timekeeping
 actors: [PE-member, PE-integrator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go]
+checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts]
 ---
 
 # Fill in and hand in my week
@@ -40,7 +40,3 @@ back the Wednesday workshop, adjusts Thursday and hands the week in - 40 hours.
 ## Where it ends
 
 * Reminders for a week not handed in, and the hours a person is expected to work, are not built.
-
-## Today
-
-* Check 8: the web app's week screen is not built (S-20, `docs/backlog/suite/README.md`).

@@ -5,9 +5,9 @@ context: timekeeping
 actors: [PE-admin, PE-planner, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-14, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go]
+checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts]
 ---
 
 # Approve a team's time
@@ -47,7 +47,3 @@ approved week and records a correction of -30 minutes in the open week.
 
 * Approval runs in one step by one approver; approval chains are the workflows' (M5).
 * Overtime and flexitime accounts are not built.
-
-## Today
-
-* Check 7: the web app's approval screen is not built (S-20, `docs/backlog/suite/README.md`).

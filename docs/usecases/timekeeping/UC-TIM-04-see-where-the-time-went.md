@@ -5,9 +5,9 @@ context: timekeeping
 actors: [PE-planner, PE-member, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-14, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go]
+checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts]
 ---
 
 # See where the time went
@@ -44,7 +44,3 @@ in is withheld.
 
 * Nothing scores or ranks a person (P-14); there is no individual performance analysis.
 * Rates, costs and budgets are not built: a report counts time, not money.
-
-## Today
-
-* Check 6: the web app's report screens are not built (S-20, `docs/backlog/suite/README.md`).

@@ -5,9 +5,9 @@ context: timekeeping
 actors: [PE-member, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go]
+checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts]
 ---
 
 # Track my time on what I work on
@@ -47,7 +47,3 @@ meeting on no entry.
 
 * No attendance clocking: working-time records under labour law are a different purpose.
 * A timer offline is not built; a device without the server cannot start or stop one.
-
-## Today
-
-* Check 8: the web app's timer and week screens are not built (S-20, `docs/backlog/suite/README.md`).
