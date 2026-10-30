@@ -5,6 +5,7 @@ package servicedesk
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -18,13 +19,27 @@ type CatalogueEntry struct {
 	// Form is the type's form without the fields the portal hides; their presets still apply
 	// when the request is raised.
 	Form work.Form
+	// Questions are the custom fields the shown form asks, with what a requester's answer must
+	// be: a portal reads no field definitions of its own, as a requester reads no team fields.
+	Questions []Question
+}
+
+// Question is one custom field a portal form asks: its key, its kind and, for a choice, the
+// values it offers. A client names it in the reader's words (rule 8).
+type Question struct {
+	Key     string
+	Kind    work.CustomFieldKind
+	Options []string
 }
 
 // RequestCatalogue answers the types a collection offers through the portal, in the registry's
 // order: a top-level type, not archived, offered by the collection (offered nil offers every
 // type), whose form names the PORTAL channel and leaves it open. The portal is opt-in per type,
 // so a workspace's internal types never reach a requester by default.
-func RequestCatalogue(types []work.EntryType, offered []string) []CatalogueEntry {
+//
+// definitions are the custom fields in force at the collection; a field of the form that none
+// defines is asked of nobody.
+func RequestCatalogue(types []work.EntryType, offered []string, definitions []work.CustomFieldDefinition) []CatalogueEntry {
 	out := []CatalogueEntry{}
 	for _, entryType := range types {
 		if entryType.Level != work.ItemTask || entryType.ArchivedAt != nil {
@@ -37,9 +52,10 @@ func RequestCatalogue(types []work.EntryType, offered []string) []CatalogueEntry
 		if !named || rule.Closed {
 			continue
 		}
+		form := portalForm(entryType.Form, rule.Hidden)
 		out = append(out, CatalogueEntry{
 			Key: entryType.Key, Name: entryType.Name, Icon: entryType.Icon,
-			Form: portalForm(entryType.Form, rule.Hidden),
+			Form: form, Questions: questionsOf(form, definitions),
 		})
 	}
 	return out
@@ -69,4 +85,22 @@ func portalForm(form work.Form, hidden []string) work.Form {
 		}
 	}
 	return shown
+}
+
+// questionsOf answers the custom fields a form asks, in the form's order.
+func questionsOf(form work.Form, definitions []work.CustomFieldDefinition) []Question {
+	out := []Question{}
+	for _, field := range form.Fields {
+		key, custom := strings.CutPrefix(field.Key, work.FormCustomPrefix)
+		if !custom {
+			continue
+		}
+		for _, definition := range definitions {
+			if definition.Key == key {
+				out = append(out, Question{Key: key, Kind: definition.Kind, Options: slices.Clone(definition.Options)})
+				break
+			}
+		}
+	}
+	return out
 }

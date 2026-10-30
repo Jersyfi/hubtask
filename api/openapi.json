@@ -39868,7 +39868,8 @@
                 "key",
                 "name",
                 "icon",
-                "form"
+                "form",
+                "questions"
               ],
               "properties": {
                 "key": {
@@ -39883,6 +39884,33 @@
                 },
                 "form": {
                   "$ref": "#/components/schemas/EntryForm"
+                },
+                "questions": {
+                  "type": "array",
+                  "description": "The custom fields the form asks, in its order, with what an answer must be.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "key",
+                      "kind",
+                      "options"
+                    ],
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "The values a choice offers; empty otherwise."
+                      }
+                    }
+                  }
                 }
               }
             }

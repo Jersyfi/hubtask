@@ -1863,7 +1863,7 @@ func run() error {
 	portalEntries := &deferredCatalogue{}
 	requestPortal := servicedeskservice.Portal{
 		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
-		EntryTypes: entryTypes, Gate: entryGate, Desk: serviceDesk,
+		EntryTypes: entryTypes, Fields: customFields, Gate: entryGate, Desk: serviceDesk,
 	}
 	// The planning module (M2): a plan is a hub or a collection, read for whoever may see its
 	// entries; an accepted move goes through UpdateWorkItem in the registry.

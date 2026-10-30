@@ -62,7 +62,10 @@ type Portal struct {
 	Containers workrepo.Containers
 	Comments   workrepo.Comments
 	EntryTypes workrepo.EntryTypes
-	Gate       work.EntryGate
+	// Fields answers the custom fields in force at the collection, so the catalogue says what
+	// each question is; nil asks none.
+	Fields workrepo.CustomFields
+	Gate   work.EntryGate
 	Desk       Desk
 }
 
@@ -143,7 +146,13 @@ func (p Portal) catalogueOf(ctx context.Context, actor appshared.ActorContext, c
 		if err != nil {
 			return err
 		}
-		catalogue = domain.RequestCatalogue(workdomain.NewEntryTypes(rows), offered)
+		var definitions []workdomain.CustomFieldDefinition
+		if p.Fields != nil {
+			if definitions, err = p.Fields.ListInScope(ctx, collection.ID); err != nil {
+				return err
+			}
+		}
+		catalogue = domain.RequestCatalogue(workdomain.NewEntryTypes(rows), offered, definitions)
 		return nil
 	})
 	return catalogue, err
@@ -205,9 +214,19 @@ func (h ListRequestCatalogue) Descriptor() usecase.Descriptor {
 			}
 			data := make([]usecase.Output, 0, len(catalogue))
 			for _, entry := range catalogue {
+				questions := make([]usecase.Output, 0, len(entry.Questions))
+				for _, question := range entry.Questions {
+					options := question.Options
+					if options == nil {
+						options = []string{}
+					}
+					questions = append(questions, usecase.Output{
+						"key": question.Key, "kind": string(question.Kind), "options": options,
+					})
+				}
 				data = append(data, usecase.Output{
 					"key": entry.Key, "name": entry.Name, "icon": entry.Icon,
-					"form": workflow.FormOutput(entry.Form),
+					"form": workflow.FormOutput(entry.Form), "questions": questions,
 				})
 			}
 			return usecase.Output{"data": data}, nil

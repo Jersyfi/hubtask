@@ -19096,6 +19096,15 @@ type RequestCatalogue struct {
 
 		// Name Empty on a system type nobody named.
 		Name string `json:"name"`
+
+		// Questions The custom fields the form asks, in its order, with what an answer must be.
+		Questions []struct {
+			Key  string `json:"key"`
+			Kind string `json:"kind"`
+
+			// Options The values a choice offers; empty otherwise.
+			Options []string `json:"options"`
+		} `json:"questions"`
 	} `json:"data"`
 }
 
