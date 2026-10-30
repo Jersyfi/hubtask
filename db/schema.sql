@@ -6250,4 +6250,16 @@ CREATE POLICY tenant_isolation ON agent_job
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE ON agent_job TO hubtask_app;
 
+-- The agent a suggestion and a notification name (migrations 0253, 0254), declared after agent.
+ALTER TABLE ai_suggestion ADD COLUMN agent_id uuid,
+  ADD CONSTRAINT ai_suggestion_agent_id_fkey
+    FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id) ON DELETE CASCADE;
+ALTER TABLE notification ADD COLUMN agent_id uuid,
+  ADD CONSTRAINT notification_agent_id_fkey
+    FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id) <= 1);
+CREATE INDEX notification_agent_idx ON notification (tenant_id, agent_id) WHERE agent_id IS NOT NULL;
+
 COMMIT;
