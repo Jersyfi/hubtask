@@ -5,7 +5,7 @@ context: importer
 actors: [PE-admin, PE-person]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-12]
-state: partial
+state: built
 tasks: []
 checked_by: [infrastructure/importer/Wiki_test.go, test/integration/import_tracker_test.go, core/application/service/importer/Import_test.go, apps/webapp/src/lib/data/imports.test.ts]
 ---
