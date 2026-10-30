@@ -1275,6 +1275,22 @@ class Client:
         """DELETE /integrations/calendar-feeds/{feedId}"""
         return self._call("DELETE", "/integrations/calendar-feeds/{feedId}", {"feedId": feed_id}, None, {}, None, "none", None, "void")
 
+    def list_calendar_pushes(self) -> "CalendarPushList":
+        """The caller's calendar pushes"""
+        return self._call("GET", "/integrations/calendar-pushes", {}, None, {}, None, "none", None, "json")
+
+    def authorize_calendar_push(self, body: "CalendarPushAuthorizationRequest", *, idempotency_key: str | None = None) -> "CalendarPushAuthorization":
+        """Start writing a calendar feed into the caller's calendar"""
+        return self._call("POST", "/integrations/calendar-pushes:authorize", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def complete_calendar_push_authorization(self, body: "CalendarPushAuthorizationAnswer", *, idempotency_key: str | None = None) -> "CalendarPush":
+        """Finish connecting a calendar push with the provider's answer"""
+        return self._call("POST", "/integrations/calendar-pushes:complete", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def disconnect_calendar_push(self, push_id: str) -> None:
+        """Disconnect a calendar push"""
+        return self._call("DELETE", "/integrations/calendar-pushes/{pushId}", {"pushId": push_id}, None, {}, None, "none", None, "void")
+
     def get_calendar_feed_document(self, token: str) -> bytes:
         """GET /calendar/{token}.ics"""
         return self._call("GET", "/calendar/{token}.ics", {"token": token}, None, {}, None, "none", None, "raw")

@@ -369,6 +369,13 @@ var generatedCommands = []door{
 			{Name: "calendarKey", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "calendar", Verb: "push ls", OperationID: "listCalendarPushes", Method: "GET", Path: "/integrations/calendar-pushes", Summary: "The caller's calendar pushes",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "state"}},
+	{Group: "calendar", Verb: "push rm", OperationID: "disconnectCalendarPush", Method: "DELETE", Path: "/integrations/calendar-pushes/{pushId}", Summary: "Disconnect a calendar push",
+		PathParams: []doorParam{
+			{Name: "pushId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "capacity", Verb: "ls", OperationID: "listCapacities", Method: "GET", Path: "/time-capacities", Summary: "A person's capacities",
 		Query: []doorParam{
 			{Name: "account_id", Kind: "uuid", Help: "The person; the caller without", Required: false},

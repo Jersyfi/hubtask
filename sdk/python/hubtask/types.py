@@ -3902,6 +3902,33 @@ class TriggerEventPage(TypedDict, total=False):
     data: Required[list["TriggerEvent"]]
     page: Required["PageInfo"]
 
+class CalendarPush(TypedDict, total=False):
+    id: Required[str]
+    feed_id: Required[str]
+    provider: Required[Literal["MICROSOFT", "GOOGLE"]]
+    address: Required[str]
+    state: Required[Literal["ACTIVE", "FAILED"]]
+    failure: str
+    pushed_at: str
+    created_at: Required[str]
+
+class CalendarPushList(TypedDict, total=False):
+    data: Required[list["CalendarPush"]]
+    providers: Required[list[Literal["MICROSOFT", "GOOGLE"]]]
+
+class CalendarPushAuthorizationRequest(TypedDict, total=False):
+    feed_id: Required[str]
+    provider: Required[Literal["MICROSOFT", "GOOGLE"]]
+
+class CalendarPushAuthorization(TypedDict, total=False):
+    authorize_url: Required[str]
+    expires_at: Required[str]
+
+class CalendarPushAuthorizationAnswer(TypedDict, total=False):
+    state: Required[str]
+    code: str
+    error: str
+
 class CalendarFeed(TypedDict, total=False):
     """One subscription: a token its owner holds, over one saved view, revocable. The token itself is not a member - it exists in the answer to the call that minted it and nowhere else afterwards."""
     id: Required[str]

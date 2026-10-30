@@ -12817,6 +12817,146 @@
         }
       }
     },
+    "/integrations/calendar-pushes": {
+      "get": {
+        "tags": [
+          "calendar"
+        ],
+        "operationId": "listCalendarPushes",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "calendar push ls",
+        "summary": "The caller's calendar pushes",
+        "description": "The caller's own calendar pushes - each calendar feed written into their calendar at Microsoft 365 or Google - with the account signed in with, whether it goes through and when it last ran, and the providers this installation offers. Never anybody else's, whatever the role: a push is a grant to its owner's own calendar.\n",
+        "responses": {
+          "200": {
+            "description": "The pushes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarPushList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/integrations/calendar-pushes:authorize": {
+      "post": {
+        "tags": [
+          "calendar"
+        ],
+        "operationId": "authorizeCalendarPush",
+        "x-hubtask-rest": "generated",
+        "summary": "Start writing a calendar feed into the caller's calendar",
+        "description": "OAuth 2.0 authorization code flow with PKCE (S256) at Microsoft or Google with the installation's app, asking for the calendar's events alone - never mail, never files. Answers the provider's page to send the browser to; the provider sends it back to the web UI's page that hands the code and the state to `POST /integrations/calendar-pushes:complete`. A waiting connection is good for ten minutes, once, and for the person who started it. Somebody else's feed, a data feed or a revoked one is not found (`calendar_push.feed_unknown`); a provider without an app on this installation is `calendar_push.provider_not_offered`; at most ten pushes per person.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalendarPushAuthorizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Where to send the browser",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarPushAuthorization"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/integrations/calendar-pushes:complete": {
+      "post": {
+        "tags": [
+          "calendar"
+        ],
+        "operationId": "completeCalendarPushAuthorization",
+        "x-hubtask-rest": "generated",
+        "summary": "Finish connecting a calendar push with the provider's answer",
+        "description": "Trades the code at the provider's token endpoint and keeps the grant sealed; the feed is written into the calendar within minutes and every quarter hour after, read as its owner reads now. Each event holds the entry's title, its moment and a link back, shown as free and without a reminder. Connecting the same feed to the same provider again replaces the grant. A state that is unknown, used or someone else's answers `404` (`calendar_push.state_unknown`); one older than ten minutes `422` (`calendar_push.expired`); a refusal at the provider `422` (`calendar_push.denied`).\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalendarPushAuthorizationAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarPush"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/integrations/calendar-pushes/{pushId}": {
+      "parameters": [
+        {
+          "name": "pushId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "calendar"
+        ],
+        "operationId": "disconnectCalendarPush",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "calendar push rm",
+        "summary": "Disconnect a calendar push",
+        "description": "The grant is forgotten and nothing more is written. The events written stay in the calendar for its owner to remove there. Somebody else's push is not found.\n",
+        "responses": {
+          "204": {
+            "description": "Disconnected"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/calendar/{token}.ics": {
       "parameters": [
         {
@@ -51532,6 +51672,143 @@
           },
           "page": {
             "$ref": "#/components/schemas/PageInfo"
+          }
+        }
+      },
+      "CalendarPush": {
+        "type": "object",
+        "required": [
+          "id",
+          "feed_id",
+          "provider",
+          "address",
+          "state",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "feed_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The calendar feed written."
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "MICROSOFT",
+              "GOOGLE"
+            ]
+          },
+          "address": {
+            "type": "string",
+            "description": "The provider account signed in with; empty when the provider named none."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "FAILED"
+            ],
+            "description": "ACTIVE writes every quarter hour; FAILED stopped on a refusal for good - the grant revoked or the feed gone - until connected again."
+          },
+          "failure": {
+            "type": "string",
+            "description": "The message code of the last run that did not go through."
+          },
+          "pushed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the last run went through."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CalendarPushList": {
+        "type": "object",
+        "required": [
+          "data",
+          "providers"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarPush"
+            }
+          },
+          "providers": {
+            "type": "array",
+            "description": "The providers this installation has an app for.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "MICROSOFT",
+                "GOOGLE"
+              ]
+            }
+          }
+        }
+      },
+      "CalendarPushAuthorizationRequest": {
+        "type": "object",
+        "required": [
+          "feed_id",
+          "provider"
+        ],
+        "properties": {
+          "feed_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The caller's own calendar feed."
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "MICROSOFT",
+              "GOOGLE"
+            ]
+          }
+        }
+      },
+      "CalendarPushAuthorization": {
+        "type": "object",
+        "required": [
+          "authorize_url",
+          "expires_at"
+        ],
+        "properties": {
+          "authorize_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The provider's page to send the browser to."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CalendarPushAuthorizationAnswer": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string",
+            "description": "The provider's refusal, when the person said no."
           }
         }
       },

@@ -1584,6 +1584,26 @@ export class HubtaskClient {
     return this.call("DELETE", "/integrations/calendar-feeds/{feedId}", { "feedId": feedId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The caller's calendar pushes */
+  listCalendarPushes(options: CallOptions = {}): Promise<operations["listCalendarPushes"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/integrations/calendar-pushes", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Start writing a calendar feed into the caller's calendar */
+  authorizeCalendarPush(body: NonNullable<operations["authorizeCalendarPush"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["authorizeCalendarPush"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/integrations/calendar-pushes:authorize", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Finish connecting a calendar push with the provider's answer */
+  completeCalendarPushAuthorization(body: NonNullable<operations["completeCalendarPushAuthorization"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["completeCalendarPushAuthorization"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/integrations/calendar-pushes:complete", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Disconnect a calendar push */
+  disconnectCalendarPush(pushId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/integrations/calendar-pushes/{pushId}", { "pushId": pushId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** GET /calendar/{token}.ics
    * Public: sent without a bearer where the client holds none. */
   getCalendarFeedDocument(token: string, options: CallOptions = {}): Promise<Response> {

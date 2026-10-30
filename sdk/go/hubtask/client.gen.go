@@ -1966,6 +1966,78 @@ func (e CalendarFeedSecretKind) Valid() bool {
 	}
 }
 
+// Defines values for CalendarPushProvider.
+const (
+	CalendarPushProviderGOOGLE    CalendarPushProvider = "GOOGLE"
+	CalendarPushProviderMICROSOFT CalendarPushProvider = "MICROSOFT"
+)
+
+// Valid indicates whether the value is a known member of the CalendarPushProvider enum.
+func (e CalendarPushProvider) Valid() bool {
+	switch e {
+	case CalendarPushProviderGOOGLE:
+		return true
+	case CalendarPushProviderMICROSOFT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarPushState.
+const (
+	CalendarPushStateACTIVE CalendarPushState = "ACTIVE"
+	CalendarPushStateFAILED CalendarPushState = "FAILED"
+)
+
+// Valid indicates whether the value is a known member of the CalendarPushState enum.
+func (e CalendarPushState) Valid() bool {
+	switch e {
+	case CalendarPushStateACTIVE:
+		return true
+	case CalendarPushStateFAILED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarPushAuthorizationRequestProvider.
+const (
+	CalendarPushAuthorizationRequestProviderGOOGLE    CalendarPushAuthorizationRequestProvider = "GOOGLE"
+	CalendarPushAuthorizationRequestProviderMICROSOFT CalendarPushAuthorizationRequestProvider = "MICROSOFT"
+)
+
+// Valid indicates whether the value is a known member of the CalendarPushAuthorizationRequestProvider enum.
+func (e CalendarPushAuthorizationRequestProvider) Valid() bool {
+	switch e {
+	case CalendarPushAuthorizationRequestProviderGOOGLE:
+		return true
+	case CalendarPushAuthorizationRequestProviderMICROSOFT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarPushListProviders.
+const (
+	CalendarPushListProvidersGOOGLE    CalendarPushListProviders = "GOOGLE"
+	CalendarPushListProvidersMICROSOFT CalendarPushListProviders = "MICROSOFT"
+)
+
+// Valid indicates whether the value is a known member of the CalendarPushListProviders enum.
+func (e CalendarPushListProviders) Valid() bool {
+	switch e {
+	case CalendarPushListProvidersGOOGLE:
+		return true
+	case CalendarPushListProvidersMICROSOFT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CapabilitiesSupportedLocalesDirection.
 const (
 	Ltr CapabilitiesSupportedLocalesDirection = "ltr"
@@ -4875,19 +4947,19 @@ func (e IdentityProviderScope) Valid() bool {
 
 // Defines values for IdentityProviderKind.
 const (
-	GENERIC   IdentityProviderKind = "GENERIC"
-	GOOGLE    IdentityProviderKind = "GOOGLE"
-	MICROSOFT IdentityProviderKind = "MICROSOFT"
+	IdentityProviderKindGENERIC   IdentityProviderKind = "GENERIC"
+	IdentityProviderKindGOOGLE    IdentityProviderKind = "GOOGLE"
+	IdentityProviderKindMICROSOFT IdentityProviderKind = "MICROSOFT"
 )
 
 // Valid indicates whether the value is a known member of the IdentityProviderKind enum.
 func (e IdentityProviderKind) Valid() bool {
 	switch e {
-	case GENERIC:
+	case IdentityProviderKindGENERIC:
 		return true
-	case GOOGLE:
+	case IdentityProviderKindGOOGLE:
 		return true
-	case MICROSOFT:
+	case IdentityProviderKindMICROSOFT:
 		return true
 	default:
 		return false
@@ -12496,6 +12568,70 @@ type CalendarFeedSecret struct {
 
 // CalendarFeedSecretKind What the token opens - a calendar, or a read-only data feed of the view's rows.
 type CalendarFeedSecretKind string
+
+// CalendarPush defines model for CalendarPush.
+type CalendarPush struct {
+	// Address The provider account signed in with; empty when the provider named none.
+	Address   string    `json:"address"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Failure The message code of the last run that did not go through.
+	Failure *string `json:"failure,omitempty"`
+
+	// FeedId The calendar feed written.
+	FeedId   openapi_types.UUID   `json:"feed_id"`
+	Id       openapi_types.UUID   `json:"id"`
+	Provider CalendarPushProvider `json:"provider"`
+
+	// PushedAt When the last run went through.
+	PushedAt *time.Time `json:"pushed_at,omitempty"`
+
+	// State ACTIVE writes every quarter hour; FAILED stopped on a refusal for good - the grant revoked or the feed gone - until connected again.
+	State CalendarPushState `json:"state"`
+}
+
+// CalendarPushProvider defines model for CalendarPush.Provider.
+type CalendarPushProvider string
+
+// CalendarPushState ACTIVE writes every quarter hour; FAILED stopped on a refusal for good - the grant revoked or the feed gone - until connected again.
+type CalendarPushState string
+
+// CalendarPushAuthorization defines model for CalendarPushAuthorization.
+type CalendarPushAuthorization struct {
+	// AuthorizeUrl The provider's page to send the browser to.
+	AuthorizeUrl string    `json:"authorize_url"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+
+// CalendarPushAuthorizationAnswer defines model for CalendarPushAuthorizationAnswer.
+type CalendarPushAuthorizationAnswer struct {
+	Code *string `json:"code,omitempty"`
+
+	// Error The provider's refusal, when the person said no.
+	Error *string `json:"error,omitempty"`
+	State string  `json:"state"`
+}
+
+// CalendarPushAuthorizationRequest defines model for CalendarPushAuthorizationRequest.
+type CalendarPushAuthorizationRequest struct {
+	// FeedId The caller's own calendar feed.
+	FeedId   openapi_types.UUID                       `json:"feed_id"`
+	Provider CalendarPushAuthorizationRequestProvider `json:"provider"`
+}
+
+// CalendarPushAuthorizationRequestProvider defines model for CalendarPushAuthorizationRequest.Provider.
+type CalendarPushAuthorizationRequestProvider string
+
+// CalendarPushList defines model for CalendarPushList.
+type CalendarPushList struct {
+	Data []CalendarPush `json:"data"`
+
+	// Providers The providers this installation has an app for.
+	Providers []CalendarPushListProviders `json:"providers"`
+}
+
+// CalendarPushListProviders defines model for CalendarPushList.Providers.
+type CalendarPushListProviders string
 
 // Capabilities Self-description; clients configure themselves from this.
 type Capabilities struct {
@@ -24919,6 +25055,18 @@ type CreateCalendarFeedParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// AuthorizeCalendarPushParams defines parameters for AuthorizeCalendarPush.
+type AuthorizeCalendarPushParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CompleteCalendarPushAuthorizationParams defines parameters for CompleteCalendarPushAuthorization.
+type CompleteCalendarPushAuthorizationParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // PollTriggerEventsParams defines parameters for PollTriggerEvents.
 type PollTriggerEventsParams struct {
 	// Since Where the last poll stopped. Absent starts at the oldest event still inside the retention window, which is what lets a poller that has never called before catch up rather than begin with a gap it cannot see.
@@ -26846,6 +26994,12 @@ type ImportEntriesJSONRequestBody = ImportRequest
 
 // CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
 type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
+
+// AuthorizeCalendarPushJSONRequestBody defines body for AuthorizeCalendarPush for application/json ContentType.
+type AuthorizeCalendarPushJSONRequestBody = CalendarPushAuthorizationRequest
+
+// CompleteCalendarPushAuthorizationJSONRequestBody defines body for CompleteCalendarPushAuthorization for application/json ContentType.
+type CompleteCalendarPushAuthorizationJSONRequestBody = CalendarPushAuthorizationAnswer
 
 // HttpRequestJSONRequestBody defines body for HttpRequest for application/json ContentType.
 type HttpRequestJSONRequestBody = HttpRequestCall
@@ -32939,6 +33093,56 @@ type ClientInterface interface {
 	// Revokes the feed. The row stays with the moment it was revoked - which is what makes "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.
 	// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
 	RevokeCalendarFeed(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCalendarPushes The caller's calendar pushes
+	//
+	// The caller's own calendar pushes - each calendar feed written into their calendar at Microsoft 365 or Google - with the account signed in with, whether it goes through and when it last ran, and the providers this installation offers. Never anybody else's, whatever the role: a push is a grant to its owner's own calendar.
+	//
+	// Corresponds with GET /integrations/calendar-pushes (the `ListCalendarPushes` operationId).
+	ListCalendarPushes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DisconnectCalendarPush Disconnect a calendar push
+	//
+	// The grant is forgotten and nothing more is written. The events written stay in the calendar for its owner to remove there. Somebody else's push is not found.
+	//
+	// Corresponds with DELETE /integrations/calendar-pushes/{pushId} (the `DisconnectCalendarPush` operationId).
+	DisconnectCalendarPush(ctx context.Context, pushId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AuthorizeCalendarPushWithBody Start writing a calendar feed into the caller's calendar
+	//
+	// OAuth 2.0 authorization code flow with PKCE (S256) at Microsoft or Google with the installation's app, asking for the calendar's events alone - never mail, never files. Answers the provider's page to send the browser to; the provider sends it back to the web UI's page that hands the code and the state to `POST /integrations/calendar-pushes:complete`. A waiting connection is good for ten minutes, once, and for the person who started it. Somebody else's feed, a data feed or a revoked one is not found (`calendar_push.feed_unknown`); a provider without an app on this installation is `calendar_push.provider_not_offered`; at most ten pushes per person.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /integrations/calendar-pushes:authorize (the `AuthorizeCalendarPush` operationId).
+	AuthorizeCalendarPushWithBody(ctx context.Context, params *AuthorizeCalendarPushParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AuthorizeCalendarPush Start writing a calendar feed into the caller's calendar
+	//
+	// OAuth 2.0 authorization code flow with PKCE (S256) at Microsoft or Google with the installation's app, asking for the calendar's events alone - never mail, never files. Answers the provider's page to send the browser to; the provider sends it back to the web UI's page that hands the code and the state to `POST /integrations/calendar-pushes:complete`. A waiting connection is good for ten minutes, once, and for the person who started it. Somebody else's feed, a data feed or a revoked one is not found (`calendar_push.feed_unknown`); a provider without an app on this installation is `calendar_push.provider_not_offered`; at most ten pushes per person.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /integrations/calendar-pushes:authorize (the `AuthorizeCalendarPush` operationId).
+	AuthorizeCalendarPush(ctx context.Context, params *AuthorizeCalendarPushParams, body AuthorizeCalendarPushJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteCalendarPushAuthorizationWithBody Finish connecting a calendar push with the provider's answer
+	//
+	// Trades the code at the provider's token endpoint and keeps the grant sealed; the feed is written into the calendar within minutes and every quarter hour after, read as its owner reads now. Each event holds the entry's title, its moment and a link back, shown as free and without a reminder. Connecting the same feed to the same provider again replaces the grant. A state that is unknown, used or someone else's answers `404` (`calendar_push.state_unknown`); one older than ten minutes `422` (`calendar_push.expired`); a refusal at the provider `422` (`calendar_push.denied`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
+	CompleteCalendarPushAuthorizationWithBody(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteCalendarPushAuthorization Finish connecting a calendar push with the provider's answer
+	//
+	// Trades the code at the provider's token endpoint and keeps the grant sealed; the feed is written into the calendar within minutes and every quarter hour after, read as its owner reads now. Each event holds the entry's title, its moment and a link back, shown as free and without a reminder. Connecting the same feed to the same provider again replaces the grant. A state that is unknown, used or someone else's answers `404` (`calendar_push.state_unknown`); one older than ten minutes `422` (`calendar_push.expired`); a refusal at the provider `422` (`calendar_push.denied`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
+	CompleteCalendarPushAuthorization(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, body CompleteCalendarPushAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// HttpRequestWithBody Call an external HTTP address
 	//
@@ -48239,6 +48443,116 @@ func (c *Client) CreateCalendarFeed(ctx context.Context, params *CreateCalendarF
 // Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
 func (c *Client) RevokeCalendarFeed(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeCalendarFeedRequest(c.Server, feedId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCalendarPushes The caller's calendar pushes
+//
+// The caller's own calendar pushes - each calendar feed written into their calendar at Microsoft 365 or Google - with the account signed in with, whether it goes through and when it last ran, and the providers this installation offers. Never anybody else's, whatever the role: a push is a grant to its owner's own calendar.
+//
+// Corresponds with GET /integrations/calendar-pushes (the `ListCalendarPushes` operationId).
+func (c *Client) ListCalendarPushes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCalendarPushesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DisconnectCalendarPush Disconnect a calendar push
+//
+// The grant is forgotten and nothing more is written. The events written stay in the calendar for its owner to remove there. Somebody else's push is not found.
+//
+// Corresponds with DELETE /integrations/calendar-pushes/{pushId} (the `DisconnectCalendarPush` operationId).
+func (c *Client) DisconnectCalendarPush(ctx context.Context, pushId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDisconnectCalendarPushRequest(c.Server, pushId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AuthorizeCalendarPushWithBody Start writing a calendar feed into the caller's calendar
+//
+// OAuth 2.0 authorization code flow with PKCE (S256) at Microsoft or Google with the installation's app, asking for the calendar's events alone - never mail, never files. Answers the provider's page to send the browser to; the provider sends it back to the web UI's page that hands the code and the state to `POST /integrations/calendar-pushes:complete`. A waiting connection is good for ten minutes, once, and for the person who started it. Somebody else's feed, a data feed or a revoked one is not found (`calendar_push.feed_unknown`); a provider without an app on this installation is `calendar_push.provider_not_offered`; at most ten pushes per person.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /integrations/calendar-pushes:authorize (the `AuthorizeCalendarPush` operationId).
+func (c *Client) AuthorizeCalendarPushWithBody(ctx context.Context, params *AuthorizeCalendarPushParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAuthorizeCalendarPushRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AuthorizeCalendarPush Start writing a calendar feed into the caller's calendar
+//
+// OAuth 2.0 authorization code flow with PKCE (S256) at Microsoft or Google with the installation's app, asking for the calendar's events alone - never mail, never files. Answers the provider's page to send the browser to; the provider sends it back to the web UI's page that hands the code and the state to `POST /integrations/calendar-pushes:complete`. A waiting connection is good for ten minutes, once, and for the person who started it. Somebody else's feed, a data feed or a revoked one is not found (`calendar_push.feed_unknown`); a provider without an app on this installation is `calendar_push.provider_not_offered`; at most ten pushes per person.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /integrations/calendar-pushes:authorize (the `AuthorizeCalendarPush` operationId).
+func (c *Client) AuthorizeCalendarPush(ctx context.Context, params *AuthorizeCalendarPushParams, body AuthorizeCalendarPushJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAuthorizeCalendarPushRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteCalendarPushAuthorizationWithBody Finish connecting a calendar push with the provider's answer
+//
+// Trades the code at the provider's token endpoint and keeps the grant sealed; the feed is written into the calendar within minutes and every quarter hour after, read as its owner reads now. Each event holds the entry's title, its moment and a link back, shown as free and without a reminder. Connecting the same feed to the same provider again replaces the grant. A state that is unknown, used or someone else's answers `404` (`calendar_push.state_unknown`); one older than ten minutes `422` (`calendar_push.expired`); a refusal at the provider `422` (`calendar_push.denied`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
+func (c *Client) CompleteCalendarPushAuthorizationWithBody(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteCalendarPushAuthorizationRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteCalendarPushAuthorization Finish connecting a calendar push with the provider's answer
+//
+// Trades the code at the provider's token endpoint and keeps the grant sealed; the feed is written into the calendar within minutes and every quarter hour after, read as its owner reads now. Each event holds the entry's title, its moment and a link back, shown as free and without a reminder. Connecting the same feed to the same provider again replaces the grant. A state that is unknown, used or someone else's answers `404` (`calendar_push.state_unknown`); one older than ten minutes `422` (`calendar_push.expired`); a refusal at the provider `422` (`calendar_push.denied`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
+func (c *Client) CompleteCalendarPushAuthorization(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, body CompleteCalendarPushAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteCalendarPushAuthorizationRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -75806,6 +76120,177 @@ func NewRevokeCalendarFeedRequest(server string, feedId FeedId) (*http.Request, 
 	return req, nil
 }
 
+// NewListCalendarPushesRequest constructs an http.Request for the ListCalendarPushes method
+func NewListCalendarPushesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/calendar-pushes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDisconnectCalendarPushRequest constructs an http.Request for the DisconnectCalendarPush method
+func NewDisconnectCalendarPushRequest(server string, pushId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pushId", pushId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/calendar-pushes/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAuthorizeCalendarPushRequest calls the generic AuthorizeCalendarPush builder with application/json body
+func NewAuthorizeCalendarPushRequest(server string, params *AuthorizeCalendarPushParams, body AuthorizeCalendarPushJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAuthorizeCalendarPushRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewAuthorizeCalendarPushRequestWithBody constructs an http.Request for the AuthorizeCalendarPush method, with any body, and a specified content type
+func NewAuthorizeCalendarPushRequestWithBody(server string, params *AuthorizeCalendarPushParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/calendar-pushes:authorize")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCompleteCalendarPushAuthorizationRequest calls the generic CompleteCalendarPushAuthorization builder with application/json body
+func NewCompleteCalendarPushAuthorizationRequest(server string, params *CompleteCalendarPushAuthorizationParams, body CompleteCalendarPushAuthorizationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCompleteCalendarPushAuthorizationRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCompleteCalendarPushAuthorizationRequestWithBody constructs an http.Request for the CompleteCalendarPushAuthorization method, with any body, and a specified content type
+func NewCompleteCalendarPushAuthorizationRequestWithBody(server string, params *CompleteCalendarPushAuthorizationParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/calendar-pushes:complete")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewHttpRequestRequest calls the generic HttpRequest builder with application/json body
 func NewHttpRequestRequest(server string, body HttpRequestJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -98858,6 +99343,60 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	RevokeCalendarFeedWithResponse(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*RevokeCalendarFeedResult, error)
+
+	// ListCalendarPushesWithResponse The caller's calendar pushes
+	//
+	// The caller's own calendar pushes - each calendar feed written into their calendar at Microsoft 365 or Google - with the account signed in with, whether it goes through and when it last ran, and the providers this installation offers. Never anybody else's, whatever the role: a push is a grant to its owner's own calendar.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /integrations/calendar-pushes (the `ListCalendarPushes` operationId).
+	ListCalendarPushesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCalendarPushesResult, error)
+
+	// DisconnectCalendarPushWithResponse Disconnect a calendar push
+	//
+	// The grant is forgotten and nothing more is written. The events written stay in the calendar for its owner to remove there. Somebody else's push is not found.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /integrations/calendar-pushes/{pushId} (the `DisconnectCalendarPush` operationId).
+	DisconnectCalendarPushWithResponse(ctx context.Context, pushId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DisconnectCalendarPushResult, error)
+
+	// AuthorizeCalendarPushWithBodyWithResponse Start writing a calendar feed into the caller's calendar
+	//
+	// OAuth 2.0 authorization code flow with PKCE (S256) at Microsoft or Google with the installation's app, asking for the calendar's events alone - never mail, never files. Answers the provider's page to send the browser to; the provider sends it back to the web UI's page that hands the code and the state to `POST /integrations/calendar-pushes:complete`. A waiting connection is good for ten minutes, once, and for the person who started it. Somebody else's feed, a data feed or a revoked one is not found (`calendar_push.feed_unknown`); a provider without an app on this installation is `calendar_push.provider_not_offered`; at most ten pushes per person.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/calendar-pushes:authorize (the `AuthorizeCalendarPush` operationId).
+	AuthorizeCalendarPushWithBodyWithResponse(ctx context.Context, params *AuthorizeCalendarPushParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AuthorizeCalendarPushResult, error)
+
+	// AuthorizeCalendarPushWithResponse Start writing a calendar feed into the caller's calendar
+	//
+	// OAuth 2.0 authorization code flow with PKCE (S256) at Microsoft or Google with the installation's app, asking for the calendar's events alone - never mail, never files. Answers the provider's page to send the browser to; the provider sends it back to the web UI's page that hands the code and the state to `POST /integrations/calendar-pushes:complete`. A waiting connection is good for ten minutes, once, and for the person who started it. Somebody else's feed, a data feed or a revoked one is not found (`calendar_push.feed_unknown`); a provider without an app on this installation is `calendar_push.provider_not_offered`; at most ten pushes per person.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/calendar-pushes:authorize (the `AuthorizeCalendarPush` operationId).
+	AuthorizeCalendarPushWithResponse(ctx context.Context, params *AuthorizeCalendarPushParams, body AuthorizeCalendarPushJSONRequestBody, reqEditors ...RequestEditorFn) (*AuthorizeCalendarPushResult, error)
+
+	// CompleteCalendarPushAuthorizationWithBodyWithResponse Finish connecting a calendar push with the provider's answer
+	//
+	// Trades the code at the provider's token endpoint and keeps the grant sealed; the feed is written into the calendar within minutes and every quarter hour after, read as its owner reads now. Each event holds the entry's title, its moment and a link back, shown as free and without a reminder. Connecting the same feed to the same provider again replaces the grant. A state that is unknown, used or someone else's answers `404` (`calendar_push.state_unknown`); one older than ten minutes `422` (`calendar_push.expired`); a refusal at the provider `422` (`calendar_push.denied`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
+	CompleteCalendarPushAuthorizationWithBodyWithResponse(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteCalendarPushAuthorizationResult, error)
+
+	// CompleteCalendarPushAuthorizationWithResponse Finish connecting a calendar push with the provider's answer
+	//
+	// Trades the code at the provider's token endpoint and keeps the grant sealed; the feed is written into the calendar within minutes and every quarter hour after, read as its owner reads now. Each event holds the entry's title, its moment and a link back, shown as free and without a reminder. Connecting the same feed to the same provider again replaces the grant. A state that is unknown, used or someone else's answers `404` (`calendar_push.state_unknown`); one older than ten minutes `422` (`calendar_push.expired`); a refusal at the provider `422` (`calendar_push.denied`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
+	CompleteCalendarPushAuthorizationWithResponse(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, body CompleteCalendarPushAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteCalendarPushAuthorizationResult, error)
 
 	// HttpRequestWithBodyWithResponse Call an external HTTP address
 	//
@@ -122059,6 +122598,191 @@ func (r RevokeCalendarFeedResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RevokeCalendarFeedResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCalendarPushesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CalendarPushList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCalendarPushesResult) GetJSON200() *CalendarPushList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCalendarPushesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCalendarPushesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCalendarPushesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCalendarPushesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCalendarPushesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DisconnectCalendarPushResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DisconnectCalendarPushResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DisconnectCalendarPushResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DisconnectCalendarPushResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DisconnectCalendarPushResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DisconnectCalendarPushResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AuthorizeCalendarPushResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CalendarPushAuthorization
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AuthorizeCalendarPushResult) GetJSON200() *CalendarPushAuthorization {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AuthorizeCalendarPushResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AuthorizeCalendarPushResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AuthorizeCalendarPushResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AuthorizeCalendarPushResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AuthorizeCalendarPushResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CompleteCalendarPushAuthorizationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *CalendarPush
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CompleteCalendarPushAuthorizationResult) GetJSON201() *CalendarPush {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompleteCalendarPushAuthorizationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompleteCalendarPushAuthorizationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompleteCalendarPushAuthorizationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompleteCalendarPushAuthorizationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompleteCalendarPushAuthorizationResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -148806,6 +149530,96 @@ func (c *ClientWithResponses) RevokeCalendarFeedWithResponse(ctx context.Context
 	return ParseRevokeCalendarFeedResult(rsp)
 }
 
+// ListCalendarPushesWithResponse The caller's calendar pushes
+//
+// The caller's own calendar pushes - each calendar feed written into their calendar at Microsoft 365 or Google - with the account signed in with, whether it goes through and when it last ran, and the providers this installation offers. Never anybody else's, whatever the role: a push is a grant to its owner's own calendar.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /integrations/calendar-pushes (the `ListCalendarPushes` operationId).
+func (c *ClientWithResponses) ListCalendarPushesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCalendarPushesResult, error) {
+	rsp, err := c.ListCalendarPushes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCalendarPushesResult(rsp)
+}
+
+// DisconnectCalendarPushWithResponse Disconnect a calendar push
+//
+// The grant is forgotten and nothing more is written. The events written stay in the calendar for its owner to remove there. Somebody else's push is not found.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /integrations/calendar-pushes/{pushId} (the `DisconnectCalendarPush` operationId).
+func (c *ClientWithResponses) DisconnectCalendarPushWithResponse(ctx context.Context, pushId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DisconnectCalendarPushResult, error) {
+	rsp, err := c.DisconnectCalendarPush(ctx, pushId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDisconnectCalendarPushResult(rsp)
+}
+
+// AuthorizeCalendarPushWithBodyWithResponse Start writing a calendar feed into the caller's calendar
+//
+// OAuth 2.0 authorization code flow with PKCE (S256) at Microsoft or Google with the installation's app, asking for the calendar's events alone - never mail, never files. Answers the provider's page to send the browser to; the provider sends it back to the web UI's page that hands the code and the state to `POST /integrations/calendar-pushes:complete`. A waiting connection is good for ten minutes, once, and for the person who started it. Somebody else's feed, a data feed or a revoked one is not found (`calendar_push.feed_unknown`); a provider without an app on this installation is `calendar_push.provider_not_offered`; at most ten pushes per person.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/calendar-pushes:authorize (the `AuthorizeCalendarPush` operationId).
+func (c *ClientWithResponses) AuthorizeCalendarPushWithBodyWithResponse(ctx context.Context, params *AuthorizeCalendarPushParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AuthorizeCalendarPushResult, error) {
+	rsp, err := c.AuthorizeCalendarPushWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAuthorizeCalendarPushResult(rsp)
+}
+
+// AuthorizeCalendarPushWithResponse Start writing a calendar feed into the caller's calendar
+//
+// OAuth 2.0 authorization code flow with PKCE (S256) at Microsoft or Google with the installation's app, asking for the calendar's events alone - never mail, never files. Answers the provider's page to send the browser to; the provider sends it back to the web UI's page that hands the code and the state to `POST /integrations/calendar-pushes:complete`. A waiting connection is good for ten minutes, once, and for the person who started it. Somebody else's feed, a data feed or a revoked one is not found (`calendar_push.feed_unknown`); a provider without an app on this installation is `calendar_push.provider_not_offered`; at most ten pushes per person.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/calendar-pushes:authorize (the `AuthorizeCalendarPush` operationId).
+func (c *ClientWithResponses) AuthorizeCalendarPushWithResponse(ctx context.Context, params *AuthorizeCalendarPushParams, body AuthorizeCalendarPushJSONRequestBody, reqEditors ...RequestEditorFn) (*AuthorizeCalendarPushResult, error) {
+	rsp, err := c.AuthorizeCalendarPush(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAuthorizeCalendarPushResult(rsp)
+}
+
+// CompleteCalendarPushAuthorizationWithBodyWithResponse Finish connecting a calendar push with the provider's answer
+//
+// Trades the code at the provider's token endpoint and keeps the grant sealed; the feed is written into the calendar within minutes and every quarter hour after, read as its owner reads now. Each event holds the entry's title, its moment and a link back, shown as free and without a reminder. Connecting the same feed to the same provider again replaces the grant. A state that is unknown, used or someone else's answers `404` (`calendar_push.state_unknown`); one older than ten minutes `422` (`calendar_push.expired`); a refusal at the provider `422` (`calendar_push.denied`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
+func (c *ClientWithResponses) CompleteCalendarPushAuthorizationWithBodyWithResponse(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteCalendarPushAuthorizationResult, error) {
+	rsp, err := c.CompleteCalendarPushAuthorizationWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteCalendarPushAuthorizationResult(rsp)
+}
+
+// CompleteCalendarPushAuthorizationWithResponse Finish connecting a calendar push with the provider's answer
+//
+// Trades the code at the provider's token endpoint and keeps the grant sealed; the feed is written into the calendar within minutes and every quarter hour after, read as its owner reads now. Each event holds the entry's title, its moment and a link back, shown as free and without a reminder. Connecting the same feed to the same provider again replaces the grant. A state that is unknown, used or someone else's answers `404` (`calendar_push.state_unknown`); one older than ten minutes `422` (`calendar_push.expired`); a refusal at the provider `422` (`calendar_push.denied`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
+func (c *ClientWithResponses) CompleteCalendarPushAuthorizationWithResponse(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, body CompleteCalendarPushAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteCalendarPushAuthorizationResult, error) {
+	rsp, err := c.CompleteCalendarPushAuthorization(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteCalendarPushAuthorizationResult(rsp)
+}
+
 // HttpRequestWithBodyWithResponse Call an external HTTP address
 //
 // One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
@@ -169882,6 +170696,134 @@ func ParseRevokeCalendarFeedResult(rsp *http.Response) (*RevokeCalendarFeedResul
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCalendarPushesResult parses an HTTP response from a ListCalendarPushesWithResponse call
+func ParseListCalendarPushesResult(rsp *http.Response) (*ListCalendarPushesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCalendarPushesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CalendarPushList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDisconnectCalendarPushResult parses an HTTP response from a DisconnectCalendarPushWithResponse call
+func ParseDisconnectCalendarPushResult(rsp *http.Response) (*DisconnectCalendarPushResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DisconnectCalendarPushResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAuthorizeCalendarPushResult parses an HTTP response from a AuthorizeCalendarPushWithResponse call
+func ParseAuthorizeCalendarPushResult(rsp *http.Response) (*AuthorizeCalendarPushResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AuthorizeCalendarPushResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CalendarPushAuthorization
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCompleteCalendarPushAuthorizationResult parses an HTTP response from a CompleteCalendarPushAuthorizationWithResponse call
+func ParseCompleteCalendarPushAuthorizationResult(rsp *http.Response) (*CompleteCalendarPushAuthorizationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompleteCalendarPushAuthorizationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CalendarPush
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

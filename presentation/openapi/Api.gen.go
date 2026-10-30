@@ -1960,6 +1960,78 @@ func (e CalendarFeedSecretKind) Valid() bool {
 	}
 }
 
+// Defines values for CalendarPushProvider.
+const (
+	CalendarPushProviderGOOGLE    CalendarPushProvider = "GOOGLE"
+	CalendarPushProviderMICROSOFT CalendarPushProvider = "MICROSOFT"
+)
+
+// Valid indicates whether the value is a known member of the CalendarPushProvider enum.
+func (e CalendarPushProvider) Valid() bool {
+	switch e {
+	case CalendarPushProviderGOOGLE:
+		return true
+	case CalendarPushProviderMICROSOFT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarPushState.
+const (
+	CalendarPushStateACTIVE CalendarPushState = "ACTIVE"
+	CalendarPushStateFAILED CalendarPushState = "FAILED"
+)
+
+// Valid indicates whether the value is a known member of the CalendarPushState enum.
+func (e CalendarPushState) Valid() bool {
+	switch e {
+	case CalendarPushStateACTIVE:
+		return true
+	case CalendarPushStateFAILED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarPushAuthorizationRequestProvider.
+const (
+	CalendarPushAuthorizationRequestProviderGOOGLE    CalendarPushAuthorizationRequestProvider = "GOOGLE"
+	CalendarPushAuthorizationRequestProviderMICROSOFT CalendarPushAuthorizationRequestProvider = "MICROSOFT"
+)
+
+// Valid indicates whether the value is a known member of the CalendarPushAuthorizationRequestProvider enum.
+func (e CalendarPushAuthorizationRequestProvider) Valid() bool {
+	switch e {
+	case CalendarPushAuthorizationRequestProviderGOOGLE:
+		return true
+	case CalendarPushAuthorizationRequestProviderMICROSOFT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarPushListProviders.
+const (
+	CalendarPushListProvidersGOOGLE    CalendarPushListProviders = "GOOGLE"
+	CalendarPushListProvidersMICROSOFT CalendarPushListProviders = "MICROSOFT"
+)
+
+// Valid indicates whether the value is a known member of the CalendarPushListProviders enum.
+func (e CalendarPushListProviders) Valid() bool {
+	switch e {
+	case CalendarPushListProvidersGOOGLE:
+		return true
+	case CalendarPushListProvidersMICROSOFT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CapabilitiesSupportedLocalesDirection.
 const (
 	Ltr CapabilitiesSupportedLocalesDirection = "ltr"
@@ -4869,19 +4941,19 @@ func (e IdentityProviderScope) Valid() bool {
 
 // Defines values for IdentityProviderKind.
 const (
-	GENERIC   IdentityProviderKind = "GENERIC"
-	GOOGLE    IdentityProviderKind = "GOOGLE"
-	MICROSOFT IdentityProviderKind = "MICROSOFT"
+	IdentityProviderKindGENERIC   IdentityProviderKind = "GENERIC"
+	IdentityProviderKindGOOGLE    IdentityProviderKind = "GOOGLE"
+	IdentityProviderKindMICROSOFT IdentityProviderKind = "MICROSOFT"
 )
 
 // Valid indicates whether the value is a known member of the IdentityProviderKind enum.
 func (e IdentityProviderKind) Valid() bool {
 	switch e {
-	case GENERIC:
+	case IdentityProviderKindGENERIC:
 		return true
-	case GOOGLE:
+	case IdentityProviderKindGOOGLE:
 		return true
-	case MICROSOFT:
+	case IdentityProviderKindMICROSOFT:
 		return true
 	default:
 		return false
@@ -12490,6 +12562,70 @@ type CalendarFeedSecret struct {
 
 // CalendarFeedSecretKind What the token opens - a calendar, or a read-only data feed of the view's rows.
 type CalendarFeedSecretKind string
+
+// CalendarPush defines model for CalendarPush.
+type CalendarPush struct {
+	// Address The provider account signed in with; empty when the provider named none.
+	Address   string    `json:"address"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Failure The message code of the last run that did not go through.
+	Failure *string `json:"failure,omitempty"`
+
+	// FeedId The calendar feed written.
+	FeedId   openapi_types.UUID   `json:"feed_id"`
+	Id       openapi_types.UUID   `json:"id"`
+	Provider CalendarPushProvider `json:"provider"`
+
+	// PushedAt When the last run went through.
+	PushedAt *time.Time `json:"pushed_at,omitempty"`
+
+	// State ACTIVE writes every quarter hour; FAILED stopped on a refusal for good - the grant revoked or the feed gone - until connected again.
+	State CalendarPushState `json:"state"`
+}
+
+// CalendarPushProvider defines model for CalendarPush.Provider.
+type CalendarPushProvider string
+
+// CalendarPushState ACTIVE writes every quarter hour; FAILED stopped on a refusal for good - the grant revoked or the feed gone - until connected again.
+type CalendarPushState string
+
+// CalendarPushAuthorization defines model for CalendarPushAuthorization.
+type CalendarPushAuthorization struct {
+	// AuthorizeUrl The provider's page to send the browser to.
+	AuthorizeUrl string    `json:"authorize_url"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+
+// CalendarPushAuthorizationAnswer defines model for CalendarPushAuthorizationAnswer.
+type CalendarPushAuthorizationAnswer struct {
+	Code *string `json:"code,omitempty"`
+
+	// Error The provider's refusal, when the person said no.
+	Error *string `json:"error,omitempty"`
+	State string  `json:"state"`
+}
+
+// CalendarPushAuthorizationRequest defines model for CalendarPushAuthorizationRequest.
+type CalendarPushAuthorizationRequest struct {
+	// FeedId The caller's own calendar feed.
+	FeedId   openapi_types.UUID                       `json:"feed_id"`
+	Provider CalendarPushAuthorizationRequestProvider `json:"provider"`
+}
+
+// CalendarPushAuthorizationRequestProvider defines model for CalendarPushAuthorizationRequest.Provider.
+type CalendarPushAuthorizationRequestProvider string
+
+// CalendarPushList defines model for CalendarPushList.
+type CalendarPushList struct {
+	Data []CalendarPush `json:"data"`
+
+	// Providers The providers this installation has an app for.
+	Providers []CalendarPushListProviders `json:"providers"`
+}
+
+// CalendarPushListProviders defines model for CalendarPushList.Providers.
+type CalendarPushListProviders string
 
 // Capabilities Self-description; clients configure themselves from this.
 type Capabilities struct {
@@ -24913,6 +25049,18 @@ type CreateCalendarFeedParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// AuthorizeCalendarPushParams defines parameters for AuthorizeCalendarPush.
+type AuthorizeCalendarPushParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CompleteCalendarPushAuthorizationParams defines parameters for CompleteCalendarPushAuthorization.
+type CompleteCalendarPushAuthorizationParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // PollTriggerEventsParams defines parameters for PollTriggerEvents.
 type PollTriggerEventsParams struct {
 	// Since Where the last poll stopped. Absent starts at the oldest event still inside the retention window, which is what lets a poller that has never called before catch up rather than begin with a gap it cannot see.
@@ -26840,6 +26988,12 @@ type ImportEntriesJSONRequestBody = ImportRequest
 
 // CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
 type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
+
+// AuthorizeCalendarPushJSONRequestBody defines body for AuthorizeCalendarPush for application/json ContentType.
+type AuthorizeCalendarPushJSONRequestBody = CalendarPushAuthorizationRequest
+
+// CompleteCalendarPushAuthorizationJSONRequestBody defines body for CompleteCalendarPushAuthorization for application/json ContentType.
+type CompleteCalendarPushAuthorizationJSONRequestBody = CalendarPushAuthorizationAnswer
 
 // HttpRequestJSONRequestBody defines body for HttpRequest for application/json ContentType.
 type HttpRequestJSONRequestBody = HttpRequestCall
@@ -28862,6 +29016,18 @@ type ServerInterface interface {
 
 	// (DELETE /integrations/calendar-feeds/{feedId})
 	RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
+	// ListCalendarPushes The caller's calendar pushes
+	// (GET /integrations/calendar-pushes)
+	ListCalendarPushes(w http.ResponseWriter, r *http.Request)
+	// DisconnectCalendarPush Disconnect a calendar push
+	// (DELETE /integrations/calendar-pushes/{pushId})
+	DisconnectCalendarPush(w http.ResponseWriter, r *http.Request, pushId openapi_types.UUID)
+	// AuthorizeCalendarPush Start writing a calendar feed into the caller's calendar
+	// (POST /integrations/calendar-pushes:authorize)
+	AuthorizeCalendarPush(w http.ResponseWriter, r *http.Request, params AuthorizeCalendarPushParams)
+	// CompleteCalendarPushAuthorization Finish connecting a calendar push with the provider's answer
+	// (POST /integrations/calendar-pushes:complete)
+	CompleteCalendarPushAuthorization(w http.ResponseWriter, r *http.Request, params CompleteCalendarPushAuthorizationParams)
 	// HttpRequest Call an external HTTP address
 	// (POST /integrations/http-requests)
 	HttpRequest(w http.ResponseWriter, r *http.Request)
@@ -42360,6 +42526,128 @@ func (siw *ServerInterfaceWrapper) RevokeCalendarFeed(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// ListCalendarPushes operation middleware
+func (siw *ServerInterfaceWrapper) ListCalendarPushes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCalendarPushes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisconnectCalendarPush operation middleware
+func (siw *ServerInterfaceWrapper) DisconnectCalendarPush(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pushId" -------------
+	var pushId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pushId", r.PathValue("pushId"), &pushId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pushId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisconnectCalendarPush(w, r, pushId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AuthorizeCalendarPush operation middleware
+func (siw *ServerInterfaceWrapper) AuthorizeCalendarPush(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AuthorizeCalendarPushParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AuthorizeCalendarPush(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteCalendarPushAuthorization operation middleware
+func (siw *ServerInterfaceWrapper) CompleteCalendarPushAuthorization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CompleteCalendarPushAuthorizationParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteCalendarPushAuthorization(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // HttpRequest operation middleware
 func (siw *ServerInterfaceWrapper) HttpRequest(w http.ResponseWriter, r *http.Request) {
 
@@ -55324,6 +55612,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.ListCalendarFeeds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.CreateCalendarFeed)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/calendar-feeds/{feedId}", wrapper.RevokeCalendarFeed)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-pushes", wrapper.ListCalendarPushes)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-pushes:authorize", wrapper.AuthorizeCalendarPush)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-pushes:complete", wrapper.CompleteCalendarPushAuthorization)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/calendar-pushes/{pushId}", wrapper.DisconnectCalendarPush)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/calendar/{token}.ics", wrapper.GetCalendarFeedDocument)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/odata/{token}", wrapper.GetDataFeedService)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/odata/{token}/$metadata", wrapper.GetDataFeedMetadata)

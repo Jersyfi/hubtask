@@ -47,6 +47,7 @@ var restDoors = map[string]restDoor{
 	"attachPageMedia":       {UseCase: "AttachPageMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"attachWhiteboardMedia": {UseCase: "AttachWhiteboardMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"attestCi":              {UseCase: "AttestCi", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"authorizeCalendarPush": {UseCase: "AuthorizeCalendarPush", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"authorizeMailbox":      {UseCase: "AuthorizeMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
 	"autoAssignWorkItem":    {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"cancelInstanceIdentityProviderWithdrawal": {UseCase: "CancelInstanceIdentityProviderWithdrawal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -81,6 +82,7 @@ var restDoors = map[string]restDoor{
 	"commentJumbleEntry":                {UseCase: "CommentJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"commentOnMyRequest":                {UseCase: "CommentOnMyRequest", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"compareBaseline":                   {UseCase: "CompareBaseline", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"completeCalendarPushAuthorization": {UseCase: "CompleteCalendarPushAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeLink":                      {UseCase: "CompleteLink", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"completeMailboxAuthorization":      {UseCase: "CompleteMailboxAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completePasskeyEnrollment":         {UseCase: "CompletePasskeyEnrollment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -194,6 +196,7 @@ var restDoors = map[string]restDoor{
 	"disableRule":                       {UseCase: "DisableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disableTotp":                       {UseCase: "DisableTotp", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"discardTimer":                      {UseCase: "DiscardTimer", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"disconnectCalendarPush":            {UseCase: "DisconnectCalendarPush", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissCiHold":                     {UseCase: "DismissCiHold", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissJumbleEntry":                {UseCase: "DismissJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissSuggestion":                 {UseCase: "DismissSuggestion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -265,6 +268,7 @@ var restDoors = map[string]restDoor{
 	"listBuckets":                       {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBusinessCalendars":             {UseCase: "ListBusinessCalendars", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCalendarFeeds":                 {UseCase: "ListCalendarFeeds", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listCalendarPushes":                {UseCase: "ListCalendarPushes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCapacities":                    {UseCase: "ListCapacities", Status: 200, Query: []string{"account_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCiAlerts":                      {UseCase: "ListCiAlerts", Status: 200, Query: []string{"limit", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listCiAssets":                      {UseCase: "ListCiAssets", Status: 200, Query: []string{"after", "limit", "state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
@@ -892,6 +896,13 @@ func (c *RestController) AttestCi(w http.ResponseWriter, r *http.Request, campai
 	c.door(w, r, restDoors["attestCi"], usecase.Input{"campaign_id": campaignId.String(), "ci_id": ciId.String()}, nil, &body, &answer)
 }
 
+// AuthorizeCalendarPush answers POST /integrations/calendar-pushes:authorize by the generated mapping.
+func (c *RestController) AuthorizeCalendarPush(w http.ResponseWriter, r *http.Request, params openapi.AuthorizeCalendarPushParams) {
+	var body openapi.AuthorizeCalendarPushJSONRequestBody
+	var answer openapi.CalendarPushAuthorization
+	c.door(w, r, restDoors["authorizeCalendarPush"], usecase.Input{}, params, &body, &answer)
+}
+
 // AuthorizeMailbox answers POST /mail/mailboxes:authorize by the generated mapping.
 func (c *RestController) AuthorizeMailbox(w http.ResponseWriter, r *http.Request, params openapi.AuthorizeMailboxParams) {
 	var body openapi.AuthorizeMailboxJSONRequestBody
@@ -1100,6 +1111,13 @@ func (c *RestController) CommentOnMyRequest(w http.ResponseWriter, r *http.Reque
 func (c *RestController) CompareBaseline(w http.ResponseWriter, r *http.Request, baselineId openapi_types.UUID) {
 	var answer openapi.BaselineComparison
 	c.door(w, r, restDoors["compareBaseline"], usecase.Input{"baseline_id": baselineId.String()}, nil, nil, &answer)
+}
+
+// CompleteCalendarPushAuthorization answers POST /integrations/calendar-pushes:complete by the generated mapping.
+func (c *RestController) CompleteCalendarPushAuthorization(w http.ResponseWriter, r *http.Request, params openapi.CompleteCalendarPushAuthorizationParams) {
+	var body openapi.CompleteCalendarPushAuthorizationJSONRequestBody
+	var answer openapi.CalendarPush
+	c.door(w, r, restDoors["completeCalendarPushAuthorization"], usecase.Input{}, params, &body, &answer)
 }
 
 // CompleteLink answers POST /auth/sessions:link by the generated mapping.
@@ -1776,6 +1794,11 @@ func (c *RestController) DiscardTimer(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["discardTimer"], usecase.Input{}, nil, nil, nil)
 }
 
+// DisconnectCalendarPush answers DELETE /integrations/calendar-pushes/{pushId} by the generated mapping.
+func (c *RestController) DisconnectCalendarPush(w http.ResponseWriter, r *http.Request, pushId openapi_types.UUID) {
+	c.door(w, r, restDoors["disconnectCalendarPush"], usecase.Input{"push_id": pushId.String()}, nil, nil, nil)
+}
+
 // DismissCiHold answers POST /ci-holds/{holdId}:dismiss by the generated mapping.
 func (c *RestController) DismissCiHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID) {
 	var answer openapi.CiHoldDismissed
@@ -2177,6 +2200,12 @@ func (c *RestController) ListBusinessCalendars(w http.ResponseWriter, r *http.Re
 // ListCalendarFeeds answers GET /integrations/calendar-feeds by the generated mapping.
 func (c *RestController) ListCalendarFeeds(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listCalendarFeeds"], usecase.Input{}, nil, nil, answerRows(calendarFeedResponse))
+}
+
+// ListCalendarPushes answers GET /integrations/calendar-pushes by the generated mapping.
+func (c *RestController) ListCalendarPushes(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.CalendarPushList
+	c.door(w, r, restDoors["listCalendarPushes"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListCapacities answers GET /time-capacities by the generated mapping.

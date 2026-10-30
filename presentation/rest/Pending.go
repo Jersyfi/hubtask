@@ -2889,3 +2889,19 @@ func (pending) GetDataFeedMetadata(w http.ResponseWriter, r *http.Request, _ ope
 func (pending) GetDataFeedEntries(w http.ResponseWriter, r *http.Request, _ openapi.DataFeedToken, _ openapi.GetDataFeedEntriesParams) {
 	notAvailable(w, r)
 }
+
+func (pending) ListCalendarPushes(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) AuthorizeCalendarPush(w http.ResponseWriter, r *http.Request, _ openapi.AuthorizeCalendarPushParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CompleteCalendarPushAuthorization(w http.ResponseWriter, r *http.Request, _ openapi.CompleteCalendarPushAuthorizationParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DisconnectCalendarPush(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
