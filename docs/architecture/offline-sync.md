@@ -110,7 +110,8 @@ and a private dashboard reaches its owner alone. A goal travels as its definitio
 results' values, never a progress, a view's live value or a share of linked entries done, which
 differ per reader (P-05) and are asked for online; every write of these records them, a period's
 closing each graded goal, a goal's deletion the goals moved to its parent. They are written online
-only. Portfolios are not in the replica yet: their projects narrow per reader. A link carries its dependency's kind
+only; while the server is away the web app answers the periods, the goals and the dashboards from
+the copy as their definitions. Portfolios are narrowed per reader (below). A link carries its dependency's kind
 and lag (`dependency_kind`, `lag_days`) in the walk as in the delta, and setting them records the
 link again. An entry's scheduling mode and milestone mark (`entry_schedule`, by the entry's
 identifier) are filed under its collection and walked last; an entry without one is MANUAL and no
