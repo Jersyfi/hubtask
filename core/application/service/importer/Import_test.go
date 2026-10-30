@@ -307,13 +307,14 @@ func TestAnImportIsRefusedForTheRightReasons(t *testing.T) {
 		auth   error
 		code   string
 	}{
-		"no hub":            {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV}, nil, domain.CodeHubRequired},
-		"a kind not served": {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindTrello, HubID: hubID}, nil, domain.CodeKindUnsupported},
-		"not a hub":         {readyObject(), work.Container{ID: hubID, Type: work.ContainerCollection}, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeNotAHub},
-		"not an import":     {func() media.Object { o := readyObject(); o.Usage = media.UsageAttachment; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotImport},
-		"not confirmed":     {func() media.Object { o := readyObject(); o.Status = media.StatusPending; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotReady},
-		"somebody else's":   {func() media.Object { o := readyObject(); o.CreatedBy = hubID; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotOwned},
-		"forbidden":         {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, shared.ErrForbidden.WithDetail("access.forbidden"), "access.forbidden"},
+		"no hub":                   {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV}, nil, domain.CodeHubRequired},
+		"a kind not served":        {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindTrello, HubID: hubID}, nil, domain.CodeKindUnsupported},
+		"not a hub":                {readyObject(), work.Container{ID: hubID, Type: work.ContainerCollection}, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeNotAHub},
+		"not an import":            {func() media.Object { o := readyObject(); o.Usage = media.UsageAttachment; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotImport},
+		"not confirmed":            {func() media.Object { o := readyObject(); o.Status = media.StatusPending; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotReady},
+		"somebody else's":          {func() media.Object { o := readyObject(); o.CreatedBy = hubID; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotOwned},
+		"a wiki into a collection": {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindWiki, HubID: hubID, CollectionID: runID}, nil, domain.CodeKindTakesNoCollection},
+		"forbidden":                {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, shared.ErrForbidden.WithDetail("access.forbidden"), "access.forbidden"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

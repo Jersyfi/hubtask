@@ -22,14 +22,23 @@ const (
 	KindTrello        Kind = "TRELLO"
 	KindGoogleTasks   Kind = "GOOGLE_TASKS"
 	KindMicrosoftTodo Kind = "MICROSOFT_TODO"
+	// KindIssueTracker is an issue tracker's search answer, with its configuration, history and
+	// attachments (D-10); the value is the format's name.
+	KindIssueTracker Kind = "JIRA"
+	// KindWiki is a wiki space's HTML export; it lands pages, not entries.
+	KindWiki Kind = "CONFLUENCE"
 )
+
+// LandsPages reports whether the kind brings pages into the hub rather than entries into
+// collections - such a kind takes no target collection.
+func (k Kind) LandsPages() bool { return k == KindWiki }
 
 // ParseKind reads a submitted kind. The contract's enum is the whole list; which of them this
 // build converts is the converters' business and refused by name there.
 func ParseKind(value string) (Kind, error) {
 	kind := Kind(value)
 	switch kind {
-	case KindCSV, KindTrello, KindGoogleTasks, KindMicrosoftTodo:
+	case KindCSV, KindTrello, KindGoogleTasks, KindMicrosoftTodo, KindIssueTracker, KindWiki:
 		return kind, nil
 	}
 	return "", shared.ErrValidation.
@@ -120,4 +129,8 @@ const (
 	// hub already holds. A refusal recorded on the run rather than a retried database error: the
 	// next attempt would meet the same name.
 	CodeCollectionExists = "imports.collection_exists"
+	// CodeKindTakesNoCollection is a target collection named for a kind that lands pages.
+	CodeKindTakesNoCollection = "imports.kind_takes_no_collection"
+	// CodeArchiveUnreadable is a ZIP the converter cannot open, or one holding no document it reads.
+	CodeArchiveUnreadable = "imports.archive_unreadable"
 )

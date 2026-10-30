@@ -125,6 +125,11 @@ const (
 
 	// ItemEntryTypeChanged is an entry given another type, from which to which.
 	ItemEntryTypeChanged Verb = "item.entry_type_changed"
+
+	// ItemHistoryImported is a change another system recorded before the entry was imported
+	// (D-10): the change set names the fields with both sides and, as `changed_by`, the name the
+	// source gave its author - who is no account here.
+	ItemHistoryImported Verb = "item.history_imported"
 )
 
 var verbs = [...]Verb{
@@ -135,7 +140,7 @@ var verbs = [...]Verb{
 	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
 	ItemCustomFieldSet, ItemDueSet, ItemDueCleared, ItemCommented, ItemDuplicated,
 	ItemMerged, ItemChangeLost, ItemStepTaken, ItemWorkflowChanged,
-	ItemLinked, ItemUnlinked, ItemEntryTypeChanged,
+	ItemLinked, ItemUnlinked, ItemEntryTypeChanged, ItemHistoryImported,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

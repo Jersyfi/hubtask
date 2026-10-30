@@ -101,6 +101,9 @@ type Result struct {
 	// Unmapped counts what the source carried and the product has no place for - a Trello
 	// member's assignment - by name, so that the report can say what was lost.
 	Unmapped map[string]int
+	// Media is the bytes of the attachments the records name, by the lower-hex SHA-256 a
+	// `media_objects` record carries as its blob; written into the archive beside the records.
+	Media map[string][]byte
 }
 
 // Converter turns one kind of file into records.

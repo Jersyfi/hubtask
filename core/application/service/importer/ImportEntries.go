@@ -132,6 +132,10 @@ func (h ImportEntries) Execute(
 		return Accepted{}, shared.ErrValidation.WithDetail(domain.CodeHubRequired).
 			WithFields(shared.FieldError{Path: "/hub_id", Code: domain.CodeHubRequired})
 	}
+	if cmd.Kind.LandsPages() && !cmd.CollectionID.IsZero() {
+		return Accepted{}, shared.ErrValidation.WithDetail(domain.CodeKindTakesNoCollection).
+			WithFields(shared.FieldError{Path: "/collection_id", Code: domain.CodeKindTakesNoCollection})
+	}
 	if !h.serves(cmd.Kind) {
 		return Accepted{}, shared.ErrValidation.WithDetail(domain.CodeKindUnsupported).
 			WithParams(map[string]string{"kind": string(cmd.Kind)}).
@@ -276,13 +280,15 @@ func (h ImportEntries) Descriptor() usecase.Descriptor {
 		Name:       ImportEntriesName,
 		Permission: domainservice.PermissionStructure,
 		Summary: "Imports entries from another system - a CSV, a Trello board, a Google Tasks " +
-			"export, a Microsoft To Do dump - as collections under a hub, or as entries in one of its " +
-			"collections, through the same path a " +
+			"export, a Microsoft To Do dump, an issue tracker's projects with their types, statuses, " +
+			"fields, history and attachments - as collections under a hub, or as entries in one of its " +
+			"collections, or a wiki space's pages into the hub, through the same path a " +
 			"restore uses: converted into archive records under derived identities and applied " +
 			"in MERGE mode with skip, so that the same file twice creates nothing the second " +
 			"time. The file arrives first through the media upload staged as an import.",
 		SideEffects: "Writes the import run and enqueues its job; the job writes the collections, " +
-			"buckets, labels, entries and links, advances the workspace's synchronisation epoch, " +
+			"buckets, labels, entry types, workflows, fields, entries, their history, comments, " +
+			"attachments and links, or the pages, advances the workspace's synchronisation epoch, " +
 			"and deletes the uploaded file. Records the request in the audit trail.",
 		TokenScope:  containersWrite,
 		Destructive: false,
@@ -290,7 +296,10 @@ func (h ImportEntries) Descriptor() usecase.Descriptor {
 			{Name: "media_id", Kind: usecase.KindID, Required: true, Description: "The uploaded file, staged with usage IMPORT and confirmed."},
 			{
 				Name: "kind", Kind: usecase.KindString, Required: true,
-				Enum:        []string{string(domain.KindCSV), string(domain.KindTrello), string(domain.KindGoogleTasks), string(domain.KindMicrosoftTodo)},
+				Enum: []string{
+					string(domain.KindCSV), string(domain.KindTrello), string(domain.KindGoogleTasks), string(domain.KindMicrosoftTodo),
+					string(domain.KindIssueTracker), string(domain.KindWiki),
+				},
 				Description: "The system the file came from.",
 			},
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub the imported collections land under."},

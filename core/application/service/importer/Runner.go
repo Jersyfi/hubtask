@@ -219,7 +219,11 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 
 	store := newMemoryStore()
 	prefix := "import-" + run.ID.String()
-	_, err = archive.NewWriter(store, r.Applier.Cipher, nil).Write(ctx, archive.Request{
+	var media archive.Media
+	if len(result.Media) > 0 {
+		media = memoryMedia(result.Media)
+	}
+	_, err = archive.NewWriter(store, r.Applier.Cipher, media).Write(ctx, archive.Request{
 		ArchiveID: run.ID, Prefix: prefix,
 		Scope:          archive.Scope{Kind: archive.ScopeTenant, ID: in.TenantID.String()},
 		Mode:           archive.ModeFull,
@@ -227,6 +231,7 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 		SchemaVersion:  r.SchemaVersion,
 		ProductVersion: r.ProductVersion,
 		Encryption:     archive.Encryption{Mode: archive.EncryptionNone},
+		IncludeMedia:   media != nil,
 	}, recordSource{records: result.Records})
 	if err != nil {
 		return backupdomain.Report{}, result.Refused, err
@@ -321,4 +326,15 @@ func (s recordSource) Records(_ context.Context, entity archive.Entity, _ time.T
 		}
 	}
 	return nil
+}
+
+// memoryMedia hands the writer the attachments a converter read out of the file, by digest.
+type memoryMedia map[string][]byte
+
+func (m memoryMedia) Open(_ context.Context, digest string) (io.ReadCloser, error) {
+	content, ok := m[digest]
+	if !ok {
+		return nil, shared.ErrNotFound.WithDetail(archive.CodeMediaMissing)
+	}
+	return io.NopCloser(bytes.NewReader(content)), nil
 }
