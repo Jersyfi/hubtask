@@ -1863,7 +1863,7 @@ func run() error {
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		},
 		Aggregates: items, Collections: containers, Reader: authorizer,
-		Shared: postgres.NewMembershipRepository(),
+		Shared: postgres.NewMembershipRepository(), Workflows: workflows,
 	}
 	steward := goalservice.Steward{
 		Store: postgres.NewGoalRepository(), References: entryLinks, Containers: containers,
@@ -2772,7 +2772,7 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 			Aggregates: items, Collections: containers, Reader: authorizer,
-			Shared: postgres.NewMembershipRepository(),
+			Shared: postgres.NewMembershipRepository(), Workflows: workflows,
 		}.Descriptor(),
 		work.AggregateView{
 			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
@@ -2783,7 +2783,7 @@ func run() error {
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},
 				Aggregates: items, Collections: containers, Reader: authorizer,
-				Shared: postgres.NewMembershipRepository(),
+				Shared: postgres.NewMembershipRepository(), Workflows: workflows,
 			},
 		}.Descriptor(),
 		// The authorisation service under three names, because a search asks the question in three

@@ -150,3 +150,58 @@ func TestALinksSummaryCountsTheLinksBetweenTheKeptEntries(t *testing.T) {
 		t.Errorf("another tenant counted %+v", other)
 	}
 }
+
+// The status history is written as an entry enters a status, and a summary reads cycle time,
+// WIP age and time in status from it (migration 0250, UC-GOL-04 check 11).
+func TestAFlowQuantityReadsTheStatusHistory(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	done := seedTask(ctx, t, tenantA, authorA, collection)
+	open := seedTask(ctx, t, tenantA, authorA, collection)
+	start := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	pool := adminPool(ctx, t)
+	step := func(entry shared.ID, status string, at time.Time, completed bool) {
+		t.Helper()
+		var completedAt any
+		if completed {
+			completedAt = at
+		}
+		if _, err := pool.Exec(ctx, `UPDATE work_item SET status = $1, updated_at = $2, completed_at = $3
+			WHERE tenant_id = $4 AND id = $5`, status, at, completedAt, tenantA.String(), entry.String()); err != nil {
+			t.Fatalf("stepping: %v", err)
+		}
+	}
+	step(done, "todo", start, false)
+	step(done, "in_progress", start.Add(time.Hour), false)
+	step(done, "done", start.Add(3*time.Hour), true)
+	step(open, "in_progress", start, false)
+	step(open, "review", start.Add(30*time.Minute), false)
+
+	var rows int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM entry_status_change WHERE tenant_id = $1 AND item_id = $2`,
+		tenantA.String(), done.String()).Scan(&rows); err != nil || rows != 3 {
+		t.Fatalf("the history holds %d rows, want 3: %v", rows, err)
+	}
+
+	measure := func(quantity string) *string {
+		t.Helper()
+		aggregation, err := view.ParseAggregation(map[string]any{"function": "MAX", "field": quantity}, "/aggregate")
+		if err != nil {
+			t.Fatal(err)
+		}
+		aggregation.Started, aggregation.Now = []string{"in_progress"}, start.Add(2*time.Hour)
+		var result repository.ItemAggregateResult
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			result, err = itemRepo().Aggregate(ctx, searchIn(t, collection, nil, view.Spec{}), aggregation, "UTC")
+			return err
+		}); err != nil || len(result.Rows) != 1 {
+			t.Fatalf("aggregating %s: %+v %v", quantity, result, err)
+		}
+		return result.Rows[0].Value
+	}
+	for quantity, want := range map[string]string{"cycle_time": "120", "wip_age": "120", "time_in_status": "90"} {
+		if got := measure(quantity); got == nil || *got != want {
+			t.Errorf("%s = %v, want %s", quantity, got, want)
+		}
+	}
+}

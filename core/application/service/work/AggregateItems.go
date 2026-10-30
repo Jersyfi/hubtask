@@ -42,6 +42,9 @@ type AggregateItems struct {
 	Reader      Reader
 	// Shared answers the entries shared with the actor alone; unwired, none is counted.
 	Shared identityrepo.SharedEntries
+	// Workflows answers the statuses a flow quantity counts as started (cycle time, WIP age);
+	// unwired, none is, and those measures hold nothing.
+	Workflows repository.Workflows
 }
 
 // MaxSummaryCollections bounds the collections a workspace summary reads: the bound list is one
@@ -124,6 +127,11 @@ func (h AggregateItems) Execute(
 		summary, err := shapeAggregation(ctx, q.Fields, aggregation, scope)
 		if err != nil {
 			return err
+		}
+		if summary.Quantity.ReadsFlow() {
+			if summary, err = h.flow(ctx, summary); err != nil {
+				return err
+			}
 		}
 		result, err = h.Aggregates.Aggregate(ctx, repository.ItemSearch{
 			Anchor: anchor, Spec: shaped, Language: actor.Locale,
@@ -399,3 +407,21 @@ func aggregateOutput(aggregation view.Aggregation, result repository.ItemAggrega
 // ParseSummary reads a summary document as POST /items:aggregate takes it, so that a module that
 // stores one - a dashboard's widget - is held to the same grammar at write.
 func ParseSummary(in usecase.Input) (view.Spec, view.Aggregation, error) { return summaryOf(in) }
+
+// flow hands a flow quantity the started statuses of the workspace's workflows and the moment of
+// asking (UC-GOL-04 check 11).
+func (h AggregateItems) flow(ctx context.Context, aggregation view.Aggregation) (view.Aggregation, error) {
+	aggregation.Started = []string{}
+	if h.Query.Clock != nil {
+		aggregation.Now = h.Query.Clock.Now()
+	}
+	if h.Workflows == nil {
+		return aggregation, nil
+	}
+	rows, err := h.Workflows.List(ctx)
+	if err != nil {
+		return view.Aggregation{}, err
+	}
+	aggregation.Started = domain.NewWorkflows(rows).Started()
+	return aggregation, nil
+}

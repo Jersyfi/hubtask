@@ -15,16 +15,20 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
 // aggregates records the search a summary handed to the adapter.
-type aggregates struct{ asked repository.ItemSearch }
+type aggregates struct {
+	asked       repository.ItemSearch
+	aggregation view.Aggregation
+}
 
 func (a *aggregates) Aggregate(
-	_ context.Context, search repository.ItemSearch, _ view.Aggregation, _ string,
+	_ context.Context, search repository.ItemSearch, aggregation view.Aggregation, _ string,
 ) (repository.ItemAggregateResult, error) {
-	a.asked = search
+	a.asked, a.aggregation = search, aggregation
 	return repository.ItemAggregateResult{Rows: []repository.ItemAggregateRow{{Count: 3}}}, nil
 }
 
@@ -156,5 +160,23 @@ func TestAWorkspaceSummaryCountsAnEntrySharedAlone(t *testing.T) {
 	}
 	if !store.asked.IncludeArchived {
 		t.Error("a summary over archived entries left the archived collections out")
+	}
+}
+
+// UC-GOL-04 check 11: a flow quantity is handed the started statuses of the workspace's workflows
+// and the moment of asking, from the clock.
+func TestAFlowQuantityIsHandedTheStartedStatusesAndTheMoment(t *testing.T) {
+	_, open, _ := destinationsFixture()
+	h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true}})
+	h.Workflows = &workflowStore{rows: []domain.Workflow{{Key: "support", Published: domain.WorkflowShape{
+		Statuses: []domain.WorkflowStatus{{Key: "triage", Category: domain.CategoryInProgress}},
+	}}}}
+	_, err := h.Execute(t.Context(), summaryActor(), view.Spec{Scope: view.Scope{Workspace: true}},
+		view.Aggregation{Function: view.AggregateAvg, Quantity: view.QuantityWipAge})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := adapter.aggregation; !slices.Equal(got.Started, []string{"in_progress", "triage"}) || !got.Now.Equal(now) {
+		t.Fatalf("the adapter was handed %v at %v", got.Started, got.Now)
 	}
 }
