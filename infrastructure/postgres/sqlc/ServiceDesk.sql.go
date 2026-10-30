@@ -11,6 +11,51 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const accountsAtDomains = `-- name: AccountsAtDomains :many
+SELECT id FROM account
+WHERE kind = 'USER' AND status = 'ACTIVE' AND deleted_at IS NULL AND email IS NOT NULL
+  AND lower(split_part(email, '@', 2)) = ANY($1::text[])
+ORDER BY id
+LIMIT $2::int
+`
+
+type AccountsAtDomainsParams struct {
+	Domains []string
+	Max     int32
+}
+
+// The active people whose address is at one of the domains, by account, bounded.
+func (q *Queries) AccountsAtDomains(ctx context.Context, arg AccountsAtDomainsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, accountsAtDomains, arg.Domains, arg.Max)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const countRequesterOrganisations = `-- name: CountRequesterOrganisations :one
+SELECT count(*)::int AS held FROM requester_organisation
+`
+
+func (q *Queries) CountRequesterOrganisations(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countRequesterOrganisations)
+	var held int32
+	err := row.Scan(&held)
+	return held, err
+}
+
 const delegationsTo = `-- name: DelegationsTo :many
 SELECT tenant_id, account_id, delegate_id, starts_at, ends_at
 FROM approval_delegation WHERE delegate_id = $1
@@ -91,6 +136,18 @@ DELETE FROM reply_template WHERE key = $1
 
 func (q *Queries) DeleteReplyTemplate(ctx context.Context, key string) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteReplyTemplate, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteRequesterOrganisation = `-- name: DeleteRequesterOrganisation :execrows
+DELETE FROM requester_organisation WHERE key = $1
+`
+
+func (q *Queries) DeleteRequesterOrganisation(ctx context.Context, key string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRequesterOrganisation, key)
 	if err != nil {
 		return 0, err
 	}
@@ -219,6 +276,28 @@ func (q *Queries) FindReplyTemplate(ctx context.Context, key string) (ReplyTempl
 		&i.Key,
 		&i.Name,
 		&i.Body,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const findRequesterOrganisation = `-- name: FindRequesterOrganisation :one
+SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version
+FROM requester_organisation WHERE key = $1
+`
+
+func (q *Queries) FindRequesterOrganisation(ctx context.Context, key string) (RequesterOrganisation, error) {
+	row := q.db.QueryRow(ctx, findRequesterOrganisation, key)
+	var i RequesterOrganisation
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Key,
+		&i.Name,
+		&i.Domains,
+		&i.SharesRequests,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
@@ -428,6 +507,35 @@ func (q *Queries) InsertReplyTemplate(ctx context.Context, arg InsertReplyTempla
 		arg.Key,
 		arg.Name,
 		arg.Body,
+		arg.Now,
+	)
+	return err
+}
+
+const insertRequesterOrganisation = `-- name: InsertRequesterOrganisation :exec
+INSERT INTO requester_organisation (id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version)
+VALUES ($1, $2, $3, $4, $5::text[],
+        $6, $7, $7, 1)
+`
+
+type InsertRequesterOrganisationParams struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	Key            string
+	Name           string
+	Domains        []string
+	SharesRequests bool
+	Now            pgtype.Timestamptz
+}
+
+func (q *Queries) InsertRequesterOrganisation(ctx context.Context, arg InsertRequesterOrganisationParams) error {
+	_, err := q.db.Exec(ctx, insertRequesterOrganisation,
+		arg.ID,
+		arg.TenantID,
+		arg.Key,
+		arg.Name,
+		arg.Domains,
+		arg.SharesRequests,
 		arg.Now,
 	)
 	return err
@@ -743,6 +851,41 @@ func (q *Queries) ListReplyTemplates(ctx context.Context) ([]ReplyTemplate, erro
 	return items, nil
 }
 
+const listRequesterOrganisations = `-- name: ListRequesterOrganisations :many
+SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version
+FROM requester_organisation ORDER BY key LIMIT $1::int
+`
+
+func (q *Queries) ListRequesterOrganisations(ctx context.Context, max int32) ([]RequesterOrganisation, error) {
+	rows, err := q.db.Query(ctx, listRequesterOrganisations, max)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RequesterOrganisation{}
+	for rows.Next() {
+		var i RequesterOrganisation
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Key,
+			&i.Name,
+			&i.Domains,
+			&i.SharesRequests,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSlaPolicies = `-- name: ListSlaPolicies :many
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
        created_at, updated_at, version
@@ -857,6 +1000,29 @@ func (q *Queries) ReportEntrySla(ctx context.Context, arg ReportEntrySlaParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const requesterOrganisationOfDomain = `-- name: RequesterOrganisationOfDomain :one
+SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version
+FROM requester_organisation WHERE domains @> ARRAY[$1::text] LIMIT 1
+`
+
+// The organisation a mail domain belongs to; a domain is in at most one (migration 0287).
+func (q *Queries) RequesterOrganisationOfDomain(ctx context.Context, domain string) (RequesterOrganisation, error) {
+	row := q.db.QueryRow(ctx, requesterOrganisationOfDomain, domain)
+	var i RequesterOrganisation
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Key,
+		&i.Name,
+		&i.Domains,
+		&i.SharesRequests,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
 }
 
 const saveApprovalDelegation = `-- name: SaveApprovalDelegation :exec
@@ -1063,6 +1229,37 @@ func (q *Queries) UpdateReplyTemplate(ctx context.Context, arg UpdateReplyTempla
 	result, err := q.db.Exec(ctx, updateReplyTemplate,
 		arg.Name,
 		arg.Body,
+		arg.Now,
+		arg.Key,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateRequesterOrganisation = `-- name: UpdateRequesterOrganisation :execrows
+UPDATE requester_organisation SET
+  name = $1, domains = $2::text[], shares_requests = $3,
+  updated_at = $4, version = version + 1
+WHERE key = $5 AND version = $6
+`
+
+type UpdateRequesterOrganisationParams struct {
+	Name            string
+	Domains         []string
+	SharesRequests  bool
+	Now             pgtype.Timestamptz
+	Key             string
+	ExpectedVersion int32
+}
+
+func (q *Queries) UpdateRequesterOrganisation(ctx context.Context, arg UpdateRequesterOrganisationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateRequesterOrganisation,
+		arg.Name,
+		arg.Domains,
+		arg.SharesRequests,
 		arg.Now,
 		arg.Key,
 		arg.ExpectedVersion,

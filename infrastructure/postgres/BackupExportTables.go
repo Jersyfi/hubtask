@@ -815,6 +815,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"requester_organisation": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportRequesterOrganisations(ctx, sqlc.ExportRequesterOrganisationsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportRequesterOrganisationsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"satisfaction_rating": {
 		delta: false,
 		keys:  1,

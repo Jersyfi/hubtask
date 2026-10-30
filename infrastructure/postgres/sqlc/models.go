@@ -2672,6 +2672,18 @@ type RequesterContact struct {
 	At          pgtype.Timestamptz
 }
 
+type RequesterOrganisation struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	Key            string
+	Name           string
+	Domains        []string
+	SharesRequests bool
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
 type RestoreDrillMarker struct {
 	RunID     string
 	Seq       int16

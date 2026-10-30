@@ -7124,4 +7124,44 @@ CREATE POLICY tenant_isolation ON ldap_directory
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON ldap_directory TO hubtask_app;
 
+
+-- A portal's organisations (migration 0287, UC-SVC-11): requesters grouped by mail domain, a
+-- domain in at most one organisation of a workspace (a trigger under a lock per workspace).
+CREATE TABLE requester_organisation (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key              text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name             text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  domains          text[] NOT NULL CHECK (cardinality(domains) BETWEEN 1 AND 20),
+  shares_requests  boolean NOT NULL DEFAULT false,
+  created_at       timestamptz NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT requester_organisation_key_uq UNIQUE (tenant_id, key)
+);
+CREATE INDEX requester_organisation_domains_idx ON requester_organisation USING gin (domains);
+ALTER TABLE requester_organisation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE requester_organisation FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON requester_organisation
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON requester_organisation TO hubtask_app;
+CREATE FUNCTION requester_organisation_domains_unique() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('requester_organisation:' || NEW.tenant_id::text, 0));
+  IF EXISTS (
+    SELECT 1 FROM requester_organisation o
+    WHERE o.tenant_id = NEW.tenant_id AND o.id <> NEW.id AND o.domains && NEW.domains
+  ) THEN
+    RAISE EXCEPTION 'a mail domain belongs to another organisation'
+      USING ERRCODE = 'unique_violation', CONSTRAINT = 'requester_organisation_domain_uq';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER requester_organisation_domains_unique
+  BEFORE INSERT OR UPDATE OF domains ON requester_organisation
+  FOR EACH ROW EXECUTE FUNCTION requester_organisation_domains_unique();
+
 COMMIT;

@@ -207,3 +207,41 @@ FROM hub_business_calendar WHERE hub_id = sqlc.arg('hub_id') ORDER BY key;
 
 -- name: DeleteHubCalendar :execrows
 DELETE FROM hub_business_calendar WHERE hub_id = sqlc.arg('hub_id') AND key = sqlc.arg('key');
+
+-- name: InsertRequesterOrganisation :exec
+INSERT INTO requester_organisation (id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version)
+VALUES (sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('key'), sqlc.arg('name'), sqlc.arg('domains')::text[],
+        sqlc.arg('shares_requests'), sqlc.arg('now'), sqlc.arg('now'), 1);
+
+-- name: UpdateRequesterOrganisation :execrows
+UPDATE requester_organisation SET
+  name = sqlc.arg('name'), domains = sqlc.arg('domains')::text[], shares_requests = sqlc.arg('shares_requests'),
+  updated_at = sqlc.arg('now'), version = version + 1
+WHERE key = sqlc.arg('key') AND version = sqlc.arg('expected_version');
+
+-- name: FindRequesterOrganisation :one
+SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version
+FROM requester_organisation WHERE key = sqlc.arg('key');
+
+-- name: ListRequesterOrganisations :many
+SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version
+FROM requester_organisation ORDER BY key LIMIT sqlc.arg('max')::int;
+
+-- name: CountRequesterOrganisations :one
+SELECT count(*)::int AS held FROM requester_organisation;
+
+-- name: DeleteRequesterOrganisation :execrows
+DELETE FROM requester_organisation WHERE key = sqlc.arg('key');
+
+-- name: RequesterOrganisationOfDomain :one
+-- The organisation a mail domain belongs to; a domain is in at most one (migration 0287).
+SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version
+FROM requester_organisation WHERE domains @> ARRAY[sqlc.arg('domain')::text] LIMIT 1;
+
+-- name: AccountsAtDomains :many
+-- The active people whose address is at one of the domains, by account, bounded.
+SELECT id FROM account
+WHERE kind = 'USER' AND status = 'ACTIVE' AND deleted_at IS NULL AND email IS NOT NULL
+  AND lower(split_part(email, '@', 2)) = ANY(sqlc.arg('domains')::text[])
+ORDER BY id
+LIMIT sqlc.arg('max')::int;

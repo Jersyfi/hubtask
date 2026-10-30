@@ -1220,6 +1220,11 @@ var entities = []Entity{
 			{Field: "added_by", Table: "account"},
 		},
 	},
+	// A portal's organisations (migration 0287): names and mail domains, nobody's content.
+	{
+		Name: "requester_organisations", Table: "requester_organisation", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a

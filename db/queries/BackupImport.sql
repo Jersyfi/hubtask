@@ -3768,3 +3768,21 @@ SELECT EXISTS (
 
 -- name: ClearRequesterContact :execrows
 DELETE FROM requester_contact;
+
+-- name: ImportRequesterOrganisation :execrows
+INSERT INTO requester_organisation (id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.domains, r.shares_requests, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::requester_organisation,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  key = EXCLUDED.key, name = EXCLUDED.name, domains = EXCLUDED.domains,
+  shares_requests = EXCLUDED.shares_requests, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsRequesterOrganisation :one
+SELECT EXISTS (SELECT 1 FROM requester_organisation WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearRequesterOrganisation :execrows
+DELETE FROM requester_organisation;

@@ -1239,6 +1239,18 @@ func (q *Queries) ClearRequesterContact(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearRequesterOrganisation = `-- name: ClearRequesterOrganisation :execrows
+DELETE FROM requester_organisation
+`
+
+func (q *Queries) ClearRequesterOrganisation(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRequesterOrganisation)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearRetentionPolicy = `-- name: ClearRetentionPolicy :execrows
 DELETE FROM retention_policy
 `
@@ -2755,6 +2767,17 @@ SELECT EXISTS (
 
 func (q *Queries) HoldsRequesterContact(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsRequesterContact, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsRequesterOrganisation = `-- name: HoldsRequesterOrganisation :one
+SELECT EXISTS (SELECT 1 FROM requester_organisation WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsRequesterOrganisation(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsRequesterOrganisation, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6616,6 +6639,32 @@ ON CONFLICT (tenant_id, requester_id, item_id) DO NOTHING
 
 func (q *Queries) ImportRequesterContact(ctx context.Context, payload []byte) (int64, error) {
 	result, err := q.db.Exec(ctx, importRequesterContact, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importRequesterOrganisation = `-- name: ImportRequesterOrganisation :execrows
+INSERT INTO requester_organisation (id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.domains, r.shares_requests, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::requester_organisation,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  key = EXCLUDED.key, name = EXCLUDED.name, domains = EXCLUDED.domains,
+  shares_requests = EXCLUDED.shares_requests, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportRequesterOrganisationParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportRequesterOrganisation(ctx context.Context, arg ImportRequesterOrganisationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importRequesterOrganisation, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

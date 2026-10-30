@@ -109,3 +109,23 @@ type Approvals interface {
 	// EndDelegation removes a person's delegation; false when there was none.
 	EndDelegation(ctx context.Context, accountID shared.ID) (bool, error)
 }
+
+// Organisations stores a workspace's portal organisations (migration 0287): requesters grouped by
+// mail domain, a domain in at most one of them.
+type Organisations interface {
+	// Insert writes a new organisation; a key the workspace holds is `organisations.key_taken`, a
+	// domain another organisation holds `organisations.domain_taken`.
+	Insert(ctx context.Context, organisation servicedesk.Organisation) error
+	Update(ctx context.Context, organisation servicedesk.Organisation, expectedVersion int) error
+	// Find answers the organisation of a key; shared.ErrNotFound when there is none.
+	Find(ctx context.Context, key string) (servicedesk.Organisation, error)
+	// List answers the organisations by key, at most servicedesk.MaxOrganisations.
+	List(ctx context.Context) ([]servicedesk.Organisation, error)
+	Count(ctx context.Context) (int, error)
+	Delete(ctx context.Context, key string) error
+	// OfDomain answers the organisation a mail domain belongs to; shared.ErrNotFound for none.
+	OfDomain(ctx context.Context, domain string) (servicedesk.Organisation, error)
+	// Members answers the active people whose address is at one of the domains, by account, at
+	// most limit of them.
+	Members(ctx context.Context, domains []string, limit int) ([]shared.ID, error)
+}
