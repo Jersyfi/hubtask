@@ -709,6 +709,9 @@ func Scopes() []string {
 	// that CreateAccessToken accepts it - a scope a token cannot be minted with is a guardrail
 	// nobody can switch off, which sounds safe and means the feature does not exist.
 	scopes = append(scopes, usecase.AgentDestructiveScope)
+	// And the per-section apply scopes of the configuration document, for the same reason: no one
+	// operation is what they permit, they bound which blocks an apply may write.
+	scopes = append(scopes, configservice.ApplyScopes()...)
 
 	slices.Sort(scopes)
 	return scopes

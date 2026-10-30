@@ -9448,5 +9448,14 @@
   "agents.transition_invalid": "An agent that is {from} cannot become {to}.",
   "provenance.incomplete": "The origin of this value could not be recorded.",
   "app.consent.scope.agents_read": "See the workspace's agents, their ledger and what waits for approval",
-  "app.consent.scope.agents_write": "Register, approve, stop and evaluate agents"
+  "app.consent.scope.agents_write": "Register, approve, stop and evaluate agents",
+  "app.consent.scope.config_apply_modules": "Apply the configuration's modules without their own permission scope",
+  "app.consent.scope.config_apply_roles": "Apply the configuration's roles without their own permission scope",
+  "app.consent.scope.config_apply_fields": "Apply the configuration's fields without their own permission scope",
+  "app.consent.scope.config_apply_link_types": "Apply the configuration's link types without their own permission scope",
+  "app.consent.scope.config_apply_types": "Apply the configuration's types without their own permission scope",
+  "app.consent.scope.config_apply_workflows": "Apply the configuration's workflows without their own permission scope",
+  "app.consent.scope.config_apply_settings": "Apply the configuration's settings without their own permission scope",
+  "app.consent.scope.config_apply_structure": "Apply the configuration's structure without their own permission scope",
+  "app.consent.scope.config_apply_scheme": "Apply the configuration's workflow schemes without their own permission scope"
 }

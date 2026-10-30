@@ -9445,5 +9445,14 @@
   "agents.transition_invalid": "Ein Agent im Zustand {from} kann nicht {to} werden.",
   "provenance.incomplete": "Die Herkunft dieses Werts konnte nicht festgehalten werden.",
   "app.consent.scope.agents_read": "Die Agenten des Arbeitsbereichs, ihr Protokoll und was auf Freigabe wartet, sehen",
-  "app.consent.scope.agents_write": "Agenten registrieren, freigeben, stoppen und prüfen"
+  "app.consent.scope.agents_write": "Agenten registrieren, freigeben, stoppen und prüfen",
+  "app.consent.scope.config_apply_modules": "Module der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_roles": "Rollen der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_fields": "Felder der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_link_types": "Verknüpfungsarten der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_types": "Typen der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_workflows": "Workflows der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_settings": "Einstellungen der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_structure": "Struktur der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_scheme": "Workflow-Schemata der Konfiguration anwenden, ohne deren eigenen Bereich"
 }

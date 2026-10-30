@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -554,6 +555,52 @@ func (d Desk) resolveAgentApply(ctx context.Context, definition setting.Definiti
 // run applies a plan's operations in the caller's transaction; the first refusal ends it, named
 // by the key path it was for.
 // stepUp is the fresh proof an apply carries, handed to the operation changing the sign-in rule.
+// ApplyScopes are the per-section scopes of an apply (config-document.md §3): a token holding
+// `config:apply:<section>` beside `config:apply` applies that section's blocks without holding each
+// block's own scope - an agent's token is given the sections it configures, not the areas' scopes.
+// The person's permission is asked by every block's use case as always; only the credential's
+// bound moves.
+func ApplyScopes() []string {
+	names := map[string]bool{}
+	for _, s := range sections() {
+		names[s.name] = true
+	}
+	for _, s := range hubSections("") {
+		names[s.name] = true
+	}
+	names[sectionSettings] = true
+	out := make([]string, 0, len(names))
+	for name := range names {
+		out = append(out, scopeApply+":"+name)
+	}
+	slices.Sort(out)
+	return out
+}
+
+// blockActor is the actor a block's operation runs as within an apply: the block's own scope
+// added where the token holds the section's apply scope.
+func (d Desk) blockActor(actor appshared.ActorContext, op operation) appshared.ActorContext {
+	descriptor, found := d.Catalogue.Lookup(op.UseCase)
+	section, _, _ := strings.Cut(op.Path, ".")
+	return withScope(actor, descriptor.TokenScope, found && actor.HasScope(scopeApply) && actor.HasScope(scopeApply+":"+section))
+}
+
+// preview runs a read a plan's reach asks for. A token holding `config:plan` reads the previews of
+// what it plans (the S-09 gap): a preview is a read and changes nothing, so the plan scope admits
+// the read's own scope; the person's permission is asked as always.
+func (d Desk) preview(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	descriptor, found := d.Catalogue.Lookup(name)
+	return d.Catalogue.Invoke(ctx, name, withScope(actor, descriptor.TokenScope, found && descriptor.ReadOnly && actor.HasScope(scopePlan)), in)
+}
+
+func withScope(actor appshared.ActorContext, scope string, admitted bool) appshared.ActorContext {
+	if !admitted || scope == "" || actor.HasScope(scope) {
+		return actor
+	}
+	actor.Scopes = append(slices.Clone(actor.Scopes), scope)
+	return actor
+}
+
 func (d Desk) run(ctx context.Context, actor appshared.ActorContext, ops []operation, stepUp string) error {
 	for _, op := range ops {
 		in := op.Input
@@ -563,7 +610,7 @@ func (d Desk) run(ctx context.Context, actor appshared.ActorContext, ops []opera
 				in[k] = v
 			}
 		}
-		if _, err := d.Catalogue.Invoke(ctx, op.UseCase, actor, in); err != nil {
+		if _, err := d.Catalogue.Invoke(ctx, op.UseCase, d.blockActor(actor, op), in); err != nil {
 			var e *shared.Error
 			if errors.As(err, &e) {
 				params := map[string]string{"config_path": op.Path}

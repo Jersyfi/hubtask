@@ -67,7 +67,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 			if !p.Hub.IsZero() {
 				in["hub_id"] = p.Hub.String()
 			}
-			answer, err := d.Catalogue.Invoke(ctx, previewModuleReach, actor, in)
+			answer, err := d.preview(ctx, previewModuleReach, actor, in)
 			if err != nil {
 				if withheld(err) {
 					p.Reach = append(p.Reach, reach{Path: change.Path(), Withheld: true})
@@ -89,7 +89,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 				structure[change.Key] = change.After[settingValueField]
 			}
 		case change.Section == sectionWorkflows && change.Op == domain.OpChange && slices.Contains(change.Fields, "shape"):
-			answer, err := d.Catalogue.Invoke(ctx, previewWorkflowPublish, actor, usecase.Input{
+			answer, err := d.preview(ctx, previewWorkflowPublish, actor, usecase.Input{
 				"key": change.Key, "shape": change.After["shape"],
 			})
 			if err != nil {
@@ -123,7 +123,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 			if entryType == schemeEveryType {
 				entryType = ""
 			}
-			answer, err := d.Catalogue.Invoke(ctx, "PreviewWorkflowScheme", actor, usecase.Input{
+			answer, err := d.preview(ctx, "PreviewWorkflowScheme", actor, usecase.Input{
 				"container_id": p.Hub.String(), "entry_type": entryType, "workflow": text(change.After[workflowAttribute]),
 			})
 			if err != nil {
@@ -149,7 +149,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 		case change.Section == sectionRoles && change.Op != domain.OpAdd:
 			if !grantsRead {
 				grantsRead = true
-				answer, err := d.Catalogue.Invoke(ctx, listRoles, actor, usecase.Input{})
+				answer, err := d.preview(ctx, listRoles, actor, usecase.Input{})
 				if err != nil && !withheld(err) {
 					return err
 				}
@@ -223,7 +223,7 @@ func (d Desk) structureReach(ctx context.Context, actor appshared.ActorContext, 
 	if len(reset) > 0 {
 		in["reset"] = reset
 	}
-	answer, err := d.Catalogue.Invoke(ctx, asked, actor, in)
+	answer, err := d.preview(ctx, asked, actor, in)
 	if err != nil {
 		if withheld(err) {
 			p.Reach = append(p.Reach, reach{Path: sectionStructure, Withheld: true})
@@ -261,7 +261,7 @@ func (d Desk) fieldReach(ctx context.Context, actor appshared.ActorContext, p *p
 	if field.ID == "" {
 		return nil
 	}
-	answer, err := d.Catalogue.Invoke(ctx, previewCustomFieldReach, actor, usecase.Input{"field_id": field.ID})
+	answer, err := d.preview(ctx, previewCustomFieldReach, actor, usecase.Input{"field_id": field.ID})
 	if err != nil {
 		if withheld(err) {
 			p.Reach = append(p.Reach, reach{Path: field.Path, Withheld: true})
