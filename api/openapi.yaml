@@ -15551,6 +15551,8 @@ paths:
     put:
       tags: [containers]
       operationId: updateContainerPolicies
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
       description: >
         Replaces a collection's policies - the way it works, as opposed to what it is called. A key
         that is not sent falls back to its default rather than keeping the stored value: this is a

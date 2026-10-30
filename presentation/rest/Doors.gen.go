@@ -571,6 +571,7 @@ var restDoors = map[string]restDoor{
 	"updateAbsence":                     {UseCase: "UpdateAbsence", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"updateBackupSchedule":              {UseCase: "UpdateBackupSchedule", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateCi":                          {UseCase: "UpdateCi", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateContainerPolicies":           {UseCase: "UpdateContainerPolicies", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateCustomField":                 {UseCase: "UpdateCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateDashboard":                   {UseCase: "UpdateDashboard", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateDataSubjectRequest":          {UseCase: "UpdateDataSubjectRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3876,6 +3877,12 @@ func (c *RestController) UpdateCi(w http.ResponseWriter, r *http.Request, ciId o
 	var body openapi.UpdateCiJSONRequestBody
 	var answer openapi.ConfigurationItem
 	c.door(w, r, restDoors["updateCi"], usecase.Input{"ci_id": ciId.String()}, params, &body, &answer)
+}
+
+// UpdateContainerPolicies answers PUT /containers/{containerId}/policies by the generated mapping.
+func (c *RestController) UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId, params openapi.UpdateContainerPoliciesParams) {
+	var body openapi.UpdateContainerPoliciesJSONRequestBody
+	c.door(w, r, restDoors["updateContainerPolicies"], usecase.Input{"container_id": containerId.String()}, params, &body, answerBy(containerResponse))
 }
 
 // UpdateCustomField answers PATCH /custom-fields/{fieldId} by the generated mapping.
