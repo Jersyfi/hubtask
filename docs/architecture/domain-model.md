@@ -761,7 +761,12 @@ deadline and a change's effectiveness check.
   (`sprint_entry`) is an entry's membership, one open per entry; a closed sprint keeps its rows. An
   **`Estimate`** (`entry_estimate`, UC-PLN-07) is an entry's size in points, hours or a T-shirt size
   counting 1, 2, 3, 5, 8 or 13 points; `Burndown` and `VelocityOf` are pure functions of a sprint,
-  its memberships and the estimates.
+  its memberships and the estimates. A **`Release`** (`release`, UC-PLN-08) is a version a hub
+  ships: a name, a description and the day it is meant to go out, `PLANNED` → `RELEASED`, never
+  changed once out. A `release_entry` puts an entry of the hub's collections into it, one release
+  per entry, at most 200. Releasing keeps the done entries and moves the open ones into another
+  planned release or out; `Notes` writes the description and the done entries under their type's
+  name as mentions, the Markdown of the page the release then names.
 * **Time** (`core/domain/model/timekeeping`, M7, UC-TIM-01 … 05): a **`Record`** (`time_record`) is
   one person's minutes on one day - 1 to 1440 - on an entry or on none, of a **`WorkType`**
   (`time_work_type`, by key, archived rather than removed), billable or not, with a note that never

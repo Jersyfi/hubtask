@@ -55,4 +55,5 @@ four entries are done; the lead closes the sprint and carries the two open ones 
 
 * A sprint belongs to one collection; a sprint across collections or hubs is not built.
 * The sprint does not change an entry's status, dates or assignee; its memberships are its own.
-* Sprints are read online; the offline replica does not carry them.
+* Sprints are written online; the offline replica carries a collection's sprints and its entries'
+  open sprint, while the burndown and the velocity wait for the server.
