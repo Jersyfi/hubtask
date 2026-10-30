@@ -221,7 +221,8 @@ func (h WriteInstanceSettings) write(
 			// The switches that moved, by name. Never their values: a journal that recorded the
 			// blocklist's path or a legal URL would be a journal carrying configuration into a
 			// place nothing ever deletes from.
-			Details: map[string]any{"switches": movedSwitches(before, read)},
+			// The version it made, so the journal is the level's history (accepted.md D).
+			Details: map[string]any{"switches": movedSwitches(before, read), "version": read.Version},
 		})
 	})
 	if err != nil {

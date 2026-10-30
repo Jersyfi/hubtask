@@ -5266,6 +5266,24 @@ func (e InstanceSettingWorkspaceMay) Valid() bool {
 	}
 }
 
+// Defines values for InstanceSettingsPlanAppliedThrough.
+const (
+	InstanceSettingsPlanAppliedThroughAPI  InstanceSettingsPlanAppliedThrough = "API"
+	InstanceSettingsPlanAppliedThroughFILE InstanceSettingsPlanAppliedThrough = "FILE"
+)
+
+// Valid indicates whether the value is a known member of the InstanceSettingsPlanAppliedThrough enum.
+func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
+	switch e {
+	case InstanceSettingsPlanAppliedThroughAPI:
+		return true
+	case InstanceSettingsPlanAppliedThroughFILE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitedAccountKind.
 const (
 	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
@@ -16810,6 +16828,31 @@ type InstanceSettings struct {
 	Version *int `json:"version,omitempty"`
 }
 
+// InstanceSettingsPlan What a level would change; nothing is written.
+type InstanceSettingsPlan struct {
+	// AppliedThrough `API` where `PUT /admin/settings` applies it; `FILE` where a file enforces the level and only the file does.
+	AppliedThrough InstanceSettingsPlanAppliedThrough `json:"applied_through"`
+	Changes        []struct {
+		// From The value in force; empty where the level decides nothing.
+		From       string `json:"from"`
+		FromLocked bool   `json:"from_locked"`
+
+		// Key A switch, a legal link, `localisation.…`, `quotas.…`, `ai.…`, `module.…`, `blocklist_file`, `metering` or `reserved_short_names`.
+		Key      string `json:"key"`
+		To       string `json:"to"`
+		ToLocked bool   `json:"to_locked"`
+	} `json:"changes"`
+
+	// Source The enforcing file's path; null where none enforces.
+	Source *string `json:"source"`
+
+	// Version The version of the level in force the plan was made on.
+	Version int `json:"version"`
+}
+
+// InstanceSettingsPlanAppliedThrough `API` where `PUT /admin/settings` applies it; `FILE` where a file enforces the level and only the file does.
+type InstanceSettingsPlanAppliedThrough string
+
 // InvitationInspection defines model for InvitationInspection.
 type InvitationInspection struct {
 	// Token The redemption token from the invitation. Read, not spent.
@@ -27121,6 +27164,9 @@ type ChangeInstallationPresetJSONRequestBody = InstallationPresetUpdate
 // WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
 type WriteInstanceSettingsJSONRequestBody = InstanceSettings
 
+// PlanInstanceSettingsJSONRequestBody defines body for PlanInstanceSettings for application/json ContentType.
+type PlanInstanceSettingsJSONRequestBody = InstanceSettings
+
 // CreatePlatformSubscriptionJSONRequestBody defines body for CreatePlatformSubscription for application/json ContentType.
 type CreatePlatformSubscriptionJSONRequestBody = PlatformSubscriptionCreate
 
@@ -29613,6 +29659,28 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
 	WriteInstanceSettings(ctx context.Context, params *WriteInstanceSettingsParams, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PlanInstanceSettingsWithBody Plan a change of the installation's level
+	//
+	// What replacing the installation's level with this one would change, key by key: the value before and after and whether it is locked, on the version in force (`version`, which a save presents in `If-Match`). Writes nothing. Takes the level as `GET /admin/settings` answers it; its read-only members are ignored.
+	// Applying stays where it is: `PUT /admin/settings`, or - where a file enforces the level (`applied_through: FILE`) - the instance file alone, at the next start. The history of the level is the journal's `instance.settings_changed` entries, each naming the keys that moved and the version it made.
+	// Behind `admin:tenants` and the operator register, as the read is.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/settings:plan (the `PlanInstanceSettings` operationId).
+	PlanInstanceSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PlanInstanceSettings Plan a change of the installation's level
+	//
+	// What replacing the installation's level with this one would change, key by key: the value before and after and whether it is locked, on the version in force (`version`, which a save presents in `If-Match`). Writes nothing. Takes the level as `GET /admin/settings` answers it; its read-only members are ignored.
+	// Applying stays where it is: `PUT /admin/settings`, or - where a file enforces the level (`applied_through: FILE`) - the instance file alone, at the next start. The history of the level is the journal's `instance.settings_changed` entries, each naming the keys that moved and the version it made.
+	// Behind `admin:tenants` and the operator register, as the read is.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/settings:plan (the `PlanInstanceSettings` operationId).
+	PlanInstanceSettings(ctx context.Context, body PlanInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPlatformSubscriptions The installation's subscriptions for a purchase platform
 	//
@@ -40502,6 +40570,48 @@ func (c *Client) WriteInstanceSettingsWithBody(ctx context.Context, params *Writ
 // Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
 func (c *Client) WriteInstanceSettings(ctx context.Context, params *WriteInstanceSettingsParams, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewWriteInstanceSettingsRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PlanInstanceSettingsWithBody Plan a change of the installation's level
+//
+// What replacing the installation's level with this one would change, key by key: the value before and after and whether it is locked, on the version in force (`version`, which a save presents in `If-Match`). Writes nothing. Takes the level as `GET /admin/settings` answers it; its read-only members are ignored.
+// Applying stays where it is: `PUT /admin/settings`, or - where a file enforces the level (`applied_through: FILE`) - the instance file alone, at the next start. The history of the level is the journal's `instance.settings_changed` entries, each naming the keys that moved and the version it made.
+// Behind `admin:tenants` and the operator register, as the read is.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/settings:plan (the `PlanInstanceSettings` operationId).
+func (c *Client) PlanInstanceSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPlanInstanceSettingsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PlanInstanceSettings Plan a change of the installation's level
+//
+// What replacing the installation's level with this one would change, key by key: the value before and after and whether it is locked, on the version in force (`version`, which a save presents in `If-Match`). Writes nothing. Takes the level as `GET /admin/settings` answers it; its read-only members are ignored.
+// Applying stays where it is: `PUT /admin/settings`, or - where a file enforces the level (`applied_through: FILE`) - the instance file alone, at the next start. The history of the level is the journal's `instance.settings_changed` entries, each naming the keys that moved and the version it made.
+// Behind `admin:tenants` and the operator register, as the read is.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/settings:plan (the `PlanInstanceSettings` operationId).
+func (c *Client) PlanInstanceSettings(ctx context.Context, body PlanInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPlanInstanceSettingsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -62440,6 +62550,46 @@ func NewWriteInstanceSettingsRequestWithBody(server string, params *WriteInstanc
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewPlanInstanceSettingsRequest calls the generic PlanInstanceSettings builder with application/json body
+func NewPlanInstanceSettingsRequest(server string, body PlanInstanceSettingsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPlanInstanceSettingsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPlanInstanceSettingsRequestWithBody constructs an http.Request for the PlanInstanceSettings method, with any body, and a specified content type
+func NewPlanInstanceSettingsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/settings:plan")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -97115,6 +97265,28 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
 	WriteInstanceSettingsWithResponse(ctx context.Context, params *WriteInstanceSettingsParams, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
 
+	// PlanInstanceSettingsWithBodyWithResponse Plan a change of the installation's level
+	//
+	// What replacing the installation's level with this one would change, key by key: the value before and after and whether it is locked, on the version in force (`version`, which a save presents in `If-Match`). Writes nothing. Takes the level as `GET /admin/settings` answers it; its read-only members are ignored.
+	// Applying stays where it is: `PUT /admin/settings`, or - where a file enforces the level (`applied_through: FILE`) - the instance file alone, at the next start. The history of the level is the journal's `instance.settings_changed` entries, each naming the keys that moved and the version it made.
+	// Behind `admin:tenants` and the operator register, as the read is.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/settings:plan (the `PlanInstanceSettings` operationId).
+	PlanInstanceSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PlanInstanceSettingsResult, error)
+
+	// PlanInstanceSettingsWithResponse Plan a change of the installation's level
+	//
+	// What replacing the installation's level with this one would change, key by key: the value before and after and whether it is locked, on the version in force (`version`, which a save presents in `If-Match`). Writes nothing. Takes the level as `GET /admin/settings` answers it; its read-only members are ignored.
+	// Applying stays where it is: `PUT /admin/settings`, or - where a file enforces the level (`applied_through: FILE`) - the instance file alone, at the next start. The history of the level is the journal's `instance.settings_changed` entries, each naming the keys that moved and the version it made.
+	// Behind `admin:tenants` and the operator register, as the read is.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/settings:plan (the `PlanInstanceSettings` operationId).
+	PlanInstanceSettingsWithResponse(ctx context.Context, body PlanInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*PlanInstanceSettingsResult, error)
+
 	// ListPlatformSubscriptionsWithResponse The installation's subscriptions for a purchase platform
 	//
 	// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
@@ -109756,6 +109928,54 @@ func (r WriteInstanceSettingsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r WriteInstanceSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PlanInstanceSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstanceSettingsPlan
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PlanInstanceSettingsResult) GetJSON200() *InstanceSettingsPlan {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PlanInstanceSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PlanInstanceSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PlanInstanceSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PlanInstanceSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PlanInstanceSettingsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -145617,6 +145837,40 @@ func (c *ClientWithResponses) WriteInstanceSettingsWithResponse(ctx context.Cont
 	return ParseWriteInstanceSettingsResult(rsp)
 }
 
+// PlanInstanceSettingsWithBodyWithResponse Plan a change of the installation's level
+//
+// What replacing the installation's level with this one would change, key by key: the value before and after and whether it is locked, on the version in force (`version`, which a save presents in `If-Match`). Writes nothing. Takes the level as `GET /admin/settings` answers it; its read-only members are ignored.
+// Applying stays where it is: `PUT /admin/settings`, or - where a file enforces the level (`applied_through: FILE`) - the instance file alone, at the next start. The history of the level is the journal's `instance.settings_changed` entries, each naming the keys that moved and the version it made.
+// Behind `admin:tenants` and the operator register, as the read is.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/settings:plan (the `PlanInstanceSettings` operationId).
+func (c *ClientWithResponses) PlanInstanceSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PlanInstanceSettingsResult, error) {
+	rsp, err := c.PlanInstanceSettingsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePlanInstanceSettingsResult(rsp)
+}
+
+// PlanInstanceSettingsWithResponse Plan a change of the installation's level
+//
+// What replacing the installation's level with this one would change, key by key: the value before and after and whether it is locked, on the version in force (`version`, which a save presents in `If-Match`). Writes nothing. Takes the level as `GET /admin/settings` answers it; its read-only members are ignored.
+// Applying stays where it is: `PUT /admin/settings`, or - where a file enforces the level (`applied_through: FILE`) - the instance file alone, at the next start. The history of the level is the journal's `instance.settings_changed` entries, each naming the keys that moved and the version it made.
+// Behind `admin:tenants` and the operator register, as the read is.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/settings:plan (the `PlanInstanceSettings` operationId).
+func (c *ClientWithResponses) PlanInstanceSettingsWithResponse(ctx context.Context, body PlanInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*PlanInstanceSettingsResult, error) {
+	rsp, err := c.PlanInstanceSettings(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePlanInstanceSettingsResult(rsp)
+}
+
 // ListPlatformSubscriptionsWithResponse The installation's subscriptions for a purchase platform
 //
 // The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
@@ -163699,6 +163953,39 @@ func ParseWriteInstanceSettingsResult(rsp *http.Response) (*WriteInstanceSetting
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParsePlanInstanceSettingsResult parses an HTTP response from a PlanInstanceSettingsWithResponse call
+func ParsePlanInstanceSettingsResult(rsp *http.Response) (*PlanInstanceSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PlanInstanceSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstanceSettingsPlan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

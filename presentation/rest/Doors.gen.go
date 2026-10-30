@@ -406,6 +406,7 @@ var restDoors = map[string]restDoor{
 	"placeLegalHold":                    {UseCase: "PlaceLegalHold", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Flatten: map[string]map[string]string{"scope": {"id": "scope_id", "kind": "scope"}}},
 	"planConfig":                        {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"planConfigTemplate":                {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
+	"planInstanceSettings":              {UseCase: "PlanInstanceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}, ReadOnly: []string{"is_enforced_from_file", "source", "version"}},
 	"previewContainerStructure":         {UseCase: "PreviewContainerStructure", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewCustomFieldReach":           {UseCase: "PreviewCustomFieldReach", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewErasure":                    {UseCase: "PreviewErasure", Status: 200, Query: []string{"mode"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3014,6 +3015,13 @@ func (c *RestController) PlanConfigTemplate(w http.ResponseWriter, r *http.Reque
 	var body openapi.PlanConfigTemplateJSONRequestBody
 	var answer openapi.ConfigTemplatePlan
 	c.door(w, r, restDoors["planConfigTemplate"], usecase.Input{"key": key}, nil, &body, &answer)
+}
+
+// PlanInstanceSettings answers POST /admin/settings:plan by the generated mapping.
+func (c *RestController) PlanInstanceSettings(w http.ResponseWriter, r *http.Request) {
+	var body openapi.PlanInstanceSettingsJSONRequestBody
+	var answer openapi.InstanceSettingsPlan
+	c.door(w, r, restDoors["planInstanceSettings"], usecase.Input{}, nil, &body, &answer)
 }
 
 // PreviewContainerStructure answers POST /containers/{containerId}/structure:preview by the generated mapping.

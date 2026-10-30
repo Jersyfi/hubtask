@@ -5260,6 +5260,24 @@ func (e InstanceSettingWorkspaceMay) Valid() bool {
 	}
 }
 
+// Defines values for InstanceSettingsPlanAppliedThrough.
+const (
+	InstanceSettingsPlanAppliedThroughAPI  InstanceSettingsPlanAppliedThrough = "API"
+	InstanceSettingsPlanAppliedThroughFILE InstanceSettingsPlanAppliedThrough = "FILE"
+)
+
+// Valid indicates whether the value is a known member of the InstanceSettingsPlanAppliedThrough enum.
+func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
+	switch e {
+	case InstanceSettingsPlanAppliedThroughAPI:
+		return true
+	case InstanceSettingsPlanAppliedThroughFILE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitedAccountKind.
 const (
 	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
@@ -16804,6 +16822,31 @@ type InstanceSettings struct {
 	Version *int `json:"version,omitempty"`
 }
 
+// InstanceSettingsPlan What a level would change; nothing is written.
+type InstanceSettingsPlan struct {
+	// AppliedThrough `API` where `PUT /admin/settings` applies it; `FILE` where a file enforces the level and only the file does.
+	AppliedThrough InstanceSettingsPlanAppliedThrough `json:"applied_through"`
+	Changes        []struct {
+		// From The value in force; empty where the level decides nothing.
+		From       string `json:"from"`
+		FromLocked bool   `json:"from_locked"`
+
+		// Key A switch, a legal link, `localisation.…`, `quotas.…`, `ai.…`, `module.…`, `blocklist_file`, `metering` or `reserved_short_names`.
+		Key      string `json:"key"`
+		To       string `json:"to"`
+		ToLocked bool   `json:"to_locked"`
+	} `json:"changes"`
+
+	// Source The enforcing file's path; null where none enforces.
+	Source *string `json:"source"`
+
+	// Version The version of the level in force the plan was made on.
+	Version int `json:"version"`
+}
+
+// InstanceSettingsPlanAppliedThrough `API` where `PUT /admin/settings` applies it; `FILE` where a file enforces the level and only the file does.
+type InstanceSettingsPlanAppliedThrough string
+
 // InvitationInspection defines model for InvitationInspection.
 type InvitationInspection struct {
 	// Token The redemption token from the invitation. Read, not spent.
@@ -27115,6 +27158,9 @@ type ChangeInstallationPresetJSONRequestBody = InstallationPresetUpdate
 // WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
 type WriteInstanceSettingsJSONRequestBody = InstanceSettings
 
+// PlanInstanceSettingsJSONRequestBody defines body for PlanInstanceSettings for application/json ContentType.
+type PlanInstanceSettingsJSONRequestBody = InstanceSettings
+
 // CreatePlatformSubscriptionJSONRequestBody defines body for CreatePlatformSubscription for application/json ContentType.
 type CreatePlatformSubscriptionJSONRequestBody = PlatformSubscriptionCreate
 
@@ -28683,6 +28729,9 @@ type ServerInterface interface {
 	// WriteInstanceSettings Replace the installation's level
 	// (PUT /admin/settings)
 	WriteInstanceSettings(w http.ResponseWriter, r *http.Request, params WriteInstanceSettingsParams)
+	// PlanInstanceSettings Plan a change of the installation's level
+	// (POST /admin/settings:plan)
+	PlanInstanceSettings(w http.ResponseWriter, r *http.Request)
 	// ListPlatformSubscriptions The installation's subscriptions for a purchase platform
 	// (GET /admin/subscriptions)
 	ListPlatformSubscriptions(w http.ResponseWriter, r *http.Request)
@@ -32541,6 +32590,20 @@ func (siw *ServerInterfaceWrapper) WriteInstanceSettings(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.WriteInstanceSettings(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanInstanceSettings operation middleware
+func (siw *ServerInterfaceWrapper) PlanInstanceSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanInstanceSettings(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -57023,6 +57086,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/backup-targets/{targetId}:test", wrapper.TestInstanceBackupTarget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/settings:plan", wrapper.PlanInstanceSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/plans", wrapper.ListPlans)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/plans", wrapper.CreatePlan)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.RemovePlan)

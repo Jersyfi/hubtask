@@ -2314,6 +2314,11 @@ export class HubtaskClient {
     return this.call("PUT", "/admin/settings", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Plan a change of the installation's level */
+  planInstanceSettings(body: NonNullable<operations["planInstanceSettings"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["planInstanceSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/settings:plan", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The installation's plans */
   listPlans(options: CallOptions = {}): Promise<operations["listPlans"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/plans", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

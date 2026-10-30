@@ -3374,6 +3374,7 @@ func run() error {
 		// The level above the workspaces (ADR-0070). One API, and `hubctl admin`, the instance
 		// dashboard and the file an operator checks into a repository are three clients of it.
 		adminservice.ReadInstanceSettings{Writer: instanceWriter}.Descriptor(),
+		adminservice.PlanInstanceSettings{Writer: instanceWriter}.Descriptor(),
 		adminservice.WriteInstanceSettings{Writer: instanceWriter}.Descriptor(),
 		adminservice.ListOperators{Writer: instanceWriter}.Descriptor(),
 		adminservice.ReadInstanceOverview{

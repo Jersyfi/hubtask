@@ -12019,6 +12019,40 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/settings:plan:
+    post:
+      tags: [admin]
+      operationId: planInstanceSettings
+      x-hubtask-rest: generated
+      summary: Plan a change of the installation's level
+      description: >
+        What replacing the installation's level with this one would change, key by key: the value
+        before and after and whether it is locked, on the version in force (`version`, which a save
+        presents in `If-Match`). Writes nothing. Takes the level as `GET /admin/settings` answers
+        it; its read-only members are ignored.
+
+        Applying stays where it is: `PUT /admin/settings`, or - where a file enforces the level
+        (`applied_through: FILE`) - the instance file alone, at the next start. The history of the
+        level is the journal's `instance.settings_changed` entries, each naming the keys that moved
+        and the version it made.
+
+        Behind `admin:tenants` and the operator register, as the read is.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstanceSettings"
+      responses:
+        "200":
+          description: The plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceSettingsPlan"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/plans:
     get:
       tags: [admin]
@@ -24354,6 +24388,28 @@ components:
             credential, for instance. They are not customers, so the three workspace counts above
             leave them out; the list of workspaces shows them.
 
+    InstanceSettingsPlan:
+      type: object
+      description: What a level would change; nothing is written.
+      required: [version, changes, applied_through, source]
+      properties:
+        version: { type: integer, description: The version of the level in force the plan was made on. }
+        changes:
+          type: array
+          items:
+            type: object
+            required: [key, from, to, from_locked, to_locked]
+            properties:
+              key: { type: string, description: "A switch, a legal link, `localisation.…`, `quotas.…`, `ai.…`, `module.…`, `blocklist_file`, `metering` or `reserved_short_names`." }
+              from: { type: string, description: The value in force; empty where the level decides nothing. }
+              to: { type: string }
+              from_locked: { type: boolean }
+              to_locked: { type: boolean }
+        applied_through:
+          type: string
+          enum: [API, FILE]
+          description: "`API` where `PUT /admin/settings` applies it; `FILE` where a file enforces the level and only the file does."
+        source: { type: [string, "null"], description: The enforcing file's path; null where none enforces. }
     InstanceJournalEntry:
       type: object
       description: >

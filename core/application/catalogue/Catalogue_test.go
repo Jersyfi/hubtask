@@ -398,8 +398,9 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // approval: deciding one the reader is an approver of, their waiting list, and their delegation
 // set, read and ended (UC-SVC-09, UC-SVC-10). The four of a calendar push are a person's own: their
 // feed written into their own calendar, listed, connected and taken off (UC-INT-16). The six of a
-// file store connection are a person's own sign-in to their own files (UC-INT-17).
-const undeclaredPermissionsAtMost = 196
+// file store connection are a person's own sign-in to their own files (UC-INT-17). Planning the
+// installation's level is the installation's, as reading it is (accepted.md D).
+const undeclaredPermissionsAtMost = 197
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

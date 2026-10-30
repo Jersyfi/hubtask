@@ -622,6 +622,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.session_elevated` | ElevateSession | `session` | WARNING | Every time |
 | `instance.set_up` | SetUpInstallation | `tenant` | NOTICE | Every time |
 | `instance.settings_changed` | WriteInstanceSettings | `instance` | NOTICE | Every time |
+| `instance.settings_planned` | PlanInstanceSettings | `instance` | INFO | When refused |
 | `instance.settings_read` | ReadInstanceSettings | `instance` | INFO | When refused |
 | `instance.usage_read` | ReadUsage | `instance` | INFO | When refused |
 

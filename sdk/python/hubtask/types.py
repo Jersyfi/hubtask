@@ -774,6 +774,13 @@ class InstanceOverview(TypedDict, total=False):
     accounts_total: Required[int]
     workspaces_service_only: Required[int]
 
+class InstanceSettingsPlan(TypedDict, total=False):
+    """What a level would change; nothing is written."""
+    version: Required[int]
+    changes: Required[list[dict[str, Any]]]
+    applied_through: Required[Literal["API", "FILE"]]
+    source: Required[str | None]
+
 class InstanceJournalEntry(TypedDict, total=False):
     """One act the installation recorded. The workspace is named by a bare identifier and its slug: the row it names is usually gone, which is the reason the journal exists."""
     id: Required[str]

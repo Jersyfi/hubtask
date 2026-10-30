@@ -1835,6 +1835,10 @@ class Client:
         """Replace the installation's level"""
         return self._call("PUT", "/admin/settings", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def plan_instance_settings(self, body: "InstanceSettings") -> "InstanceSettingsPlan":
+        """Plan a change of the installation's level"""
+        return self._call("POST", "/admin/settings:plan", {}, None, {}, body, "json", "application/json", "json")
+
     def list_plans(self) -> dict[str, Any]:
         """The installation's plans"""
         return self._call("GET", "/admin/plans", {}, None, {}, None, "none", None, "json")

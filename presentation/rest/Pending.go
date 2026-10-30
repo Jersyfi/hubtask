@@ -161,6 +161,7 @@ func (pending) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) { no
 
 // The instance layer of ADR-0070.
 func (pending) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) PlanInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) WriteInstanceSettings(w http.ResponseWriter, r *http.Request, _ openapi.WriteInstanceSettingsParams) {
 	notAvailable(w, r)
 }
