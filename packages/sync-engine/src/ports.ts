@@ -52,6 +52,11 @@ export interface RequestOptions {
    * the same action is a second thing to document, translate and support for no behavioural gain.
    */
   readonly ifMatch?: string;
+  /**
+   * The media type a `document` asks for, where one operation answers several files - the time
+   * export's CSV or spreadsheet. Absent, the default list stands; the other calls ignore it.
+   */
+  readonly accept?: string;
   /** Lets a caller abandon the call for its own reasons, on top of the deadline. */
   readonly signal?: AbortSignal;
 }

@@ -477,3 +477,19 @@ test('a bucket refusing the bytes is a problem with its status, readable body or
     (error: unknown) => error instanceof TransportError && error.kind === 'problem' && error.status === 403,
   );
 });
+
+test('a document asks for the file its caller names, else the default list', async () => {
+  const sheet = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const { fetch, calls } = recordingFetch(() => new Response(new Uint8Array([0x50, 0x4b]), {
+    status: 200, headers: { 'Content-Type': sheet, 'Content-Disposition': 'attachment; filename="time.xlsx"' },
+  }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+
+  const file = await transport.document('/time-records:export', { from: '2026-10-01', to: '2026-10-31' }, { timeoutMs: 1000, accept: sheet });
+  await transport.document('/views/v1:export', { format: 'CSV' }, { timeoutMs: 1000 });
+
+  assert.equal(new Headers(calls[0]?.init.headers).get('Accept'), sheet);
+  assert.equal(new Headers(calls[1]?.init.headers).get('Accept'), 'text/csv, application/json, text/calendar');
+  assert.equal(file.contentType, sheet);
+  assert.equal(file.fileName, 'time.xlsx');
+});

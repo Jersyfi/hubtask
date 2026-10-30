@@ -273,7 +273,7 @@ export class FetchTransport implements Transport {
    * A `POST` whose answer is a file.
    *
    * The same request every other call makes — bearer, deadline, same-origin credentials — with two
-   * differences: `Accept` names the three things an export can be, and the answer is read as bytes
+   * differences: `Accept` names the three things an export can be unless the caller names one, and the answer is read as bytes
    * rather than parsed. A refusal still arrives as a problem document, so it is read as one: a
    * caller that handed a person a file containing `{"code":"forbidden"}` would be a caller that
    * checked nothing.
@@ -286,7 +286,7 @@ export class FetchTransport implements Transport {
     const deadline = AbortSignal.timeout(options.timeoutMs);
     const signal = options.signal ? AbortSignal.any([deadline, options.signal]) : deadline;
 
-    const headers = new Headers({ Accept: 'text/csv, application/json, text/calendar' });
+    const headers = new Headers({ Accept: options.accept ?? 'text/csv, application/json, text/calendar' });
     if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
     if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
     headers.set('Content-Type', 'application/json');
