@@ -53,7 +53,7 @@ const (
 	ConnectedAction    audit.Action = "calendar_push.connected"
 	DisconnectedAction audit.Action = "calendar_push.disconnected"
 	pushTarget                      = "calendar_push"
-	viewsRead                       = "views:read"
+	viewsRead                       = "containers:read"
 	exemptReason                    = "a calendar push writes a feed into its owner's own calendar; it changes no entry."
 
 	stateBytes    = 32

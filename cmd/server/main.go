@@ -43,6 +43,7 @@ import (
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	calendarservice "github.com/Jersyfi/hubtask/core/application/service/calendar"
+	calendarpushservice "github.com/Jersyfi/hubtask/core/application/service/calendarpush"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
@@ -105,6 +106,7 @@ import (
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
+	calendarpushadapter "github.com/Jersyfi/hubtask/infrastructure/calendarpush"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	connectoradapter "github.com/Jersyfi/hubtask/infrastructure/connector"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
@@ -1978,6 +1980,30 @@ func run() error {
 		Store: postgres.NewFileLinkRepository(), Entries: entryLinks, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
 	}
+	// A calendar feed written into its owner's calendar at Microsoft 365 or Google (UC-INT-16):
+	// the mailboxes' apps with a consent for the calendar's events alone, Graph and the Calendar
+	// API through the guarded client, the feed read as its owner by the .ics route's own reader.
+	calendarPushes := calendarpushservice.Pushes{
+		Store: postgres.NewCalendarPushRepository(), Feeds: calendarFeeds,
+		Rows: pushedFeedRows{read: work.ReadCalendarFeed{
+			Feeds: calendarFeeds, Accounts: accounts,
+			Export: work.ExportView{
+				Views: savedViews, Containers: containers, Permits: authorizer,
+				Query: work.QueryItems{
+					Gate:  entryGate,
+					Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+			UnitOfWork: unitOfWork,
+		}},
+		Calendar: calendarpushadapter.Calendar{Client: outboundClient}, Authorizer: mailboxadapter.OAuth{Client: outboundClient},
+		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{}, Apps: calendarPushApps(cfg.Mail.OAuth),
+		RedirectURL: strings.TrimSuffix(cfg.BaseURL, "/") + "/settings/calendar-push",
+		Addresses:   workspaceAddress(cfg), Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
 	// The agents' desk; Sources is ReadAiSource's own use case, run as the registering person.
 	agentDesk := agentservice.Desk{
 		Store: agentStore, Catalogue: agentCatalogue, Authorizer: authorizer,
@@ -2256,6 +2282,10 @@ func run() error {
 		filelinkservice.ListEntryFileLinks{Files: entryFiles}.Descriptor(),
 		filelinkservice.LinkEntryFile{Files: entryFiles}.Descriptor(),
 		filelinkservice.UnlinkEntryFile{Files: entryFiles}.Descriptor(),
+		calendarpushservice.ListCalendarPushes{Pushes: calendarPushes}.Descriptor(),
+		calendarpushservice.AuthorizeCalendarPush{Pushes: calendarPushes}.Descriptor(),
+		calendarpushservice.CompleteCalendarPushAuthorization{Pushes: calendarPushes}.Descriptor(),
+		calendarpushservice.DisconnectCalendarPush{Pushes: calendarPushes}.Descriptor(),
 		cmdbservice.ListCiConnectors{Connectors: connectors}.Descriptor(),
 		cmdbservice.DefineCiConnector{Connectors: connectors}.Descriptor(),
 		cmdbservice.SetCiConnectorCredential{Connectors: connectors}.Descriptor(),
@@ -4618,6 +4648,8 @@ func run() error {
 			Addresses: workspaceAddress(cfg), Mail: mailSender, Renderer: renderer, Decimals: renderer,
 			Background: backgroundWork, FallbackLocale: cfg.Locale.DefaultLocale,
 		}},
+		// A calendar push's run every quarter hour (UC-INT-16).
+		queueport.KindCalendarPush:         worker.CalendarPush{Pushes: calendarPushes},
 		queueport.KindAutomationCheck:      worker.AutomationCheck{Check: ruleCheck},
 		queueport.KindAuditExport:          worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindImport:               importJob,
@@ -5793,6 +5825,23 @@ func wayInNoticesFor(cfg envport.Config, jobs notification.Queue) identity.WayIn
 }
 
 // mailOAuthApps hands the installation's mailbox OAuth apps to the mail service.
+// calendarPushApps are the mailboxes' installation apps, offered to a calendar push.
+func calendarPushApps(configured map[string]envport.OAuthApp) map[string]calendarpushservice.App {
+	apps := make(map[string]calendarpushservice.App, len(configured))
+	for provider, app := range configured {
+		apps[provider] = calendarpushservice.App{ClientID: app.ClientID, ClientSecret: app.ClientSecret}
+	}
+	return apps
+}
+
+// pushedFeedRows reads a pushed feed as the .ics route reads it.
+type pushedFeedRows struct{ read work.ReadCalendarFeed }
+
+func (p pushedFeedRows) ExecuteFeed(ctx context.Context, tenantID, feedID shared.ID) (calendarpushservice.FeedRows, error) {
+	exported, err := p.read.ExecuteFeed(ctx, tenantID, feedID)
+	return calendarpushservice.FeedRows{Items: exported.Items, TimeZone: exported.TimeZone}, err
+}
+
 func mailOAuthApps(configured map[string]envport.OAuthApp) map[string]mailservice.App {
 	apps := make(map[string]mailservice.App, len(configured))
 	for provider, app := range configured {

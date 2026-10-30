@@ -396,8 +396,9 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // The three of a person's notes are their own: the pages shared with them, their personal space and
 // its daily note (UC-DOC-07, UC-DOC-08). The five of approvals are a person's own or decided per
 // approval: deciding one the reader is an approver of, their waiting list, and their delegation
-// set, read and ended (UC-SVC-09, UC-SVC-10).
-const undeclaredPermissionsAtMost = 186
+// set, read and ended (UC-SVC-09, UC-SVC-10). The four of a calendar push are a person's own: their
+// feed written into their own calendar, listed, connected and taken off (UC-INT-16).
+const undeclaredPermissionsAtMost = 190
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

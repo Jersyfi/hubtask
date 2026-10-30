@@ -27,6 +27,7 @@ import (
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
+	calendarpushservice "github.com/Jersyfi/hubtask/core/application/service/calendarpush"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
@@ -349,6 +350,10 @@ func Descriptors() []usecase.Descriptor {
 		filelinkservice.ListEntryFileLinks{}.Descriptor(),
 		filelinkservice.LinkEntryFile{}.Descriptor(),
 		filelinkservice.UnlinkEntryFile{}.Descriptor(),
+		calendarpushservice.ListCalendarPushes{}.Descriptor(),
+		calendarpushservice.AuthorizeCalendarPush{}.Descriptor(),
+		calendarpushservice.CompleteCalendarPushAuthorization{}.Descriptor(),
+		calendarpushservice.DisconnectCalendarPush{}.Descriptor(),
 		cmdbservice.ListCiConnectors{}.Descriptor(),
 		cmdbservice.DefineCiConnector{}.Descriptor(),
 		cmdbservice.SetCiConnectorCredential{}.Descriptor(),

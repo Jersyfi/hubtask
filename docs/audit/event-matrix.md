@@ -242,6 +242,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `business_calendar.read` | ListBusinessCalendars | `business_calendar` | INFO | When refused |
 | `business_calendar.read` | ListHubCalendars | `hub_business_calendar` | INFO | When refused |
 
+## Calendar_push
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `calendar_push.authorization_started` | AuthorizeCalendarPush | `calendar_push` | INFO | Every time |
+| `calendar_push.connected` | CompleteCalendarPushAuthorization | `calendar_push` | INFO | Every time |
+| `calendar_push.disconnected` | DisconnectCalendarPush | `calendar_push` | INFO | Every time |
+| `calendar_push.listed` | ListCalendarPushes | `calendar_push` | INFO | When refused |
+
 ## Cmdb
 
 | Action | Use case | Target | Severity | Recorded |
