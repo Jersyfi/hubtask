@@ -48,7 +48,8 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    reads a cleared third state; `x-hubtask-rest-utc: [name]` hands an instant on in UTC where the
    use case keeps the text it was sent; a shown-once member may be a list (recovery codes); an
    answer mapper may be the controller's own (`c.calendarFeedSecretResponse`), where it composes
-   an address from the installation's base URL. `x-hubtask-rest-expand: { word: input }` turns the
+   an address from the installation's base URL. `x-hubtask-rest-etag` may name a nested part's member (`item.version`, a moved or copied
+   entry's). `x-hubtask-rest-expand: { word: input }` turns the
    `expand` parameter's words into the boolean inputs they name and refuses any other word by
    name (`items.expand_not_supported`). `x-hubtask-rest-drop: [member]` accepts and drops a body member the contract
    declares and the use case does not, as its hand-written door did, until the owner decides it

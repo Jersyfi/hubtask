@@ -272,13 +272,19 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		}
 		w.Header().Set("Location", APIBasePath+location)
 	}
-	switch value := out[d.ETag].(type) {
+	tagged, member := out, d.ETag
+	if part, inner, nested := strings.Cut(d.ETag, "."); nested {
+		// A nested part's member: a moved entry's version is the entry's.
+		tagged, _ = out[part].(usecase.Output)
+		member = inner
+	}
+	switch value := tagged[member].(type) {
 	case string:
 		if value != "" {
 			w.Header().Set("ETag", `"`+value+`"`)
 		}
 	case int, int64, float64:
-		w.Header().Set("ETag", etag(out.Int(d.ETag)))
+		w.Header().Set("ETag", etag(tagged.Int(member)))
 	}
 	writeJSON(w, r, d.Status, written)
 }

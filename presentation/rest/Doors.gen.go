@@ -26,6 +26,7 @@ var restDoors = map[string]restDoor{
 	"addSprintEntries":      {UseCase: "AddSprintEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addWhiteboardComment":  {UseCase: "AddWhiteboardComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"affectEntryCi":         {UseCase: "AffectEntryCi", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aggregateItems":        {UseCase: "AggregateItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Flatten: map[string]map[string]string{"scope": {"container_id": "scope_container_id", "include_descendants": "include_descendants", "item_id": "scope_item_id", "workspace": "scope_workspace"}}},
 	"aggregateView":         {UseCase: "AggregateView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"agreeToTerms":          {UseCase: "AgreeToTerms", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}},
 	"aiClassify":            {UseCase: "AiClassify", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -216,6 +217,7 @@ var restDoors = map[string]restDoor{
 	"dismissCiHold":                     {UseCase: "DismissCiHold", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissJumbleEntry":                {UseCase: "DismissJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissSuggestion":                 {UseCase: "DismissSuggestion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"duplicateWorkItem":                 {UseCase: "DuplicateWorkItem", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "item.version", BodyAs: "", Location: "/items/{item.id}", NullClears: true, Integers: []string(nil), NullAs: map[string]any{"include_subtree": nil, "title": nil}},
 	"editComment":                       {UseCase: "EditComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"elevateSession":                    {UseCase: "ElevateSession", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"emptyTrash":                        {UseCase: "EmptyTrash", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -410,6 +412,7 @@ var restDoors = map[string]restDoor{
 	"moveContainer":                     {UseCase: "MoveContainer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"movePage":                          {UseCase: "MovePage", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"moveTenantPlan":                    {UseCase: "MoveTenantPlan", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
+	"moveWorkItem":                      {UseCase: "MoveWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "item.version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"namePageVersion":                   {UseCase: "NamePageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"nameWhiteboardVersion":             {UseCase: "NameWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"offerIdentityProvider":             {UseCase: "OfferIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -801,6 +804,13 @@ func (c *RestController) AddWhiteboardComment(w http.ResponseWriter, r *http.Req
 func (c *RestController) AffectEntryCi(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID, ciId openapi_types.UUID) {
 	var answer openapi.EntryCis
 	c.door(w, r, restDoors["affectEntryCi"], usecase.Input{"item_id": itemId.String(), "ci_id": ciId.String()}, nil, nil, &answer)
+}
+
+// AggregateItems answers POST /items:aggregate by the generated mapping.
+func (c *RestController) AggregateItems(w http.ResponseWriter, r *http.Request) {
+	var body openapi.AggregateItemsJSONRequestBody
+	var answer openapi.ItemAggregateResult
+	c.door(w, r, restDoors["aggregateItems"], usecase.Input{}, nil, &body, &answer)
 }
 
 // AggregateView answers POST /views/{viewId}:aggregate by the generated mapping.
@@ -1951,6 +1961,12 @@ func (c *RestController) DismissSuggestion(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["dismissSuggestion"], usecase.Input{"suggestion_id": suggestionId.String()}, nil, nil, answerBy(suggestionResponse))
 }
 
+// DuplicateWorkItem answers POST /items/{itemId}:duplicate by the generated mapping.
+func (c *RestController) DuplicateWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.DuplicateWorkItemParams) {
+	var body openapi.DuplicateWorkItemJSONRequestBody
+	c.door(w, r, restDoors["duplicateWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(duplicateResultResponse))
+}
+
 // EditComment answers PATCH /items/{itemId}/comments/{commentId} by the generated mapping.
 func (c *RestController) EditComment(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, commentId openapi.CommentId, params openapi.EditCommentParams) {
 	var body openapi.EditCommentApplicationMergePatchPlusJSONRequestBody
@@ -3051,6 +3067,12 @@ func (c *RestController) MovePage(w http.ResponseWriter, r *http.Request, pageId
 func (c *RestController) MoveTenantPlan(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId, params openapi.MoveTenantPlanParams) {
 	var body openapi.MoveTenantPlanJSONRequestBody
 	c.door(w, r, restDoors["moveTenantPlan"], usecase.Input{"tenant_id": tenantId.String()}, params, &body, answerBy(tenantPlanMovedResponse))
+}
+
+// MoveWorkItem answers POST /items/{itemId}:move by the generated mapping.
+func (c *RestController) MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.MoveWorkItemParams) {
+	var body openapi.MoveWorkItemJSONRequestBody
+	c.door(w, r, restDoors["moveWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(moveResultAnswer))
 }
 
 // NamePageVersion answers PATCH /pages/{pageId}/versions/{seq} by the generated mapping.

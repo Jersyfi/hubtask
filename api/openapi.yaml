@@ -18180,6 +18180,8 @@ paths:
     post:
       tags: [items]
       operationId: aggregateItems
+      x-hubtask-rest: generated
+      x-hubtask-rest-flatten: { scope: { container_id: scope_container_id, item_id: scope_item_id, include_descendants: include_descendants, workspace: scope_workspace } }
       x-hubtask-cli: "item aggregate"
       summary: A summary of what a query keeps
       description: |
@@ -18642,6 +18644,10 @@ paths:
     post:
       tags: [items]
       operationId: moveWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-null: empty
+      x-hubtask-rest-etag: item.version
+      x-hubtask-rest-answer: moveResultAnswer
       description: >
         Moves the item and its subtree; checks the capability profile and reference resolution. A
         move into another collection that does not offer the entry's type on its level is refused
@@ -18694,6 +18700,12 @@ paths:
     post:
       tags: [items]
       operationId: duplicateWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-null: empty
+      x-hubtask-rest-null-as: { title: null, include_subtree: null }
+      x-hubtask-rest-location: /items/{item.id}
+      x-hubtask-rest-etag: item.version
+      x-hubtask-rest-answer: duplicateResultResponse
       description: >
         Copies the entry, and everything below it when `include_subtree` is set. The copy is a new
         entry rather than a fork of a conversation: the description travels - the notes, the labels,

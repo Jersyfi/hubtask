@@ -19,7 +19,7 @@ import (
 // the paging all happen in the application layer, once, for every channel (ADR-0005, arc42 §4).
 
 const (
-	getContainerUseCase  = "GetContainer"
+	getContainerUseCase = "GetContainer"
 )
 
 // expansionsOf reads the relations a client asked for and reports which of them this installation

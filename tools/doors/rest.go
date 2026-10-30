@@ -396,7 +396,8 @@ func restDoor(
 				door.ETag = "version"
 			}
 			if op.ETagFrom != "" {
-				if _, held := answer.Properties[op.ETagFrom]; !held {
+				// A nested part's member, `item.version`, is named by its part.
+				if _, held := answer.Properties[strings.SplitN(op.ETagFrom, ".", 2)[0]]; !held {
 					return door, fmt.Errorf("x-hubtask-rest-etag names %s, which the answer does not hold", op.ETagFrom)
 				}
 				door.ETag = op.ETagFrom

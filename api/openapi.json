@@ -26650,6 +26650,15 @@
           "items"
         ],
         "operationId": "aggregateItems",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-flatten": {
+          "scope": {
+            "container_id": "scope_container_id",
+            "item_id": "scope_item_id",
+            "include_descendants": "include_descendants",
+            "workspace": "scope_workspace"
+          }
+        },
         "x-hubtask-cli": "item aggregate",
         "summary": "A summary of what a query keeps",
         "description": "How many entries the query's scope and filter keep - or links between them, with\n`source: links` - and the sum, average, least or greatest\nof a custom field holding a number, money or a duration, or of an entry's `lead_time`,\n`scheduled_span`, `satisfaction`, `cycle_time`, `wip_age` or `time_in_status` - optionally per value of a field a query may group by, and per day, week\nor month of a timestamp, cut in the caller's time zone (a week starts on Monday unless\n`week_start` says Sunday). The permission is the query's: checked against the scope once;\na `workspace` scope counts every collection the caller may read. At most 5000 rows, in the\ngroup's order and then the period's; `truncated` says a longer answer was cut.\n",
@@ -27297,6 +27306,10 @@
           "items"
         ],
         "operationId": "moveWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-null": "empty",
+        "x-hubtask-rest-etag": "item.version",
+        "x-hubtask-rest-answer": "moveResultAnswer",
         "description": "Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.\n",
         "parameters": [
           {
@@ -27378,6 +27391,15 @@
           "items"
         ],
         "operationId": "duplicateWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-null": "empty",
+        "x-hubtask-rest-null-as": {
+          "title": null,
+          "include_subtree": null
+        },
+        "x-hubtask-rest-location": "/items/{item.id}",
+        "x-hubtask-rest-etag": "item.version",
+        "x-hubtask-rest-answer": "duplicateResultResponse",
         "description": "Copies the entry, and everything below it when `include_subtree` is set. The copy is a new entry rather than a fork of a conversation: the description travels - the notes, the labels, the members, the assignee, the attachments and the custom field values, as far as the capability profile of each type allows - and the comments and the history do not.\n\nWhat the destination cannot resolve is reported rather than dropped in silence, exactly as a move reports it (invariant I-W6): a copy into another collection leaves behind the labels of the vocabulary it came from, the column of the board it sat on, and the values of custom fields that collection does not define.\n\nThe copy is open and carries fresh ranks at the end of its level; an entry that was archived below the copied one stays archived in the copy, and trashed entries are not copied at all. The title is copied unchanged - a server that invented \"Copy of …\" would be writing display text - so a client that wants a different one sends it.\n",
         "parameters": [
           {

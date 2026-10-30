@@ -10,7 +10,6 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -18,62 +17,10 @@ import (
 // the subtree rewrite all happen in the application and domain layers, once, whichever channel the call came
 // through (ADR-0005, arc42 §4).
 
-const moveWorkItemUseCase = "MoveWorkItem"
-
-// MoveWorkItem answers POST /items/{itemId}:move.
-func (c *RestController) MoveWorkItem(
-	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, _ openapi.MoveWorkItemParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.MoveWorkItemJSONBody
-	present, err := decodeJSONWithPresence(r, &body)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{"item_id": itemID.String()}
-	// Only the fields the client sent. `target_parent_id` in particular: sending it as null asks for the top
-	// level, and omitting it asks for the parent to stay - a handler that passed nil for both would move items
-	// nobody asked to move, and the value alone cannot tell the two apart.
-	//
-	// Null reaches the catalogue as the empty string rather than as nil, which is what `WorkItemController`
-	// does for the same distinction. `usecase.Input.Present` reports a present-but-nil entry as absent, by
-	// design and with a test on it - so a nil here would spell "the caller said nothing" for a caller who
-	// said null, and the use case would leave the parent exactly where the request asked it not to be.
-	if present["target_parent_id"] {
-		in["target_parent_id"] = uuidOrEmpty(body.TargetParentId)
-	}
-	if present["target_collection_id"] {
-		in["target_collection_id"] = uuidOrEmpty(body.TargetCollectionId)
-	}
-	if present["before_item_id"] {
-		in["before_item_id"] = uuidOrEmpty(body.BeforeItemId)
-	}
-	if present["target_bucket_id"] {
-		// The same shape, and the reason the board needs it: null takes the entry off the board and omitting
-		// the field leaves the column where the collection allows.
-		in["target_bucket_id"] = uuidOrEmpty(body.TargetBucketId)
-	}
-	if version, ok := versionFromIfMatch(ifMatchOf(r)); ok {
-		in["expected_version"] = version
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), moveWorkItemUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	item, result := moveResultResponse(out)
-	w.Header().Set("ETag", etag(item.Version))
-	writeJSON(w, r, http.StatusOK, result)
+// moveResultAnswer draws a move's answer: the entry where it now is, and what it could not carry.
+func moveResultAnswer(out usecase.Output) openapi.MoveResult {
+	_, result := moveResultResponse(out)
+	return result
 }
 
 // moveResultResponse maps the catalogue's answer onto the contract's MoveResult.
