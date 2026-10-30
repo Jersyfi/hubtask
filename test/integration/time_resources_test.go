@@ -89,3 +89,75 @@ func TestTimeResourcesStayInTheirWorkspace(t *testing.T) {
 		t.Errorf("the other workspace removed the rate: %v", err)
 	}
 }
+
+// The walk's weeks, capacities, absences, rates and budgets stay in their workspace, a week and a
+// capacity with their person (offline-sync.md §3.1).
+func TestTheTimeResourcesWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewTimeResourceRepository()
+	sheets := postgres.NewTimeRepository()
+	snapshot := postgres.NewSnapshotRepository()
+	_, collection, _ := seedPlan(ctx, t, tenantA)
+	now := time.Date(2026, 11, 3, 17, 0, 0, 0, time.UTC)
+	day, _ := timekeeping.ParseDay("2027-03-01")
+	person := freshID(t)
+	absence := timekeeping.Absence{ID: freshID(t), AccountID: person, From: day, To: day + 2, Kind: timekeeping.AbsenceTraining}
+	sheetID := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := store.PutCapacity(ctx, freshID(t), timekeeping.Capacity{AccountID: person, From: day, WeekMinutes: [7]int{300}}, person, now); err != nil {
+			return err
+		}
+		if err := store.PutAbsence(ctx, absence, 0, person, now); err != nil {
+			return err
+		}
+		sheet, _ := timekeeping.OpenSheet(person, day).Submit(60, now)
+		if err := sheets.PutSheet(ctx, sheetID, sheet, 0, now); err != nil {
+			return err
+		}
+		return store.PutBudget(ctx, freshID(t), timekeeping.Budget{PlanID: collection, Minutes: 120}, 0, person, now)
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	type seen struct{ sheet, capacity, absence, budget bool }
+	walked := func(tenant, reader shared.ID) (s seen) {
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			weeks, err := snapshot.OwnTimesheets(ctx, reader, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, w := range weeks {
+				s.sheet = s.sheet || w.ID == sheetID
+			}
+			capacities, err := snapshot.OwnCapacities(ctx, reader, 100)
+			if err != nil {
+				return err
+			}
+			s.capacity = len(capacities) > 0
+			absences, err := snapshot.TimeAbsences(ctx, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, a := range absences {
+				s.absence = s.absence || a.ID == absence.ID
+			}
+			budgets, err := snapshot.TimeBudgets(ctx, "", 5000)
+			for _, b := range budgets {
+				s.budget = s.budget || b.PlanID == collection
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	if got := walked(tenantA, person); got != (seen{true, true, true, true}) {
+		t.Errorf("the person's walk = %+v, want all four", got)
+	}
+	if got := walked(tenantA, freshID(t)); got.sheet || got.capacity || !got.absence {
+		t.Errorf("another person's walk = %+v, want the absence alone", got)
+	}
+	if got := walked(tenantB, person); got != (seen{}) {
+		t.Errorf("the workspace next door walked %+v", got)
+	}
+}

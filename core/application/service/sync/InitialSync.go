@@ -41,6 +41,7 @@ var walkKinds = []string{
 	entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard,
 	entitySprint, entitySprintEntry, entityEstimate, entityCustomField,
 	entityTimeRecord, entityTimer, entityWorkTypes, entityTimePolicy,
+	entityTimesheet, entityCapacities, entityAbsence, entityCostRates, entityBudget,
 }
 
 const (
@@ -101,6 +102,14 @@ const (
 	entityTimer      = timeservice.TimerEntity
 	entityWorkTypes  = timeservice.WorkTypesEntity
 	entityTimePolicy = timeservice.PolicyEntity
+	// entityTimesheet and entityCapacities are a person's own as a record is; entityAbsence the
+	// shared calendar every member reads; entityCostRates one record under the workspace and
+	// entityBudget filed under its plan, both for MANAGE_COSTS alone (UC-TIM-08).
+	entityTimesheet  = timeservice.SheetEntity
+	entityCapacities = timeservice.CapacitiesEntity
+	entityAbsence    = timeservice.AbsenceEntity
+	entityCostRates  = timeservice.RatesEntity
+	entityBudget     = timeservice.BudgetEntity
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -135,6 +144,7 @@ func (p PullChanges) walk(
 	}
 
 	resolved := map[shared.ID]visibility{}
+	costed := map[shared.ID]bool{}
 	var lens *workservice.FieldLens
 	records := make([]Record, 0, limit)
 	position := from
@@ -155,6 +165,12 @@ func (p PullChanges) walk(
 				continue
 			}
 			if other, err := p.Stream.mayReadOtherEnd(ctx, actor, row.entity, row.payload, resolved); err != nil || !other {
+				if err != nil {
+					return Batch{}, err
+				}
+				continue
+			}
+			if costs, err := p.Stream.mayReadCosts(ctx, actor, row.entity, seen, costed); err != nil || !costs {
 				if err != nil {
 					return Batch{}, err
 				}
@@ -214,7 +230,7 @@ func (p PullChanges) readKind(
 			rows, err = p.catalogue(ctx, actor, after)
 			return err
 		}
-		if kind == entityTimeRecord || kind == entityTimer || kind == entityWorkTypes || kind == entityTimePolicy {
+		if timeKind(kind) {
 			rows, err = p.time(ctx, actor, kind, after, batch)
 			return err
 		}
@@ -257,10 +273,22 @@ func (p PullChanges) catalogue(ctx context.Context, actor appshared.ActorContext
 	}}, nil
 }
 
+// timeKind reports whether the time module's walk reads the kind.
+func timeKind(kind string) bool {
+	switch kind {
+	case entityTimeRecord, entityTimer, entityWorkTypes, entityTimePolicy,
+		entityTimesheet, entityCapacities, entityAbsence, entityCostRates, entityBudget:
+		return true
+	}
+	return false
+}
+
 // time pages the time module's kinds: a person's own records and timer, and the workspace's two
 // records, each delivered once and only once there is something to tell.
 func (p PullChanges) time(ctx context.Context, actor appshared.ActorContext, kind, after string, batch int) ([]walkRow, error) {
 	switch kind {
+	case entityTimesheet, entityCapacities, entityAbsence, entityCostRates, entityBudget:
+		return p.timeResources(ctx, actor, kind, after, batch)
 	case entityTimeRecord:
 		records, err := p.Snapshot.OwnTimeRecords(ctx, actor.AccountID, shared.ID(after), batch)
 		if err != nil {
@@ -299,6 +327,61 @@ func (p PullChanges) time(ctx context.Context, actor appshared.ActorContext, kin
 			return nil, err
 		}
 		return []walkRow{{entity: entityTimePolicy, entityID: actor.TenantID, payload: timeservice.PolicyOutput(policy), key: actor.TenantID.String()}}, nil
+	}
+}
+
+// timeResources pages a person's weeks and capacities, the absences, the rates and the budgets;
+// the rates and the budgets are judged by MANAGE_COSTS where every row is judged.
+func (p PullChanges) timeResources(ctx context.Context, actor appshared.ActorContext, kind, after string, batch int) ([]walkRow, error) {
+	switch kind {
+	case entityTimesheet:
+		sheets, err := p.Snapshot.OwnTimesheets(ctx, actor.AccountID, shared.ID(after), batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(sheets))
+		for _, s := range sheets {
+			rows = append(rows, walkRow{entity: entityTimesheet, entityID: s.ID, payload: timeservice.SheetOutput(s), key: s.ID.String()})
+		}
+		return rows, nil
+	case entityCapacities:
+		if after != "" {
+			return nil, nil
+		}
+		list, err := p.Snapshot.OwnCapacities(ctx, actor.AccountID, timeservice.CapacitiesKept)
+		if err != nil || len(list) == 0 {
+			return nil, err
+		}
+		return []walkRow{{entity: entityCapacities, entityID: actor.AccountID, payload: timeservice.CapacitiesRecord(actor.AccountID, list), key: actor.AccountID.String()}}, nil
+	case entityAbsence:
+		list, err := p.Snapshot.TimeAbsences(ctx, shared.ID(after), batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(list))
+		for _, a := range list {
+			rows = append(rows, walkRow{entity: entityAbsence, entityID: a.ID, payload: timeservice.AbsenceOutput(a), key: a.ID.String()})
+		}
+		return rows, nil
+	case entityCostRates:
+		if after != "" {
+			return nil, nil
+		}
+		list, err := p.Snapshot.TimeCostRates(ctx, timeservice.RatesKept)
+		if err != nil || len(list) == 0 {
+			return nil, err
+		}
+		return []walkRow{{entity: entityCostRates, entityID: actor.TenantID, payload: timeservice.RatesRecord(list), key: actor.TenantID.String()}}, nil
+	default:
+		list, err := p.Snapshot.TimeBudgets(ctx, shared.ID(after), batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(list))
+		for _, b := range list {
+			rows = append(rows, walkRow{entity: entityBudget, entityID: b.PlanID, containerID: b.PlanID, payload: timeservice.BudgetRecord(b), key: b.PlanID.String()})
+		}
+		return rows, nil
 	}
 }
 

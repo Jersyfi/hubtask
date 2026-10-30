@@ -1753,6 +1753,66 @@ func (q *Queries) SnapshotOwnTimeRecords(ctx context.Context, arg SnapshotOwnTim
 	return items, nil
 }
 
+const snapshotOwnTimesheets = `-- name: SnapshotOwnTimesheets :many
+SELECT id, account_id, week_start, state, minutes, submitted_at, decided_at, decided_by, reason, version
+FROM timesheet
+WHERE tenant_id = current_tenant_id() AND account_id = $1::uuid
+  AND id > $2
+ORDER BY id
+LIMIT $3
+`
+
+type SnapshotOwnTimesheetsParams struct {
+	AccountID pgtype.UUID
+	After     pgtype.UUID
+	Batch     int32
+}
+
+type SnapshotOwnTimesheetsRow struct {
+	ID          pgtype.UUID
+	AccountID   pgtype.UUID
+	WeekStart   pgtype.Date
+	State       string
+	Minutes     int32
+	SubmittedAt pgtype.Timestamptz
+	DecidedAt   pgtype.Timestamptz
+	DecidedBy   pgtype.UUID
+	Reason      string
+	Version     int32
+}
+
+// One person's weeks (migration 0246), walked for that person alone.
+func (q *Queries) SnapshotOwnTimesheets(ctx context.Context, arg SnapshotOwnTimesheetsParams) ([]SnapshotOwnTimesheetsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotOwnTimesheets, arg.AccountID, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotOwnTimesheetsRow{}
+	for rows.Next() {
+		var i SnapshotOwnTimesheetsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.WeekStart,
+			&i.State,
+			&i.Minutes,
+			&i.SubmittedAt,
+			&i.DecidedAt,
+			&i.DecidedBy,
+			&i.Reason,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotPages = `-- name: SnapshotPages :many
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
@@ -2203,6 +2263,106 @@ func (q *Queries) SnapshotTemplates(ctx context.Context, arg SnapshotTemplatesPa
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotTimeAbsences = `-- name: SnapshotTimeAbsences :many
+SELECT id, account_id, from_day, to_day, kind, half, version
+FROM time_absence
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotTimeAbsencesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotTimeAbsencesRow struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	Kind      string
+	Half      bool
+	Version   int32
+}
+
+// The workspace's absences (migration 0247), the shared calendar every member reads.
+func (q *Queries) SnapshotTimeAbsences(ctx context.Context, arg SnapshotTimeAbsencesParams) ([]SnapshotTimeAbsencesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotTimeAbsences, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotTimeAbsencesRow{}
+	for rows.Next() {
+		var i SnapshotTimeAbsencesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.FromDay,
+			&i.ToDay,
+			&i.Kind,
+			&i.Half,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotTimeBudgets = `-- name: SnapshotTimeBudgets :many
+SELECT plan_id, minutes, amount_minor, currency, version
+FROM time_budget
+WHERE tenant_id = current_tenant_id() AND plan_id > $1
+ORDER BY plan_id
+LIMIT $2
+`
+
+type SnapshotTimeBudgetsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotTimeBudgetsRow struct {
+	PlanID      pgtype.UUID
+	Minutes     int64
+	AmountMinor int64
+	Currency    string
+	Version     int32
+}
+
+// The hubs' and collections' budgets (migration 0247), paged by their plan.
+func (q *Queries) SnapshotTimeBudgets(ctx context.Context, arg SnapshotTimeBudgetsParams) ([]SnapshotTimeBudgetsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotTimeBudgets, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotTimeBudgetsRow{}
+	for rows.Next() {
+		var i SnapshotTimeBudgetsRow
+		if err := rows.Scan(
+			&i.PlanID,
+			&i.Minutes,
+			&i.AmountMinor,
+			&i.Currency,
 			&i.Version,
 		); err != nil {
 			return nil, err

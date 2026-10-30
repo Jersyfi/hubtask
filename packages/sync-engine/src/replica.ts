@@ -79,6 +79,12 @@ export function collectionOf(entity: string): string {
       return 'time_records';
     case 'time_timer':
       return 'time_timers';
+    case 'timesheet':
+      return 'timesheets';
+    case 'time_absence':
+      return 'time_absences';
+    case 'time_budget':
+      return 'time_budgets';
     case 'workflow':
       return 'workflows';
     case 'custom_role':

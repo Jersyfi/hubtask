@@ -33,6 +33,12 @@ const (
 	BudgetEntity     = budgetTarget
 )
 
+// CapacitiesKept and RatesKept bound what one record of capacities or rates holds.
+const (
+	CapacitiesKept = maxCapacitiesKept
+	RatesKept      = maxRatesKept
+)
+
 // CostsRequest is what a copy of a rate or a budget asks at a place: what ListCostRates and
 // ReadBudget ask.
 func CostsRequest(path []identity.Scope) access.Request {

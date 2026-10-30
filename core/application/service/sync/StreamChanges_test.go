@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -96,6 +97,8 @@ func (s *containerStore) Find(_ context.Context, id shared.ID) (work.Container, 
 type authorizer struct {
 	allowed   map[shared.ID]bool
 	workspace bool
+	// costs answers MANAGE_COSTS by the path's last scope, the workspace under the empty one.
+	costs     map[shared.ID]bool
 	questions int
 	err       error
 }
@@ -110,6 +113,12 @@ func (a *authorizer) Permits(
 	// The container is the last scope of the path, which is what ContainerScopes builds; a path
 	// that ends at the tenant is the workspace-wide question.
 	last := request.Path[len(request.Path)-1]
+	if request.Permission == service.PermissionManageCosts {
+		if last.Type == identity.ScopeTenant {
+			return a.costs[""], nil
+		}
+		return a.costs[last.ID], nil
+	}
 	if last.Type == identity.ScopeTenant {
 		return a.workspace, nil
 	}

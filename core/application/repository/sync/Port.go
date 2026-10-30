@@ -176,6 +176,14 @@ type Snapshot interface {
 	OwnTimer(ctx context.Context, account shared.ID) (timekeeping.Timer, bool, error)
 	TimeWorkTypes(ctx context.Context) ([]timekeeping.WorkType, error)
 	TimePolicy(ctx context.Context) (timekeeping.Policy, error)
+	// OwnTimesheets pages one person's weeks and OwnCapacities reads their capacities, for that
+	// person alone; TimeAbsences pages the shared calendar; TimeCostRates and TimeBudgets read what
+	// MANAGE_COSTS reads (UC-TIM-06 … 08).
+	OwnTimesheets(ctx context.Context, account, after shared.ID, batch int) ([]timekeeping.Timesheet, error)
+	OwnCapacities(ctx context.Context, account shared.ID, max int) ([]timekeeping.Capacity, error)
+	TimeAbsences(ctx context.Context, after shared.ID, batch int) ([]timekeeping.Absence, error)
+	TimeCostRates(ctx context.Context, max int) ([]timekeeping.CostRate, error)
+	TimeBudgets(ctx context.Context, after shared.ID, batch int) ([]timekeeping.Budget, error)
 	// CustomRoles pages the workspace's own roles (UC-ID-26).
 	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
 	// Pages pages the workspace's living pages with their bodies, for reading offline (M3).

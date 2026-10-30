@@ -56,6 +56,11 @@ type snapshotStore struct {
 	timeRecords []timekeeping.Record
 	timers      []timekeeping.Timer
 	workTypes   []timekeeping.WorkType
+	sheets      []timekeeping.Timesheet
+	capacities  []timekeeping.Capacity
+	absences    []timekeeping.Absence
+	rates       []timekeeping.CostRate
+	budgets     []timekeeping.Budget
 	// groups are the groups the reader is in.
 	groups map[shared.ID]bool
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.

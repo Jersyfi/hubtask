@@ -525,3 +525,28 @@ WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id')::u
   AND id > sqlc.arg('after')
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotOwnTimesheets :many
+-- One person's weeks (migration 0246), walked for that person alone.
+SELECT id, account_id, week_start, state, minutes, submitted_at, decided_at, decided_by, reason, version
+FROM timesheet
+WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id')::uuid
+  AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotTimeAbsences :many
+-- The workspace's absences (migration 0247), the shared calendar every member reads.
+SELECT id, account_id, from_day, to_day, kind, half, version
+FROM time_absence
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotTimeBudgets :many
+-- The hubs' and collections' budgets (migration 0247), paged by their plan.
+SELECT plan_id, minutes, amount_minor, currency, version
+FROM time_budget
+WHERE tenant_id = current_tenant_id() AND plan_id > sqlc.arg('after')
+ORDER BY plan_id
+LIMIT sqlc.arg('batch');

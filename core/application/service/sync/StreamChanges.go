@@ -19,6 +19,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	timeservice "github.com/Jersyfi/hubtask/core/application/service/timekeeping"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
@@ -270,6 +271,7 @@ func (s StreamChanges) page(
 	// membership resolutions for one answer. The judgement is still per record: every record is
 	// checked, and what is cached is the answer to the question it asks.
 	resolved := map[shared.ID]visibility{}
+	costed := map[shared.ID]bool{}
 	var lens *workservice.FieldLens
 	records := make([]Record, 0, len(entries))
 	for _, entry := range entries {
@@ -284,7 +286,7 @@ func (s StreamChanges) page(
 			}
 			continue
 		}
-		if entry.Entity == entityRoleGrant || entry.Entity == entityTimeRecord || entry.Entity == entityTimer {
+		if heldByOne(entry.Entity) {
 			held, err := s.holds(ctx, actor, entry.Op, entry.Payload)
 			if err != nil {
 				return Batch{}, err
@@ -309,6 +311,13 @@ func (s StreamChanges) page(
 			return Batch{}, err
 		}
 		if !other {
+			continue
+		}
+		costs, err := s.mayReadCosts(ctx, actor, entry.Entity, seen, costed)
+		if err != nil {
+			return Batch{}, err
+		}
+		if !costs {
 			continue
 		}
 		if entry.Payload, err = s.narrowed(ctx, actor, &lens, entry.Entity, seen, entry.Payload); err != nil {
@@ -425,13 +434,18 @@ func (s StreamChanges) mayReadWorkspaceWide(
 		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member, and the
 		// workspace-wide definitions ListCustomFields answers within every collection.
 		return visibility{allowed: true}, nil
-	case entityRoleGrant, entityTimeRecord, entityTimer:
+	case entityRoleGrant, entityTimeRecord, entityTimer, entityTimesheet, entityCapacities:
 		// The walk reads the reader's own grants and time only; the stream decides each record by
 		// holds.
 		return visibility{allowed: true}, nil
-	case entityWorkTypes, entityTimePolicy:
-		// What every member fills a time record in with.
+	case entityWorkTypes, entityTimePolicy, entityAbsence:
+		// What every member fills a time record in with, and the shared calendar ListAbsences
+		// answers every member.
 		return visibility{allowed: true}, nil
+	case entityCostRates:
+		// What ListCostRates answers: MANAGE_COSTS at the workspace.
+		allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), timeservice.CostsRequest([]identity.Scope{identity.TenantScope()}))
+		return visibility{allowed: allowed}, err
 	}
 	if seen, decided := resolved[shared.ID("")]; decided {
 		return seen, nil
@@ -505,6 +519,38 @@ func (s StreamChanges) holds(
 		return err
 	})
 	return member, err
+}
+
+// heldByOne reports whether a kind's every record names the one account that holds it: the stream
+// decides it by holds, never by a container.
+func heldByOne(entity string) bool {
+	switch entity {
+	case entityRoleGrant, entityTimeRecord, entityTimer, entityTimesheet, entityCapacities:
+		return true
+	}
+	return false
+}
+
+// mayReadCosts decides a budget beyond reading its plan: what ReadBudget asks, MANAGE_COSTS
+// there, remembered per plan for the rest of the page. A record of anything else passes.
+func (s StreamChanges) mayReadCosts(
+	ctx context.Context, actor appshared.ActorContext, entity string, seen visibility, costed map[shared.ID]bool,
+) (bool, error) {
+	if entity != entityBudget {
+		return true, nil
+	}
+	if seen.container.ID.IsZero() {
+		return false, nil
+	}
+	if allowed, decided := costed[seen.container.ID]; decided {
+		return allowed, nil
+	}
+	allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), timeservice.CostsRequest(service.ContainerScopes(seen.container)))
+	if err != nil {
+		return false, err
+	}
+	costed[seen.container.ID] = allowed
+	return allowed, nil
 }
 
 // knownEntity reports whether the reader can place a change of this kind: the entities the walk
