@@ -455,6 +455,9 @@ func (h CreatePortfolio) Descriptor() usecase.Descriptor {
 				if err := s.Store.InsertPortfolio(ctx, p, actor.AccountID, now); err != nil {
 					return err
 				}
+				if err := s.portfoliosChanged(ctx, actor, p.ID); err != nil {
+					return err
+				}
 				return s.record(ctx, actor, PortfolioCreatedAction, portfolioTarget, p.ID, now)
 			}); err != nil {
 				return nil, err
@@ -517,6 +520,9 @@ func (h UpdatePortfolio) Descriptor() usecase.Descriptor {
 			now := s.Clock.Now()
 			if err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				if err := s.Store.UpdatePortfolio(ctx, next, expected, actor.AccountID, now); err != nil {
+					return err
+				}
+				if err := s.portfoliosChanged(ctx, actor, id); err != nil {
 					return err
 				}
 				return s.record(ctx, actor, PortfolioUpdatedAction, portfolioTarget, id, now)
@@ -584,7 +590,26 @@ func (h DeletePortfolio) Descriptor() usecase.Descriptor {
 			}
 			now := s.Clock.Now()
 			if err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				var children []shared.ID
+				if s.Changes != nil {
+					all, err := s.Store.Portfolios(ctx, maxPortfolios)
+					if err != nil {
+						return err
+					}
+					for _, other := range all {
+						if other.ParentID == p.ID {
+							children = append(children, other.ID)
+						}
+					}
+				}
 				if err := s.Store.DeletePortfolio(ctx, p, expected); err != nil {
+					return err
+				}
+				if err := s.changed(ctx, actor, PortfolioEntity, id, "", nil); err != nil {
+					return err
+				}
+				// Its portfolios are handed to its parent.
+				if err := s.portfoliosChanged(ctx, actor, children...); err != nil {
 					return err
 				}
 				return s.record(ctx, actor, PortfolioDeletedAction, portfolioTarget, id, now)
@@ -645,6 +670,9 @@ func (h ReportPortfolioStatus) Descriptor() usecase.Descriptor {
 				expected := p.Version
 				p.Status = u.Status
 				if err := s.Store.UpdatePortfolio(ctx, p, expected, actor.AccountID, now); err != nil {
+					return err
+				}
+				if err := s.portfoliosChanged(ctx, actor, id); err != nil {
 					return err
 				}
 				return s.record(ctx, actor, PortfolioReportedAction, portfolioTarget, id, now)

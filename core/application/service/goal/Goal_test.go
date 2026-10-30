@@ -686,6 +686,12 @@ func (m *memory) UpdatePortfolio(_ context.Context, p domain.Portfolio, expected
 
 func (m *memory) DeletePortfolio(_ context.Context, p domain.Portfolio, _ int) error {
 	delete(m.portfolios, p.ID)
+	for id, child := range m.portfolios {
+		if child.ParentID == p.ID {
+			child.ParentID = p.ParentID
+			m.portfolios[id] = child
+		}
+	}
 	return nil
 }
 

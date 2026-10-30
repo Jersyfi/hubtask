@@ -21,7 +21,45 @@ const (
 	GoalEntity      = "goal"
 	CheckInEntity   = "goal_check_in"
 	DashboardEntity = "dashboard"
+	// PortfolioEntity is a portfolio under no hub, for every reader of the workspace; its projects
+	// narrow per reader where the walk and the stream hand it out (UC-GOL-03).
+	PortfolioEntity = "portfolio"
 )
+
+// PortfolioRecord is a portfolio as a device keeps it: its fields and every project by its
+// container, never a name, a count or a budget computed for its writer. The sync service takes
+// from `items` what the reader may not read.
+func PortfolioRecord(p domain.Portfolio) usecase.Output {
+	items := make([]any, 0, len(p.Items))
+	for _, item := range p.Items {
+		items = append(items, map[string]any{
+			"container_id": item.ContainerID.String(), "start_on": dayText(item.StartOn), "end_on": dayText(item.EndOn),
+			"status": string(item.Status),
+		})
+	}
+	return usecase.Output{
+		"id": p.ID.String(), "parent_id": idText(p.ParentID), "name": p.Name, "description": p.Description,
+		"owner_id": idText(p.OwnerID), "status": string(p.Status), "items": items, "version": p.Version,
+	}
+}
+
+// portfoliosChanged re-reads portfolios inside the caller's transaction and records each as it now
+// stands.
+func (s Steward) portfoliosChanged(ctx context.Context, actor appshared.ActorContext, ids ...shared.ID) error {
+	if s.Changes == nil {
+		return nil
+	}
+	for _, id := range ids {
+		p, err := s.Store.Portfolio(ctx, id)
+		if err != nil {
+			return err
+		}
+		if err := s.changed(ctx, actor, PortfolioEntity, p.ID, "", PortfolioRecord(p)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // GoalRecord is a goal as a device keeps it: its definition and its key results' manual values,
 // never a number computed for a reader - progress, a view's live value, the share of linked
