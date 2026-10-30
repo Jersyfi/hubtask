@@ -57,7 +57,7 @@ func (ServiceDeskRatings) Save(ctx context.Context, rating servicedesk.Rating) (
 	}
 	row, err := queries.SaveSatisfactionRating(ctx, sqlc.SaveSatisfactionRatingParams{
 		ID: id, TenantID: tenant, ItemID: item,
-		Score: int16(rating.Score), //nolint:gosec // the domain keeps a score between 1 and 5
+		Score:   int16(rating.Score), //nolint:gosec // the domain keeps a score between 1 and 5
 		RatedAt: timestampOf(rating.RatedAt),
 	})
 	if err != nil {
