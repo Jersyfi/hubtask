@@ -245,6 +245,7 @@ async function views() {
     ['audit', await load('AuditView'), {}],
     ['privacy', await load('PrivacyView'), {}],
     ['ai', await load('AiSettingsView'), {}],
+    ['agents', await load('AgentsView'), { onnavigate: noop }],
     ['search', await load('SearchView'), {}],
     ['jumble', await load('JumbleView'), { onnavigate: noop }],
     ['trash', await load('TrashView'), {}],
