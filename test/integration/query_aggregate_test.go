@@ -262,3 +262,51 @@ func TestATimeSummarySumsTheRecordsTheReaderSees(t *testing.T) {
 		t.Errorf("another tenant counted %+v", foreign)
 	}
 }
+
+// A pages summary counts the live pages of the bound spaces, never a trashed one nor another
+// tenant's (F-9).
+func TestAPagesSummaryCountsTheLivePagesOfTheBoundSpaces(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	pool := adminPool(ctx, t)
+	var hub string
+	if err := pool.QueryRow(ctx, `SELECT parent_id::text FROM container WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), collection.String()).Scan(&hub); err != nil {
+		t.Fatalf("reading the hub: %v", err)
+	}
+	for i, trashed := range []bool{false, false, true} {
+		var deleted any
+		if trashed {
+			deleted = time.Now()
+		}
+		if _, err := pool.Exec(ctx, `INSERT INTO page (id, tenant_id, hub_id, title, order_key, created_by, created_at,
+			updated_by, updated_at, deleted_at) VALUES ($1, $2, $3, 'P', $4, $5, now(), $5, now(), $6)`,
+			freshID(t).String(), tenantA.String(), hub, string(rune('a'+i)), authorA.String(), deleted); err != nil {
+			t.Fatalf("writing a page: %v", err)
+		}
+	}
+	count := func(tenant shared.ID) repository.ItemAggregateResult {
+		t.Helper()
+		aggregation, err := view.ParseAggregation(map[string]any{"source": "pages", "function": "COUNT",
+			"group_by": "verification"}, "/aggregate")
+		if err != nil {
+			t.Fatal(err)
+		}
+		aggregation.Hubs, aggregation.Now = []shared.ID{shared.MustParseID(hub)}, time.Now()
+		var result repository.ItemAggregateResult
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			result, err = itemRepo().Aggregate(ctx, repository.ItemSearch{}, aggregation, "UTC")
+			return err
+		}); err != nil {
+			t.Fatalf("aggregating: %v", err)
+		}
+		return result
+	}
+	if mine := count(tenantA); len(mine.Rows) != 1 || mine.Rows[0].Group != "unverified" || mine.Rows[0].Count != 2 {
+		t.Errorf("the space answered %+v, want two unverified pages", mine)
+	}
+	if other := count(tenantB); len(other.Rows) != 0 {
+		t.Errorf("another tenant counted %+v", other)
+	}
+}

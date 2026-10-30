@@ -29998,7 +29998,7 @@ components:
           properties:
             source:
               type: string
-              enum: [entries, links, time]
+              enum: [entries, links, time, pages]
               default: entries
               description: >
                 What is counted: the entries the scope and filter keep, the links whose two ends
@@ -30010,7 +30010,12 @@ components:
                 or `person` besides a field of the entry and bucket by `day`, the day the time was
                 spent on, besides a timestamp of the entry. Where the workspace shows other
                 people's time only as sums, `person` is refused (`time.aggregated_only`) and a
-                group of fewer than three people is left out.
+                group of fewer than three people is left out. A `pages` summary counts the pages of one
+                hub's space, or of every space the caller may read pages in for `workspace` - a
+                collection or an entry holds none, and the entries' `filter` is refused; it is a
+                `COUNT`, may group by `owner`, `template` or `verification` (`verified`, `expired`
+                or `unverified` now) and bucket by `created_at` or `updated_at`; archived pages
+                with `include_archived`, trashed ones never.
             function:
               type: string
               enum: [COUNT, SUM, AVG, MIN, MAX]
@@ -30030,7 +30035,8 @@ components:
               type: string
               description: >
                 A field a query may group by, `link_type` for a `links` summary, or `work_type`,
-                `billable` or `person` for a `time` summary; one row per value.
+                `billable` or `person` for a `time` summary, or `owner`, `template` or
+                `verification` for a `pages` summary; one row per value.
             bucket:
               type: object
               required: [field, period]

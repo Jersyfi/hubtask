@@ -144,6 +144,8 @@ func FuzzCompile(f *testing.F) {
 				"bucket": map[string]any{"field": "created_at", "period": "month"}},
 			{"source": "time", "function": "SUM", "field": "minutes", "group_by": "person",
 				"bucket": map[string]any{"field": "day", "period": "week", "week_start": "sunday"}},
+			{"source": "pages", "function": "COUNT", "group_by": "verification",
+				"bucket": map[string]any{"field": "created_at", "period": "day"}},
 		} {
 			counted, err := view.ParseAggregation(raw, "/aggregate")
 			if err != nil {

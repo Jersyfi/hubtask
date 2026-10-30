@@ -1873,7 +1873,8 @@ func run() error {
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		},
 		Aggregates: items, Collections: containers, Reader: authorizer,
-		Shared: postgres.NewMembershipRepository(), Workflows: workflows, Time: timeservice.TimeReach{Keeper: keeper},
+		Shared: postgres.NewMembershipRepository(), Workflows: workflows, Time: timeservice.TimeReach{Keeper: keeper, Modules: modules},
+		Pages: knowledgeservice.PageReach{Space: pageSpace, Modules: modules},
 	}
 	steward := goalservice.Steward{
 		Store: postgres.NewGoalRepository(), References: entryLinks, Containers: containers,
@@ -2833,7 +2834,8 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 			Aggregates: items, Collections: containers, Reader: authorizer,
-			Shared: postgres.NewMembershipRepository(), Workflows: workflows, Time: timeservice.TimeReach{Keeper: keeper},
+			Shared: postgres.NewMembershipRepository(), Workflows: workflows, Time: timeservice.TimeReach{Keeper: keeper, Modules: modules},
+			Pages: knowledgeservice.PageReach{Space: pageSpace, Modules: modules},
 		}.Descriptor(),
 		work.AggregateView{
 			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
@@ -2844,7 +2846,8 @@ func run() error {
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},
 				Aggregates: items, Collections: containers, Reader: authorizer,
-				Shared: postgres.NewMembershipRepository(), Workflows: workflows, Time: timeservice.TimeReach{Keeper: keeper},
+				Shared: postgres.NewMembershipRepository(), Workflows: workflows, Time: timeservice.TimeReach{Keeper: keeper, Modules: modules},
+				Pages: knowledgeservice.PageReach{Space: pageSpace, Modules: modules},
 			},
 		}.Descriptor(),
 		// The authorisation service under three names, because a search asks the question in three

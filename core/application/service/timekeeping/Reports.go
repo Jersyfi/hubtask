@@ -5,6 +5,7 @@ package timekeeping
 
 import (
 	"context"
+	"errors"
 	"strconv"
 
 	timerepo "github.com/Jersyfi/hubtask/core/application/repository/timekeeping"
@@ -13,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
@@ -491,12 +493,31 @@ func (h ExportTimeRecords) Descriptor() usecase.Descriptor {
 // TimeReach answers a query's time summary whose time it counts (F-9): per collection, whether the
 // reader approves time there and so sees other people's, and whether the workspace shows that
 // only as sums - the question ReadTimeReport asks of its own lines, asked of the summary's places.
-type TimeReach struct{ Keeper Keeper }
+// With the time module off at the workspace, the summary is refused as the module's reads are.
+type TimeReach struct {
+	Keeper Keeper
+	// Modules is the module switch; unwired, the module counts as on.
+	Modules ModulesOn
+}
+
+// ModulesOn answers the modules on at a hub, or at the workspace for the zero hub.
+type ModulesOn interface {
+	On(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (module.Set, error)
+}
 
 // Reach answers, per collection, whether other people's time on its entries is the reader's to see.
 func (r TimeReach) Reach(ctx context.Context, actor appshared.ActorContext, collections []work.Container) ([]bool, bool, error) {
 	if err := person(actor); err != nil {
 		return nil, false, err
+	}
+	if r.Modules != nil {
+		on, err := r.Modules.On(ctx, actor, shared.ID(""))
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return nil, false, err
+		}
+		if err := on.Require(module.Time); err != nil {
+			return nil, false, err
+		}
 	}
 	policy, err := r.Keeper.policy(ctx, actor)
 	if err != nil {

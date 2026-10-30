@@ -183,8 +183,13 @@ collections are decided in the application layer and bound as an array); its one
 besides an entry field and buckets by the record's `day` besides an entry timestamp. Where the
 workspace shows other people's time only as sums, `person` is `time.aggregated_only` and a group
 of fewer than three people, the caller alone aside, is left out by a `HAVING` the statement
-carries. Time on no entry is not in any scope. Another source is `query.aggregate_source_unknown`
-- records are entries, and pages are counted by their own reads (UC-DOC-01). A saved view may store `aggregate` (and then `scope_workspace: true`
+carries. Time on no entry is not in any scope. `source: pages` counts the pages of a hub's space,
+or of every space the caller may read pages in for `scope_workspace` (the knowledge module's
+question, `PageReach`, bound as an array); a collection or an entry holds no space
+(`query.aggregate_pages_hub_scope`) and the entries' filter is refused
+(`query.aggregate_pages_unfiltered`); a `COUNT` only (`query.aggregate_pages_count_only`), grouped
+by `owner`, `template` or `verification` and bucketed by `created_at` or `updated_at`. Another
+source is `query.aggregate_source_unknown` - records are entries. A saved view may store `aggregate` (and then `scope_workspace: true`
 instead of an anchor); `POST /views/{viewId}:aggregate` runs it under the caller's authorisation,
 and a view without one is refused (`views.aggregate_missing`); a workspace-scoped summary view has
 no rows, and its `:export` is refused (`views.summary_not_exportable`). It answers at most 5000 rows of

@@ -253,3 +253,71 @@ func TestATimeSummaryCountsWhatTheReaderSeesOfOtherPeoplesTime(t *testing.T) {
 		}
 	})
 }
+
+// pageReach answers the readable spaces, recording what it was asked.
+type pageReach struct {
+	readable map[shared.ID]bool
+	asked    []shared.ID
+	named    bool
+}
+
+func (r *pageReach) Readable(_ context.Context, _ appshared.ActorContext, hubs []shared.ID, named bool) ([]shared.ID, error) {
+	r.asked, r.named = hubs, named
+	var out []shared.ID
+	for _, hub := range hubs {
+		if r.readable[hub] {
+			out = append(out, hub)
+		}
+	}
+	return out, nil
+}
+
+// A pages summary counts the spaces the reader may read pages in; a page is no entry, so the
+// entries' filter and a collection's scope are refused rather than ignored (F-9).
+func TestAPagesSummaryCountsTheReadableSpaces(t *testing.T) {
+	open := shared.MustParseID("0192f000-0000-7000-8000-000000000311")
+	closed := shared.MustParseID("0192f000-0000-7000-8000-000000000312")
+	list := shared.MustParseID("0192f000-0000-7000-8000-000000000313")
+	store := &containers{stored: map[shared.ID]domain.Container{
+		open: {ID: open, Type: domain.ContainerHub},
+		list: {ID: list, Type: domain.ContainerCollection, ParentID: open},
+	}, page: repository.ContainerPage{Containers: []domain.Container{
+		{ID: open, Type: domain.ContainerHub}, {ID: closed, Type: domain.ContainerHub},
+	}}}
+	count := view.Aggregation{Source: view.SourcePages, Function: view.AggregateCount}
+	fixture := func() (AggregateItems, *aggregates, *pageReach) {
+		h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{}})
+		h.Query.Containers = store
+		reach := &pageReach{readable: map[shared.ID]bool{open: true}}
+		h.Pages = reach
+		return h, adapter, reach
+	}
+
+	h, adapter, reach := fixture()
+	if _, err := h.Execute(t.Context(), summaryActor(), view.Spec{Scope: view.Scope{Workspace: true}}, count); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(adapter.aggregation.Hubs, []shared.ID{open}) || reach.named || len(reach.asked) != 2 {
+		t.Errorf("the workspace counted %v after asking %v (named %v)", adapter.aggregation.Hubs, reach.asked, reach.named)
+	}
+
+	h, _, reach = fixture()
+	if _, err := h.Execute(t.Context(), summaryActor(), view.Spec{Scope: view.Scope{ContainerID: open}}, count); err != nil {
+		t.Fatal(err)
+	}
+	if !reach.named || !slices.Equal(reach.asked, []shared.ID{open}) {
+		t.Errorf("a named hub was asked %v (named %v)", reach.asked, reach.named)
+	}
+
+	refused := func(spec view.Spec, code string) {
+		t.Helper()
+		h, _, _ := fixture()
+		_, err := h.Execute(t.Context(), summaryActor(), spec, count)
+		var refusal *shared.Error
+		if !errors.As(err, &refusal) || refusal.DetailCode != code {
+			t.Errorf("got %v, want %s", err, code)
+		}
+	}
+	refused(view.Spec{Scope: view.Scope{ContainerID: list}}, "query.aggregate_pages_hub_scope")
+	refused(view.Spec{Scope: view.Scope{Workspace: true}, Filter: &view.Node{Op: view.OpAnd}}, "query.aggregate_pages_unfiltered")
+}

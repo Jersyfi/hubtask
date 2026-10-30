@@ -24,6 +24,10 @@ func Aggregate(
 	search repository.ItemSearch, aggregation view.Aggregation, timeZone string, probe int,
 ) (Statement, error) {
 	b := newBuilder(search)
+	if aggregation.CountsPages() {
+		b.pages(search, aggregation, timeZone, probe)
+		return b.statement()
+	}
 
 	b.write(`SELECT `)
 	b.aggregateGroupKey(aggregation)
@@ -76,6 +80,40 @@ func Aggregate(
 	b.param(int64(probe))
 
 	return b.statement()
+}
+
+// pages compiles a pages summary: the live pages of the bound spaces - archived ones too where the
+// search keeps archived entries, trashed ones never - per group and period. Which spaces is the use
+// case's answer (rule 2); the entries' filter does not reach a page.
+func (b *builder) pages(search repository.ItemSearch, aggregation view.Aggregation, timeZone string, probe int) {
+	b.write(`SELECT `)
+	switch aggregation.PageGroup {
+	case "":
+		b.write(`NULL::text`)
+	case view.PageByOwner:
+		b.write(`p.owner_id::text`)
+	case view.PageByTemplate:
+		b.write(`p.template::text`)
+	case view.PageByVerification:
+		b.write(`CASE WHEN p.verified_until IS NULL THEN 'unverified' WHEN p.verified_until > `)
+		b.param(aggregation.Now.UTC())
+		b.write(`::timestamptz THEN 'verified' ELSE 'expired' END`)
+	default:
+		b.fail(shared.ErrInternal.WithDetail("query.page_group_unknown"))
+	}
+	b.write(`, `)
+	b.aggregateBucket(aggregation, timeZone)
+	b.write(`, count(*)::bigint, NULL::numeric FROM page p WHERE p.hub_id = ANY(`)
+	b.param(identifiers(aggregation.Hubs))
+	b.write(`::uuid[]) AND p.deleted_at IS NULL`)
+	if !search.Spec.IncludeArchived {
+		b.write(` AND p.archived_at IS NULL`)
+	}
+	if aggregation.IsGrouped() || aggregation.IsBucketed() {
+		b.write(` GROUP BY 1, 2 ORDER BY 1 ASC NULLS LAST, 2 ASC NULLS LAST`)
+	}
+	b.write(` LIMIT `)
+	b.param(int64(probe))
 }
 
 func (b *builder) aggregateGroupKey(aggregation view.Aggregation) {
@@ -131,6 +169,21 @@ func (b *builder) aggregateBucket(aggregation view.Aggregation, timeZone string)
 		return
 	}
 	b.write(opening)
+	if aggregation.CountsPages() {
+		switch aggregation.BucketField.Name {
+		case view.FieldCreatedAt:
+			b.write(`p.created_at`)
+		case view.FieldUpdatedAt:
+			b.write(`p.updated_at`)
+		default:
+			b.fail(errFieldNotCompilable(aggregation.BucketField))
+			return
+		}
+		b.write(`) AT TIME ZONE `)
+		b.param(timeZone)
+		b.write(`::text`, closing, `::date::text`)
+		return
+	}
 	if aggregation.ByDay {
 		// A day is a calendar date already: no zone moves it.
 		b.write(`tr.day::timestamp)`, closing, `::date::text`)

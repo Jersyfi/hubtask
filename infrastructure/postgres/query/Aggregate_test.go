@@ -287,3 +287,30 @@ func TestATimeSummaryCountsTheRecordsTheReaderSees(t *testing.T) {
 		})
 	}
 }
+
+func TestAPagesSummaryCountsTheBoundSpaces(t *testing.T) {
+	hub := shared.ID("0192f000-0000-7000-8000-0000000000cc")
+	aggregation := aggregationOf(t, map[string]any{"source": "pages", "function": "COUNT", "group_by": "verification",
+		"bucket": map[string]any{"field": "updated_at", "period": "month"}}, nil)
+	aggregation.Hubs = []shared.ID{hub}
+	aggregation.Now = time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	statement, err := Aggregate(searchOf(t, nil, view.Spec{}), aggregation, "UTC", 10)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	for _, fragment := range []string{
+		`SELECT CASE WHEN p.verified_until IS NULL THEN 'unverified' WHEN p.verified_until > $1::timestamptz`,
+		`date_trunc('month', (p.updated_at) AT TIME ZONE $`,
+		` FROM page p WHERE p.hub_id = ANY($`, `AND p.deleted_at IS NULL AND p.archived_at IS NULL GROUP BY 1, 2`,
+	} {
+		if !strings.Contains(statement.SQL, fragment) {
+			t.Errorf("missing %q in\n%s", fragment, statement.SQL)
+		}
+	}
+	if strings.Contains(statement.SQL, hub.String()) || strings.Contains(statement.SQL, "work_item") {
+		t.Errorf("the spaces are statement text, or the entries are read:\n%s", statement.SQL)
+	}
+	if strings.Count(statement.SQL, "$") != len(statement.Args) {
+		t.Errorf("placeholders and arguments disagree:\n%s", statement.SQL)
+	}
+}

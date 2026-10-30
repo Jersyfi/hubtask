@@ -5,6 +5,7 @@ package work
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -47,6 +48,14 @@ type AggregateItems struct {
 	Workflows repository.Workflows
 	// Time decides whose time a time summary counts; unwired, the reader's own alone.
 	Time TimeReach
+	// Pages decides the spaces a pages summary counts; unwired, it is refused.
+	Pages PageReach
+}
+
+// PageReach decides the spaces a pages summary counts (UC-DOC-01): among the hubs, those whose
+// pages the reader may read. A hub the request named alone is asked with its refusal recorded.
+type PageReach interface {
+	Readable(ctx context.Context, actor appshared.ActorContext, hubs []shared.ID, named bool) ([]shared.ID, error)
 }
 
 // TimeReach decides whose time a time summary counts (UC-TIM-04): per collection, whether the
@@ -69,6 +78,9 @@ func (h AggregateItems) Execute(
 	ctx context.Context, actor appshared.ActorContext, spec view.Spec, aggregation view.Aggregation,
 ) (repository.ItemAggregateResult, error) {
 	q := h.Query
+	if aggregation.CountsPages() {
+		return h.pages(ctx, actor, spec, aggregation)
+	}
 	resolved, err := q.resolvePlaceholders(actor, spec)
 	if err != nil {
 		return repository.ItemAggregateResult{}, err
@@ -339,6 +351,84 @@ func (h AggregateItems) sharedReached(
 	return kept, nil
 }
 
+// pages answers a pages summary: the spaces of one hub or of every hub the reader may read pages
+// in, counted in one statement. A page is no entry, so the entries' filter is refused rather than
+// ignored, and a collection or an entry holds no space.
+func (h AggregateItems) pages(
+	ctx context.Context, actor appshared.ActorContext, spec view.Spec, aggregation view.Aggregation,
+) (repository.ItemAggregateResult, error) {
+	if h.Pages == nil {
+		return repository.ItemAggregateResult{}, shared.ErrInternal.WithDetail("query.pages_unwired")
+	}
+	if spec.Filter != nil {
+		return repository.ItemAggregateResult{}, shared.ErrValidation.WithDetail("query.aggregate_pages_unfiltered").
+			WithFields(shared.FieldError{Path: "/filter", Code: "query.aggregate_pages_unfiltered"})
+	}
+	hubScope := shared.ErrValidation.WithDetail("query.aggregate_pages_hub_scope").
+		WithFields(shared.FieldError{Path: "/scope", Code: "query.aggregate_pages_hub_scope"})
+	if !spec.Scope.ItemID.IsZero() {
+		return repository.ItemAggregateResult{}, hubScope
+	}
+	var hubs []shared.ID
+	err := h.Query.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if !spec.Scope.Workspace {
+			found, err := h.Query.Containers.Find(ctx, spec.Scope.ContainerID)
+			if errors.Is(err, shared.ErrNotFound) {
+				return scopeNotFound("/scope/container_id", spec.Scope.ContainerID)
+			}
+			if err != nil {
+				return err
+			}
+			if found.Type != domain.ContainerHub {
+				return hubScope
+			}
+			hubs = []shared.ID{found.ID}
+			return nil
+		}
+		page := repository.Page{Size: 200}
+		for {
+			read, err := h.Query.Containers.List(ctx, repository.ContainerQuery{
+				Type: domain.ContainerHub, IncludeArchived: spec.IncludeArchived, Page: page,
+			})
+			if err != nil {
+				return err
+			}
+			for _, hub := range read.Containers {
+				hubs = append(hubs, hub.ID)
+			}
+			if len(hubs) > MaxSummaryCollections {
+				return shared.ErrValidation.WithDetail("query.workspace_too_large").
+					WithParams(map[string]string{"maximum": strconv.Itoa(MaxSummaryCollections)}).
+					WithFields(shared.FieldError{Path: "/scope/workspace", Code: "query.workspace_too_large"})
+			}
+			if !read.Info.HasMore {
+				return nil
+			}
+			page.Cursor = read.Info.NextCursor
+		}
+	})
+	if err != nil {
+		return repository.ItemAggregateResult{}, err
+	}
+	if aggregation.Hubs, err = h.Pages.Readable(ctx, actor, hubs, !spec.Scope.Workspace); err != nil {
+		return repository.ItemAggregateResult{}, err
+	}
+	if h.Query.Clock != nil {
+		aggregation.Now = h.Query.Clock.Now()
+	}
+	location := "UTC"
+	if _, err := time.LoadLocation(actor.TimeZone); err == nil && actor.TimeZone != "" {
+		location = actor.TimeZone
+	}
+	var result repository.ItemAggregateResult
+	err = h.Query.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		result, err = h.Aggregates.Aggregate(ctx, repository.ItemSearch{Spec: spec, Language: actor.Locale}, aggregation, location)
+		return err
+	})
+	return result, err
+}
+
 // shapeAggregation puts the definitions' shapes on the custom fields the aggregation names, as
 // shapeCustomFields does for the query.
 func shapeAggregation(
@@ -387,7 +477,10 @@ func (h AggregateItems) Descriptor() usecase.Descriptor {
 			"caller's own and other people's where the caller approves time, measured by minutes, " +
 			"grouped by work_type, billable, person or a field of the entry, bucketed by day or an " +
 			"entry's timestamp; where the workspace shows others' time only as sums, person is " +
-			"refused and a group of fewer than three people left out), function (COUNT, SUM, AVG, MIN or MAX), field (a custom field " +
+			"refused and a group of fewer than three people left out -, or pages - the pages of a " +
+			"hub's space or of every readable space for the workspace, counted only, without a " +
+			"filter, grouped by owner, template or verification, bucketed by created_at or " +
+			"updated_at), function (COUNT, SUM, AVG, MIN or MAX), field (a custom field " +
 			"holding a number, money or a duration, or lead_time - creation to completion - or " +
 			"scheduled_span - start to due -, both in minutes; not for COUNT), group_by (a field a " +
 			"query may group by), and bucket (field, a timestamp, and period: day, week or month, " +

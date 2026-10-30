@@ -5,6 +5,7 @@ package knowledge
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"unicode/utf8"
 
@@ -14,6 +15,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -362,4 +364,42 @@ func (h ExportPage) Descriptor() usecase.Descriptor {
 			return usecase.Output{"format": string(format), "files": data}, nil
 		}),
 	})
+}
+
+// ModulesOn answers the modules on at a hub, or at the workspace for the zero hub.
+type ModulesOn interface {
+	On(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (module.Set, error)
+}
+
+// PageReach answers a query's pages summary which spaces it counts (F-9): those the reader may
+// read pages in, the question SearchPages asks. A hub the request named alone is asked with its
+// refusal recorded; with the knowledge module off at the workspace, nothing is counted but refused.
+type PageReach struct {
+	Space Space
+	// Modules is the module switch; unwired, the module counts as on.
+	Modules ModulesOn
+}
+
+// Readable answers the readable spaces among the hubs.
+func (r PageReach) Readable(ctx context.Context, actor appshared.ActorContext, hubs []shared.ID, named bool) ([]shared.ID, error) {
+	if err := actor.RequireScope(pagesRead); err != nil {
+		return nil, err
+	}
+	if r.Modules != nil {
+		on, err := r.Modules.On(ctx, actor, shared.ID(""))
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return nil, err
+		}
+		if err := on.Require(module.Knowledge); err != nil {
+			return nil, err
+		}
+	}
+	if named && len(hubs) == 1 {
+		if err := r.Space.Authorizer.Authorize(ctx, actor,
+			r.Space.request(hubs[0], service.PermissionRead, PageReadAction, pagesRead, pageTarget, hubs[0])); err != nil {
+			return nil, err
+		}
+		return hubs, nil
+	}
+	return r.Space.readableHubs(ctx, actor, hubs)
 }

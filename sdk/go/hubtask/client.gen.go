@@ -4744,6 +4744,7 @@ func (e ItemAggregateQueryAggregateFunction) Valid() bool {
 const (
 	Entries ItemAggregateQueryAggregateSource = "entries"
 	Links   ItemAggregateQueryAggregateSource = "links"
+	Pages   ItemAggregateQueryAggregateSource = "pages"
 	Time    ItemAggregateQueryAggregateSource = "time"
 )
 
@@ -4753,6 +4754,8 @@ func (e ItemAggregateQueryAggregateSource) Valid() bool {
 	case Entries:
 		return true
 	case Links:
+		return true
+	case Pages:
 		return true
 	case Time:
 		return true
@@ -15157,10 +15160,10 @@ type ItemAggregateQuery struct {
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
-		// GroupBy A field a query may group by, `link_type` for a `links` summary, or `work_type`, `billable` or `person` for a `time` summary; one row per value.
+		// GroupBy A field a query may group by, `link_type` for a `links` summary, or `work_type`, `billable` or `person` for a `time` summary, or `owner`, `template` or `verification` for a `pages` summary; one row per value.
 		GroupBy *string `json:"group_by,omitempty"`
 
-		// Source What is counted: the entries the scope and filter keep, the links whose two ends they both keep - an end the caller may not see is never counted -, or the time recorded on the kept entries. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too. A `time` summary counts the caller's own records and other people's where the caller approves time; its measure is `minutes`, it may group by `work_type`, `billable` or `person` besides a field of the entry and bucket by `day`, the day the time was spent on, besides a timestamp of the entry. Where the workspace shows other people's time only as sums, `person` is refused (`time.aggregated_only`) and a group of fewer than three people is left out.
+		// Source What is counted: the entries the scope and filter keep, the links whose two ends they both keep - an end the caller may not see is never counted -, or the time recorded on the kept entries. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too. A `time` summary counts the caller's own records and other people's where the caller approves time; its measure is `minutes`, it may group by `work_type`, `billable` or `person` besides a field of the entry and bucket by `day`, the day the time was spent on, besides a timestamp of the entry. Where the workspace shows other people's time only as sums, `person` is refused (`time.aggregated_only`) and a group of fewer than three people is left out. A `pages` summary counts the pages of one hub's space, or of every space the caller may read pages in for `workspace` - a collection or an entry holds none, and the entries' `filter` is refused; it is a `COUNT`, may group by `owner`, `template` or `verification` (`verified`, `expired` or `unverified` now) and bucket by `created_at` or `updated_at`; archived pages with `include_archived`, trashed ones never.
 		Source *ItemAggregateQueryAggregateSource `json:"source,omitempty"`
 	} `json:"aggregate"`
 
@@ -15192,7 +15195,7 @@ type ItemAggregateQueryAggregateBucketWeekStart string
 // ItemAggregateQueryAggregateFunction defines model for ItemAggregateQuery.Aggregate.Function.
 type ItemAggregateQueryAggregateFunction string
 
-// ItemAggregateQueryAggregateSource What is counted: the entries the scope and filter keep, the links whose two ends they both keep - an end the caller may not see is never counted -, or the time recorded on the kept entries. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too. A `time` summary counts the caller's own records and other people's where the caller approves time; its measure is `minutes`, it may group by `work_type`, `billable` or `person` besides a field of the entry and bucket by `day`, the day the time was spent on, besides a timestamp of the entry. Where the workspace shows other people's time only as sums, `person` is refused (`time.aggregated_only`) and a group of fewer than three people is left out.
+// ItemAggregateQueryAggregateSource What is counted: the entries the scope and filter keep, the links whose two ends they both keep - an end the caller may not see is never counted -, or the time recorded on the kept entries. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too. A `time` summary counts the caller's own records and other people's where the caller approves time; its measure is `minutes`, it may group by `work_type`, `billable` or `person` besides a field of the entry and bucket by `day`, the day the time was spent on, besides a timestamp of the entry. Where the workspace shows other people's time only as sums, `person` is refused (`time.aggregated_only`) and a group of fewer than three people is left out. A `pages` summary counts the pages of one hub's space, or of every space the caller may read pages in for `workspace` - a collection or an entry holds none, and the entries' `filter` is refused; it is a `COUNT`, may group by `owner`, `template` or `verification` (`verified`, `expired` or `unverified` now) and bucket by `created_at` or `updated_at`; archived pages with `include_archived`, trashed ones never.
 type ItemAggregateQueryAggregateSource string
 
 // ItemAggregateResult defines model for ItemAggregateResult.

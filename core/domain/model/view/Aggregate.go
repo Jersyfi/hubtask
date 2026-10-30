@@ -81,7 +81,7 @@ func (q Quantity) ReadsFlow() bool {
 }
 
 // AggregateSource is what an aggregation counts: the entries a query keeps, the links between
-// them, or the time recorded on them (F-9). Records are entries.
+// them, the time recorded on them, or the pages of the spaces in scope (F-9). Records are entries.
 type AggregateSource string
 
 const (
@@ -92,6 +92,19 @@ const (
 	// SourceTime counts the time records on the entries the query keeps (UC-TIM-04): the reader's
 	// own, and other people's only where the use case says the reader sees them.
 	SourceTime AggregateSource = "time"
+	// SourcePages counts the pages of the hubs' spaces the use case found the reader may read
+	// (UC-DOC-01); a page is no entry, so the entries' filter does not apply to it.
+	SourcePages AggregateSource = "pages"
+)
+
+// PageGroup is a pages summary's grouping: a page's own field.
+type PageGroup string
+
+const (
+	PageByOwner    PageGroup = "owner"
+	PageByTemplate PageGroup = "template"
+	// PageByVerification is `verified`, `expired` or `unverified` at the moment of asking.
+	PageByVerification PageGroup = "verification"
 )
 
 // GroupByLinkType is the one grouping a links summary has beside its source end's fields.
@@ -154,6 +167,9 @@ type Aggregation struct {
 	ByDay   bool
 	// Sight is a time summary's reach, set by the use case.
 	Sight TimeSight
+	// PageGroup splits a pages summary; Hubs are the spaces it counts, set by the use case.
+	PageGroup PageGroup
+	Hubs      []shared.ID
 	// Bucket and BucketField cut the rows by period; both or neither.
 	Bucket      TimeBucket
 	BucketField Field
@@ -168,8 +184,14 @@ type Aggregation struct {
 
 // IsGrouped reports whether the aggregation is split by a field.
 func (a Aggregation) IsGrouped() bool {
-	return a.GroupBy.Name != "" || a.ByLinkType || a.TimeGroup != ""
+	return a.GroupBy.Name != "" || a.ByLinkType || a.TimeGroup != "" || a.PageGroup != ""
 }
+
+// CountsPages reports whether the aggregation counts pages rather than entries.
+func (a Aggregation) CountsPages() bool { return a.Source == SourcePages }
+
+// pageBuckets are the stamps a pages summary buckets by.
+var pageBuckets = []string{"created_at", "updated_at"}
 
 // CountsLinks reports whether the aggregation counts links rather than entries.
 func (a Aggregation) CountsLinks() bool { return a.Source == SourceLinks }
@@ -194,7 +216,7 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 	switch {
 	case source == "":
 		source = SourceEntries
-	case !slices.Contains([]AggregateSource{SourceEntries, SourceLinks, SourceTime}, source):
+	case !slices.Contains([]AggregateSource{SourceEntries, SourceLinks, SourceTime, SourcePages}, source):
 		return Aggregation{}, fieldError(path+"/source", "query.aggregate_source_unknown", nil)
 	}
 
@@ -208,6 +230,9 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 	// link, which is no question anybody asks.
 	if source == SourceLinks && function != AggregateCount {
 		return Aggregation{}, fieldError(path+"/function", "query.aggregate_links_count_only", nil)
+	}
+	if source == SourcePages && function != AggregateCount {
+		return Aggregation{}, fieldError(path+"/function", "query.aggregate_pages_count_only", nil)
 	}
 	result := Aggregation{Source: source, Function: function}
 
@@ -239,7 +264,14 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 	}
 
 	name := stringOf(document["group_by"])
-	if group := TimeGroup(name); source == SourceTime &&
+	if source == SourcePages && name != "" {
+		group := PageGroup(name)
+		if !slices.Contains([]PageGroup{PageByOwner, PageByTemplate, PageByVerification}, group) {
+			return Aggregation{}, fieldError(path+"/group_by", "query.field_not_groupable",
+				map[string]string{"field": name})
+		}
+		result.PageGroup = group
+	} else if group := TimeGroup(name); source == SourceTime &&
 		slices.Contains([]TimeGroup{TimeByWorkType, TimeByBillable, TimeByPerson}, group) {
 		result.TimeGroup = group
 	} else if name == GroupByLinkType && source == SourceLinks {
@@ -272,7 +304,9 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 			if err != nil {
 				return Aggregation{}, err
 			}
-			if _, custom := CustomField(target.Name); !custom && target.Kind != KindTimestamp {
+			_, custom := CustomField(target.Name)
+			if (!custom && target.Kind != KindTimestamp) ||
+				(source == SourcePages && !slices.Contains(pageBuckets, target.Name)) {
 				return Aggregation{}, fieldError(path+"/bucket/field", "query.field_not_bucketable",
 					map[string]string{"field": target.Name})
 			}
