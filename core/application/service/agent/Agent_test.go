@@ -625,3 +625,52 @@ func TestAShippedAgentAnswersItsOwnSet(t *testing.T) {
 		t.Fatalf("a text naming nothing answered %v", got)
 	}
 }
+
+type labeller struct {
+	asked      []string
+	collection shared.ID
+}
+
+func (l *labeller) Labels(_ context.Context, _ appshared.ActorContext, collection shared.ID, title, _ string) ([]string, int64, error) {
+	l.asked, l.collection = append(l.asked, title), collection
+	return []string{"Hardware"}, 40, nil
+}
+
+// UC-AGT-04 check 8: a triage given a collection answers the labels the classifier chooses for each
+// case expecting labels, and only those; without a collection none are answered and those cases
+// fail.
+func TestATriageAnswersTheLabelsOfItsOwnSet(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	triage := f.register(t, usecase.Input{"kind": "TICKET_TRIAGE"})
+	for _, c := range []usecase.Input{
+		{"title": "Printer jams", "expected": map[string]any{"labels": []any{"Hardware"}}},
+		{"title": "VPN drops", "expected": map[string]any{"labels": []any{"Network"}}},
+		{"title": "Nothing named", "expected": map[string]any{"cis": []any{}}},
+	} {
+		c["agent_id"] = triage.ID.String()
+		if _, err := (AddAgentCase{Desk: f.desk}).Descriptor().Handler.Invoke(ctx, person(admin), c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	l := &labeller{}
+	run := RunAgentEvaluation{Desk: f.desk, Labels: l}.Descriptor().Handler
+	out, err := run.Invoke(ctx, person(admin), usecase.Input{
+		"agent_id": triage.ID.String(), "hub_id": hubID.String(), "collection_id": collection.String(),
+	})
+	if err != nil || out["cases"] != 3 || out["passed"] != 2 {
+		t.Fatalf("run = %v %v", out, err)
+	}
+	if len(l.asked) != 2 || l.collection != collection {
+		t.Fatalf("asked %v about %s", l.asked, l.collection)
+	}
+	out, err = run.Invoke(ctx, person(admin), usecase.Input{"agent_id": triage.ID.String(), "hub_id": hubID.String()})
+	if err != nil || out["passed"] != 1 || len(l.asked) != 2 {
+		t.Fatalf("without a collection = %v %v, asked %v", out, err, l.asked)
+	}
+	if _, err := run.Invoke(ctx, person(admin), usecase.Input{
+		"agent_id": triage.ID.String(), "hub_id": hubID.String(), "collection_id": "nope",
+	}); err == nil {
+		t.Fatalf("an unreadable collection = %v", err)
+	}
+}

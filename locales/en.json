@@ -10155,6 +10155,8 @@
   "agents.agent_evaluates_not": "An agent does not run an agent's evaluation.",
   "agents.evaluation_hub_required": "Choose the hub whose configuration items the agent matches.",
   "agents.evaluation_by_answers": "This agent is evaluated by the answers somebody sends.",
+  "agents.evaluation_labels_too_many": "A run labels at most {maximum} cases; remove the labels some cases expect or split the set.",
+  "agents.evaluation_collection_invalid": "Choose the collection whose labels the triage chooses from.",
   "agents.before_invalid": "Give the moment as a date and time.",
   "agents.budget_invalid": "The budget is out of bounds.",
   "agents.budget_spent": "This agent's budget is spent until {renews_at}.",

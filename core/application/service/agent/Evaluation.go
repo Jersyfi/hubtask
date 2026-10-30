@@ -282,7 +282,21 @@ func (d Desk) scoreRun(
 // RunAgentEvaluation has a shipped agent answer its own set (G7): each case's title and notes are
 // the material its job would read. The CIs are read with the caller's rights, because an agent
 // that is not live yet passes no gate; the answers are compared as a recorded run's are.
-type RunAgentEvaluation struct{ Desk Desk }
+type RunAgentEvaluation struct {
+	Desk Desk
+	// Labels has the workspace's classifier label a triage's cases; nil answers no labels, and a
+	// case expecting them fails.
+	Labels CaseLabeller
+}
+
+// CaseLabeller answers the labels the workspace's classifier gives a text classified against a
+// collection, as the person who asks, and the tokens it spent (the suggestion module's CaseLabels).
+type CaseLabeller interface {
+	Labels(ctx context.Context, actor appshared.ActorContext, collection shared.ID, title, notes string) ([]string, int64, error)
+}
+
+// maxLabelledCases bounds the classifier's questions one run asks while its caller waits.
+const maxLabelledCases = 50
 
 func (h RunAgentEvaluation) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
@@ -291,13 +305,16 @@ func (h RunAgentEvaluation) Descriptor() usecase.Descriptor {
 		Permission: service.PermissionManageMembers,
 		Summary: "Has a shipped agent answer its own evaluation set: a knowledge draft answers title and body " +
 			"from each case, a CI suggestion and a ticket triage the names of the hub's CIs a case's text " +
-			"names. Compared and recorded as a recorded run is; a duplicate review and an agent built " +
+			"names, and a triage given a collection the labels the workspace's classifier chooses from the " +
+			"collection's for each case expecting labels (at most 50). Compared and recorded as a recorded " +
+			"run is; a duplicate review and an agent built " +
 			"elsewhere are evaluated by answers somebody sends. Needs MANAGE_MEMBERS at the workspace.",
 		SideEffects: "Writes the run's counts and an audit entry; no answer is kept.",
 		TokenScope:  scopeWrite,
 		Input: []usecase.Field{
 			{Name: "agent_id", Kind: usecase.KindID, Required: true},
 			{Name: "hub_id", Kind: usecase.KindID, Description: "The hub whose CIs a CI suggestion or a triage matches."},
+			{Name: "collection_id", Kind: usecase.KindID, Description: "The collection whose labels a triage chooses from."},
 		},
 		Audit:    usecase.AuditDeclaration{Action: EvaluatedAction, TargetType: agentTarget, Severity: audit.SeverityNotice, Required: true},
 		Activity: usecase.ActivityDeclaration{Exempt: "a run is no entry."},
@@ -335,13 +352,71 @@ func (h RunAgentEvaluation) invoke(ctx context.Context, actor appshared.ActorCon
 	default:
 		return nil, shared.ErrConflict.WithDetail("agents.evaluation_by_answers")
 	}
+	var labels map[string][]any
+	if collection := in.String("collection_id"); a.Kind == domain.KindTicketTriage && collection != "" {
+		if labels, err = h.caseLabels(ctx, actor, id, collection); err != nil {
+			return nil, err
+		}
+	}
 	run, err := d.scoreRun(ctx, actor, id, func(cases []domain.Case) map[string]map[string]any {
-		return AnswerCases(a.Kind, cases, names)
+		answers := AnswerCases(a.Kind, cases, names)
+		for caseID, chosen := range labels {
+			if answer, ok := answers[caseID]; ok {
+				answer["labels"] = chosen
+			}
+		}
+		return answers
 	})
 	if err != nil {
 		return nil, err
 	}
 	return RunOutput(run), nil
+}
+
+// caseLabels asks the classifier about each case expecting labels, outside a transaction - a
+// model is somebody else's machine (observability-reliability.md §8).
+func (h RunAgentEvaluation) caseLabels(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, collection string,
+) (map[string][]any, error) {
+	collectionID, err := shared.ParseID(collection)
+	if err != nil {
+		return nil, shared.ErrValidation.WithDetail("agents.evaluation_collection_invalid").
+			WithFields(shared.FieldError{Path: "/collection_id", Code: "agents.evaluation_collection_invalid"})
+	}
+	if h.Labels == nil {
+		return nil, nil
+	}
+	var cases []domain.Case
+	err = h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		cases, err = h.Desk.Store.ListCases(ctx, id, domain.MaxCases)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	var labelled []domain.Case
+	for _, c := range cases {
+		if _, expects := c.Expected["labels"]; expects {
+			labelled = append(labelled, c)
+		}
+	}
+	if len(labelled) > maxLabelledCases {
+		return nil, shared.ErrValidation.WithDetail("agents.evaluation_labels_too_many").
+			WithParams(map[string]string{"maximum": strconv.Itoa(maxLabelledCases)})
+	}
+	out := make(map[string][]any, len(labelled))
+	for _, c := range labelled {
+		names, _, err := h.Labels.Labels(ctx, actor, collectionID, c.Title, c.Notes)
+		if err != nil {
+			return nil, err
+		}
+		chosen := make([]any, 0, len(names))
+		for _, n := range names {
+			chosen = append(chosen, n)
+		}
+		out[c.ID.String()] = chosen
+	}
+	return out, nil
 }
 
 // ciNames reads a hub's CI names as the caller, at most the pages a job reads.
@@ -372,8 +447,8 @@ func (d Desk) ciNames(ctx context.Context, actor appshared.ActorContext, hub str
 }
 
 // AnswerCases is what a shipped agent answers to each case, by the rule its job follows: a
-// knowledge draft's title and body, the CIs a text names. The triage's labels come from the
-// classifier on an entry and are not answered here; a case expecting them fails.
+// knowledge draft's title and body, the CIs a text names. A triage's labels are the classifier's,
+// asked before (caseLabels).
 func AnswerCases(kind domain.Kind, cases []domain.Case, ciNames []string) map[string]map[string]any {
 	answers := make(map[string]map[string]any, len(cases))
 	for _, c := range cases {

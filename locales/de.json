@@ -10152,6 +10152,8 @@
   "agents.agent_evaluates_not": "Ein Agent führt keine Prüfung eines Agenten aus.",
   "agents.evaluation_hub_required": "Wählen Sie den Hub, dessen Konfigurationselemente der Agent abgleicht.",
   "agents.evaluation_by_answers": "Dieser Agent wird an den Antworten geprüft, die jemand sendet.",
+  "agents.evaluation_labels_too_many": "Ein Lauf vergibt Labels für höchstens {maximum} Fälle; entfernen Sie bei einigen Fällen die erwarteten Labels oder teilen Sie den Satz.",
+  "agents.evaluation_collection_invalid": "Wählen Sie die Sammlung, aus deren Labels die Triage wählt.",
   "agents.before_invalid": "Gib den Zeitpunkt als Datum und Uhrzeit an.",
   "agents.budget_invalid": "Das Budget liegt außerhalb der Grenzen.",
   "agents.budget_spent": "Das Budget dieses Agenten ist bis {renews_at} aufgebraucht.",
