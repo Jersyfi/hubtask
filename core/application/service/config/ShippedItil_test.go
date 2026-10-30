@@ -11,8 +11,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/servicedesk"
 	"github.com/Jersyfi/hubtask/core/application/service/workflow"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
+	automationmodel "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	desk "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	viewmodel "github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	textport "github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -38,7 +40,7 @@ func itilTemplate(t *testing.T) domain.Template {
 // every block one the use cases that apply it accept, and every section one the document has.
 func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	template := itilTemplate(t)
-	if template.Origin != domain.OriginHubtask || template.Version != 2 || !reservedKey(template.Key) {
+	if template.Origin != domain.OriginHubtask || template.Version != 3 || !reservedKey(template.Key) {
 		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
 	}
 	// Its hub part (templates.md §1): the hub's switches and which of the template's workflows
@@ -60,6 +62,49 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	if len(template.Hub[sectionScheme]) != 4 {
 		t.Errorf("the scheme is %v", template.Hub[sectionScheme])
 	}
+	// Its queues (UC-SVC-03, UC-SVC-07) are the hub's views, anchored on the hub that takes the
+	// part, and its macros (UC-SVC-06) the hub's manual rules, switched on.
+	tenant, id, now := shared.ID("01936f2a-7c1e-7000-8000-000000000001"), shared.ID("01936f2a-7c1e-7000-8000-000000000002"), time.Now()
+	hubPlaces := places{key: map[string]string{}, id: map[string]string{}, hub: lintHub.String()}
+	for _, key := range []string{"mine", "unassigned", "about_to_breach", "unhappy"} {
+		block := template.Hub[sectionViews][key]
+		if block == nil {
+			t.Errorf("the queue %s is missing", key)
+			continue
+		}
+		query, _ := mapQuery(block["query"], hubPlaces.in).(map[string]any)
+		if query["scope_container_id"] != lintHub.String() {
+			t.Errorf("the queue %s is not anchored on the hub: %v", key, query)
+		}
+		if _, err := viewmodel.ValidatedViewQuery(query); err != nil {
+			t.Errorf("the queue %s: %v", key, err)
+		}
+		if !viewmodel.Layout(text(block["layout"])).Valid() {
+			t.Errorf("the queue %s's layout %v", key, block["layout"])
+		}
+	}
+	if len(template.Hub[sectionRules]) == 0 {
+		t.Error("the desk brings no macro")
+	}
+	for key, block := range template.Hub[sectionRules] {
+		trigger, _ := block["trigger"].(map[string]any)
+		if enabled, _ := block["enabled"].(bool); !enabled || trigger["kind"] != "MANUAL" {
+			t.Errorf("the macro %s is not a manual rule switched on: %v", key, block)
+		}
+		var actions []automationmodel.Action
+		for _, raw := range block["actions"].([]any) {
+			action := raw.(map[string]any)
+			params, _ := action["params"].(map[string]any)
+			actions = append(actions, automationmodel.Action{Kind: text(action["kind"]), Params: params})
+		}
+		if _, err := automationmodel.NewRule(automationmodel.NewRuleInput{
+			ID: id, TenantID: tenant, Key: key, Name: text(block["name"]), Scope: automationmodel.Scope{Type: automationmodel.ScopeHub, ID: lintHub},
+			RunAs: id, Trigger: automationmodel.Trigger{Kind: automationmodel.TriggerManual}, Actions: actions,
+			OnError: automationmodel.OnError(text(block["on_error"])), CreatedBy: id, Now: now, Text: textport.Composing{},
+		}); err != nil {
+			t.Errorf("the macro %s: %v", key, err)
+		}
+	}
 	known := map[string]bool{sectionSettings: true}
 	for _, s := range sections() {
 		known[s.name] = true
@@ -69,7 +114,6 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 			t.Errorf("section %s is not one of the document's", name)
 		}
 	}
-	tenant, id, now := shared.ID("01936f2a-7c1e-7000-8000-000000000001"), shared.ID("01936f2a-7c1e-7000-8000-000000000002"), time.Now()
 	for key, block := range template.Document[sectionWorkflows] {
 		shape, err := workflow.ShapeFromInput(block["shape"])
 		if err == nil {

@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -689,6 +689,157 @@
       },
       "change": {
         "workflow": "change"
+      }
+    },
+    "views": {
+      "mine": {
+        "name": "Mine",
+        "layout": "LIST_EXPANDED",
+        "query": {
+          "scope_container_id": "@hub",
+          "filter": {
+            "op": "AND",
+            "nodes": [
+              {
+                "field": "assignee_id",
+                "op": "EQ",
+                "value": "@me"
+              },
+              {
+                "field": "is_completed",
+                "op": "EQ",
+                "value": false
+              }
+            ]
+          },
+          "sort": [
+            {
+              "field": "sla_due",
+              "nulls": "LAST"
+            }
+          ]
+        }
+      },
+      "unassigned": {
+        "name": "Unassigned",
+        "layout": "LIST_EXPANDED",
+        "query": {
+          "scope_container_id": "@hub",
+          "filter": {
+            "op": "AND",
+            "nodes": [
+              {
+                "field": "assignee_id",
+                "op": "IS_NULL"
+              },
+              {
+                "field": "is_completed",
+                "op": "EQ",
+                "value": false
+              }
+            ]
+          },
+          "sort": [
+            {
+              "field": "sla_due",
+              "nulls": "LAST"
+            }
+          ]
+        }
+      },
+      "about_to_breach": {
+        "name": "About to breach",
+        "layout": "LIST_EXPANDED",
+        "query": {
+          "scope_container_id": "@hub",
+          "filter": {
+            "op": "AND",
+            "nodes": [
+              {
+                "field": "sla_standing",
+                "op": "IN",
+                "value": [
+                  "AT_RISK",
+                  "BREACHED"
+                ]
+              },
+              {
+                "field": "is_completed",
+                "op": "EQ",
+                "value": false
+              }
+            ]
+          },
+          "sort": [
+            {
+              "field": "sla_due",
+              "nulls": "LAST"
+            }
+          ]
+        }
+      },
+      "unhappy": {
+        "name": "Unhappy",
+        "layout": "LIST_EXPANDED",
+        "query": {
+          "scope_container_id": "@hub",
+          "filter": {
+            "op": "AND",
+            "nodes": [
+              {
+                "field": "satisfaction",
+                "op": "LTE",
+                "value": 2
+              }
+            ]
+          },
+          "sort": [
+            {
+              "field": "updated_at",
+              "dir": "DESC"
+            }
+          ]
+        }
+      }
+    },
+    "rules": {
+      "acknowledge": {
+        "name": "Acknowledge",
+        "enabled": true,
+        "trigger": {
+          "kind": "MANUAL"
+        },
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "ADD_COMMENT",
+            "params": {
+              "body": "Thank you - we have your request and are working on it."
+            }
+          }
+        ]
+      },
+      "ask_for_information": {
+        "name": "Ask for more information",
+        "enabled": true,
+        "trigger": {
+          "kind": "MANUAL"
+        },
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "ADD_COMMENT",
+            "params": {
+              "body": "To go on we need a little more from you. Could you tell us more?"
+            }
+          },
+          {
+            "kind": "TAKE_STEP",
+            "params": {
+              "to_status": "waiting"
+            }
+          }
+        ]
       }
     }
   }
