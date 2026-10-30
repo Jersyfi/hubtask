@@ -4,13 +4,21 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { CiAlert, CiAttribute, CiClass, CiConnector, CiRelationType, ConfigurationItem } from '@hubtask/sync-engine';
+import type {
+  CiAlert, CiAsset, CiAttribute, CiCampaignDetail, CiClass, CiConnector, CiGroup, CiRelationType, ConfigurationItem, EntryCis, ServiceMap,
+} from '@hubtask/sync-engine';
 
 import {
   alertTone, alertsPath, connectorDefine, connectorDraft, connectorMissing, connectorPath, connectorsPath, connectorTone, intakeAddress,
   changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
   sideBySide, typeAllows,
+} from './cmdb.ts';
+import {
+  aliasDefine, assetDraft, assetMissing, assetMoves, assetRegister, assetsPath, assetTone, attestationsInOrder, attestPath, campaignClosePath,
+  campaignDraft, campaignMissing, campaignStart, ciAssetMovePath, ciAssetPath, collisionsInOrder, costField, costText, entryCiPath, entryCisPath,
+  entryKey, groupConditions, groupDefine, groupDraft, groupMembersPath, groupMissing, groupPath, isGroupEdge, mapLayers, matchingProducts, mayAttest,
+  minorDigits, moveNeedsHolder, parseCost, reachedServices, serviceMapPath, softwareAliasPath, softwarePath, verdictTone, ASSET_SECTIONS,
 } from './cmdb.ts';
 
 const cls = (key: string, lineage: string[], extra: Partial<CiClass> = {}): CiClass => ({
@@ -252,4 +260,171 @@ test('UC-AST-08 check 7 and UC-AST-07 check 9: an intake has no address or perio
   });
   assert.equal(alertTone(alert('FIRING')), 'danger');
   assert.equal(alertTone(alert('RESOLVED')), 'neutral');
+});
+
+// --- The inventory's assurance (UC-AST-09 … UC-AST-13) ------------------------------------------
+
+test('an entry names and removes its affected CIs at its own address (UC-AST-09 check 6)', () => {
+  assert.equal(entryCisPath('i1'), '/items/i1/cis');
+  assert.equal(entryCiPath('i1', 'c1'), '/items/i1/cis/c1');
+});
+
+test('the entry screen lists the services reached by name and the direct collisions first (UC-AST-09 check 6)', () => {
+  const on = (id: string, start: string | null, extra: object = {}) => ({
+    item_id: id, title: id, handle: 'ops', number: 7, entry_type: 'change', ci_id: 'c1', start_at: start, due_at: null, ...extra,
+  });
+  const answer: EntryCis = {
+    item_id: 'i1',
+    cis: [],
+    services: [{ ci_id: 's2', class: 'service', name: 'Mail' }, { ci_id: 's1', class: 'service_offering', name: 'Booking' }],
+    related: [on('r1', null)],
+    collisions: [
+      { ...on('x1', '2026-11-02T08:00:00Z'), direct: false },
+      { ...on('x2', '2026-11-03T08:00:00Z'), direct: true },
+      { ...on('x3', '2026-11-01T08:00:00Z'), direct: false },
+    ],
+  };
+  assert.deepEqual(reachedServices(answer).map((each) => each.name), ['Booking', 'Mail']);
+  assert.deepEqual(collisionsInOrder(answer).map((each) => each.item_id), ['x2', 'x3', 'x1']);
+  assert.equal(entryKey({ handle: 'ops', number: 7 }), 'OPS-7');
+});
+
+test('the Assets screen has a section each for campaigns, groups, the register and software', () => {
+  for (const each of ['campaigns', 'groups', 'register', 'software']) {
+    assert.ok((ASSET_SECTIONS as readonly string[]).includes(each), each);
+    assert.equal(sectionOf(each), each);
+  }
+});
+
+test('a campaign starts with its classes, its day and its period, and the form says what it lacks (UC-AST-10 check 5)', () => {
+  assert.equal(attestPath('k1', 'c1'), '/ci-campaigns/k1/cis/c1');
+  assert.equal(campaignClosePath('k1'), '/ci-campaigns/k1:close');
+  const draft = { ...campaignDraft(), name: ' Annual review ', classes: ['server'], dueBy: '2026-12-31', dueOn: '2026-11-30' };
+  assert.deepEqual(campaignStart(draft), { name: 'Annual review', due_on: '2026-11-30', classes: ['server'], due_by: '2026-12-31', review_months: 12 });
+  assert.deepEqual(campaignStart({ ...draft, classes: [], dueBy: '', months: '' }), { name: 'Annual review', due_on: '2026-11-30' });
+  assert.deepEqual(campaignMissing(draft, '2026-10-30'), []);
+  assert.deepEqual(campaignMissing({ ...campaignDraft(), dueOn: '2026-10-30', months: '61' }, '2026-10-30'), [
+    'cmdb.campaign_name_invalid', 'cmdb.campaign_due_past', 'cmdb.campaign_period_invalid',
+  ]);
+});
+
+test('the person asked sees their own questions first and answers them; anybody else needs to write (UC-AST-10 check 5)', () => {
+  const ask = (ci: string, owner: string | null, verdict: 'PENDING' | 'CONFIRMED' | 'DISPUTED' = 'PENDING') => ({
+    ci_id: ci, name: ci, class: 'server', owner_id: owner, verdict, attested_by: null, attested_at: null,
+  });
+  const detail: Pick<CiCampaignDetail, 'attestations'> = {
+    attestations: [ask('d', 'bert', 'CONFIRMED'), ask('c', 'dana'), ask('b', 'bert'), ask('a', null)],
+  };
+  assert.deepEqual(attestationsInOrder(detail, 'bert').map((each) => each.ci_id), ['b', 'a', 'c', 'd']);
+  const mine = detail.attestations[2]!;
+  const theirs = detail.attestations[1]!;
+  assert.equal(mayAttest({ closed_at: null }, mine, 'bert', false), true);
+  assert.equal(mayAttest({ closed_at: null }, theirs, 'bert', false), false);
+  assert.equal(mayAttest({ closed_at: null }, theirs, 'bert', true), true);
+  assert.equal(mayAttest({ closed_at: '2026-10-30T00:00:00Z' }, mine, 'bert', true), false, 'a closed campaign takes no answer');
+  assert.equal(verdictTone('CONFIRMED'), 'success');
+  assert.equal(verdictTone('DISPUTED'), 'warning');
+  assert.equal(verdictTone('PENDING'), 'neutral');
+});
+
+test('a group is defined by its filter, its conditions one per line, and its service cleared (UC-AST-11 check 5)', () => {
+  assert.equal(groupPath('h', 'web servers'), '/hubs/h/ci-groups/web%20servers');
+  assert.equal(groupMembersPath('g1'), '/ci-groups/g1/members');
+  assert.equal(serviceMapPath('h'), '/hubs/h/service-map');
+  assert.equal(serviceMapPath('h', 's1'), '/hubs/h/service-map?service_id=s1');
+  assert.deepEqual(groupConditions('os = Debian\nnot a condition\n = x\nrole=web = front'), { os: 'Debian', role: 'web = front' });
+  const draft = { ...groupDraft(), key: 'web', name: ' Web ', classes: ['server'], nameHas: ' web ', conditions: 'os = Debian' };
+  assert.deepEqual(groupDefine(draft), {
+    name: 'Web', filter: { classes: ['server'], name_has: 'web', attributes: { os: 'Debian' } }, service_id: null,
+  });
+  assert.deepEqual(groupMissing(draft, true), []);
+  assert.deepEqual(groupMissing({ ...groupDraft(), key: 'Web' }, true), ['cmdb.group_key_invalid', 'cmdb.group_name_invalid', 'cmdb.group_filter_empty']);
+  const group: CiGroup = {
+    id: 'g1', hub_id: 'h', key: 'web', name: 'Web', filter: { stages: ['IN_USE'], attributes: { os: 'Debian' } }, service_id: 's1',
+    updated_at: '2026-10-01T00:00:00Z', version: 2,
+  };
+  assert.deepEqual(groupDefine(groupDraft(group)), { name: 'Web', filter: { stages: ['IN_USE'], attributes: { os: 'Debian' } }, service_id: 's1' });
+});
+
+test('the service map is drawn in its layers, each ordered by its neighbours above (UC-AST-11 check 5)', () => {
+  const node = (id: string, layer: number) => ({ ci_id: id, class: 'ci', name: id, stage: 'IN_USE', layer });
+  const map: Pick<ServiceMap, 'nodes' | 'edges'> = {
+    nodes: [node('offer', 0), node('svc-b', 1), node('svc-a', 1), node('host-z', 5), node('host-y', 5), node('lonely', 5)],
+    edges: [
+      { source: 'offer', target: 'svc-b', type: 'depends_on' },
+      { source: 'svc-b', target: 'host-y', type: 'runs_on' },
+      { source: 'svc-a', target: 'host-z', type: 'group:web' },
+    ],
+  };
+  const layers = mapLayers(map);
+  assert.deepEqual(layers.map((each) => each.layer), [0, 1, 5], 'an empty layer is left out');
+  assert.deepEqual(layers[1]!.nodes.map((each) => each.ci_id), ['svc-b', 'svc-a'], 'beneath the offering first, the rest by name');
+  assert.deepEqual(layers[2]!.nodes.map((each) => each.ci_id), ['host-y', 'host-z', 'lonely']);
+  assert.equal(isGroupEdge('group:web'), true);
+  assert.equal(isGroupEdge('runs_on'), false);
+});
+
+const asset = (extra: Partial<CiAsset> = {}): CiAsset => ({
+  ci_id: 'c1', hub_id: 'h', asset_tag: 'A-1', cost_minor: 129900, currency: 'EUR', purchased_on: '2026-01-10', supplier: 'Shop',
+  warranty_until: '2029-01-10', warranty_ended: false, contract_id: null, stockroom_id: null, assigned_to: null, request_id: null,
+  state: 'IN_STOCK', disposal: null, updated_at: '2026-10-01T00:00:00Z', version: 3, ...extra,
+});
+
+test('an asset moves only where the domain lets it, and deploys only to a holder or a stockroom (UC-AST-12 check 5)', () => {
+  assert.equal(assetsPath('h'), '/hubs/h/assets');
+  assert.equal(assetsPath('h', 'DEPLOYED'), '/hubs/h/assets?state=DEPLOYED');
+  assert.equal(ciAssetPath('c1'), '/cis/c1/asset');
+  assert.equal(ciAssetMovePath('c1'), '/cis/c1/asset:move');
+  assert.deepEqual(assetMoves('REQUESTED'), ['ORDERED', 'IN_STOCK']);
+  assert.deepEqual(assetMoves('DEPLOYED'), ['IN_STOCK', 'RETIRED']);
+  assert.deepEqual(assetMoves('RETIRED'), ['IN_STOCK', 'DISPOSED']);
+  assert.deepEqual(assetMoves('DISPOSED'), [], 'a disposed asset moves no more');
+  assert.equal(moveNeedsHolder(asset(), 'DEPLOYED'), true);
+  assert.equal(moveNeedsHolder(asset({ assigned_to: 'bert' }), 'DEPLOYED'), false);
+  assert.equal(moveNeedsHolder(asset(), 'RETIRED'), false);
+  assert.equal(assetTone(asset({ state: 'DEPLOYED' })), 'success');
+  assert.equal(assetTone(asset({ state: 'DEPLOYED', warranty_ended: true })), 'warning');
+});
+
+test('a cost is typed in major units and kept in minor ones, by its currency (UC-AST-12 check 5)', () => {
+  assert.equal(minorDigits('EUR'), 2);
+  assert.equal(minorDigits('JPY'), 0);
+  assert.equal(parseCost('1299,00', 'EUR'), 129900);
+  assert.equal(parseCost('1 299.5', 'EUR'), 129950);
+  assert.equal(parseCost('5000', 'JPY'), 5000);
+  assert.equal(parseCost('-1', 'EUR'), undefined);
+  assert.equal(parseCost('ten', 'EUR'), undefined);
+  assert.equal(costField(129900, 'EUR'), '1299.00');
+  assert.match(costText(129900, 'EUR', 'en'), /1,299\.00/u);
+  assert.equal(costText(0, '', 'en'), '—');
+});
+
+test('the asset form sends what it holds, clears what was emptied and refuses what the server would (UC-AST-12 check 5)', () => {
+  const draft = assetDraft(asset({ supplier: '' }));
+  assert.equal(draft.cost, '1299.00');
+  assert.deepEqual(assetRegister({ ...draft, warranty: '', currency: 'eur' }, false), {
+    asset_tag: 'A-1', cost_minor: 129900, currency: 'EUR', purchased_on: '2026-01-10', supplier: '', warranty_until: null,
+    contract_id: null, stockroom_id: null, assigned_to: null, request_id: null,
+  });
+  const fresh = assetRegister({ ...assetDraft(), state: 'ORDERED' }, true);
+  assert.equal(fresh.state, 'ORDERED');
+  assert.equal(fresh.cost_minor, 0);
+  assert.equal('currency' in fresh, false, 'no currency without a cost');
+  assert.deepEqual(assetMissing({ ...draft, currency: '' }), ['cmdb.asset_currency_invalid']);
+  assert.deepEqual(assetMissing({ ...draft, cost: 'x' }), ['cmdb.asset_cost_invalid']);
+  assert.deepEqual(assetMissing({ ...draft, warranty: '2025-12-31' }), ['cmdb.asset_warranty_before_purchase']);
+});
+
+test('software is narrowed by its words and an alias for any publisher sends none (UC-AST-13 check 3)', () => {
+  assert.equal(softwarePath('h'), '/hubs/h/software');
+  assert.equal(softwareAliasPath('a1'), '/software-aliases/a1');
+  assert.deepEqual(aliasDefine({ matchPublisher: ' ', matchProduct: ' MS Office ', publisher: 'Microsoft', product: 'Office' }), {
+    match_product: 'MS Office', product: 'Office', publisher: 'Microsoft',
+  });
+  const product = (publisher: string, name: string, installations: number) => ({
+    publisher, product: name, aliased: false, versions: [], installations, ci_ids: [],
+  });
+  const all = [product('mozilla', 'firefox', 3), product('microsoft', 'office', 9), product('microsoft', 'edge', 9)];
+  assert.deepEqual(matchingProducts(all, '').map((each) => each.product), ['edge', 'office', 'firefox']);
+  assert.deepEqual(matchingProducts(all, 'MICRO off').map((each) => each.product), ['office']);
 });

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * A hub's configuration items as the *Assets* screen needs them (M6, UC-AST-01 … UC-AST-06): the
+ * A hub's configuration items as the *Assets* screen needs them (M6, UC-AST-01 … UC-AST-13): the
  * paths it reads, the inventory grouped by class, a typed attribute read from what a person typed,
  * the relations both ways in their own words, the impact by depth, the protection need beside the
  * one inherited, duplicates side by side, and a file's format and columns. Pure, so the shapes
@@ -10,8 +10,9 @@
  */
 
 import type {
-  CiAlert, CiAttribute, CiClass, CiConnector, CiConnectorDefine, CiDecision, CiFileImport, CiOwnProtection, CiProtection, CiReached,
-  CiRelation, CiRelationType, ConfigurationItem,
+  CiAlert, CiAsset, CiAssetRegister, CiAttribute, CiCampaign, CiCampaignDetail, CiCampaignStart, CiClass, CiConnector, CiConnectorDefine,
+  CiDecision, CiFileImport, CiGroup, CiGroupDefine, CiOwnProtection, CiProtection, CiReached, CiRelation, CiRelationType, ConfigurationItem,
+  EntryCis, EntryOnCi, ServiceMap, SoftwareAliasDefine, SoftwareProductList,
 } from '@hubtask/sync-engine';
 
 export const ROOT_CLASS = 'ci';
@@ -37,7 +38,7 @@ export const duplicatesPath = (hubId: string) => `/hubs/${hubId}/ci-duplicates`;
 export const healthPath = (hubId: string) => `/hubs/${hubId}/cmdb-health`;
 
 /** The sections of a hub's *Assets* screen, in their order; the first is the address's default. */
-export const ASSET_SECTIONS = ['inventory', 'runs', 'duplicates', 'import', 'connectors', 'alerts', 'health'] as const;
+export const ASSET_SECTIONS = ['inventory', 'runs', 'duplicates', 'import', 'connectors', 'alerts', 'health', 'campaigns', 'groups', 'register', 'software'] as const;
 export type AssetSection = (typeof ASSET_SECTIONS)[number];
 export const sectionOf = (name: string | undefined): AssetSection =>
   (ASSET_SECTIONS as readonly string[]).includes(name ?? '') ? (name as AssetSection) : 'inventory';
@@ -520,3 +521,339 @@ export const RUN_ALERT_KEY = 'hubtask.connector_run';
 
 /** A firing alert is a problem; a resolved one is history. */
 export const alertTone = (alert: CiAlert): 'danger' | 'neutral' => (alert.status === 'FIRING' ? 'danger' : 'neutral');
+
+// --- The inventory's assurance (UC-AST-09 … UC-AST-13) ------------------------------------------
+
+export const entryCisPath = (itemId: string) => `/items/${itemId}/cis`;
+export const entryCiPath = (itemId: string, ciId: string) => `${entryCisPath(itemId)}/${ciId}`;
+export const campaignsPath = (hubId: string) => `/hubs/${hubId}/ci-campaigns`;
+export const campaignPath = (campaignId: string) => `/ci-campaigns/${campaignId}`;
+export const attestPath = (campaignId: string, ciId: string) => `${campaignPath(campaignId)}/cis/${ciId}`;
+export const campaignClosePath = (campaignId: string) => `${campaignPath(campaignId)}:close`;
+export const groupsPath = (hubId: string) => `/hubs/${hubId}/ci-groups`;
+export const groupPath = (hubId: string, key: string) => `${groupsPath(hubId)}/${encodeURIComponent(key)}`;
+export const groupMembersPath = (groupId: string) => `/ci-groups/${groupId}/members`;
+export const serviceMapPath = (hubId: string, serviceId?: string) =>
+  `/hubs/${hubId}/service-map${serviceId ? `?service_id=${serviceId}` : ''}`;
+export const assetsPath = (hubId: string, state?: AssetState) => `/hubs/${hubId}/assets${state ? `?state=${state}` : ''}`;
+export const ciAssetPath = (ciId: string) => `/cis/${ciId}/asset`;
+export const ciAssetMovePath = (ciId: string) => `${ciAssetPath(ciId)}:move`;
+export const softwareAliasesPath = '/software-aliases';
+export const softwareAliasPath = (aliasId: string) => `${softwareAliasesPath}/${aliasId}`;
+export const softwarePath = (hubId: string) => `/hubs/${hubId}/software`;
+
+/** An entry's link to another, by its collection's handle and number - `OPS-12`. */
+export const entryKey = (entry: Pick<EntryOnCi, 'handle' | 'number'>) => `${entry.handle.toUpperCase()}-${entry.number}`;
+
+/** The services the affected CIs reach, by name, an offering before a service of the same name. */
+export const reachedServices = (answer: EntryCis): EntryCis['services'] =>
+  [...answer.services].sort((a, b) => a.name.localeCompare(b.name) || a.class.localeCompare(b.class));
+
+/** A collision on the CI itself first, then by the other entry's start. */
+export const collisionsInOrder = (answer: EntryCis): EntryCis['collisions'] =>
+  [...answer.collisions].sort((a, b) => Number(b.direct) - Number(a.direct) || (a.start_at ?? '').localeCompare(b.start_at ?? ''));
+
+// Campaigns (UC-AST-10).
+
+export interface CampaignDraft {
+  name: string;
+  classes: string[];
+  /** Only CIs whose review falls due by this day; empty asks every CI of the classes. */
+  dueBy: string;
+  dueOn: string;
+  months: string;
+}
+
+export const campaignDraft = (): CampaignDraft => ({ name: '', classes: [], dueBy: '', dueOn: '', months: '12' });
+
+/** The body `startCiCampaign` takes; a period left empty is the server's twelve months. */
+export function campaignStart(draft: CampaignDraft): CiCampaignStart {
+  const months = Number.parseInt(draft.months, 10);
+  return {
+    name: draft.name.trim(),
+    due_on: draft.dueOn,
+    ...(draft.classes.length > 0 ? { classes: [...draft.classes] } : {}),
+    ...(draft.dueBy ? { due_by: draft.dueBy } : {}),
+    ...(Number.isFinite(months) ? { review_months: months } : {}),
+  };
+}
+
+/** What the form still lacks, as message codes; the day it is due must lie ahead of `today`. */
+export function campaignMissing(draft: CampaignDraft, today: string): string[] {
+  const out: string[] = [];
+  if (!draft.name.trim()) out.push('cmdb.campaign_name_invalid');
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(draft.dueOn) || draft.dueOn <= today) out.push('cmdb.campaign_due_past');
+  const months = Number(draft.months);
+  if (draft.months.trim() && !(Number.isInteger(months) && months >= 1 && months <= 60)) out.push('cmdb.campaign_period_invalid');
+  return out;
+}
+
+type Attestation = CiCampaignDetail['attestations'][number];
+
+/**
+ * A campaign's questions as its screen lists them: those the reader is asked and has not answered
+ * first, then the others pending, then the answered, each by name.
+ */
+export function attestationsInOrder(detail: Pick<CiCampaignDetail, 'attestations'>, me: string | undefined): Attestation[] {
+  const weight = (each: Attestation) => (each.verdict !== 'PENDING' ? 2 : me && each.owner_id === me ? 0 : 1);
+  return [...detail.attestations].sort((a, b) => weight(a) - weight(b) || a.name.localeCompare(b.name));
+}
+
+/** Whether the reader may answer a question: the person asked with READ, anybody with WRITE_ITEMS. */
+export const mayAttest = (campaign: Pick<CiCampaign, 'closed_at'>, each: Attestation, me: string | undefined, mayWrite: boolean) =>
+  !campaign.closed_at && (mayWrite || (!!me && each.owner_id === me));
+
+export function verdictTone(verdict: Attestation['verdict']): 'success' | 'warning' | 'neutral' {
+  if (verdict === 'CONFIRMED') return 'success';
+  if (verdict === 'DISPUTED') return 'warning';
+  return 'neutral';
+}
+
+// Groups and the service map (UC-AST-11).
+
+export const CI_STAGES = ['PLANNED', 'ORDERED', 'IN_STOCK', 'IN_USE', 'MAINTENANCE', 'RETIRED', 'DISPOSED'] as const;
+type CiStage = (typeof CI_STAGES)[number];
+
+export interface GroupDraft {
+  key: string;
+  name: string;
+  classes: string[];
+  stages: CiStage[];
+  nameHas: string;
+  /** One condition per line, `attribute = value`. */
+  conditions: string;
+  service: string;
+}
+
+export function groupDraft(of?: CiGroup): GroupDraft {
+  return {
+    key: of?.key ?? '',
+    name: of?.name ?? '',
+    classes: [...(of?.filter.classes ?? [])],
+    stages: [...(of?.filter.stages ?? [])],
+    nameHas: of?.filter.name_has ?? '',
+    conditions: Object.entries(of?.filter.attributes ?? {}).map(([key, value]) => `${key} = ${value}`).join('\n'),
+    service: of?.service_id ?? '',
+  };
+}
+
+/** The attribute conditions a draft's lines hold; a line without `=` is not one. */
+export function groupConditions(text: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of lines(text)) {
+    const at = line.indexOf('=');
+    if (at <= 0) continue;
+    const key = line.slice(0, at).trim();
+    if (key) out[key] = line.slice(at + 1).trim();
+  }
+  return out;
+}
+
+/** The body `defineCiGroup` takes: only the conditions given, the service cleared with `null`. */
+export function groupDefine(draft: GroupDraft): CiGroupDefine {
+  const attributes = groupConditions(draft.conditions);
+  const nameHas = draft.nameHas.trim();
+  return {
+    name: draft.name.trim(),
+    filter: {
+      ...(draft.classes.length > 0 ? { classes: [...draft.classes] } : {}),
+      ...(draft.stages.length > 0 ? { stages: [...draft.stages] } : {}),
+      ...(nameHas ? { name_has: nameHas } : {}),
+      ...(Object.keys(attributes).length > 0 ? { attributes } : {}),
+    },
+    service_id: draft.service || null,
+  };
+}
+
+export function groupMissing(draft: GroupDraft, isNew: boolean): string[] {
+  const out: string[] = [];
+  if (isNew && !/^[a-z][a-z0-9_]{0,62}$/u.test(draft.key)) out.push('cmdb.group_key_invalid');
+  if (!draft.name.trim()) out.push('cmdb.group_name_invalid');
+  if (Object.keys(groupDefine(draft).filter).length === 0) out.push('cmdb.group_filter_empty');
+  return out;
+}
+
+/** The service map's six layers, from what a person uses down to what everything stands on. */
+export const MAP_LAYERS = [0, 1, 2, 3, 4, 5] as const;
+
+type MapNode = ServiceMap['nodes'][number];
+
+/**
+ * The map's layers with their CIs in drawing order: each layer's CIs sorted by where their
+ * neighbours in the layer above stand (the mean of their places), so lines cross less; a CI with
+ * none above, and a tie, by name. The order is the same each time the same map is drawn.
+ */
+export function mapLayers(map: Pick<ServiceMap, 'nodes' | 'edges'>): { readonly layer: number; readonly nodes: readonly MapNode[] }[] {
+  const neighbours = new Map<string, string[]>();
+  for (const edge of map.edges) {
+    neighbours.set(edge.source, [...(neighbours.get(edge.source) ?? []), edge.target]);
+    neighbours.set(edge.target, [...(neighbours.get(edge.target) ?? []), edge.source]);
+  }
+  const place = new Map<string, number>();
+  const out: { layer: number; nodes: MapNode[] }[] = [];
+  for (const layer of MAP_LAYERS) {
+    const here = map.nodes.filter((node) => node.layer === layer);
+    if (here.length === 0) continue;
+    const centre = (node: MapNode) => {
+      const above = (neighbours.get(node.ci_id) ?? []).map((id) => place.get(id)).filter((at): at is number => at !== undefined);
+      return above.length > 0 ? above.reduce((sum, at) => sum + at, 0) / above.length : Number.POSITIVE_INFINITY;
+    };
+    const ordered = here
+      .map((node) => ({ node, centre: centre(node) }))
+      .sort((a, b) => (a.centre === b.centre ? 0 : a.centre - b.centre) || a.node.name.localeCompare(b.node.name))
+      .map((each) => each.node);
+    ordered.forEach((node, index) => place.set(node.ci_id, index));
+    out.push({ layer, nodes: ordered });
+  }
+  return out;
+}
+
+/** A map edge that joins a group's member to the service it stands for, not a relation. */
+export const isGroupEdge = (type: string) => type.startsWith('group:');
+
+// The asset register (UC-AST-12).
+
+export const ASSET_STATES = ['REQUESTED', 'ORDERED', 'IN_STOCK', 'DEPLOYED', 'RETIRED', 'DISPOSED'] as const;
+export type AssetState = (typeof ASSET_STATES)[number];
+export const DISPOSAL_METHODS = ['WIPED', 'DESTROYED', 'RECYCLED', 'RETURNED', 'SOLD'] as const;
+export type DisposalMethod = (typeof DISPOSAL_METHODS)[number];
+
+/** Where each state may go, as the domain's `assetMoves` states it; disposed is the end. */
+const ASSET_MOVES: Record<AssetState, readonly AssetState[]> = {
+  REQUESTED: ['ORDERED', 'IN_STOCK'],
+  ORDERED: ['IN_STOCK'],
+  IN_STOCK: ['DEPLOYED', 'RETIRED'],
+  DEPLOYED: ['IN_STOCK', 'RETIRED'],
+  RETIRED: ['IN_STOCK', 'DISPOSED'],
+  DISPOSED: [],
+};
+export const assetMoves = (state: AssetState): readonly AssetState[] => ASSET_MOVES[state] ?? [];
+
+/** Whether a move is offered: deploying needs a holder or a stockroom (`cmdb.asset_deploy_unassigned`). */
+export const moveNeedsHolder = (asset: Pick<CiAsset, 'assigned_to' | 'stockroom_id'>, to: AssetState) =>
+  to === 'DEPLOYED' && !asset.assigned_to && !asset.stockroom_id;
+
+/** How many minor units a currency's major one holds - two for EUR, none for JPY. */
+export function minorDigits(currency: string): number {
+  try {
+    return new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits ?? 2;
+  } catch {
+    return 2;
+  }
+}
+
+/** A typed cost in major units as minor units, or undefined when it is not a cost. */
+export function parseCost(text: string, currency: string): number | undefined {
+  const value = text.trim().replace(/\s/gu, '').replace(',', '.');
+  if (!/^\d+(\.\d+)?$/u.test(value)) return undefined;
+  return Math.round(Number(value) * 10 ** minorDigits(currency));
+}
+
+/** Minor units as the field shows them, in major units. */
+export const costField = (minor: number, currency: string) => {
+  const digits = minorDigits(currency);
+  return (minor / 10 ** digits).toFixed(digits);
+};
+
+/** A cost in the reader's language, or a dash for none. */
+export function costText(minor: number, currency: string, locale: string): string {
+  if (!currency || minor === 0) return '—';
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(minor / 10 ** minorDigits(currency));
+  } catch {
+    return `${costField(minor, currency)} ${currency}`;
+  }
+}
+
+export interface AssetDraft {
+  tag: string;
+  cost: string;
+  currency: string;
+  purchased: string;
+  supplier: string;
+  warranty: string;
+  contract: string;
+  stockroom: string;
+  holder: string;
+  request: string;
+  state: AssetState;
+}
+
+export function assetDraft(of?: CiAsset): AssetDraft {
+  return {
+    tag: of?.asset_tag ?? '',
+    cost: of && of.currency && of.cost_minor ? costField(of.cost_minor, of.currency) : '',
+    currency: of?.currency ?? '',
+    purchased: of?.purchased_on ?? '',
+    supplier: of?.supplier ?? '',
+    warranty: of?.warranty_until ?? '',
+    contract: of?.contract_id ?? '',
+    stockroom: of?.stockroom_id ?? '',
+    holder: of?.assigned_to ?? '',
+    request: of?.request_id ?? '',
+    state: of?.state ?? 'REQUESTED',
+  };
+}
+
+/** What the form still lacks or holds wrong, as the server's codes, in the order of the fields. */
+export function assetMissing(draft: AssetDraft): string[] {
+  const out: string[] = [];
+  const currency = draft.currency.trim().toUpperCase();
+  if (draft.cost.trim() && parseCost(draft.cost, currency || 'EUR') === undefined) out.push('cmdb.asset_cost_invalid');
+  if (draft.cost.trim() && !/^[A-Z]{3}$/u.test(currency)) out.push('cmdb.asset_currency_invalid');
+  if (draft.purchased && draft.warranty && draft.warranty < draft.purchased) out.push('cmdb.asset_warranty_before_purchase');
+  return out;
+}
+
+/**
+ * The body `registerCiAsset` takes. A field emptied sends `null`, so the record forgets it; the
+ * currency only beside a cost, which the contract's pattern needs; the state only for a new record,
+ * because a record moves through `moveCiAsset`.
+ */
+export function assetRegister(draft: AssetDraft, isNew: boolean): CiAssetRegister {
+  const currency = draft.currency.trim().toUpperCase();
+  const cost = draft.cost.trim() ? parseCost(draft.cost, currency) ?? 0 : 0;
+  const orNull = (value: string) => value.trim() || null;
+  return {
+    asset_tag: draft.tag.trim(),
+    cost_minor: cost,
+    ...(cost > 0 ? { currency } : {}),
+    purchased_on: orNull(draft.purchased),
+    supplier: draft.supplier.trim(),
+    warranty_until: orNull(draft.warranty),
+    contract_id: orNull(draft.contract),
+    stockroom_id: orNull(draft.stockroom),
+    assigned_to: orNull(draft.holder),
+    request_id: orNull(draft.request),
+    ...(isNew ? { state: draft.state } : {}),
+  };
+}
+
+/** The tone an asset's state is drawn in; one retired or disposed is history. */
+export function assetTone(asset: Pick<CiAsset, 'state' | 'warranty_ended'>): 'success' | 'info' | 'warning' | 'neutral' {
+  if (asset.state === 'DEPLOYED') return asset.warranty_ended ? 'warning' : 'success';
+  if (asset.state === 'IN_STOCK') return 'info';
+  return 'neutral';
+}
+
+// Software (UC-AST-13).
+
+/** The body `defineSoftwareAlias` takes; a match publisher left empty matches any publisher. */
+export function aliasDefine(draft: { matchPublisher: string; matchProduct: string; publisher: string; product: string }): SoftwareAliasDefine {
+  return {
+    match_product: draft.matchProduct.trim(),
+    product: draft.product.trim(),
+    ...(draft.matchPublisher.trim() ? { match_publisher: draft.matchPublisher.trim() } : {}),
+    ...(draft.publisher.trim() ? { publisher: draft.publisher.trim() } : {}),
+  };
+}
+
+type Product = SoftwareProductList['data'][number];
+
+/** The products whose publisher or product holds every word typed, the most installed first. */
+export function matchingProducts(products: readonly Product[], term: string): Product[] {
+  const words = term.toLocaleLowerCase().split(/\s+/u).filter(Boolean);
+  return products
+    .filter((each) => words.every((word) => `${each.publisher} ${each.product}`.toLocaleLowerCase().includes(word)))
+    .sort((a, b) => b.installations - a.installations || a.product.localeCompare(b.product));
+}
