@@ -56,8 +56,9 @@ move.
 * No live connection to the tracker and no sign-in to it: the person brings the file
   ([NG-phone-home](../../vision/non-goals.md)).
 * People are not matched to accounts: their names travel in text fields, comments and history.
-* The workflow's transitions, screens and permission schemes are not in the search's answer: every
-  status is reachable from every other, and the collection's roles are Hubtask's.
-* Sprints, boards and the tracker's add-on fields have no place yet and are counted.
+* The workflow's screens and permission schemes are not in the search's answer, and the
+  collection's roles are Hubtask's. Without the workflow answer every status is reachable from
+  every other; with it, and with sprints and boards, UC-IMP-07 goes on.
+* The tracker's add-on fields have no place and are counted.
 * An import writes through the archive, not through each type's form: a type's required field
   does not refuse an imported entry (the suite plan's S-06 gap).

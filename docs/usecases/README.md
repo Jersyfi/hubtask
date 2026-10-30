@@ -431,3 +431,4 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-IMP-04](./importer/UC-IMP-04-move-over-from-an-issue-tracker.md) | Move over from an issue tracker with its configuration, history and attachments | importer |
 | [UC-IMP-05](./importer/UC-IMP-05-move-a-wiki-space-into-a-hub.md) | Move a wiki space into a hub's pages | importer |
 | [UC-IMP-06](./importer/UC-IMP-06-move-a-wiki-space-with-its-history.md) | Move a wiki space with its history and comments | importer |
+| [UC-IMP-07](./importer/UC-IMP-07-bring-a-trackers-transitions-sprints-and-boards.md) | Bring an issue tracker's transitions, sprints and boards along | importer |
