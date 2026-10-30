@@ -6,9 +6,11 @@
  * reads: the periods, the goals and one goal, its check-ins, the portfolios and their updates, the
  * dashboards and their figures. The reads are subscriptions at the call site.
  *
- * **Written online.** Periods, goals, check-ins and dashboards reach a device's replica as
- * definitions, but a write needs the connection: the engine refuses one made offline
- * (`sync.needs_connection`) rather than queueing it, and every number is asked for online.
+ * **Written online.** Periods, goals, check-ins, portfolios and dashboards reach a device's replica
+ * as definitions - a portfolio with the projects its reader may read - and the lists are answered
+ * from it while the server is away (`replica.ts`), but a write needs the connection: the engine
+ * refuses one made offline (`sync.needs_connection`) rather than queueing it, and every number -
+ * progress, a roll-up, a figure - is asked for online.
  */
 
 import type {

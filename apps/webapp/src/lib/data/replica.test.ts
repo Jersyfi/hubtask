@@ -559,3 +559,49 @@ test('the timer is started, stopped and discarded from the queue', async () => {
   await storage.put('time_timers', 'me', record({ id: 'me', zone: 'Europe/Berlin', stopped_at: new Date().toISOString(), key: 'own' }));
   assert.deepEqual(await storeFor({ path: '/timer' }, storage), { running: false }, 'a stop waiting reads as stopped');
 });
+
+// UC-GOL-03 offline: the portfolios are answered from the copy by name, each project the copy
+// holds named from its container and none counted; a project whose container the copy does not
+// hold is left out.
+test('the portfolios are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', name: 'Checkout', archived_at: null }));
+  await storage.put('portfolios', 'p-2', record({ id: 'p-2', name: 'Zeta', items: [] }));
+  await storage.put('portfolios', 'p-1', record({
+    id: 'p-1', name: 'Programme', status: 'ON_TRACK',
+    items: [{ container_id: COLLECTION, start_on: '2026-10-01', end_on: null, status: 'AT_RISK' }, { container_id: 'gone' }],
+  }));
+  const list = await storeFor({ path: '/portfolios' }, storage) as { data: { id: string; items: Record<string, unknown>[] }[] };
+  assert.deepEqual(list.data.map((row) => row.id), ['p-1', 'p-2']);
+  assert.deepEqual(list.data[0]!.items.map((row) => [row.container_id, row.kind, row.name, row.status, row.entries]), [[COLLECTION, 'COLLECTION', 'Checkout', 'AT_RISK', null]]);
+  const one = await storeFor({ path: '/portfolios/p-1' }, storage) as Record<string, unknown>;
+  assert.equal(one.latest_update, null);
+  assert.equal(one.progress, null);
+  assert.equal(await storeFor({ path: '/portfolios/none' }, storage), undefined);
+});
+
+// UC-GOL-01, 02 and 04 offline: the periods, a period's goals and a hub's dashboards are answered
+// from the copy as their definitions, nothing computed for the reader; one goal's page waits for the
+// server.
+test('the periods, the goals and the dashboards are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('goal_periods', 'q3', record({ id: 'q3', name: 'Q3', start_on: '2026-07-01' }));
+  await storage.put('goal_periods', 'q4', record({ id: 'q4', name: 'Q4', start_on: '2026-10-01' }));
+  await storage.put('goals', 'g-1', record({ id: 'g-1', period_id: 'q4', hub_id: null, title: 'Ship', key_results: [{ id: 'k-1', current: 3 }] }));
+  await storage.put('goals', 'g-2', record({ id: 'g-2', period_id: 'q4', hub_id: 'h-1', parent_id: 'g-1', title: 'Checkout', key_results: [] }));
+  await storage.put('goals', 'g-3', record({ id: 'g-3', period_id: 'q3', hub_id: null, title: 'Old', key_results: [] }));
+  await storage.put('dashboards', 'd-1', record({ id: 'd-1', hub_id: 'h-1', name: 'Team' }));
+  await storage.put('dashboards', 'd-2', record({ id: 'd-2', hub_id: null, name: 'Mine' }));
+
+  const periods = await storeFor({ path: '/goal-periods' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(periods.data.map((row) => row.id), ['q4', 'q3'], 'the latest first');
+  const goals = await storeFor({ path: '/goals?period_id=q4' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(goals.data.map((row) => [row.id, row.child_count, row.progress]), [['g-1', 1, null], ['g-2', 0, null]]);
+  assert.equal((goals.data[0]!.key_results as Record<string, unknown>[])[0]!.progress, null);
+  const workspace = await storeFor({ path: '/goals?workspace_only=true&period_id=q4' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(workspace.data.map((row) => row.id), ['g-1']);
+  assert.equal(await storeFor({ path: '/goals/g-1' }, storage), undefined, "one goal's page");
+  const dashboards = await storeFor({ path: '/dashboards?hub_id=h-1' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(dashboards.data.map((row) => row.id), ['d-1']);
+  assert.equal((await storeFor({ path: '/dashboards/d-2' }, storage) as Record<string, unknown>).name, 'Mine');
+});

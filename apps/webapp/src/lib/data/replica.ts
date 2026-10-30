@@ -449,6 +449,50 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return held ? { data: Array.isArray(held.data) ? held.data : [] } : undefined;
   }
 
+  // The periods, the goals and the dashboards while the server is away (UC-GOL-01, 02, 04): the
+  // copy holds each as its definition - a private dashboard its owner's alone -, so a goal's
+  // progress, its linked entries' share and a key result's live value are the server's, and so is
+  // one goal's page, which shows its linked entries.
+  if (pathname === '/goal-periods') {
+    const rows = (await documents(storage, 'goal_periods'))
+      .sort((a, b) => String(b.start_on).localeCompare(String(a.start_on)) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+  if (pathname === '/goals') {
+    const all = await documents(storage, 'goals');
+    const wanted = (row: Document) =>
+      (!query.get('period_id') || row.period_id === query.get('period_id'))
+      && (!query.get('hub_id') || row.hub_id === query.get('hub_id'))
+      && (query.get('workspace_only') !== 'true' || !row.hub_id)
+      && (!query.get('owner_id') || row.owner_id === query.get('owner_id'))
+      && (!query.get('parent_id') || row.parent_id === query.get('parent_id'));
+    const rows = all.filter(wanted).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    return { data: rows.map((row) => goalOf(row, all)) };
+  }
+  if (pathname === '/dashboards') {
+    const hub = query.get('hub_id');
+    const rows = (await documents(storage, 'dashboards'))
+      .filter((row) => !hub || row.hub_id === hub)
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+  match = /^\/dashboards\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) return one(storage, 'dashboards', match[1]);
+
+  // The portfolios while the server is away (UC-GOL-03): the copy holds each with the projects
+  // the reader may read, named from the reader's own copy of the containers; the roll-up - counts,
+  // progress, budgets - and the latest status update are the server's.
+  if (pathname === '/portfolios') {
+    const rows = (await documents(storage, 'portfolios'))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id)));
+    return { data: await Promise.all(rows.map((row) => portfolioOf(storage, row))) };
+  }
+  match = /^\/portfolios\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    const held = await one(storage, 'portfolios', match[1]);
+    return held ? { ...(await portfolioOf(storage, held)), latest_update: null } : undefined;
+  }
+
   // A collection's sprints read while the server is away (M2), in the server's order - the latest
   // start first. The burndown and the velocity are computed by the server and wait for it.
   match = /^\/collections\/([^/:]+)\/sprints$/.exec(pathname);
@@ -929,4 +973,33 @@ async function weekOf(storage: Storage, start: string): Promise<unknown> {
     submitted_at: null, decided_at: null,
   };
   return { ...sheet, records, days, minutes: days.reduce((sum, day) => sum + day.minutes, 0) };
+}
+
+/** A portfolio from the copy as `ListPortfolios` answers it: each project held named, none counted. */
+async function portfolioOf(storage: Storage, row: Document): Promise<Document> {
+  const projects = Array.isArray(row.items) ? (row.items as Document[]) : [];
+  const items: Document[] = [];
+  for (const project of projects) {
+    const container = typeof project.container_id === 'string' ? await one(storage, 'containers', project.container_id) : undefined;
+    if (!container) continue;
+    items.push({
+      container_id: project.container_id, kind: container.type, name: container.name,
+      archived: Boolean(container.effective_archived ?? container.archived_at),
+      start_on: project.start_on ?? null, end_on: project.end_on ?? null, status: project.status,
+      entries: null, done: null, progress: null,
+    });
+  }
+  return { ...row, items, progress: null };
+}
+
+/** A goal from the copy as `ListGoals` answers it, with nothing computed for its reader. */
+function goalOf(row: Document, all: readonly Document[]): Document {
+  const results = Array.isArray(row.key_results) ? (row.key_results as Document[]) : [];
+  return {
+    ...row,
+    key_results: results.map((result) => ({ ...result, progress: null, live: false })),
+    entries: null,
+    child_count: all.filter((other) => other.parent_id === row.id).length,
+    progress: null,
+  };
 }
