@@ -430,3 +430,4 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-IMP-03](./importer/UC-IMP-03-see-what-an-import-did.md) | See what an import did | importer |
 | [UC-IMP-04](./importer/UC-IMP-04-move-over-from-an-issue-tracker.md) | Move over from an issue tracker with its configuration, history and attachments | importer |
 | [UC-IMP-05](./importer/UC-IMP-05-move-a-wiki-space-into-a-hub.md) | Move a wiki space into a hub's pages | importer |
+| [UC-IMP-06](./importer/UC-IMP-06-move-a-wiki-space-with-its-history.md) | Move a wiki space with its history and comments | importer |
