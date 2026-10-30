@@ -12957,6 +12957,247 @@
         }
       }
     },
+    "/integrations/file-stores": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "listFileStoreConnections",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "file store ls",
+        "summary": "The caller's file store connections",
+        "description": "The caller's own sign-ins to a Nextcloud or to Microsoft's OneDrive and SharePoint, which *Link a file* offers folders from, with the login and when each was last used, and the stores this installation connects to. Never anybody else's, whatever the role: a connection is a grant to its owner's own files.\n",
+        "responses": {
+          "200": {
+            "description": "The connections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileStoreConnectionList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/integrations/file-stores:connect": {
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "connectFileStore",
+        "x-hubtask-rest": "generated",
+        "summary": "Start connecting the caller's file store",
+        "description": "For a Nextcloud, its login flow: answers the Nextcloud's page where the person grants access and the state to finish with by `POST /integrations/file-stores:complete` once they did; a server that does not answer as a Nextcloud is `filestore.not_a_nextcloud`. For Microsoft, the authorization code flow with PKCE (S256) with the installation's app, asking to read files and sites alone - never mail, never writing; without an app on this installation `filestore.kind_not_offered`. A waiting connection is good for ten minutes and for the person who started it; at most ten connections per person.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileStoreConnectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Where to send the browser",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileStoreConnectionStart"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/integrations/file-stores:complete": {
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "completeFileStoreConnection",
+        "x-hubtask-rest": "generated",
+        "summary": "Finish connecting a file store",
+        "description": "For a Nextcloud, fetches the app password the person granted; while they have not, `409` (`filestore.not_granted_yet`) and the connection keeps waiting. For Microsoft, trades the code the browser came back with, once. The grant is kept sealed; signing in again as the same login replaces it. A state that is unknown or someone else's answers `404` (`filestore.state_unknown`); one older than ten minutes `422` (`filestore.expired`).\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileStoreConnectionAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileStoreConnection"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/integrations/file-stores/{connectionId}": {
+      "parameters": [
+        {
+          "name": "connectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "disconnectFileStore",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "file store rm",
+        "summary": "Disconnect a file store",
+        "description": "The grant is forgotten and a Nextcloud's app password given back. Files linked through the connection stay linked. Somebody else's connection is not found.\n",
+        "responses": {
+          "204": {
+            "description": "Disconnected"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/integrations/file-stores/{connectionId}/items": {
+      "parameters": [
+        {
+          "name": "connectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "browseFileStore",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "file store browse",
+        "summary": "A folder of the caller's file store",
+        "description": "One folder's files and folders, at most 500, read through the caller's own connection with names, sizes and the address an entry's link keeps (`POST /items/{itemId}/files`). The top is a Nextcloud's own files, or Microsoft's OneDrive and the SharePoint sites the caller follows. Names only, never content. A grant the store no longer takes is `403` (`filestore.grant_revoked`); a store out of reach `503` (`filestore.store_unreachable`).\n",
+        "parameters": [
+          {
+            "name": "folder",
+            "in": "query",
+            "description": "A folder's reference as a previous answer gave it; the top when empty.",
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileStoreFolder"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/integrations/file-stores/{connectionId}/items:share": {
+      "parameters": [
+        {
+          "name": "connectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "shareFileStoreItem",
+        "x-hubtask-rest": "generated",
+        "summary": "Make a read-only share link in the caller's Nextcloud",
+        "description": "A public, read-only share link for a file or folder, made by its owner through their own connection, for an entry's readers without an account there. Anybody holding the link opens the file; the share is taken back in Nextcloud. Microsoft's files are linked as they are (`filestore.share_not_offered`).\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileStoreShareRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The share link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileStoreShare"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/calendar/{token}.ics": {
       "parameters": [
         {
@@ -51809,6 +52050,223 @@
           "error": {
             "type": "string",
             "description": "The provider's refusal, when the person said no."
+          }
+        }
+      },
+      "FileStoreConnection": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "login",
+          "created_at",
+          "used_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NEXTCLOUD",
+              "MICROSOFT"
+            ]
+          },
+          "server": {
+            "type": "string",
+            "description": "A Nextcloud's address."
+          },
+          "login": {
+            "type": "string",
+            "description": "The store's name for the person: a Nextcloud login, a Microsoft account's address."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "used_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FileStoreConnectionList": {
+        "type": "object",
+        "required": [
+          "data",
+          "kinds"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileStoreConnection"
+            }
+          },
+          "kinds": {
+            "type": "array",
+            "description": "The stores this installation connects to.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "NEXTCLOUD",
+                "MICROSOFT"
+              ]
+            }
+          }
+        }
+      },
+      "FileStoreConnectionRequest": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NEXTCLOUD",
+              "MICROSOFT"
+            ]
+          },
+          "server": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "A Nextcloud's https address; required for a Nextcloud."
+          }
+        }
+      },
+      "FileStoreConnectionStart": {
+        "type": "object",
+        "required": [
+          "authorize_url",
+          "expires_at"
+        ],
+        "properties": {
+          "authorize_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The store's page to send the browser to."
+          },
+          "state": {
+            "type": "string",
+            "description": "A Nextcloud connection's state to finish with."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FileStoreConnectionAnswer": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "Microsoft's authorization code."
+          },
+          "error": {
+            "type": "string",
+            "description": "Microsoft's refusal, when the person said no."
+          }
+        }
+      },
+      "FileStoreItem": {
+        "type": "object",
+        "required": [
+          "ref",
+          "name",
+          "folder"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string",
+            "description": "The item's reference for the next folder or a share."
+          },
+          "name": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "boolean"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "address": {
+            "type": "string",
+            "format": "uri",
+            "description": "What an entry's file link keeps."
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "NEXTCLOUD",
+              "SHAREPOINT",
+              "ONEDRIVE",
+              "WEBDAV"
+            ]
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FileStoreFolder": {
+        "type": "object",
+        "required": [
+          "data",
+          "folder"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileStoreItem"
+            }
+          },
+          "folder": {
+            "type": "string"
+          }
+        }
+      },
+      "FileStoreShareRequest": {
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        }
+      },
+      "FileStoreShare": {
+        "type": "object",
+        "required": [
+          "address",
+          "provider"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "format": "uri"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "NEXTCLOUD"
+            ]
           }
         }
       },

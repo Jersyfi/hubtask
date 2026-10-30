@@ -50,6 +50,7 @@ var restDoors = map[string]restDoor{
 	"authorizeCalendarPush": {UseCase: "AuthorizeCalendarPush", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"authorizeMailbox":      {UseCase: "AuthorizeMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
 	"autoAssignWorkItem":    {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"browseFileStore":       {UseCase: "BrowseFileStore", Status: 200, Query: []string{"folder"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"cancelInstanceIdentityProviderWithdrawal": {UseCase: "CancelInstanceIdentityProviderWithdrawal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"cancelJob":                         {UseCase: "CancelJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"cancelTenantDeletion":              {UseCase: "CancelTenantDeletion", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -83,6 +84,7 @@ var restDoors = map[string]restDoor{
 	"commentOnMyRequest":                {UseCase: "CommentOnMyRequest", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"compareBaseline":                   {UseCase: "CompareBaseline", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeCalendarPushAuthorization": {UseCase: "CompleteCalendarPushAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"completeFileStoreConnection":       {UseCase: "CompleteFileStoreConnection", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeLink":                      {UseCase: "CompleteLink", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"completeMailboxAuthorization":      {UseCase: "CompleteMailboxAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completePasskeyEnrollment":         {UseCase: "CompletePasskeyEnrollment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -100,6 +102,7 @@ var restDoors = map[string]restDoor{
 	"confirmAuthenticatorReplacement":   {UseCase: "ConfirmAuthenticatorReplacement", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"confirmMediaUpload":                {UseCase: "ConfirmMediaUpload", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"confirmTotp":                       {UseCase: "ConfirmTotp", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"connectFileStore":                  {UseCase: "ConnectFileStore", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"connectMailbox":                    {UseCase: "ConnectMailbox", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
 	"convertJumbleEntry":                {UseCase: "ConvertJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyTimesheetWeek":                 {UseCase: "CopyTimesheetWeek", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -197,6 +200,7 @@ var restDoors = map[string]restDoor{
 	"disableTotp":                       {UseCase: "DisableTotp", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"discardTimer":                      {UseCase: "DiscardTimer", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disconnectCalendarPush":            {UseCase: "DisconnectCalendarPush", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"disconnectFileStore":               {UseCase: "DisconnectFileStore", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissCiHold":                     {UseCase: "DismissCiHold", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissJumbleEntry":                {UseCase: "DismissJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissSuggestion":                 {UseCase: "DismissSuggestion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -303,6 +307,7 @@ var restDoors = map[string]restDoor{
 	"listEntryLinks":                    {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntrySteps":                    {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryTypes":                    {UseCase: "ListEntryTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listFileStoreConnections":          {UseCase: "ListFileStoreConnections", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGoalCheckIns":                  {UseCase: "ListGoalCheckIns", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGoalPeriods":                   {UseCase: "ListGoalPeriods", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGoals":                         {UseCase: "ListGoals", Status: 200, Query: []string{"hub_id", "owner_id", "parent_id", "period_id", "workspace_only"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -597,6 +602,7 @@ var restDoors = map[string]restDoor{
 	"setUpInstallation":                 {UseCase: "SetUpInstallation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), Request: []string{"user_agent", "remote_addr"}},
 	"setWorkflowScheme":                 {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setWorkspaceTolerance":             {UseCase: "SetWorkspaceTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"time_tolerance_days"}},
+	"shareFileStoreItem":                {UseCase: "ShareFileStoreItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"sharePage":                         {UseCase: "SharePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"shareSavedView":                    {UseCase: "ShareSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showAlexaModel":                    {UseCase: "ShowAlexaModel", Status: 200, Query: []string{"locale"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -915,6 +921,12 @@ func (c *RestController) AutoAssignWorkItem(w http.ResponseWriter, r *http.Reque
 	c.door(w, r, restDoors["autoAssignWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
+// BrowseFileStore answers GET /integrations/file-stores/{connectionId}/items by the generated mapping.
+func (c *RestController) BrowseFileStore(w http.ResponseWriter, r *http.Request, connectionId openapi_types.UUID, params openapi.BrowseFileStoreParams) {
+	var answer openapi.FileStoreFolder
+	c.door(w, r, restDoors["browseFileStore"], usecase.Input{"connection_id": connectionId.String()}, params, nil, &answer)
+}
+
 // CancelInstanceIdentityProviderWithdrawal answers POST /admin/identity-providers/{providerId}:cancel-withdrawal by the generated mapping.
 func (c *RestController) CancelInstanceIdentityProviderWithdrawal(w http.ResponseWriter, r *http.Request, providerId openapi.ProviderId, params openapi.CancelInstanceIdentityProviderWithdrawalParams) {
 	c.door(w, r, restDoors["cancelInstanceIdentityProviderWithdrawal"], usecase.Input{"id": providerId.String()}, params, nil, answerBy(identityProviderResponse))
@@ -1120,6 +1132,13 @@ func (c *RestController) CompleteCalendarPushAuthorization(w http.ResponseWriter
 	c.door(w, r, restDoors["completeCalendarPushAuthorization"], usecase.Input{}, params, &body, &answer)
 }
 
+// CompleteFileStoreConnection answers POST /integrations/file-stores:complete by the generated mapping.
+func (c *RestController) CompleteFileStoreConnection(w http.ResponseWriter, r *http.Request, params openapi.CompleteFileStoreConnectionParams) {
+	var body openapi.CompleteFileStoreConnectionJSONRequestBody
+	var answer openapi.FileStoreConnection
+	c.door(w, r, restDoors["completeFileStoreConnection"], usecase.Input{}, params, &body, &answer)
+}
+
 // CompleteLink answers POST /auth/sessions:link by the generated mapping.
 func (c *RestController) CompleteLink(w http.ResponseWriter, r *http.Request) {
 	var body openapi.CompleteLinkJSONRequestBody
@@ -1222,6 +1241,13 @@ func (c *RestController) ConfirmMediaUpload(w http.ResponseWriter, r *http.Reque
 func (c *RestController) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
 	var body openapi.ConfirmTotpJSONRequestBody
 	c.door(w, r, restDoors["confirmTotp"], usecase.Input{}, nil, &body, answerBy(totpConfirmedResponse))
+}
+
+// ConnectFileStore answers POST /integrations/file-stores:connect by the generated mapping.
+func (c *RestController) ConnectFileStore(w http.ResponseWriter, r *http.Request, params openapi.ConnectFileStoreParams) {
+	var body openapi.ConnectFileStoreJSONRequestBody
+	var answer openapi.FileStoreConnectionStart
+	c.door(w, r, restDoors["connectFileStore"], usecase.Input{}, params, &body, &answer)
 }
 
 // ConnectMailbox answers POST /mail/mailboxes by the generated mapping.
@@ -1797,6 +1823,11 @@ func (c *RestController) DiscardTimer(w http.ResponseWriter, r *http.Request) {
 // DisconnectCalendarPush answers DELETE /integrations/calendar-pushes/{pushId} by the generated mapping.
 func (c *RestController) DisconnectCalendarPush(w http.ResponseWriter, r *http.Request, pushId openapi_types.UUID) {
 	c.door(w, r, restDoors["disconnectCalendarPush"], usecase.Input{"push_id": pushId.String()}, nil, nil, nil)
+}
+
+// DisconnectFileStore answers DELETE /integrations/file-stores/{connectionId} by the generated mapping.
+func (c *RestController) DisconnectFileStore(w http.ResponseWriter, r *http.Request, connectionId openapi_types.UUID) {
+	c.door(w, r, restDoors["disconnectFileStore"], usecase.Input{"connection_id": connectionId.String()}, nil, nil, nil)
 }
 
 // DismissCiHold answers POST /ci-holds/{holdId}:dismiss by the generated mapping.
@@ -2404,6 +2435,12 @@ func (c *RestController) ListEntrySteps(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) ListEntryTypes(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.EntryTypeList
 	c.door(w, r, restDoors["listEntryTypes"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ListFileStoreConnections answers GET /integrations/file-stores by the generated mapping.
+func (c *RestController) ListFileStoreConnections(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.FileStoreConnectionList
+	c.door(w, r, restDoors["listFileStoreConnections"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListGoalCheckIns answers GET /goals/{goalId}/check-ins by the generated mapping.
@@ -4142,6 +4179,13 @@ func (c *RestController) SetWorkspaceTolerance(w http.ResponseWriter, r *http.Re
 	var body openapi.SetWorkspaceToleranceJSONRequestBody
 	var answer openapi.WorkspaceTolerance
 	c.door(w, r, restDoors["setWorkspaceTolerance"], usecase.Input{}, nil, &body, &answer)
+}
+
+// ShareFileStoreItem answers POST /integrations/file-stores/{connectionId}/items:share by the generated mapping.
+func (c *RestController) ShareFileStoreItem(w http.ResponseWriter, r *http.Request, connectionId openapi_types.UUID, params openapi.ShareFileStoreItemParams) {
+	var body openapi.ShareFileStoreItemJSONRequestBody
+	var answer openapi.FileStoreShare
+	c.door(w, r, restDoors["shareFileStoreItem"], usecase.Input{"connection_id": connectionId.String()}, params, &body, &answer)
 }
 
 // SharePage answers POST /pages/{pageId}/shares by the generated mapping.

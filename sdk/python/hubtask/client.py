@@ -1291,6 +1291,30 @@ class Client:
         """Disconnect a calendar push"""
         return self._call("DELETE", "/integrations/calendar-pushes/{pushId}", {"pushId": push_id}, None, {}, None, "none", None, "void")
 
+    def list_file_store_connections(self) -> "FileStoreConnectionList":
+        """The caller's file store connections"""
+        return self._call("GET", "/integrations/file-stores", {}, None, {}, None, "none", None, "json")
+
+    def connect_file_store(self, body: "FileStoreConnectionRequest", *, idempotency_key: str | None = None) -> "FileStoreConnectionStart":
+        """Start connecting the caller's file store"""
+        return self._call("POST", "/integrations/file-stores:connect", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def complete_file_store_connection(self, body: "FileStoreConnectionAnswer", *, idempotency_key: str | None = None) -> "FileStoreConnection":
+        """Finish connecting a file store"""
+        return self._call("POST", "/integrations/file-stores:complete", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def disconnect_file_store(self, connection_id: str) -> None:
+        """Disconnect a file store"""
+        return self._call("DELETE", "/integrations/file-stores/{connectionId}", {"connectionId": connection_id}, None, {}, None, "none", None, "void")
+
+    def browse_file_store(self, connection_id: str, *, query: dict[str, Any] | None = None) -> "FileStoreFolder":
+        """A folder of the caller's file store"""
+        return self._call("GET", "/integrations/file-stores/{connectionId}/items", {"connectionId": connection_id}, query, {}, None, "none", None, "json")
+
+    def share_file_store_item(self, connection_id: str, body: "FileStoreShareRequest", *, idempotency_key: str | None = None) -> "FileStoreShare":
+        """Make a read-only share link in the caller's Nextcloud"""
+        return self._call("POST", "/integrations/file-stores/{connectionId}/items:share", {"connectionId": connection_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def get_calendar_feed_document(self, token: str) -> bytes:
         """GET /calendar/{token}.ics"""
         return self._call("GET", "/calendar/{token}.ics", {"token": token}, None, {}, None, "none", None, "raw")

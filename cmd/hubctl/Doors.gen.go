@@ -940,6 +940,21 @@ var generatedCommands = []door{
 			{Name: "linkId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "file", Verb: "store browse", OperationID: "browseFileStore", Method: "GET", Path: "/integrations/file-stores/{connectionId}/items", Summary: "A folder of the caller's file store",
+		PathParams: []doorParam{
+			{Name: "connectionId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "folder", Kind: "string", Help: "A folder's reference as a previous answer gave it; the top when empty", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"name"}},
+	{Group: "file", Verb: "store ls", OperationID: "listFileStoreConnections", Method: "GET", Path: "/integrations/file-stores", Summary: "The caller's file store connections",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "kind"}},
+	{Group: "file", Verb: "store rm", OperationID: "disconnectFileStore", Method: "DELETE", Path: "/integrations/file-stores/{connectionId}", Summary: "Disconnect a file store",
+		PathParams: []doorParam{
+			{Name: "connectionId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "goal", Verb: "add", OperationID: "createGoal", Method: "POST", Path: "/goals", Summary: "Set a goal",
 		Body: []doorParam{
 			{Name: "description", Kind: "string", Help: "", Required: false},

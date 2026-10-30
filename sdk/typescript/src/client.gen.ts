@@ -1604,6 +1604,36 @@ export class HubtaskClient {
     return this.call("DELETE", "/integrations/calendar-pushes/{pushId}", { "pushId": pushId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The caller's file store connections */
+  listFileStoreConnections(options: CallOptions = {}): Promise<operations["listFileStoreConnections"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/integrations/file-stores", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Start connecting the caller's file store */
+  connectFileStore(body: NonNullable<operations["connectFileStore"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["connectFileStore"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/integrations/file-stores:connect", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Finish connecting a file store */
+  completeFileStoreConnection(body: NonNullable<operations["completeFileStoreConnection"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["completeFileStoreConnection"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/integrations/file-stores:complete", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Disconnect a file store */
+  disconnectFileStore(connectionId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/integrations/file-stores/{connectionId}", { "connectionId": connectionId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** A folder of the caller's file store */
+  browseFileStore(connectionId: string, options: CallOptions & { readonly query?: NonNullable<operations["browseFileStore"]['parameters']['query']> } = {}): Promise<operations["browseFileStore"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/integrations/file-stores/{connectionId}/items", { "connectionId": connectionId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Make a read-only share link in the caller's Nextcloud */
+  shareFileStoreItem(connectionId: string, body: NonNullable<operations["shareFileStoreItem"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["shareFileStoreItem"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/integrations/file-stores/{connectionId}/items:share", { "connectionId": connectionId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** GET /calendar/{token}.ics
    * Public: sent without a bearer where the client holds none. */
   getCalendarFeedDocument(token: string, options: CallOptions = {}): Promise<Response> {

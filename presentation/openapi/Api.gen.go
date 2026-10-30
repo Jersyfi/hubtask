@@ -4582,6 +4582,99 @@ func (e FileLinkCreateProvider) Valid() bool {
 	}
 }
 
+// Defines values for FileStoreConnectionKind.
+const (
+	FileStoreConnectionKindMICROSOFT FileStoreConnectionKind = "MICROSOFT"
+	FileStoreConnectionKindNEXTCLOUD FileStoreConnectionKind = "NEXTCLOUD"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreConnectionKind enum.
+func (e FileStoreConnectionKind) Valid() bool {
+	switch e {
+	case FileStoreConnectionKindMICROSOFT:
+		return true
+	case FileStoreConnectionKindNEXTCLOUD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileStoreConnectionListKinds.
+const (
+	FileStoreConnectionListKindsMICROSOFT FileStoreConnectionListKinds = "MICROSOFT"
+	FileStoreConnectionListKindsNEXTCLOUD FileStoreConnectionListKinds = "NEXTCLOUD"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreConnectionListKinds enum.
+func (e FileStoreConnectionListKinds) Valid() bool {
+	switch e {
+	case FileStoreConnectionListKindsMICROSOFT:
+		return true
+	case FileStoreConnectionListKindsNEXTCLOUD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileStoreConnectionRequestKind.
+const (
+	FileStoreConnectionRequestKindMICROSOFT FileStoreConnectionRequestKind = "MICROSOFT"
+	FileStoreConnectionRequestKindNEXTCLOUD FileStoreConnectionRequestKind = "NEXTCLOUD"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreConnectionRequestKind enum.
+func (e FileStoreConnectionRequestKind) Valid() bool {
+	switch e {
+	case FileStoreConnectionRequestKindMICROSOFT:
+		return true
+	case FileStoreConnectionRequestKindNEXTCLOUD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileStoreItemProvider.
+const (
+	FileStoreItemProviderNEXTCLOUD  FileStoreItemProvider = "NEXTCLOUD"
+	FileStoreItemProviderONEDRIVE   FileStoreItemProvider = "ONEDRIVE"
+	FileStoreItemProviderSHAREPOINT FileStoreItemProvider = "SHAREPOINT"
+	FileStoreItemProviderWEBDAV     FileStoreItemProvider = "WEBDAV"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreItemProvider enum.
+func (e FileStoreItemProvider) Valid() bool {
+	switch e {
+	case FileStoreItemProviderNEXTCLOUD:
+		return true
+	case FileStoreItemProviderONEDRIVE:
+		return true
+	case FileStoreItemProviderSHAREPOINT:
+		return true
+	case FileStoreItemProviderWEBDAV:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileStoreShareProvider.
+const (
+	FileStoreShareProviderNEXTCLOUD FileStoreShareProvider = "NEXTCLOUD"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreShareProvider enum.
+func (e FileStoreShareProvider) Valid() bool {
+	switch e {
+	case FileStoreShareProviderNEXTCLOUD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterNodeOp.
 const (
 	AND         FilterNodeOp = "AND"
@@ -15754,6 +15847,102 @@ type FileLinkList struct {
 	Data []FileLink `json:"data"`
 }
 
+// FileStoreConnection defines model for FileStoreConnection.
+type FileStoreConnection struct {
+	CreatedAt time.Time               `json:"created_at"`
+	Id        openapi_types.UUID      `json:"id"`
+	Kind      FileStoreConnectionKind `json:"kind"`
+
+	// Login The store's name for the person: a Nextcloud login, a Microsoft account's address.
+	Login string `json:"login"`
+
+	// Server A Nextcloud's address.
+	Server *string   `json:"server,omitempty"`
+	UsedAt time.Time `json:"used_at"`
+}
+
+// FileStoreConnectionKind defines model for FileStoreConnection.Kind.
+type FileStoreConnectionKind string
+
+// FileStoreConnectionAnswer defines model for FileStoreConnectionAnswer.
+type FileStoreConnectionAnswer struct {
+	// Code Microsoft's authorization code.
+	Code *string `json:"code,omitempty"`
+
+	// Error Microsoft's refusal, when the person said no.
+	Error *string `json:"error,omitempty"`
+	State string  `json:"state"`
+}
+
+// FileStoreConnectionList defines model for FileStoreConnectionList.
+type FileStoreConnectionList struct {
+	Data []FileStoreConnection `json:"data"`
+
+	// Kinds The stores this installation connects to.
+	Kinds []FileStoreConnectionListKinds `json:"kinds"`
+}
+
+// FileStoreConnectionListKinds defines model for FileStoreConnectionList.Kinds.
+type FileStoreConnectionListKinds string
+
+// FileStoreConnectionRequest defines model for FileStoreConnectionRequest.
+type FileStoreConnectionRequest struct {
+	Kind FileStoreConnectionRequestKind `json:"kind"`
+
+	// Server A Nextcloud's https address; required for a Nextcloud.
+	Server *string `json:"server,omitempty"`
+}
+
+// FileStoreConnectionRequestKind defines model for FileStoreConnectionRequest.Kind.
+type FileStoreConnectionRequestKind string
+
+// FileStoreConnectionStart defines model for FileStoreConnectionStart.
+type FileStoreConnectionStart struct {
+	// AuthorizeUrl The store's page to send the browser to.
+	AuthorizeUrl string    `json:"authorize_url"`
+	ExpiresAt    time.Time `json:"expires_at"`
+
+	// State A Nextcloud connection's state to finish with.
+	State *string `json:"state,omitempty"`
+}
+
+// FileStoreFolder defines model for FileStoreFolder.
+type FileStoreFolder struct {
+	Data   []FileStoreItem `json:"data"`
+	Folder string          `json:"folder"`
+}
+
+// FileStoreItem defines model for FileStoreItem.
+type FileStoreItem struct {
+	// Address What an entry's file link keeps.
+	Address    *string                `json:"address,omitempty"`
+	Folder     bool                   `json:"folder"`
+	ModifiedAt *time.Time             `json:"modified_at,omitempty"`
+	Name       string                 `json:"name"`
+	Provider   *FileStoreItemProvider `json:"provider,omitempty"`
+
+	// Ref The item's reference for the next folder or a share.
+	Ref  string `json:"ref"`
+	Size *int64 `json:"size,omitempty"`
+}
+
+// FileStoreItemProvider defines model for FileStoreItem.Provider.
+type FileStoreItemProvider string
+
+// FileStoreShare defines model for FileStoreShare.
+type FileStoreShare struct {
+	Address  string                 `json:"address"`
+	Provider FileStoreShareProvider `json:"provider"`
+}
+
+// FileStoreShareProvider defines model for FileStoreShare.Provider.
+type FileStoreShareProvider string
+
+// FileStoreShareRequest defines model for FileStoreShareRequest.
+type FileStoreShareRequest struct {
+	Ref string `json:"ref"`
+}
+
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
 // `nodes`, is refused rather than half-read.
@@ -25061,6 +25250,30 @@ type CompleteCalendarPushAuthorizationParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// BrowseFileStoreParams defines parameters for BrowseFileStore.
+type BrowseFileStoreParams struct {
+	// Folder A folder's reference as a previous answer gave it; the top when empty.
+	Folder *string `form:"folder,omitempty" json:"folder,omitempty"`
+}
+
+// ShareFileStoreItemParams defines parameters for ShareFileStoreItem.
+type ShareFileStoreItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CompleteFileStoreConnectionParams defines parameters for CompleteFileStoreConnection.
+type CompleteFileStoreConnectionParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ConnectFileStoreParams defines parameters for ConnectFileStore.
+type ConnectFileStoreParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // PollTriggerEventsParams defines parameters for PollTriggerEvents.
 type PollTriggerEventsParams struct {
 	// Since Where the last poll stopped. Absent starts at the oldest event still inside the retention window, which is what lets a poller that has never called before catch up rather than begin with a gap it cannot see.
@@ -26994,6 +27207,15 @@ type AuthorizeCalendarPushJSONRequestBody = CalendarPushAuthorizationRequest
 
 // CompleteCalendarPushAuthorizationJSONRequestBody defines body for CompleteCalendarPushAuthorization for application/json ContentType.
 type CompleteCalendarPushAuthorizationJSONRequestBody = CalendarPushAuthorizationAnswer
+
+// ShareFileStoreItemJSONRequestBody defines body for ShareFileStoreItem for application/json ContentType.
+type ShareFileStoreItemJSONRequestBody = FileStoreShareRequest
+
+// CompleteFileStoreConnectionJSONRequestBody defines body for CompleteFileStoreConnection for application/json ContentType.
+type CompleteFileStoreConnectionJSONRequestBody = FileStoreConnectionAnswer
+
+// ConnectFileStoreJSONRequestBody defines body for ConnectFileStore for application/json ContentType.
+type ConnectFileStoreJSONRequestBody = FileStoreConnectionRequest
 
 // HttpRequestJSONRequestBody defines body for HttpRequest for application/json ContentType.
 type HttpRequestJSONRequestBody = HttpRequestCall
@@ -29028,6 +29250,24 @@ type ServerInterface interface {
 	// CompleteCalendarPushAuthorization Finish connecting a calendar push with the provider's answer
 	// (POST /integrations/calendar-pushes:complete)
 	CompleteCalendarPushAuthorization(w http.ResponseWriter, r *http.Request, params CompleteCalendarPushAuthorizationParams)
+	// ListFileStoreConnections The caller's file store connections
+	// (GET /integrations/file-stores)
+	ListFileStoreConnections(w http.ResponseWriter, r *http.Request)
+	// DisconnectFileStore Disconnect a file store
+	// (DELETE /integrations/file-stores/{connectionId})
+	DisconnectFileStore(w http.ResponseWriter, r *http.Request, connectionId openapi_types.UUID)
+	// BrowseFileStore A folder of the caller's file store
+	// (GET /integrations/file-stores/{connectionId}/items)
+	BrowseFileStore(w http.ResponseWriter, r *http.Request, connectionId openapi_types.UUID, params BrowseFileStoreParams)
+	// ShareFileStoreItem Make a read-only share link in the caller's Nextcloud
+	// (POST /integrations/file-stores/{connectionId}/items:share)
+	ShareFileStoreItem(w http.ResponseWriter, r *http.Request, connectionId openapi_types.UUID, params ShareFileStoreItemParams)
+	// CompleteFileStoreConnection Finish connecting a file store
+	// (POST /integrations/file-stores:complete)
+	CompleteFileStoreConnection(w http.ResponseWriter, r *http.Request, params CompleteFileStoreConnectionParams)
+	// ConnectFileStore Start connecting the caller's file store
+	// (POST /integrations/file-stores:connect)
+	ConnectFileStore(w http.ResponseWriter, r *http.Request, params ConnectFileStoreParams)
 	// HttpRequest Call an external HTTP address
 	// (POST /integrations/http-requests)
 	HttpRequest(w http.ResponseWriter, r *http.Request)
@@ -42648,6 +42888,220 @@ func (siw *ServerInterfaceWrapper) CompleteCalendarPushAuthorization(w http.Resp
 	handler.ServeHTTP(w, r)
 }
 
+// ListFileStoreConnections operation middleware
+func (siw *ServerInterfaceWrapper) ListFileStoreConnections(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListFileStoreConnections(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisconnectFileStore operation middleware
+func (siw *ServerInterfaceWrapper) DisconnectFileStore(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "connectionId" -------------
+	var connectionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", r.PathValue("connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisconnectFileStore(w, r, connectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BrowseFileStore operation middleware
+func (siw *ServerInterfaceWrapper) BrowseFileStore(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "connectionId" -------------
+	var connectionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", r.PathValue("connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params BrowseFileStoreParams
+
+	// ------------- Optional query parameter "folder" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "folder", r.URL.Query(), &params.Folder, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "folder"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "folder", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BrowseFileStore(w, r, connectionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShareFileStoreItem operation middleware
+func (siw *ServerInterfaceWrapper) ShareFileStoreItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "connectionId" -------------
+	var connectionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", r.PathValue("connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ShareFileStoreItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShareFileStoreItem(w, r, connectionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteFileStoreConnection operation middleware
+func (siw *ServerInterfaceWrapper) CompleteFileStoreConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CompleteFileStoreConnectionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteFileStoreConnection(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConnectFileStore operation middleware
+func (siw *ServerInterfaceWrapper) ConnectFileStore(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConnectFileStoreParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConnectFileStore(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // HttpRequest operation middleware
 func (siw *ServerInterfaceWrapper) HttpRequest(w http.ResponseWriter, r *http.Request) {
 
@@ -55616,6 +56070,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-pushes:authorize", wrapper.AuthorizeCalendarPush)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-pushes:complete", wrapper.CompleteCalendarPushAuthorization)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/calendar-pushes/{pushId}", wrapper.DisconnectCalendarPush)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/file-stores", wrapper.ListFileStoreConnections)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/file-stores:connect", wrapper.ConnectFileStore)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/file-stores:complete", wrapper.CompleteFileStoreConnection)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/file-stores/{connectionId}", wrapper.DisconnectFileStore)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/file-stores/{connectionId}/items", wrapper.BrowseFileStore)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/file-stores/{connectionId}/items:share", wrapper.ShareFileStoreItem)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/calendar/{token}.ics", wrapper.GetCalendarFeedDocument)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/odata/{token}", wrapper.GetDataFeedService)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/odata/{token}/$metadata", wrapper.GetDataFeedMetadata)

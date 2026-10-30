@@ -2905,3 +2905,27 @@ func (pending) CompleteCalendarPushAuthorization(w http.ResponseWriter, r *http.
 func (pending) DisconnectCalendarPush(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+
+func (pending) ListFileStoreConnections(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConnectFileStore(w http.ResponseWriter, r *http.Request, _ openapi.ConnectFileStoreParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CompleteFileStoreConnection(w http.ResponseWriter, r *http.Request, _ openapi.CompleteFileStoreConnectionParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DisconnectFileStore(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) BrowseFileStore(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.BrowseFileStoreParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ShareFileStoreItem(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ShareFileStoreItemParams) {
+	notAvailable(w, r)
+}

@@ -3929,6 +3929,52 @@ class CalendarPushAuthorizationAnswer(TypedDict, total=False):
     code: str
     error: str
 
+class FileStoreConnection(TypedDict, total=False):
+    id: Required[str]
+    kind: Required[Literal["NEXTCLOUD", "MICROSOFT"]]
+    server: str
+    login: Required[str]
+    created_at: Required[str]
+    used_at: Required[str]
+
+class FileStoreConnectionList(TypedDict, total=False):
+    data: Required[list["FileStoreConnection"]]
+    kinds: Required[list[Literal["NEXTCLOUD", "MICROSOFT"]]]
+
+class FileStoreConnectionRequest(TypedDict, total=False):
+    kind: Required[Literal["NEXTCLOUD", "MICROSOFT"]]
+    server: str
+
+class FileStoreConnectionStart(TypedDict, total=False):
+    authorize_url: Required[str]
+    state: str
+    expires_at: Required[str]
+
+class FileStoreConnectionAnswer(TypedDict, total=False):
+    state: Required[str]
+    code: str
+    error: str
+
+class FileStoreItem(TypedDict, total=False):
+    ref: Required[str]
+    name: Required[str]
+    folder: Required[bool]
+    size: int
+    address: str
+    provider: Literal["NEXTCLOUD", "SHAREPOINT", "ONEDRIVE", "WEBDAV"]
+    modified_at: str
+
+class FileStoreFolder(TypedDict, total=False):
+    data: Required[list["FileStoreItem"]]
+    folder: Required[str]
+
+class FileStoreShareRequest(TypedDict, total=False):
+    ref: Required[str]
+
+class FileStoreShare(TypedDict, total=False):
+    address: Required[str]
+    provider: Required[Literal["NEXTCLOUD"]]
+
 class CalendarFeed(TypedDict, total=False):
     """One subscription: a token its owner holds, over one saved view, revocable. The token itself is not a member - it exists in the answer to the call that minted it and nowhere else afterwards."""
     id: Required[str]

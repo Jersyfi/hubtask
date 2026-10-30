@@ -4588,6 +4588,99 @@ func (e FileLinkCreateProvider) Valid() bool {
 	}
 }
 
+// Defines values for FileStoreConnectionKind.
+const (
+	FileStoreConnectionKindMICROSOFT FileStoreConnectionKind = "MICROSOFT"
+	FileStoreConnectionKindNEXTCLOUD FileStoreConnectionKind = "NEXTCLOUD"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreConnectionKind enum.
+func (e FileStoreConnectionKind) Valid() bool {
+	switch e {
+	case FileStoreConnectionKindMICROSOFT:
+		return true
+	case FileStoreConnectionKindNEXTCLOUD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileStoreConnectionListKinds.
+const (
+	FileStoreConnectionListKindsMICROSOFT FileStoreConnectionListKinds = "MICROSOFT"
+	FileStoreConnectionListKindsNEXTCLOUD FileStoreConnectionListKinds = "NEXTCLOUD"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreConnectionListKinds enum.
+func (e FileStoreConnectionListKinds) Valid() bool {
+	switch e {
+	case FileStoreConnectionListKindsMICROSOFT:
+		return true
+	case FileStoreConnectionListKindsNEXTCLOUD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileStoreConnectionRequestKind.
+const (
+	FileStoreConnectionRequestKindMICROSOFT FileStoreConnectionRequestKind = "MICROSOFT"
+	FileStoreConnectionRequestKindNEXTCLOUD FileStoreConnectionRequestKind = "NEXTCLOUD"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreConnectionRequestKind enum.
+func (e FileStoreConnectionRequestKind) Valid() bool {
+	switch e {
+	case FileStoreConnectionRequestKindMICROSOFT:
+		return true
+	case FileStoreConnectionRequestKindNEXTCLOUD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileStoreItemProvider.
+const (
+	FileStoreItemProviderNEXTCLOUD  FileStoreItemProvider = "NEXTCLOUD"
+	FileStoreItemProviderONEDRIVE   FileStoreItemProvider = "ONEDRIVE"
+	FileStoreItemProviderSHAREPOINT FileStoreItemProvider = "SHAREPOINT"
+	FileStoreItemProviderWEBDAV     FileStoreItemProvider = "WEBDAV"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreItemProvider enum.
+func (e FileStoreItemProvider) Valid() bool {
+	switch e {
+	case FileStoreItemProviderNEXTCLOUD:
+		return true
+	case FileStoreItemProviderONEDRIVE:
+		return true
+	case FileStoreItemProviderSHAREPOINT:
+		return true
+	case FileStoreItemProviderWEBDAV:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileStoreShareProvider.
+const (
+	FileStoreShareProviderNEXTCLOUD FileStoreShareProvider = "NEXTCLOUD"
+)
+
+// Valid indicates whether the value is a known member of the FileStoreShareProvider enum.
+func (e FileStoreShareProvider) Valid() bool {
+	switch e {
+	case FileStoreShareProviderNEXTCLOUD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterNodeOp.
 const (
 	AND         FilterNodeOp = "AND"
@@ -15760,6 +15853,102 @@ type FileLinkList struct {
 	Data []FileLink `json:"data"`
 }
 
+// FileStoreConnection defines model for FileStoreConnection.
+type FileStoreConnection struct {
+	CreatedAt time.Time               `json:"created_at"`
+	Id        openapi_types.UUID      `json:"id"`
+	Kind      FileStoreConnectionKind `json:"kind"`
+
+	// Login The store's name for the person: a Nextcloud login, a Microsoft account's address.
+	Login string `json:"login"`
+
+	// Server A Nextcloud's address.
+	Server *string   `json:"server,omitempty"`
+	UsedAt time.Time `json:"used_at"`
+}
+
+// FileStoreConnectionKind defines model for FileStoreConnection.Kind.
+type FileStoreConnectionKind string
+
+// FileStoreConnectionAnswer defines model for FileStoreConnectionAnswer.
+type FileStoreConnectionAnswer struct {
+	// Code Microsoft's authorization code.
+	Code *string `json:"code,omitempty"`
+
+	// Error Microsoft's refusal, when the person said no.
+	Error *string `json:"error,omitempty"`
+	State string  `json:"state"`
+}
+
+// FileStoreConnectionList defines model for FileStoreConnectionList.
+type FileStoreConnectionList struct {
+	Data []FileStoreConnection `json:"data"`
+
+	// Kinds The stores this installation connects to.
+	Kinds []FileStoreConnectionListKinds `json:"kinds"`
+}
+
+// FileStoreConnectionListKinds defines model for FileStoreConnectionList.Kinds.
+type FileStoreConnectionListKinds string
+
+// FileStoreConnectionRequest defines model for FileStoreConnectionRequest.
+type FileStoreConnectionRequest struct {
+	Kind FileStoreConnectionRequestKind `json:"kind"`
+
+	// Server A Nextcloud's https address; required for a Nextcloud.
+	Server *string `json:"server,omitempty"`
+}
+
+// FileStoreConnectionRequestKind defines model for FileStoreConnectionRequest.Kind.
+type FileStoreConnectionRequestKind string
+
+// FileStoreConnectionStart defines model for FileStoreConnectionStart.
+type FileStoreConnectionStart struct {
+	// AuthorizeUrl The store's page to send the browser to.
+	AuthorizeUrl string    `json:"authorize_url"`
+	ExpiresAt    time.Time `json:"expires_at"`
+
+	// State A Nextcloud connection's state to finish with.
+	State *string `json:"state,omitempty"`
+}
+
+// FileStoreFolder defines model for FileStoreFolder.
+type FileStoreFolder struct {
+	Data   []FileStoreItem `json:"data"`
+	Folder string          `json:"folder"`
+}
+
+// FileStoreItem defines model for FileStoreItem.
+type FileStoreItem struct {
+	// Address What an entry's file link keeps.
+	Address    *string                `json:"address,omitempty"`
+	Folder     bool                   `json:"folder"`
+	ModifiedAt *time.Time             `json:"modified_at,omitempty"`
+	Name       string                 `json:"name"`
+	Provider   *FileStoreItemProvider `json:"provider,omitempty"`
+
+	// Ref The item's reference for the next folder or a share.
+	Ref  string `json:"ref"`
+	Size *int64 `json:"size,omitempty"`
+}
+
+// FileStoreItemProvider defines model for FileStoreItem.Provider.
+type FileStoreItemProvider string
+
+// FileStoreShare defines model for FileStoreShare.
+type FileStoreShare struct {
+	Address  string                 `json:"address"`
+	Provider FileStoreShareProvider `json:"provider"`
+}
+
+// FileStoreShareProvider defines model for FileStoreShare.Provider.
+type FileStoreShareProvider string
+
+// FileStoreShareRequest defines model for FileStoreShareRequest.
+type FileStoreShareRequest struct {
+	Ref string `json:"ref"`
+}
+
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
 // `nodes`, is refused rather than half-read.
@@ -25067,6 +25256,30 @@ type CompleteCalendarPushAuthorizationParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// BrowseFileStoreParams defines parameters for BrowseFileStore.
+type BrowseFileStoreParams struct {
+	// Folder A folder's reference as a previous answer gave it; the top when empty.
+	Folder *string `form:"folder,omitempty" json:"folder,omitempty"`
+}
+
+// ShareFileStoreItemParams defines parameters for ShareFileStoreItem.
+type ShareFileStoreItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CompleteFileStoreConnectionParams defines parameters for CompleteFileStoreConnection.
+type CompleteFileStoreConnectionParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ConnectFileStoreParams defines parameters for ConnectFileStore.
+type ConnectFileStoreParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // PollTriggerEventsParams defines parameters for PollTriggerEvents.
 type PollTriggerEventsParams struct {
 	// Since Where the last poll stopped. Absent starts at the oldest event still inside the retention window, which is what lets a poller that has never called before catch up rather than begin with a gap it cannot see.
@@ -27000,6 +27213,15 @@ type AuthorizeCalendarPushJSONRequestBody = CalendarPushAuthorizationRequest
 
 // CompleteCalendarPushAuthorizationJSONRequestBody defines body for CompleteCalendarPushAuthorization for application/json ContentType.
 type CompleteCalendarPushAuthorizationJSONRequestBody = CalendarPushAuthorizationAnswer
+
+// ShareFileStoreItemJSONRequestBody defines body for ShareFileStoreItem for application/json ContentType.
+type ShareFileStoreItemJSONRequestBody = FileStoreShareRequest
+
+// CompleteFileStoreConnectionJSONRequestBody defines body for CompleteFileStoreConnection for application/json ContentType.
+type CompleteFileStoreConnectionJSONRequestBody = FileStoreConnectionAnswer
+
+// ConnectFileStoreJSONRequestBody defines body for ConnectFileStore for application/json ContentType.
+type ConnectFileStoreJSONRequestBody = FileStoreConnectionRequest
 
 // HttpRequestJSONRequestBody defines body for HttpRequest for application/json ContentType.
 type HttpRequestJSONRequestBody = HttpRequestCall
@@ -33143,6 +33365,81 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
 	CompleteCalendarPushAuthorization(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, body CompleteCalendarPushAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListFileStoreConnections The caller's file store connections
+	//
+	// The caller's own sign-ins to a Nextcloud or to Microsoft's OneDrive and SharePoint, which *Link a file* offers folders from, with the login and when each was last used, and the stores this installation connects to. Never anybody else's, whatever the role: a connection is a grant to its owner's own files.
+	//
+	// Corresponds with GET /integrations/file-stores (the `ListFileStoreConnections` operationId).
+	ListFileStoreConnections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DisconnectFileStore Disconnect a file store
+	//
+	// The grant is forgotten and a Nextcloud's app password given back. Files linked through the connection stay linked. Somebody else's connection is not found.
+	//
+	// Corresponds with DELETE /integrations/file-stores/{connectionId} (the `DisconnectFileStore` operationId).
+	DisconnectFileStore(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BrowseFileStore A folder of the caller's file store
+	//
+	// One folder's files and folders, at most 500, read through the caller's own connection with names, sizes and the address an entry's link keeps (`POST /items/{itemId}/files`). The top is a Nextcloud's own files, or Microsoft's OneDrive and the SharePoint sites the caller follows. Names only, never content. A grant the store no longer takes is `403` (`filestore.grant_revoked`); a store out of reach `503` (`filestore.store_unreachable`).
+	//
+	// Corresponds with GET /integrations/file-stores/{connectionId}/items (the `BrowseFileStore` operationId).
+	BrowseFileStore(ctx context.Context, connectionId openapi_types.UUID, params *BrowseFileStoreParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ShareFileStoreItemWithBody Make a read-only share link in the caller's Nextcloud
+	//
+	// A public, read-only share link for a file or folder, made by its owner through their own connection, for an entry's readers without an account there. Anybody holding the link opens the file; the share is taken back in Nextcloud. Microsoft's files are linked as they are (`filestore.share_not_offered`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /integrations/file-stores/{connectionId}/items:share (the `ShareFileStoreItem` operationId).
+	ShareFileStoreItemWithBody(ctx context.Context, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ShareFileStoreItem Make a read-only share link in the caller's Nextcloud
+	//
+	// A public, read-only share link for a file or folder, made by its owner through their own connection, for an entry's readers without an account there. Anybody holding the link opens the file; the share is taken back in Nextcloud. Microsoft's files are linked as they are (`filestore.share_not_offered`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /integrations/file-stores/{connectionId}/items:share (the `ShareFileStoreItem` operationId).
+	ShareFileStoreItem(ctx context.Context, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, body ShareFileStoreItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteFileStoreConnectionWithBody Finish connecting a file store
+	//
+	// For a Nextcloud, fetches the app password the person granted; while they have not, `409` (`filestore.not_granted_yet`) and the connection keeps waiting. For Microsoft, trades the code the browser came back with, once. The grant is kept sealed; signing in again as the same login replaces it. A state that is unknown or someone else's answers `404` (`filestore.state_unknown`); one older than ten minutes `422` (`filestore.expired`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /integrations/file-stores:complete (the `CompleteFileStoreConnection` operationId).
+	CompleteFileStoreConnectionWithBody(ctx context.Context, params *CompleteFileStoreConnectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteFileStoreConnection Finish connecting a file store
+	//
+	// For a Nextcloud, fetches the app password the person granted; while they have not, `409` (`filestore.not_granted_yet`) and the connection keeps waiting. For Microsoft, trades the code the browser came back with, once. The grant is kept sealed; signing in again as the same login replaces it. A state that is unknown or someone else's answers `404` (`filestore.state_unknown`); one older than ten minutes `422` (`filestore.expired`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /integrations/file-stores:complete (the `CompleteFileStoreConnection` operationId).
+	CompleteFileStoreConnection(ctx context.Context, params *CompleteFileStoreConnectionParams, body CompleteFileStoreConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConnectFileStoreWithBody Start connecting the caller's file store
+	//
+	// For a Nextcloud, its login flow: answers the Nextcloud's page where the person grants access and the state to finish with by `POST /integrations/file-stores:complete` once they did; a server that does not answer as a Nextcloud is `filestore.not_a_nextcloud`. For Microsoft, the authorization code flow with PKCE (S256) with the installation's app, asking to read files and sites alone - never mail, never writing; without an app on this installation `filestore.kind_not_offered`. A waiting connection is good for ten minutes and for the person who started it; at most ten connections per person.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /integrations/file-stores:connect (the `ConnectFileStore` operationId).
+	ConnectFileStoreWithBody(ctx context.Context, params *ConnectFileStoreParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConnectFileStore Start connecting the caller's file store
+	//
+	// For a Nextcloud, its login flow: answers the Nextcloud's page where the person grants access and the state to finish with by `POST /integrations/file-stores:complete` once they did; a server that does not answer as a Nextcloud is `filestore.not_a_nextcloud`. For Microsoft, the authorization code flow with PKCE (S256) with the installation's app, asking to read files and sites alone - never mail, never writing; without an app on this installation `filestore.kind_not_offered`. A waiting connection is good for ten minutes and for the person who started it; at most ten connections per person.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /integrations/file-stores:connect (the `ConnectFileStore` operationId).
+	ConnectFileStore(ctx context.Context, params *ConnectFileStoreParams, body ConnectFileStoreJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// HttpRequestWithBody Call an external HTTP address
 	//
@@ -48553,6 +48850,171 @@ func (c *Client) CompleteCalendarPushAuthorizationWithBody(ctx context.Context, 
 // Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
 func (c *Client) CompleteCalendarPushAuthorization(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, body CompleteCalendarPushAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCompleteCalendarPushAuthorizationRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListFileStoreConnections The caller's file store connections
+//
+// The caller's own sign-ins to a Nextcloud or to Microsoft's OneDrive and SharePoint, which *Link a file* offers folders from, with the login and when each was last used, and the stores this installation connects to. Never anybody else's, whatever the role: a connection is a grant to its owner's own files.
+//
+// Corresponds with GET /integrations/file-stores (the `ListFileStoreConnections` operationId).
+func (c *Client) ListFileStoreConnections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListFileStoreConnectionsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DisconnectFileStore Disconnect a file store
+//
+// The grant is forgotten and a Nextcloud's app password given back. Files linked through the connection stay linked. Somebody else's connection is not found.
+//
+// Corresponds with DELETE /integrations/file-stores/{connectionId} (the `DisconnectFileStore` operationId).
+func (c *Client) DisconnectFileStore(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDisconnectFileStoreRequest(c.Server, connectionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BrowseFileStore A folder of the caller's file store
+//
+// One folder's files and folders, at most 500, read through the caller's own connection with names, sizes and the address an entry's link keeps (`POST /items/{itemId}/files`). The top is a Nextcloud's own files, or Microsoft's OneDrive and the SharePoint sites the caller follows. Names only, never content. A grant the store no longer takes is `403` (`filestore.grant_revoked`); a store out of reach `503` (`filestore.store_unreachable`).
+//
+// Corresponds with GET /integrations/file-stores/{connectionId}/items (the `BrowseFileStore` operationId).
+func (c *Client) BrowseFileStore(ctx context.Context, connectionId openapi_types.UUID, params *BrowseFileStoreParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBrowseFileStoreRequest(c.Server, connectionId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ShareFileStoreItemWithBody Make a read-only share link in the caller's Nextcloud
+//
+// A public, read-only share link for a file or folder, made by its owner through their own connection, for an entry's readers without an account there. Anybody holding the link opens the file; the share is taken back in Nextcloud. Microsoft's files are linked as they are (`filestore.share_not_offered`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /integrations/file-stores/{connectionId}/items:share (the `ShareFileStoreItem` operationId).
+func (c *Client) ShareFileStoreItemWithBody(ctx context.Context, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewShareFileStoreItemRequestWithBody(c.Server, connectionId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ShareFileStoreItem Make a read-only share link in the caller's Nextcloud
+//
+// A public, read-only share link for a file or folder, made by its owner through their own connection, for an entry's readers without an account there. Anybody holding the link opens the file; the share is taken back in Nextcloud. Microsoft's files are linked as they are (`filestore.share_not_offered`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /integrations/file-stores/{connectionId}/items:share (the `ShareFileStoreItem` operationId).
+func (c *Client) ShareFileStoreItem(ctx context.Context, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, body ShareFileStoreItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewShareFileStoreItemRequest(c.Server, connectionId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteFileStoreConnectionWithBody Finish connecting a file store
+//
+// For a Nextcloud, fetches the app password the person granted; while they have not, `409` (`filestore.not_granted_yet`) and the connection keeps waiting. For Microsoft, trades the code the browser came back with, once. The grant is kept sealed; signing in again as the same login replaces it. A state that is unknown or someone else's answers `404` (`filestore.state_unknown`); one older than ten minutes `422` (`filestore.expired`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /integrations/file-stores:complete (the `CompleteFileStoreConnection` operationId).
+func (c *Client) CompleteFileStoreConnectionWithBody(ctx context.Context, params *CompleteFileStoreConnectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteFileStoreConnectionRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteFileStoreConnection Finish connecting a file store
+//
+// For a Nextcloud, fetches the app password the person granted; while they have not, `409` (`filestore.not_granted_yet`) and the connection keeps waiting. For Microsoft, trades the code the browser came back with, once. The grant is kept sealed; signing in again as the same login replaces it. A state that is unknown or someone else's answers `404` (`filestore.state_unknown`); one older than ten minutes `422` (`filestore.expired`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /integrations/file-stores:complete (the `CompleteFileStoreConnection` operationId).
+func (c *Client) CompleteFileStoreConnection(ctx context.Context, params *CompleteFileStoreConnectionParams, body CompleteFileStoreConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteFileStoreConnectionRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConnectFileStoreWithBody Start connecting the caller's file store
+//
+// For a Nextcloud, its login flow: answers the Nextcloud's page where the person grants access and the state to finish with by `POST /integrations/file-stores:complete` once they did; a server that does not answer as a Nextcloud is `filestore.not_a_nextcloud`. For Microsoft, the authorization code flow with PKCE (S256) with the installation's app, asking to read files and sites alone - never mail, never writing; without an app on this installation `filestore.kind_not_offered`. A waiting connection is good for ten minutes and for the person who started it; at most ten connections per person.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /integrations/file-stores:connect (the `ConnectFileStore` operationId).
+func (c *Client) ConnectFileStoreWithBody(ctx context.Context, params *ConnectFileStoreParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectFileStoreRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConnectFileStore Start connecting the caller's file store
+//
+// For a Nextcloud, its login flow: answers the Nextcloud's page where the person grants access and the state to finish with by `POST /integrations/file-stores:complete` once they did; a server that does not answer as a Nextcloud is `filestore.not_a_nextcloud`. For Microsoft, the authorization code flow with PKCE (S256) with the installation's app, asking to read files and sites alone - never mail, never writing; without an app on this installation `filestore.kind_not_offered`. A waiting connection is good for ten minutes and for the person who started it; at most ten connections per person.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /integrations/file-stores:connect (the `ConnectFileStore` operationId).
+func (c *Client) ConnectFileStore(ctx context.Context, params *ConnectFileStoreParams, body ConnectFileStoreJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectFileStoreRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -76291,6 +76753,300 @@ func NewCompleteCalendarPushAuthorizationRequestWithBody(server string, params *
 	return req, nil
 }
 
+// NewListFileStoreConnectionsRequest constructs an http.Request for the ListFileStoreConnections method
+func NewListFileStoreConnectionsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/file-stores")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDisconnectFileStoreRequest constructs an http.Request for the DisconnectFileStore method
+func NewDisconnectFileStoreRequest(server string, connectionId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "connectionId", connectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/file-stores/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewBrowseFileStoreRequest constructs an http.Request for the BrowseFileStore method
+func NewBrowseFileStoreRequest(server string, connectionId openapi_types.UUID, params *BrowseFileStoreParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "connectionId", connectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/file-stores/%s/items", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Folder != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "folder", *params.Folder, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewShareFileStoreItemRequest calls the generic ShareFileStoreItem builder with application/json body
+func NewShareFileStoreItemRequest(server string, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, body ShareFileStoreItemJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewShareFileStoreItemRequestWithBody(server, connectionId, params, "application/json", bodyReader)
+}
+
+// NewShareFileStoreItemRequestWithBody constructs an http.Request for the ShareFileStoreItem method, with any body, and a specified content type
+func NewShareFileStoreItemRequestWithBody(server string, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "connectionId", connectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/file-stores/%s/items:share", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCompleteFileStoreConnectionRequest calls the generic CompleteFileStoreConnection builder with application/json body
+func NewCompleteFileStoreConnectionRequest(server string, params *CompleteFileStoreConnectionParams, body CompleteFileStoreConnectionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCompleteFileStoreConnectionRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCompleteFileStoreConnectionRequestWithBody constructs an http.Request for the CompleteFileStoreConnection method, with any body, and a specified content type
+func NewCompleteFileStoreConnectionRequestWithBody(server string, params *CompleteFileStoreConnectionParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/file-stores:complete")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewConnectFileStoreRequest calls the generic ConnectFileStore builder with application/json body
+func NewConnectFileStoreRequest(server string, params *ConnectFileStoreParams, body ConnectFileStoreJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConnectFileStoreRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewConnectFileStoreRequestWithBody constructs an http.Request for the ConnectFileStore method, with any body, and a specified content type
+func NewConnectFileStoreRequestWithBody(server string, params *ConnectFileStoreParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/integrations/file-stores:connect")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewHttpRequestRequest calls the generic HttpRequest builder with application/json body
 func NewHttpRequestRequest(server string, body HttpRequestJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -99397,6 +100153,87 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /integrations/calendar-pushes:complete (the `CompleteCalendarPushAuthorization` operationId).
 	CompleteCalendarPushAuthorizationWithResponse(ctx context.Context, params *CompleteCalendarPushAuthorizationParams, body CompleteCalendarPushAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteCalendarPushAuthorizationResult, error)
+
+	// ListFileStoreConnectionsWithResponse The caller's file store connections
+	//
+	// The caller's own sign-ins to a Nextcloud or to Microsoft's OneDrive and SharePoint, which *Link a file* offers folders from, with the login and when each was last used, and the stores this installation connects to. Never anybody else's, whatever the role: a connection is a grant to its owner's own files.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /integrations/file-stores (the `ListFileStoreConnections` operationId).
+	ListFileStoreConnectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListFileStoreConnectionsResult, error)
+
+	// DisconnectFileStoreWithResponse Disconnect a file store
+	//
+	// The grant is forgotten and a Nextcloud's app password given back. Files linked through the connection stay linked. Somebody else's connection is not found.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /integrations/file-stores/{connectionId} (the `DisconnectFileStore` operationId).
+	DisconnectFileStoreWithResponse(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DisconnectFileStoreResult, error)
+
+	// BrowseFileStoreWithResponse A folder of the caller's file store
+	//
+	// One folder's files and folders, at most 500, read through the caller's own connection with names, sizes and the address an entry's link keeps (`POST /items/{itemId}/files`). The top is a Nextcloud's own files, or Microsoft's OneDrive and the SharePoint sites the caller follows. Names only, never content. A grant the store no longer takes is `403` (`filestore.grant_revoked`); a store out of reach `503` (`filestore.store_unreachable`).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /integrations/file-stores/{connectionId}/items (the `BrowseFileStore` operationId).
+	BrowseFileStoreWithResponse(ctx context.Context, connectionId openapi_types.UUID, params *BrowseFileStoreParams, reqEditors ...RequestEditorFn) (*BrowseFileStoreResult, error)
+
+	// ShareFileStoreItemWithBodyWithResponse Make a read-only share link in the caller's Nextcloud
+	//
+	// A public, read-only share link for a file or folder, made by its owner through their own connection, for an entry's readers without an account there. Anybody holding the link opens the file; the share is taken back in Nextcloud. Microsoft's files are linked as they are (`filestore.share_not_offered`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/file-stores/{connectionId}/items:share (the `ShareFileStoreItem` operationId).
+	ShareFileStoreItemWithBodyWithResponse(ctx context.Context, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ShareFileStoreItemResult, error)
+
+	// ShareFileStoreItemWithResponse Make a read-only share link in the caller's Nextcloud
+	//
+	// A public, read-only share link for a file or folder, made by its owner through their own connection, for an entry's readers without an account there. Anybody holding the link opens the file; the share is taken back in Nextcloud. Microsoft's files are linked as they are (`filestore.share_not_offered`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/file-stores/{connectionId}/items:share (the `ShareFileStoreItem` operationId).
+	ShareFileStoreItemWithResponse(ctx context.Context, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, body ShareFileStoreItemJSONRequestBody, reqEditors ...RequestEditorFn) (*ShareFileStoreItemResult, error)
+
+	// CompleteFileStoreConnectionWithBodyWithResponse Finish connecting a file store
+	//
+	// For a Nextcloud, fetches the app password the person granted; while they have not, `409` (`filestore.not_granted_yet`) and the connection keeps waiting. For Microsoft, trades the code the browser came back with, once. The grant is kept sealed; signing in again as the same login replaces it. A state that is unknown or someone else's answers `404` (`filestore.state_unknown`); one older than ten minutes `422` (`filestore.expired`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/file-stores:complete (the `CompleteFileStoreConnection` operationId).
+	CompleteFileStoreConnectionWithBodyWithResponse(ctx context.Context, params *CompleteFileStoreConnectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteFileStoreConnectionResult, error)
+
+	// CompleteFileStoreConnectionWithResponse Finish connecting a file store
+	//
+	// For a Nextcloud, fetches the app password the person granted; while they have not, `409` (`filestore.not_granted_yet`) and the connection keeps waiting. For Microsoft, trades the code the browser came back with, once. The grant is kept sealed; signing in again as the same login replaces it. A state that is unknown or someone else's answers `404` (`filestore.state_unknown`); one older than ten minutes `422` (`filestore.expired`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/file-stores:complete (the `CompleteFileStoreConnection` operationId).
+	CompleteFileStoreConnectionWithResponse(ctx context.Context, params *CompleteFileStoreConnectionParams, body CompleteFileStoreConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteFileStoreConnectionResult, error)
+
+	// ConnectFileStoreWithBodyWithResponse Start connecting the caller's file store
+	//
+	// For a Nextcloud, its login flow: answers the Nextcloud's page where the person grants access and the state to finish with by `POST /integrations/file-stores:complete` once they did; a server that does not answer as a Nextcloud is `filestore.not_a_nextcloud`. For Microsoft, the authorization code flow with PKCE (S256) with the installation's app, asking to read files and sites alone - never mail, never writing; without an app on this installation `filestore.kind_not_offered`. A waiting connection is good for ten minutes and for the person who started it; at most ten connections per person.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/file-stores:connect (the `ConnectFileStore` operationId).
+	ConnectFileStoreWithBodyWithResponse(ctx context.Context, params *ConnectFileStoreParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectFileStoreResult, error)
+
+	// ConnectFileStoreWithResponse Start connecting the caller's file store
+	//
+	// For a Nextcloud, its login flow: answers the Nextcloud's page where the person grants access and the state to finish with by `POST /integrations/file-stores:complete` once they did; a server that does not answer as a Nextcloud is `filestore.not_a_nextcloud`. For Microsoft, the authorization code flow with PKCE (S256) with the installation's app, asking to read files and sites alone - never mail, never writing; without an app on this installation `filestore.kind_not_offered`. A waiting connection is good for ten minutes and for the person who started it; at most ten connections per person.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /integrations/file-stores:connect (the `ConnectFileStore` operationId).
+	ConnectFileStoreWithResponse(ctx context.Context, params *ConnectFileStoreParams, body ConnectFileStoreJSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectFileStoreResult, error)
 
 	// HttpRequestWithBodyWithResponse Call an external HTTP address
 	//
@@ -122783,6 +123620,287 @@ func (r CompleteCalendarPushAuthorizationResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CompleteCalendarPushAuthorizationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListFileStoreConnectionsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *FileStoreConnectionList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListFileStoreConnectionsResult) GetJSON200() *FileStoreConnectionList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListFileStoreConnectionsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListFileStoreConnectionsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListFileStoreConnectionsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListFileStoreConnectionsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListFileStoreConnectionsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DisconnectFileStoreResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DisconnectFileStoreResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DisconnectFileStoreResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DisconnectFileStoreResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DisconnectFileStoreResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DisconnectFileStoreResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type BrowseFileStoreResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *FileStoreFolder
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r BrowseFileStoreResult) GetJSON200() *FileStoreFolder {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r BrowseFileStoreResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r BrowseFileStoreResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r BrowseFileStoreResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BrowseFileStoreResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r BrowseFileStoreResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ShareFileStoreItemResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *FileStoreShare
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ShareFileStoreItemResult) GetJSON200() *FileStoreShare {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ShareFileStoreItemResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ShareFileStoreItemResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ShareFileStoreItemResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ShareFileStoreItemResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ShareFileStoreItemResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CompleteFileStoreConnectionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *FileStoreConnection
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CompleteFileStoreConnectionResult) GetJSON201() *FileStoreConnection {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompleteFileStoreConnectionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompleteFileStoreConnectionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompleteFileStoreConnectionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompleteFileStoreConnectionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompleteFileStoreConnectionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConnectFileStoreResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *FileStoreConnectionStart
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConnectFileStoreResult) GetJSON200() *FileStoreConnectionStart {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConnectFileStoreResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConnectFileStoreResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConnectFileStoreResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConnectFileStoreResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConnectFileStoreResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -149620,6 +150738,141 @@ func (c *ClientWithResponses) CompleteCalendarPushAuthorizationWithResponse(ctx 
 	return ParseCompleteCalendarPushAuthorizationResult(rsp)
 }
 
+// ListFileStoreConnectionsWithResponse The caller's file store connections
+//
+// The caller's own sign-ins to a Nextcloud or to Microsoft's OneDrive and SharePoint, which *Link a file* offers folders from, with the login and when each was last used, and the stores this installation connects to. Never anybody else's, whatever the role: a connection is a grant to its owner's own files.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /integrations/file-stores (the `ListFileStoreConnections` operationId).
+func (c *ClientWithResponses) ListFileStoreConnectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListFileStoreConnectionsResult, error) {
+	rsp, err := c.ListFileStoreConnections(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListFileStoreConnectionsResult(rsp)
+}
+
+// DisconnectFileStoreWithResponse Disconnect a file store
+//
+// The grant is forgotten and a Nextcloud's app password given back. Files linked through the connection stay linked. Somebody else's connection is not found.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /integrations/file-stores/{connectionId} (the `DisconnectFileStore` operationId).
+func (c *ClientWithResponses) DisconnectFileStoreWithResponse(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DisconnectFileStoreResult, error) {
+	rsp, err := c.DisconnectFileStore(ctx, connectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDisconnectFileStoreResult(rsp)
+}
+
+// BrowseFileStoreWithResponse A folder of the caller's file store
+//
+// One folder's files and folders, at most 500, read through the caller's own connection with names, sizes and the address an entry's link keeps (`POST /items/{itemId}/files`). The top is a Nextcloud's own files, or Microsoft's OneDrive and the SharePoint sites the caller follows. Names only, never content. A grant the store no longer takes is `403` (`filestore.grant_revoked`); a store out of reach `503` (`filestore.store_unreachable`).
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /integrations/file-stores/{connectionId}/items (the `BrowseFileStore` operationId).
+func (c *ClientWithResponses) BrowseFileStoreWithResponse(ctx context.Context, connectionId openapi_types.UUID, params *BrowseFileStoreParams, reqEditors ...RequestEditorFn) (*BrowseFileStoreResult, error) {
+	rsp, err := c.BrowseFileStore(ctx, connectionId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBrowseFileStoreResult(rsp)
+}
+
+// ShareFileStoreItemWithBodyWithResponse Make a read-only share link in the caller's Nextcloud
+//
+// A public, read-only share link for a file or folder, made by its owner through their own connection, for an entry's readers without an account there. Anybody holding the link opens the file; the share is taken back in Nextcloud. Microsoft's files are linked as they are (`filestore.share_not_offered`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/file-stores/{connectionId}/items:share (the `ShareFileStoreItem` operationId).
+func (c *ClientWithResponses) ShareFileStoreItemWithBodyWithResponse(ctx context.Context, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ShareFileStoreItemResult, error) {
+	rsp, err := c.ShareFileStoreItemWithBody(ctx, connectionId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseShareFileStoreItemResult(rsp)
+}
+
+// ShareFileStoreItemWithResponse Make a read-only share link in the caller's Nextcloud
+//
+// A public, read-only share link for a file or folder, made by its owner through their own connection, for an entry's readers without an account there. Anybody holding the link opens the file; the share is taken back in Nextcloud. Microsoft's files are linked as they are (`filestore.share_not_offered`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/file-stores/{connectionId}/items:share (the `ShareFileStoreItem` operationId).
+func (c *ClientWithResponses) ShareFileStoreItemWithResponse(ctx context.Context, connectionId openapi_types.UUID, params *ShareFileStoreItemParams, body ShareFileStoreItemJSONRequestBody, reqEditors ...RequestEditorFn) (*ShareFileStoreItemResult, error) {
+	rsp, err := c.ShareFileStoreItem(ctx, connectionId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseShareFileStoreItemResult(rsp)
+}
+
+// CompleteFileStoreConnectionWithBodyWithResponse Finish connecting a file store
+//
+// For a Nextcloud, fetches the app password the person granted; while they have not, `409` (`filestore.not_granted_yet`) and the connection keeps waiting. For Microsoft, trades the code the browser came back with, once. The grant is kept sealed; signing in again as the same login replaces it. A state that is unknown or someone else's answers `404` (`filestore.state_unknown`); one older than ten minutes `422` (`filestore.expired`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/file-stores:complete (the `CompleteFileStoreConnection` operationId).
+func (c *ClientWithResponses) CompleteFileStoreConnectionWithBodyWithResponse(ctx context.Context, params *CompleteFileStoreConnectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteFileStoreConnectionResult, error) {
+	rsp, err := c.CompleteFileStoreConnectionWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteFileStoreConnectionResult(rsp)
+}
+
+// CompleteFileStoreConnectionWithResponse Finish connecting a file store
+//
+// For a Nextcloud, fetches the app password the person granted; while they have not, `409` (`filestore.not_granted_yet`) and the connection keeps waiting. For Microsoft, trades the code the browser came back with, once. The grant is kept sealed; signing in again as the same login replaces it. A state that is unknown or someone else's answers `404` (`filestore.state_unknown`); one older than ten minutes `422` (`filestore.expired`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/file-stores:complete (the `CompleteFileStoreConnection` operationId).
+func (c *ClientWithResponses) CompleteFileStoreConnectionWithResponse(ctx context.Context, params *CompleteFileStoreConnectionParams, body CompleteFileStoreConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteFileStoreConnectionResult, error) {
+	rsp, err := c.CompleteFileStoreConnection(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteFileStoreConnectionResult(rsp)
+}
+
+// ConnectFileStoreWithBodyWithResponse Start connecting the caller's file store
+//
+// For a Nextcloud, its login flow: answers the Nextcloud's page where the person grants access and the state to finish with by `POST /integrations/file-stores:complete` once they did; a server that does not answer as a Nextcloud is `filestore.not_a_nextcloud`. For Microsoft, the authorization code flow with PKCE (S256) with the installation's app, asking to read files and sites alone - never mail, never writing; without an app on this installation `filestore.kind_not_offered`. A waiting connection is good for ten minutes and for the person who started it; at most ten connections per person.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/file-stores:connect (the `ConnectFileStore` operationId).
+func (c *ClientWithResponses) ConnectFileStoreWithBodyWithResponse(ctx context.Context, params *ConnectFileStoreParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectFileStoreResult, error) {
+	rsp, err := c.ConnectFileStoreWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectFileStoreResult(rsp)
+}
+
+// ConnectFileStoreWithResponse Start connecting the caller's file store
+//
+// For a Nextcloud, its login flow: answers the Nextcloud's page where the person grants access and the state to finish with by `POST /integrations/file-stores:complete` once they did; a server that does not answer as a Nextcloud is `filestore.not_a_nextcloud`. For Microsoft, the authorization code flow with PKCE (S256) with the installation's app, asking to read files and sites alone - never mail, never writing; without an app on this installation `filestore.kind_not_offered`. A waiting connection is good for ten minutes and for the person who started it; at most ten connections per person.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /integrations/file-stores:connect (the `ConnectFileStore` operationId).
+func (c *ClientWithResponses) ConnectFileStoreWithResponse(ctx context.Context, params *ConnectFileStoreParams, body ConnectFileStoreJSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectFileStoreResult, error) {
+	rsp, err := c.ConnectFileStore(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectFileStoreResult(rsp)
+}
+
 // HttpRequestWithBodyWithResponse Call an external HTTP address
 //
 // One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
@@ -170824,6 +172077,200 @@ func ParseCompleteCalendarPushAuthorizationResult(rsp *http.Response) (*Complete
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListFileStoreConnectionsResult parses an HTTP response from a ListFileStoreConnectionsWithResponse call
+func ParseListFileStoreConnectionsResult(rsp *http.Response) (*ListFileStoreConnectionsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListFileStoreConnectionsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FileStoreConnectionList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDisconnectFileStoreResult parses an HTTP response from a DisconnectFileStoreWithResponse call
+func ParseDisconnectFileStoreResult(rsp *http.Response) (*DisconnectFileStoreResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DisconnectFileStoreResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseBrowseFileStoreResult parses an HTTP response from a BrowseFileStoreWithResponse call
+func ParseBrowseFileStoreResult(rsp *http.Response) (*BrowseFileStoreResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BrowseFileStoreResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FileStoreFolder
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseShareFileStoreItemResult parses an HTTP response from a ShareFileStoreItemWithResponse call
+func ParseShareFileStoreItemResult(rsp *http.Response) (*ShareFileStoreItemResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ShareFileStoreItemResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FileStoreShare
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCompleteFileStoreConnectionResult parses an HTTP response from a CompleteFileStoreConnectionWithResponse call
+func ParseCompleteFileStoreConnectionResult(rsp *http.Response) (*CompleteFileStoreConnectionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompleteFileStoreConnectionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest FileStoreConnection
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConnectFileStoreResult parses an HTTP response from a ConnectFileStoreWithResponse call
+func ParseConnectFileStoreResult(rsp *http.Response) (*ConnectFileStoreResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConnectFileStoreResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FileStoreConnectionStart
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
