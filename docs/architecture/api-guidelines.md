@@ -54,7 +54,14 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    name (`items.expand_not_supported`). An operation whose connection an adapter holds rather than one use case
    answers - the change stream, a live document, the sync protocol's pull, push and snapshot - is
    marked `x-hubtask-rest: delegated` with `x-hubtask-rest-to: <field>`: the generated door hands
-   the request to the controller's field, or answers the pending 404 where it is not wired.
+   the request to the controller's field, or answers the pending 404 where it is not wired. So is
+   a door no catalogue entry answers because it speaks a format or a credential of its own, each
+   held by a door type with the generated interface's methods: SCIM's resources and errors
+   (`ScimDoor`), SAML's posted form and metadata (`SAMLDoor`), a media object's bytes
+   (`MediaDoor`), the documents a token alone opens - a calendar feed, a data feed's OData, a
+   public page (`FeedDoor`) -, the self-description and the health report (`MetaDoor`), and the
+   doors a sender outside holds the credential of - inbound runs, the jumble, the forges, the
+   CMDB, the receiving domain, the voice assistant (`IntakeDoor`).
    `x-hubtask-rest-drop: [member]` accepts and drops a body member the contract
    declares and the use case does not, as its hand-written door did, until the owner decides it
    (a schedule's `enabled`). `x-hubtask-rest-cache:

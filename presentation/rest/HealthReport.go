@@ -156,7 +156,7 @@ type HealthReportReader interface {
 //
 // Who sees how much is not decided here. The use case answers the whole report or the reduced one,
 // because that is an authorisation decision and those live in the application layer (rule 2).
-func (c *RestController) GetHealthReport(w http.ResponseWriter, r *http.Request) {
+func (c *MetaDoor) GetHealthReport(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 
 	if c.HealthReport == nil {

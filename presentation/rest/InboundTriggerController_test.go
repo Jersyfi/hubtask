@@ -40,7 +40,7 @@ func deliver(
 	t.Helper()
 
 	controller := NewRestController()
-	controller.InboundRuns = starter
+	controller.Intake = &IntakeDoor{InboundRuns: starter}
 
 	var reader *strings.Reader
 	if body != "" {

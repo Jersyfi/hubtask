@@ -3537,31 +3537,32 @@ func run() error {
 		// stream, which is neither what MCP nor what an automation rule could do with them. On an
 		// object-storage installation they are never reached - the token this server would have to
 		// have minted is one it never mints there.
-		controller.MediaContent = mediaservice.MediaContent{
-			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard,
-			UnitOfWork: unitOfWork, Config: cfg,
+		controller.Media = &rest.MediaDoor{
+			Content: mediaservice.MediaContent{
+				Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard,
+				UnitOfWork: unitOfWork, Config: cfg,
+			},
+			Tokens: mediaTokens, Clock: clockadapter.System{},
 		}
-		controller.MediaTokens = mediaTokens
 		samlMetadata, err := samladapter.Metadata(samlMetadataURL, samlACSURL)
 		if err != nil {
 			return err
 		}
-		controller.SAML = rest.SAMLDoor{
+		controller.SAML = &rest.SAMLDoor{
 			Answers: identity.ReceiveSAMLAnswer{
 				Session: sessionWriter,
 				Answers: postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 			},
 			CallbackURL: oidcRedirectURL, Metadata: samlMetadata,
 		}
-		controller.Clock = clockadapter.System{}
 		// The address a calendar client is handed. Configured rather than taken from the
 		// request's Host, so that one caller cannot decide what the next person's client stores.
 		controller.BaseURL = cfg.BaseURL
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
 		// system holds, and every question it asks is asked inwards of the controller.
 		// A page's public link: not a catalogue entry, for the feed's reason.
-		controller.PublicPages = knowledgeservice.ReadPublicPage{Space: pageSpace}
-		controller.CalendarFeeds = work.ReadCalendarFeed{
+		controller.Feeds = &rest.FeedDoor{BaseURL: cfg.BaseURL, Pages: knowledgeservice.ReadPublicPage{Space: pageSpace}}
+		controller.Feeds.Calendar = work.ReadCalendarFeed{
 			Feeds: calendarFeeds, Accounts: accounts,
 			Export: work.ExportView{
 				Views: savedViews, Containers: containers, Permits: authorizer,
@@ -3576,7 +3577,7 @@ func run() error {
 			UnitOfWork: unitOfWork,
 		}
 		// A data feed (UC-INT-15): the same read, a data feed's token alone.
-		controller.DataFeeds = work.ReadCalendarFeed{
+		controller.Feeds.Data = work.ReadCalendarFeed{
 			Kind:  integrationmodel.DataKind,
 			Feeds: calendarFeeds, Accounts: accounts,
 			Export: work.ExportView{
@@ -3595,13 +3596,14 @@ func run() error {
 		// answers a credential nobody in this system holds, it can do exactly one thing - start
 		// that one rule's run - and every question it asks is asked inwards of the controller
 		// (automation.md §1.1).
-		controller.InboundRuns = automationservice.StartInboundRun{
+		controller.Intake = &rest.IntakeDoor{}
+		controller.Intake.InboundRuns = automationservice.StartInboundRun{
 			Entitlements: postgres.NewPlanRepository(),
 			Inbound:      automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}
 		// The jumble's public door: a delivery on the tenant's address becomes an entry.
-		controller.JumbleIntake = intake.WebhookIntake{
+		controller.Intake.JumbleIntake = intake.WebhookIntake{
 			Deliveries: jumbleservice.IntakeJumbleEntry{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
 				Events: outbox, UnitOfWork: unitOfWork,
@@ -3610,13 +3612,13 @@ func run() error {
 		}
 		// The mail door beside it: the message is parsed here, its files go through the
 		// media pipeline's server-side end, and what lands is an EMAIL entry.
-		controller.CodeIntake = intake.CodeIntake{Deliveries: codeForge}
-		controller.CmdbAlerts = intake.AlertIntake{Deliveries: connectors}
-		controller.CmdbInventory = intake.InventoryIntake{Deliveries: connectors}
+		controller.Intake.CodeIntake = intake.CodeIntake{Deliveries: codeForge}
+		controller.Intake.CmdbAlerts = intake.AlertIntake{Deliveries: connectors}
+		controller.Intake.CmdbInventory = intake.InventoryIntake{Deliveries: connectors}
 		// The SCIM door a directory provisions through (UC-ID-28): the group acts are the
 		// catalogue's own, wired as they are there.
-		controller.Directory = directory
-		controller.MailIntake = intake.MailIntake{
+		controller.Scim = &rest.ScimDoor{Directory: directory, BaseURL: cfg.BaseURL}
+		controller.Intake.MailIntake = intake.MailIntake{
 			Deliveries: jumbleservice.IntakeMail{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
 				Media: mediaservice.IngestMedia{
@@ -3631,7 +3633,7 @@ func run() error {
 		// The operator's inbound service's door (ADR-0094): it posts each message with the
 		// installation's key, and the intake files it where it is meant to go - as the admitted
 		// sender, through the catalogue, or into the jumble with the reason.
-		controller.AddressedMail = intake.AddressedMailIntake{
+		controller.Intake.AddressedMail = intake.AddressedMailIntake{
 			Key:        cfg.Mail.InboundKey.Reveal(),
 			Deliveries: receiveMail,
 		}
@@ -3714,8 +3716,8 @@ func run() error {
 			// streams because it is a connection held open like one.
 			Registry: streams, StreamSignals: metrics,
 		}
-		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
-		controller.Capabilities = meta.GetCapabilities{
+		controller.Meta = &rest.MetaDoor{HealthReport: meta.GetHealthReport{Health: registry, Authorizer: authorizer}}
+		controller.Meta.Capabilities = meta.GetCapabilities{
 			Profiles:  profiles,
 			Languages: postgres.NewTextLanguageRepository(),
 			Locales:   renderer,
@@ -3856,7 +3858,7 @@ func run() error {
 
 		// Alexa's endpoint (ADR-0093): Amazon's signature checked, the linked account's token
 		// authenticated as every other bearer is, the sentence done through the catalogue.
-		controller.Alexa = voicepresentation.Alexa{
+		controller.Intake.Alexa = voicepresentation.Alexa{
 			Verifier: &alexa.Verifier{Client: outboundClient},
 			Authenticate: func(ctx context.Context, token, locale string) (appshared.ActorContext, error) {
 				return authenticate.Execute(ctx, identity.AuthenticateTokenCommand{

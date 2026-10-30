@@ -32,15 +32,15 @@ func alexaModelOf(out usecase.Output) any { return out["model"] }
 //
 // A request that is not Alexa's, or not for this installation, answers the pending not-found an
 // unwired route answers: a forger learns nothing about which check failed.
-func (c *RestController) AnswerAlexa(w http.ResponseWriter, r *http.Request) {
+func (c *IntakeDoor) AnswerAlexa(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.Alexa == nil {
-		c.pending.AnswerAlexa(w, r)
+		pending{}.AnswerAlexa(w, r)
 		return
 	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		c.pending.AnswerAlexa(w, r)
+		pending{}.AnswerAlexa(w, r)
 		return
 	}
 	answer, err := c.Alexa.Handle(r.Context(), r.Header, body)

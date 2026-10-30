@@ -31,12 +31,12 @@ type CmdbInventoryDeliverer interface {
 // DeliverCiAlerts answers POST /cmdb/alert-intake/{tenantId}/{connectorId}. It reads the body
 // whole - the request middleware bounds it - and passes the presented credential on as it came:
 // whether it is the intake's is decided inwards.
-func (c *RestController) DeliverCiAlerts(
+func (c *IntakeDoor) DeliverCiAlerts(
 	w http.ResponseWriter, r *http.Request, tenantID, connectorID openapi_types.UUID, params openapi.DeliverCiAlertsParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.CmdbAlerts == nil {
-		c.pending.DeliverCiAlerts(w, r, tenantID, connectorID, params)
+		pending{}.DeliverCiAlerts(w, r, tenantID, connectorID, params)
 		return
 	}
 	raw, err := io.ReadAll(r.Body)
@@ -89,12 +89,12 @@ func presentedSecret(r *http.Request) string {
 // address a GLPI Agent is given. A post with no credential at all is challenged for basic
 // authentication whatever the address names - the agent sends its password only when asked, and
 // a challenge that depended on the intake would tell a prober which exist.
-func (c *RestController) DeliverCiInventory(
+func (c *IntakeDoor) DeliverCiInventory(
 	w http.ResponseWriter, r *http.Request, tenantID, connectorID openapi_types.UUID, params openapi.DeliverCiInventoryParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.CmdbInventory == nil {
-		c.pending.DeliverCiInventory(w, r, tenantID, connectorID, params)
+		pending{}.DeliverCiInventory(w, r, tenantID, connectorID, params)
 		return
 	}
 	raw, err := io.ReadAll(r.Body)

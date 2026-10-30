@@ -14,6 +14,7 @@ import (
 	usecasemedia "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -45,13 +46,24 @@ type MediaContentService interface {
 	Send(ctx context.Context, grant usecasemedia.Grant) (usecasemedia.Served, error)
 }
 
+// MediaDoor serves the two content routes the contract delegates to it, which are not catalogue
+// entries: they take a stream and answer a stream, which is neither what MCP nor what an automation
+// rule could do with them (core/application/service/media.MediaContent).
+type MediaDoor struct {
+	Content MediaContentService
+	Tokens  MediaTokenValidator
+	// Clock judges an expiring capability: a port rather than time.Now, so that a test can stand
+	// at the moment a token expires.
+	Clock clock.Clock
+}
+
 // UploadMediaContent answers PUT /media/{mediaId}:content.
 //
 // No bearer credential and no actor: the URL is the capability, exactly as a presigned bucket URL
 // is, and the token in it is what this handler verifies. Everything after that verification is the
 // application layer's - which tenant the transaction runs as comes out of the token, and what may
 // be done with the object is decided there (ADR-0005).
-func (c *RestController) UploadMediaContent(
+func (c *MediaDoor) UploadMediaContent(
 	w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId, params openapi.UploadMediaContentParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
@@ -62,7 +74,7 @@ func (c *RestController) UploadMediaContent(
 		return
 	}
 
-	if err := c.MediaContent.Receive(r.Context(), grant, r.Body); err != nil {
+	if err := c.Content.Receive(r.Context(), grant, r.Body); err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
@@ -74,7 +86,7 @@ func (c *RestController) UploadMediaContent(
 // A download and never a rendering path: the disposition is attachment, the type is the sniffed
 // one rather than anything the uploader claimed, and the sandboxing policy is set on the answer
 // itself - so a browser that follows this URL saves a file rather than executing one (T-11).
-func (c *RestController) DownloadMediaContent(
+func (c *MediaDoor) DownloadMediaContent(
 	w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId, params openapi.DownloadMediaContentParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
@@ -85,7 +97,7 @@ func (c *RestController) DownloadMediaContent(
 		return
 	}
 
-	served, err := c.MediaContent.Send(r.Context(), grant)
+	served, err := c.Content.Send(r.Context(), grant)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
@@ -121,10 +133,10 @@ const (
 )
 
 // grantFor verifies the capability and turns it into what the application layer takes.
-func (c *RestController) grantFor(
+func (c *MediaDoor) grantFor(
 	r *http.Request, mediaID openapi.MediaId, token string, want direction,
 ) (usecasemedia.Grant, error) {
-	if c.MediaContent == nil || c.MediaTokens == nil || c.Clock == nil {
+	if c.Content == nil || c.Tokens == nil || c.Clock == nil {
 		return usecasemedia.Grant{}, errNotWired
 	}
 
@@ -134,9 +146,9 @@ func (c *RestController) grantFor(
 	var tenantID shared.ID
 	var err error
 	if want == uploading {
-		tenantID, err = c.MediaTokens.ValidateUpload(token, id, now)
+		tenantID, err = c.Tokens.ValidateUpload(token, id, now)
 	} else {
-		tenantID, err = c.MediaTokens.ValidateDownload(token, id, now)
+		tenantID, err = c.Tokens.ValidateDownload(token, id, now)
 	}
 	if err != nil {
 		return usecasemedia.Grant{}, err

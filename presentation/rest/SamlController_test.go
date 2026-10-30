@@ -30,7 +30,7 @@ func (k *keeperDouble) Execute(_ context.Context, state, answer string) (secret.
 func TestTheAssertionConsumerServiceSendsTheBrowserOn(t *testing.T) {
 	keeper := &keeperDouble{}
 	controller := NewRestController()
-	controller.SAML = SAMLDoor{Answers: keeper, CallbackURL: "https://hubtask.example/auth/callback", Metadata: []byte("<md/>")}
+	controller.SAML = &SAMLDoor{Answers: keeper, CallbackURL: "https://hubtask.example/auth/callback", Metadata: []byte("<md/>")}
 
 	post := func(state string) *httptest.ResponseRecorder {
 		form := url.Values{"SAMLResponse": {"PHg+"}, "RelayState": {state}}

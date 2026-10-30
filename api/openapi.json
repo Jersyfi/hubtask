@@ -8242,6 +8242,8 @@
           "cmdb"
         ],
         "operationId": "deliverCiAlerts",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Intake",
         "security": [],
         "summary": "Post alerts to an intake",
         "description": "An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.\nEvery reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.\n",
@@ -8731,6 +8733,8 @@
           "code"
         ],
         "operationId": "deliverCode",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Intake",
         "security": [],
         "summary": "A forge posts its pushes and pull requests",
         "description": "A GitHub, GitLab, Forgejo or Gitea webhook posts its `push` and `pull_request` (GitLab's `Push Hook` and `Merge Request Hook`) events in its own format. GitHub signs the body with the hook's secret in `X-Hub-Signature-256`, Forgejo and Gitea in `X-Forgejo-Signature` or `X-Gitea-Signature`, GitLab sends the secret as `X-Gitlab-Token`. A delivery is remembered three days by the forge's delivery identifier, and one repeated is refused. Each commit, branch and pull request is kept on every entry of the hook's hub its key names - in a branch's name, a commit's message or a pull request's title, branch or description - and follows the forge's own moment, so that a late delivery never undoes a merge.\nEvery reason not to serve answers the same `404` - an unknown hook, one switched off, a wrong secret, a repeated delivery, a writer who may no longer write in the hub.\n",
@@ -8875,6 +8879,8 @@
           "cmdb"
         ],
         "operationId": "deliverCiInventory",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Intake",
         "security": [],
         "summary": "Post a GLPI Agent's inventory",
         "description": "The server address a GLPI Agent is given: its native inventory protocol, JSON or zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory` is reconciled as the intake's source - the computer with its serial, addresses and operating system, its installed software related to it. The intake's secret is the credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic authentication (any user name), or signing the post as an alert intake's are. A post with no credential at all is answered `401` with a basic challenge, whatever the address; every other reason not to serve answers the same `404`.\n",
@@ -11519,6 +11525,8 @@
           "jumble"
         ],
         "operationId": "deliverAddressedMail",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Intake",
         "security": [],
         "summary": "Deliver a mail to the operator's receiving domain",
         "description": "The installation's inbound route: the inbound service the receiving domain's MX points at posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic credentials. The workspace is the one an address names - `<workspace>@`, `<workspace>+<tag>@` or `<handle>.<workspace>@` at the receiving domain - whose intake is on.\nThe message is filed by the intake's routing order: a ticket key in the address or the subject makes it a comment, a handle a new entry in that collection, then the sender rules and the default collection; anything else, and anything from a sender the level does not admit, waits in the jumble with the reason. A message received before answers what it became then, with `duplicate`. An address naming no workspace answers `404`.\n",
@@ -11727,6 +11735,8 @@
           "voice"
         ],
         "operationId": "answerAlexa",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Intake",
         "security": [],
         "summary": "Answer Alexa",
         "description": "The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.\n",
@@ -12251,6 +12261,8 @@
           "jumble"
         ],
         "operationId": "startJumbleIntake",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Intake",
         "security": [],
         "summary": "Deliver something into the jumble from outside",
         "description": "The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.\nThe token authenticates the tenant, never a person: the entry records no actor, and the body is data end to end - bounded twice (the transfer by the request middleware, the entry by its own field bounds), matched by rules as data, and rendered as instructions to nothing.\nEvery reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens.\n",
@@ -12298,6 +12310,8 @@
           "jumble"
         ],
         "operationId": "deliverMail",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Intake",
         "security": [],
         "summary": "Deliver a mail into the jumble",
         "description": "The `EMAIL` channel. The body is the message as it arrived - RFC 5322 bytes, headers included - and the transport is **webhook-first**: an operator points a mail-to-webhook bridge, their MTA or their provider's push at this address, and the bytes are what any of them can forward without agreeing on a shape.\nThe parser is transport-independent and defensive. MIME is walked with bounds on parts, depth, attachment count and attachment size, checked before anything is allocated; attachments go through the media pipeline with its size and type discipline, never a second storage path; and the HTML alternative of a message that also had a plain part is kept as text beside it. **No HTML is ever rendered server-side.**\nThe sender is data, never an identity: a `From` header authenticates nothing, and what authenticates is the token. A message the parser cannot read still lands, as an entry carrying the raw payload - a jumble exists to catch, and \"unparseable\" is a thing to catch. A message that breaks one of the bounds is refused with the code that says which, because \"raise the bound\" and \"look at the entry\" are different answers.\nEvery reason not to serve answers the same `404`, as the webhook intake's does.\n",
@@ -12346,6 +12360,8 @@
           "automation"
         ],
         "operationId": "startInboundRun",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Intake",
         "security": [],
         "summary": "Start a rule from outside",
         "description": "The other half of the `INBOUND_WEBHOOK` trigger: an external system posts here and the rule's run begins, in the same engine every other trigger produces into.\n**This authenticates the rule, never a person.** There is no account behind the token and it grants nothing beyond starting that one rule - the run carries no actor, because naming one would invent an author for something nobody did. What the run may then do is its `run_as` account's business, checked per action exactly as it is for every other trigger.\nThe body is a JSON object and enters the condition language as `payload`, as **data**: it is never rendered as an instruction to anything. It is bounded well below the request limit, because what bounds a transfer and what bounds an evaluation are two different numbers - anything larger is refused rather than truncated.\nAn unknown token, a rotated one, a rule that has been deleted, a rule that is switched off and a rule whose trigger is no longer an inbound webhook all answer the same `404` with the same body. Distinguishing them would answer questions to whoever is trying tokens.\n",
@@ -13485,6 +13501,8 @@
           "calendar"
         ],
         "operationId": "getCalendarFeedDocument",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Feeds",
         "security": [],
         "description": "The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it stays put across a daylight saving transition.\nMinimal by default: the title, the dates and a link back, never the notes - the restraint a notification email keeps applies here for the same reason, since a calendar entry is read on devices and screens nobody in this workspace controls.\nAn unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner has lost the view all answer the same 404 with the same body. Distinguishing them would answer questions to whoever is trying tokens.\n",
         "responses": {
@@ -13515,6 +13533,8 @@
           "calendar"
         ],
         "operationId": "getDataFeedService",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Feeds",
         "security": [],
         "summary": "A data feed's OData service document",
         "description": "The root a reporting tool is given - Power BI's and Excel's *OData feed*: an OData v4 service with one entity set, `Entries`, the rows of the saved view the feed serves, read as the feed's owner reads at every fetch. Read-only. An unknown token, a revoked one, a calendar's token, a feed whose view has been deleted and one whose owner has lost the view all answer the same 404.\n",
@@ -13546,6 +13566,8 @@
           "calendar"
         ],
         "operationId": "getDataFeedMetadata",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Feeds",
         "security": [],
         "summary": "A data feed's OData metadata",
         "description": "The feed's schema as an OData v4 CSDL document: the entity type `Entry` and the entity set `Entries`. The same 404 as the service document for every reason not to serve.\n",
@@ -13577,6 +13599,8 @@
           "calendar"
         ],
         "operationId": "getDataFeedEntries",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Feeds",
         "security": [],
         "summary": "A data feed's rows",
         "description": "The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.\n",
@@ -13623,6 +13647,8 @@
           "meta"
         ],
         "operationId": "getCapabilities",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Meta",
         "summary": "Self-description of the installation",
         "description": "Item types, capability profiles, field types, enum values, limits, supported locales,\nlayout hints, automation triggers and actions, and event types.\nClients configure themselves from this instead of hard-coding values.\n",
         "security": [],
@@ -13646,6 +13672,8 @@
           "meta"
         ],
         "operationId": "getHealthReport",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Meta",
         "summary": "Deep self-diagnosis of the installation",
         "description": "The state of every dependency, the active feature restrictions, the backlogs, and the\nconfiguration warnings. Deliberately answers `200` even when `status` is `degraded` -\nthe HTTP status describes whether the endpoint is reachable, the `status` field\ndescribes the system. The internal `/meta/health` on the operations listener serves the\nsame report and answers `503` when the status is `down`, because a status page reads a\nstatus code and holds no token; this route does not, for the reason above.\n\n**One route, two answers.** A credential holding `admin:tenants` is the installation's\noperator and receives the whole report. Any other reader receives `status`, `version` and\n`degraded_features` and nothing else: which features are degraded is a statement about\nwhat the reader is about to try, while the dependency names, the backlogs, the migration\nstate and the configuration warnings are the installation's internals and do not cross a\ntenant boundary. That reader needs the `ops:read` scope and the permission a workspace\nadministrator holds (`STRUCTURE`, or `READ_CONFIGURATION` for an auditor).\n\nThe unauthenticated probes `/healthz`, `/startupz` and `/readyz` live outside `/api/v1`\nand return only status codes.\n",
         "responses": {
@@ -17504,6 +17532,8 @@
           "auth"
         ],
         "operationId": "receiveSamlResponse",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "SAML",
         "security": [],
         "summary": "Receive a SAML provider's answer",
         "description": "This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.\nAn answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.\n",
@@ -17541,6 +17571,8 @@
           "auth"
         ],
         "operationId": "getSamlMetadata",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "SAML",
         "security": [],
         "summary": "This installation's SAML service provider metadata",
         "description": "The metadata a SAML provider is registered with: the entity ID a workspace's SAML provider uses unless it names its own (`client_id`), and the assertion consumer service on this installation's address. Authentication requests are not signed; assertions must be. Nothing in it is a workspace's.\n",
@@ -22921,6 +22953,8 @@
           "identity"
         ],
         "operationId": "getScimServiceProviderConfig",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "What this SCIM service supports",
         "description": "The SCIM 2.0 service provider configuration (RFC 7643 section 5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.\n",
         "responses": {
@@ -22946,6 +22980,8 @@
           "identity"
         ],
         "operationId": "listScimResourceTypes",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "The SCIM resource types served",
         "description": "The `User` and `Group` resource types (RFC 7643 section 6), as a list response.",
         "responses": {
@@ -22971,6 +23007,8 @@
           "identity"
         ],
         "operationId": "listScimSchemas",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "The SCIM schemas served",
         "description": "The core `User` and `Group` schemas (RFC 7643 section 7) with the attributes this service keeps.",
         "responses": {
@@ -22996,6 +23034,8 @@
           "identity"
         ],
         "operationId": "listScimUsers",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "The people a directory provisions",
         "description": "The workspace's people as SCIM users (RFC 7644 section 3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.\n",
         "parameters": [
@@ -23045,6 +23085,8 @@
           "identity"
         ],
         "operationId": "createScimUser",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "Provision a person",
         "description": "A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.\n",
         "requestBody": {
@@ -23090,6 +23132,8 @@
           "identity"
         ],
         "operationId": "getScimUser",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "A provisioned person",
         "responses": {
           "200": {
@@ -23112,6 +23156,8 @@
           "identity"
         ],
         "operationId": "replaceScimUser",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "Replace a provisioned person",
         "description": "The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).\n",
         "requestBody": {
@@ -23150,6 +23196,8 @@
           "identity"
         ],
         "operationId": "patchScimUser",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "Change a provisioned person",
         "description": "SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string \"False\" included). The same limits as a replacement.\n",
         "requestBody": {
@@ -23188,6 +23236,8 @@
           "identity"
         ],
         "operationId": "deleteScimUser",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "Deprovision a person",
         "description": "The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data; an erasure is the workspace's own. Provisioning the address again switches the account on.\n",
         "responses": {
@@ -23206,6 +23256,8 @@
           "identity"
         ],
         "operationId": "listScimGroups",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "The groups a directory provisions",
         "description": "The workspace's groups as SCIM groups, with their members unless `excludedAttributes=members`. A filter names `displayName`, `externalId` or `id` with `eq`.\n",
         "parameters": [
@@ -23263,6 +23315,8 @@
           "identity"
         ],
         "operationId": "createScimGroup",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "Provision a group",
         "description": "A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.\n",
         "requestBody": {
@@ -23308,6 +23362,8 @@
           "identity"
         ],
         "operationId": "getScimGroup",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "A provisioned group",
         "parameters": [
           {
@@ -23340,6 +23396,8 @@
           "identity"
         ],
         "operationId": "replaceScimGroup",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "Replace a provisioned group",
         "description": "The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).\n",
         "requestBody": {
@@ -23378,6 +23436,8 @@
           "identity"
         ],
         "operationId": "patchScimGroup",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "Change a provisioned group",
         "description": "SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq \"…\"]`, `replace` of the whole set.\n",
         "requestBody": {
@@ -23419,6 +23479,8 @@
           "identity"
         ],
         "operationId": "deleteScimGroup",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Scim",
         "summary": "Remove a provisioned group",
         "description": "The group and the roles it granted; its people stay.",
         "responses": {
@@ -29403,6 +29465,8 @@
           "media"
         ],
         "operationId": "uploadMediaContent",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Media",
         "security": [],
         "description": "The upload target of a local-storage installation: the bytes, streamed, judged by the upload guard as they pass. On an object-storage installation the upload goes to the presigned URL instead and this route answers that the token is not one it minted.\n",
         "requestBody": {
@@ -29430,6 +29494,8 @@
           "media"
         ],
         "operationId": "downloadMediaContent",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Media",
         "security": [],
         "description": "The download target of a local-storage installation: the bytes, streamed, as a download - `Content-Disposition: attachment` and a sandboxing content security policy, never a rendering path for what somebody uploaded.\n",
         "responses": {
@@ -30747,6 +30813,8 @@
           "pages"
         ],
         "operationId": "getPublicPage",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Feeds",
         "security": [],
         "summary": "A page opened by its public link",
         "description": "The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.\n",

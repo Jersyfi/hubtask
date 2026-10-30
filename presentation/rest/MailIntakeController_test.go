@@ -42,7 +42,7 @@ func deliverMail(
 	t.Helper()
 
 	controller := NewRestController()
-	controller.MailIntake = door
+	controller.Intake = &IntakeDoor{MailIntake: door}
 
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
 		APIBasePath+"/jumble/mail/"+token, strings.NewReader(body))
@@ -136,7 +136,7 @@ func (d *addressedDoor) Deliver(
 func TestTheInboundRouteTakesOnlyTheKey(t *testing.T) {
 	door := &addressedDoor{}
 	controller := NewRestController()
-	controller.AddressedMail = door
+	controller.Intake = &IntakeDoor{AddressedMail: door}
 	send := func(key string) *httptest.ResponseRecorder {
 		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
 			APIBasePath+"/mail/inbound?recipient=a.bbbbbbbbbbbbbbbb%40in.example.test",

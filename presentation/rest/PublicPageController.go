@@ -19,6 +19,20 @@ type PublicPageReader interface {
 	Execute(ctx context.Context, token integration.PageLinkToken) (knowledge.PublicPage, error)
 }
 
+// FeedDoor serves the routes a token alone opens, delegated to it by the contract: a calendar
+// feed's .ics document, a data feed's OData service and a page's public link. None is a catalogue
+// entry: each answers a credential nobody in this system holds, in a format of its own, and there
+// is nothing for MCP or an automation rule to call. A nil reader answers the route not wired.
+type FeedDoor struct {
+	Calendar CalendarFeedReader
+	// Data serves a data feed's OData routes (UC-INT-15).
+	Data CalendarFeedReader
+	// Pages serves a page's public link (UC-DOC-08).
+	Pages PublicPageReader
+	// BaseURL is the installation's public address the links back are composed from (feedURL).
+	BaseURL string
+}
+
 // publicPagePolicy keeps the document inert wherever it is opened: no script, nothing loaded from
 // elsewhere, no form, never framed - the page is words somebody wrote, shown to anybody.
 const publicPagePolicy = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; " +
@@ -27,9 +41,9 @@ const publicPagePolicy = "default-src 'none'; img-src data:; style-src 'unsafe-i
 // GetPublicPage answers GET /public/pages/{token}: a page opened by its public link, with no
 // bearer credential. Parsing happens here and nothing else; every question is asked inwards, and
 // every refusal looks the same from out here (T-21).
-func (c *RestController) GetPublicPage(w http.ResponseWriter, r *http.Request, presented string) {
+func (c *FeedDoor) GetPublicPage(w http.ResponseWriter, r *http.Request, presented string) {
 	requestID := correlation.RequestIDFrom(r.Context())
-	if c.PublicPages == nil {
+	if c.Pages == nil {
 		WriteProblem(w, errNotWired, requestID)
 		return
 	}
@@ -38,7 +52,7 @@ func (c *RestController) GetPublicPage(w http.ResponseWriter, r *http.Request, p
 		WriteProblem(w, shared.ErrNotFound.WithDetail("pages.link_not_found"), requestID)
 		return
 	}
-	shown, err := c.PublicPages.Execute(r.Context(), token)
+	shown, err := c.Pages.Execute(r.Context(), token)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return

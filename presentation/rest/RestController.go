@@ -9,7 +9,6 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -35,33 +34,19 @@ type RestController struct {
 	pending
 
 	// SAML serves the assertion consumer service and the metadata (identity.md §26).
-	SAML SAMLDoor
+	SAML *SAMLDoor
 
-	// Capabilities answers /meta/capabilities. One field per use case as they land; nil means the
-	// operation falls back to the pending answer rather than panicking.
-	Capabilities CapabilityReader
-
-	// HealthReport answers /api/v1/meta/health. A typed field rather than a call
-	// through the catalogue, although the use case is registered in it: the wire format of this
-	// report is hand-written and validated against the schema by a contract test, and it
-	// distinguishes "no latency measured" from "zero milliseconds" with a pointer. Carrying it
-	// through `usecase.Output`'s map would lose exactly those distinctions on the one route whose
-	// readers - a status page, an operator, a support thread - are the people who need them.
-	HealthReport HealthReportReader
+	// Meta serves the self-description and the health report (MetaDoor). Nil leaves both routes
+	// answering the pending 404.
+	Meta *MetaDoor
 
 	// UseCases is the catalogue every business operation goes through. One field rather than one
 	// per use case: the operations that arrive from here on are entries in it, not new
 	// dependencies of this controller (arc42 §4).
 	UseCases UseCaseRegistry
 
-	// MediaContent and MediaTokens serve the two content routes, which are not catalogue entries:
-	// they take a stream and answer a stream, which is neither what MCP nor what an automation
-	// rule could do with them (core/application/service/media.MediaContent).
-	MediaContent MediaContentService
-	MediaTokens  MediaTokenValidator
-	// Clock judges an expiring capability. The one place this layer needs the time, and a port
-	// rather than time.Now so that a test can stand at the moment a token expires.
-	Clock clock.Clock
+	// Media serves the two content routes (MediaDoor). Nil leaves them answering the pending 404.
+	Media *MediaDoor
 
 	// BaseURL is this installation's public address, and the only thing this controller composes
 	// rather than maps: a calendar feed is handed to a client as a URL to subscribe to, and a URL
@@ -69,47 +54,17 @@ type RestController struct {
 	// relative address, which is what a client that just called this server can still use.
 	BaseURL string
 
-	// CalendarFeeds serves the public .ics route, which is not a catalogue entry either: it
-	// answers a credential nobody in this system holds, and there is nothing for MCP or an
-	// automation rule to call. Nil leaves the route answering the pending 404.
-	CalendarFeeds CalendarFeedReader
-	// DataFeeds serves a data feed's OData routes (UC-INT-15), not a catalogue entry for the
-	// calendar feed's reason: the token is the whole credential.
-	DataFeeds CalendarFeedReader
+	// Feeds serves the routes a token alone opens (FeedDoor). Nil leaves them answering the
+	// pending 404.
+	Feeds *FeedDoor
 
-	// PublicPages serves a page's public link (UC-DOC-08), not a catalogue entry for the calendar
-	// feed's reason. Nil leaves the route answering the pending 404.
-	PublicPages PublicPageReader
+	// Scim serves the SCIM 2.0 door a directory provisions people and groups through
+	// (UC-ID-28). Nil leaves the routes answering the pending 404.
+	Scim *ScimDoor
 
-	// InboundRuns serves the public inbound-webhook route, which is not a catalogue entry either:
-	// it answers a credential nobody in this system holds, and there is nothing for MCP or an
-	// automation rule to call. Nil leaves the route answering the pending 404.
-	InboundRuns InboundRunStarter
-
-	// JumbleIntake serves the jumble's public webhook door, for the same reasons.
-	JumbleIntake JumbleIntakeDeliverer
-
-	// MailIntake serves the mail door beside it: the same credential, and a body that is
-	// the message itself rather than a shape somebody had to agree on.
-	MailIntake MailDeliverer
-	// CodeIntake serves the forge hooks: GitHub, GitLab, Forgejo and Gitea post their pushes and
-	// pull requests. Nil leaves the route answering the pending 404.
-	CodeIntake CodeDeliverer
-	// CmdbAlerts serves the CMDB's alert intakes, for the same reasons: a monitoring program holds
-	// the credential, not a person. Nil leaves the route answering the pending 404.
-	CmdbAlerts CmdbAlertDeliverer
-	// CmdbInventory serves the CMDB's inventory intakes, a GLPI Agent posting what it found. Nil
-	// leaves the route answering the pending 404.
-	CmdbInventory CmdbInventoryDeliverer
-	// Directory serves the SCIM 2.0 door a directory provisions people and groups through
-	// (UC-ID-28). Nil answers every SCIM route not found.
-	Directory ScimDirectory
-	// AddressedMail serves the receiving domain's inbound route (ADR-0092). Nil leaves it answering
-	// the pending 404.
-	AddressedMail AddressedMailDeliverer
-	// Alexa serves the voice assistant's endpoint (ADR-0093). Nil leaves it answering the pending
-	// 404.
-	Alexa AlexaAnswerer
+	// Intake serves the public doors a sender outside holds the credential of (IntakeDoor). Nil
+	// leaves them answering the pending 404.
+	Intake *IntakeDoor
 
 	// Stream serves `GET /stream`, which is not a catalogue entry either: it is a connection being
 	// held rather than an operation being invoked, so there is nothing for MCP or an automation

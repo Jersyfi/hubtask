@@ -4575,6 +4575,8 @@ paths:
     post:
       tags: [cmdb]
       operationId: deliverCiAlerts
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Intake
       security: []
       summary: Post alerts to an intake
       description: >
@@ -4895,6 +4897,8 @@ paths:
     post:
       tags: [code]
       operationId: deliverCode
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Intake
       security: []
       summary: A forge posts its pushes and pull requests
       description: >
@@ -4949,6 +4953,8 @@ paths:
     post:
       tags: [cmdb]
       operationId: deliverCiInventory
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Intake
       security: []
       summary: Post a GLPI Agent's inventory
       description: >
@@ -6628,6 +6634,8 @@ paths:
     post:
       tags: [jumble]
       operationId: deliverAddressedMail
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Intake
       security: []
       summary: Deliver a mail to the operator's receiving domain
       description: >
@@ -6773,6 +6781,8 @@ paths:
     post:
       tags: [voice]
       operationId: answerAlexa
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Intake
       security: []
       summary: Answer Alexa
       description: >
@@ -7209,6 +7219,8 @@ paths:
     post:
       tags: [jumble]
       operationId: startJumbleIntake
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Intake
       security: []
       summary: Deliver something into the jumble from outside
       description: >
@@ -7253,6 +7265,8 @@ paths:
     post:
       tags: [jumble]
       operationId: deliverMail
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Intake
       security: []
       summary: Deliver a mail into the jumble
       description: >
@@ -7306,6 +7320,8 @@ paths:
     post:
       tags: [automation]
       operationId: startInboundRun
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Intake
       security: []
       summary: Start a rule from outside
       description: >
@@ -8165,6 +8181,8 @@ paths:
     get:
       tags: [calendar]
       operationId: getCalendarFeedDocument
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Feeds
       security: []
       description: >
         The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an
@@ -8193,6 +8211,8 @@ paths:
     get:
       tags: [calendar]
       operationId: getDataFeedService
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Feeds
       security: []
       summary: A data feed's OData service document
       description: >
@@ -8215,6 +8235,8 @@ paths:
     get:
       tags: [calendar]
       operationId: getDataFeedMetadata
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Feeds
       security: []
       summary: A data feed's OData metadata
       description: >
@@ -8234,6 +8256,8 @@ paths:
     get:
       tags: [calendar]
       operationId: getDataFeedEntries
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Feeds
       security: []
       summary: A data feed's rows
       description: >
@@ -8263,6 +8287,8 @@ paths:
     get:
       tags: [meta]
       operationId: getCapabilities
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Meta
       summary: Self-description of the installation
       description: |
         Item types, capability profiles, field types, enum values, limits, supported locales,
@@ -8281,6 +8307,8 @@ paths:
     get:
       tags: [meta]
       operationId: getHealthReport
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Meta
       summary: Deep self-diagnosis of the installation
       description: |
         The state of every dependency, the active feature restrictions, the backlogs, and the
@@ -11414,6 +11442,8 @@ paths:
     post:
       tags: [auth]
       operationId: receiveSamlResponse
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: SAML
       security: []
       summary: Receive a SAML provider's answer
       description: >
@@ -11445,6 +11475,8 @@ paths:
     get:
       tags: [auth]
       operationId: getSamlMetadata
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: SAML
       security: []
       summary: This installation's SAML service provider metadata
       description: >
@@ -15671,6 +15703,8 @@ paths:
     get:
       tags: [identity]
       operationId: getScimServiceProviderConfig
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: What this SCIM service supports
       description: >
         The SCIM 2.0 service provider configuration (RFC 7643 section 5) a directory reads before it
@@ -15688,6 +15722,8 @@ paths:
     get:
       tags: [identity]
       operationId: listScimResourceTypes
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: The SCIM resource types served
       description: The `User` and `Group` resource types (RFC 7643 section 6), as a list response.
       responses:
@@ -15702,6 +15738,8 @@ paths:
     get:
       tags: [identity]
       operationId: listScimSchemas
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: The SCIM schemas served
       description: The core `User` and `Group` schemas (RFC 7643 section 7) with the attributes this service keeps.
       responses:
@@ -15716,6 +15754,8 @@ paths:
     get:
       tags: [identity]
       operationId: listScimUsers
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: The people a directory provisions
       description: >
         The workspace's people as SCIM users (RFC 7644 section 3.4.2): `userName` is the address,
@@ -15738,6 +15778,8 @@ paths:
     post:
       tags: [identity]
       operationId: createScimUser
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: Provision a person
       description: >
         A person the directory provisions: an account in INVITED state under the address that
@@ -15766,6 +15808,8 @@ paths:
     get:
       tags: [identity]
       operationId: getScimUser
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: A provisioned person
       responses:
         "200":
@@ -15778,6 +15822,8 @@ paths:
     put:
       tags: [identity]
       operationId: replaceScimUser
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: Replace a provisioned person
       description: >
         The display name, the directory's identifier and `active`. The address a person signs in
@@ -15802,6 +15848,8 @@ paths:
     patch:
       tags: [identity]
       operationId: patchScimUser
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: Change a provisioned person
       description: >
         SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and
@@ -15825,6 +15873,8 @@ paths:
     delete:
       tags: [identity]
       operationId: deleteScimUser
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: Deprovision a person
       description: >
         The person is switched off and their sessions end; the account, its authorship and its
@@ -15839,6 +15889,8 @@ paths:
     get:
       tags: [identity]
       operationId: listScimGroups
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: The groups a directory provisions
       description: >
         The workspace's groups as SCIM groups, with their members unless
@@ -15859,6 +15911,8 @@ paths:
     post:
       tags: [identity]
       operationId: createScimGroup
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: Provision a group
       description: >
         A group with its members, held to the same rules as a group made by hand: a name taken is
@@ -15884,6 +15938,8 @@ paths:
     get:
       tags: [identity]
       operationId: getScimGroup
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: A provisioned group
       parameters:
         - { name: excludedAttributes, in: query, schema: { type: string, maxLength: 200 } }
@@ -15898,6 +15954,8 @@ paths:
     put:
       tags: [identity]
       operationId: replaceScimGroup
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: Replace a provisioned group
       description: >
         The name, the directory's identifier and the complete membership. A change of who is in a
@@ -15920,6 +15978,8 @@ paths:
     patch:
       tags: [identity]
       operationId: patchScimGroup
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: Change a provisioned group
       description: >
         SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove`
@@ -15944,6 +16004,8 @@ paths:
     delete:
       tags: [identity]
       operationId: deleteScimGroup
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Scim
       summary: Remove a provisioned group
       description: The group and the roles it granted; its people stay.
       responses:
@@ -20076,6 +20138,8 @@ paths:
     put:
       tags: [media]
       operationId: uploadMediaContent
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Media
       security: []
       description: >
         The upload target of a local-storage installation: the bytes, streamed, judged by the
@@ -20096,6 +20160,8 @@ paths:
     get:
       tags: [media]
       operationId: downloadMediaContent
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Media
       security: []
       description: >
         The download target of a local-storage installation: the bytes, streamed, as a download -
@@ -21037,6 +21103,8 @@ paths:
     get:
       tags: [pages]
       operationId: getPublicPage
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Feeds
       security: []
       summary: A page opened by its public link
       description: >

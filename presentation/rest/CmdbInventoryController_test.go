@@ -32,7 +32,7 @@ func (d *inventoryDeliverer) Deliver(_ context.Context, delivery cmdbservice.Ale
 func postInventory(t *testing.T, door CmdbInventoryDeliverer, authorization string) *httptest.ResponseRecorder {
 	t.Helper()
 	controller := NewRestController()
-	controller.CmdbInventory = door
+	controller.Intake = &IntakeDoor{CmdbInventory: door}
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
 		APIBasePath+"/cmdb/inventory-intake/0192f000-0000-7000-8000-000000000001/0192f000-0000-7000-8000-000000000002",
 		strings.NewReader(`{"action":"contact"}`))

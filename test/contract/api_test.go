@@ -123,7 +123,7 @@ func (m manifest) Execute(context.Context, appshared.ActorContext) (usecase.Capa
 func fetchCapabilities(t *testing.T, result usecase.Capabilities) (int, []byte) {
 	t.Helper()
 	controller := rest.NewRestController()
-	controller.Capabilities = manifest{result: result}
+	controller.Meta = &rest.MetaDoor{Capabilities: manifest{result: result}}
 
 	response := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(response, httptest.NewRequestWithContext(

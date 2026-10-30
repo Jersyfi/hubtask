@@ -33,6 +33,16 @@ type ScimDirectory interface {
 	RemoveGroup(ctx context.Context, actor appshared.ActorContext, id shared.ID) error
 }
 
+// ScimDoor serves the SCIM routes the contract delegates to it (`x-hubtask-rest: delegated`):
+// SCIM's own media type, filters and error documents are no catalogue entry's answer.
+type ScimDoor struct {
+	// Directory provisions people and groups. Nil answers every SCIM route not found, in SCIM's
+	// own error document.
+	Directory ScimDirectory
+	// BaseURL is the installation's public address the resources' locations are composed from.
+	BaseURL string
+}
+
 func writeScim(w http.ResponseWriter, r *http.Request, status int, body any) {
 	w.Header().Set("Content-Type", scimContentType)
 	w.Header().Set("Cache-Control", "no-store")
@@ -51,7 +61,7 @@ func writeScimError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 // scimServed answers whether the door is wired, answering a SCIM 404 where it is not.
-func (c *RestController) scimServed(w http.ResponseWriter, r *http.Request) bool {
+func (c *ScimDoor) scimServed(w http.ResponseWriter, r *http.Request) bool {
 	if c.Directory == nil {
 		writeScimError(w, r, shared.ErrNotFound.WithDetail("directory.not_served"))
 		return false
@@ -90,27 +100,27 @@ func membersExcluded(excluded *string) bool {
 	return false
 }
 
-func (c *RestController) GetScimServiceProviderConfig(w http.ResponseWriter, r *http.Request) {
+func (c *ScimDoor) GetScimServiceProviderConfig(w http.ResponseWriter, r *http.Request) {
 	if c.scimServed(w, r) {
 		writeScim(w, r, http.StatusOK, scimServiceProviderConfig())
 	}
 }
 
-func (c *RestController) ListScimResourceTypes(w http.ResponseWriter, r *http.Request) {
+func (c *ScimDoor) ListScimResourceTypes(w http.ResponseWriter, r *http.Request) {
 	if c.scimServed(w, r) {
 		types := scimResourceTypes(c.BaseURL)
 		writeScim(w, r, http.StatusOK, scimList(len(types), 1, types))
 	}
 }
 
-func (c *RestController) ListScimSchemas(w http.ResponseWriter, r *http.Request) {
+func (c *ScimDoor) ListScimSchemas(w http.ResponseWriter, r *http.Request) {
 	if c.scimServed(w, r) {
 		schemas := scimSchemas()
 		writeScim(w, r, http.StatusOK, scimList(len(schemas), 1, schemas))
 	}
 }
 
-func (c *RestController) ListScimUsers(w http.ResponseWriter, r *http.Request, params openapi.ListScimUsersParams) {
+func (c *ScimDoor) ListScimUsers(w http.ResponseWriter, r *http.Request, params openapi.ListScimUsersParams) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -136,7 +146,7 @@ func (c *RestController) ListScimUsers(w http.ResponseWriter, r *http.Request, p
 	writeScim(w, r, http.StatusOK, scimList(page.Total, page.Start, resources))
 }
 
-func (c *RestController) CreateScimUser(w http.ResponseWriter, r *http.Request) {
+func (c *ScimDoor) CreateScimUser(w http.ResponseWriter, r *http.Request) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -162,7 +172,7 @@ func (c *RestController) CreateScimUser(w http.ResponseWriter, r *http.Request) 
 	writeScim(w, r, http.StatusCreated, out)
 }
 
-func (c *RestController) GetScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
+func (c *ScimDoor) GetScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -174,7 +184,7 @@ func (c *RestController) GetScimUser(w http.ResponseWriter, r *http.Request, id 
 	writeScim(w, r, http.StatusOK, scimUserOut(c.BaseURL, person))
 }
 
-func (c *RestController) ReplaceScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
+func (c *ScimDoor) ReplaceScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -199,7 +209,7 @@ func (c *RestController) ReplaceScimUser(w http.ResponseWriter, r *http.Request,
 	c.changeScimUser(w, r, cmd)
 }
 
-func (c *RestController) PatchScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
+func (c *ScimDoor) PatchScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -216,7 +226,7 @@ func (c *RestController) PatchScimUser(w http.ResponseWriter, r *http.Request, i
 	c.changeScimUser(w, r, cmd)
 }
 
-func (c *RestController) changeScimUser(w http.ResponseWriter, r *http.Request, cmd identityservice.ChangePersonCommand) {
+func (c *ScimDoor) changeScimUser(w http.ResponseWriter, r *http.Request, cmd identityservice.ChangePersonCommand) {
 	person, err := c.Directory.ChangePerson(r.Context(), actorOf(r), cmd)
 	if err != nil {
 		writeScimError(w, r, err)
@@ -225,7 +235,7 @@ func (c *RestController) changeScimUser(w http.ResponseWriter, r *http.Request, 
 	writeScim(w, r, http.StatusOK, scimUserOut(c.BaseURL, person))
 }
 
-func (c *RestController) DeleteScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
+func (c *ScimDoor) DeleteScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -236,7 +246,7 @@ func (c *RestController) DeleteScimUser(w http.ResponseWriter, r *http.Request, 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (c *RestController) ListScimGroups(w http.ResponseWriter, r *http.Request, params openapi.ListScimGroupsParams) {
+func (c *ScimDoor) ListScimGroups(w http.ResponseWriter, r *http.Request, params openapi.ListScimGroupsParams) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -263,7 +273,7 @@ func (c *RestController) ListScimGroups(w http.ResponseWriter, r *http.Request, 
 	writeScim(w, r, http.StatusOK, scimList(page.Total, page.Start, resources))
 }
 
-func (c *RestController) CreateScimGroup(w http.ResponseWriter, r *http.Request) {
+func (c *ScimDoor) CreateScimGroup(w http.ResponseWriter, r *http.Request) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -286,7 +296,7 @@ func (c *RestController) CreateScimGroup(w http.ResponseWriter, r *http.Request)
 	writeScim(w, r, http.StatusCreated, out)
 }
 
-func (c *RestController) GetScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId, params openapi.GetScimGroupParams) {
+func (c *ScimDoor) GetScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId, params openapi.GetScimGroupParams) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -299,7 +309,7 @@ func (c *RestController) GetScimGroup(w http.ResponseWriter, r *http.Request, id
 	writeScim(w, r, http.StatusOK, scimGroupOut(c.BaseURL, group, withMembers))
 }
 
-func (c *RestController) ReplaceScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
+func (c *ScimDoor) ReplaceScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -316,7 +326,7 @@ func (c *RestController) ReplaceScimGroup(w http.ResponseWriter, r *http.Request
 	c.changeScimGroup(w, r, cmd, true)
 }
 
-func (c *RestController) PatchScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
+func (c *ScimDoor) PatchScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
 	if !c.scimServed(w, r) {
 		return
 	}
@@ -333,7 +343,7 @@ func (c *RestController) PatchScimGroup(w http.ResponseWriter, r *http.Request, 
 	c.changeScimGroup(w, r, cmd, true)
 }
 
-func (c *RestController) changeScimGroup(w http.ResponseWriter, r *http.Request, cmd identityservice.ChangeGroupCommand, withMembers bool) {
+func (c *ScimDoor) changeScimGroup(w http.ResponseWriter, r *http.Request, cmd identityservice.ChangeGroupCommand, withMembers bool) {
 	group, err := c.Directory.ChangeGroup(r.Context(), actorOf(r), cmd)
 	if err != nil {
 		writeScimError(w, r, err)
@@ -342,7 +352,7 @@ func (c *RestController) changeScimGroup(w http.ResponseWriter, r *http.Request,
 	writeScim(w, r, http.StatusOK, scimGroupOut(c.BaseURL, group, withMembers))
 }
 
-func (c *RestController) DeleteScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
+func (c *ScimDoor) DeleteScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
 	if !c.scimServed(w, r) {
 		return
 	}

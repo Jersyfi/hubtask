@@ -33,12 +33,12 @@ func firstOf(values ...*string) string {
 // DeliverCode answers POST /code-intake/{tenantId}/{hookId}. It reads the body whole - the request
 // middleware bounds it - and passes the forge's headers on as they came: whether they prove the
 // hook's secret is decided inwards.
-func (c *RestController) DeliverCode(
+func (c *IntakeDoor) DeliverCode(
 	w http.ResponseWriter, r *http.Request, tenantID, hookID openapi_types.UUID, params openapi.DeliverCodeParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.CodeIntake == nil {
-		c.pending.DeliverCode(w, r, tenantID, hookID, params)
+		pending{}.DeliverCode(w, r, tenantID, hookID, params)
 		return
 	}
 	raw, err := io.ReadAll(r.Body)

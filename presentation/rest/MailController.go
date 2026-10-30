@@ -32,12 +32,12 @@ type AddressedMailDeliverer interface {
 // The body is read whole, the mail door's way: the request middleware bounds it before a byte is
 // read. A missing or wrong key answers the same not-found an unknown address gets, so the route
 // tells a stranger nothing about whether it exists.
-func (c *RestController) DeliverAddressedMail(
+func (c *IntakeDoor) DeliverAddressedMail(
 	w http.ResponseWriter, r *http.Request, params openapi.DeliverAddressedMailParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.AddressedMail == nil || !c.AddressedMail.Authorized(r.Header.Get("Authorization")) {
-		c.pending.DeliverAddressedMail(w, r, params)
+		pending{}.DeliverAddressedMail(w, r, params)
 		return
 	}
 

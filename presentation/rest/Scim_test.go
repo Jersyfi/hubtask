@@ -130,7 +130,7 @@ func (f *fakeDirectory) People(_ context.Context, _ appshared.ActorContext, filt
 
 func TestScimCreateUserAnswersTheResource(t *testing.T) {
 	directory := &fakeDirectory{}
-	c := &RestController{Directory: directory, BaseURL: "https://hub.example.org"}
+	c := &RestController{Scim: &ScimDoor{Directory: directory, BaseURL: "https://hub.example.org"}}
 	body := `{"schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],"userName":"lena@example.org",
 		"name":{"givenName":"Lena","familyName":"Berg"},"externalId":"00u1","active":true}`
 	w := httptest.NewRecorder()
@@ -156,7 +156,7 @@ func TestScimCreateUserAnswersTheResource(t *testing.T) {
 
 func TestScimListUsersPassesTheFilterOn(t *testing.T) {
 	directory := &fakeDirectory{}
-	c := &RestController{Directory: directory}
+	c := &RestController{Scim: &ScimDoor{Directory: directory}}
 	filter := `userName eq "lena@example.org"`
 	w := httptest.NewRecorder()
 	c.ListScimUsers(w, httptest.NewRequest(http.MethodGet, "/api/v1/scim/v2/Users", nil), openapi.ListScimUsersParams{Filter: &filter})

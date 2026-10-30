@@ -32,7 +32,7 @@ func (p *publicReader) Execute(_ context.Context, _ integration.PageLinkToken) (
 func TestAPublicLinkAnswersAnInertDocument(t *testing.T) {
 	reader := &publicReader{}
 	controller := NewRestController()
-	controller.PublicPages = reader
+	controller.Feeds = &FeedDoor{Pages: reader}
 	token, err := integration.NewPageLinkToken(shared.MustParseID("0192f000-0000-7000-8000-00000000000a"), bytes.Repeat([]byte{3}, integration.PageLinkTokenSecretBytes))
 	if err != nil {
 		t.Fatal(err)

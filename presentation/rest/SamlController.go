@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// The assertion consumer service and the metadata are hand-written: one takes a form a provider
+// The assertion consumer service and the metadata are delegated to SAMLDoor: one takes a form a provider
 // posts and answers a redirect, the other an XML document, and neither is a use case MCP or an
 // automation rule could call (identity.md §26).
 
@@ -35,9 +35,9 @@ type SAMLDoor struct {
 const maxSAMLForm = 400 << 10
 
 // ReceiveSamlResponse keeps the answer and sends the browser on to the callback.
-func (c *RestController) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
+func (c *SAMLDoor) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
-	if c.SAML.Answers == nil || c.SAML.CallbackURL == "" {
+	if c.Answers == nil || c.CallbackURL == "" {
 		WriteProblem(w, errNotWired, requestID)
 		return
 	}
@@ -47,12 +47,12 @@ func (c *RestController) ReceiveSamlResponse(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	state := r.PostForm.Get("RelayState")
-	code, err := c.SAML.Answers.Execute(r.Context(), state, r.PostForm.Get("SAMLResponse"))
+	code, err := c.Answers.Execute(r.Context(), state, r.PostForm.Get("SAMLResponse"))
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
-	target, err := url.Parse(c.SAML.CallbackURL)
+	target, err := url.Parse(c.CallbackURL)
 	if err != nil {
 		WriteProblem(w, errNotWired, requestID)
 		return
@@ -67,12 +67,12 @@ func (c *RestController) ReceiveSamlResponse(w http.ResponseWriter, r *http.Requ
 }
 
 // GetSamlMetadata answers this installation's service provider metadata.
-func (c *RestController) GetSamlMetadata(w http.ResponseWriter, r *http.Request) {
-	if len(c.SAML.Metadata) == 0 {
+func (c *SAMLDoor) GetSamlMetadata(w http.ResponseWriter, r *http.Request) {
+	if len(c.Metadata) == 0 {
 		WriteProblem(w, errNotWired, correlation.RequestIDFrom(r.Context()))
 		return
 	}
 	w.Header().Set("Content-Type", "application/samlmetadata+xml")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(c.SAML.Metadata)
+	_, _ = w.Write(c.Metadata)
 }

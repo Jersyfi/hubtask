@@ -279,7 +279,7 @@ func (c *RestController) eventsOf(rows []usecase.Output, zone *time.Location) []
 			UID:          id + "@hubtask",
 			Summary:      row.String("title"),
 			Start:        due,
-			URL:          c.itemURL(id),
+			URL:          itemURL(c.BaseURL, id),
 			LastModified: timeValue(row["updated_at"]),
 		}
 		if allDay, _ := row["due_date_only"].(bool); allDay {
@@ -303,11 +303,11 @@ func (c *RestController) eventsOf(rows []usecase.Output, zone *time.Location) []
 
 // itemURL is the link back into the product. Relative when the installation names no base URL,
 // for the reason feedURL is.
-func (c *RestController) itemURL(id string) string {
-	if c.BaseURL == "" {
+func itemURL(base, id string) string {
+	if base == "" {
 		return ""
 	}
-	return strings.TrimRight(c.BaseURL, "/") + "/items/" + id
+	return strings.TrimRight(base, "/") + "/items/" + id
 }
 
 // exportZone decides which zone the dates are written in: what the request named, else the

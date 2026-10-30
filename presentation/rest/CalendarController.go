@@ -29,9 +29,9 @@ import (
 func (c *RestController) calendarFeedSecretResponse(out usecase.Output) openapi.CalendarFeedSecret {
 	feed := calendarFeedResponse(out)
 	token := out.String("token")
-	address := c.feedURL(token)
+	address := feedURL(c.BaseURL, token)
 	if out.String("kind") == string(integration.DataKind) {
-		address = c.dataFeedRoot(token)
+		address = dataFeedRoot(c.BaseURL, token)
 	}
 	var kind *openapi.CalendarFeedSecretKind
 	if feed.Kind != nil {
@@ -56,12 +56,12 @@ func (c *RestController) calendarFeedSecretResponse(out usecase.Output) openapi.
 //
 // An installation with no base URL configured answers a relative address rather than a wrong
 // absolute one - the client that just minted it knows which server it asked.
-func (c *RestController) feedURL(token string) string {
+func feedURL(base, token string) string {
 	path := APIBasePath + "/calendar/" + token + ".ics"
-	if c.BaseURL == "" {
+	if base == "" {
 		return path
 	}
-	return strings.TrimRight(c.BaseURL, "/") + path
+	return strings.TrimRight(base, "/") + path
 }
 
 // calendarFeedResponse maps the catalogue's projection onto the contract's shape. The token is
@@ -101,11 +101,11 @@ type CalendarFeedReader interface {
 // owner who may read it are all decided inwards of here (ADR-0005). Every one of those answers
 // looks the same from out here, which is the point: a route that distinguished them would answer
 // questions for whoever is trying tokens (T-21).
-func (c *RestController) GetCalendarFeedDocument(
+func (c *FeedDoor) GetCalendarFeedDocument(
 	w http.ResponseWriter, r *http.Request, presented string,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
-	if c.CalendarFeeds == nil {
+	if c.Calendar == nil {
 		WriteProblem(w, errNotWired, requestID)
 		return
 	}
@@ -118,7 +118,7 @@ func (c *RestController) GetCalendarFeedDocument(
 		return
 	}
 
-	exported, err := c.CalendarFeeds.Execute(r.Context(), token)
+	exported, err := c.Calendar.Execute(r.Context(), token)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
@@ -129,7 +129,7 @@ func (c *RestController) GetCalendarFeedDocument(
 	zone := zoneOr(exported.TimeZone, time.UTC)
 	events := make([]calendar.Event, 0, len(exported.Items))
 	for _, item := range exported.Items {
-		event, dated := c.eventOf(item, zone)
+		event, dated := eventOf(item, zone, c.BaseURL)
 		if !dated {
 			continue
 		}
@@ -145,7 +145,7 @@ func (c *RestController) GetCalendarFeedDocument(
 
 // eventOf turns one entry into a calendar entry, and says whether it is one at all: an entry with
 // no due date is not a moment, and a calendar is a set of moments.
-func (c *RestController) eventOf(item workmodel.WorkItem, zone *time.Location) (calendar.Event, bool) {
+func eventOf(item workmodel.WorkItem, zone *time.Location, base string) (calendar.Event, bool) {
 	if item.Due == nil {
 		return calendar.Event{}, false
 	}
@@ -154,7 +154,7 @@ func (c *RestController) eventOf(item workmodel.WorkItem, zone *time.Location) (
 		UID:          item.ID.String() + "@hubtask",
 		Summary:      item.Title,
 		Start:        item.Due.At,
-		URL:          c.itemURL(item.ID.String()),
+		URL:          itemURL(base, item.ID.String()),
 		LastModified: item.UpdatedAt,
 	}
 	if item.Due.DateOnly {

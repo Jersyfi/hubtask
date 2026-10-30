@@ -193,7 +193,7 @@ func (r reducedReader) Execute(
 // exists rather than being covered by the two above.
 func TestTheReducedReportMatchesTheSchema(t *testing.T) {
 	controller := rest.NewRestController()
-	controller.HealthReport = reducedReader{report: port.Report{
+	controller.Meta = &rest.MetaDoor{HealthReport: reducedReader{report: port.Report{
 		Status:  port.StatusDegraded,
 		Version: "0.7.5",
 		DegradedFeatures: []port.DegradedFeature{{
@@ -201,7 +201,7 @@ func TestTheReducedReportMatchesTheSchema(t *testing.T) {
 			ReasonCode: "dependency.unavailable",
 			Since:      time.Unix(1_755_000_000, 0).UTC(),
 		}},
-	}}
+	}}}
 
 	rec := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(rec, httptest.NewRequestWithContext(

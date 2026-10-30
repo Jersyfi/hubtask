@@ -27,12 +27,12 @@ import (
 // middleware refuses a payload over the mail limit before a byte of it is read, so what reaches
 // this is a message of a size this installation agreed to take (T-17). Reading it whole is what
 // the parser needs - MIME is walked, not consumed - and it is the same shape a mail spool has.
-func (c *RestController) DeliverMail(w http.ResponseWriter, r *http.Request, presented string) {
+func (c *IntakeDoor) DeliverMail(w http.ResponseWriter, r *http.Request, presented string) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.MailIntake == nil {
 		// The pending 404, for the webhook door's reason: an installation that does not serve this
 		// tells the internet nothing about why.
-		c.pending.DeliverMail(w, r, presented)
+		pending{}.DeliverMail(w, r, presented)
 		return
 	}
 
@@ -119,14 +119,14 @@ type MailDeliverer interface {
 }
 
 // StartJumbleIntake answers POST /jumble/inbound/{token}.
-func (c *RestController) StartJumbleIntake(
+func (c *IntakeDoor) StartJumbleIntake(
 	w http.ResponseWriter, r *http.Request, presented string,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.JumbleIntake == nil {
 		// The pending 404 rather than an internal error: an installation that does not serve this
 		// tells the internet nothing about why (the inbound route's reasoning).
-		c.pending.StartJumbleIntake(w, r, presented)
+		pending{}.StartJumbleIntake(w, r, presented)
 		return
 	}
 

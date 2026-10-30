@@ -19,18 +19,18 @@ import (
 
 // dataFeedRoot is the service root a reporting tool is given, from the configured base URL for
 // feedURL's reason.
-func (c *RestController) dataFeedRoot(token string) string {
+func dataFeedRoot(base, token string) string {
 	path := APIBasePath + "/odata/" + token
-	if c.BaseURL == "" {
+	if base == "" {
 		return path
 	}
-	return strings.TrimRight(c.BaseURL, "/") + path
+	return strings.TrimRight(base, "/") + path
 }
 
 // dataFeed reads the feed's rows, or answers the one refusal and false.
-func (c *RestController) dataFeed(w http.ResponseWriter, r *http.Request, presented string) ([]odata.Entry, bool) {
+func (c *FeedDoor) dataFeed(w http.ResponseWriter, r *http.Request, presented string) ([]odata.Entry, bool) {
 	requestID := correlation.RequestIDFrom(r.Context())
-	if c.DataFeeds == nil {
+	if c.Data == nil {
 		WriteProblem(w, errNotWired, requestID)
 		return nil, false
 	}
@@ -39,7 +39,7 @@ func (c *RestController) dataFeed(w http.ResponseWriter, r *http.Request, presen
 		WriteProblem(w, feedNotFound(), requestID)
 		return nil, false
 	}
-	exported, err := c.DataFeeds.Execute(r.Context(), token)
+	exported, err := c.Data.Execute(r.Context(), token)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return nil, false
@@ -74,16 +74,16 @@ func odataHeaders(w http.ResponseWriter) {
 }
 
 // GetDataFeedService answers GET /odata/{token}.
-func (c *RestController) GetDataFeedService(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken) {
+func (c *FeedDoor) GetDataFeedService(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken) {
 	if _, ok := c.dataFeed(w, r, token); !ok {
 		return
 	}
 	odataHeaders(w)
-	writeJSON(w, r, http.StatusOK, odata.Service(c.dataFeedRoot(token)))
+	writeJSON(w, r, http.StatusOK, odata.Service(dataFeedRoot(c.BaseURL, token)))
 }
 
 // GetDataFeedMetadata answers GET /odata/{token}/$metadata.
-func (c *RestController) GetDataFeedMetadata(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken) {
+func (c *FeedDoor) GetDataFeedMetadata(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken) {
 	if _, ok := c.dataFeed(w, r, token); !ok {
 		return
 	}
@@ -95,7 +95,7 @@ func (c *RestController) GetDataFeedMetadata(w http.ResponseWriter, r *http.Requ
 }
 
 // GetDataFeedEntries answers GET /odata/{token}/Entries.
-func (c *RestController) GetDataFeedEntries(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken, params openapi.GetDataFeedEntriesParams) {
+func (c *FeedDoor) GetDataFeedEntries(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken, params openapi.GetDataFeedEntriesParams) {
 	rows, ok := c.dataFeed(w, r, token)
 	if !ok {
 		return
@@ -108,5 +108,5 @@ func (c *RestController) GetDataFeedEntries(w http.ResponseWriter, r *http.Reque
 		page.Top, page.HasTop = *params.Top, true
 	}
 	odataHeaders(w)
-	writeJSON(w, r, http.StatusOK, odata.Entries(c.dataFeedRoot(token), rows, page))
+	writeJSON(w, r, http.StatusOK, odata.Entries(dataFeedRoot(c.BaseURL, token), rows, page))
 }

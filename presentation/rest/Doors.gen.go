@@ -869,6 +869,15 @@ func (c *RestController) AiTranslate(w http.ResponseWriter, r *http.Request, ite
 	c.door(w, r, restDoors["aiTranslate"], usecase.Input{"item_id": itemId.String()}, nil, &body, &answer)
 }
 
+// AnswerAlexa answers POST /voice/alexa by the adapter in Intake, which holds the connection.
+func (c *RestController) AnswerAlexa(w http.ResponseWriter, r *http.Request) {
+	if c.Intake == nil {
+		c.pending.AnswerAlexa(w, r)
+		return
+	}
+	c.Intake.AnswerAlexa(w, r)
+}
+
 // ApplyConfig answers POST /config:apply by the generated mapping.
 func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, params openapi.ApplyConfigParams) {
 	var body openapi.ApplyConfigJSONRequestBody
@@ -1561,6 +1570,24 @@ func (c *RestController) CreateSavedView(w http.ResponseWriter, r *http.Request,
 	c.door(w, r, restDoors["createSavedView"], usecase.Input{}, params, &body, answerBy(savedViewResponse))
 }
 
+// CreateScimGroup answers POST /scim/v2/Groups by the adapter in Scim, which holds the connection.
+func (c *RestController) CreateScimGroup(w http.ResponseWriter, r *http.Request) {
+	if c.Scim == nil {
+		c.pending.CreateScimGroup(w, r)
+		return
+	}
+	c.Scim.CreateScimGroup(w, r)
+}
+
+// CreateScimUser answers POST /scim/v2/Users by the adapter in Scim, which holds the connection.
+func (c *RestController) CreateScimUser(w http.ResponseWriter, r *http.Request) {
+	if c.Scim == nil {
+		c.pending.CreateScimUser(w, r)
+		return
+	}
+	c.Scim.CreateScimUser(w, r)
+}
+
 // CreateServiceAccount answers POST /auth/service-accounts by the generated mapping.
 func (c *RestController) CreateServiceAccount(w http.ResponseWriter, r *http.Request, params openapi.CreateServiceAccountParams) {
 	var body openapi.CreateServiceAccountJSONRequestBody
@@ -1874,6 +1901,24 @@ func (c *RestController) DeleteSavedView(w http.ResponseWriter, r *http.Request,
 	c.door(w, r, restDoors["deleteSavedView"], usecase.Input{"view_id": viewId.String()}, params, nil, nil)
 }
 
+// DeleteScimGroup answers DELETE /scim/v2/Groups/{scimGroupId} by the adapter in Scim, which holds the connection.
+func (c *RestController) DeleteScimGroup(w http.ResponseWriter, r *http.Request, scimGroupId openapi.ScimGroupId) {
+	if c.Scim == nil {
+		c.pending.DeleteScimGroup(w, r, scimGroupId)
+		return
+	}
+	c.Scim.DeleteScimGroup(w, r, scimGroupId)
+}
+
+// DeleteScimUser answers DELETE /scim/v2/Users/{scimUserId} by the adapter in Scim, which holds the connection.
+func (c *RestController) DeleteScimUser(w http.ResponseWriter, r *http.Request, scimUserId openapi.ScimUserId) {
+	if c.Scim == nil {
+		c.pending.DeleteScimUser(w, r, scimUserId)
+		return
+	}
+	c.Scim.DeleteScimUser(w, r, scimUserId)
+}
+
 // DeleteSlaPolicy answers DELETE /sla-policies/{policyKey} by the generated mapping.
 func (c *RestController) DeleteSlaPolicy(w http.ResponseWriter, r *http.Request, policyKey string) {
 	c.door(w, r, restDoors["deleteSlaPolicy"], usecase.Input{"key": policyKey}, nil, nil, nil)
@@ -1907,6 +1952,51 @@ func (c *RestController) DeleteWhiteboardComment(w http.ResponseWriter, r *http.
 // DeleteWorkflow answers DELETE /workflows/{key} by the generated mapping.
 func (c *RestController) DeleteWorkflow(w http.ResponseWriter, r *http.Request, key string) {
 	c.door(w, r, restDoors["deleteWorkflow"], usecase.Input{"key": key}, nil, nil, nil)
+}
+
+// DeliverAddressedMail answers POST /mail/inbound by the adapter in Intake, which holds the connection.
+func (c *RestController) DeliverAddressedMail(w http.ResponseWriter, r *http.Request, params openapi.DeliverAddressedMailParams) {
+	if c.Intake == nil {
+		c.pending.DeliverAddressedMail(w, r, params)
+		return
+	}
+	c.Intake.DeliverAddressedMail(w, r, params)
+}
+
+// DeliverCiAlerts answers POST /cmdb/alert-intake/{tenantId}/{connectorId} by the adapter in Intake, which holds the connection.
+func (c *RestController) DeliverCiAlerts(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params openapi.DeliverCiAlertsParams) {
+	if c.Intake == nil {
+		c.pending.DeliverCiAlerts(w, r, tenantId, connectorId, params)
+		return
+	}
+	c.Intake.DeliverCiAlerts(w, r, tenantId, connectorId, params)
+}
+
+// DeliverCiInventory answers POST /cmdb/inventory-intake/{tenantId}/{connectorId} by the adapter in Intake, which holds the connection.
+func (c *RestController) DeliverCiInventory(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params openapi.DeliverCiInventoryParams) {
+	if c.Intake == nil {
+		c.pending.DeliverCiInventory(w, r, tenantId, connectorId, params)
+		return
+	}
+	c.Intake.DeliverCiInventory(w, r, tenantId, connectorId, params)
+}
+
+// DeliverCode answers POST /code-intake/{tenantId}/{hookId} by the adapter in Intake, which holds the connection.
+func (c *RestController) DeliverCode(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, hookId openapi_types.UUID, params openapi.DeliverCodeParams) {
+	if c.Intake == nil {
+		c.pending.DeliverCode(w, r, tenantId, hookId, params)
+		return
+	}
+	c.Intake.DeliverCode(w, r, tenantId, hookId, params)
+}
+
+// DeliverMail answers POST /jumble/mail/{token} by the adapter in Intake, which holds the connection.
+func (c *RestController) DeliverMail(w http.ResponseWriter, r *http.Request, token string) {
+	if c.Intake == nil {
+		c.pending.DeliverMail(w, r, token)
+		return
+	}
+	c.Intake.DeliverMail(w, r, token)
 }
 
 // DescribeRule answers POST /automation/rules:describe by the generated mapping.
@@ -1960,6 +2050,15 @@ func (c *RestController) DismissJumbleEntry(w http.ResponseWriter, r *http.Reque
 // DismissSuggestion answers POST /suggestions/{suggestionId}:dismiss by the generated mapping.
 func (c *RestController) DismissSuggestion(w http.ResponseWriter, r *http.Request, suggestionId openapi.SuggestionId) {
 	c.door(w, r, restDoors["dismissSuggestion"], usecase.Input{"suggestion_id": suggestionId.String()}, nil, nil, answerBy(suggestionResponse))
+}
+
+// DownloadMediaContent answers GET /media/{mediaId}:content by the adapter in Media, which holds the connection.
+func (c *RestController) DownloadMediaContent(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.DownloadMediaContentParams) {
+	if c.Media == nil {
+		c.pending.DownloadMediaContent(w, r, mediaId, params)
+		return
+	}
+	c.Media.DownloadMediaContent(w, r, mediaId, params)
 }
 
 // DuplicateWorkItem answers POST /items/{itemId}:duplicate by the generated mapping.
@@ -2092,14 +2191,68 @@ func (c *RestController) GetBackupRun(w http.ResponseWriter, r *http.Request, ba
 	c.door(w, r, restDoors["getBackupRun"], usecase.Input{"run_id": backupId.String()}, nil, nil, answerBy(backupRunResponse))
 }
 
+// GetCalendarFeedDocument answers GET /calendar/{token}.ics by the adapter in Feeds, which holds the connection.
+func (c *RestController) GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, token string) {
+	if c.Feeds == nil {
+		c.pending.GetCalendarFeedDocument(w, r, token)
+		return
+	}
+	c.Feeds.GetCalendarFeedDocument(w, r, token)
+}
+
+// GetCapabilities answers GET /meta/capabilities by the adapter in Meta, which holds the connection.
+func (c *RestController) GetCapabilities(w http.ResponseWriter, r *http.Request) {
+	if c.Meta == nil {
+		c.pending.GetCapabilities(w, r)
+		return
+	}
+	c.Meta.GetCapabilities(w, r)
+}
+
 // GetContainer answers GET /containers/{containerId} by the generated mapping.
 func (c *RestController) GetContainer(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
 	c.door(w, r, restDoors["getContainer"], usecase.Input{"container_id": containerId.String()}, nil, nil, answerBy(containerResponse))
 }
 
+// GetDataFeedEntries answers GET /odata/{token}/Entries by the adapter in Feeds, which holds the connection.
+func (c *RestController) GetDataFeedEntries(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken, params openapi.GetDataFeedEntriesParams) {
+	if c.Feeds == nil {
+		c.pending.GetDataFeedEntries(w, r, token, params)
+		return
+	}
+	c.Feeds.GetDataFeedEntries(w, r, token, params)
+}
+
+// GetDataFeedMetadata answers GET /odata/{token}/$metadata by the adapter in Feeds, which holds the connection.
+func (c *RestController) GetDataFeedMetadata(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken) {
+	if c.Feeds == nil {
+		c.pending.GetDataFeedMetadata(w, r, token)
+		return
+	}
+	c.Feeds.GetDataFeedMetadata(w, r, token)
+}
+
+// GetDataFeedService answers GET /odata/{token} by the adapter in Feeds, which holds the connection.
+func (c *RestController) GetDataFeedService(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken) {
+	if c.Feeds == nil {
+		c.pending.GetDataFeedService(w, r, token)
+		return
+	}
+	c.Feeds.GetDataFeedService(w, r, token)
+}
+
 // GetGroup answers GET /groups/{groupId} by the generated mapping.
 func (c *RestController) GetGroup(w http.ResponseWriter, r *http.Request, groupId openapi.GroupId) {
 	c.door(w, r, restDoors["getGroup"], usecase.Input{"group_id": groupId.String()}, nil, nil, answerBy(groupDetailResponse))
+}
+
+// GetHealthReport answers GET /meta/health by the adapter in Meta, which holds the connection.
+func (c *RestController) GetHealthReport(w http.ResponseWriter, r *http.Request) {
+	if c.Meta == nil {
+		c.pending.GetHealthReport(w, r)
+		return
+	}
+	c.Meta.GetHealthReport(w, r)
 }
 
 // GetImport answers GET /imports/{importId} by the generated mapping.
@@ -2127,6 +2280,15 @@ func (c *RestController) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["getOwnAccount"], usecase.Input{}, nil, nil, answerBy(accountResponse))
 }
 
+// GetPublicPage answers GET /public/pages/{token} by the adapter in Feeds, which holds the connection.
+func (c *RestController) GetPublicPage(w http.ResponseWriter, r *http.Request, token string) {
+	if c.Feeds == nil {
+		c.pending.GetPublicPage(w, r, token)
+		return
+	}
+	c.Feeds.GetPublicPage(w, r, token)
+}
+
 // GetRecurrence answers GET /items/{itemId}/recurrence by the generated mapping.
 func (c *RestController) GetRecurrence(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
 	c.door(w, r, restDoors["getRecurrence"], usecase.Input{"item_id": itemId.String()}, nil, nil, answerBy(recurrenceResponse))
@@ -2147,9 +2309,45 @@ func (c *RestController) GetRuleRun(w http.ResponseWriter, r *http.Request, runI
 	c.door(w, r, restDoors["getRuleRun"], usecase.Input{"run_id": runId.String()}, nil, nil, answerBy(runResponse))
 }
 
+// GetSamlMetadata answers GET /auth/saml:metadata by the adapter in SAML, which holds the connection.
+func (c *RestController) GetSamlMetadata(w http.ResponseWriter, r *http.Request) {
+	if c.SAML == nil {
+		c.pending.GetSamlMetadata(w, r)
+		return
+	}
+	c.SAML.GetSamlMetadata(w, r)
+}
+
 // GetSavedView answers GET /views/{viewId} by the generated mapping.
 func (c *RestController) GetSavedView(w http.ResponseWriter, r *http.Request, viewId openapi.ViewId) {
 	c.door(w, r, restDoors["getSavedView"], usecase.Input{"view_id": viewId.String()}, nil, nil, answerBy(savedViewResponse))
+}
+
+// GetScimGroup answers GET /scim/v2/Groups/{scimGroupId} by the adapter in Scim, which holds the connection.
+func (c *RestController) GetScimGroup(w http.ResponseWriter, r *http.Request, scimGroupId openapi.ScimGroupId, params openapi.GetScimGroupParams) {
+	if c.Scim == nil {
+		c.pending.GetScimGroup(w, r, scimGroupId, params)
+		return
+	}
+	c.Scim.GetScimGroup(w, r, scimGroupId, params)
+}
+
+// GetScimServiceProviderConfig answers GET /scim/v2/ServiceProviderConfig by the adapter in Scim, which holds the connection.
+func (c *RestController) GetScimServiceProviderConfig(w http.ResponseWriter, r *http.Request) {
+	if c.Scim == nil {
+		c.pending.GetScimServiceProviderConfig(w, r)
+		return
+	}
+	c.Scim.GetScimServiceProviderConfig(w, r)
+}
+
+// GetScimUser answers GET /scim/v2/Users/{scimUserId} by the adapter in Scim, which holds the connection.
+func (c *RestController) GetScimUser(w http.ResponseWriter, r *http.Request, scimUserId openapi.ScimUserId) {
+	if c.Scim == nil {
+		c.pending.GetScimUser(w, r, scimUserId)
+		return
+	}
+	c.Scim.GetScimUser(w, r, scimUserId)
 }
 
 // GetSignInRules answers GET /auth/sign-in-rules by the generated mapping.
@@ -2884,6 +3082,42 @@ func (c *RestController) ListSavedViews(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["listSavedViews"], usecase.Input{}, params, nil, answerRows(savedViewResponse))
 }
 
+// ListScimGroups answers GET /scim/v2/Groups by the adapter in Scim, which holds the connection.
+func (c *RestController) ListScimGroups(w http.ResponseWriter, r *http.Request, params openapi.ListScimGroupsParams) {
+	if c.Scim == nil {
+		c.pending.ListScimGroups(w, r, params)
+		return
+	}
+	c.Scim.ListScimGroups(w, r, params)
+}
+
+// ListScimResourceTypes answers GET /scim/v2/ResourceTypes by the adapter in Scim, which holds the connection.
+func (c *RestController) ListScimResourceTypes(w http.ResponseWriter, r *http.Request) {
+	if c.Scim == nil {
+		c.pending.ListScimResourceTypes(w, r)
+		return
+	}
+	c.Scim.ListScimResourceTypes(w, r)
+}
+
+// ListScimSchemas answers GET /scim/v2/Schemas by the adapter in Scim, which holds the connection.
+func (c *RestController) ListScimSchemas(w http.ResponseWriter, r *http.Request) {
+	if c.Scim == nil {
+		c.pending.ListScimSchemas(w, r)
+		return
+	}
+	c.Scim.ListScimSchemas(w, r)
+}
+
+// ListScimUsers answers GET /scim/v2/Users by the adapter in Scim, which holds the connection.
+func (c *RestController) ListScimUsers(w http.ResponseWriter, r *http.Request, params openapi.ListScimUsersParams) {
+	if c.Scim == nil {
+		c.pending.ListScimUsers(w, r, params)
+		return
+	}
+	c.Scim.ListScimUsers(w, r, params)
+}
+
 // ListServiceAccounts answers GET /auth/service-accounts by the generated mapping.
 func (c *RestController) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listServiceAccounts"], usecase.Input{}, nil, nil, answerRows(accountResponse))
@@ -3122,6 +3356,24 @@ func (c *RestController) OpenRealtimeDocument(w http.ResponseWriter, r *http.Req
 func (c *RestController) OpenTenantPassword(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId, params openapi.OpenTenantPasswordParams) {
 	var body openapi.OpenTenantPasswordJSONRequestBody
 	c.door(w, r, restDoors["openTenantPassword"], usecase.Input{"tenant_id": tenantId.String()}, params, &body, answerBy(adminTenantResponse))
+}
+
+// PatchScimGroup answers PATCH /scim/v2/Groups/{scimGroupId} by the adapter in Scim, which holds the connection.
+func (c *RestController) PatchScimGroup(w http.ResponseWriter, r *http.Request, scimGroupId openapi.ScimGroupId) {
+	if c.Scim == nil {
+		c.pending.PatchScimGroup(w, r, scimGroupId)
+		return
+	}
+	c.Scim.PatchScimGroup(w, r, scimGroupId)
+}
+
+// PatchScimUser answers PATCH /scim/v2/Users/{scimUserId} by the adapter in Scim, which holds the connection.
+func (c *RestController) PatchScimUser(w http.ResponseWriter, r *http.Request, scimUserId openapi.ScimUserId) {
+	if c.Scim == nil {
+		c.pending.PatchScimUser(w, r, scimUserId)
+		return
+	}
+	c.Scim.PatchScimUser(w, r, scimUserId)
 }
 
 // PlaceLegalHold answers POST /legal-holds by the generated mapping.
@@ -3645,6 +3897,15 @@ func (c *RestController) ReadWorkspaceTolerance(w http.ResponseWriter, r *http.R
 	c.door(w, r, restDoors["readWorkspaceTolerance"], usecase.Input{}, nil, nil, &answer)
 }
 
+// ReceiveSamlResponse answers POST /auth/saml:acs by the adapter in SAML, which holds the connection.
+func (c *RestController) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
+	if c.SAML == nil {
+		c.pending.ReceiveSamlResponse(w, r)
+		return
+	}
+	c.SAML.ReceiveSamlResponse(w, r)
+}
+
 // ReconcileCis answers POST /hubs/{hubId}/cis:reconcile by the generated mapping.
 func (c *RestController) ReconcileCis(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
 	var body openapi.ReconcileCisJSONRequestBody
@@ -3896,6 +4157,24 @@ func (c *RestController) ReorderContainer(w http.ResponseWriter, r *http.Request
 func (c *RestController) ReorderWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.ReorderWorkItemParams) {
 	var body openapi.ReorderWorkItemJSONRequestBody
 	c.door(w, r, restDoors["reorderWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
+// ReplaceScimGroup answers PUT /scim/v2/Groups/{scimGroupId} by the adapter in Scim, which holds the connection.
+func (c *RestController) ReplaceScimGroup(w http.ResponseWriter, r *http.Request, scimGroupId openapi.ScimGroupId) {
+	if c.Scim == nil {
+		c.pending.ReplaceScimGroup(w, r, scimGroupId)
+		return
+	}
+	c.Scim.ReplaceScimGroup(w, r, scimGroupId)
+}
+
+// ReplaceScimUser answers PUT /scim/v2/Users/{scimUserId} by the adapter in Scim, which holds the connection.
+func (c *RestController) ReplaceScimUser(w http.ResponseWriter, r *http.Request, scimUserId openapi.ScimUserId) {
+	if c.Scim == nil {
+		c.pending.ReplaceScimUser(w, r, scimUserId)
+		return
+	}
+	c.Scim.ReplaceScimUser(w, r, scimUserId)
 }
 
 // ReplayRuleRun answers POST /automation/runs/{runId}:replay by the generated mapping.
@@ -4459,6 +4738,24 @@ func (c *RestController) StartCiCampaign(w http.ResponseWriter, r *http.Request,
 	c.door(w, r, restDoors["startCiCampaign"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
 }
 
+// StartInboundRun answers POST /automation/inbound/{token} by the adapter in Intake, which holds the connection.
+func (c *RestController) StartInboundRun(w http.ResponseWriter, r *http.Request, token string) {
+	if c.Intake == nil {
+		c.pending.StartInboundRun(w, r, token)
+		return
+	}
+	c.Intake.StartInboundRun(w, r, token)
+}
+
+// StartJumbleIntake answers POST /jumble/inbound/{token} by the adapter in Intake, which holds the connection.
+func (c *RestController) StartJumbleIntake(w http.ResponseWriter, r *http.Request, token string) {
+	if c.Intake == nil {
+		c.pending.StartJumbleIntake(w, r, token)
+		return
+	}
+	c.Intake.StartJumbleIntake(w, r, token)
+}
+
 // StartOidcSignIn answers POST /auth/oidc:start by the generated mapping.
 func (c *RestController) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {
 	var body openapi.StartOidcSignInJSONRequestBody
@@ -4944,6 +5241,15 @@ func (c *RestController) UpdateWhiteboard(w http.ResponseWriter, r *http.Request
 	var body openapi.UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.WhiteboardRead
 	c.door(w, r, restDoors["updateWhiteboard"], usecase.Input{"whiteboard_id": whiteboardId.String()}, params, &body, &answer)
+}
+
+// UploadMediaContent answers PUT /media/{mediaId}:content by the adapter in Media, which holds the connection.
+func (c *RestController) UploadMediaContent(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.UploadMediaContentParams) {
+	if c.Media == nil {
+		c.pending.UploadMediaContent(w, r, mediaId, params)
+		return
+	}
+	c.Media.UploadMediaContent(w, r, mediaId, params)
 }
 
 // ValidateConfig answers POST /config:validate by the generated mapping.

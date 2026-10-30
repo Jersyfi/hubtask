@@ -33,7 +33,7 @@ func TestARefusedAlexaRequestSaysWhyInTheLogAndNothingToTheCaller(t *testing.T) 
 	t.Cleanup(func() { slog.SetDefault(previous) })
 
 	controller := NewRestController()
-	controller.Alexa = refusingAlexa{}
+	controller.Intake = &IntakeDoor{Alexa: refusingAlexa{}}
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, APIBasePath+"/voice/alexa",
 		strings.NewReader(`{"version":"1.0"}`))
 	recorder := httptest.NewRecorder()

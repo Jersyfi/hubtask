@@ -26,6 +26,40 @@ type InboundRunStarter interface {
 	) (automation.TriggerRuleResult, error)
 }
 
+// IntakeDoor serves the doors the contract delegates to it that a sender outside this system
+// holds the credential of - an inbound webhook, the jumble's doors, the forge hooks, the CMDB's
+// intakes, the receiving domain and the voice assistant. None is a catalogue entry: each answers
+// a credential nobody in this system holds, in the sender's own format, and there is nothing for
+// MCP or an automation rule to call. A nil field leaves its route answering the pending 404.
+type IntakeDoor struct {
+	// InboundRuns serves the public inbound-webhook route, which is not a catalogue entry either:
+	// it answers a credential nobody in this system holds, and there is nothing for MCP or an
+	// automation rule to call. Nil leaves the route answering the pending 404.
+	InboundRuns InboundRunStarter
+
+	// JumbleIntake serves the jumble's public webhook door, for the same reasons.
+	JumbleIntake JumbleIntakeDeliverer
+
+	// MailIntake serves the mail door beside it: the same credential, and a body that is
+	// the message itself rather than a shape somebody had to agree on.
+	MailIntake MailDeliverer
+	// CodeIntake serves the forge hooks: GitHub, GitLab, Forgejo and Gitea post their pushes and
+	// pull requests. Nil leaves the route answering the pending 404.
+	CodeIntake CodeDeliverer
+	// CmdbAlerts serves the CMDB's alert intakes, for the same reasons: a monitoring program holds
+	// the credential, not a person. Nil leaves the route answering the pending 404.
+	CmdbAlerts CmdbAlertDeliverer
+	// CmdbInventory serves the CMDB's inventory intakes, a GLPI Agent posting what it found. Nil
+	// leaves the route answering the pending 404.
+	CmdbInventory CmdbInventoryDeliverer
+	// AddressedMail serves the receiving domain's inbound route (ADR-0092). Nil leaves it answering
+	// the pending 404.
+	AddressedMail AddressedMailDeliverer
+	// Alexa serves the voice assistant's endpoint (ADR-0093). Nil leaves it answering the pending
+	// 404.
+	Alexa AlexaAnswerer
+}
+
 // StartInboundRun answers POST /automation/inbound/{token} - the second route in this API that
 // carries no bearer credential (automation.md §1.1).
 //
@@ -34,7 +68,7 @@ type InboundRunStarter interface {
 // trigger is still an inbound webhook are all decided inwards of here (ADR-0005). Every one of
 // those answers looks the same from out here, which is the point: a route that distinguished them
 // would answer questions for whoever is trying tokens (T-21).
-func (c *RestController) StartInboundRun(
+func (c *IntakeDoor) StartInboundRun(
 	w http.ResponseWriter, r *http.Request, presented string,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
@@ -42,7 +76,7 @@ func (c *RestController) StartInboundRun(
 		// The pending 404 rather than an internal error, which is what the stream's route does and
 		// what a *public* route should do in particular: an installation that does not serve this
 		// tells the internet nothing about why.
-		c.pending.StartInboundRun(w, r, presented)
+		pending{}.StartInboundRun(w, r, presented)
 		return
 	}
 
