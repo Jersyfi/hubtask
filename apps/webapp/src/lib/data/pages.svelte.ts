@@ -192,6 +192,11 @@ class Pages {
     return engine.mutate<Page>('POST', '/pages:today', {}, { invalidates: [personalSpacePath] });
   }
 
+  /** An upload made one of the page's pictures and files, so its readers read it (UC-DOC-14). */
+  attachMedia(pageId: string, mediaId: string): Promise<{ media_id: string }> {
+    return engine.mutate('POST', `${pagePath(pageId)}/media`, { media_id: mediaId }, { invalidates: [] });
+  }
+
   /** The page's live document socket; the editor asks for a new one on every reconnect. */
   liveSocket(pageId: string): WebSocket {
     return engine.liveSocket<WebSocket>(livePath(pageId));

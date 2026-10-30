@@ -29,10 +29,12 @@
   import { engine } from '../data/engine.ts';
   import { referencesIn, resolveRequest, targetLabel } from '../data/links.svelte.ts';
   import { items } from '../data/items.svelte.ts';
+  import { media } from '../data/media.svelte.ts';
   import { caretOf, pages } from '../data/pages.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
   import BoardView from '../whiteboards/BoardView.svelte';
+  import PagePicture from './PagePicture.svelte';
   import { t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { messages } from '../i18n/i18n.svelte.ts';
@@ -100,8 +102,14 @@
       return () => listeners.delete(listener);
     },
     // A whiteboard, or one frame of it, is drawn live where the page embeds it (research §4.5).
+    // A picture or a file the page holds is drawn as itself (UC-DOC-14).
     mount: (ref: ReferenceAttrs, into: HTMLElement) => {
-      if (ref.kind.toUpperCase() !== 'WHITEBOARD') return undefined;
+      const kind = ref.kind.toUpperCase();
+      if (kind === 'MEDIA') {
+        const view = mount(PagePicture, { target: into, props: { mediaId: ref.id } });
+        return () => void unmount(view);
+      }
+      if (kind !== 'WHITEBOARD') return undefined;
       const view = mount(BoardView, { target: into, props: { boardId: ref.id, frame: ref.anchor, onopen: onnavigate } });
       return () => void unmount(view);
     },
@@ -272,6 +280,30 @@
     changed(markdownOf(editor));
   }
 
+  // --- Pictures and files (UC-DOC-14) ---------------------------------------------------------------
+
+  let isUploading = $state(false);
+
+  /** An upload made one of the page's files, then drawn where the caret stands. */
+  async function putFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || !editor) return;
+    isUploading = true;
+    try {
+      const object = await media.upload(file, 'ATTACHMENT', { idempotencyKey: crypto.randomUUID() });
+      await pages.attachMedia(page.id, object.id);
+      if (!editor) return;
+      insertReference(editor, { kind: 'media', id: object.id, anchor: null }, true);
+      changed(markdownOf(editor));
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      isUploading = false;
+    }
+  }
+
   function embedView(id: string) {
     if (!editor) return;
     insertReference(editor, { kind: 'view', id, anchor: null }, true);
@@ -302,6 +334,10 @@
       <Button size="sm" tone="subtle" icon="link" onclick={() => (isMentioning = true)}>{t('app.pages.tool_mention')}</Button>
       <Button size="sm" tone="subtle" icon="file-text" onclick={() => (isLinkingPage = !isLinkingPage)}>{t('app.pages.tool_page')}</Button>
       <Button size="sm" tone="subtle" icon="layout-template" onclick={() => (isEmbedding = !isEmbedding)}>{t('app.pages.tool_view')}</Button>
+      <label class="upload">
+        <span>{isUploading ? t('app.pages.uploading') : t('app.pages.tool_file')}</span>
+        <input type="file" disabled={isUploading} onchange={(event) => void putFile(event)} />
+      </label>
       {#if taskLine && !taskLine.entryId && taskLine.text !== ''}
         <Button size="sm" tone="subtle" icon="square-check" onclick={() => (isMakingTask = !isMakingTask)}>{t('app.pages.tool_task')}</Button>
       {/if}
@@ -369,6 +405,18 @@
   }
   .choice:hover { background: var(--bg-surface-hover); }
   .quiet { color: var(--text-secondary); }
+  .upload {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--sp-025) var(--sp-100);
+    border-radius: var(--r-sm);
+    color: var(--text-primary);
+    font-size: var(--fs-075);
+    cursor: pointer;
+  }
+  .upload:hover { background: var(--bg-surface-hover); }
+  .upload:focus-within { outline: var(--bw-ring) solid var(--focus-ring); }
+  .upload input { inline-size: 0; block-size: 0; opacity: 0; }
 
   .editor :global(.page-body) {
     min-block-size: var(--sp-1000);
