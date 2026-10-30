@@ -51,6 +51,9 @@ export const ROUTES: readonly Route[] = [
   { name: 'sessions', pattern: '/profile/sessions', area: 'profile' },
   { name: 'devices', pattern: '/profile/devices', area: 'profile' },
   { name: 'grants', pattern: '/profile/apps', area: 'profile' },
+  // The calendar feeds written into the reader's own calendar, and the page a provider sends the
+  // browser back to after the sign-in (UC-INT-16).
+  { name: 'calendars', pattern: '/profile/calendars', area: 'profile' },
   // ADR-0032's administration area. Every route added under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,

@@ -2000,7 +2000,7 @@ func run() error {
 		}},
 		Calendar: calendarpushadapter.Calendar{Client: outboundClient}, Authorizer: mailboxadapter.OAuth{Client: outboundClient},
 		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{}, Apps: calendarPushApps(cfg.Mail.OAuth),
-		RedirectURL: strings.TrimSuffix(cfg.BaseURL, "/") + "/settings/calendar-push",
+		RedirectURL: strings.TrimSuffix(cfg.BaseURL, "/") + "/profile/calendars",
 		Addresses:   workspaceAddress(cfg), Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}

@@ -564,4 +564,7 @@ export type {
   CodeLinkList,
   FileLink,
   FileLinkList,
+  CalendarPush,
+  CalendarPushList,
+  CalendarPushAuthorization,
 } from './schema.ts';

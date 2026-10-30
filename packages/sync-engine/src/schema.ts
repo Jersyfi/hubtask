@@ -997,4 +997,7 @@ export type CodeHookMinted = components['schemas']['CodeHookMinted'];
 export type CodeLink = components['schemas']['CodeLink'];
 export type CodeLinkList = components['schemas']['CodeLinkList'];
 export type FileLink = components['schemas']['FileLink'];
+export type CalendarPush = components['schemas']['CalendarPush'];
+export type CalendarPushList = components['schemas']['CalendarPushList'];
+export type CalendarPushAuthorization = components['schemas']['CalendarPushAuthorization'];
 export type FileLinkList = components['schemas']['FileLinkList'];
