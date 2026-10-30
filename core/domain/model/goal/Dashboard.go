@@ -71,9 +71,26 @@ type Widget struct {
 	// grammar at write.
 	Query   map[string]any
 	GoalIDs []shared.ID
-	X, Y    int
-	W, H    int
+	// Compare is a second series drawn beside the first - resolved beside created.
+	Compare *Compare
+	// Cumulative draws each period as the running total of the periods up to it - a burnup, and
+	// with Compare the work left between the two series, a burndown.
+	Cumulative bool
+	X, Y       int
+	W, H       int
 }
+
+// Compare is a widget's second series: a summary document as POST /items:aggregate takes it, and
+// the names of both series in the legend.
+type Compare struct {
+	FirstTitle string
+	Title      string
+	Query      map[string]any
+}
+
+// Series reports whether a chart draws two series or running totals: bars, a line and a table do;
+// a number, a pie and a matrix hold one summary each.
+func (c Chart) Series() bool { return c == ChartBar || c == ChartLine || c == ChartTable }
 
 // Dashboard is a set of widgets at the workspace or in one hub.
 type Dashboard struct {
@@ -167,11 +184,29 @@ func checkWidget(w Widget, at string, normalizer text.Normalizer) (Widget, error
 			return Widget{}, invalid(at+"/goal_ids", "dashboards.goals_count")
 		}
 		w.ViewID, w.Query, w.Chart = "", nil, ChartProgress
+		w.Compare, w.Cumulative = nil, false
 	default:
 		return Widget{}, invalid(at+"/source", "dashboards.source_invalid")
 	}
 	if w.Source != WidgetGoals && w.Chart == ChartProgress {
 		return Widget{}, invalid(at+"/chart", "dashboards.chart_invalid")
+	}
+	if (w.Compare != nil || w.Cumulative) && !w.Chart.Series() {
+		return Widget{}, invalid(at+"/chart", "dashboards.series_chart")
+	}
+	if w.Compare != nil {
+		if len(w.Compare.Query) == 0 {
+			return Widget{}, invalid(at+"/compare/query", "dashboards.query_required")
+		}
+		first, err := title(w.Compare.FirstTitle, normalizer, at+"/compare/first_title", "dashboards.widget_title")
+		if err != nil {
+			return Widget{}, err
+		}
+		second, err := title(w.Compare.Title, normalizer, at+"/compare/title", "dashboards.widget_title")
+		if err != nil {
+			return Widget{}, err
+		}
+		w.Compare = &Compare{FirstTitle: first, Title: second, Query: w.Compare.Query}
 	}
 	if w.W <= 0 {
 		w.W = DashboardColumns / 2
