@@ -432,6 +432,45 @@ func (e AgentActionListDataDecision) Valid() bool {
 	}
 }
 
+// Defines values for AgentJobStatus.
+const (
+	AgentJobStatusDONE    AgentJobStatus = "DONE"
+	AgentJobStatusFAILED  AgentJobStatus = "FAILED"
+	AgentJobStatusRUNNING AgentJobStatus = "RUNNING"
+)
+
+// Valid indicates whether the value is a known member of the AgentJobStatus enum.
+func (e AgentJobStatus) Valid() bool {
+	switch e {
+	case AgentJobStatusDONE:
+		return true
+	case AgentJobStatusFAILED:
+		return true
+	case AgentJobStatusRUNNING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentJobTargetType.
+const (
+	AgentJobTargetTypeENTRY AgentJobTargetType = "ENTRY"
+	AgentJobTargetTypeHUB   AgentJobTargetType = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the AgentJobTargetType enum.
+func (e AgentJobTargetType) Valid() bool {
+	switch e {
+	case AgentJobTargetTypeENTRY:
+		return true
+	case AgentJobTargetTypeHUB:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AgentModelRegion.
 const (
 	AgentModelRegionADEQUACY   AgentModelRegion = "ADEQUACY"
@@ -10385,6 +10424,36 @@ type AgentHalt struct {
 	Halted bool                `json:"halted"`
 	SetAt  *time.Time          `json:"set_at"`
 	SetBy  *openapi_types.UUID `json:"set_by"`
+}
+
+// AgentJob defines model for AgentJob.
+type AgentJob struct {
+	AgentId openapi_types.UUID `json:"agent_id"`
+
+	// Code How it ended, a message code; empty while it runs.
+	Code    string             `json:"code"`
+	EndedAt *time.Time         `json:"ended_at"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// Proposals The acts it left for a person and the suggestions it recorded.
+	Proposals  int                 `json:"proposals"`
+	StartedAt  time.Time           `json:"started_at"`
+	StartedBy  *openapi_types.UUID `json:"started_by"`
+	Status     AgentJobStatus      `json:"status"`
+	TargetId   openapi_types.UUID  `json:"target_id"`
+	TargetType AgentJobTargetType  `json:"target_type"`
+	Tokens     int                 `json:"tokens"`
+}
+
+// AgentJobStatus defines model for AgentJob.Status.
+type AgentJobStatus string
+
+// AgentJobTargetType defines model for AgentJob.TargetType.
+type AgentJobTargetType string
+
+// AgentJobList defines model for AgentJobList.
+type AgentJobList struct {
+	Data []AgentJob `json:"data"`
 }
 
 // AgentList defines model for AgentList.
@@ -21996,6 +22065,12 @@ type RecordAgentEvaluationJSONBody struct {
 	} `json:"answers"`
 }
 
+// StartAgentJobJSONBody defines parameters for StartAgentJob.
+type StartAgentJobJSONBody struct {
+	// TargetId The entry, or for duplicate review the hub.
+	TargetId openapi_types.UUID `json:"target_id"`
+}
+
 // SetAgentHaltJSONBody defines parameters for SetAgentHalt.
 type SetAgentHaltJSONBody struct {
 	Halted bool `json:"halted"`
@@ -24169,6 +24244,9 @@ type AddAgentCaseJSONRequestBody = AgentCaseCreate
 
 // RecordAgentEvaluationJSONRequestBody defines body for RecordAgentEvaluation for application/json ContentType.
 type RecordAgentEvaluationJSONRequestBody RecordAgentEvaluationJSONBody
+
+// StartAgentJobJSONRequestBody defines body for StartAgentJob for application/json ContentType.
+type StartAgentJobJSONRequestBody StartAgentJobJSONBody
 
 // SetAgentHaltJSONRequestBody defines body for SetAgentHalt for application/json ContentType.
 type SetAgentHaltJSONRequestBody SetAgentHaltJSONBody
@@ -26521,6 +26599,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
 	RecordAgentEvaluation(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAgentJobs A shipped agent's jobs
+	//
+	// Newest first - what each was about, how it ended, what it proposed and the tokens it spent.
+	//
+	// Corresponds with GET /agents/{agentId}/jobs (the `ListAgentJobs` operationId).
+	ListAgentJobs(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartAgentJobWithBody Start a shipped agent's job on one target
+	//
+	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /agents/{agentId}/jobs (the `StartAgentJob` operationId).
+	StartAgentJobWithBody(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartAgentJob Start a shipped agent's job on one target
+	//
+	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /agents/{agentId}/jobs (the `StartAgentJob` operationId).
+	StartAgentJob(ctx context.Context, agentId AgentId, body StartAgentJobJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ActivateAgent Put an approved agent live
 	//
@@ -36523,6 +36626,61 @@ func (c *Client) RecordAgentEvaluationWithBody(ctx context.Context, agentId Agen
 // Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
 func (c *Client) RecordAgentEvaluation(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRecordAgentEvaluationRequest(c.Server, agentId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAgentJobs A shipped agent's jobs
+//
+// Newest first - what each was about, how it ended, what it proposed and the tokens it spent.
+//
+// Corresponds with GET /agents/{agentId}/jobs (the `ListAgentJobs` operationId).
+func (c *Client) ListAgentJobs(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAgentJobsRequest(c.Server, agentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartAgentJobWithBody Start a shipped agent's job on one target
+//
+// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /agents/{agentId}/jobs (the `StartAgentJob` operationId).
+func (c *Client) StartAgentJobWithBody(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartAgentJobRequestWithBody(c.Server, agentId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartAgentJob Start a shipped agent's job on one target
+//
+// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /agents/{agentId}/jobs (the `StartAgentJob` operationId).
+func (c *Client) StartAgentJob(ctx context.Context, agentId AgentId, body StartAgentJobJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartAgentJobRequest(c.Server, agentId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -56063,6 +56221,87 @@ func NewRecordAgentEvaluationRequestWithBody(server string, agentId AgentId, con
 	}
 
 	operationPath := fmt.Sprintf("/agents/%s/evaluations", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAgentJobsRequest constructs an http.Request for the ListAgentJobs method
+func NewListAgentJobsRequest(server string, agentId AgentId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s/jobs", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewStartAgentJobRequest calls the generic StartAgentJob builder with application/json body
+func NewStartAgentJobRequest(server string, agentId AgentId, body StartAgentJobJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStartAgentJobRequestWithBody(server, agentId, "application/json", bodyReader)
+}
+
+// NewStartAgentJobRequestWithBody constructs an http.Request for the StartAgentJob method, with any body, and a specified content type
+func NewStartAgentJobRequestWithBody(server string, agentId AgentId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s/jobs", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -83705,6 +83944,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
 	RecordAgentEvaluationWithResponse(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*RecordAgentEvaluationResult, error)
 
+	// ListAgentJobsWithResponse A shipped agent's jobs
+	//
+	// Newest first - what each was about, how it ended, what it proposed and the tokens it spent.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agents/{agentId}/jobs (the `ListAgentJobs` operationId).
+	ListAgentJobsWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ListAgentJobsResult, error)
+
+	// StartAgentJobWithBodyWithResponse Start a shipped agent's job on one target
+	//
+	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}/jobs (the `StartAgentJob` operationId).
+	StartAgentJobWithBodyWithResponse(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartAgentJobResult, error)
+
+	// StartAgentJobWithResponse Start a shipped agent's job on one target
+	//
+	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}/jobs (the `StartAgentJob` operationId).
+	StartAgentJobWithResponse(ctx context.Context, agentId AgentId, body StartAgentJobJSONRequestBody, reqEditors ...RequestEditorFn) (*StartAgentJobResult, error)
+
 	// ActivateAgentWithResponse Put an approved agent live
 	//
 	// Its approval must cover its model as it now stands, and where it asks for an evaluation the newest run on that model must have reached its bar. No agent puts one live.
@@ -96095,6 +96361,102 @@ func (r RecordAgentEvaluationResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RecordAgentEvaluationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAgentJobsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AgentJobList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAgentJobsResult) GetJSON200() *AgentJobList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAgentJobsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAgentJobsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAgentJobsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAgentJobsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAgentJobsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartAgentJobResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *AgentJob
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r StartAgentJobResult) GetJSON202() *AgentJob {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartAgentJobResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartAgentJobResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartAgentJobResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartAgentJobResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartAgentJobResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -125158,6 +125520,51 @@ func (c *ClientWithResponses) RecordAgentEvaluationWithResponse(ctx context.Cont
 	return ParseRecordAgentEvaluationResult(rsp)
 }
 
+// ListAgentJobsWithResponse A shipped agent's jobs
+//
+// Newest first - what each was about, how it ended, what it proposed and the tokens it spent.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agents/{agentId}/jobs (the `ListAgentJobs` operationId).
+func (c *ClientWithResponses) ListAgentJobsWithResponse(ctx context.Context, agentId AgentId, reqEditors ...RequestEditorFn) (*ListAgentJobsResult, error) {
+	rsp, err := c.ListAgentJobs(ctx, agentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAgentJobsResult(rsp)
+}
+
+// StartAgentJobWithBodyWithResponse Start a shipped agent's job on one target
+//
+// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}/jobs (the `StartAgentJob` operationId).
+func (c *ClientWithResponses) StartAgentJobWithBodyWithResponse(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartAgentJobResult, error) {
+	rsp, err := c.StartAgentJobWithBody(ctx, agentId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartAgentJobResult(rsp)
+}
+
+// StartAgentJobWithResponse Start a shipped agent's job on one target
+//
+// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}/jobs (the `StartAgentJob` operationId).
+func (c *ClientWithResponses) StartAgentJobWithResponse(ctx context.Context, agentId AgentId, body StartAgentJobJSONRequestBody, reqEditors ...RequestEditorFn) (*StartAgentJobResult, error) {
+	rsp, err := c.StartAgentJob(ctx, agentId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartAgentJobResult(rsp)
+}
+
 // ActivateAgentWithResponse Put an approved agent live
 //
 // Its approval must cover its model as it now stands, and where it asks for an evaluation the newest run on that model must have reached its bar. No agent puts one live.
@@ -140971,6 +141378,72 @@ func ParseRecordAgentEvaluationResult(rsp *http.Response) (*RecordAgentEvaluatio
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAgentJobsResult parses an HTTP response from a ListAgentJobsWithResponse call
+func ParseListAgentJobsResult(rsp *http.Response) (*ListAgentJobsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAgentJobsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentJobList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartAgentJobResult parses an HTTP response from a StartAgentJobWithResponse call
+func ParseStartAgentJobResult(rsp *http.Response) (*StartAgentJobResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartAgentJobResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest AgentJob
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

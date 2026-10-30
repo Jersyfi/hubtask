@@ -152,6 +152,11 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"halted", "set_at", "set_by"}},
 	{Group: "agent", Verb: "halt-state", OperationID: "readAgentHalt", Method: "GET", Path: "/agents:halt", Summary: "Whether the workspace's agents are halted",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"halted", "set_at", "set_by"}},
+	{Group: "agent", Verb: "jobs", OperationID: "listAgentJobs", Method: "GET", Path: "/agents/{agentId}/jobs", Summary: "A shipped agent's jobs",
+		PathParams: []doorParam{
+			{Name: "agentId", Kind: "uuid", Help: "An agent", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "status"}},
 	{Group: "agent", Verb: "ls", OperationID: "listAgents", Method: "GET", Path: "/agents", Summary: "The workspace's agents",
 		Query: []doorParam{
 			{Name: "model_id", Kind: "uuid", Help: "Only the agents using this model", Required: false},
@@ -175,6 +180,14 @@ var generatedCommands = []door{
 			{Name: "agentId", Kind: "uuid", Help: "An agent", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "kind", "status", "version"}},
+	{Group: "agent", Verb: "run", OperationID: "startAgentJob", Method: "POST", Path: "/agents/{agentId}/jobs", Summary: "Start a shipped agent's job on one target",
+		PathParams: []doorParam{
+			{Name: "agentId", Kind: "uuid", Help: "An agent", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "target_id", Kind: "uuid", Help: "The entry, or for duplicate review the hub", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "status"}},
 	{Group: "agent", Verb: "set", OperationID: "changeAgent", Method: "PATCH", Path: "/agents/{agentId}", Summary: "Change an agent",
 		PathParams: []doorParam{
 			{Name: "agentId", Kind: "uuid", Help: "An agent", Required: true},

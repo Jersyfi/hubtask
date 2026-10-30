@@ -367,6 +367,14 @@ class Client:
         """An agent's ledger"""
         return self._call("GET", "/agents/{agentId}/actions", {"agentId": agent_id}, query, {}, None, "none", None, "json")
 
+    def list_agent_jobs(self, agent_id: str) -> "AgentJobList":
+        """A shipped agent's jobs"""
+        return self._call("GET", "/agents/{agentId}/jobs", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def start_agent_job(self, agent_id: str, body: dict[str, Any]) -> "AgentJob":
+        """Start a shipped agent's job on one target"""
+        return self._call("POST", "/agents/{agentId}/jobs", {"agentId": agent_id}, None, {}, body, "json", "application/json", "json")
+
     def list_agent_cases(self, agent_id: str) -> "AgentCaseList":
         """An agent's evaluation set"""
         return self._call("GET", "/agents/{agentId}/cases", {"agentId": agent_id}, None, {}, None, "none", None, "json")

@@ -441,6 +441,16 @@ export class HubtaskClient {
     return this.call("GET", "/agents/{agentId}/actions", { "agentId": agentId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** A shipped agent's jobs */
+  listAgentJobs(agentId: string, options: CallOptions = {}): Promise<operations["listAgentJobs"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agents/{agentId}/jobs", { "agentId": agentId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Start a shipped agent's job on one target */
+  startAgentJob(agentId: string, body: NonNullable<operations["startAgentJob"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["startAgentJob"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/agents/{agentId}/jobs", { "agentId": agentId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** An agent's evaluation set */
   listAgentCases(agentId: string, options: CallOptions = {}): Promise<operations["listAgentCases"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/agents/{agentId}/cases", { "agentId": agentId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

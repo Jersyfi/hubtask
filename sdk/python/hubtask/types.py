@@ -1627,6 +1627,22 @@ class AgentMeteringList(TypedDict, total=False):
 class AgentActionList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
+class AgentJob(TypedDict, total=False):
+    id: Required[str]
+    agent_id: Required[str]
+    target_type: Required[Literal["ENTRY", "HUB"]]
+    target_id: Required[str]
+    status: Required[Literal["RUNNING", "DONE", "FAILED"]]
+    code: Required[str]
+    proposals: Required[int]
+    tokens: Required[int]
+    started_by: Required[str | None]
+    started_at: Required[str]
+    ended_at: Required[str | None]
+
+class AgentJobList(TypedDict, total=False):
+    data: Required[list["AgentJob"]]
+
 class AgentCase(TypedDict, total=False):
     id: Required[str]
     agent_id: Required[str]

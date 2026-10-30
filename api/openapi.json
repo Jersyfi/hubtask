@@ -2818,6 +2818,84 @@
         }
       }
     },
+    "/agents/{agentId}/jobs": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AgentId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "operationId": "listAgentJobs",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "agent jobs",
+        "summary": "A shipped agent's jobs",
+        "description": "Newest first - what each was about, how it ended, what it proposed and the tokens it spent.",
+        "responses": {
+          "200": {
+            "description": "The jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentJobList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "agents"
+        ],
+        "operationId": "startAgentJob",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "agent run",
+        "summary": "Start a shipped agent's job on one target",
+        "description": "Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "target_id"
+                ],
+                "properties": {
+                  "target_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "The entry, or for duplicate review the hub."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentJob"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/agents/{agentId}/cases": {
       "parameters": [
         {
@@ -34674,6 +34752,94 @@
                   "format": "date-time"
                 }
               }
+            }
+          }
+        }
+      },
+      "AgentJob": {
+        "type": "object",
+        "required": [
+          "id",
+          "agent_id",
+          "target_type",
+          "target_id",
+          "status",
+          "code",
+          "proposals",
+          "tokens",
+          "started_by",
+          "started_at",
+          "ended_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "ENTRY",
+              "HUB"
+            ]
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "DONE",
+              "FAILED"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "How it ended, a message code; empty while it runs."
+          },
+          "proposals": {
+            "type": "integer",
+            "description": "The acts it left for a person and the suggestions it recorded."
+          },
+          "tokens": {
+            "type": "integer"
+          },
+          "started_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "AgentJobList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentJob"
             }
           }
         }

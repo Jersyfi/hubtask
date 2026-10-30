@@ -426,6 +426,45 @@ func (e AgentActionListDataDecision) Valid() bool {
 	}
 }
 
+// Defines values for AgentJobStatus.
+const (
+	AgentJobStatusDONE    AgentJobStatus = "DONE"
+	AgentJobStatusFAILED  AgentJobStatus = "FAILED"
+	AgentJobStatusRUNNING AgentJobStatus = "RUNNING"
+)
+
+// Valid indicates whether the value is a known member of the AgentJobStatus enum.
+func (e AgentJobStatus) Valid() bool {
+	switch e {
+	case AgentJobStatusDONE:
+		return true
+	case AgentJobStatusFAILED:
+		return true
+	case AgentJobStatusRUNNING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AgentJobTargetType.
+const (
+	AgentJobTargetTypeENTRY AgentJobTargetType = "ENTRY"
+	AgentJobTargetTypeHUB   AgentJobTargetType = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the AgentJobTargetType enum.
+func (e AgentJobTargetType) Valid() bool {
+	switch e {
+	case AgentJobTargetTypeENTRY:
+		return true
+	case AgentJobTargetTypeHUB:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AgentModelRegion.
 const (
 	AgentModelRegionADEQUACY   AgentModelRegion = "ADEQUACY"
@@ -10379,6 +10418,36 @@ type AgentHalt struct {
 	Halted bool                `json:"halted"`
 	SetAt  *time.Time          `json:"set_at"`
 	SetBy  *openapi_types.UUID `json:"set_by"`
+}
+
+// AgentJob defines model for AgentJob.
+type AgentJob struct {
+	AgentId openapi_types.UUID `json:"agent_id"`
+
+	// Code How it ended, a message code; empty while it runs.
+	Code    string             `json:"code"`
+	EndedAt *time.Time         `json:"ended_at"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// Proposals The acts it left for a person and the suggestions it recorded.
+	Proposals  int                 `json:"proposals"`
+	StartedAt  time.Time           `json:"started_at"`
+	StartedBy  *openapi_types.UUID `json:"started_by"`
+	Status     AgentJobStatus      `json:"status"`
+	TargetId   openapi_types.UUID  `json:"target_id"`
+	TargetType AgentJobTargetType  `json:"target_type"`
+	Tokens     int                 `json:"tokens"`
+}
+
+// AgentJobStatus defines model for AgentJob.Status.
+type AgentJobStatus string
+
+// AgentJobTargetType defines model for AgentJob.TargetType.
+type AgentJobTargetType string
+
+// AgentJobList defines model for AgentJobList.
+type AgentJobList struct {
+	Data []AgentJob `json:"data"`
 }
 
 // AgentList defines model for AgentList.
@@ -21990,6 +22059,12 @@ type RecordAgentEvaluationJSONBody struct {
 	} `json:"answers"`
 }
 
+// StartAgentJobJSONBody defines parameters for StartAgentJob.
+type StartAgentJobJSONBody struct {
+	// TargetId The entry, or for duplicate review the hub.
+	TargetId openapi_types.UUID `json:"target_id"`
+}
+
 // SetAgentHaltJSONBody defines parameters for SetAgentHalt.
 type SetAgentHaltJSONBody struct {
 	Halted bool `json:"halted"`
@@ -24164,6 +24239,9 @@ type AddAgentCaseJSONRequestBody = AgentCaseCreate
 // RecordAgentEvaluationJSONRequestBody defines body for RecordAgentEvaluation for application/json ContentType.
 type RecordAgentEvaluationJSONRequestBody RecordAgentEvaluationJSONBody
 
+// StartAgentJobJSONRequestBody defines body for StartAgentJob for application/json ContentType.
+type StartAgentJobJSONRequestBody StartAgentJobJSONBody
+
 // SetAgentHaltJSONRequestBody defines body for SetAgentHalt for application/json ContentType.
 type SetAgentHaltJSONRequestBody SetAgentHaltJSONBody
 
@@ -25225,6 +25303,12 @@ type ServerInterface interface {
 	// RecordAgentEvaluation Record an evaluation run of an agent
 	// (POST /agents/{agentId}/evaluations)
 	RecordAgentEvaluation(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// ListAgentJobs A shipped agent's jobs
+	// (GET /agents/{agentId}/jobs)
+	ListAgentJobs(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// StartAgentJob Start a shipped agent's job on one target
+	// (POST /agents/{agentId}/jobs)
+	StartAgentJob(w http.ResponseWriter, r *http.Request, agentId AgentId)
 	// ActivateAgent Put an approved agent live
 	// (POST /agents/{agentId}:activate)
 	ActivateAgent(w http.ResponseWriter, r *http.Request, agentId AgentId)
@@ -30044,6 +30128,58 @@ func (siw *ServerInterfaceWrapper) RecordAgentEvaluation(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RecordAgentEvaluation(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAgentJobs operation middleware
+func (siw *ServerInterfaceWrapper) ListAgentJobs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAgentJobs(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartAgentJob operation middleware
+func (siw *ServerInterfaceWrapper) StartAgentJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartAgentJob(w, r, agentId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -48841,6 +48977,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}:suspend", wrapper.SuspendAgent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}:retire", wrapper.RetireAgent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents/{agentId}/actions", wrapper.ListAgentActions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents/{agentId}/jobs", wrapper.ListAgentJobs)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}/jobs", wrapper.StartAgentJob)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents/{agentId}/cases", wrapper.ListAgentCases)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}/cases", wrapper.AddAgentCase)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/agents/{agentId}/cases/{caseId}", wrapper.RemoveAgentCase)

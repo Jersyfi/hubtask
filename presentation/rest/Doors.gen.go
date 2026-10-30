@@ -197,6 +197,7 @@ var restDoors = map[string]restDoor{
 	"listAgentActions":                  {UseCase: "ListAgentActions", Status: 200, Query: []string{"before"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listAgentCases":                    {UseCase: "ListAgentCases", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listAgentEvaluations":              {UseCase: "ListAgentEvaluations", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listAgentJobs":                     {UseCase: "ListAgentJobs", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listAgentModels":                   {UseCase: "ListAgentModels", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listAgentRequests":                 {UseCase: "ListAgentRequests", Status: 200, Query: []string{"agent_id", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listAgents":                        {UseCase: "ListAgents", Status: 200, Query: []string{"model_id", "owner_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -455,6 +456,7 @@ var restDoors = map[string]restDoor{
 	"showMailSettings":                  {UseCase: "ShowMailSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showVoiceSettings":                 {UseCase: "ShowVoiceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"skipOccurrence":                    {UseCase: "SkipOccurrence", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"startAgentJob":                     {UseCase: "StartAgentJob", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startSprint":                       {UseCase: "StartSprint", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startTimer":                        {UseCase: "StartTimer", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"stopTimer":                         {UseCase: "StopTimer", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1592,6 +1594,12 @@ func (c *RestController) ListAgentCases(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) ListAgentEvaluations(w http.ResponseWriter, r *http.Request, agentId openapi.AgentId) {
 	var answer openapi.AgentRunList
 	c.door(w, r, restDoors["listAgentEvaluations"], usecase.Input{"agent_id": agentId.String()}, nil, nil, &answer)
+}
+
+// ListAgentJobs answers GET /agents/{agentId}/jobs by the generated mapping.
+func (c *RestController) ListAgentJobs(w http.ResponseWriter, r *http.Request, agentId openapi.AgentId) {
+	var answer openapi.AgentJobList
+	c.door(w, r, restDoors["listAgentJobs"], usecase.Input{"agent_id": agentId.String()}, nil, nil, &answer)
 }
 
 // ListAgentModels answers GET /agent-models by the generated mapping.
@@ -3096,6 +3104,13 @@ func (c *RestController) ShowVoiceSettings(w http.ResponseWriter, r *http.Reques
 // SkipOccurrence answers POST /items/{itemId}/recurrence:skip by the generated mapping.
 func (c *RestController) SkipOccurrence(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SkipOccurrenceParams) {
 	c.door(w, r, restDoors["skipOccurrence"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(recurrenceResponse))
+}
+
+// StartAgentJob answers POST /agents/{agentId}/jobs by the generated mapping.
+func (c *RestController) StartAgentJob(w http.ResponseWriter, r *http.Request, agentId openapi.AgentId) {
+	var body openapi.StartAgentJobJSONRequestBody
+	var answer openapi.AgentJob
+	c.door(w, r, restDoors["startAgentJob"], usecase.Input{"agent_id": agentId.String()}, nil, &body, &answer)
 }
 
 // StartSprint answers POST /sprints/{sprintId}:start by the generated mapping.

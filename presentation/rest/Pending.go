@@ -2537,6 +2537,14 @@ func (pending) ListAgentEvaluations(w http.ResponseWriter, r *http.Request, _ op
 	notAvailable(w, r)
 }
 
+func (pending) ListAgentJobs(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) StartAgentJob(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
 func (pending) RecordAgentEvaluation(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
 	notAvailable(w, r)
 }
