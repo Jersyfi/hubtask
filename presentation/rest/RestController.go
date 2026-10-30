@@ -73,6 +73,9 @@ type RestController struct {
 	// answers a credential nobody in this system holds, and there is nothing for MCP or an
 	// automation rule to call. Nil leaves the route answering the pending 404.
 	CalendarFeeds CalendarFeedReader
+	// DataFeeds serves a data feed's OData routes (UC-INT-15), not a catalogue entry for the
+	// calendar feed's reason: the token is the whole credential.
+	DataFeeds CalendarFeedReader
 
 	// PublicPages serves a page's public link (UC-DOC-08), not a catalogue entry for the calendar
 	// feed's reason. Nil leaves the route answering the pending 404.

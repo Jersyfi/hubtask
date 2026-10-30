@@ -44,8 +44,11 @@ func (c *RestController) CreateCalendarFeed(
 		return
 	}
 
-	out, err := c.UseCases.Invoke(r.Context(), createCalendarFeedUseCase, actorOf(r),
-		usecase.Input{"view_id": body.ViewId.String()})
+	in := usecase.Input{"view_id": body.ViewId.String()}
+	if body.Kind != nil {
+		in["kind"] = string(*body.Kind)
+	}
+	out, err := c.UseCases.Invoke(r.Context(), createCalendarFeedUseCase, actorOf(r), in)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
@@ -53,14 +56,24 @@ func (c *RestController) CreateCalendarFeed(
 
 	feed := calendarFeedResponse(out)
 	token := out.String("token")
+	address := c.feedURL(token)
+	if out.String("kind") == string(integration.DataKind) {
+		address = c.dataFeedRoot(token)
+	}
+	var kind *openapi.CalendarFeedSecretKind
+	if feed.Kind != nil {
+		k := openapi.CalendarFeedSecretKind(*feed.Kind)
+		kind = &k
+	}
 	writeJSON(w, r, http.StatusCreated, openapi.CalendarFeedSecret{
+		Kind:      kind,
 		Id:        feed.Id,
 		AccountId: feed.AccountId,
 		ViewId:    feed.ViewId,
 		CreatedAt: feed.CreatedAt,
 		RevokedAt: feed.RevokedAt,
 		Token:     token,
-		Url:       c.feedURL(token),
+		Url:       address,
 	})
 }
 
@@ -85,6 +98,10 @@ func calendarFeedResponse(out usecase.Output) openapi.CalendarFeed {
 		Id:        uuidValue(out.String("id")),
 		AccountId: uuidValue(out.String("account_id")),
 		CreatedAt: timeValue(out["created_at"]),
+	}
+	if kind := out.String("kind"); kind != "" {
+		k := openapi.CalendarFeedKind(kind)
+		feed.Kind = &k
 	}
 	if view := out.String("view_id"); view != "" {
 		viewID := uuidValue(view)

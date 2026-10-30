@@ -102,6 +102,11 @@ var PublicRoutes = map[string]bool{
 	// bearer header. The token is the whole of the authorisation, and the route validates it
 	// itself (security.md §4 T-21).
 	http.MethodGet + " " + APIBasePath + "/calendar/{token}.ics": true,
+	// A data feed, for a reporting tool that has a feed's address and no bearer header either
+	// (UC-INT-15): the calendar feed's trust model, the route validating the token itself.
+	http.MethodGet + " " + APIBasePath + "/odata/{token}":           true,
+	http.MethodGet + " " + APIBasePath + "/odata/{token}/$metadata": true,
+	http.MethodGet + " " + APIBasePath + "/odata/{token}/Entries":   true,
 	// A page's public link, on the same trust model: the token is the whole authorisation, and
 	// the route validates it itself (UC-DOC-08).
 	http.MethodGet + " " + APIBasePath + "/public/pages/{token}": true,

@@ -249,6 +249,11 @@ func FeedBucket(perMinute, burst int) func(*http.Request) Bucket {
 // A string operation on a path this layer owns: whether the token means anything is decided in
 // the application layer, and this only has to know which requests to count.
 func feedTokenInPath(path string) string {
+	// A data feed's routes carry the same token, counted in the same bucket (UC-INT-15).
+	if rest, ok := strings.CutPrefix(path, APIBasePath+"/odata/"); ok {
+		token, _, _ := strings.Cut(rest, "/")
+		return token
+	}
 	const prefix = APIBasePath + "/calendar/"
 	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, icsExtension) {
 		return ""

@@ -3447,6 +3447,22 @@ func run() error {
 			},
 			UnitOfWork: unitOfWork,
 		}
+		// A data feed (UC-INT-15): the same read, a data feed's token alone.
+		controller.DataFeeds = work.ReadCalendarFeed{
+			Kind:  integrationmodel.DataKind,
+			Feeds: calendarFeeds, Accounts: accounts,
+			Export: work.ExportView{
+				Views: savedViews, Containers: containers, Permits: authorizer,
+				Query: work.QueryItems{
+					Gate:  entryGate,
+					Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			},
+			UnitOfWork: unitOfWork,
+		}
 		// The public inbound-webhook route, for the same reason and with the same discipline: it
 		// answers a credential nobody in this system holds, it can do exactly one thing - start
 		// that one rule's run - and every question it asks is asked inwards of the controller
