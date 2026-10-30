@@ -113,6 +113,12 @@ export function collectionOf(entity: string): string {
       return 'role_grants';
     case 'page':
       return 'pages';
+    case 'approval':
+      return 'approvals';
+    case 'entry_sla':
+      return 'entry_slas';
+    case 'satisfaction_rating':
+      return 'satisfaction_ratings';
     case 'whiteboard':
       return 'whiteboards';
     case 'cmdb_ci':

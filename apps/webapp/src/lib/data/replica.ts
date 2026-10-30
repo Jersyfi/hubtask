@@ -344,6 +344,30 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return (await documents(storage, 'recurrence_rule')).find((row) => row.item_id === itemId);
   }
 
+  // An entry's SLA goals and its approvals with their trail while the server is away (M5): as the
+  // server answers them, goals by kind and approvals newest first. Nobody may decide offline -
+  // who may is the server's question, and a decision needs it.
+  match = /^\/items\/([^/]+)\/sla$/.exec(pathname);
+  if (match?.[1]) {
+    const itemId = match[1];
+    const goals = ['FIRST_RESPONSE', 'RESOLUTION'];
+    const rows = (await documents(storage, 'entry_slas'))
+      .filter((row) => row.item_id === itemId)
+      .map(({ id: _id, item_id: _item, ...row }) => row)
+      .sort((a, b) => goals.indexOf(String(a.goal)) - goals.indexOf(String(b.goal)));
+    return { data: rows };
+  }
+
+  match = /^\/items\/([^/]+)\/approvals$/.exec(pathname);
+  if (match?.[1]) {
+    const itemId = match[1];
+    const rows = (await documents(storage, 'approvals'))
+      .filter((row) => row.item_id === itemId)
+      .map((row): Record<string, unknown> => ({ ...row, may_decide: false }))
+      .sort((a, b) => String(b.requested_at ?? '').localeCompare(String(a.requested_at ?? '')) || String(b.id).localeCompare(String(a.id)));
+    return { data: rows };
+  }
+
   // A hub's pages and a page read while the server is away (M3): the tree without the bodies, as
   // the server lists it, and a page with its breadcrumb walked up the copy. Nothing is writable
   // offline - a page is written through its live document, which needs the server.

@@ -681,3 +681,23 @@ test('a hub\'s whiteboards and a whiteboard are answered from the copy', async (
   assert.equal(read.writable, false);
   assert.equal(await storeFor({ path: '/whiteboards/w-gone' }, storage), undefined);
 });
+
+// An entry's SLA goals and approvals read while the server is away (M5): the goals by kind, the
+// approvals newest first with their trail, and nobody's leave to decide.
+test('an entry\'s goals and approvals are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('entry_slas', 's-2', record({ id: 's-2', item_id: 'i-1', goal: 'RESOLUTION', standing: 'RUNNING' }));
+  await storage.put('entry_slas', 's-1', record({ id: 's-1', item_id: 'i-1', goal: 'FIRST_RESPONSE', standing: 'MET' }));
+  await storage.put('entry_slas', 's-3', record({ id: 's-3', item_id: 'i-2', goal: 'RESOLUTION', standing: 'BREACHED' }));
+  await storage.put('approvals', 'a-1', record({ id: 'a-1', item_id: 'i-1', state: 'DECLINED', requested_at: '2026-10-01T08:00:00Z', may_decide: false, decisions: [{ verdict: 'DECLINE' }] }));
+  await storage.put('approvals', 'a-2', record({ id: 'a-2', item_id: 'i-1', state: 'PENDING', requested_at: '2026-10-02T08:00:00Z', may_decide: true, decisions: [] }));
+
+  const goals = await storeFor({ path: '/items/i-1/sla' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(goals.data.map((row) => row.goal), ['FIRST_RESPONSE', 'RESOLUTION']);
+  assert.ok(goals.data.every((row) => !('item_id' in row)), 'a goal reads as the server answers it');
+
+  const asked = await storeFor({ path: '/items/i-1/approvals' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(asked.data.map((row) => row.id), ['a-2', 'a-1']);
+  assert.ok(asked.data.every((row) => row.may_decide === false), 'nobody decides offline');
+  assert.equal((asked.data[1]!.decisions as unknown[]).length, 1);
+});
