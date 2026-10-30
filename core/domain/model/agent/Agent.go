@@ -131,7 +131,9 @@ type Budget struct {
 }
 
 // DefaultBudget is a small budget an agent is registered with unless it states one.
-func DefaultBudget() Budget { return Budget{TokensPerDay: 200000, ActionsPerHour: 120, ConcurrentRuns: 2} }
+func DefaultBudget() Budget {
+	return Budget{TokensPerDay: 200000, ActionsPerHour: 120, ConcurrentRuns: 2}
+}
 
 // Agent is one registered agent.
 type Agent struct {
