@@ -14,6 +14,7 @@ import (
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
+	servicedeskservice "github.com/Jersyfi/hubtask/core/application/service/servicedesk"
 	timeservice "github.com/Jersyfi/hubtask/core/application/service/timekeeping"
 	whiteboardservice "github.com/Jersyfi/hubtask/core/application/service/whiteboard"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
@@ -47,6 +48,7 @@ var walkKinds = []string{
 	entityTimesheet, entityCapacities, entityAbsence, entityCostRates, entityBudget,
 	entityPortfolio,
 	entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun,
+	entityApproval, entityEntrySla, entitySatisfaction,
 }
 
 const (
@@ -132,6 +134,12 @@ const (
 	entityAbsence    = timeservice.AbsenceEntity
 	entityCostRates  = timeservice.RatesEntity
 	entityBudget     = timeservice.BudgetEntity
+	// entityApproval, entityEntrySla and entitySatisfaction are an entry's approvals with their
+	// trail, its SLA goals and its score, each filed under the entry's collection (M5); walked
+	// last, for the schedule's reason.
+	entityApproval     = servicedeskservice.ApprovalEntity
+	entityEntrySla     = servicedeskservice.EntrySlaEntity
+	entitySatisfaction = servicedeskservice.SatisfactionEntity
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -871,6 +879,45 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityCustomField, entityID: d.ID, containerID: d.CollectionID,
 				payload: workservice.CustomFieldRecord(d), key: d.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityApproval:
+		approvals, err := p.Snapshot.Approvals(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(approvals))
+		for _, a := range approvals {
+			rows = append(rows, walkRow{
+				entity: entityApproval, entityID: a.Approval.ID, containerID: a.CollectionID,
+				payload: servicedeskservice.ApprovalRecord(a.Approval, a.Decisions), key: a.Approval.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityEntrySla:
+		records, err := p.Snapshot.EntrySlas(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(records))
+		for _, r := range records {
+			rows = append(rows, walkRow{
+				entity: entityEntrySla, entityID: r.Record.ID, containerID: r.CollectionID,
+				payload: servicedeskservice.SlaRecord(r.Record), key: r.Record.ID.String(),
+			})
+		}
+		return rows, nil
+	case entitySatisfaction:
+		ratings, err := p.Snapshot.SatisfactionRatings(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(ratings))
+		for _, r := range ratings {
+			rows = append(rows, walkRow{
+				entity: entitySatisfaction, entityID: r.Rating.ID, containerID: r.CollectionID,
+				payload: servicedeskservice.RatingRecord(r.Rating), key: r.Rating.ID.String(),
 			})
 		}
 		return rows, nil

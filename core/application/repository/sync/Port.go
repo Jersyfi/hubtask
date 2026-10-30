@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
+	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
@@ -172,6 +173,12 @@ type Snapshot interface {
 	EntryEstimates(ctx context.Context, after shared.ID, batch int) ([]EstimateOf, error)
 	// CustomFields pages the custom field definitions in force, a deleted one left out.
 	CustomFields(ctx context.Context, after shared.ID, batch int) ([]work.CustomFieldDefinition, error)
+	// Approvals pages every live entry's approvals with their trail, EntrySlas every live entry's
+	// SLA records by goal, and SatisfactionRatings every live request's rating - each with the
+	// entry's collection (M5).
+	Approvals(ctx context.Context, after shared.ID, batch int) ([]ApprovalOf, error)
+	EntrySlas(ctx context.Context, after shared.ID, batch int) ([]EntrySlaOf, error)
+	SatisfactionRatings(ctx context.Context, after shared.ID, batch int) ([]RatingOf, error)
 	// OwnTimeRecords pages one person's time records and OwnTimer reads their running timer -
 	// the only time read for one person; TimeWorkTypes and TimePolicy read the workspace's (M7).
 	OwnTimeRecords(ctx context.Context, account, after shared.ID, batch int) ([]timekeeping.Record, error)
@@ -252,6 +259,25 @@ type HeldActOf struct {
 type RunOf struct {
 	Run     agent.Run
 	OwnerID shared.ID
+}
+
+// ApprovalOf is an approval with its decisions and its entry's collection.
+type ApprovalOf struct {
+	Approval     servicedesk.Approval
+	Decisions    []servicedesk.Decision
+	CollectionID shared.ID
+}
+
+// EntrySlaOf is one goal's record on an entry, with the entry's collection.
+type EntrySlaOf struct {
+	Record       servicedesk.EntrySla
+	CollectionID shared.ID
+}
+
+// RatingOf is a request's satisfaction rating, with the request's collection.
+type RatingOf struct {
+	Rating       servicedesk.Rating
+	CollectionID shared.ID
 }
 
 // EstimateOf is an entry's estimate with its collection.

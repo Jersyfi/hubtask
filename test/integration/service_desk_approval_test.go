@@ -76,6 +76,20 @@ func TestAnApprovalStaysInItsWorkspace(t *testing.T) {
 		if err != nil || len(to) != 1 || to[0].AccountID != ana {
 			t.Errorf("the delegations to ben %+v %v", to, err)
 		}
+		// The walk carries the approval with its trail under the entry's collection.
+		walked, err := postgres.SnapshotRepository{}.Approvals(ctx, "", 500)
+		if err != nil {
+			return err
+		}
+		carried := false
+		for _, row := range walked {
+			if row.Approval.ID == opened.ID {
+				carried = len(row.Decisions) == 1 && !row.CollectionID.IsZero()
+			}
+		}
+		if !carried {
+			t.Errorf("the walk did not carry the approval with its trail and collection: %+v", walked)
+		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -89,6 +103,12 @@ func TestAnApprovalStaysInItsWorkspace(t *testing.T) {
 		}
 		if pending, _ := approvals.Pending(ctx, 10); len(pending) != 0 {
 			t.Errorf("the other workspace lists the approvals")
+		}
+		walked, _ := postgres.SnapshotRepository{}.Approvals(ctx, "", 500)
+		for _, row := range walked {
+			if row.Approval.ID == opened.ID {
+				t.Errorf("the other workspace's walk carries the approval")
+			}
 		}
 		if _, err := approvals.DelegationOf(ctx, ana); !errors.Is(err, shared.ErrNotFound) {
 			t.Errorf("the other workspace reads the delegation: %v", err)

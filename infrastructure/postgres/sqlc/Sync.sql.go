@@ -943,6 +943,82 @@ func (q *Queries) SnapshotAgents(ctx context.Context, arg SnapshotAgentsParams) 
 	return items, nil
 }
 
+const snapshotApprovals = `-- name: SnapshotApprovals :many
+SELECT a.id, a.tenant_id, a.item_id, a.workflow_key, a.step_key, a.item_version, a.levels, a.decline_to,
+       a.due_hours, a.current_level, a.state, a.requested_by, a.requested_at, a.level_since, a.decided_at,
+       a.version, wi.collection_id
+FROM approval a
+JOIN work_item wi ON wi.tenant_id = a.tenant_id AND wi.id = a.item_id AND wi.deleted_at IS NULL
+WHERE a.tenant_id = current_tenant_id() AND a.id > $1
+ORDER BY a.id
+LIMIT $2
+`
+
+type SnapshotApprovalsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotApprovalsRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	ItemID       pgtype.UUID
+	WorkflowKey  string
+	StepKey      string
+	ItemVersion  int32
+	Levels       []byte
+	DeclineTo    string
+	DueHours     int32
+	CurrentLevel int16
+	State        string
+	RequestedBy  pgtype.UUID
+	RequestedAt  pgtype.Timestamptz
+	LevelSince   pgtype.Timestamptz
+	DecidedAt    pgtype.Timestamptz
+	Version      int32
+	CollectionID pgtype.UUID
+}
+
+// Every live entry's approvals (migration 0268), with the entry's collection, which decides who is
+// told of them.
+func (q *Queries) SnapshotApprovals(ctx context.Context, arg SnapshotApprovalsParams) ([]SnapshotApprovalsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotApprovals, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotApprovalsRow{}
+	for rows.Next() {
+		var i SnapshotApprovalsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.WorkflowKey,
+			&i.StepKey,
+			&i.ItemVersion,
+			&i.Levels,
+			&i.DeclineTo,
+			&i.DueHours,
+			&i.CurrentLevel,
+			&i.State,
+			&i.RequestedBy,
+			&i.RequestedAt,
+			&i.LevelSince,
+			&i.DecidedAt,
+			&i.Version,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotBuckets = `-- name: SnapshotBuckets :many
 SELECT
   id, tenant_id, collection_id, name, order_key, wip_limit, is_done_bucket, color_token,
@@ -1813,6 +1889,76 @@ func (q *Queries) SnapshotEntrySchedules(ctx context.Context, arg SnapshotEntryS
 	return items, nil
 }
 
+const snapshotEntrySlas = `-- name: SnapshotEntrySlas :many
+SELECT es.id, es.tenant_id, es.item_id, es.goal, es.policy_key, es.target_seconds, es.standing, es.armed_at,
+       es.due_at, es.at_risk_at, es.met_at, es.breached_at, es.updated_at, es.version, wi.collection_id
+FROM entry_sla es
+JOIN work_item wi ON wi.tenant_id = es.tenant_id AND wi.id = es.item_id AND wi.deleted_at IS NULL
+WHERE es.tenant_id = current_tenant_id() AND es.id > $1
+ORDER BY es.id
+LIMIT $2
+`
+
+type SnapshotEntrySlasParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotEntrySlasRow struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	ItemID        pgtype.UUID
+	Goal          string
+	PolicyKey     string
+	TargetSeconds int64
+	Standing      string
+	ArmedAt       pgtype.Timestamptz
+	DueAt         pgtype.Timestamptz
+	AtRiskAt      pgtype.Timestamptz
+	MetAt         pgtype.Timestamptz
+	BreachedAt    pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+	CollectionID  pgtype.UUID
+}
+
+// Every live entry's SLA records by goal (migration 0240), with the entry's collection.
+func (q *Queries) SnapshotEntrySlas(ctx context.Context, arg SnapshotEntrySlasParams) ([]SnapshotEntrySlasRow, error) {
+	rows, err := q.db.Query(ctx, snapshotEntrySlas, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotEntrySlasRow{}
+	for rows.Next() {
+		var i SnapshotEntrySlasRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.Goal,
+			&i.PolicyKey,
+			&i.TargetSeconds,
+			&i.Standing,
+			&i.ArmedAt,
+			&i.DueAt,
+			&i.AtRiskAt,
+			&i.MetAt,
+			&i.BreachedAt,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotEntryTypes = `-- name: SnapshotEntryTypes :many
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form
@@ -2580,6 +2726,59 @@ func (q *Queries) SnapshotReminders(ctx context.Context, arg SnapshotRemindersPa
 			&i.FireAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Version,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotSatisfactionRatings = `-- name: SnapshotSatisfactionRatings :many
+SELECT sr.id, sr.tenant_id, sr.item_id, sr.score, sr.rated_at, sr.version, wi.collection_id
+FROM satisfaction_rating sr
+JOIN work_item wi ON wi.tenant_id = sr.tenant_id AND wi.id = sr.item_id AND wi.deleted_at IS NULL
+WHERE sr.tenant_id = current_tenant_id() AND sr.id > $1
+ORDER BY sr.id
+LIMIT $2
+`
+
+type SnapshotSatisfactionRatingsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotSatisfactionRatingsRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	ItemID       pgtype.UUID
+	Score        int16
+	RatedAt      pgtype.Timestamptz
+	Version      int32
+	CollectionID pgtype.UUID
+}
+
+// Every live request's satisfaction rating (migration 0243), with the request's collection.
+func (q *Queries) SnapshotSatisfactionRatings(ctx context.Context, arg SnapshotSatisfactionRatingsParams) ([]SnapshotSatisfactionRatingsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotSatisfactionRatings, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotSatisfactionRatingsRow{}
+	for rows.Next() {
+		var i SnapshotSatisfactionRatingsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.Score,
+			&i.RatedAt,
 			&i.Version,
 			&i.CollectionID,
 		); err != nil {

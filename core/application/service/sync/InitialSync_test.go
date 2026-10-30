@@ -58,6 +58,9 @@ type snapshotStore struct {
 	sprints     []planning.Sprint
 	members     []repository.SprintEntryOf
 	estimates   []repository.EstimateOf
+	approvals   []repository.ApprovalOf
+	slas        []repository.EntrySlaOf
+	ratings     []repository.RatingOf
 	fields      []work.CustomFieldDefinition
 	timeRecords []timekeeping.Record
 	timers      []timekeeping.Timer

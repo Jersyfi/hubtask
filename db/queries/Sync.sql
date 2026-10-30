@@ -643,3 +643,34 @@ FROM cmdb_asset
 WHERE tenant_id = current_tenant_id() AND ci_id > sqlc.arg('after')
 ORDER BY ci_id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotApprovals :many
+-- Every live entry's approvals (migration 0268), with the entry's collection, which decides who is
+-- told of them.
+SELECT a.id, a.tenant_id, a.item_id, a.workflow_key, a.step_key, a.item_version, a.levels, a.decline_to,
+       a.due_hours, a.current_level, a.state, a.requested_by, a.requested_at, a.level_since, a.decided_at,
+       a.version, wi.collection_id
+FROM approval a
+JOIN work_item wi ON wi.tenant_id = a.tenant_id AND wi.id = a.item_id AND wi.deleted_at IS NULL
+WHERE a.tenant_id = current_tenant_id() AND a.id > sqlc.arg('after')
+ORDER BY a.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotEntrySlas :many
+-- Every live entry's SLA records by goal (migration 0240), with the entry's collection.
+SELECT es.id, es.tenant_id, es.item_id, es.goal, es.policy_key, es.target_seconds, es.standing, es.armed_at,
+       es.due_at, es.at_risk_at, es.met_at, es.breached_at, es.updated_at, es.version, wi.collection_id
+FROM entry_sla es
+JOIN work_item wi ON wi.tenant_id = es.tenant_id AND wi.id = es.item_id AND wi.deleted_at IS NULL
+WHERE es.tenant_id = current_tenant_id() AND es.id > sqlc.arg('after')
+ORDER BY es.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotSatisfactionRatings :many
+-- Every live request's satisfaction rating (migration 0243), with the request's collection.
+SELECT sr.id, sr.tenant_id, sr.item_id, sr.score, sr.rated_at, sr.version, wi.collection_id
+FROM satisfaction_rating sr
+JOIN work_item wi ON wi.tenant_id = sr.tenant_id AND wi.id = sr.item_id AND wi.deleted_at IS NULL
+WHERE sr.tenant_id = current_tenant_id() AND sr.id > sqlc.arg('after')
+ORDER BY sr.id
+LIMIT sqlc.arg('batch');
