@@ -48,15 +48,13 @@ func TestAChatBotStaysInItsWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// The refused insert aborts its transaction, so it is the transaction's answer.
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		again := bot
 		again.ID = freshID(t)
-		if err := repo.Insert(ctx, again, crypto.Sealed{KeyID: "k1", Ciphertext: []byte("t")}); !errors.Is(err, shared.ErrConflict) {
-			t.Errorf("a second bot for the room: %v", err)
-		}
-		return nil
-	}); err != nil && !errors.Is(err, shared.ErrConflict) {
-		t.Fatal(err)
+		return repo.Insert(ctx, again, crypto.Sealed{KeyID: "k1", Ciphertext: []byte("t")})
+	}); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("a second bot for the room: %v", err)
 	}
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
 		if _, _, err := repo.Find(ctx, bot.ID); !errors.Is(err, shared.ErrNotFound) {

@@ -162,12 +162,15 @@ func TestABoardsHistoryStaysInItsWorkspace(t *testing.T) {
 		if err := repo.NameVersion(ctx, board, 1, "x"); err == nil {
 			t.Error("the workspace next door named a version")
 		}
-		if err := repo.InsertVersion(ctx, whiteboard.Version{BoardID: board, Seq: 2, Title: "x", CreatedAt: at}); err == nil {
-			t.Error("the workspace next door added a version")
-		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+	// The refused insert aborts its transaction, so it is the transaction's answer.
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.InsertVersion(ctx, whiteboard.Version{BoardID: board, Seq: 2, Title: "x", CreatedAt: at})
+	}); err == nil {
+		t.Error("the workspace next door added a version")
 	}
 }
 
@@ -201,10 +204,13 @@ func TestABoardsPicturesStayInItsWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// The refused attach aborts its transaction, so it is the transaction's answer.
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		if err := repo.AttachMedia(ctx, board, picture); err == nil {
-			t.Error("the workspace next door placed a picture on the board")
-		}
+		return repo.AttachMedia(ctx, board, picture)
+	}); err == nil {
+		t.Error("the workspace next door placed a picture on the board")
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
 		if hubs, _ := media.ReferencingBoards(ctx, picture); len(hubs) != 0 {
 			t.Error("the workspace next door found the board holding the picture")
 		}

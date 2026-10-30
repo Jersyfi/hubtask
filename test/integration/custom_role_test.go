@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -51,9 +52,15 @@ func TestAWorkspacesCustomRolesAreItsOwn(t *testing.T) {
 		if err := roles.Insert(ctx, role, now); err != nil {
 			t.Fatalf("defining A's role: %v", err)
 		}
-		if err := roles.Insert(ctx, role, now); err == nil {
-			t.Fatal("a key defined twice")
-		}
+		return nil
+	})
+	// The refused insert aborts its transaction, so it is the transaction's answer.
+	if err := uow.Within(ctx, persistence.Scope{TenantID: tenantA}, func(ctx context.Context) error {
+		return roles.Insert(ctx, role, now)
+	}); err == nil {
+		t.Fatal("a key defined twice")
+	}
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
 		created, err := roles.Grant(ctx, grant, now)
 		if err != nil || !created {
 			t.Fatalf("granting: %v %v", created, err)

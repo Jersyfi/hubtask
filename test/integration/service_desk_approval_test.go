@@ -42,14 +42,19 @@ func TestAnApprovalStaysInItsWorkspace(t *testing.T) {
 	}
 	delegation, _ := servicedesk.NewDelegation(tenantA, ana, ben, now, now.Add(72*time.Hour))
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := approvals.Insert(ctx, opened); err != nil {
-			return err
-		}
+		return approvals.Insert(ctx, opened)
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	// The refused insert aborts its transaction, so it is the transaction's answer.
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		second := opened
 		second.ID = freshID(t)
-		if err := approvals.Insert(ctx, second); !errors.Is(err, shared.ErrConflict) {
-			t.Errorf("a second approval waits on the entry: %v", err)
-		}
+		return approvals.Insert(ctx, second)
+	}); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("a second approval waits on the entry: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		if err := approvals.Record(ctx, decision); err != nil {
 			return err
 		}

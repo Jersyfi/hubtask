@@ -13,6 +13,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
@@ -56,13 +57,16 @@ func TestAWorkspacesTypesAreItsOwn(t *testing.T) {
 		if err := types.Insert(ctx, bug); err != nil {
 			t.Fatalf("storing A's type: %v", err)
 		}
-		again := bug
-		again.ID = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fe12")
-		if err := types.Insert(ctx, again); !errors.Is(err, shared.ErrConflict) {
-			t.Errorf("a taken key was stored twice: %v", err)
-		}
 		return nil
 	})
+	// The refused insert aborts its transaction, so it is the transaction's answer.
+	if err := uow.Within(ctx, persistence.Scope{TenantID: etTenantA}, func(ctx context.Context) error {
+		again := bug
+		again.ID = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fe12")
+		return types.Insert(ctx, again)
+	}); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("a taken key was stored twice: %v", err)
+	}
 
 	archive := true
 	archived, _, err := bug.Changed(domain.EntryTypeChange{Archived: &archive}, now.Add(time.Minute), text.Composing{})

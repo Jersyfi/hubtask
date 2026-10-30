@@ -418,10 +418,13 @@ func TestAPagesPicturesStayInItsWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// The refused attach aborts its transaction, so it is the transaction's answer.
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		if err := repo.AttachMedia(ctx, root, picture); err == nil {
-			t.Error("the workspace next door attached a picture to the page")
-		}
+		return repo.AttachMedia(ctx, root, picture)
+	}); err == nil {
+		t.Error("the workspace next door attached a picture to the page")
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
 		if pages, _ := media.ReferencingPages(ctx, picture); len(pages) != 0 {
 			t.Error("the workspace next door found the page holding the picture")
 		}

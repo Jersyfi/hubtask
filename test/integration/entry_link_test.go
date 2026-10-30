@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
@@ -80,11 +81,22 @@ func TestAWorkspacesLinksAreItsOwn(t *testing.T) {
 				t.Fatalf("drawing %s: %v", link.Type, err)
 			}
 		}
+		return nil
+	})
+	// A refused write aborts its transaction, so each is a transaction of its own and its answer.
+	if err := uow.Within(ctx, persistence.Scope{TenantID: tenantA}, func(ctx context.Context) error {
 		again := first
 		again.ID = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd14")
-		if err := links.Insert(ctx, again); !errors.Is(err, shared.ErrConflict) {
-			t.Errorf("a link was drawn twice: %v", err)
-		}
+		return links.Insert(ctx, again)
+	}); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("a link was drawn twice: %v", err)
+	}
+	if err := uow.Within(ctx, persistence.Scope{TenantID: tenantA}, func(ctx context.Context) error {
+		return types.Delete(ctx, "verifies")
+	}); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("a link type in use was deleted: %v", err)
+	}
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
 		// three -> one would close one -> two -> three.
 		sourceWaits, targetWaits := registry.Waiting()
 		if loops, err := links.PathExists(ctx, one, three, sourceWaits, targetWaits); err != nil || !loops {
@@ -98,9 +110,6 @@ func TestAWorkspacesLinksAreItsOwn(t *testing.T) {
 		}
 		if count, err := links.CountFrom(ctx, one, domain.LinkTypeDependsOn); err != nil || count != 1 {
 			t.Errorf("one starts %d depends_on links, %v", count, err)
-		}
-		if err := types.Delete(ctx, "verifies"); !errors.Is(err, shared.ErrConflict) {
-			t.Errorf("a link type in use was deleted: %v", err)
 		}
 		if summaries, err := links.Entries(ctx, []shared.ID{one, two}); err != nil || len(summaries) != 2 || summaries[0].CollectionID != collection {
 			t.Errorf("the summaries: %+v, %v", summaries, err)
@@ -176,14 +185,16 @@ func TestAWorkspacesLinksAreItsOwn(t *testing.T) {
 		if rows, err := types.List(ctx); err != nil || len(rows) != 0 {
 			t.Errorf("B listed A's link types: %v, %v", rows, err)
 		}
-		// A link from B to A's entries finds no entry to point at.
-		foreign := first
-		foreign.ID, foreign.TenantID = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd15"), tenantB
-		if err := links.Insert(ctx, foreign); !errors.Is(err, shared.ErrNotFound) {
-			t.Errorf("B linked A's entries: %v", err)
-		}
 		return nil
 	})
+	// A link from B to A's entries finds no entry to point at; the refusal aborts its transaction.
+	if err := uow.Within(ctx, persistence.Scope{TenantID: tenantB}, func(ctx context.Context) error {
+		foreign := first
+		foreign.ID, foreign.TenantID = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd15"), tenantB
+		return links.Insert(ctx, foreign)
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("B linked A's entries: %v", err)
+	}
 
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
 		if err := links.Delete(ctx, own.ID); err != nil {
