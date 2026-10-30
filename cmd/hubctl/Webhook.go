@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"net/url"
 	"strconv"
 	"strings"
@@ -30,7 +31,7 @@ func webhookGroup() group {
 		commands: []command{
 			{
 				name:    "add",
-				usage:   "--url <target> --event <type> [--event <type>…] [--filter <condition>] [--scope HUB|COLLECTION --scope-id <id>]",
+				usage:   "--url <target> --event <type> [--event <type>…] [--filter <condition>] [--scope HUB|COLLECTION --scope-id <id>] [--format MATRIX|SLACK|MATTERMOST|TEAMS [--room <id>] [--locale <tag>]]",
 				summary: "subscribe an external system - the secret is shown once",
 				run:     webhookAdd,
 			},
@@ -67,13 +68,16 @@ func webhookGroup() group {
 }
 
 func webhookAdd(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "webhook", "add", "--url <target> --event <type> [--event <type>…] [--filter <condition>] [--scope HUB|COLLECTION --scope-id <id>]")
+	flags := commandFlags(cli, "webhook", "add", "--url <target> --event <type> [--event <type>…] [--filter <condition>] [--scope HUB|COLLECTION --scope-id <id>] [--format MATRIX|SLACK|MATTERMOST|TEAMS [--room <id>] [--locale <tag>]]")
 	target := flags.String("url", "", "where the deliveries go")
 	var events stringList
 	flags.Var(&events, "event", "an event type to subscribe to; repeat for several")
 	filter := flags.String("filter", "", "a condition an event must meet to be sent, over event, data, actor and now")
 	scope := flags.String("scope", "", "HUB or COLLECTION to listen there only; omitted is the whole workspace")
 	scopeID := flags.String("scope-id", "", "the hub or the collection --scope names")
+	format := flags.String("format", "", "MATRIX, SLACK, MATTERMOST or TEAMS to tell a chat room; omitted is the signed CloudEvent")
+	room := flags.String("room", "", "the Matrix room identifier, !opaque:server")
+	locale := flags.String("locale", "", "the language of a chat room's sentence, such as de")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -83,6 +87,25 @@ func webhookAdd(ctx context.Context, cli *CLI, args []string) error {
 	create := openapi.WebhookSubscriptionCreate{TargetUrl: *target, EventTypes: events}
 	if *filter != "" {
 		create.Filter = filter
+	}
+	chat := false
+	if *format != "" {
+		chosen := openapi.WebhookFormat(strings.ToUpper(*format))
+		create.Format = &chosen
+		chat = chosen != openapi.WebhookFormatCLOUDEVENTS
+		if chosen == openapi.WebhookFormatMATRIX {
+			token, err := readChatToken(cli)
+			if err != nil {
+				return err
+			}
+			create.Credential = &token
+		}
+	}
+	if *room != "" {
+		create.Room = room
+	}
+	if *locale != "" {
+		create.Locale = locale
 	}
 	if *scope != "" || *scopeID != "" {
 		// Both or neither: a scope without its container, or an identifier without saying what it
@@ -105,7 +128,7 @@ func webhookAdd(ctx context.Context, cli *CLI, args []string) error {
 	if err := client.Post(ctx, webhooksPath, create, &created); err != nil {
 		return err
 	}
-	if !cli.JSON {
+	if !cli.JSON && !chat {
 		printf(cli.Err,
 			"that signing secret is shown once: store it now, and rotate the subscription if it leaks\n")
 	}
@@ -309,6 +332,26 @@ func webhookRotateSecret(ctx context.Context, cli *CLI, args []string) error {
 			rotated.Id.String(), rotated.TargetUrl, string(rotated.State), rotated.Secret,
 		}},
 	})
+}
+
+// envChatToken carries a Matrix account's access token to `webhook add --format MATRIX`.
+const envChatToken = "HUBTASK_CHAT_TOKEN"
+
+// readChatToken takes the room's token from the environment or standard input, never from an
+// argument, for readToken's reason: an argument is visible in `ps` and the shell history.
+func readChatToken(cli *CLI) (string, error) {
+	if fromEnv := strings.TrimSpace(cli.Env(envChatToken)); fromEnv != "" {
+		return fromEnv, nil
+	}
+	raw, err := io.ReadAll(cli.In)
+	if err != nil {
+		return "", err
+	}
+	token := strings.TrimSpace(string(raw))
+	if token == "" {
+		return "", usagef("a Matrix room needs its access token: pipe it in, or set " + envChatToken)
+	}
+	return token, nil
 }
 
 // stringList is a flag that may be repeated. A list rather than a comma-separated string, because
