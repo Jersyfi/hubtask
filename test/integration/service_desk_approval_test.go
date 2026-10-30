@@ -50,7 +50,7 @@ func TestAnApprovalStaysInItsWorkspace(t *testing.T) {
 		if err := approvals.Insert(ctx, second); !errors.Is(err, shared.ErrConflict) {
 			t.Errorf("a second approval waits on the entry: %v", err)
 		}
-		if err := approvals.Record(ctx, tenantA, decision); err != nil {
+		if err := approvals.Record(ctx, decision); err != nil {
 			return err
 		}
 		if err := approvals.Update(ctx, decided, opened.Version); err != nil {

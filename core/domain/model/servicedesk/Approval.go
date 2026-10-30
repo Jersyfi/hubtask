@@ -70,6 +70,7 @@ type Approval struct {
 // for whom while they were away, when, and the entry's version they decided on.
 type Decision struct {
 	ID          shared.ID
+	TenantID    shared.ID
 	ApprovalID  shared.ID
 	Level       int
 	ApproverID  shared.ID
@@ -151,7 +152,7 @@ func Decide(
 		return Approval{}, Decision{}, invalid("/reason", "approvals.reason_too_long")
 	}
 	decision := Decision{
-		ID: id, ApprovalID: a.ID, Level: a.Current, ApproverID: approver, OnBehalfOf: who.OnBehalfOf,
+		ID: id, TenantID: a.TenantID, ApprovalID: a.ID, Level: a.Current, ApproverID: approver, OnBehalfOf: who.OnBehalfOf,
 		Verdict: verdict, Reason: reason, ItemVersion: itemVersion, DecidedAt: now,
 	}
 	next := a

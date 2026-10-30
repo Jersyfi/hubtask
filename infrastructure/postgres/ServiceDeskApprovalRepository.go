@@ -215,12 +215,12 @@ func (ServiceDeskApprovals) Pending(ctx context.Context, limit int) ([]servicede
 	return approvalsFrom(rows)
 }
 
-func (ServiceDeskApprovals) Record(ctx context.Context, tenantID shared.ID, d servicedesk.Decision) error {
+func (ServiceDeskApprovals) Record(ctx context.Context, d servicedesk.Decision) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
 	}
-	uuids, err := uuidsOf([]shared.ID{d.ID, tenantID, d.ApprovalID, d.ApproverID})
+	uuids, err := uuidsOf([]shared.ID{d.ID, d.TenantID, d.ApprovalID, d.ApproverID})
 	if err != nil {
 		return err
 	}
@@ -257,8 +257,8 @@ func (ServiceDeskApprovals) Decisions(ctx context.Context, approvalID shared.ID)
 	}
 	out := make([]servicedesk.Decision, 0, len(rows))
 	for _, row := range rows {
-		ids := make([]shared.ID, 3)
-		for i, raw := range []pgtype.UUID{row.ID, row.ApprovalID, row.ApproverID} {
+		ids := make([]shared.ID, 4)
+		for i, raw := range []pgtype.UUID{row.ID, row.ApprovalID, row.ApproverID, row.TenantID} {
 			if ids[i], err = idFrom(raw); err != nil {
 				return nil, err
 			}
@@ -268,7 +268,7 @@ func (ServiceDeskApprovals) Decisions(ctx context.Context, approvalID shared.ID)
 			return nil, err
 		}
 		out = append(out, servicedesk.Decision{
-			ID: ids[0], ApprovalID: ids[1], Level: int(row.Level), ApproverID: ids[2], OnBehalfOf: behalf,
+			ID: ids[0], TenantID: ids[3], ApprovalID: ids[1], Level: int(row.Level), ApproverID: ids[2], OnBehalfOf: behalf,
 			Verdict: servicedesk.Verdict(row.Verdict), Reason: row.Reason, ItemVersion: int(row.ItemVersion),
 			DecidedAt: timeFrom(row.DecidedAt),
 		})

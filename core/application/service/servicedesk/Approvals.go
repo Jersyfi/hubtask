@@ -311,7 +311,7 @@ func (h DecideApproval) Execute(ctx context.Context, actor appshared.ActorContex
 		if err != nil {
 			return err
 		}
-		if err := a.Store.Record(ctx, actor.TenantID, decision); err != nil {
+		if err := a.Store.Record(ctx, decision); err != nil {
 			return err
 		}
 		if err := a.Store.Update(ctx, next, approval.Version); err != nil {

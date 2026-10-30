@@ -51,7 +51,7 @@ func (s *approvalStore) PendingOf(_ context.Context, item shared.ID) (domain.App
 	}
 	return domain.Approval{}, shared.ErrNotFound
 }
-func (s *approvalStore) Record(_ context.Context, _ shared.ID, d domain.Decision) error {
+func (s *approvalStore) Record(_ context.Context, d domain.Decision) error {
 	s.decisions = append(s.decisions, d)
 	return nil
 }

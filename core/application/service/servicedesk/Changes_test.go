@@ -61,7 +61,7 @@ func TestEveryDeskRecordOfAnEntryReachesTheChangeLog(t *testing.T) {
 	if err := approvals.Insert(ctx, approval); err != nil {
 		t.Fatalf("Insert: %v", err)
 	}
-	if err := approvals.Record(ctx, tenant, domain.Decision{ID: "d-1", ApprovalID: approval.ID, Verdict: domain.VerdictApprove, DecidedAt: at}); err != nil {
+	if err := approvals.Record(ctx, domain.Decision{ID: "d-1", TenantID: tenant, ApprovalID: approval.ID, Verdict: domain.VerdictApprove, DecidedAt: at}); err != nil {
 		t.Fatalf("Record: %v", err)
 	}
 	approved := approval

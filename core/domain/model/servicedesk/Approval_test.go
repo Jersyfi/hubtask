@@ -24,7 +24,7 @@ var (
 func approvalOf(t *testing.T, levels []work.ApprovalLevel, counted [][]shared.ID) servicedesk.Approval {
 	t.Helper()
 	step := work.WorkflowStep{Key: "approve", To: "approved", Approval: &work.StepApproval{Levels: levels, DeclineTo: "declined", DueHours: 24}}
-	a, err := servicedesk.NewApproval("0190a4c2-7b1e-7000-8000-0000000000f1", work.WorkItem{ID: "0190a4c2-7b1e-7000-8000-0000000000e1", Version: 4},
+	a, err := servicedesk.NewApproval("0190a4c2-7b1e-7000-8000-0000000000f1", work.WorkItem{ID: "0190a4c2-7b1e-7000-8000-0000000000e1", TenantID: "0190a4c2-7b1e-7000-8000-0000000000a1", Version: 4},
 		"purchase", step, counted, dora, approvedAt)
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +104,7 @@ func TestADelegateDecidesForThePersonAway(t *testing.T) {
 	a := approvalOf(t, []work.ApprovalLevel{{Rule: work.ApprovalAll}}, [][]shared.ID{{ana, ben}})
 	next, decision, err := servicedesk.Decide(a, nil, "0190a4c2-7b1e-7000-8000-0000000000d1", cem, servicedesk.Eligibility{OnBehalfOf: ana},
 		servicedesk.VerdictApprove, "", 4, approvedAt)
-	if err != nil || decision.OnBehalfOf != ana || next.State != servicedesk.ApprovalPending {
+	if err != nil || decision.OnBehalfOf != ana || decision.TenantID != "0190a4c2-7b1e-7000-8000-0000000000a1" || next.State != servicedesk.ApprovalPending {
 		t.Fatalf("the delegate's answer: %+v %v", decision, err)
 	}
 	if _, _, err := servicedesk.Decide(next, []servicedesk.Decision{decision}, "0190a4c2-7b1e-7000-8000-0000000000d2", ana,
