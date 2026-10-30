@@ -492,6 +492,10 @@ const (
 	// digest, deduplicated by its identifier, rescheduling itself to the digest's next moment; the
 	// write that sets the digest seeds it.
 	KindDashboardDigest Kind = "dashboard.digest"
+	// KindCalendarPush is one calendar push's run (UC-INT-16): one job per push, deduplicated by
+	// its identifier, rescheduling itself every quarter hour; connecting seeds it, a push gone or
+	// refused for good ends it.
+	KindCalendarPush Kind = "calendar.push"
 
 	// KindAgentJob is one job of a shipped agent on its target (G11), deduplicated by the job's
 	// identifier; StartAgentJob stores the job and seeds it.

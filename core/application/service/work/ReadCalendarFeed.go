@@ -57,13 +57,29 @@ func (h ReadCalendarFeed) Execute(
 	// A token quoting a tenant it does not belong to finds nothing: the hash is unique across the
 	// installation and the lookup runs inside this scope (ADR-0010).
 	scope := persistence.Scope{TenantID: token.TenantID()}
+	return h.read(ctx, scope, func(ctx context.Context) (domain.CalendarFeed, error) {
+		return h.Feeds.FindByToken(ctx, token)
+	})
+}
 
+// ExecuteFeed answers what one calendar feed contains by its identifier, for a push that writes
+// it into its owner's calendar (UC-INT-16): the same owner, the same rows, the same refusals.
+func (h ReadCalendarFeed) ExecuteFeed(ctx context.Context, tenantID, feedID shared.ID) (ExportedView, error) {
+	h.Kind = domain.CalendarKind
+	return h.read(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) (domain.CalendarFeed, error) {
+		return h.Feeds.Find(ctx, feedID)
+	})
+}
+
+func (h ReadCalendarFeed) read(
+	ctx context.Context, scope persistence.Scope, lookup func(context.Context) (domain.CalendarFeed, error),
+) (ExportedView, error) {
 	var (
 		feed  domain.CalendarFeed
 		owner appshared.ActorContext
 	)
 	err := h.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
-		found, err := h.Feeds.FindByToken(ctx, token)
+		found, err := lookup(ctx)
 		if err != nil {
 			return err
 		}
