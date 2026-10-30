@@ -319,7 +319,9 @@ func (d Directory) People(
 	return out, err
 }
 
-func unsupportedFilter() error { return shared.ErrValidation.WithDetail("directory.filter_unsupported") }
+func unsupportedFilter() error {
+	return shared.ErrValidation.WithDetail("directory.filter_unsupported")
+}
 
 func pageBounds(start, count int) (int, int) {
 	if start < 1 {

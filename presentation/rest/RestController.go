@@ -91,6 +91,9 @@ type RestController struct {
 	// CmdbInventory serves the CMDB's inventory intakes, a GLPI Agent posting what it found. Nil
 	// leaves the route answering the pending 404.
 	CmdbInventory CmdbInventoryDeliverer
+	// Directory serves the SCIM 2.0 door a directory provisions people and groups through
+	// (UC-ID-28). Nil answers every SCIM route not found.
+	Directory ScimDirectory
 	// AddressedMail serves the receiving domain's inbound route (ADR-0092). Nil leaves it answering
 	// the pending 404.
 	AddressedMail AddressedMailDeliverer
