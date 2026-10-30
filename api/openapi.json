@@ -52041,8 +52041,12 @@
                   "SUM",
                   "AVG",
                   "MIN",
-                  "MAX"
-                ]
+                  "MAX",
+                  "P50",
+                  "P85",
+                  "P95"
+                ],
+                "description": "`P50`, `P85` and `P95` are the continuous percentiles of the measure - the median cycle time, the cycle time 85 of 100 entries stay within; an entry holding none is left out, as for `AVG`.\n"
               },
               "field": {
                 "type": "string",

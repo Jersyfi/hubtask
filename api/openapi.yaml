@@ -31896,7 +31896,11 @@ components:
                 with `include_archived`, trashed ones never.
             function:
               type: string
-              enum: [COUNT, SUM, AVG, MIN, MAX]
+              enum: [COUNT, SUM, AVG, MIN, MAX, P50, P85, P95]
+              description: >
+                `P50`, `P85` and `P95` are the continuous percentiles of the measure - the median
+                cycle time, the cycle time 85 of 100 entries stay within; an entry holding none is
+                left out, as for `AVG`.
             field:
               type: string
               description: >

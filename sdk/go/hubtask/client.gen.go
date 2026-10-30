@@ -4992,6 +4992,9 @@ const (
 	ItemAggregateQueryAggregateFunctionCOUNT ItemAggregateQueryAggregateFunction = "COUNT"
 	ItemAggregateQueryAggregateFunctionMAX   ItemAggregateQueryAggregateFunction = "MAX"
 	ItemAggregateQueryAggregateFunctionMIN   ItemAggregateQueryAggregateFunction = "MIN"
+	ItemAggregateQueryAggregateFunctionP50   ItemAggregateQueryAggregateFunction = "P50"
+	ItemAggregateQueryAggregateFunctionP85   ItemAggregateQueryAggregateFunction = "P85"
+	ItemAggregateQueryAggregateFunctionP95   ItemAggregateQueryAggregateFunction = "P95"
 	ItemAggregateQueryAggregateFunctionSUM   ItemAggregateQueryAggregateFunction = "SUM"
 )
 
@@ -5005,6 +5008,12 @@ func (e ItemAggregateQueryAggregateFunction) Valid() bool {
 	case ItemAggregateQueryAggregateFunctionMAX:
 		return true
 	case ItemAggregateQueryAggregateFunctionMIN:
+		return true
+	case ItemAggregateQueryAggregateFunctionP50:
+		return true
+	case ItemAggregateQueryAggregateFunctionP85:
+		return true
+	case ItemAggregateQueryAggregateFunctionP95:
 		return true
 	case ItemAggregateQueryAggregateFunctionSUM:
 		return true
@@ -15968,7 +15977,9 @@ type ItemAggregateQuery struct {
 		} `json:"bucket,omitempty"`
 
 		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none. For a `time` summary, `minutes` alone. Required for every function but `COUNT`, refused for `COUNT`.
-		Field    *string                             `json:"field,omitempty"`
+		Field *string `json:"field,omitempty"`
+
+		// Function `P50`, `P85` and `P95` are the continuous percentiles of the measure - the median cycle time, the cycle time 85 of 100 entries stay within; an entry holding none is left out, as for `AVG`.
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
 		// GroupBy A field a query may group by, `link_type` for a `links` summary, or `work_type`, `billable` or `person` for a `time` summary, or `owner`, `template` or `verification` for a `pages` summary; one row per value.
@@ -16003,7 +16014,7 @@ type ItemAggregateQueryAggregateBucketPeriod string
 // ItemAggregateQueryAggregateBucketWeekStart The first day of a `week`; `monday` when omitted, refused for another period.
 type ItemAggregateQueryAggregateBucketWeekStart string
 
-// ItemAggregateQueryAggregateFunction defines model for ItemAggregateQuery.Aggregate.Function.
+// ItemAggregateQueryAggregateFunction `P50`, `P85` and `P95` are the continuous percentiles of the measure - the median cycle time, the cycle time 85 of 100 entries stay within; an entry holding none is left out, as for `AVG`.
 type ItemAggregateQueryAggregateFunction string
 
 // ItemAggregateQueryAggregateSource What is counted: the entries the scope and filter keep, the links whose two ends they both keep - an end the caller may not see is never counted -, or the time recorded on the kept entries. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too. A `time` summary counts the caller's own records and other people's where the caller approves time; its measure is `minutes`, it may group by `work_type`, `billable` or `person` besides a field of the entry and bucket by `day`, the day the time was spent on, besides a timestamp of the entry. Where the workspace shows other people's time only as sums, `person` is refused (`time.aggregated_only`) and a group of fewer than three people is left out. A `pages` summary counts the pages of one hub's space, or of every space the caller may read pages in for `workspace` - a collection or an entry holds none, and the entries' `filter` is refused; it is a `COUNT`, may group by `owner`, `template` or `verification` (`verified`, `expired` or `unverified` now) and bucket by `created_at` or `updated_at`; archived pages with `include_archived`, trashed ones never.
