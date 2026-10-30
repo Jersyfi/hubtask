@@ -38,13 +38,13 @@
 </script>
 
 <Stack gap="300">
+  <PageHeader title={read ? `${read.icon ? `${read.icon} ` : ''}${read.title}` : t('app.portal.article')} isTitleInBar={viewport.isCompact} />
   {#if failure}
     <ErrorState title={failure.message} reference={failure.reference} referenceLabel={t('app.reference')}
       retryLabel={t('app.retry')} onRetry={() => void article.refresh()} />
   {:else if !read}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}
-    <PageHeader title={`${read.icon ? `${read.icon} ` : ''}${read.title}`} isTitleInBar={viewport.isCompact} />
     <div><Button tone="subtle" size="sm" icon="arrow-left" onclick={() => onnavigate?.(`/portal/${collectionId}`)}>{t('app.portal.back')}</Button></div>
     <article class="body" lang={read.content_language ?? undefined}>{read.body}</article>
     <section aria-labelledby="article-helped">

@@ -69,13 +69,14 @@
 </script>
 
 <Stack gap="300">
+  <PageHeader title={detail?.title ?? t('app.portal.request')} subtitle={detail ? t('app.portal.raised_at', { at: at(detail.created_at) }) : undefined}
+    isTitleInBar={viewport.isCompact} />
   {#if failure}
     <ErrorState title={failure.message} reference={failure.reference} referenceLabel={t('app.reference')}
       retryLabel={t('app.retry')} onRetry={() => void request.refresh()} />
   {:else if !detail}
     <div aria-busy="true"><Skeleton lines={5} /></div>
   {:else}
-    <PageHeader title={detail.title} subtitle={t('app.portal.raised_at', { at: at(detail.created_at) })} isTitleInBar={viewport.isCompact} />
     <div class="standing">
       <Badge tone={detail.is_completed ? 'success' : 'info'}>
         {detail.is_completed ? t('app.portal.resolved') : (detail.status ?? t('app.portal.open'))}
