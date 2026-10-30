@@ -133,6 +133,12 @@ const (
 	// record's board. Its attempt budget is PageReviewAttempts.
 	KindWhiteboardMentionEmail Kind = "notification.whiteboard_mention"
 
+	// KindApprovalEmail tells a person an approval waits for their yes, reminds them, or tells the
+	// person who asked that a level is overdue (UC-SVC-09 check 4), under its own kind for the same
+	// rolling update: a process of the previous release does not know the record's approval. Its
+	// attempt budget is PageReviewAttempts.
+	KindApprovalEmail Kind = "notification.approval"
+
 	// EmergencyAccessAttempts is that job's attempt budget: more than the default, because a
 	// rollout's old processes may claim and return it a few times before a new one runs it, and
 	// each claim spends an attempt.

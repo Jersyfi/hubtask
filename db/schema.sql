@@ -6653,4 +6653,14 @@ ALTER TABLE approval_delegation FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON approval_delegation
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
+-- An approval's people told and reminded, and its asker told of an overdue level (migration 0269).
+ALTER TABLE notification ADD COLUMN approval_id uuid,
+  ADD CONSTRAINT notification_approval_id_fkey
+    FOREIGN KEY (tenant_id, approval_id) REFERENCES approval (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
+      whiteboard_id, approval_id) <= 1);
+CREATE INDEX notification_approval_idx ON notification (tenant_id, approval_id) WHERE approval_id IS NOT NULL;
+
 COMMIT;

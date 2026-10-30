@@ -10226,7 +10226,7 @@
   "app.approvals.decline_to": "A decline moves the entry to",
   "app.approvals.decline_stays": "Where it stands",
   "app.approvals.due_hours": "Hours each level has",
-  "app.approvals.due_hours_hint": "0 is no limit. An overdue level reminds and, at its end, declines.",
+  "app.approvals.due_hours_hint": "0 is no limit. Halfway, whoever has not answered is reminded; at the end, the person who asked is told too.",
   "app.approvals.delegation_title": "While I am away",
   "app.approvals.delegation_intro": "Somebody decides your approvals in your place for a time; the trail names both of you.",
   "app.approvals.delegation_current": "{name} decides for you from {from} until {until}.",
@@ -10242,5 +10242,17 @@
   "app.approvals.delegate_first": "Choose who decides for you first.",
   "app.approvals.delegate_not_self": "Choose somebody other than yourself.",
   "app.approvals.delegate_dates": "The end must come after the start.",
-  "app.approvals.delegate_year": "A handover lasts at most a year."
+  "app.approvals.delegate_year": "A handover lasts at most a year.",
+  "email.approval_asked.subject": "Your yes is asked for “{title}”",
+  "email.approval_asked.subject.withheld": "Your yes is asked for",
+  "email.approval_asked.body": "A step on “{title}” waits for your approval. Open your approvals to approve or decline.\n\n{link}",
+  "email.approval_asked.body.withheld": "A step waits for your approval. Open your approvals to approve or decline.\n\n{link}",
+  "email.approval_reminder.subject": "Still waiting for your yes: “{title}”",
+  "email.approval_reminder.subject.withheld": "An approval still waits for your yes",
+  "email.approval_reminder.body": "A step on “{title}” still waits for your approval. Open your approvals to approve or decline.\n\n{link}",
+  "email.approval_reminder.body.withheld": "A step still waits for your approval. Open your approvals to approve or decline.\n\n{link}",
+  "email.approval_overdue.subject": "An approval you asked for is overdue: “{title}”",
+  "email.approval_overdue.subject.withheld": "An approval you asked for is overdue",
+  "email.approval_overdue.body": "The approval you asked for on “{title}” has run past its hours without every answer. The people still asked were reminded.\n\n{link}",
+  "email.approval_overdue.body.withheld": "An approval you asked for has run past its hours without every answer. The people still asked were reminded.\n\n{link}"
 }

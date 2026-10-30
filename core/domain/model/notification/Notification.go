@@ -210,6 +210,9 @@ type Notification struct {
 	// WhiteboardID is the board a comment named the recipient on (UC-CNV-09 check 2): the message
 	// reads its title at delivery.
 	WhiteboardID shared.ID
+	// ApprovalID is the approval that waits for the recipient's yes, or whose level they asked for
+	// is overdue (UC-SVC-09 check 4): the message reads the entry's title at delivery.
+	ApprovalID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -230,9 +233,8 @@ type NewInput struct {
 	Channel     Channel
 	EventID     shared.ID
 	ItemID      shared.ID
-	// RuleID, SubscriptionID, PrivateHubAccessID, MembershipID or PageID instead of ItemID for a
-	// message about a rule, a subscription, an emergency access, a role given or a page; naming two
-	// subjects is refused.
+	// RuleID, SubscriptionID, PrivateHubAccessID, MembershipID, PageID, AgentID, WhiteboardID or
+	// ApprovalID instead of ItemID for a message about one of those; naming two subjects is refused.
 	RuleID             shared.ID
 	SubscriptionID     shared.ID
 	PrivateHubAccessID shared.ID
@@ -240,6 +242,7 @@ type NewInput struct {
 	PageID             shared.ID
 	AgentID            shared.ID
 	WhiteboardID       shared.ID
+	ApprovalID         shared.ID
 	ActorID            shared.ID
 	At                 time.Time
 }
@@ -286,6 +289,7 @@ func New(in NewInput) (Notification, error) {
 		PageID:             in.PageID,
 		AgentID:            in.AgentID,
 		WhiteboardID:       in.WhiteboardID,
+		ApprovalID:         in.ApprovalID,
 		ActorID:            in.ActorID,
 		CreatedAt:          in.At,
 	}, nil
@@ -293,7 +297,7 @@ func New(in NewInput) (Notification, error) {
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID} {
 		if !id.IsZero() {
 			named++
 		}

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
+	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -79,6 +81,14 @@ const (
 	// subject is a board, not an entry.
 	subjectWhiteboardMention = "email.whiteboard_mention.subject"
 	bodyWhiteboardMention    = "email.whiteboard_mention.body"
+	// An approval waiting for the recipient's yes, a reminder of it, and a level overdue told to
+	// the person who asked (UC-SVC-09 check 4): the subject is an approval, its title the entry's.
+	subjectApprovalAsked    = "email.approval_asked.subject"
+	bodyApprovalAsked       = "email.approval_asked.body"
+	subjectApprovalReminder = "email.approval_reminder.subject"
+	bodyApprovalReminder    = "email.approval_reminder.body"
+	subjectApprovalOverdue  = "email.approval_overdue.subject"
+	bodyApprovalOverdue     = "email.approval_overdue.body"
 	// rolePrefix and placePrefix name a role and a kind of place in the catalogue.
 	rolePrefix  = "email.role."
 	placePrefix = "email.role_granted.place."
@@ -128,6 +138,9 @@ type DeliverNotification struct {
 	// Boards names the whiteboard a comment named the recipient on. Optional: nil leaves its title
 	// out.
 	Boards BoardReader
+	// Approvals names the approval a message is about, and through it the entry. Optional: nil
+	// leaves the entry's title out.
+	Approvals ApprovalReader
 	// Replies answers the address of the entry a message is about, so an answer by mail becomes a
 	// comment there (ADR-0092 decision 8). Optional: nil, or an installation without a receiving
 	// domain, sends no Reply-To.
@@ -195,6 +208,11 @@ type BoardReader interface {
 	Find(ctx context.Context, id shared.ID) (whiteboard.Board, error)
 }
 
+// ApprovalReader answers an approval by its identifier - the service desk repository's Find.
+type ApprovalReader interface {
+	Find(ctx context.Context, id shared.ID) (servicedesk.Approval, error)
+}
+
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
 // longer waiting, and the mail carries the plain link.
 type RedemptionMinter interface {
@@ -218,6 +236,8 @@ type subject struct {
 	access work.EmergencyAccess
 	// grant is the role the record names, zero for every other message.
 	grant identity.Grant
+	// approval is the approval the record names, zero for every other message.
+	approval servicedesk.Approval
 	// base is the workspace's address every link of the message names, read with the rest.
 	base string
 }
@@ -392,6 +412,21 @@ func (d DeliverNotification) load(
 			if board.DeletedAt == nil {
 				loaded.title = board.Title
 			}
+		case !record.ApprovalID.IsZero() && d.Approvals != nil:
+			approval, err := d.Approvals.Find(ctx, record.ApprovalID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.approval = approval
+			if !approval.ItemID.IsZero() {
+				item, err := d.Items.Find(ctx, approval.ItemID)
+				if err != nil && !errors.Is(err, shared.ErrNotFound) {
+					return err
+				}
+				if item.DeletedAt == nil {
+					loaded.title = item.Title
+				}
+			}
 		case !record.AgentID.IsZero() && d.Agents != nil:
 			name, err := d.Agents.AgentName(ctx, record.AgentID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -503,6 +538,11 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	if !loaded.record.WhiteboardID.IsZero() {
 		subjectCode, bodyCode = subjectWhiteboardMention, bodyWhiteboardMention
 	}
+	isOverdue := false
+	if !loaded.record.ApprovalID.IsZero() {
+		subjectCode, bodyCode = approvalCodes(loaded)
+		isOverdue = subjectCode == subjectApprovalOverdue
+	}
 
 	message := domain.Message{
 		SubjectCode: subjectCode,
@@ -511,6 +551,10 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		Link:        link(loaded.base, loaded.record),
 	}
 	message = message.WithTitle(loaded.title, loaded.decision)
+	if isOverdue && loaded.base != "" {
+		// The person who asked decides nothing; the entry is where they look.
+		message.Link = strings.TrimSuffix(loaded.base, "/") + "/items/" + url.PathEscape(loaded.approval.ItemID.String())
+	}
 	if !loaded.grant.ID.IsZero() {
 		message.SubjectCode, message.BodyCode = subjectRoleGranted, bodyRoleGranted
 		message.RoleCode = rolePrefix + strings.ToLower(string(loaded.grant.Role))
@@ -539,6 +583,26 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		message.BodyCode += withheldSuffix
 	}
 	return message
+}
+
+// approvalCodes is an approval message's pair: asked where a level began counting the recipient, a
+// reminder while it still counts them, overdue for anybody else - the person who asked. An approval
+// that is gone reads as a reminder, which the link then shows decided.
+func approvalCodes(loaded subject) (subjectCode, bodyCode string) {
+	switch {
+	case loaded.record.Category == domain.CategoryAssignment:
+		return subjectApprovalAsked, bodyApprovalAsked
+	case loaded.approval.ID.IsZero() || slices.Contains(currentCounted(loaded.approval), loaded.record.RecipientID):
+		return subjectApprovalReminder, bodyApprovalReminder
+	}
+	return subjectApprovalOverdue, bodyApprovalOverdue
+}
+
+func currentCounted(approval servicedesk.Approval) []shared.ID {
+	if approval.Current < 0 || approval.Current >= len(approval.Levels) {
+		return nil
+	}
+	return approval.Levels[approval.Current].Counted
 }
 
 // codesFor is the category's pair of catalogue keys. A switch rather than a map, so that a
@@ -594,6 +658,9 @@ func link(base string, record domain.Notification) string {
 		return base + "/administration/agents"
 	case !record.WhiteboardID.IsZero():
 		return base + "/whiteboards/" + url.PathEscape(record.WhiteboardID.String())
+	case !record.ApprovalID.IsZero():
+		// The list where the reader decides; it opens the app and signs nobody in (P-02).
+		return base + "/approvals"
 	case !record.MembershipID.IsZero():
 		// The place the role is on; compose has the grant and names it.
 		return base

@@ -2009,6 +2009,7 @@ type Notification struct {
 	PageID             pgtype.UUID
 	AgentID            pgtype.UUID
 	WhiteboardID       pgtype.UUID
+	ApprovalID         pgtype.UUID
 }
 
 type NotificationPreference struct {

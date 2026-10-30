@@ -65,7 +65,7 @@ func (q *Queries) DeleteExpiredNotifications(ctx context.Context, arg DeleteExpi
 const findNotification = `-- name: FindNotification :one
 SELECT id, tenant_id, recipient_id, category, channel, state, reason,
        event_id, item_id, actor_id, created_at, sent_at, attempts, rule_id, subscription_id,
-       private_hub_access_id, membership_id, page_id, agent_id, whiteboard_id
+       private_hub_access_id, membership_id, page_id, agent_id, whiteboard_id, approval_id
 FROM notification
 WHERE id = $1
 `
@@ -94,6 +94,7 @@ func (q *Queries) FindNotification(ctx context.Context, id pgtype.UUID) (Notific
 		&i.PageID,
 		&i.AgentID,
 		&i.WhiteboardID,
+		&i.ApprovalID,
 	)
 	return i, err
 }
@@ -132,13 +133,14 @@ const insertNotification = `-- name: InsertNotification :execrows
 INSERT INTO notification (
   id, tenant_id, recipient_id, category, channel, state, reason,
   event_id, item_id, actor_id, created_at, rule_id, subscription_id, private_hub_access_id,
-  membership_id, page_id, agent_id, whiteboard_id
+  membership_id, page_id, agent_id, whiteboard_id, approval_id
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8, $9, $10,
   $11, $12, $13,
-  $14, $15, $16, $17
+  $14, $15, $16, $17,
+  $18
 )
 ON CONFLICT (tenant_id, event_id, recipient_id, channel) WHERE event_id IS NOT NULL
 DO NOTHING
@@ -162,6 +164,7 @@ type InsertNotificationParams struct {
 	PageID             pgtype.UUID
 	AgentID            pgtype.UUID
 	WhiteboardID       pgtype.UUID
+	ApprovalID         pgtype.UUID
 }
 
 // The notification record and what people have said about being told (arc42 §5.2).
@@ -193,6 +196,7 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 		arg.PageID,
 		arg.AgentID,
 		arg.WhiteboardID,
+		arg.ApprovalID,
 	)
 	if err != nil {
 		return 0, err
