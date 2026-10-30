@@ -278,6 +278,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-AST-08](./assets/UC-AST-08-turn-monitoring-alerts-into-entries-on-the-affected-ci.md) | Turn monitoring alerts into entries on the affected configuration item | assets |
 | [UC-SVC-01](./servicedesk/UC-SVC-01-keep-our-working-hours-and-holidays.md) | Keep our working hours and holidays | servicedesk |
 | [UC-SVC-02](./servicedesk/UC-SVC-02-promise-response-times-and-see-which-is-about-to-break.md) | Promise response times and see which promise is about to break | servicedesk |
+| [UC-SVC-03](./servicedesk/UC-SVC-03-work-the-queue-by-what-breaks-first.md) | Work the queue by what breaks first | servicedesk |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |

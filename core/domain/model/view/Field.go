@@ -122,6 +122,13 @@ const (
 	// FieldLinkedTo is whether a link of any type joins the entry to one of the given entries, in
 	// either direction - the entries related to the one on screen.
 	FieldLinkedTo = "linked_to"
+	// FieldSlaDue is the moment the entry's next running SLA goal runs out (UC-SVC-02): the
+	// earliest due moment of its goals that still run, absent when none does. A queue sorts by it
+	// ascending, so the entry about to breach comes first.
+	FieldSlaDue = "sla_due"
+	// FieldSlaStanding is the worst standing of the entry's SLA goals, from MET up to BREACHED;
+	// AT_RISK is a goal still running past its warning. Absent when no policy holds the entry.
+	FieldSlaStanding = "sla_standing"
 
 	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
 	// grammar that carries a value: everything after the dot is a key, which is why it is a
@@ -319,6 +326,24 @@ var catalogue = []Field{
 		Name: FieldLinkedTo, Kind: KindID,
 		Operators: []Operator{OpEq, OpIn},
 	},
+	{
+		Name: FieldSlaDue, Kind: KindTimestamp,
+		Operators: []Operator{OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
+		Nullable:  true, Sortable: true,
+	},
+	{
+		Name: FieldSlaStanding, Kind: KindEnum,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
+		Values:    SlaStandings(),
+		Nullable:  true,
+	},
+}
+
+// SlaStandings are the values of sla_standing, from the best to the worst: the servicedesk
+// standings with AT_RISK between running and breached. Spelled here because the view package
+// imports no product's model.
+func SlaStandings() []string {
+	return []string{"MET", "PAUSED", "RUNNING", "AT_RISK", "BREACHED"}
 }
 
 // The custom fields are deliberately not in the catalogue.

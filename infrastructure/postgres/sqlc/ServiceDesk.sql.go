@@ -316,6 +316,40 @@ func (q *Queries) ReportEntrySla(ctx context.Context, arg ReportEntrySlaParams) 
 	return items, nil
 }
 
+const slaDueOf = `-- name: SlaDueOf :many
+SELECT item_id, min(due_at)::timestamptz AS due_at
+FROM entry_sla
+WHERE item_id = ANY($1::uuid[]) AND standing = 'RUNNING'
+GROUP BY item_id
+`
+
+type SlaDueOfRow struct {
+	ItemID pgtype.UUID
+	DueAt  pgtype.Timestamptz
+}
+
+// The next running goal's due moment of each of a page's entries: the cursor's key of a queue
+// sorted by sla_due (the query compiler's slaDue, written the same way).
+func (q *Queries) SlaDueOf(ctx context.Context, itemIds []pgtype.UUID) ([]SlaDueOfRow, error) {
+	rows, err := q.db.Query(ctx, slaDueOf, itemIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SlaDueOfRow{}
+	for rows.Next() {
+		var i SlaDueOfRow
+		if err := rows.Scan(&i.ItemID, &i.DueAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateBusinessCalendar = `-- name: UpdateBusinessCalendar :execrows
 UPDATE business_calendar SET
   name = $1, spec = $2, updated_at = $3, version = version + 1

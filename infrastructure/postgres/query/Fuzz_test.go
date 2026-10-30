@@ -47,6 +47,8 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"blocked","op":"NEQ","value":false}`,
 		`{"field":"blocking","op":"EQ","value":true}`,
 		`{"field":"linked_to","op":"IN","value":["0190a4c2-7b1e-7000-8000-000000000001"]}`,
+		`{"field":"sla_due","op":"LTE","value":"2026-10-30T09:00:00Z"}`,
+		`{"field":"sla_standing","op":"IN","value":["AT_RISK","BREACHED"]}`,
 		`{"field":"bucket_id","op":"NOT_IN","value":["0192f000-0000-7000-8000-00000000000f"]}`,
 		`{"field":"labels","op":"CONTAINS_ALL","value":["0192f000-0000-7000-8000-00000000000f"]}`,
 		`{"field":"created_at","op":"GTE","value":"2026-08-19T00:00:00Z"}`,

@@ -138,6 +138,10 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 			b.customValue(term.Field)
 			b.write(` AS `, sortAlias[index])
 		}
+		if Derived(term.Field) {
+			name, _ := column(term.Field, itemPrefix)
+			b.write(`, `, name, ` AS `, sortAlias[index])
+		}
 	}
 	if customGroup {
 		b.write(`, `)
@@ -1241,6 +1245,10 @@ func (b *builder) after(name func(), term view.SortTerm, key string) {
 // sortExpression writes what one sort term orders by: its column, a custom field's typed value,
 // or - in a grouped query's outer select - the alias the inner one carries that value under.
 func (b *builder) sortExpression(term view.SortTerm, index int, prefix string) bool {
+	if Derived(term.Field) && prefix == groupPrefix {
+		b.write(sortAlias[index])
+		return true
+	}
 	if _, custom := view.CustomField(term.Field.Name); custom {
 		if prefix == groupPrefix {
 			b.write(sortAlias[index])

@@ -234,9 +234,38 @@ func column(field view.Field, prefix string) (string, bool) {
 		return prefix + `archived_at`, true
 	case view.FieldAssigneeID:
 		return prefix + `assignee_id`, true
+	case view.FieldSlaDue:
+		// Questions about the entry's SLA records, so only inside the query where wi is in scope;
+		// a grouped query's outer select orders by the alias its inner one carries (sortAlias).
+		if prefix == itemPrefix {
+			return slaDue, true
+		}
+	case view.FieldSlaStanding:
+		if prefix == itemPrefix {
+			return slaStanding, true
+		}
 	}
 	return "", false
 }
+
+// slaDue is the earliest due moment of the entry's goals that still run (entry_sla_due_idx).
+const slaDue = `(SELECT min(es.due_at) FROM entry_sla es WHERE es.tenant_id = wi.tenant_id ` +
+	`AND es.item_id = wi.id AND es.standing = 'RUNNING')`
+
+// slaStanding is the worst standing of the entry's goals, in view.SlaStandings' order; null when
+// it has none, because max over no rows is null and so is the array's element at null.
+const slaStanding = `(SELECT (ARRAY['MET', 'PAUSED', 'RUNNING', 'AT_RISK', 'BREACHED'])` +
+	`[max(CASE WHEN es.standing = 'BREACHED' THEN 5 ` +
+	`WHEN es.standing = 'RUNNING' AND es.at_risk_at IS NOT NULL THEN 4 ` +
+	`WHEN es.standing = 'RUNNING' THEN 3 WHEN es.standing = 'PAUSED' THEN 2 ELSE 1 END)] ` +
+	`FROM entry_sla es WHERE es.tenant_id = wi.tenant_id AND es.item_id = wi.id)`
+
+// Derived reports a sort field whose value is not a column of the row, so the adapter reads the
+// cursor's key of it beside the page (DerivedKey).
+func Derived(field view.Field) bool { return field.Name == view.FieldSlaDue }
+
+// DerivedKey renders a derived sort field's value the way Key renders a column's.
+func DerivedKey(moment *time.Time) string { return optionalTimeKey(moment) }
 
 // enumCast is the database type behind an enum field. One field has one today, and the switch is
 // what keeps the next one from silently borrowing this one's type.

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -77,8 +78,12 @@ func (r ItemRepository) rows(
 		return repository.ItemQueryResult{}, err
 	}
 
+	derived, err := derivedKeys(ctx, tx, search.Spec.Sort, items)
+	if err != nil {
+		return repository.ItemQueryResult{}, err
+	}
 	result := repository.ItemQueryResult{Groups: []repository.ItemGroup{}}
-	result.Items, result.Info = pageOf(items, size, r.cursors, r.positionIn(search.Spec.Sort))
+	result.Items, result.Info = pageOf(items, size, r.cursors, r.positionIn(search.Spec.Sort, derived))
 	return result, nil
 }
 
@@ -101,8 +106,12 @@ func (r ItemRepository) groups(
 		return repository.ItemQueryResult{}, err
 	}
 
+	derived, err := derivedKeys(ctx, tx, search.Spec.Sort, items)
+	if err != nil {
+		return repository.ItemQueryResult{}, err
+	}
 	result := repository.ItemQueryResult{Items: []work.WorkItem{}, Groups: []repository.ItemGroup{}}
-	boundary := r.positionIn(search.Spec.Sort)
+	boundary := r.positionIn(search.Spec.Sort, derived)
 
 	for _, item := range items {
 		key, present := groupKeyOf(search.Spec.GroupBy.Field, item)
@@ -240,15 +249,56 @@ func (r ItemRepository) boundary(cursor string) (query.Boundary, error) {
 }
 
 // positionIn renders a row as the boundary of the walk it ends: one key per sort term, in the sort's
-// own order, and the identifier that breaks the tie.
-func (r ItemRepository) positionIn(sort []view.SortTerm) func(work.WorkItem) security.Position {
+// own order, and the identifier that breaks the tie. A derived term's key is read from derived.
+func (r ItemRepository) positionIn(
+	sort []view.SortTerm, derived map[shared.ID]*time.Time,
+) func(work.WorkItem) security.Position {
 	return func(last work.WorkItem) security.Position {
 		keys := make([]string, 0, len(sort))
 		for _, term := range sort {
+			if query.Derived(term.Field) {
+				keys = append(keys, query.DerivedKey(derived[last.ID]))
+				continue
+			}
 			keys = append(keys, query.Key(term, last))
 		}
 		return security.Position{Keys: keys, ID: last.ID}
 	}
+}
+
+// derivedKeys reads the value of a sort field that is no column of the row - an entry's next SLA
+// due moment - for the page's entries, in the same transaction; nil when the sort has none.
+func derivedKeys(
+	ctx context.Context, tx pgx.Tx, sort []view.SortTerm, items []work.WorkItem,
+) (map[shared.ID]*time.Time, error) {
+	wanted := false
+	for _, term := range sort {
+		wanted = wanted || query.Derived(term.Field)
+	}
+	if !wanted || len(items) == 0 {
+		return nil, nil
+	}
+	ids := make([]shared.ID, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	keys, err := uuidsOf(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := sqlc.New(tx).SlaDueOf(ctx, keys)
+	if err != nil {
+		return nil, queryFailed("reading the entries' next SLA due moments", err)
+	}
+	due := make(map[shared.ID]*time.Time, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ItemID)
+		if err != nil {
+			return nil, err
+		}
+		due[id] = optionalTime(row.DueAt)
+	}
+	return due, nil
 }
 
 // groupKeyOf renders the grouping value of one entry, and says whether it has one at all.
@@ -367,7 +417,15 @@ func (r ItemRepository) searchRows(
 		return repository.ItemHitPage{}, err
 	}
 
-	position := r.positionIn(search.Request.Sort)
+	items := make([]work.WorkItem, 0, len(hits))
+	for _, hit := range hits {
+		items = append(items, hit.Item)
+	}
+	derived, err := derivedKeys(ctx, tx, search.Request.Sort, items)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+	position := r.positionIn(search.Request.Sort, derived)
 	var page repository.ItemHitPage
 	page.Hits, page.Info = pageOf(hits, size, r.cursors, func(last repository.ItemHit) security.Position {
 		return position(last.Item)

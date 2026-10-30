@@ -81,3 +81,11 @@ FROM entry_sla
 WHERE armed_at >= sqlc.arg('from') AND armed_at < sqlc.arg('to')
 GROUP BY policy_key, goal, standing
 ORDER BY policy_key, goal, standing;
+
+-- The next running goal's due moment of each of a page's entries: the cursor's key of a queue
+-- sorted by sla_due (the query compiler's slaDue, written the same way).
+-- name: SlaDueOf :many
+SELECT item_id, min(due_at)::timestamptz AS due_at
+FROM entry_sla
+WHERE item_id = ANY(sqlc.arg('item_ids')::uuid[]) AND standing = 'RUNNING'
+GROUP BY item_id;
