@@ -237,6 +237,10 @@ type Access struct {
 	Readers      domain.Readers
 	Shares       []domain.Share
 	MayShare     bool
+	// PublicLink is the page's public link, without its token; PublicLinks whether the workspace
+	// allows one.
+	PublicLink  *domain.PublicLink
+	PublicLinks bool
 }
 
 // AccessOutput is the shape every door returns (api/openapi.yaml, schema PageAccess).
@@ -255,7 +259,15 @@ func AccessOutput(a Access) usecase.Output {
 		"page_id": a.Page.ID.String(), "restricted": a.Page.Restricted, "restricted_to": idStrings(a.RestrictedTo),
 		"restricted_above": a.Readers.Restricted && !a.Page.Restricted, "readers": readers,
 		"shares": shares, "may_share": a.MayShare,
+		"public_link": publicLinkOrNil(a.PublicLink), "public_links_allowed": a.PublicLinks,
 	}
+}
+
+func publicLinkOrNil(link *domain.PublicLink) any {
+	if link == nil {
+		return nil
+	}
+	return LinkOutput(*link)
 }
 
 func idStrings(ids []shared.ID) []string {
@@ -286,7 +298,14 @@ func (h ReadPageAccess) Execute(ctx context.Context, actor appshared.ActorContex
 			return err
 		}
 		out.Readers = readers[page.ID]
-		out.Shares, err = h.Space.Pages.Shares(ctx, page.ID, domain.MaxSharesPerPage)
+		if out.Shares, err = h.Space.Pages.Shares(ctx, page.ID, domain.MaxSharesPerPage); err != nil {
+			return err
+		}
+		if out.PublicLink, err = h.Space.publicLinkOf(ctx, page.ID); err != nil || h.Space.Public.Links == nil {
+			return err
+		}
+		allowed, err := h.Space.publicLinksAllowed(ctx, actor.TenantID)
+		out.PublicLinks = domain.PublicLinksOf(allowed)
 		return err
 	})
 	if err != nil {
@@ -305,7 +324,8 @@ func (h ReadPageAccess) Descriptor() usecase.Descriptor {
 		Name: ReadPageAccessName, Permission: service.PermissionRead,
 		Summary: "Answers who reads a page beyond its hub: the people its own restriction names, whether " +
 			"a page above restricts it too, the people it then admits, the people it is shared with, " +
-			"and whether the caller may share it.",
+			"whether the caller may share it, the page's public link (never its token) and whether the " +
+			"workspace allows public links.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  pagesRead,
 		ReadOnly:    true,
