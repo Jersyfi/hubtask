@@ -10448,5 +10448,21 @@
   "app.planning.tolerance_level_WORKSPACE": "workspace",
   "app.planning.tolerance_level_INSTANCE": "installation",
   "app.planning.tolerance_level_PLAN": "plan",
-  "app.planning.tolerance_range": "A tolerance is a whole number of days from 0 to 365."
+  "app.planning.tolerance_range": "A tolerance is a whole number of days from 0 to 365.",
+  "planning.import_empty": "The file holds no task.",
+  "planning.import_too_large": "A project file is at most {maximum} bytes.",
+  "planning.import_not_utf8": "The file is not UTF-8 text. Save it as UTF-8 and try again.",
+  "planning.import_format_unknown": "A project file is MSPROJECT_XML or CSV.",
+  "planning.import_too_many_entries": "At most {maximum} tasks can be brought in at once.",
+  "planning.import_too_many_links": "At most {maximum} dependencies can be brought in at once.",
+  "planning.import_key_duplicate": "Two tasks of the file share the identifier {at}.",
+  "planning.import_predecessor_unknown": "Task {at} waits on a task the file does not hold.",
+  "planning.import_not_xml": "The file is not a project XML file.",
+  "planning.import_not_csv": "The file cannot be read as CSV (line {at}).",
+  "planning.import_task_invalid": "A task needs a name of at most 500 characters and a whole outline level (at {at}).",
+  "planning.import_date_invalid": "A date is not a date like 2026-11-02 (at {at}).",
+  "planning.import_link_invalid": "A predecessor is not written like 3, 3SS or 4FF+2d (at {at}).",
+  "planning.import_name_column_missing": "The CSV needs a Name column.",
+  "planning.import_needs_collection": "A plan is brought into a collection, not a hub.",
+  "planning.collection_required": "Name the collection the plan comes into."
 }

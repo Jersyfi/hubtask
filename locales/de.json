@@ -10445,5 +10445,21 @@
   "app.planning.tolerance_level_WORKSPACE": "Arbeitsbereich",
   "app.planning.tolerance_level_INSTANCE": "Installation",
   "app.planning.tolerance_level_PLAN": "Tarif",
-  "app.planning.tolerance_range": "Eine Toleranz ist eine ganze Zahl von 0 bis 365 Tagen."
+  "app.planning.tolerance_range": "Eine Toleranz ist eine ganze Zahl von 0 bis 365 Tagen.",
+  "planning.import_empty": "Die Datei enthält keine Aufgabe.",
+  "planning.import_too_large": "Eine Projektdatei hat höchstens {maximum} Bytes.",
+  "planning.import_not_utf8": "Die Datei ist kein UTF-8-Text. Speichere sie als UTF-8 und versuche es erneut.",
+  "planning.import_format_unknown": "Eine Projektdatei ist MSPROJECT_XML oder CSV.",
+  "planning.import_too_many_entries": "Höchstens {maximum} Aufgaben lassen sich auf einmal übernehmen.",
+  "planning.import_too_many_links": "Höchstens {maximum} Abhängigkeiten lassen sich auf einmal übernehmen.",
+  "planning.import_key_duplicate": "Zwei Aufgaben der Datei teilen die Kennung {at}.",
+  "planning.import_predecessor_unknown": "Aufgabe {at} wartet auf eine Aufgabe, die nicht in der Datei steht.",
+  "planning.import_not_xml": "Die Datei ist keine Projekt-XML-Datei.",
+  "planning.import_not_csv": "Die Datei lässt sich nicht als CSV lesen (Zeile {at}).",
+  "planning.import_task_invalid": "Eine Aufgabe braucht einen Namen von höchstens 500 Zeichen und eine ganze Gliederungsebene (bei {at}).",
+  "planning.import_date_invalid": "Ein Datum ist kein Datum wie 2026-11-02 (bei {at}).",
+  "planning.import_link_invalid": "Ein Vorgänger ist nicht wie 3, 3SS oder 4FF+2d geschrieben (bei {at}).",
+  "planning.import_name_column_missing": "Die CSV braucht eine Spalte Name.",
+  "planning.import_needs_collection": "Ein Plan wird in eine Sammlung übernommen, nicht in einen Hub.",
+  "planning.collection_required": "Nenne die Sammlung, in die der Plan kommt."
 }
