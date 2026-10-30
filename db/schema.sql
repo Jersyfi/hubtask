@@ -209,6 +209,9 @@ CREATE TABLE account (
   -- The picture the person shows beside their name (migration 0199); NULL means the initials. Its
   -- foreign key is declared after media_object.
   avatar_media_id   uuid,
+  -- The identifier a directory knows the person by, provisioning over SCIM (UC-ID-28, migration 0256).
+  external_id       text CONSTRAINT account_external_id_length_check
+                      CHECK (external_id IS NULL OR char_length(external_id) BETWEEN 1 AND 255),
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
@@ -221,6 +224,8 @@ CREATE UNIQUE INDEX account_sign_in_name_uq ON account (tenant_id, sign_in_name)
   WHERE sign_in_name IS NOT NULL AND deleted_at IS NULL;
 CREATE UNIQUE INDEX account_subject_uq ON account (tenant_id, external_subject)
   WHERE external_subject IS NOT NULL;
+CREATE UNIQUE INDEX account_external_id_uq ON account (tenant_id, external_id)
+  WHERE external_id IS NOT NULL AND deleted_at IS NULL;
 -- The lookup the public redemption route makes: the hash covers the whole presented string,
 -- tenant half included, and is unique across the installation.
 CREATE UNIQUE INDEX account_redemption_token_uq ON account (redemption_token_hash)
@@ -232,9 +237,14 @@ CREATE TABLE account_group (
   name         text NOT NULL,
   description  text,
   created_at   timestamptz NOT NULL DEFAULT now(),
-  version      integer NOT NULL DEFAULT 1
+  version      integer NOT NULL DEFAULT 1,
+  -- The identifier a directory knows the group by (UC-ID-28, migration 0256).
+  external_id  text CONSTRAINT account_group_external_id_length_check
+                 CHECK (external_id IS NULL OR char_length(external_id) BETWEEN 1 AND 255)
 );
 CREATE UNIQUE INDEX account_group_tenant_id_uq ON account_group (tenant_id, id);
+CREATE UNIQUE INDEX account_group_external_id_uq ON account_group (tenant_id, external_id)
+  WHERE external_id IS NOT NULL;
 CREATE UNIQUE INDEX account_group_name_uq ON account_group (tenant_id, lower(name));
 
 CREATE TABLE account_group_member (
