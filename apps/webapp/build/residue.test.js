@@ -262,6 +262,8 @@ async function views() {
     ['time', await load('TimeView'), { onnavigate: noop }],
     ['hub-actuals', await load('ActualsView'), { planId: COLLECTION, onnavigate: noop }],
     ['collection-actuals', await load('ActualsView'), { planId: COLLECTION, onnavigate: noop }],
+    ['hub-workload', await load('WorkloadView'), { planId: COLLECTION, onnavigate: noop }],
+    ['collection-workload', await load('WorkloadView'), { planId: COLLECTION, onnavigate: noop }],
     ['hub-assets', await load('AssetsView'), { hubId: COLLECTION, onnavigate: noop }],
     ['hub-assets-section', await load('AssetsView'), { hubId: COLLECTION, section: 'health', onnavigate: noop }],
     ['ci', await load('AssetsView'), { ciId: ITEM, onnavigate: noop }],

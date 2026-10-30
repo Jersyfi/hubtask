@@ -868,6 +868,7 @@
     if (on.includes('TIME')) {
       const base = container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`;
       actions.push({ label: t('app.actuals.title'), icon: 'clock', onclick: () => onnavigate(`${base}/actuals`) });
+      actions.push({ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`${base}/workload`) });
     }
     if (container.type !== 'HUB') return actions;
     if (on.includes('KNOWLEDGE')) actions.push({ label: t('app.pages.title'), icon: 'book-open', onclick: () => onnavigate(`/hubs/${id}/pages`) });

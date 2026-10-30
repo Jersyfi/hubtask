@@ -6,12 +6,14 @@
   // entries below, the hours remaining and the variance - a table in the plan's tree order.
   //
   // **The server counts**: the rolling up, the remaining hours that never fall below zero, and
-  // whether an aggregated workspace lets this reader see it at all (check 4).
+  // whether an aggregated workspace lets this reader see it at all (check 4). Above it, for whoever
+  // manages costs, the plan's budget and its burn (UC-TIM-08 check 8).
 
   import { untrack } from 'svelte';
   import { Banner, PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
   import type { EstimatesVsActuals } from '@hubtask/sync-engine';
 
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { actualsPath, actualsTree, hoursText, minutesText } from '../lib/data/time.svelte.ts';
@@ -19,6 +21,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import BudgetPanel from '../lib/time/BudgetPanel.svelte';
 
   interface Props {
     /** The hub or collection whose plan this is. */
@@ -42,6 +45,8 @@
     }));
   });
   const rows = $derived(answer ? actualsTree(answer.data) : []);
+  // The budget is MANAGE_COSTS's (UC-TIM-08 check 1): not drawn for anybody else (P-05).
+  const mayCost = $derived(holdsHere('MANAGE_COSTS') === true || holdsHere('MANAGE_MEMBERS') === true);
 
   const columns = $derived<Column[]>([
     { id: 'entry', label: t('app.actuals.col_entry') },
@@ -67,6 +72,8 @@
         }
       : undefined}
   />
+
+  {#if mayCost}<BudgetPanel {planId} />{/if}
 
   {#if refusal}
     <Banner tone="danger">{refusal}</Banner>

@@ -141,6 +141,9 @@ export const ROUTES: readonly Route[] = [
   // A hub's or a collection's estimates against the time recorded (M7, UC-TIM-04 check 6).
   { name: 'hub-actuals', pattern: '/hubs/:id/actuals' },
   { name: 'collection-actuals', pattern: '/collections/:id/actuals' },
+  // Who has room in a hub or a collection, people by weeks (M7, UC-TIM-06 check 7).
+  { name: 'hub-workload', pattern: '/hubs/:id/workload' },
+  { name: 'collection-workload', pattern: '/collections/:id/workload' },
   // A hub's assets (M6) by section, and one configuration item, addressed by itself because an
   // impact, a duplicate or a health problem links it without its hub.
   { name: 'hub-assets', pattern: '/hubs/:id/assets' },

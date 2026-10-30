@@ -79,6 +79,7 @@
     SprintView: () => import('./views/SprintView.svelte'),
     TimeView: () => import('./views/TimeView.svelte'),
     ActualsView: () => import('./views/ActualsView.svelte'),
+    WorkloadView: () => import('./views/WorkloadView.svelte'),
     TimeSettingsView: () => import('./views/TimeSettingsView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
     ChangesView: () => import('./views/ChangesView.svelte'),
@@ -420,6 +421,10 @@
   {:else if route.name === 'hub-actuals' || route.name === 'collection-actuals'}
     {#key route.path}
       <LazyView load={views.ActualsView} props={{ planId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'hub-workload' || route.name === 'collection-workload'}
+    {#key route.path}
+      <LazyView load={views.WorkloadView} props={{ planId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'collection-sprints'}
     {#key route.path}

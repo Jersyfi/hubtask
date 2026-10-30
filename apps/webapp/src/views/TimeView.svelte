@@ -13,6 +13,9 @@
   // **Report** (UC-TIM-04 check 6, UC-TIM-05): sums by up to two dimensions as a table, and the
   // records handed over as a CSV file.
   //
+  // **Absences** (UC-TIM-07 check 7) and **Capacity** (UC-TIM-06 check 7): the shared calendar of
+  // who is away, and the hours the reader can give each weekday.
+  //
   // **The server decides every rule**: who sees whose week, what is locked, what may change. A
   // refusal is said where it happened, in the server's words.
 
@@ -40,6 +43,8 @@
   import { todayIn } from '../lib/i18n/zone.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import AbsenceCalendar from '../lib/time/AbsenceCalendar.svelte';
+  import CapacityEditor from '../lib/time/CapacityEditor.svelte';
 
   interface Props {
     /** The tab the address names (`?tab=`); the week where it names none or an unknown one. */
@@ -55,6 +60,8 @@
     { id: 'week', code: 'app.time.tab_week' },
     { id: 'approvals', code: 'app.time.tab_approvals' },
     { id: 'report', code: 'app.time.tab_report' },
+    { id: 'absences', code: 'app.time.tab_absences' },
+    { id: 'capacity', code: 'app.time.tab_capacity' },
   ] as const;
   const current = $derived(TABS.some((each) => each.id === tab) ? (tab as string) : 'week');
   function select(next: string) {
@@ -453,7 +460,7 @@
         </section>
       {/if}
 
-    {:else}
+    {:else if current === 'report'}
       <div class="controls">
         <Input label={t('app.time.from')} type="date" size="sm" bind:value={report.from} />
         <Input label={t('app.time.to')} type="date" size="sm" bind:value={report.to} />
@@ -487,6 +494,10 @@
           </Table>
         </div>
       {/if}
+    {:else if current === 'absences'}
+      <AbsenceCalendar />
+    {:else if current === 'capacity'}
+      <CapacityEditor />
     {/if}
   </Tabs>
 </Stack>

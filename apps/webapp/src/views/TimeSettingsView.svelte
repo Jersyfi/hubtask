@@ -8,7 +8,7 @@
   //
   // **What the reader may never do is not drawn** (P-05): the policy is set with APPROVE_TIME or
   // MANAGE_MEMBERS at the workspace, a kind of work written with STRUCTURE; without, the page
-  // shows the values.
+  // shows the values. The cost rates (UC-TIM-08) are drawn only for MANAGE_COSTS or MANAGE_MEMBERS.
 
   import { untrack } from 'svelte';
   import {
@@ -25,11 +25,13 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import CostRates from '../lib/time/CostRates.svelte';
 
   $effect(() => page.entitle(t('app.time_settings.title')));
 
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
   const mayLock = $derived(holdsHere('APPROVE_TIME') === true || holdsHere('MANAGE_MEMBERS') === true);
+  const mayCost = $derived(holdsHere('MANAGE_COSTS') === true || holdsHere('MANAGE_MEMBERS') === true);
 
   let policy = $state<TimePolicy | undefined>(undefined);
   let kinds = $state<WorkType[] | undefined>(undefined);
@@ -187,6 +189,8 @@
         {/each}
       </Table>
     </section>
+
+    {#if mayCost}<CostRates />{/if}
   {/if}
 </Stack>
 
