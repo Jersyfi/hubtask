@@ -964,7 +964,10 @@ A **`Dashboard`** at the workspace or in a hub is its owner's (`PRIVATE`), read 
 reads its place (`SCOPE`), or by the members of up to twenty groups who read it (`GROUPS`, migration
 0274) - sharing either way needs `STRUCTURE`; its at most 24 **`Widget`**s on a twelve-column
 grid run a saved summary view, a stored `POST /items:aggregate` document or goals' progress, and
-their numbers are computed when read, for the reader, never stored.
+their numbers are computed when read, for the reader, never stored. A bar, line or table widget
+may carry a second summary (`Compare`, resolved beside created) and draw each period as its running
+total of a `COUNT` or `SUM` (`Cumulative`); with both, the figures answer what is left between
+them, exactly (`goal.RunningTotals`, `goal.Remaining`).
 
 ---
 

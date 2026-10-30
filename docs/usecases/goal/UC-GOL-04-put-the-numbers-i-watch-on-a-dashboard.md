@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-13, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts]
+checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts, core/domain/model/goal/Running_test.go]
 ---
 
 # Put the numbers I watch on a dashboard
@@ -55,6 +55,10 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
 14. A dashboard shared with groups is read by the members of those groups who read its place - on
     every door and on their devices - and by nobody else but its owner; sharing it needs
     `STRUCTURE` as sharing with the place does.
+15. A bar, line or table widget draws a second summary beside its own - resolved beside created,
+    period by period - and draws each period as its running total of counts or sums; with both, the
+    figures answer what is left between the two, a burndown, and a second series the reader cannot
+    run says so while the first still draws.
 
 ## Where it ends
 
