@@ -1707,6 +1707,38 @@ paths:
               schema: { $ref: "#/components/schemas/AgentRun" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /agents/{agentId}/evaluations:run:
+    parameters:
+      - $ref: "#/components/parameters/AgentId"
+    post:
+      tags: [agents]
+      operationId: runAgentEvaluation
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent evaluate-run"
+      summary: Have a shipped agent answer its own evaluation set
+      description: >
+        Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI
+        suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers
+        are compared as a recorded run's are, and the run counts for the model's revision as it now stands.
+        A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends.
+        Needs MANAGE_MEMBERS at the workspace.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                hub_id: { type: string, format: uuid, description: "The hub whose CIs a CI suggestion or a triage matches; required for those two." }
+      responses:
+        "201":
+          description: Run and recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /agent-requests:
     get:
       tags: [agents]

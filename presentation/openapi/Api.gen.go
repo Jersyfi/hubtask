@@ -22059,6 +22059,12 @@ type RecordAgentEvaluationJSONBody struct {
 	} `json:"answers"`
 }
 
+// RunAgentEvaluationJSONBody defines parameters for RunAgentEvaluation.
+type RunAgentEvaluationJSONBody struct {
+	// HubId The hub whose CIs a CI suggestion or a triage matches; required for those two.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+}
+
 // StartAgentJobJSONBody defines parameters for StartAgentJob.
 type StartAgentJobJSONBody struct {
 	// TargetId The entry, or for duplicate review the hub.
@@ -24239,6 +24245,9 @@ type AddAgentCaseJSONRequestBody = AgentCaseCreate
 // RecordAgentEvaluationJSONRequestBody defines body for RecordAgentEvaluation for application/json ContentType.
 type RecordAgentEvaluationJSONRequestBody RecordAgentEvaluationJSONBody
 
+// RunAgentEvaluationJSONRequestBody defines body for RunAgentEvaluation for application/json ContentType.
+type RunAgentEvaluationJSONRequestBody RunAgentEvaluationJSONBody
+
 // StartAgentJobJSONRequestBody defines body for StartAgentJob for application/json ContentType.
 type StartAgentJobJSONRequestBody StartAgentJobJSONBody
 
@@ -25303,6 +25312,9 @@ type ServerInterface interface {
 	// RecordAgentEvaluation Record an evaluation run of an agent
 	// (POST /agents/{agentId}/evaluations)
 	RecordAgentEvaluation(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// RunAgentEvaluation Have a shipped agent answer its own evaluation set
+	// (POST /agents/{agentId}/evaluations:run)
+	RunAgentEvaluation(w http.ResponseWriter, r *http.Request, agentId AgentId)
 	// ListAgentJobs A shipped agent's jobs
 	// (GET /agents/{agentId}/jobs)
 	ListAgentJobs(w http.ResponseWriter, r *http.Request, agentId AgentId)
@@ -30128,6 +30140,32 @@ func (siw *ServerInterfaceWrapper) RecordAgentEvaluation(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RecordAgentEvaluation(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RunAgentEvaluation operation middleware
+func (siw *ServerInterfaceWrapper) RunAgentEvaluation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId AgentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunAgentEvaluation(w, r, agentId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -48984,6 +49022,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/agents/{agentId}/cases/{caseId}", wrapper.RemoveAgentCase)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents/{agentId}/evaluations", wrapper.ListAgentEvaluations)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}/evaluations", wrapper.RecordAgentEvaluation)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents/{agentId}/evaluations:run", wrapper.RunAgentEvaluation)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agent-requests", wrapper.ListAgentRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agent-requests/{requestId}:decide", wrapper.DecideAgentRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/provenance", wrapper.ListValueProvenance)

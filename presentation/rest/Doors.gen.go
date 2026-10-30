@@ -421,6 +421,7 @@ var restDoors = map[string]restDoor{
 	"rotateJumbleIntake":                {UseCase: "RotateJumbleIntake", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"rotatePlatformSubscriptionSecret":  {UseCase: "RotatePlatformSubscriptionSecret", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"rotateWebhookSecret":               {UseCase: "RotateWebhookSecret", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"grace_seconds"}},
+	"runAgentEvaluation":                {UseCase: "RunAgentEvaluation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"runCiConnector":                    {UseCase: "RunCiConnector", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"saveMailSettings":                  {UseCase: "SaveMailSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"saveWorkflowDraft":                 {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2876,6 +2877,13 @@ func (c *RestController) RotatePlatformSubscriptionSecret(w http.ResponseWriter,
 func (c *RestController) RotateWebhookSecret(w http.ResponseWriter, r *http.Request, webhookId openapi.WebhookId, params openapi.RotateWebhookSecretParams) {
 	var body openapi.RotateWebhookSecretJSONRequestBody
 	c.door(w, r, restDoors["rotateWebhookSecret"], usecase.Input{"webhook_id": webhookId.String()}, params, &body, answerBy(webhookSecretResponse))
+}
+
+// RunAgentEvaluation answers POST /agents/{agentId}/evaluations:run by the generated mapping.
+func (c *RestController) RunAgentEvaluation(w http.ResponseWriter, r *http.Request, agentId openapi.AgentId) {
+	var body openapi.RunAgentEvaluationJSONRequestBody
+	var answer openapi.AgentRun
+	c.door(w, r, restDoors["runAgentEvaluation"], usecase.Input{"agent_id": agentId.String()}, nil, &body, &answer)
 }
 
 // RunCiConnector answers POST /cmdb-connectors/{connectorId}:run by the generated mapping.

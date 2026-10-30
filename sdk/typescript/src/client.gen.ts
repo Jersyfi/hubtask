@@ -476,6 +476,11 @@ export class HubtaskClient {
     return this.call("POST", "/agents/{agentId}/evaluations", { "agentId": agentId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Have a shipped agent answer its own evaluation set */
+  runAgentEvaluation(agentId: string, body: NonNullable<operations["runAgentEvaluation"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["runAgentEvaluation"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/agents/{agentId}/evaluations:run", { "agentId": agentId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The acts agents attempted that wait for a person */
   listAgentRequests(options: CallOptions & { readonly query?: NonNullable<operations["listAgentRequests"]['parameters']['query']> } = {}): Promise<operations["listAgentRequests"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/agent-requests", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

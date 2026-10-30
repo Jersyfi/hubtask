@@ -135,6 +135,14 @@ var generatedCommands = []door{
 			{Name: "answers", Kind: "json", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "agent", Verb: "evaluate-run", OperationID: "runAgentEvaluation", Method: "POST", Path: "/agents/{agentId}/evaluations:run", Summary: "Have a shipped agent answer its own evaluation set",
+		PathParams: []doorParam{
+			{Name: "agentId", Kind: "uuid", Help: "An agent", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "The hub whose CIs a CI suggestion or a triage matches; required for those two", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
 	{Group: "agent", Verb: "evaluations", OperationID: "listAgentEvaluations", Method: "GET", Path: "/agents/{agentId}/evaluations", Summary: "An agent's evaluation runs",
 		PathParams: []doorParam{
 			{Name: "agentId", Kind: "uuid", Help: "An agent", Required: true},

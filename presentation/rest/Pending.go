@@ -2549,6 +2549,10 @@ func (pending) RecordAgentEvaluation(w http.ResponseWriter, r *http.Request, _ o
 	notAvailable(w, r)
 }
 
+func (pending) RunAgentEvaluation(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
 func (pending) ListAgentRequests(w http.ResponseWriter, r *http.Request, _ openapi.ListAgentRequestsParams) {
 	notAvailable(w, r)
 }

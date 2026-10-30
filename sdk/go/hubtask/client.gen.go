@@ -22065,6 +22065,12 @@ type RecordAgentEvaluationJSONBody struct {
 	} `json:"answers"`
 }
 
+// RunAgentEvaluationJSONBody defines parameters for RunAgentEvaluation.
+type RunAgentEvaluationJSONBody struct {
+	// HubId The hub whose CIs a CI suggestion or a triage matches; required for those two.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+}
+
 // StartAgentJobJSONBody defines parameters for StartAgentJob.
 type StartAgentJobJSONBody struct {
 	// TargetId The entry, or for duplicate review the hub.
@@ -24244,6 +24250,9 @@ type AddAgentCaseJSONRequestBody = AgentCaseCreate
 
 // RecordAgentEvaluationJSONRequestBody defines body for RecordAgentEvaluation for application/json ContentType.
 type RecordAgentEvaluationJSONRequestBody RecordAgentEvaluationJSONBody
+
+// RunAgentEvaluationJSONRequestBody defines body for RunAgentEvaluation for application/json ContentType.
+type RunAgentEvaluationJSONRequestBody RunAgentEvaluationJSONBody
 
 // StartAgentJobJSONRequestBody defines body for StartAgentJob for application/json ContentType.
 type StartAgentJobJSONRequestBody StartAgentJobJSONBody
@@ -26599,6 +26608,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
 	RecordAgentEvaluation(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RunAgentEvaluationWithBody Have a shipped agent answer its own evaluation set
+	//
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /agents/{agentId}/evaluations:run (the `RunAgentEvaluation` operationId).
+	RunAgentEvaluationWithBody(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RunAgentEvaluation Have a shipped agent answer its own evaluation set
+	//
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /agents/{agentId}/evaluations:run (the `RunAgentEvaluation` operationId).
+	RunAgentEvaluation(ctx context.Context, agentId AgentId, body RunAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAgentJobs A shipped agent's jobs
 	//
@@ -36626,6 +36653,44 @@ func (c *Client) RecordAgentEvaluationWithBody(ctx context.Context, agentId Agen
 // Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
 func (c *Client) RecordAgentEvaluation(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRecordAgentEvaluationRequest(c.Server, agentId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RunAgentEvaluationWithBody Have a shipped agent answer its own evaluation set
+//
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /agents/{agentId}/evaluations:run (the `RunAgentEvaluation` operationId).
+func (c *Client) RunAgentEvaluationWithBody(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRunAgentEvaluationRequestWithBody(c.Server, agentId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RunAgentEvaluation Have a shipped agent answer its own evaluation set
+//
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /agents/{agentId}/evaluations:run (the `RunAgentEvaluation` operationId).
+func (c *Client) RunAgentEvaluation(ctx context.Context, agentId AgentId, body RunAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRunAgentEvaluationRequest(c.Server, agentId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -56221,6 +56286,53 @@ func NewRecordAgentEvaluationRequestWithBody(server string, agentId AgentId, con
 	}
 
 	operationPath := fmt.Sprintf("/agents/%s/evaluations", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRunAgentEvaluationRequest calls the generic RunAgentEvaluation builder with application/json body
+func NewRunAgentEvaluationRequest(server string, agentId AgentId, body RunAgentEvaluationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRunAgentEvaluationRequestWithBody(server, agentId, "application/json", bodyReader)
+}
+
+// NewRunAgentEvaluationRequestWithBody constructs an http.Request for the RunAgentEvaluation method, with any body, and a specified content type
+func NewRunAgentEvaluationRequestWithBody(server string, agentId AgentId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "agentId", agentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents/%s/evaluations:run", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -83944,6 +84056,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /agents/{agentId}/evaluations (the `RecordAgentEvaluation` operationId).
 	RecordAgentEvaluationWithResponse(ctx context.Context, agentId AgentId, body RecordAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*RecordAgentEvaluationResult, error)
 
+	// RunAgentEvaluationWithBodyWithResponse Have a shipped agent answer its own evaluation set
+	//
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}/evaluations:run (the `RunAgentEvaluation` operationId).
+	RunAgentEvaluationWithBodyWithResponse(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RunAgentEvaluationResult, error)
+
+	// RunAgentEvaluationWithResponse Have a shipped agent answer its own evaluation set
+	//
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /agents/{agentId}/evaluations:run (the `RunAgentEvaluation` operationId).
+	RunAgentEvaluationWithResponse(ctx context.Context, agentId AgentId, body RunAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*RunAgentEvaluationResult, error)
+
 	// ListAgentJobsWithResponse A shipped agent's jobs
 	//
 	// Newest first - what each was about, how it ended, what it proposed and the tokens it spent.
@@ -96361,6 +96491,54 @@ func (r RecordAgentEvaluationResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RecordAgentEvaluationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RunAgentEvaluationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *AgentRun
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r RunAgentEvaluationResult) GetJSON201() *AgentRun {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RunAgentEvaluationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RunAgentEvaluationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RunAgentEvaluationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RunAgentEvaluationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RunAgentEvaluationResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -125520,6 +125698,36 @@ func (c *ClientWithResponses) RecordAgentEvaluationWithResponse(ctx context.Cont
 	return ParseRecordAgentEvaluationResult(rsp)
 }
 
+// RunAgentEvaluationWithBodyWithResponse Have a shipped agent answer its own evaluation set
+//
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}/evaluations:run (the `RunAgentEvaluation` operationId).
+func (c *ClientWithResponses) RunAgentEvaluationWithBodyWithResponse(ctx context.Context, agentId AgentId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RunAgentEvaluationResult, error) {
+	rsp, err := c.RunAgentEvaluationWithBody(ctx, agentId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRunAgentEvaluationResult(rsp)
+}
+
+// RunAgentEvaluationWithResponse Have a shipped agent answer its own evaluation set
+//
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /agents/{agentId}/evaluations:run (the `RunAgentEvaluation` operationId).
+func (c *ClientWithResponses) RunAgentEvaluationWithResponse(ctx context.Context, agentId AgentId, body RunAgentEvaluationJSONRequestBody, reqEditors ...RequestEditorFn) (*RunAgentEvaluationResult, error) {
+	rsp, err := c.RunAgentEvaluation(ctx, agentId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRunAgentEvaluationResult(rsp)
+}
+
 // ListAgentJobsWithResponse A shipped agent's jobs
 //
 // Newest first - what each was about, how it ended, what it proposed and the tokens it spent.
@@ -141367,6 +141575,39 @@ func ParseRecordAgentEvaluationResult(rsp *http.Response) (*RecordAgentEvaluatio
 	}
 
 	response := &RecordAgentEvaluationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AgentRun
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRunAgentEvaluationResult parses an HTTP response from a RunAgentEvaluationWithResponse call
+func ParseRunAgentEvaluationResult(rsp *http.Response) (*RunAgentEvaluationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RunAgentEvaluationResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

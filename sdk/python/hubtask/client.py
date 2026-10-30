@@ -395,6 +395,10 @@ class Client:
         """Record an evaluation run of an agent"""
         return self._call("POST", "/agents/{agentId}/evaluations", {"agentId": agent_id}, None, {}, body, "json", "application/json", "json")
 
+    def run_agent_evaluation(self, agent_id: str, body: dict[str, Any]) -> "AgentRun":
+        """Have a shipped agent answer its own evaluation set"""
+        return self._call("POST", "/agents/{agentId}/evaluations:run", {"agentId": agent_id}, None, {}, body, "json", "application/json", "json")
+
     def list_agent_requests(self, *, query: dict[str, Any] | None = None) -> "AgentRequestList":
         """The acts agents attempted that wait for a person"""
         return self._call("GET", "/agent-requests", {}, query, {}, None, "none", None, "json")
