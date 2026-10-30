@@ -215,8 +215,12 @@ func TestAPagesAccessIsReadAsWrittenAndStaysInItsWorkspace(t *testing.T) {
 		if err != nil || !readers[child].Restricted || !readers[child].Admits(authorA) || readers[child].Admits(authorB) {
 			t.Errorf("readers %+v, %v", readers, err)
 		}
-		if walked, _ := postgres.NewSnapshotRepository().Pages(ctx, "", 100); len(walked) != 0 {
-			t.Errorf("the walk carried a restricted page: %+v", walked)
+		// Other tests keep pages in the same workspace; none of this hub's may be on the walk.
+		walked, _ := postgres.NewSnapshotRepository().Pages(ctx, "", 1000)
+		for _, page := range walked {
+			if page.HubID == hub {
+				t.Errorf("the walk carried a restricted page: %+v", page)
+			}
 		}
 		if added, err := repo.InsertShare(ctx, knowledge.Share{PageID: child, AccountID: authorA, GrantedBy: authorA, GrantedAt: at}); err != nil || !added {
 			t.Errorf("share %v, %v", added, err)

@@ -58,7 +58,8 @@ func TestTimeStaysInItsWorkspace(t *testing.T) {
 	}); !errors.Is(err, shared.ErrConflict) {
 		t.Errorf("a second timer ran: %v", err)
 	}
-	week := repository.Filter{From: day - 1, To: day + 5}
+	// Other tests write time in the same workspace; this one reads its own collection.
+	week := repository.Filter{From: day - 1, To: day + 5, CollectionID: collection}
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		placed, err := store.Records(ctx, week, 10)
 		if err != nil {
