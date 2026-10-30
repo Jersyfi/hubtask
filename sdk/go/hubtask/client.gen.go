@@ -14697,10 +14697,10 @@ type DataFeedEntry struct {
 	DueAt        *time.Time          `json:"DueAt,omitempty"`
 	EntryType    *string             `json:"EntryType,omitempty"`
 	Id           openapi_types.UUID  `json:"Id"`
+	Level        DataFeedEntryLevel  `json:"Level"`
 
-	// Key The entry's key, `kitchen-12`; its number where its collection has no handle.
-	Key       string              `json:"Key"`
-	Level     DataFeedEntryLevel  `json:"Level"`
+	// Number The entry's number in its workspace, the end of its key.
+	Number    int64               `json:"Number"`
 	ParentId  *openapi_types.UUID `json:"ParentId,omitempty"`
 	StartAt   *time.Time          `json:"StartAt,omitempty"`
 	Status    *string             `json:"Status,omitempty"`
@@ -34567,7 +34567,7 @@ type ClientInterface interface {
 
 	// GetDataFeedEntries A data feed's rows
 	//
-	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, key, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
 	//
 	// Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
 	GetDataFeedEntries(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -51866,7 +51866,7 @@ func (c *Client) GetDataFeedMetadata(ctx context.Context, token DataFeedToken, r
 
 // GetDataFeedEntries A data feed's rows
 //
-// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, key, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
 //
 // Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
 func (c *Client) GetDataFeedEntries(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -100692,7 +100692,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetDataFeedEntriesWithResponse A data feed's rows
 	//
-	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, key, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -151833,7 +151833,7 @@ func (c *ClientWithResponses) GetDataFeedMetadataWithResponse(ctx context.Contex
 
 // GetDataFeedEntriesWithResponse A data feed's rows
 //
-// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, key, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
 //
 // Returns a wrapper object for the known response body format(s).
 //

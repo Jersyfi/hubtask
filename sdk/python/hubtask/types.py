@@ -3924,7 +3924,7 @@ DataFeedEntries = TypedDict("DataFeedEntries", {
 
 class DataFeedEntry(TypedDict, total=False):
     Id: Required[str]
-    Key: Required[str]
+    Number: Required[int]
     Level: Required[Literal["TASK", "WORK_PACKAGE", "ACTIVITY"]]
     EntryType: str | None
     Title: Required[str]

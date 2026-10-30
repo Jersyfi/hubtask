@@ -12928,7 +12928,7 @@
         "operationId": "getDataFeedEntries",
         "security": [],
         "summary": "A data feed's rows",
-        "description": "The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, key, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.\n",
+        "description": "The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.\n",
         "parameters": [
           {
             "name": "$top",
@@ -51642,7 +51642,7 @@
         "type": "object",
         "required": [
           "Id",
-          "Key",
+          "Number",
           "Level",
           "Title",
           "Completed",
@@ -51655,9 +51655,10 @@
             "type": "string",
             "format": "uuid"
           },
-          "Key": {
-            "type": "string",
-            "description": "The entry's key, `kitchen-12`; its number where its collection has no handle."
+          "Number": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The entry's number in its workspace, the end of its key."
           },
           "Level": {
             "type": "string",

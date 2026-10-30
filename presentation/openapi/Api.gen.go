@@ -14691,10 +14691,10 @@ type DataFeedEntry struct {
 	DueAt        *time.Time          `json:"DueAt,omitempty"`
 	EntryType    *string             `json:"EntryType,omitempty"`
 	Id           openapi_types.UUID  `json:"Id"`
+	Level        DataFeedEntryLevel  `json:"Level"`
 
-	// Key The entry's key, `kitchen-12`; its number where its collection has no handle.
-	Key       string              `json:"Key"`
-	Level     DataFeedEntryLevel  `json:"Level"`
+	// Number The entry's number in its workspace, the end of its key.
+	Number    int64               `json:"Number"`
 	ParentId  *openapi_types.UUID `json:"ParentId,omitempty"`
 	StartAt   *time.Time          `json:"StartAt,omitempty"`
 	Status    *string             `json:"Status,omitempty"`
