@@ -962,6 +962,30 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"requester": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportRequesters(ctx, sqlc.ExportRequestersParams{
+				AfterID: cursorUUID(page.After, 0), Batch: page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportRequestersRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"requester_contact": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportRequesterContacts(ctx, sqlc.ExportRequesterContactsParams{
+				AfterID: cursorUUID(page.After, 0), AfterSecond: cursorUUID(page.After, 1), Batch: page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportRequesterContactsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"page_media": {
 		delta: false,
 		keys:  2,

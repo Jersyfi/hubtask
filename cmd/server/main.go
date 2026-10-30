@@ -838,6 +838,8 @@ func run() error {
 		},
 		Catalogue: ruleCatalogue, Events: outbox, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Domain: cfg.Mail.InboundDomain,
+		// A sender without an account, filed on an account's behalf (REQUESTER, accepted.md B).
+		Requesters: postgres.RequesterRepository{IDs: ids},
 	}
 	// Connected mailboxes (ADR-0094): IMAP spoken in-house through the egress guard, JMAP through
 	// the guarded HTTP client; the secret sealed under the installation's key.
@@ -1764,6 +1766,8 @@ func run() error {
 		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 		Owners: grants,
+		// A case by address erases a requester without an account (accepted.md B).
+		Addresses: postgres.RequesterRepository{IDs: ids},
 	}
 	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
 	entitlementGate := adminservice.EntitlementGate{Plans: postgres.NewPlanRepository(), UnitOfWork: unitOfWork}
@@ -4360,6 +4364,8 @@ func run() error {
 			// The agents' ledger thirteen months, their held acts and jobs ninety days (accepted.md B).
 			AgentLedger: postgres.AgentLedgerExpiry{}, AgentRequests: postgres.AgentRequestExpiry{},
 			AgentJobs: postgres.AgentJobExpiry{},
+			// Requesters without an account, 24 months after their last contact (accepted.md B).
+			Requesters: postgres.RequesterRepository{IDs: ids},
 			// Pages and boards trashed on their own, after the trash's period, and page versions
 			// thinned after ninety days (accepted.md B).
 			Documents: lifecycle.DocumentSweep{

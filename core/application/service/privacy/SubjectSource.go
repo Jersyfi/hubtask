@@ -159,6 +159,8 @@ var subjectColumns = map[string][]string{
 // identifier - somebody who wrote in before they ever had an account.
 var subjectEmailColumns = map[string][]string{
 	"jumble_entry": {"sender"},
+	// A requester without an account (accepted.md B): their address, name and contacts.
+	"requester": {"address"},
 }
 
 // notThePersons is every table an archive carries that is deliberately **not** in a subject export,
@@ -213,6 +215,7 @@ var notThePersons = map[string]string{
 	"time_work_type":          "the workspace's kinds of work, which name nobody",
 	"portfolio_item":          "which hub or collection a portfolio holds with its dates and status, which names nobody; the portfolio names its owner",
 	"agent_action":            "the ledger of an agent's acts, which names no person; the agent names its owner and an act held for a person is in agent_request",
+	"requester_contact":       "which entries a requester without an account wrote on; the requester is in the map by address, and the entries are the team's",
 	"satisfaction_rating":     "a score of a resolved request, which names nobody; the rater is who raised the entry, and their words are a comment of theirs",
 }
 

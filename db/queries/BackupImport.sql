@@ -3723,3 +3723,39 @@ SELECT EXISTS (SELECT 1 FROM file_link WHERE id = (sqlc.arg('payload')::jsonb->>
 
 -- name: ClearFileLink :execrows
 DELETE FROM file_link;
+
+-- name: ImportRequester :execrows
+INSERT INTO requester (id, tenant_id, address, display_name, first_contact_at, last_contact_at)
+SELECT r.id, r.tenant_id, r.address, r.display_name, r.first_contact_at, r.last_contact_at
+FROM jsonb_populate_record(
+  NULL::requester,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name, last_contact_at = greatest(requester.last_contact_at, EXCLUDED.last_contact_at)
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsRequester :one
+SELECT EXISTS (SELECT 1 FROM requester WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearRequester :execrows
+DELETE FROM requester;
+
+-- name: ImportRequesterContact :execrows
+INSERT INTO requester_contact (tenant_id, requester_id, item_id, at)
+SELECT r.tenant_id, r.requester_id, r.item_id, r.at
+FROM jsonb_populate_record(
+  NULL::requester_contact,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, requester_id, item_id) DO NOTHING;
+
+-- name: HoldsRequesterContact :one
+SELECT EXISTS (
+  SELECT 1 FROM requester_contact
+  WHERE requester_id = (sqlc.arg('payload')::jsonb->>'requester_id')::uuid
+    AND item_id = (sqlc.arg('payload')::jsonb->>'item_id')::uuid
+) AS held;
+
+-- name: ClearRequesterContact :execrows
+DELETE FROM requester_contact;

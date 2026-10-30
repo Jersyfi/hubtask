@@ -1200,6 +1200,18 @@ var entities = []Entity{
 			{Field: "hook_id", Table: "code_hook"},
 		},
 	},
+	// Requesters without an account (migration 0283, accepted.md B) and the entries they wrote on.
+	{
+		Name: "requesters", Table: "requester", Whole: true, Later: true, Keys: []string{"id"},
+	},
+	{
+		Name: "requester_contacts", Table: "requester_contact", Whole: true, Later: true,
+		Keys: []string{"requester_id", "item_id"},
+		References: []Reference{
+			{Field: "requester_id", Table: "requester"},
+			{Field: "item_id", Table: "work_item"},
+		},
+	},
 	// An entry's files in a store (migration 0276): the address, never the file.
 	{
 		Name: "file_links", Table: "file_link", Whole: true, Later: true, Keys: []string{"id"},

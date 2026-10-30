@@ -1215,6 +1215,30 @@ func (q *Queries) ClearReplyTemplate(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearRequester = `-- name: ClearRequester :execrows
+DELETE FROM requester
+`
+
+func (q *Queries) ClearRequester(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRequester)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearRequesterContact = `-- name: ClearRequesterContact :execrows
+DELETE FROM requester_contact
+`
+
+func (q *Queries) ClearRequesterContact(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRequesterContact)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearRetentionPolicy = `-- name: ClearRetentionPolicy :execrows
 DELETE FROM retention_policy
 `
@@ -2705,6 +2729,32 @@ SELECT EXISTS (SELECT 1 FROM reply_template WHERE id = ($1::jsonb->>'id')::uuid)
 
 func (q *Queries) HoldsReplyTemplate(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsReplyTemplate, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsRequester = `-- name: HoldsRequester :one
+SELECT EXISTS (SELECT 1 FROM requester WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsRequester(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsRequester, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsRequesterContact = `-- name: HoldsRequesterContact :one
+SELECT EXISTS (
+  SELECT 1 FROM requester_contact
+  WHERE requester_id = ($1::jsonb->>'requester_id')::uuid
+    AND item_id = ($1::jsonb->>'item_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsRequesterContact(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsRequesterContact, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6519,6 +6569,49 @@ type ImportReplyTemplateParams struct {
 
 func (q *Queries) ImportReplyTemplate(ctx context.Context, arg ImportReplyTemplateParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importReplyTemplate, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importRequester = `-- name: ImportRequester :execrows
+INSERT INTO requester (id, tenant_id, address, display_name, first_contact_at, last_contact_at)
+SELECT r.id, r.tenant_id, r.address, r.display_name, r.first_contact_at, r.last_contact_at
+FROM jsonb_populate_record(
+  NULL::requester,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name, last_contact_at = greatest(requester.last_contact_at, EXCLUDED.last_contact_at)
+WHERE $2::boolean
+`
+
+type ImportRequesterParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportRequester(ctx context.Context, arg ImportRequesterParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importRequester, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importRequesterContact = `-- name: ImportRequesterContact :execrows
+INSERT INTO requester_contact (tenant_id, requester_id, item_id, at)
+SELECT r.tenant_id, r.requester_id, r.item_id, r.at
+FROM jsonb_populate_record(
+  NULL::requester_contact,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, requester_id, item_id) DO NOTHING
+`
+
+func (q *Queries) ImportRequesterContact(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importRequesterContact, payload)
 	if err != nil {
 		return 0, err
 	}

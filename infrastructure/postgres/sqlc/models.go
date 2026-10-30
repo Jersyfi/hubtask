@@ -2622,6 +2622,22 @@ type ReplyTemplate struct {
 	Version   int32
 }
 
+type Requester struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	Address        string
+	DisplayName    string
+	FirstContactAt pgtype.Timestamptz
+	LastContactAt  pgtype.Timestamptz
+}
+
+type RequesterContact struct {
+	TenantID    pgtype.UUID
+	RequesterID pgtype.UUID
+	ItemID      pgtype.UUID
+	At          pgtype.Timestamptz
+}
+
 type RestoreDrillMarker struct {
 	RunID     string
 	Seq       int16

@@ -799,6 +799,28 @@ var importers = map[string]importer{
 			return queries.ClearPageArticle(ctx)
 		},
 	},
+	"requester": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportRequester(ctx, sqlc.ImportRequesterParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsRequester(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearRequester(ctx)
+		},
+	},
+	"requester_contact": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportRequesterContact(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsRequesterContact(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearRequesterContact(ctx)
+		},
+	},
 	"page_media": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
 			return queries.ImportPageMedia(ctx, payload)

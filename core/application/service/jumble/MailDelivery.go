@@ -104,6 +104,9 @@ type ReceiveMail struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Requesters records a sender without an account whose mail an account filed on their behalf
+	// (REQUESTER, accepted.md B); nil records none.
+	Requesters RequesterContacts
 	// Domain is the operator's receiving domain; empty takes nothing from the inbound service.
 	Domain string
 }
@@ -420,9 +423,20 @@ func (h ReceiveMail) write(
 				return err
 			}
 		}
+		if onBehalf && h.Requesters != nil {
+			// In the act's transaction: an entry filed for somebody is never without the record
+			// that says whose it is and when it goes.
+			return h.Requesters.RecordContact(ctx, strings.ToLower(senderWithin(message.Sender)),
+				strings.TrimSpace(message.SenderName), result.ItemID, h.Clock.Now())
+		}
 		return nil
 	})
 	return result, err
+}
+
+// RequesterContacts is the record of requesters without an account.
+type RequesterContacts interface {
+	RecordContact(ctx context.Context, address, name string, itemID shared.ID, at time.Time) error
 }
 
 // toJumble stores the message as a jumble entry, with the place it was meant for and why it is here.

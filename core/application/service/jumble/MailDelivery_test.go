@@ -476,3 +476,43 @@ func TestAPlaceThatKeepsNoNotesStillTakesTheMail(t *testing.T) {
 		t.Errorf("a refused write became %+v", result)
 	}
 }
+
+type requesterLog struct {
+	address, name string
+	item          shared.ID
+	at            time.Time
+	calls         int
+}
+
+func (r *requesterLog) RecordContact(_ context.Context, address, name string, item shared.ID, at time.Time) error {
+	r.address, r.name, r.item, r.at = address, name, item, at
+	r.calls++
+	return nil
+}
+
+// accepted.md B: a sender without an account whose mail an account filed on their behalf is
+// recorded as a requester, with the entry and the moment; a member's own mail records none.
+func TestASenderWithoutAnAccountIsRecordedAsARequester(t *testing.T) {
+	rig := newIntakeRig()
+	requesters := &requesterLog{}
+	rig.receive.Requesters = requesters
+	rig.store.settings.Senders = mail.Senders{Level: mail.LevelAnyone}
+	result := rig.deliver(t, ReceivedMail{
+		Sender: "Kunde@Shop.test", SenderName: "Kunde", Subject: "#einkauf Angebot", Body: "Preis", MessageID: "r1",
+	})
+	if result.Outcome != mail.OutcomeEntry {
+		t.Fatalf("became %+v", result)
+	}
+	if requesters.calls != 1 || requesters.address != "kunde@shop.test" || requesters.name != "Kunde" ||
+		requesters.item != result.ItemID || !requesters.at.Equal(now) {
+		t.Errorf("recorded %+v", requesters)
+	}
+
+	rig = newIntakeRig()
+	requesters = &requesterLog{}
+	rig.receive.Requesters = requesters
+	rig.deliver(t, ReceivedMail{Sender: "anna@example.org", Subject: "#einkauf Milch", MessageID: "r2"})
+	if requesters.calls != 0 {
+		t.Errorf("a member's own mail recorded a requester: %+v", requesters)
+	}
+}
