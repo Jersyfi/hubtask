@@ -7,7 +7,8 @@ import { test } from 'node:test';
 import type { PlacedTimeRecord } from '@hubtask/sync-engine';
 
 import {
-  actualsTree, addDays, elapsedMinutes, exportCsv, isChangeable, keyLabel, minutesOf, minutesText, weekDays, weekGrid, weekStartOf,
+  absenceGrid, actualsTree, addDays, addMonths, burnShare, elapsedMinutes, exportCsv, heatOf, heatmap, isChangeable, keyLabel,
+  minorOf, minutesOf, minutesOfHours, minutesText, moneyText, monthDays, weekDays, weekGrid, weekStartOf,
 } from './time.ts';
 
 const record = (id: string, day: string, minutes: number, entry: string | null, workType = 'dev'): PlacedTimeRecord => ({
@@ -114,4 +115,47 @@ test('the export is written as CSV under its columns', () => {
     truncated: false,
   });
   assert.equal(csv, 'day,minutes,note\r\n2026-11-02,51,"Checkout, form"\r\n2026-11-03,-30,\'=SUM(A1)\r\n2026-11-04,5,"say ""hi"""\r\n');
+});
+
+// UC-TIM-06 check 7: the heatmap lays people by weeks and colours a week as the server marked it.
+test('the workload is a heatmap of people by weeks', () => {
+  const cell = (account: string, week: string, over = false, under = false, known = true) => ({
+    account_id: account, week, available_minutes: 240, allocated_minutes: 180, known, over, under,
+  });
+  const { weeks, rows } = heatmap([cell('ana', '2026-11-09'), cell('ana', '2026-11-02', true), cell('ben', '2026-11-02', false, true)]);
+  assert.deepEqual(weeks, ['2026-11-02', '2026-11-09']);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[1]?.cells[1], undefined);
+  assert.equal(heatOf(rows[0]!.cells[0]!), 'over');
+  assert.equal(heatOf(rows[1]!.cells[0]!), 'room');
+  assert.equal(heatOf(cell('x', 'w')), 'fit');
+  assert.equal(heatOf(cell('x', 'w', false, false, false)), 'unknown');
+});
+
+// UC-TIM-07 check 7: the month lays each person's absences on their days.
+test('a month of absences lays each span on its days', () => {
+  const days = monthDays('2026-11');
+  assert.equal(days.length, 30);
+  assert.equal(days[0], '2026-11-01');
+  assert.equal(addMonths('2026-12', 1), '2027-01');
+  assert.equal(addMonths('2026-01', -1), '2025-12');
+  const leave = { id: '1', account_id: 'ana', from: '2026-10-30', to: '2026-11-03', kind: 'LEAVE' as const, half: false, version: 1 };
+  const rows = absenceGrid([leave], days);
+  assert.equal(rows[0]?.days[2]?.kind, 'LEAVE');
+  assert.equal(rows[0]?.days[3], undefined);
+});
+
+// UC-TIM-08 check 8: money is typed in the major unit and shown in the reader's way.
+test('money goes in the minor unit and comes back as the reader writes it', () => {
+  assert.equal(minorOf('90', 'EUR', ','), 9000);
+  assert.equal(minorOf('90,5', 'EUR', ','), 9050);
+  assert.equal(minorOf('90.55', 'EUR', '.'), 9055);
+  assert.equal(minorOf('90.555', 'EUR', '.'), undefined);
+  assert.equal(minorOf('1500', 'JPY', '.'), 1500);
+  assert.equal(minorOf('', 'EUR', '.'), null);
+  assert.equal(minutesOfHours('7,5', ','), 450);
+  assert.equal(minutesOfHours('7h', '.'), undefined);
+  assert.match(moneyText(21000, 'EUR', 'en'), /210\.00/u);
+  assert.equal(burnShare({ budget_minutes: 180, minutes: 210, budget_amount_minor: 0, amount_minor: 5 }, 'time'), 117);
+  assert.equal(burnShare({ budget_minutes: 180, minutes: 210, budget_amount_minor: 0, amount_minor: 5 }, 'money'), null);
 });

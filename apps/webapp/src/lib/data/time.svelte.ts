@@ -2,15 +2,18 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The time module's paths and writes (UC-TIM-01 … 05), so that every write invalidates the same
- * reads: the timer, the week it lands in, the approval queue, the kinds of work and the policy.
+ * The time module's paths and writes (UC-TIM-01 … 08), so that every write invalidates the same
+ * reads: the timer, the week it lands in, the approval queue, the kinds of work, the policy, a
+ * person's capacity, the absences, the cost rates and a plan's budget.
  * The reads are subscriptions at the call site.
  *
  * **Online only.** Time is not in the replica yet, so the engine refuses a write made offline
  * (`sync.needs_connection`) rather than queueing it; UC-TIM-01 *Where it ends* names the timer.
  */
 
-import type { TimeExport, TimePolicy, TimeRecord, TimeTimer, Timesheet, WorkType } from '@hubtask/sync-engine';
+import type {
+  Absence, BudgetBurn, Capacity, CostRate, TimeExport, TimePolicy, TimeRecord, TimeTimer, Timesheet, WorkType,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -27,6 +30,15 @@ export const weekPath = (week: string, accountId?: string) =>
 export const queuePath = (from: string, to: string) => `/timesheets?from=${from}&to=${to}&state=SUBMITTED`;
 /** A hub's or a collection's estimates against the time recorded. */
 export const actualsPath = (planId: string) => `/plans/${planId}/actuals`;
+/** A hub's or a collection's workload from a Monday for some weeks. */
+export const workloadPath = (planId: string, from: string, weeks: number) => `/plans/${planId}/workload?from=${from}&weeks=${weeks}`;
+/** A hub's or a collection's budget and its burn. */
+export const budgetPath = (planId: string) => `/plans/${planId}/budget`;
+/** The caller's capacities. */
+export const CAPACITIES = '/time-capacities';
+/** The shared calendar of absences between two days. */
+export const absencesPath = (from: string, to: string) => `/time-absences?from=${from}&to=${to}`;
+export const RATES = '/cost-rates';
 
 export interface RecordFields {
   entry_id?: string | null;
@@ -123,6 +135,43 @@ class Time {
   /** The rows of an export: a write, because the export is recorded in the audit trail. */
   export(request: ReportRequest): Promise<TimeExport> {
     return engine.mutate<TimeExport>('POST', '/time-records:export', { from: request.from, to: request.to, mine: request.mine }, { invalidates: [] });
+  }
+
+  setCapacity(from: string, weekMinutes: readonly number[]): Promise<Capacity> {
+    return engine.mutate<Capacity>('PUT', `${CAPACITIES}/${from}`, { week_minutes: weekMinutes }, { invalidates: [CAPACITIES] });
+  }
+
+  async removeCapacity(from: string): Promise<void> {
+    await engine.mutate<void>('DELETE', `${CAPACITIES}/${from}`, undefined, { invalidates: [CAPACITIES] });
+  }
+
+  /** Records an absence of the caller's; `calendar` is the month's read it changes. */
+  recordAbsence(fields: { from: string; to: string; kind: string; half: boolean }, calendar: string): Promise<Absence> {
+    return engine.mutate<Absence>('POST', '/time-absences', fields, { idempotencyKey: crypto.randomUUID(), invalidates: [calendar] });
+  }
+
+  updateAbsence(absence: Absence, fields: { from: string; to: string; kind: string; half: boolean }, calendar: string): Promise<Absence> {
+    return engine.mutate<Absence>('PATCH', `/time-absences/${absence.id}`, fields, { ifMatch: etagFor(absence.version), invalidates: [calendar] });
+  }
+
+  async removeAbsence(absence: Absence, calendar: string): Promise<void> {
+    await engine.mutate<void>('DELETE', `/time-absences/${absence.id}`, undefined, { ifMatch: etagFor(absence.version), invalidates: [calendar] });
+  }
+
+  addRate(fields: { account_id?: string; role?: string; hour_minor: number; currency: string; from: string; to?: string }): Promise<CostRate> {
+    return engine.mutate<CostRate>('POST', RATES, fields, { idempotencyKey: crypto.randomUUID(), invalidates: [RATES] });
+  }
+
+  changeRate(rate: CostRate, fields: { hour_minor: number; currency: string; from: string; to?: string }): Promise<CostRate> {
+    return engine.mutate<CostRate>('PATCH', `${RATES}/${rate.id}`, fields, { ifMatch: etagFor(rate.version), invalidates: [RATES] });
+  }
+
+  async removeRate(rate: CostRate): Promise<void> {
+    await engine.mutate<void>('DELETE', `${RATES}/${rate.id}`, undefined, { ifMatch: etagFor(rate.version), invalidates: [RATES] });
+  }
+
+  setBudget(planId: string, burn: BudgetBurn, fields: { minutes: number; amount_minor: number; currency: string }): Promise<BudgetBurn> {
+    return engine.mutate<BudgetBurn>('PUT', budgetPath(planId), { ...fields, expected_version: burn.version }, { invalidates: [budgetPath(planId)] });
   }
 }
 

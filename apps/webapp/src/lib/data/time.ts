@@ -4,14 +4,15 @@
 /**
  * The time screens' arithmetic (UC-TIM-01 … 05): a week from Monday and its days, the week grid of
  * entries by day, minutes typed and shown, a running timer's minutes, a report's group named, the
- * plan's actuals as an indented tree, and the export's rows as a CSV file.
+ * plan's actuals as an indented tree, the export's rows as a CSV file, the workload as a heatmap,
+ * the month of absences, and money in a currency's minor unit.
  *
  * Pure, so that "which Monday" and "which cell holds this record" are checked by `node --test`.
  * The server decides every rule - the locked period, the week's state, who sees whose time; this
  * module only lays out what it answered.
  */
 
-import type { EstimatesVsActuals, PlacedTimeRecord, TimeExport, TimeReport } from '@hubtask/sync-engine';
+import type { Absence, BudgetBurn, EstimatesVsActuals, PlacedTimeRecord, TimeExport, TimeReport, Workload } from '@hubtask/sync-engine';
 
 import { parseDuration } from '../i18n/duration.ts';
 
@@ -206,4 +207,125 @@ export function dayHeading(day: string, locale: string): string {
   const at = epochOf(day);
   if (at === undefined) return day;
   return new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).format(at);
+}
+
+// --- The workload (UC-TIM-06) --------------------------------------------------------------------
+
+/** How full a person's week is: nothing known, room, about right, or more than they can give. */
+export type Heat = 'unknown' | 'room' | 'fit' | 'over';
+
+/** The heat of a week as the server marked it. */
+export function heatOf(cell: Pick<Workload['cells'][number], 'known' | 'over' | 'under'>): Heat {
+  if (!cell.known) return 'unknown';
+  if (cell.over) return 'over';
+  return cell.under ? 'room' : 'fit';
+}
+
+/** One row of the heatmap: a person and their weeks in the order of `weeks`. */
+export interface HeatRow {
+  readonly accountId: string;
+  readonly cells: readonly (Workload['cells'][number] | undefined)[];
+}
+
+/** The workload's cells as people by weeks, the weeks in order and each person once. */
+export function heatmap(cells: Workload['cells']): { weeks: string[]; rows: HeatRow[] } {
+  const weeks = [...new Set(cells.map((cell) => cell.week))].sort();
+  const people = new Map<string, Map<string, Workload['cells'][number]>>();
+  for (const cell of cells) {
+    let row = people.get(cell.account_id);
+    if (!row) { row = new Map(); people.set(cell.account_id, row); }
+    row.set(cell.week, cell);
+  }
+  return { weeks, rows: [...people.entries()].map(([accountId, row]) => ({ accountId, cells: weeks.map((week) => row.get(week)) })) };
+}
+
+// --- Absences (UC-TIM-07) ------------------------------------------------------------------------
+
+/** The days of a month (`YYYY-MM`), the first first; empty for no month. */
+export function monthDays(month: string): string[] {
+  if (!/^\d{4}-\d{2}$/u.test(month)) return [];
+  const first = epochOf(`${month}-01`);
+  if (first === undefined) return [];
+  const out: string[] = [];
+  for (let at = first; dayOf(at).startsWith(month); at += DAY) out.push(dayOf(at));
+  return out;
+}
+
+/** A month moved by whole months. */
+export function addMonths(month: string, by: number): string {
+  const [year, number] = month.split('-').map(Number);
+  if (!year || !number) return month;
+  const index = year * 12 + (number - 1) + by;
+  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+/** One person's month: the absence on each day, in the order of the days. */
+export interface AbsenceRow {
+  readonly accountId: string;
+  readonly days: readonly (Absence | undefined)[];
+}
+
+/** The absences laid out as people by the days given, each person once, in the order they appear. */
+export function absenceGrid(absences: readonly Absence[], days: readonly string[]): AbsenceRow[] {
+  const people = new Map<string, (Absence | undefined)[]>();
+  for (const absence of absences) {
+    let row = people.get(absence.account_id);
+    if (!row) { row = days.map(() => undefined); people.set(absence.account_id, row); }
+    days.forEach((day, i) => { if (day >= absence.from && day <= absence.to) row[i] = absence; });
+  }
+  return [...people.entries()].map(([accountId, row]) => ({ accountId, days: row }));
+}
+
+// --- Money (UC-TIM-08) ---------------------------------------------------------------------------
+
+/** How many digits of a currency's minor unit there are: 2 for EUR, 0 for JPY. */
+export function minorDigits(currency: string): number {
+  try {
+    return new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits ?? 2;
+  } catch {
+    return 2;
+  }
+}
+
+/** An amount in a currency's minor unit as the reader writes money; the bare number for no currency. */
+export function moneyText(minor: number, currency: string, locale: string): string {
+  if (!currency) return String(minor);
+  const digits = minorDigits(currency);
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(minor / 10 ** digits);
+  } catch {
+    return `${(minor / 10 ** digits).toFixed(digits)} ${currency}`;
+  }
+}
+
+/**
+ * An amount typed in the currency's major unit - `90`, `90,5` - as its minor unit; null for an
+ * empty field and undefined for one that is no amount.
+ */
+export function minorOf(text: string, currency: string, separator: string): number | null | undefined {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  const digits = minorDigits(currency);
+  const pattern = new RegExp(`^(\\d+)(?:${separator === ',' ? ',' : '\\.'}(\\d{0,${digits}}))?$`, 'u');
+  const match = pattern.exec(trimmed);
+  if (!match) return undefined;
+  const whole = Number(match[1]);
+  const fraction = (match[2] ?? '').padEnd(digits, '0');
+  return whole * 10 ** digits + (fraction ? Number(fraction) : 0);
+}
+
+/** How much of a budget its burn used, 0 to any number of hundredths; null where there is no budget. */
+export function burnShare(burn: Pick<BudgetBurn, 'budget_minutes' | 'minutes' | 'budget_amount_minor' | 'amount_minor'>, of: 'time' | 'money'): number | null {
+  const [used, budget] = of === 'time' ? [burn.minutes, burn.budget_minutes] : [burn.amount_minor, burn.budget_amount_minor];
+  return budget > 0 ? Math.round((used / budget) * 100) : null;
+}
+
+/** Hours typed - `120`, `7,5` - as whole minutes; null for an empty field, undefined for no number. */
+export function minutesOfHours(text: string, separator: string): number | null | undefined {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  const pattern = separator === ',' ? /^(\d+)(?:,(\d+))?$/u : /^(\d+)(?:\.(\d+))?$/u;
+  const match = pattern.exec(trimmed);
+  if (!match) return undefined;
+  return Math.round(Number(`${match[1]}.${match[2] ?? '0'}`) * 60);
 }
