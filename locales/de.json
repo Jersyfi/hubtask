@@ -10223,7 +10223,7 @@
   "app.approvals.decline_to": "Eine Ablehnung setzt den Eintrag auf",
   "app.approvals.decline_stays": "Wo er steht",
   "app.approvals.due_hours": "Stunden je Stufe",
-  "app.approvals.due_hours_hint": "0 heißt ohne Frist. Eine überfällige Stufe erinnert und lehnt an ihrem Ende ab.",
+  "app.approvals.due_hours_hint": "0 heißt ohne Frist. Zur Hälfte wird erinnert, wer noch nicht geantwortet hat; am Ende erfährt es auch, wer gebeten hat.",
   "app.approvals.delegation_title": "Während ich abwesend bin",
   "app.approvals.delegation_intro": "Jemand entscheidet deine Freigaben eine Zeit lang an deiner Stelle; der Verlauf nennt euch beide.",
   "app.approvals.delegation_current": "{name} entscheidet für dich vom {from} bis {until}.",
@@ -10239,5 +10239,17 @@
   "app.approvals.delegate_first": "Wähle zuerst, wer für dich entscheidet.",
   "app.approvals.delegate_not_self": "Wähle jemand anderen als dich selbst.",
   "app.approvals.delegate_dates": "Das Ende muss nach dem Anfang liegen.",
-  "app.approvals.delegate_year": "Eine Übergabe dauert höchstens ein Jahr."
+  "app.approvals.delegate_year": "Eine Übergabe dauert höchstens ein Jahr.",
+  "email.approval_asked.subject": "Dein Ja wird gebraucht: „{title}“",
+  "email.approval_asked.subject.withheld": "Dein Ja wird gebraucht",
+  "email.approval_asked.body": "Ein Schritt an „{title}“ wartet auf deine Freigabe. Öffne deine Freigaben, um freizugeben oder abzulehnen.\n\n{link}",
+  "email.approval_asked.body.withheld": "Ein Schritt wartet auf deine Freigabe. Öffne deine Freigaben, um freizugeben oder abzulehnen.\n\n{link}",
+  "email.approval_reminder.subject": "Wartet noch auf dein Ja: „{title}“",
+  "email.approval_reminder.subject.withheld": "Eine Freigabe wartet noch auf dein Ja",
+  "email.approval_reminder.body": "Ein Schritt an „{title}“ wartet noch auf deine Freigabe. Öffne deine Freigaben, um freizugeben oder abzulehnen.\n\n{link}",
+  "email.approval_reminder.body.withheld": "Ein Schritt wartet noch auf deine Freigabe. Öffne deine Freigaben, um freizugeben oder abzulehnen.\n\n{link}",
+  "email.approval_overdue.subject": "Eine Freigabe, um die du gebeten hast, ist überfällig: „{title}“",
+  "email.approval_overdue.subject.withheld": "Eine Freigabe, um die du gebeten hast, ist überfällig",
+  "email.approval_overdue.body": "Die Freigabe, um die du an „{title}“ gebeten hast, hat ihre Stunden ohne alle Antworten überschritten. Wer noch gefragt ist, wurde erinnert.\n\n{link}",
+  "email.approval_overdue.body.withheld": "Eine Freigabe, um die du gebeten hast, hat ihre Stunden ohne alle Antworten überschritten. Wer noch gefragt ist, wurde erinnert.\n\n{link}"
 }

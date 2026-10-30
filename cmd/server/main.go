@@ -1865,12 +1865,17 @@ func run() error {
 		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
 		EntryTypes: entryTypes, Fields: customFields, Gate: entryGate, Desk: serviceDesk,
 	}
-	// Approvals (UC-SVC-08 to 03): a step waiting for people's yes; the decision takes the step
-	// through TakeStep in the registry.
+	// Approvals (UC-SVC-08 to 10): a step waiting for people's yes; the decision takes the step
+	// through TakeStep in the registry. A level's people are told by mail and reminded by its
+	// durable timers, which the timer pass below hands to ApprovalElapsed.
 	approvalSteps := &deferredCatalogue{}
+	approvalMail := notification.RecordApproval{
+		Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+		Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+	}
 	stepApprovals := servicedeskservice.Approvals{
 		Store: serviceDeskStore.Approvals(), Items: items, Containers: containers, Groups: groups,
-		Roles: authorizer, Steps: approvalSteps, Desk: serviceDesk,
+		Roles: authorizer, Steps: approvalSteps, Desk: serviceDesk, Timers: reviewClocks, Notify: approvalMail,
 	}
 	// The planning module (M2): a plan is a hub or a collection, read for whoever may see its
 	// entries; an accepted move goes through UpdateWorkItem in the registry.
@@ -4059,6 +4064,8 @@ func run() error {
 			// The agent its owner is told of.
 			Agents: agentStore,
 			Boards: postgres.NewWhiteboardRepository(),
+			// The approval a message is about, and through it the entry.
+			Approvals: serviceDeskStore.Approvals(),
 			// The entry's ticket key on the intake's address as Reply-To, so an answer becomes a
 			// comment (ADR-0094).
 			Replies: mailservice.Replies{Writer: mailWriter},
@@ -4414,6 +4421,9 @@ func run() error {
 				calendardomain.PurposeSLA: servicedeskservice.SlaElapsed{
 					Records: serviceDeskStore.Records(), Items: items, Events: outbox, IDs: ids,
 				},
+				calendardomain.PurposeApproval: servicedeskservice.ApprovalElapsed{
+					Store: serviceDeskStore.Approvals(), Notify: approvalMail,
+				},
 				calendardomain.PurposePageReview: knowledgeservice.PageReviewElapsed{
 					Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},
 					Notify: notification.RecordPageReview{
@@ -4493,13 +4503,15 @@ func run() error {
 		queueport.KindAgentNoticeEmail: notificationDelivery,
 		// And under a whiteboard mention's (queue.KindWhiteboardMentionEmail).
 		queueport.KindWhiteboardMentionEmail: notificationDelivery,
-		queueport.KindWebhookDeliver:         webhookDelivery,
-		queueport.KindPlatformSweep:          worker.PlatformSweep{Sweep: platformSweep},
-		queueport.KindPlatformDeliver:        platformDelivery,
-		queueport.KindAutomationRun:          automationRun,
-		queueport.KindAutomationHTTP:         outboundCall,
-		queueport.KindBackupRun:              backupRun,
-		queueport.KindBackupVerify:           worker.BackupVerify{Performer: backupPerformer},
+		// And under an approval's (queue.KindApprovalEmail).
+		queueport.KindApprovalEmail:   notificationDelivery,
+		queueport.KindWebhookDeliver:  webhookDelivery,
+		queueport.KindPlatformSweep:   worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindPlatformDeliver: platformDelivery,
+		queueport.KindAutomationRun:   automationRun,
+		queueport.KindAutomationHTTP:  outboundCall,
+		queueport.KindBackupRun:       backupRun,
+		queueport.KindBackupVerify:    worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},

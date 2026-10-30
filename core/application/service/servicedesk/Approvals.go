@@ -24,7 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// The approvals' use cases (UC-SVC-08 to 03).
+// The approvals' use cases (UC-SVC-08 to 10).
 const (
 	DecideApprovalName         = "DecideApproval"
 	ListMyApprovalsName        = "ListMyApprovals"
@@ -60,6 +60,10 @@ type Approvals struct {
 	// Steps is the registry: a decision takes the step through TakeStep itself.
 	Steps EntryInvoker
 	Desk  Desk
+	// Timers counts a level's hours down; Notify tells its people. Either may be nil: no reminder
+	// is armed, nobody is told.
+	Timers ApprovalTimers
+	Notify ApprovalNotifier
 }
 
 var _ work.StepApprovals = Approvals{}
@@ -88,6 +92,9 @@ func (a Approvals) Open(
 	if err := a.Store.Insert(ctx, approval); err != nil {
 		return err
 	}
+	if err := a.levelBegan(ctx, item.TenantID, approval, actor.AccountID); err != nil {
+		return err
+	}
 	return a.audit(ctx, actor, ApprovalRequestedAction, approval, audit.Change{Field: "step", Classification: audit.Open, To: step.Key})
 }
 
@@ -100,7 +107,10 @@ func (a Approvals) Moved(ctx context.Context, item workdomain.WorkItem) error {
 	if err != nil {
 		return err
 	}
-	return a.Store.Update(ctx, domain.Withdrawn(pending, a.Desk.Clock.Now()), pending.Version)
+	if err := a.Store.Update(ctx, domain.Withdrawn(pending, a.Desk.Clock.Now()), pending.Version); err != nil {
+		return err
+	}
+	return a.levelEnded(ctx, pending, pending.Current)
 }
 
 // counted answers the people a level names, in its groups and by its person fields.
@@ -305,6 +315,9 @@ func (h DecideApproval) Execute(ctx context.Context, actor appshared.ActorContex
 			return err
 		}
 		if err := a.Store.Update(ctx, next, approval.Version); err != nil {
+			return err
+		}
+		if err := a.moved(ctx, actor.TenantID, approval, next, actor.AccountID); err != nil {
 			return err
 		}
 		decided, decisions = next, append(earlier, decision)
