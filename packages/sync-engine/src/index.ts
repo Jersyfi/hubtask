@@ -449,6 +449,7 @@ export type {
   PlatformDelivery,
   AdminTenant,
   InstanceSettings,
+  InstanceSettingsPlan,
   InstanceSetting,
   Operator,
   SessionElevation,

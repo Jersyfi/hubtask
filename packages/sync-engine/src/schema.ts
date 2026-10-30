@@ -840,6 +840,7 @@ export type PlatformDelivery = components['schemas']['PlatformDelivery'];
 export type AdminTenant = components['schemas']['AdminTenant'];
 /** The installation's own switches, each with where its lock came from. */
 export type InstanceSettings = components['schemas']['InstanceSettings'];
+export type InstanceSettingsPlan = components['schemas']['InstanceSettingsPlan'];
 export type InstanceSetting = components['schemas']['InstanceSetting'];
 /** Who operates this installation. An empty register is the private installation (ADR-0070 §1). */
 export type Operator = components['schemas']['Operator'];

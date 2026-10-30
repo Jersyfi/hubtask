@@ -29,12 +29,16 @@
   // replaces the whole level; switching tabs while editing keeps what was changed, and the one save
   // bar counts every area's changes.
   //
+  // **A plan before the save, and the history below** (UC-INS-09 check 9): *Preview the change*
+  // asks the server what the save would move, key by key, writing nothing; the history is the
+  // journal's saves of the level, each with the keys it moved and the version it made.
+  //
   // **The installation's presets below, in multi mode only** (UC-INS-18): written one by one, not
   // with the level, so they are a section of their own beside the editor and not one of its tabs.
   import { untrack } from 'svelte';
 
   import { Banner, Button, Input, PageHeader, ReadOnlyNotice, SaveBar, Spinner, Stack, Table, Tabs } from '@hubtask/design-system/components';
-  import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
+  import type { InstanceSetting, InstanceSettings, InstanceSettingsPlan } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
@@ -50,6 +54,7 @@
   import { instance } from '../lib/data/instance.svelte.ts';
   import { localesOf, zoneOptions } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -185,6 +190,36 @@
     draft = { ...draft, [area]: { ...(draft[area] ?? {}), [key]: entry } };
   }
 
+  /** The server's answer to *Preview the change*, for the draft it was asked about. */
+  let plan = $state<InstanceSettingsPlan | undefined>(undefined);
+  async function preview(): Promise<void> {
+    if (!draft) return;
+    isWorking = true;
+    failure = undefined;
+    try {
+      plan = await instance.planSettings(documentOf(draft));
+    } catch (cause) {
+      failure =
+        cause instanceof TransportError
+          ? renderProblem(cause, messages)
+          : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+    } finally {
+      isWorking = false;
+    }
+  }
+  $effect(() => {
+    if (!draft) plan = undefined;
+  });
+
+  const HISTORY = { action: 'instance.settings_changed' } as const;
+  $effect(() => {
+    if (!instance.isElevated) return;
+    return untrack(() => instance.openJournalOf(HISTORY));
+  });
+  const history = $derived(instance.journalOf(HISTORY));
+  const switchesOf = (details: Record<string, unknown> | undefined): string[] =>
+    Array.isArray(details?.switches) ? details.switches.filter((each): each is string => typeof each === 'string') : [];
+
   async function save(): Promise<void> {
     if (!draft) return;
     if (settings && changesBetween(draft, settings) === 0) return;
@@ -302,8 +337,34 @@
                 {/if}
               </Tabs>
 
+              {#if plan}
+                <section aria-labelledby="instance-plan">
+                  <Stack gap="100">
+                    <h3 class="subsection" id="instance-plan">{t('app.instance.settings_plan_title')}</h3>
+                    {#if plan.changes.length === 0}
+                      <p class="quiet-line">{t('app.instance.settings_plan_none')}</p>
+                    {:else}
+                      <ul class="changes">
+                        {#each plan.changes as change (change.key)}
+                          <li data-plan-change><code>{change.key}</code>
+                            {t('app.instance.settings_plan_change', {
+                              from: change.from === '' ? t('app.instance.value_undecided') : change.from,
+                              to: change.to === '' ? t('app.instance.value_undecided') : change.to,
+                            })}{change.from_locked !== change.to_locked ? ` · ${change.to_locked ? t('app.instance.settings_plan_locks') : t('app.instance.settings_plan_unlocks')}` : ''}</li>
+                        {/each}
+                      </ul>
+                    {/if}
+                    {#if plan.applied_through === 'FILE'}
+                      <p class="quiet-line">{t('app.instance.settings_plan_file', { path: plan.source ?? '' })}</p>
+                    {/if}
+                  </Stack>
+                </section>
+              {/if}
+
               <!-- Cancel closes the editor; the changes and their save are the bar's. -->
               <div class="row">
+                <Button tone="secondary" icon="eye" isBusy={isWorking} busyLabel={t('app.instance.working')}
+                  onclick={() => void preview()}>{t('app.instance.settings_plan_preview')}</Button>
                 <Button tone="subtle" onclick={() => (draft = undefined)}>
                   {t('app.instance.cancel')}
                 </Button>
@@ -362,6 +423,27 @@
           </div>
         {/if}
 
+        {#if !draft}
+          <section aria-labelledby="instance-history">
+            <Stack gap="100">
+              <h2 class="section" id="instance-history">{t('app.instance.settings_history_title')}</h2>
+              {#if history.length === 0}
+                <p class="quiet-line">{t('app.instance.settings_history_none')}</p>
+              {:else}
+                <ul class="changes">
+                  {#each history as entry (entry.id)}
+                    <li data-history-entry>
+                      {formatDateTime(entry.occurred_at, messages.locale)} · {entry.actor_label ?? t('app.instance.settings_history_file')}
+                      {#if typeof entry.details?.version === 'number'} · {t('app.instance.settings_history_version', { version: String(entry.details.version) })}{/if}
+                      <span class="quiet-line">{switchesOf(entry.details).join(', ')}</span>
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            </Stack>
+          </section>
+        {/if}
+
         {#if manifest.isMultiTenant && !draft}
           <!-- The installation's presets (UC-INS-18): a level a single installation does not have. -->
           <InstallationPresets isEnforced={enforced} />
@@ -392,4 +474,6 @@
   }
 
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+  .subsection { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); overflow-wrap: anywhere; }
 </style>

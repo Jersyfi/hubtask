@@ -28,6 +28,7 @@ import type {
   InstanceJournalEntry,
   InstanceOverview,
   InstanceSettings,
+  InstanceSettingsPlan,
   OfferedAiModel,
   OfferedAiModelConfiguration,
   Operator,
@@ -533,6 +534,11 @@ class Instance {
    * ordinary case, and a save made on values somebody else saved since is refused with
    * `version_conflict` rather than quietly replacing theirs (UC-INS-09 check 8).
    */
+  /** What a save of this level would change, key by key; writes nothing (UC-INS-09 check 9). */
+  planSettings(settings: InstanceSettings): Promise<InstanceSettingsPlan> {
+    return engine.mutate<InstanceSettingsPlan>('POST', `${SETTINGS}:plan`, settings, { invalidates: [] });
+  }
+
   async writeSettings(settings: InstanceSettings): Promise<InstanceSettings> {
     const etag = this.#settings.status === 'ready' ? this.#settings.etag : undefined;
     return stepUp.around((stepUpToken) =>
