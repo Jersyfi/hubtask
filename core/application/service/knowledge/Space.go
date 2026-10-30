@@ -110,6 +110,8 @@ type Space struct {
 	Public PublicLinking
 	// Articles publishes pages to a service's portal (UC-DOC-13); nil offers none.
 	Articles repository.Articles
+	// Media reads the uploads a page holds as its pictures and files (UC-DOC-14); nil attaches none.
+	Media MediaObjects
 }
 
 // announce records each page as it now stands, body included, filed under its hub.

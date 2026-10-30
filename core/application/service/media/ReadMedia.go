@@ -54,6 +54,13 @@ type Reader interface {
 	) ([]bool, error)
 }
 
+// PageReader is the knowledge module's answer to whether a reader reads one of some pages - a
+// page's readers are decided by its hub, its restrictions and its shares, which only that module
+// knows.
+type PageReader interface {
+	ReadsAny(ctx context.Context, actor appshared.ActorContext, pageIDs []shared.ID) (bool, error)
+}
+
 // GetMedia reads one media object's record.
 //
 // Who may read it is not a question about the object - an object is a file, and a file has no
@@ -68,6 +75,9 @@ type Reader interface {
 type GetMedia struct {
 	Objects    repository.Objects
 	Containers workrepo.Containers
+	// Pages answers whether a reader reads one of the pages holding an object (UC-DOC-14); nil
+	// serves no page's pictures beyond their uploader.
+	Pages      PageReader
 	Transfers  storage.TransferIssuer
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
@@ -122,6 +132,8 @@ func (h GetMedia) Execute(
 type reach struct {
 	paths    [][]identity.Scope
 	portrait bool
+	// pages are the live pages holding the object.
+	pages []shared.ID
 }
 
 // read reads the object together with the entries it serves and the collections those sit in - one
@@ -159,8 +171,14 @@ func (h GetMedia) read(
 		// A board's picture or file is read by whoever may read the board, judged at its hub as
 		// the board is (UC-CNV-08).
 		hubs, err := h.Objects.ReferencingBoards(ctx, mediaID)
+		if err != nil {
+			return err
+		}
 		for _, hub := range hubs {
 			served.paths = append(served.paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+		}
+		if h.Pages != nil {
+			served.pages, err = h.Objects.ReferencingPages(ctx, mediaID)
 		}
 		return err
 	})
@@ -227,7 +245,7 @@ func (h GetMedia) ensureReadable(
 	}
 	paths := served.paths
 	if len(paths) == 0 {
-		return mediaNotFound(object.ID)
+		return h.ensureReadsPage(ctx, actor, object, served)
 	}
 
 	allowed, err := h.Reader.Permitted(ctx, actor, access.Request{
@@ -245,7 +263,22 @@ func (h GetMedia) ensureReadable(
 			return nil
 		}
 	}
-	return mediaNotFound(object.ID)
+	return h.ensureReadsPage(ctx, actor, object, served)
+}
+
+// ensureReadsPage is the last answer: a reader of a page holding the object reads it (UC-DOC-14).
+func (h GetMedia) ensureReadsPage(ctx context.Context, actor appshared.ActorContext, object media.Object, served reach) error {
+	if h.Pages == nil || len(served.pages) == 0 {
+		return mediaNotFound(object.ID)
+	}
+	reads, err := h.Pages.ReadsAny(ctx, actor, served.pages)
+	if err != nil {
+		return err
+	}
+	if !reads {
+		return mediaNotFound(object.ID)
+	}
+	return nil
 }
 
 // containerPath is the path a membership is resolved along, from the tenant down to the container

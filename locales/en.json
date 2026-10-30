@@ -7905,6 +7905,8 @@
   "pages.share_account_unknown": "That person is not in this workspace.",
   "pages.share_not_found": "The page is not shared with this person.",
   "pages.articles_unavailable": "Publishing pages to a portal is not available on this installation.",
+  "pages.media_not_found": "There is no such file you may attach to this page.",
+  "pages.media_full": "A page may hold at most {maximum} pictures and files.",
   "pages.article_collection_missing": "Name the service whose portal shows the page.",
   "pages.article_restricted": "A restricted page is not published: a portal reaches people the restriction does not name.",
   "pages.article_not_found": "There is no such article in this service's portal.",

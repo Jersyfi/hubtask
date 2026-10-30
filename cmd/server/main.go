@@ -1834,6 +1834,8 @@ func run() error {
 		},
 		// A page published to a service's portal (UC-DOC-13).
 		Articles: postgres.NewPageArticleRepository(),
+		// A page's pictures and files (UC-DOC-14).
+		Media: mediaObjects,
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
@@ -2004,6 +2006,7 @@ func run() error {
 		knowledgeservice.ListSharedPages{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPersonalSpace{Space: pageSpace}.Descriptor(),
 		knowledgeservice.OpenDailyNote{Space: pageSpace}.Descriptor(),
+		knowledgeservice.AttachPageMedia{Space: pageSpace}.Descriptor(),
 		whiteboardservice.CreateWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ReadWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ListWhiteboards{Studio: boardStudio}.Descriptor(),
@@ -3113,6 +3116,7 @@ func run() error {
 		mediaservice.GetMedia{
 			Objects: mediaObjects, Containers: containers, Transfers: mediaTransfers,
 			Reader: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Pages: knowledgeservice.PageMediaReach{Space: pageSpace},
 		}.Descriptor(),
 		mediaservice.DeleteMedia{
 			Objects: mediaObjects, Authorizer: authorizer, Audit: auditSink, Jobs: jobs,

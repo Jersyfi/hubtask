@@ -594,3 +594,38 @@ func TestAPictureOnABoardIsReadByTheBoardsReaders(t *testing.T) {
 		}
 	}
 }
+
+// pageReader answers as the knowledge module would, and remembers what it was asked.
+type pageReader struct {
+	reads bool
+	asked [][]shared.ID
+}
+
+func (p *pageReader) ReadsAny(_ context.Context, _ appshared.ActorContext, pages []shared.ID) (bool, error) {
+	p.asked = append(p.asked, pages)
+	return p.reads, nil
+}
+
+// UC-DOC-14 check 3: a picture a page holds is read by whoever the knowledge module says reads
+// the page; somebody it does not is told the picture does not exist.
+func TestAPicturePageHoldsIsReadByThePagesReaders(t *testing.T) {
+	page := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000d301")
+	for _, reads := range []bool{true, false} {
+		handler, records, _, _ := readingHarness()
+		pages := &pageReader{reads: reads}
+		handler.Pages = pages
+		records.stored[mintedID] = ready(strangerA)
+		records.pagesHolding = map[shared.ID][]shared.ID{mintedID: {page}}
+
+		_, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+		if reads && err != nil {
+			t.Fatalf("a reader of the page was refused: %v", err)
+		}
+		if !reads && !errors.Is(err, shared.ErrNotFound) {
+			t.Fatalf("somebody who does not read the page got %v, want not found", err)
+		}
+		if len(pages.asked) != 1 || len(pages.asked[0]) != 1 || pages.asked[0][0] != page {
+			t.Fatalf("asked %v, want the page", pages.asked)
+		}
+	}
+}

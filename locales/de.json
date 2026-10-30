@@ -7902,6 +7902,8 @@
   "pages.share_account_unknown": "Diese Person gehört nicht zu diesem Arbeitsbereich.",
   "pages.share_not_found": "Die Seite ist nicht mit dieser Person geteilt.",
   "pages.articles_unavailable": "Seiten in einem Portal zu veröffentlichen ist in dieser Installation nicht möglich.",
+  "pages.media_not_found": "Diese Datei gibt es nicht, oder du darfst sie dieser Seite nicht anhängen.",
+  "pages.media_full": "Eine Seite kann höchstens {maximum} Bilder und Dateien enthalten.",
   "pages.article_collection_missing": "Den Service nennen, dessen Portal die Seite zeigt.",
   "pages.article_restricted": "Eine eingeschränkte Seite wird nicht veröffentlicht: Ein Portal erreicht Menschen, die die Einschränkung nicht nennt.",
   "pages.article_not_found": "Diesen Artikel gibt es im Portal dieses Service nicht.",

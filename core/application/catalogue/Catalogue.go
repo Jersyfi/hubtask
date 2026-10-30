@@ -123,6 +123,7 @@ func Descriptors() []usecase.Descriptor {
 		knowledgeservice.ListSharedPages{}.Descriptor(),
 		knowledgeservice.ReadPersonalSpace{}.Descriptor(),
 		knowledgeservice.OpenDailyNote{}.Descriptor(),
+		knowledgeservice.AttachPageMedia{}.Descriptor(),
 		whiteboardservice.CreateWhiteboard{}.Descriptor(),
 		whiteboardservice.ReadWhiteboard{}.Descriptor(),
 		whiteboardservice.ListWhiteboards{}.Descriptor(),
