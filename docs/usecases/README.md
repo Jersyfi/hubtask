@@ -35,7 +35,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`workflow/`](./workflow/) | `UC-FLW` | A workspace's own entry types and how its work moves | `service/workflow` |
 | [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and the plan they make: schedule, critical path, baselines, milestones, sprints and estimates | `service/work` (links), `service/planning` |
 | [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
-| [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history | `service/whiteboard` |
+| [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history, comments | `service/whiteboard` |
 | [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
 | [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction | `service/servicedesk` |
 | [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting, capacity, absences and the workload, cost rates and budgets | `service/timekeeping` |
@@ -284,6 +284,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-CNV-06](./whiteboard/UC-CNV-06-go-back-to-an-earlier-state-of-a-whiteboard.md) | Go back to an earlier state of a whiteboard | whiteboard |
 | [UC-CNV-07](./whiteboard/UC-CNV-07-see-what-points-at-a-whiteboard.md) | See what points at a whiteboard | whiteboard |
 | [UC-CNV-08](./whiteboard/UC-CNV-08-put-pictures-and-files-on-a-whiteboard.md) | Put pictures and files on a whiteboard | whiteboard |
+| [UC-CNV-09](./whiteboard/UC-CNV-09-discuss-a-whiteboard-where-it-is-drawn.md) | Discuss a whiteboard where it is drawn | whiteboard |
 | [UC-AST-01](./assets/UC-AST-01-keep-an-inventory-of-what-our-services-run-on.md) | Keep an inventory of what our services run on | assets |
 | [UC-AST-02](./assets/UC-AST-02-let-every-source-write-through-one-reconciliation.md) | Let every source write through one reconciliation | assets |
 | [UC-AST-03](./assets/UC-AST-03-merge-duplicate-configuration-items-without-losing-one.md) | Merge duplicate configuration items without losing one | assets |

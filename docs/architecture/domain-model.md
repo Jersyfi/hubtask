@@ -860,6 +860,14 @@ own (P-03). A voting session and a timer live in the live document beside the ob
 (`facilitation`, `votes`), never in the scene: an anonymous vote keeps each person's votes under a
 key their device minted.
 
+A board's `Comment`s (`whiteboard_comment`, UC-CNV-09) are threads pinned at a place on the board
+and, when they are about an object, at that object (`element_id`): the pin follows the object while
+it stands and stays at its place once it is gone. Replies are one level deep, resolving is the
+thread's, its author alone rewrites or takes back a comment, whoever may draw resolves it. A
+comment names a person as `[@Name](hubtask:person/<account>)` - at most 20 - and each one named who
+reads the board's hub is told by a COMMENT notification whose subject is the board
+(`notification.whiteboard_id`); a rewrite tells only the people it adds.
+
 ### 3.10 Configuration items (context: Assets, M6)
 
 A hub holds an inventory of `CI`s (at most 20,000), judged at the hub as its pages are: READ to
