@@ -64,14 +64,19 @@ type section struct {
 }
 
 const (
-	sectionModules    = "modules"
-	sectionRoles      = "roles"
-	sectionFields     = "fields"
-	sectionLinkTypes  = "link_types"
-	sectionTypes      = "types"
-	sectionWorkflows  = "workflows"
-	sectionSettings   = "settings"
-	sectionStructure  = "structure"
+	sectionModules   = "modules"
+	sectionRoles     = "roles"
+	sectionFields    = "fields"
+	sectionLinkTypes = "link_types"
+	sectionTypes     = "types"
+	sectionWorkflows = "workflows"
+	sectionSettings  = "settings"
+	sectionStructure = "structure"
+	// The service desk's blocks (M5): calendars before the policies that name them, both after the
+	// types a policy measures.
+	sectionCalendars  = "business_calendars"
+	sectionPolicies   = "sla_policies"
+	sectionReplies    = "reply_templates"
 	switchAttribute   = "switch"
 	settingValueField = "value"
 )
@@ -176,6 +181,26 @@ func sections() []section {
 				return text(row["key"]), block
 			},
 			ops: workflowOps,
+		},
+		// Each is defined whole under its key - the same use case creates and replaces it.
+		{
+			name: sectionCalendars, module: module.ServiceDesk, list: "ListBusinessCalendars", rows: "data", key: "key",
+			attributes: []string{"name", "zone", "hours", "holidays"},
+			create:     "DefineBusinessCalendar", change: "DefineBusinessCalendar", remove: "DeleteBusinessCalendar",
+			locate: "key", locateFrom: "key", changeable: []string{"name", "zone", "hours", "holidays"}, whole: true,
+		},
+		{
+			name: sectionPolicies, module: module.ServiceDesk, list: "ListSlaPolicies", rows: "data", key: "key",
+			attributes: []string{"name", "calendar", "entry_types", "priority_field", "goals", "position", "enabled"},
+			create:     "DefineSlaPolicy", change: "DefineSlaPolicy", remove: "DeleteSlaPolicy",
+			locate: "key", locateFrom: "key",
+			changeable: []string{"name", "calendar", "entry_types", "priority_field", "goals", "position", "enabled"}, whole: true,
+		},
+		{
+			name: sectionReplies, module: module.ServiceDesk, list: "ListReplyTemplates", rows: "data", key: "key",
+			attributes: []string{"name", "body"},
+			create:     "DefineReplyTemplate", change: "DefineReplyTemplate", remove: "DeleteReplyTemplate",
+			locate: "key", locateFrom: "key", changeable: []string{"name", "body"}, whole: true,
 		},
 	}
 }

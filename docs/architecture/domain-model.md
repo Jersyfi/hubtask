@@ -338,10 +338,12 @@ hub, a collection and a person (migration 0208).
 `modules`, `roles`, `fields`, `link_types`, `types` (with their forms), `structure` (one block per
 structure setting the workspace decides itself, set and reset through `SetWorkspaceStructure`, plus
 `locks` - the workspace's whole set of locks - and `default_preset`, a Hubtask preset's key or a
-workspace preset's `preset_id`, which a published template leaves out), `workflows`, `settings` (the
-catalogue settings the workspace decided itself by their catalogue key: the sign-in switches and
-legal links, the localisation, the AI narrowing and opt-out, `config.agent_apply`; a value left to
-the level above has no block but is explained) - each
+workspace preset's `preset_id`, which a published template leaves out), `workflows`,
+`business_calendars`, `sla_policies` and `reply_templates` (the service desk's, each defined whole
+under its key), `settings` (the catalogue settings the workspace decided itself by their catalogue
+key: the sign-in switches and legal links, the localisation, the AI narrowing and opt-out,
+`config.agent_apply`, `knowledge.public_links`; a value left to the level above has no block but is
+explained) - each
 block named by a stable key (`types.incident`), never by an identifier, and holding no content and no
 secret. A section is declared by the use cases that read and write it (its list, create, change and
 remove), so a document is read and applied through the registry like every other door (P-18), and
