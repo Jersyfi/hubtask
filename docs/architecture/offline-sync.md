@@ -304,6 +304,16 @@ creation, change and deletion and a link drawn or removed to the entity mutation
 as `base_version`, and answers the type and link type lists from the replica while offline. A
 creation is predicted under an identifier the device mints; the server's answer names the entity's
 own and replaces the prediction. A change of an entity the copy does not hold goes online.
+
+The person's own timer is the one entity outside the vocabulary: `time_timer` (UC-TIM-01). An upsert
+starts it through `StartTimer` at the payload's `started_at`, a patch stops it through `StopTimer`
+at `stopped_at` in `zone`, a deletion discards it through `DiscardTimer`; its key names nothing the
+server reads, the timer being the caller's. The device's moments are held to the server's clock -
+ahead of it is now, a start more than a day before it is `timers.ran_too_long` - so a timer started
+and stopped without the server records the minutes it ran, not the minutes the push waited. The
+answer names the caller's account, under which the walk hands the timer out; a stop answers nothing,
+and the record it wrote and the timer's removal arrive with the stream. While a stop waits, the web
+app reads the timer as stopped.
 ---
 
 ## 5. Conflicts are visible, not silent

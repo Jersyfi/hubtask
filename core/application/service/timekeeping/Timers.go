@@ -5,6 +5,7 @@ package timekeeping
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -41,8 +42,15 @@ func TimerOutput(t domain.Timer, now time.Time) usecase.Output {
 // per person; the same one answers on every device.
 type StartTimer struct{ Keeper Keeper }
 
-// Execute starts it.
+// Execute starts it now.
 func (h StartTimer) Execute(ctx context.Context, actor appshared.ActorContext, entry shared.ID, workType, note string, billable *bool) (domain.Timer, error) {
+	return h.ExecuteAt(ctx, actor, entry, workType, note, billable, time.Time{})
+}
+
+// ExecuteAt starts it at a device's moment - a start queued offline -, now without one.
+func (h StartTimer) ExecuteAt(
+	ctx context.Context, actor appshared.ActorContext, entry shared.ID, workType, note string, billable *bool, at time.Time,
+) (domain.Timer, error) {
 	if err := person(actor); err != nil {
 		return domain.Timer{}, err
 	}
@@ -55,9 +63,13 @@ func (h StartTimer) Execute(ctx context.Context, actor appshared.ActorContext, e
 		}
 	}
 	now := h.Keeper.Clock.Now()
-	timer := domain.Timer{AccountID: actor.AccountID, EntryID: entry, WorkType: workType, Note: note, StartedAt: now, Version: 1}
+	started, err := deviceMoment(at, now)
+	if err != nil {
+		return domain.Timer{}, err
+	}
+	timer := domain.Timer{AccountID: actor.AccountID, EntryID: entry, WorkType: workType, Note: note, StartedAt: started, Version: 1}
 	id := h.Keeper.IDs.NewID()
-	err := h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err = h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		kind, err := h.Keeper.workType(ctx, workType)
 		if err != nil {
 			return err
@@ -84,7 +96,35 @@ func timerInput() []usecase.Field {
 		{Name: "work_type", Kind: usecase.KindString, Description: "The key of one of the workspace's kinds of work."},
 		{Name: "note", Kind: usecase.KindString, Description: "What is being done, at most 2000 characters."},
 		{Name: "billable", Kind: usecase.KindBool, Description: "Whether the time is billable; the kind of work's flag without."},
+		{Name: "started_at", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "When the device started it (RFC 3339), a start queued offline; now without one."},
 	}
+}
+
+// deviceMoment is the moment a device says a timer started or stopped, held to the server's clock:
+// a moment ahead of it is now - a device's clock running fast -, and one more than a day before it
+// is a timer run too long. Without one it is now.
+func deviceMoment(at, now time.Time) (time.Time, error) {
+	if at.IsZero() || at.After(now) {
+		return now, nil
+	}
+	if now.Sub(at) > domain.MaxMinutes*time.Minute {
+		return time.Time{}, shared.ErrValidation.WithDetail("timers.ran_too_long").
+			WithParams(map[string]string{"maximum": strconv.Itoa(domain.MaxMinutes)})
+	}
+	return at, nil
+}
+
+// momentOf reads an RFC 3339 moment, the zero time without one.
+func momentOf(in usecase.Input, field string) (time.Time, error) {
+	raw := in.String(field)
+	if raw == "" {
+		return time.Time{}, nil
+	}
+	at, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, invalid("/"+field, "time.instant_invalid")
+	}
+	return at, nil
 }
 
 // Descriptor is the catalogue entry.
@@ -102,7 +142,11 @@ func (h StartTimer) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			t, err := h.Execute(ctx, actor, entry, in.String("work_type"), in.String("note"), optionalBool(in, "billable"))
+			at, err := momentOf(in, "started_at")
+			if err != nil {
+				return nil, err
+			}
+			t, err := h.ExecuteAt(ctx, actor, entry, in.String("work_type"), in.String("note"), optionalBool(in, "billable"), at)
 			if err != nil {
 				return nil, err
 			}
@@ -117,12 +161,21 @@ type StopTimer struct{ Keeper Keeper }
 // Execute stops it and records the time; a week no longer open, or a timer run longer than a
 // day, keeps it running and answers why.
 func (h StopTimer) Execute(ctx context.Context, actor appshared.ActorContext, zone *time.Location) (domain.Record, error) {
+	return h.ExecuteAt(ctx, actor, zone, time.Time{})
+}
+
+// ExecuteAt stops it at a device's moment - a stop queued offline -, now without one.
+func (h StopTimer) ExecuteAt(ctx context.Context, actor appshared.ActorContext, zone *time.Location, at time.Time) (domain.Record, error) {
 	if err := person(actor); err != nil {
 		return domain.Record{}, err
 	}
 	now := h.Keeper.Clock.Now()
+	stopped, err := deviceMoment(at, now)
+	if err != nil {
+		return domain.Record{}, err
+	}
 	var record domain.Record
-	err := h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err = h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		timer, running, err := h.Keeper.Store.Timer(ctx, actor.AccountID)
 		if err != nil {
 			return err
@@ -130,9 +183,10 @@ func (h StopTimer) Execute(ctx context.Context, actor appshared.ActorContext, zo
 		if !running {
 			return shared.ErrNotFound.WithDetail("timers.not_running")
 		}
-		if record, err = timer.Stop(h.Keeper.IDs.NewID(), now, zone); err != nil {
+		if record, err = timer.Stop(h.Keeper.IDs.NewID(), stopped, zone); err != nil {
 			return err
 		}
+		record.CreatedAt, record.UpdatedAt = now, now
 		policy, err := h.Keeper.Store.Policy(ctx)
 		if err != nil {
 			return err
@@ -168,6 +222,7 @@ func (h StopTimer) Descriptor() usecase.Descriptor {
 		TokenScope:  itemsWrite,
 		Input: []usecase.Field{
 			{Name: "zone", Kind: usecase.KindString, Description: "The person's time zone (IANA); UTC without."},
+			{Name: "stopped_at", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "When the device stopped it (RFC 3339), a stop queued offline; now without one."},
 		},
 		Audit: usecase.AuditDeclaration{Action: TimerStoppedAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -175,7 +230,11 @@ func (h StopTimer) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			r, err := h.Execute(ctx, actor, zone)
+			at, err := momentOf(in, "stopped_at")
+			if err != nil {
+				return nil, err
+			}
+			r, err := h.ExecuteAt(ctx, actor, zone, at)
 			if err != nil {
 				return nil, err
 			}

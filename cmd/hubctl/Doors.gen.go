@@ -1491,11 +1491,13 @@ var generatedCommands = []door{
 			{Name: "billable", Kind: "boolean", Help: "", Required: false},
 			{Name: "entry_id", Kind: "uuid", Help: "", Required: false},
 			{Name: "note", Kind: "string", Help: "", Required: false},
+			{Name: "started_at", Kind: "string", Help: "When the device started it, for a start made while the server was away; now without one", Required: false},
 			{Name: "work_type", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"billable", "elapsed_minutes", "entry_id", "note", "running"}},
 	{Group: "timer", Verb: "stop", OperationID: "stopTimer", Method: "POST", Path: "/timer:stop", Summary: "Stop the timer into a record",
 		Body: []doorParam{
+			{Name: "stopped_at", Kind: "string", Help: "When the device stopped it, for a stop made while the server was away; now without one, and a …", Required: false},
 			{Name: "zone", Kind: "string", Help: "An IANA time zone; UTC without", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "version"}},

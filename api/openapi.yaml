@@ -2077,6 +2077,13 @@ paths:
                 work_type: { type: string }
                 note: { type: string, maxLength: 2000 }
                 billable: { type: boolean }
+                started_at:
+                  type: string
+                  format: date-time
+                  description: >
+                    When the device started it, for a start made while the server was away; now
+                    without one. A moment ahead of the server's clock is now; one more than a day
+                    before it is refused (`timers.ran_too_long`).
       responses:
         "201":
           description: Started
@@ -2103,6 +2110,12 @@ paths:
               type: object
               properties:
                 zone: { type: string, description: "An IANA time zone; UTC without." }
+                stopped_at:
+                  type: string
+                  format: date-time
+                  description: >
+                    When the device stopped it, for a stop made while the server was away; now
+                    without one, and a moment ahead of the server's clock is now.
       responses:
         "201":
           description: Recorded
@@ -31877,7 +31890,7 @@ components:
         item_id: { type: string, format: uuid, description: "Assigned by the client (UUIDv7), including on CREATE" }
         entity:
           type: [string, "null"]
-          enum: [entry_type, link_type, entry_link, workflow, custom_role, null]
+          enum: [entry_type, link_type, entry_link, workflow, custom_role, time_timer, null]
           description: |
             What an `ENTITY_*` mutation is about, named as the change log names it. Each entity has
             one merge rule. `entry_type`, `link_type`, `workflow` and `custom_role` are versioned: a
@@ -31887,6 +31900,9 @@ components:
             set at creation. A workflow is written to its draft; publishing it stays online.
             `entry_link` is a presence: drawn or not, never patched, and deleting one already gone
             is applied.
+            `time_timer` is the caller's own timer, versioned without a base version: an upsert
+            starts it at the payload's `started_at`, a patch stops it into a record at
+            `stopped_at` in `zone`, a deletion discards it; its key names nothing the server reads.
         entity_key:
           type: [string, "null"]
           maxLength: 64

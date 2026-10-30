@@ -4767,7 +4767,7 @@ class SyncMutation(TypedDict, total=False):
     op_id: Required[str]
     kind: Required[Literal["ITEM_CREATE", "ITEM_PATCH", "ITEM_DELETE", "SET_ADD", "SET_REMOVE", "MOVE", "COMMENT_ADD", "ENTITY_UPSERT", "ENTITY_PATCH", "ENTITY_DELETE"]]
     item_id: str
-    entity: Literal["entry_type", "link_type", "entry_link", "workflow", "custom_role"] | None
+    entity: Literal["entry_type", "link_type", "entry_link", "workflow", "custom_role", "time_timer"] | None
     entity_key: str | None
     base_version: int | None
     fields: dict[str, Any]

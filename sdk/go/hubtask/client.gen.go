@@ -8281,6 +8281,7 @@ const (
 	SyncMutationEntityEntryType   SyncMutationEntity = "entry_type"
 	SyncMutationEntityLessThannil SyncMutationEntity = "<nil>"
 	SyncMutationEntityLinkType    SyncMutationEntity = "link_type"
+	SyncMutationEntityTimeTimer   SyncMutationEntity = "time_timer"
 	SyncMutationEntityWorkflow    SyncMutationEntity = "workflow"
 )
 
@@ -8296,6 +8297,8 @@ func (e SyncMutationEntity) Valid() bool {
 	case SyncMutationEntityLessThannil:
 		return true
 	case SyncMutationEntityLinkType:
+		return true
+	case SyncMutationEntityTimeTimer:
 		return true
 	case SyncMutationEntityWorkflow:
 		return true
@@ -19978,6 +19981,9 @@ type SyncMutation struct {
 	// set at creation. A workflow is written to its draft; publishing it stays online.
 	// `entry_link` is a presence: drawn or not, never patched, and deleting one already gone
 	// is applied.
+	// `time_timer` is the caller's own timer, versioned without a base version: an upsert
+	// starts it at the payload's `started_at`, a patch stops it into a record at
+	// `stopped_at` in `zone`, a deletion discards it; its key names nothing the server reads.
 	Entity *SyncMutationEntity `json:"entity,omitempty"`
 
 	// EntityKey The entity an `ENTITY_*` mutation names: its key, or for an `entry_link` the identifier the client assigned (UUIDv7).
@@ -20013,6 +20019,9 @@ type SyncMutation struct {
 // set at creation. A workflow is written to its draft; publishing it stays online.
 // `entry_link` is a presence: drawn or not, never patched, and deleting one already gone
 // is applied.
+// `time_timer` is the caller's own timer, versioned without a base version: an upsert
+// starts it at the payload's `started_at`, a patch stops it into a record at
+// `stopped_at` in `zone`, a deletion discards it; its key names nothing the server reads.
 type SyncMutationEntity string
 
 // SyncMutationKind defines model for SyncMutation.Kind.
@@ -24147,11 +24156,17 @@ type StartTimerJSONBody struct {
 	Billable *bool               `json:"billable,omitempty"`
 	EntryId  *openapi_types.UUID `json:"entry_id,omitempty"`
 	Note     *string             `json:"note,omitempty"`
-	WorkType *string             `json:"work_type,omitempty"`
+
+	// StartedAt When the device started it, for a start made while the server was away; now without one. A moment ahead of the server's clock is now; one more than a day before it is refused (`timers.ran_too_long`).
+	StartedAt *time.Time `json:"started_at,omitempty"`
+	WorkType  *string    `json:"work_type,omitempty"`
 }
 
 // StopTimerJSONBody defines parameters for StopTimer.
 type StopTimerJSONBody struct {
+	// StoppedAt When the device stopped it, for a stop made while the server was away; now without one, and a moment ahead of the server's clock is now.
+	StoppedAt *time.Time `json:"stopped_at,omitempty"`
+
 	// Zone An IANA time zone; UTC without.
 	Zone *string `json:"zone,omitempty"`
 }

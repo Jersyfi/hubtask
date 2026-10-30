@@ -157,3 +157,44 @@ func TestAnEntityMutationNamesAKnownEntityAndItsKey(t *testing.T) {
 		})
 	}
 }
+
+// UC-TIM-01 check 9: a timer started, stopped and discarded offline is pushed as the caller's own
+// timer - a start through StartTimer with the device's moment, a stop through StopTimer, a discard
+// through DiscardTimer - and its key reaches no use case.
+func TestATimerQueuedOfflineIsStartedStoppedAndDiscarded(t *testing.T) {
+	f := pushing(t)
+	f.catalogue.outputs["StartTimer"] = usecase.Output{"running": true, "started_at": "2026-11-02T09:00:00Z"}
+	started := pushOne(t, f, Mutation{
+		OpID: opA, Kind: domain.EntityUpsert, Entity: domain.EntityTimer, EntityKey: "own",
+		Payload: map[string]any{"work_type": "development", "started_at": "2026-11-02T09:00:00Z"},
+	})
+	if started.Result != domain.Applied || started.EntityID != pusher().AccountID || started.ServerState["running"] != true {
+		t.Fatalf("the start is %+v, want the timer running under the caller's account", started)
+	}
+	if names := callNames(f); len(names) != 1 || names[0] != "StartTimer" {
+		t.Fatalf("a start called %v, want StartTimer alone", names)
+	}
+	if in := f.catalogue.calls[0].in; in["started_at"] != "2026-11-02T09:00:00Z" || len(in) != 2 {
+		t.Errorf("the start's input was %v, want the payload and no key", in)
+	}
+
+	f = pushing(t)
+	f.catalogue.outputs["StopTimer"] = usecase.Output{"id": "01936f2a-7c1e-7000-8000-0000000011d1", "minutes": 51}
+	stopped := pushOne(t, f, Mutation{
+		OpID: opB, Kind: domain.EntityPatch, Entity: domain.EntityTimer, EntityKey: "own",
+		Payload: map[string]any{"stopped_at": "2026-11-02T09:51:00Z", "zone": "Europe/Berlin"},
+	})
+	if stopped.Result != domain.Applied || callNames(f)[0] != "StopTimer" || stopped.ServerState != nil || stopped.EntityID != pusher().AccountID {
+		t.Fatalf("the stop is %+v, called %v", stopped, callNames(f))
+	}
+	if in := f.catalogue.calls[0].in; in["stopped_at"] != "2026-11-02T09:51:00Z" || in["zone"] != "Europe/Berlin" || len(in) != 2 {
+		t.Errorf("the stop's input was %v", in)
+	}
+
+	f = pushing(t)
+	f.catalogue.errs["DiscardTimer"] = shared.ErrNotFound.WithDetail("timers.not_running")
+	discarded := pushOne(t, f, Mutation{OpID: opA, Kind: domain.EntityDelete, Entity: domain.EntityTimer, EntityKey: "own"})
+	if discarded.Result != domain.Applied || callNames(f)[0] != "DiscardTimer" || len(f.catalogue.calls[0].in) != 0 {
+		t.Errorf("a discard of a timer already gone is %+v with %v", discarded, f.catalogue.calls)
+	}
+}

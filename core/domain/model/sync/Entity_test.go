@@ -8,7 +8,7 @@ import "testing"
 func TestEveryEntityDeclaresOneMergeRule(t *testing.T) {
 	cases := map[Entity]MergeRule{
 		EntityEntryType: MergeVersioned, EntityLinkType: MergeVersioned, EntityWorkflow: MergeVersioned,
-		EntityCustomRole: MergeVersioned, EntityEntryLink: MergePresence,
+		EntityCustomRole: MergeVersioned, EntityEntryLink: MergePresence, EntityTimer: MergeVersioned,
 	}
 	if len(cases) != len(Entities()) {
 		t.Fatalf("%d entities, %d cases", len(Entities()), len(cases))

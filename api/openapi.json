@@ -3822,6 +3822,11 @@
                   },
                   "billable": {
                     "type": "boolean"
+                  },
+                  "started_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "When the device started it, for a start made while the server was away; now without one. A moment ahead of the server's clock is now; one more than a day before it is refused (`timers.ran_too_long`).\n"
                   }
                 }
               }
@@ -3865,6 +3870,11 @@
                   "zone": {
                     "type": "string",
                     "description": "An IANA time zone; UTC without."
+                  },
+                  "stopped_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "When the device stopped it, for a stop made while the server was away; now without one, and a moment ahead of the server's clock is now.\n"
                   }
                 }
               }
@@ -52162,9 +52172,10 @@
               "entry_link",
               "workflow",
               "custom_role",
+              "time_timer",
               null
             ],
-            "description": "What an `ENTITY_*` mutation is about, named as the change log names it. Each entity has\none merge rule. `entry_type`, `link_type`, `workflow` and `custom_role` are versioned: a\nmutation carrying `base_version` is applied only on that version and is otherwise\nrejected with the entity's own version conflict, and the device adopts the server's copy\nfrom the next pull; an upsert of one that exists changes it and keeps what can only be\nset at creation. A workflow is written to its draft; publishing it stays online.\n`entry_link` is a presence: drawn or not, never patched, and deleting one already gone\nis applied.\n"
+            "description": "What an `ENTITY_*` mutation is about, named as the change log names it. Each entity has\none merge rule. `entry_type`, `link_type`, `workflow` and `custom_role` are versioned: a\nmutation carrying `base_version` is applied only on that version and is otherwise\nrejected with the entity's own version conflict, and the device adopts the server's copy\nfrom the next pull; an upsert of one that exists changes it and keeps what can only be\nset at creation. A workflow is written to its draft; publishing it stays online.\n`entry_link` is a presence: drawn or not, never patched, and deleting one already gone\nis applied.\n`time_timer` is the caller's own timer, versioned without a base version: an upsert\nstarts it at the payload's `started_at`, a patch stops it into a record at\n`stopped_at` in `zone`, a deletion discards it; its key names nothing the server reads.\n"
           },
           "entity_key": {
             "type": [

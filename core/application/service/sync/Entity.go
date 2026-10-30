@@ -21,7 +21,10 @@ import (
 type entityWriters struct {
 	create, change, remove string
 	// key is the name the create and change inputs give the entity's key; removeKey the delete's.
+	// Empty for an entity whose key the use cases do not read: the caller's own timer.
 	key, removeKey string
+	// patch is what a patch performs where it is not the change: a timer's patch stops it.
+	patch string
 	// createOnly are what only a creation sets. An upsert of an entity that exists drops them, and
 	// the server's value stands: a level, a direction, a cardinality is not changed by a second
 	// device that happened to create the same key.
@@ -50,6 +53,10 @@ func writersOf(entity domain.Entity) (entityWriters, bool) {
 		},
 		domain.EntityEntryLink: {
 			create: "LinkEntries", remove: "UnlinkEntries", key: "id", removeKey: "link_id",
+		},
+		// A start, a stop and a discard queued offline, at the device's moments (UC-TIM-01).
+		domain.EntityTimer: {
+			create: "StartTimer", patch: "StopTimer", remove: "DiscardTimer",
 		},
 	}[entity]
 	return writers, found
@@ -80,6 +87,21 @@ func judgeEntity(m Mutation) error {
 
 // entity applies one entity mutation.
 func (p PushChanges) entity(ctx context.Context, actor appshared.ActorContext, m Mutation) (Result, error) {
+	result, err := p.applyEntity(ctx, actor, m)
+	if err != nil || m.Entity != domain.EntityTimer {
+		return result, err
+	}
+	// The timer is the caller's own, held under their account as the walk hands it out: a start
+	// answers it running, a stop or a discard answers nothing - the record a stop wrote and the
+	// timer's removal arrive with the stream.
+	result.EntityID = actor.AccountID
+	if m.Kind != domain.EntityUpsert {
+		result.ServerState = nil
+	}
+	return result, nil
+}
+
+func (p PushChanges) applyEntity(ctx context.Context, actor appshared.ActorContext, m Mutation) (Result, error) {
 	writers, found := writersOf(m.Entity)
 	if !found {
 		return Result{}, judgeEntity(m)
@@ -88,7 +110,11 @@ func (p PushChanges) entity(ctx context.Context, actor appshared.ActorContext, m
 	case domain.EntityDelete:
 		return p.removeEntity(ctx, actor, m, writers)
 	case domain.EntityPatch:
-		out, err := p.Catalogue.Invoke(ctx, writers.change, actor, entityInput(m, writers, true))
+		change := writers.change
+		if writers.patch != "" {
+			change = writers.patch
+		}
+		out, err := p.Catalogue.Invoke(ctx, change, actor, entityInput(m, writers, true))
 		if err != nil {
 			return Result{}, err
 		}
@@ -126,7 +152,11 @@ func (p PushChanges) upsertEntity(
 func (p PushChanges) removeEntity(
 	ctx context.Context, actor appshared.ActorContext, m Mutation, writers entityWriters,
 ) (Result, error) {
-	_, err := p.Catalogue.Invoke(ctx, writers.remove, actor, usecase.Input{writers.removeKey: m.EntityKey})
+	in := usecase.Input{}
+	if writers.removeKey != "" {
+		in[writers.removeKey] = m.EntityKey
+	}
+	_, err := p.Catalogue.Invoke(ctx, writers.remove, actor, in)
 	if err != nil && shared.AsError(err).Category != shared.CategoryNotFound {
 		return Result{}, err
 	}
@@ -151,7 +181,9 @@ func entityInput(m Mutation, writers entityWriters, change bool) usecase.Input {
 			in["expected_version"] = *m.BaseVersion
 		}
 	}
-	in[writers.key] = m.EntityKey
+	if writers.key != "" {
+		in[writers.key] = m.EntityKey
+	}
 	return in
 }
 
