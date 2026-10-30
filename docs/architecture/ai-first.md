@@ -70,7 +70,8 @@ remains fully functional (QS-09). Which AI features exist and how a person uses 
   ledger without its input or answer. An act that waits is performed by the person who approves it,
   as them. A registered model is the consent to send it material; a changed one stops its agents
   until they are approved again. An agent with an evaluation bar goes live only once a run on its
-  model passed it. A caller that is no registered agent - a person's own token over MCP among them -
+  model passed it; a triage answering its own set asks the workspace's classifier about each case's
+  text as the person running it, and records no suggestion (UC-AGT-04 check 8). A caller that is no registered agent - a person's own token over MCP among them -
   is held to the guardrails above as before - unless the workspace switched `agents.registered_only`
   on (off by default; the installation or a plan may lock it on): then MCP refuses it with
   `agents.registration_required` and records `agent.unregistered_refused`, and every other door is

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
+checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts, core/application/service/suggestion/CaseLabels_test.go]
 ---
 
 # Evaluate an agent before it goes live
@@ -41,9 +41,14 @@ model changes, it must pass again.
    the names of the chosen hub's CIs the text names (`agents.evaluation_hub_required` without a
    hub); a duplicate review is evaluated by answers somebody sends (`agents.evaluation_by_answers`).
    REST, MCP, hubctl and the web app start it alike.
+8. Given a collection, a ticket triage answers `labels` for each case expecting them: the names of
+   the collection's labels the workspace's classifier chooses for the case's title and notes, asked
+   as the person running the set and recorded as no suggestion; at most 50 such cases a run
+   (`agents.evaluation_labels_too_many`), and AI switched off refuses the run as asking would.
+   Without a collection no labels are answered and those cases fail.
 
 ## Where it ends
 
-* A triage's labels come from the classifier on an entry, not from a case's text: a case expecting
-  labels fails its own run, and is recorded from answers somebody sends.
+* A triage's own run answers labels and CIs; anything else a case expects is recorded from answers
+  somebody sends.
 * No accuracy, escalation or override rates measured in production.
