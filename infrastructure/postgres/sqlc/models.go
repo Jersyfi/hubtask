@@ -1664,6 +1664,17 @@ type FieldClock struct {
 	Hlc      string
 }
 
+type FileLink struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	ItemID   pgtype.UUID
+	Provider string
+	Address  string
+	Name     string
+	AddedBy  pgtype.UUID
+	AddedAt  pgtype.Timestamptz
+}
+
 type Goal struct {
 	ID          pgtype.UUID
 	TenantID    pgtype.UUID

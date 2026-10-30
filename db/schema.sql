@@ -6833,4 +6833,28 @@ CREATE POLICY tenant_isolation ON code_delivery_seen
 -- a hook is switched off, and a link goes with its entry.
 GRANT SELECT, INSERT, UPDATE, DELETE ON code_hook, code_link, code_delivery_seen TO hubtask_app;
 
+-- A file in a store on an entry (migration 0276).
+CREATE TABLE file_link (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL,
+  item_id    uuid NOT NULL,
+  provider   text NOT NULL CHECK (provider IN ('NEXTCLOUD', 'SHAREPOINT', 'ONEDRIVE', 'WEBDAV')),
+  address    text NOT NULL CHECK (char_length(address) BETWEEN 9 AND 2048 AND address LIKE 'https://%'),
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  added_by   uuid NOT NULL,
+  added_at   timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, item_id, address),
+  CONSTRAINT file_link_item_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX file_link_item_idx ON file_link (tenant_id, item_id, added_at);
+
+ALTER TABLE file_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE file_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON file_link
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON file_link TO hubtask_app;
+
 COMMIT;
