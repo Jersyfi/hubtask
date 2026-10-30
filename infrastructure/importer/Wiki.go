@@ -25,7 +25,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Wiki converts a wiki space's HTML export - a ZIP with one HTML file per page, each naming its
+// Wiki converts a wiki space's export. Its XML export - an entities.xml beside the attachments -
+// carries the history and the comments too (convertXML). Its HTML export - a ZIP with one HTML file per page, each naming its
 // ancestors in a breadcrumb - into the hub's pages in their tree (D-10). A page's content becomes
 // its Markdown body, a link to another page of the space a page reference, the page's dates its
 // own. A page's attachments and the pictures its content draws become its files (UC-DOC-14): a
@@ -83,9 +84,16 @@ func (c Wiki) Convert(_ context.Context, source service.Source) (service.Result,
 	space := ""
 	unmapped := map[string]int{}
 	var total int64
+	var entities []byte
 	for _, member := range members {
 		name := path.Clean(strings.ReplaceAll(member.Name, "\\", "/"))
 		if member.FileInfo().IsDir() {
+			continue
+		}
+		if strings.EqualFold(path.Base(name), "entities.xml") {
+			if entities, err = readMember(member, &total); err != nil {
+				return service.Result{}, err
+			}
 			continue
 		}
 		if indexOf(strings.Split(name, "/"), "attachments") >= 0 {
@@ -124,6 +132,9 @@ func (c Wiki) Convert(_ context.Context, source service.Source) (service.Result,
 		}
 		pages[base] = page
 		files = append(files, base)
+	}
+	if entities != nil {
+		return c.convertXML(source, entities, attachments)
 	}
 	if len(pages) == 0 {
 		return service.Result{}, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)

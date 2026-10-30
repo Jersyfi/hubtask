@@ -8,12 +8,14 @@ import (
 	"encoding/hex"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -323,6 +325,18 @@ type Page struct {
 	Body      string
 	CreatedAt *time.Time
 	UpdatedAt *time.Time
+	// Versions is the page's history before its current content, oldest first; the current
+	// content is always the last version.
+	Versions []PageVersion
+}
+
+// PageVersion is one earlier state of a page the source kept: its title, its body, the name or
+// message the source gave it and when it was written.
+type PageVersion struct {
+	Title string
+	Body  string
+	Name  string
+	At    time.Time
 }
 
 // page adds a hub's page, after its parent. A body over the column's bound is cut at it.
@@ -359,13 +373,54 @@ func (b *builder) page(in Page) (shared.ID, bool) {
 		"created_by": b.source.Actor.String(), "created_at": stamp(created),
 		"updated_by": b.source.Actor.String(), "updated_at": stamp(updated), "version": 1,
 	})
-	b.records["page_versions"] = append(b.records["page_versions"], archive.Record{
-		ID: id.String() + "/1", Op: archive.OpUpsert, UpdatedAt: b.source.Now,
-		Data: map[string]any{
-			"page_id": id.String(), "seq": 1, "title": title, "body": body, "author_id": b.source.Actor.String(),
-			"name": "", "restored": 0, "created_at": stamp(updated),
-		},
-	})
+	versions := append(append([]PageVersion(nil), in.Versions...), PageVersion{Title: title, Body: body, At: updated})
+	for i, version := range versions {
+		seq := i + 1
+		versionTitle := clip(strings.TrimSpace(version.Title), 200)
+		if versionTitle == "" {
+			versionTitle = title
+		}
+		versionBody := version.Body
+		if len(versionBody) > 1<<20 {
+			versionBody = strings.ToValidUTF8(versionBody[:1<<20], "")
+		}
+		b.records["page_versions"] = append(b.records["page_versions"], archive.Record{
+			ID: id.String() + "/" + strconv.Itoa(seq), Op: archive.OpUpsert, UpdatedAt: b.source.Now,
+			Data: map[string]any{
+				"page_id": id.String(), "seq": seq, "title": versionTitle, "body": versionBody, "author_id": b.source.Actor.String(),
+				"name": clip(strings.TrimSpace(version.Name), 120), "restored": 0, "created_at": stamp(version.At),
+			},
+		})
+	}
 	b.entries["page:"+in.Key] = entry{id: id}
 	return id, true
+}
+
+// pageComment adds a comment on a page by the importing person, with the source's author named in
+// the text as an entry's comment is; a reply names its thread's key, which must come first. The
+// quote is the words a top-level comment was written about.
+func (b *builder) pageComment(key string, page shared.ID, parentKey, author, body, quote string, at time.Time) bool {
+	text := clip(strings.TrimSpace(body), 20000)
+	if text == "" {
+		return false
+	}
+	if author != "" {
+		text = clip(author+": "+text, 20000)
+	}
+	parent := any(nil)
+	if parentKey != "" {
+		known, ok := b.entries["page_comment:"+parentKey]
+		if !ok {
+			return false
+		}
+		parent, quote = known.id.String(), ""
+	}
+	id := b.id("page_comments", key)
+	b.add("page_comments", id, map[string]any{
+		"id": id.String(), "page_id": page.String(), "parent_id": parent, "author_id": b.source.Actor.String(),
+		"body": text, "anchor": "", "quote": clip(strings.TrimSpace(quote), knowledge.MaxQuoteLength),
+		"resolved_at": nil, "resolved_by": nil, "created_at": stamp(at), "edited_at": nil, "deleted_at": nil, "version": 1,
+	})
+	b.entries["page_comment:"+key] = entry{id: id}
+	return true
 }
