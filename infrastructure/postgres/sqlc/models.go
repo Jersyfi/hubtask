@@ -1941,6 +1941,17 @@ type Reminder struct {
 	UpdatedAt  pgtype.Timestamptz
 }
 
+type ReplyTemplate struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Key       string
+	Name      string
+	Body      string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type RestoreDrillMarker struct {
 	RunID     string
 	Seq       int16

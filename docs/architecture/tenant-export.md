@@ -183,6 +183,7 @@ re-mints identities must rewrite exactly these).
 | 65 | `business_calendars` | `business_calendar` | `id` | — (the workspace's business calendars: weekly working spans, holidays and a zone under a key, migration 0240) |
 | 66 | `sla_policies` | `sla_policy` | `id` | — (the workspace's SLA policies: goals with targets per priority, pause statuses and a warning share; the calendar named by key) |
 | 67 | `entry_slas` | `entry_sla` | `id` | `item_id`→work_items (what became of each goal on an entry: target, at risk, met, breached; the clock is a timer, not archived) |
+| 68 | `reply_templates` | `reply_template` | `id` | — (the workspace's canned replies under a key, with their placeholders, migration 0242) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

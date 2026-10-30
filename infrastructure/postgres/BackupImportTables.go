@@ -227,6 +227,17 @@ var importers = map[string]importer{
 			return queries.ClearSlaPolicy(ctx)
 		},
 	},
+	"reply_template": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportReplyTemplate(ctx, sqlc.ImportReplyTemplateParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsReplyTemplate(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearReplyTemplate(ctx)
+		},
+	},
 	"entry_sla": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportEntrySla(ctx, sqlc.ImportEntrySlaParams{Payload: payload, Overwrite: overwrite})

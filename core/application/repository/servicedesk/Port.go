@@ -47,3 +47,15 @@ type Records interface {
 	// Report counts the goals armed in [from, to) per policy, goal and standing.
 	Report(ctx context.Context, from, to time.Time) ([]servicedesk.ReportRow, error)
 }
+
+// ReplyTemplates stores the workspace's canned replies.
+type ReplyTemplates interface {
+	// Insert writes a new template; a key the workspace holds is `reply_templates.key_taken`.
+	Insert(ctx context.Context, template servicedesk.ReplyTemplate) error
+	Update(ctx context.Context, template servicedesk.ReplyTemplate, expectedVersion int) error
+	// Find answers the template of a key; shared.ErrNotFound when there is none.
+	Find(ctx context.Context, key string) (servicedesk.ReplyTemplate, error)
+	// List answers every template by key.
+	List(ctx context.Context) ([]servicedesk.ReplyTemplate, error)
+	Delete(ctx context.Context, key string) error
+}

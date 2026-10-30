@@ -23,6 +23,18 @@ func (q *Queries) DeleteBusinessCalendar(ctx context.Context, key string) (int64
 	return result.RowsAffected(), nil
 }
 
+const deleteReplyTemplate = `-- name: DeleteReplyTemplate :execrows
+DELETE FROM reply_template WHERE key = $1
+`
+
+func (q *Queries) DeleteReplyTemplate(ctx context.Context, key string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteReplyTemplate, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteSlaPolicy = `-- name: DeleteSlaPolicy :execrows
 DELETE FROM sla_policy WHERE key = $1
 `
@@ -49,6 +61,27 @@ func (q *Queries) FindBusinessCalendar(ctx context.Context, key string) (Busines
 		&i.Key,
 		&i.Name,
 		&i.Spec,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const findReplyTemplate = `-- name: FindReplyTemplate :one
+SELECT id, tenant_id, key, name, body, created_at, updated_at, version
+FROM reply_template WHERE key = $1
+`
+
+func (q *Queries) FindReplyTemplate(ctx context.Context, key string) (ReplyTemplate, error) {
+	row := q.db.QueryRow(ctx, findReplyTemplate, key)
+	var i ReplyTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Key,
+		&i.Name,
+		&i.Body,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
@@ -108,6 +141,33 @@ func (q *Queries) InsertBusinessCalendar(ctx context.Context, arg InsertBusiness
 		arg.Key,
 		arg.Name,
 		arg.Spec,
+		arg.Now,
+	)
+	return err
+}
+
+const insertReplyTemplate = `-- name: InsertReplyTemplate :exec
+INSERT INTO reply_template (id, tenant_id, key, name, body, created_at, updated_at, version)
+VALUES ($1, $2, $3, $4, $5,
+        $6, $6, 1)
+`
+
+type InsertReplyTemplateParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	Key      string
+	Name     string
+	Body     string
+	Now      pgtype.Timestamptz
+}
+
+func (q *Queries) InsertReplyTemplate(ctx context.Context, arg InsertReplyTemplateParams) error {
+	_, err := q.db.Exec(ctx, insertReplyTemplate,
+		arg.ID,
+		arg.TenantID,
+		arg.Key,
+		arg.Name,
+		arg.Body,
 		arg.Now,
 	)
 	return err
@@ -217,6 +277,40 @@ func (q *Queries) ListEntrySla(ctx context.Context, itemID pgtype.UUID) ([]Entry
 			&i.AtRiskAt,
 			&i.MetAt,
 			&i.BreachedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReplyTemplates = `-- name: ListReplyTemplates :many
+SELECT id, tenant_id, key, name, body, created_at, updated_at, version
+FROM reply_template ORDER BY key
+`
+
+func (q *Queries) ListReplyTemplates(ctx context.Context) ([]ReplyTemplate, error) {
+	rows, err := q.db.Query(ctx, listReplyTemplates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReplyTemplate{}
+	for rows.Next() {
+		var i ReplyTemplate
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Key,
+			&i.Name,
+			&i.Body,
+			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
 		); err != nil {
@@ -368,6 +462,34 @@ func (q *Queries) UpdateBusinessCalendar(ctx context.Context, arg UpdateBusiness
 	result, err := q.db.Exec(ctx, updateBusinessCalendar,
 		arg.Name,
 		arg.Spec,
+		arg.Now,
+		arg.Key,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateReplyTemplate = `-- name: UpdateReplyTemplate :execrows
+UPDATE reply_template SET
+  name = $1, body = $2, updated_at = $3, version = version + 1
+WHERE key = $4 AND version = $5
+`
+
+type UpdateReplyTemplateParams struct {
+	Name            string
+	Body            string
+	Now             pgtype.Timestamptz
+	Key             string
+	ExpectedVersion int32
+}
+
+func (q *Queries) UpdateReplyTemplate(ctx context.Context, arg UpdateReplyTemplateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateReplyTemplate,
+		arg.Name,
+		arg.Body,
 		arg.Now,
 		arg.Key,
 		arg.ExpectedVersion,

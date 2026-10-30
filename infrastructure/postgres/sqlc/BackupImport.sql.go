@@ -663,6 +663,18 @@ func (q *Queries) ClearReminder(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearReplyTemplate = `-- name: ClearReplyTemplate :execrows
+DELETE FROM reply_template
+`
+
+func (q *Queries) ClearReplyTemplate(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearReplyTemplate)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearRetentionPolicy = `-- name: ClearRetentionPolicy :execrows
 DELETE FROM retention_policy
 `
@@ -1442,6 +1454,17 @@ SELECT EXISTS (SELECT 1 FROM reminder WHERE id = ($1::jsonb->>'id')::uuid) AS he
 
 func (q *Queries) HoldsReminder(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsReminder, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsReplyTemplate = `-- name: HoldsReplyTemplate :one
+SELECT EXISTS (SELECT 1 FROM reply_template WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsReplyTemplate(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsReplyTemplate, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3916,6 +3939,31 @@ type ImportReminderParams struct {
 
 func (q *Queries) ImportReminder(ctx context.Context, arg ImportReminderParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importReminder, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importReplyTemplate = `-- name: ImportReplyTemplate :execrows
+INSERT INTO reply_template (id, tenant_id, key, name, body, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.body, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::reply_template,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, body = EXCLUDED.body, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportReplyTemplateParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportReplyTemplate(ctx context.Context, arg ImportReplyTemplateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importReplyTemplate, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

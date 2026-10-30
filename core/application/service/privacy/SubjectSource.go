@@ -137,6 +137,7 @@ var notThePersons = map[string]string{
 	"business_calendar":       "the workspace's working hours and holidays",
 	"sla_policy":              "the workspace's promised response and resolution times",
 	"entry_sla":               "how an entry's promised times stood, which names nobody; the entry is the entry's",
+	"reply_template":          "the workspace's canned replies, text the team wrote once for many requests",
 }
 
 // SubjectTables answers which tables a subject export reads and which it deliberately leaves out,

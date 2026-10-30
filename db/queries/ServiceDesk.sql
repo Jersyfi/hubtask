@@ -89,3 +89,24 @@ SELECT item_id, min(due_at)::timestamptz AS due_at
 FROM entry_sla
 WHERE item_id = ANY(sqlc.arg('item_ids')::uuid[]) AND standing = 'RUNNING'
 GROUP BY item_id;
+
+-- name: InsertReplyTemplate :exec
+INSERT INTO reply_template (id, tenant_id, key, name, body, created_at, updated_at, version)
+VALUES (sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('key'), sqlc.arg('name'), sqlc.arg('body'),
+        sqlc.arg('now'), sqlc.arg('now'), 1);
+
+-- name: UpdateReplyTemplate :execrows
+UPDATE reply_template SET
+  name = sqlc.arg('name'), body = sqlc.arg('body'), updated_at = sqlc.arg('now'), version = version + 1
+WHERE key = sqlc.arg('key') AND version = sqlc.arg('expected_version');
+
+-- name: FindReplyTemplate :one
+SELECT id, tenant_id, key, name, body, created_at, updated_at, version
+FROM reply_template WHERE key = sqlc.arg('key');
+
+-- name: ListReplyTemplates :many
+SELECT id, tenant_id, key, name, body, created_at, updated_at, version
+FROM reply_template ORDER BY key;
+
+-- name: DeleteReplyTemplate :execrows
+DELETE FROM reply_template WHERE key = sqlc.arg('key');

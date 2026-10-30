@@ -2590,3 +2590,20 @@ SELECT EXISTS (SELECT 1 FROM entry_sla WHERE id = (sqlc.arg('payload')::jsonb->>
 
 -- name: ClearEntrySla :execrows
 DELETE FROM entry_sla;
+
+-- name: ImportReplyTemplate :execrows
+INSERT INTO reply_template (id, tenant_id, key, name, body, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.body, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::reply_template,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, body = EXCLUDED.body, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsReplyTemplate :one
+SELECT EXISTS (SELECT 1 FROM reply_template WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearReplyTemplate :execrows
+DELETE FROM reply_template;
