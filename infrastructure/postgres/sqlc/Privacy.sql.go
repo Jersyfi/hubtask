@@ -31,6 +31,8 @@ UPDATE account SET
   email            = NULL,
   sign_in_name     = NULL,
   external_subject = NULL,
+  -- The directory's identifier of the person (migration 0256): personal, so it goes too.
+  external_id      = NULL,
   password_hash    = NULL,
   start_password_at = NULL,
   terms_url        = NULL,
