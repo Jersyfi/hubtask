@@ -324,6 +324,8 @@ func (h ConfigureInstanceIdentityProvider) Descriptor() usecase.Descriptor {
 			// to decide, and the installation's providers carry none.
 			identityservice.NewcomerRoleField,
 			identityservice.NewcomerGroupField,
+			identityservice.SAMLSSOURLField,
+			identityservice.SAMLCertificateField,
 			identityservice.ProviderStepUpField,
 		},
 		StepUp: "changing a way in every workspace is offered",

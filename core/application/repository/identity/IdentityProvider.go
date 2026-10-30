@@ -95,6 +95,13 @@ type OidcFlows interface {
 	ConsumeForConnect(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)
 }
 
+// SAMLAnswers keeps a SAML provider's answer on its sign-in flow (identity.md §26).
+type SAMLAnswers interface {
+	// KeepSAMLAnswer keeps the answer and the handoff code's hash on the live sign-in of a SAML
+	// provider the state names, once; false where no such flow takes it.
+	KeepSAMLAnswer(ctx context.Context, presented identity.Token, answer string, handoffHash []byte, now time.Time) (bool, error)
+}
+
 // Connection is one provider identity connected to an account, as the person may read it.
 type Connection struct {
 	ProviderID shared.ID

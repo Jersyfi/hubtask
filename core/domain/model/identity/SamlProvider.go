@@ -4,6 +4,8 @@
 package identity
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/pem"
 	"net/url"
@@ -131,3 +133,15 @@ const SAMLHandoffPrefix = "hbt_sam_"
 
 // MaxSAMLResponse bounds the answer the assertion consumer service keeps (base64, as posted).
 const MaxSAMLResponse = 256 << 10
+
+// SAMLHandoffHash is what the flow keeps of the handoff code: its digest, as every presented token.
+func SAMLHandoffHash(code string) []byte {
+	sum := sha256.Sum256([]byte(code))
+	return sum[:]
+}
+
+// SAMLHandoffMatches reports whether a presented code is the one the flow's answer was handed off
+// with; a flow holding none matches nothing.
+func SAMLHandoffMatches(held []byte, presented string) bool {
+	return len(held) == sha256.Size && subtle.ConstantTimeCompare(held, SAMLHandoffHash(presented)) == 1
+}

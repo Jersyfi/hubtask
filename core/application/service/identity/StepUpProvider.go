@@ -128,6 +128,10 @@ func (w SessionWriter) stepUpConfig(
 ) (domain.IdentityProvider, provider.Config, error) {
 	p := w.StepUpProviders
 	configured, opened, err := openProvider(ctx, w, p.Providers, p.Workspaces, p.Instance, scope, providerID, nil)
+	if err == nil && configured.IsSAML() {
+		// A SAML answer reaches only a sign-in's flow (identity.md §26).
+		return domain.IdentityProvider{}, provider.Config{}, samlSignInOnly()
+	}
 	if err != nil {
 		// No longer a way in here - switched off, not taken, or past an announced withdrawal
 		// (ADR-0076 §2): the step-up's own refusal, the one its start gives, rather than the

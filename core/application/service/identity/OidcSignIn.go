@@ -80,6 +80,10 @@ type OidcWriter struct {
 	Domains text.DomainEncoder
 	// Text brings a provisioned display name to normal form C (i18n-l10n.md §5).
 	Text text.Normalizer
+	// SAML is the SAML 2.0 service provider (identity.md §26) and SAMLACSURL this installation's
+	// assertion consumer service; nil refuses a SAML provider's flow as not configured.
+	SAML       provider.Port
+	SAMLACSURL string
 	// RedirectURL is where the provider sends the browser back, and it is this installation's
 	// own - computed by the composition root from the configured base URL. Never from a request:
 	// a redirect target a caller chooses is how authorization codes end up somewhere else.
@@ -208,7 +212,8 @@ func (h StartOidcSignIn) Execute(
 
 	// The provider is asked before the flow is written: an unreachable one leaves no row behind,
 	// and the person is told it is the provider rather than being sent to a page that is not there.
-	url, err := w.Relying.AuthorizationURL(ctx, relyingConfig(configured, sealed, w.RedirectURL), provider.Authorization{
+	relying, cfg := w.relyingFor(configured, sealed)
+	url, err := relying.AuthorizationURL(ctx, cfg, provider.Authorization{
 		State: state.Secret(), Nonce: nonce, CodeVerifier: verifier, LoginHint: cmd.LoginHint,
 		// The mailbox is half of a connection's proof and a sign-in at the provider the other half -
 		// one made now, not a session the browser happened to keep there (ADR-0078 §1).
@@ -441,8 +446,19 @@ func (h CompleteOidcSignIn) Execute(
 		return SignInResult{}, err
 	}
 
-	identity, err := w.Relying.Exchange(ctx, relyingConfig(configured, sealed, w.RedirectURL), provider.Exchange{
-		Code: cmd.Code, CodeVerifier: flow.Verifier, Nonce: flow.Nonce,
+	relying, cfg := w.relyingFor(configured, sealed)
+	code := cmd.Code
+	if configured.IsSAML() {
+		// The code is the handoff the assertion consumer service minted; what is verified is the
+		// answer it kept on this flow (identity.md §26).
+		if !domain.SAMLHandoffMatches(flow.SAMLHandoffHash, cmd.Code) {
+			w.Session.failure(ctx, FailureOidc)
+			return SignInResult{}, oidcRefused()
+		}
+		code = flow.SAMLResponse
+	}
+	identity, err := relying.Exchange(ctx, cfg, provider.Exchange{
+		Code: code, CodeVerifier: flow.Verifier, Nonce: flow.Nonce,
 	})
 	if err != nil {
 		w.Session.failure(ctx, FailureOidc)

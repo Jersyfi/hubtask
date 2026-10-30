@@ -196,6 +196,8 @@ func (h ConfigureFirstIdentityProvider) Descriptor() usecase.Descriptor {
 			EnabledFieldOfAWorkspace,
 			NewcomerRoleField,
 			NewcomerGroupField,
+			SAMLSSOURLField,
+			SAMLCertificateField,
 			ProviderStepUpField,
 		},
 		StepUp: providerStepUp,

@@ -59,7 +59,7 @@ func (IdentityProviderRepository) List(ctx context.Context) ([]identity.Identity
 		configured, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 			row.DisplayName, row.Kind, row.Provisioning, row.Position,
 			row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
-		configured = withNewcomers(withOffer(configured, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID)
+		configured = withSAML(withNewcomers(withOffer(configured, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), row.SamlSsoUrl, row.SamlCertificate)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +106,7 @@ func (IdentityProviderRepository) Find(
 	found, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
-	return withNewcomers(withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), err
+	return withSAML(withNewcomers(withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), row.SamlSsoUrl, row.SamlCertificate), err
 }
 
 func (IdentityProviderRepository) FindWithSecret(
@@ -136,7 +136,7 @@ func (IdentityProviderRepository) FindWithSecret(
 		pgtype.Timestamptz{}, pgtype.Timestamptz{}, 0)
 	configured.WithdrawAt = timeFrom(row.WithdrawAt)
 	// The arrival reads this one, and what a newcomer gets is decided from it.
-	configured = withNewcomers(configured, row.NewcomerRole, row.NewcomerGroupID)
+	configured = withSAML(withNewcomers(configured, row.NewcomerRole, row.NewcomerGroupID), row.SamlSsoUrl, row.SamlCertificate)
 	if err != nil {
 		return identity.IdentityProvider{}, crypto.Sealed{}, err
 	}
@@ -173,6 +173,8 @@ func (IdentityProviderRepository) Insert(
 		Now:                 pgtype.Timestamptz{Time: configured.CreatedAt, Valid: true},
 		NewcomerRole:        newcomerRoleParam(configured),
 		NewcomerGroupID:     newcomerGroupParam(configured),
+		SamlSsoUrl:          nullableString(configured.SAMLSSOURL),
+		SamlCertificate:     nullableString(configured.SAMLCertificate),
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -187,7 +189,7 @@ func (IdentityProviderRepository) Insert(
 	found, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
-	return withNewcomers(withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), err
+	return withSAML(withNewcomers(withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), row.SamlSsoUrl, row.SamlCertificate), err
 }
 
 func (r IdentityProviderRepository) Update(
@@ -235,6 +237,8 @@ func (IdentityProviderRepository) write(
 		Now:                 pgtype.Timestamptz{Time: now, Valid: true},
 		NewcomerRole:        newcomerRoleParam(configured),
 		NewcomerGroupID:     newcomerGroupParam(configured),
+		SamlSsoUrl:          nullableString(configured.SAMLSSOURL),
+		SamlCertificate:     nullableString(configured.SAMLCertificate),
 	}
 	// Nil is "keep what is sealed", which the statement's COALESCE reads from these two being
 	// absent. Both or neither: an envelope and the key it was wrapped under are one value.
@@ -261,11 +265,17 @@ func (IdentityProviderRepository) write(
 	stored, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
-	stored = withNewcomers(withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID)
+	stored = withSAML(withNewcomers(withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), row.SamlSsoUrl, row.SamlCertificate)
 	return stored, err == nil, err
 }
 
 // withNewcomers adds what a newcomer gets (migration 0132): both NULL is nothing.
+// withSAML reads a SAML provider's two columns; NULL on every other kind.
+func withSAML(configured identity.IdentityProvider, ssoURL, certificate *string) identity.IdentityProvider {
+	configured.SAMLSSOURL, configured.SAMLCertificate = stringFrom(ssoURL), stringFrom(certificate)
+	return configured
+}
+
 func withNewcomers(
 	configured identity.IdentityProvider, role *sqlc.MembershipRole, group pgtype.UUID,
 ) identity.IdentityProvider {
@@ -341,7 +351,7 @@ func (IdentityProviderRepository) SetWithdrawal(
 	if err != nil {
 		return identity.IdentityProvider{}, false, err
 	}
-	return withNewcomers(withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), true, nil
+	return withSAML(withNewcomers(withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), row.SamlSsoUrl, row.SamlCertificate), true, nil
 }
 
 func (IdentityProviderRepository) Delete(ctx context.Context, id shared.ID, now time.Time) (bool, error) {
@@ -519,7 +529,32 @@ func (r OidcFlowRepository) Consume(
 		// after it (ADR-0078 §1).
 		PendingID: pendingID, CreatedAt: timeFrom(row.CreatedAt),
 		Terms: identity.TermsAgreement{URL: stringFrom(row.TermsUrl), Version: stringFrom(row.TermsVersion)},
+		SAMLResponse: stringFrom(row.SamlResponse), SAMLHandoffHash: row.SamlHandoffHash,
 	}, true, nil
+}
+
+// KeepSAMLAnswer keeps a SAML provider's answer on the live sign-in the state names, once
+// (identity.md §26); false where no such flow takes it.
+func (r OidcFlowRepository) KeepSAMLAnswer(
+	ctx context.Context, presented identity.Token, answer string, handoffHash []byte, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	_, err = queries.KeepSamlAnswer(ctx, sqlc.KeepSamlAnswerParams{
+		SamlResponse: &answer, SamlHandoffHash: handoffHash,
+		StateHash: r.stateHasher.Hash(presented.Secret()),
+		Now:       pgtype.Timestamptz{Time: now, Valid: true},
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			return false, nil
+		}
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("keeping a SAML answer: %w", err))
+	}
+	return true, nil
 }
 
 // ConsumeForStepUp burns a step-up's flow, and only one bound to this session (ADR-0075 §2).
