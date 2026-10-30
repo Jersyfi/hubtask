@@ -263,6 +263,11 @@ export type PageBacklinkList = components['schemas']['PageBacklinkList'];
 export type PageExport = components['schemas']['PageExport'];
 export type PageSearch = components['schemas']['PageSearch'];
 export type PageHitList = components['schemas']['PageHitList'];
+export type PageRestrict = components['schemas']['PageRestrict'];
+export type PageAccess = components['schemas']['PageAccess'];
+export type PageShare = components['schemas']['PageShare'];
+export type SharedPageList = components['schemas']['SharedPageList'];
+export type PersonalSpace = components['schemas']['PersonalSpace'];
 /** A hub's whiteboards and the objects on them (M4). */
 export type Whiteboard = components['schemas']['Whiteboard'];
 export type WhiteboardRead = components['schemas']['WhiteboardRead'];
