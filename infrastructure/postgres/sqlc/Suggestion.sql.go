@@ -91,7 +91,7 @@ func (q *Queries) DeleteExpiredSuggestions(ctx context.Context, arg DeleteExpire
 const findSuggestion = `-- name: FindSuggestion :one
 SELECT id, target_type, target_id, kind, status, payload, source, model, prompt_id,
        prompt_version, produced_at, input_digest, created_at, decided_at, decided_by, version,
-       dropped_nodes
+       dropped_nodes, agent_id
 FROM ai_suggestion
 WHERE id = $1
 `
@@ -114,6 +114,7 @@ type FindSuggestionRow struct {
 	DecidedBy     pgtype.UUID
 	Version       int32
 	DroppedNodes  int32
+	AgentID       pgtype.UUID
 }
 
 func (q *Queries) FindSuggestion(ctx context.Context, id pgtype.UUID) (FindSuggestionRow, error) {
@@ -137,6 +138,7 @@ func (q *Queries) FindSuggestion(ctx context.Context, id pgtype.UUID) (FindSugge
 		&i.DecidedBy,
 		&i.Version,
 		&i.DroppedNodes,
+		&i.AgentID,
 	)
 	return i, err
 }
@@ -144,7 +146,7 @@ func (q *Queries) FindSuggestion(ctx context.Context, id pgtype.UUID) (FindSugge
 const listSuggestions = `-- name: ListSuggestions :many
 SELECT id, target_type, target_id, kind, status, payload, source, model, prompt_id,
        prompt_version, produced_at, input_digest, created_at, decided_at, decided_by, version,
-       dropped_nodes
+       dropped_nodes, agent_id
 FROM ai_suggestion
 WHERE target_type = $1
   AND target_id = $2
@@ -184,6 +186,7 @@ type ListSuggestionsRow struct {
 	DecidedBy     pgtype.UUID
 	Version       int32
 	DroppedNodes  int32
+	AgentID       pgtype.UUID
 }
 
 // Keyset over (created_at, id) descending, the ordering every list in this schema uses: a page
@@ -223,6 +226,7 @@ func (q *Queries) ListSuggestions(ctx context.Context, arg ListSuggestionsParams
 			&i.DecidedBy,
 			&i.Version,
 			&i.DroppedNodes,
+			&i.AgentID,
 		); err != nil {
 			return nil, err
 		}
@@ -261,12 +265,12 @@ const recordSuggestion = `-- name: RecordSuggestion :exec
 
 INSERT INTO ai_suggestion
   (id, tenant_id, target_type, target_id, kind, status, payload,
-   source, model, prompt_id, prompt_version, produced_at, input_digest, created_at, dropped_nodes)
+   source, model, prompt_id, prompt_version, produced_at, input_digest, created_at, dropped_nodes, agent_id)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, 'PROPOSED', $5, $6, $7,
   $8, $9, $10,
-  $11, $12, $13
+  $11, $12, $13, $14
 )
 `
 
@@ -284,6 +288,7 @@ type RecordSuggestionParams struct {
 	InputDigest   []byte
 	CreatedAt     pgtype.Timestamptz
 	DroppedNodes  int32
+	AgentID       pgtype.UUID
 }
 
 // What AI proposed, and did not do.
@@ -306,6 +311,7 @@ func (q *Queries) RecordSuggestion(ctx context.Context, arg RecordSuggestionPara
 		arg.InputDigest,
 		arg.CreatedAt,
 		arg.DroppedNodes,
+		arg.AgentID,
 	)
 	return err
 }

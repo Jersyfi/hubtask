@@ -7,18 +7,18 @@
 -- name: RecordSuggestion :exec
 INSERT INTO ai_suggestion
   (id, tenant_id, target_type, target_id, kind, status, payload,
-   source, model, prompt_id, prompt_version, produced_at, input_digest, created_at, dropped_nodes)
+   source, model, prompt_id, prompt_version, produced_at, input_digest, created_at, dropped_nodes, agent_id)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('target_type'), sqlc.arg('target_id'),
   sqlc.arg('kind'), 'PROPOSED', sqlc.arg('payload'), sqlc.arg('source'), sqlc.arg('model'),
   sqlc.arg('prompt_id'), sqlc.arg('prompt_version'), sqlc.arg('produced_at'),
-  sqlc.arg('input_digest'), sqlc.arg('created_at'), sqlc.arg('dropped_nodes')
+  sqlc.arg('input_digest'), sqlc.arg('created_at'), sqlc.arg('dropped_nodes'), sqlc.narg('agent_id')
 );
 
 -- name: FindSuggestion :one
 SELECT id, target_type, target_id, kind, status, payload, source, model, prompt_id,
        prompt_version, produced_at, input_digest, created_at, decided_at, decided_by, version,
-       dropped_nodes
+       dropped_nodes, agent_id
 FROM ai_suggestion
 WHERE id = sqlc.arg('id');
 
@@ -28,7 +28,7 @@ WHERE id = sqlc.arg('id');
 -- while somebody is reading.
 SELECT id, target_type, target_id, kind, status, payload, source, model, prompt_id,
        prompt_version, produced_at, input_digest, created_at, decided_at, decided_by, version,
-       dropped_nodes
+       dropped_nodes, agent_id
 FROM ai_suggestion
 WHERE target_type = sqlc.arg('target_type')
   AND target_id = sqlc.arg('target_id')

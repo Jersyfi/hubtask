@@ -625,6 +625,7 @@ type AiSuggestion struct {
 	DecidedBy     pgtype.UUID
 	Version       int32
 	DroppedNodes  int32
+	AgentID       pgtype.UUID
 }
 
 type AuditAnchor struct {
