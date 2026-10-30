@@ -37,6 +37,8 @@ var dialableExceptions = map[string]string{
 	"core/domain/model/identity/IdentityProviderPreset.go": "the Google preset's issuer, the value a form fills in when somebody chooses Google: dialled only once a person saves a provider with it",
 	"infrastructure/alexa/Verifier.go":                     "Amazon's certificate store, the one host Alexa's signing rule allows: dialled only to verify a request that names it, and only where the operator allows the host out",
 	"core/domain/model/mail/Mailbox.go":                    "the mail providers' presets (Fastmail's JMAP session), the values a form fills in when somebody chooses a provider: dialled only once a person connects a mailbox with it",
+	"core/domain/model/integration/CalendarPush.go":        "the OAuth scopes a calendar push asks for, written as addresses by the providers: names in a consent, never dialled",
+	"infrastructure/calendarpush/Calendar.go":              "the two providers' event endpoints: dialled only for a push its owner connected, through an app the operator configured for that provider",
 }
 
 func TestPG6NoAddressIsDialledWithoutConfiguration(t *testing.T) {
