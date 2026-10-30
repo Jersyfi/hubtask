@@ -215,3 +215,21 @@ components:
 		t.Errorf("the detail's own members are missing: %+v", detail)
 	}
 }
+
+// A door draws only what a request carries: the host, the workspace header, the user agent and
+// the remote address; any other name is a mistake in the contract.
+func TestARequestInputIsOneARequestCarries(t *testing.T) {
+	server := []byte("package openapi\ntype ChangeThingApplicationMergePatchPlusJSONRequestBody = ThingChange\ntype ServerInterface interface {\n\tChangeThing(w http.ResponseWriter, r *http.Request, thingId string)\n}\n")
+	for request, fails := range map[string]bool{"[host, tenant_header]": false, "[cookie]": true} {
+		marked := strings.Replace(contract, `      x-hubtask-cli: "thing set"`, `      x-hubtask-cli: "thing set"
+      x-hubtask-rest: generated
+      x-hubtask-rest-request: `+request, 1)
+		doors, err := restTable([]byte(marked), server)
+		if (err != nil) != fails {
+			t.Fatalf("%s: %v", request, err)
+		}
+		if !fails && (len(doors) != 1 || len(doors[0].Request) != 2) {
+			t.Errorf("the doors are %+v", doors)
+		}
+	}
+}

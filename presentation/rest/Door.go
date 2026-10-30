@@ -54,6 +54,12 @@ type restDoor struct {
 	ShownOnce string
 	// QueryAs renames a query parameter to the input the use case reads.
 	QueryAs map[string]string
+	// Request is what the request itself carries that the use case reads: the host and the
+	// workspace header a sign-in is resolved by, the user agent and address a session records.
+	Request []string
+	// Empty answers the status without a body: the contract declares none (an accepted request
+	// that has nothing to say that would be true for one caller and not another).
+	Empty bool
 }
 
 // input is the name the use case reads a query parameter by.
@@ -127,6 +133,18 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 			}
 		}
 	}
+	for _, name := range d.Request {
+		switch name {
+		case "host":
+			in[name] = r.Host
+		case "tenant_header":
+			in[name] = r.Header.Get(TenantHeader)
+		case "user_agent":
+			in[name] = r.UserAgent()
+		case "remote_addr":
+			in[name] = r.RemoteAddr
+		}
+	}
 	if d.StepUp {
 		if token := strings.TrimSpace(r.Header.Get(stepUpHeader)); token != "" {
 			in["step_up_token"] = token
@@ -141,8 +159,8 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set(ShownOnceHeader, d.ShownOnce)
 	}
-	if d.Status == http.StatusNoContent {
-		w.WriteHeader(http.StatusNoContent)
+	if d.Status == http.StatusNoContent || d.Empty {
+		w.WriteHeader(d.Status)
 		return
 	}
 	var written any = out

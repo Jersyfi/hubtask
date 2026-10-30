@@ -61,7 +61,15 @@ type RESTDoor struct {
 	ShownOnce string
 	// QueryAs renames a query parameter to the input the use case reads (`x-hubtask-rest-query`).
 	QueryAs map[string]string
+	// Request names what the request itself carries that the use case reads - the host, the
+	// workspace header, the user agent, the remote address (`x-hubtask-rest-request`).
+	Request []string
+	// Empty says the successful answer has no body, whatever its status.
+	Empty bool
 }
+
+// requestInputs are the inputs a door can draw from the request rather than from its members.
+var requestInputs = map[string]bool{"host": true, "tenant_header": true, "user_agent": true, "remote_addr": true}
 
 type pathArg struct{ Input, Value string }
 
@@ -79,6 +87,7 @@ type restOperation struct {
 	QueryAs     map[string]string `yaml:"x-hubtask-rest-query"`
 	List        string            `yaml:"x-hubtask-rest-list"`
 	UseCase     string            `yaml:"x-hubtask-rest-use-case"`
+	Request     []string          `yaml:"x-hubtask-rest-request"`
 	Parameters  []parameter       `yaml:"parameters"`
 	RequestBody *struct {
 		Required bool                 `yaml:"required"`
@@ -149,6 +158,12 @@ func restDoor(
 	default:
 		return door, fmt.Errorf("x-hubtask-rest-null %q is not \"empty\"", op.Null)
 	}
+	for _, name := range op.Request {
+		if !requestInputs[name] {
+			return door, fmt.Errorf("x-hubtask-rest-request names %s, which a request does not carry", name)
+		}
+	}
+	door.Request = op.Request
 	if op.UseCase != "" {
 		// Two doors onto one use case - creating and replacing, told apart by an identifier.
 		door.UseCase = op.UseCase
@@ -241,6 +256,7 @@ func restDoor(
 			continue
 		}
 		fmt.Sscan(status, &door.Status)
+		door.Empty = len(response.Content) == 0 && door.Status != 204
 		if content, ok := response.Content["application/json"]; ok {
 			answer := doc.composed(content.Schema)
 			door.AnswerRows = answer.Type == "array"
@@ -382,6 +398,12 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 				pairs = append(pairs, fmt.Sprintf("%q: %q", key, d.QueryAs[key]))
 			}
 			extra += ", QueryAs: map[string]string{" + strings.Join(pairs, ", ") + "}"
+		}
+		if len(d.Request) > 0 {
+			extra += fmt.Sprintf(", Request: %#v", d.Request)
+		}
+		if d.Empty {
+			extra += ", Empty: true"
 		}
 		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q, Location: %q, NullClears: %t, Integers: %#v%s},\n",
 			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs, d.Location, d.NullClears, d.Integers, extra)

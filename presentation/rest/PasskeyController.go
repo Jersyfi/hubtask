@@ -113,7 +113,6 @@ func (c *RestController) CompletePasskeyRegistration(w http.ResponseWriter, r *h
 // workspace sources travel as declared inputs, because only this adapter has the request.
 
 const (
-	startPasskeySignInUseCase    = "StartPasskeySignIn"
 	completePasskeySignInUseCase = "CompletePasskeySignIn"
 )
 
@@ -122,30 +121,6 @@ func (c *RestController) passkeySignInInput(r *http.Request) usecase.Input {
 		"host": r.Host, "tenant_header": r.Header.Get(TenantHeader),
 		"user_agent": r.UserAgent(), "remote_addr": r.RemoteAddr,
 	}
-}
-
-// StartPasskeySignIn answers POST /auth/sessions:passkey-options.
-func (c *RestController) StartPasskeySignIn(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), startPasskeySignInUseCase, actorOf(r), c.passkeySignInInput(r))
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	var answer openapi.PasskeySignInOptions
-	encoded, err := json.Marshal(out)
-	if err == nil {
-		err = json.Unmarshal(encoded, &answer)
-	}
-	if err != nil {
-		WriteProblem(w, shared.ErrInternal.WithDetail("rest.answer_unshapeable").WithCause(err), requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, answer)
 }
 
 // CompletePasskeySignIn answers POST /auth/sessions:passkey.

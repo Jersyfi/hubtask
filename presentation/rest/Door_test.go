@@ -374,3 +374,23 @@ func TestAGeneratedQueryParameterIsRenamedToItsInput(t *testing.T) {
 		t.Errorf("the page size reached the use case as %v", registry.in)
 	}
 }
+
+// What the request itself carries reaches the use case under its own name, and an answer the
+// contract declares without a body is written without one, whatever its status.
+func TestAGeneratedOperationReadsTheRequestAndCanAnswerWithoutABody(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"sent": true}}
+
+	recorder := callDoor(t, registry, http.MethodPost, "/auth/password:forgot", `{"email":"maria@example.org"}`,
+		map[string]string{"Content-Type": "application/json", TenantHeader: "maria"})
+
+	if recorder.Code != http.StatusAccepted || recorder.Body.Len() != 0 {
+		t.Fatalf("status %d: %q", recorder.Code, recorder.Body)
+	}
+	if registry.name != "ForgetPassword" || registry.in["email"] != "maria@example.org" ||
+		registry.in["tenant_header"] != "maria" || registry.in["host"] != "example.com" {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+	if _, sent := registry.in["user_agent"]; sent {
+		t.Errorf("an input the door does not name arrived: %v", registry.in)
+	}
+}

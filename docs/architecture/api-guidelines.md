@@ -25,7 +25,10 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    its operationId (creating and replacing an identity provider are one use case, told apart by an
    identifier); `x-hubtask-rest-shown-once` names the member that shows a secret once - an answer
    carrying it is marked `Cache-Control: no-store` and `X-Hubtask-Shown-Once` for the idempotency
-   record (T-18); `x-hubtask-rest-list: data` draws a list under `data` without a page row by row.
+   record (T-18); `x-hubtask-rest-list: data` draws a list under `data` without a page row by row;
+   `x-hubtask-rest-request` names what the request itself carries that the use case reads (`host`,
+   `tenant_header`, `user_agent`, `remote_addr` - a sign-in's workspace and a session's record),
+   and a successful answer the contract declares without content is written without a body.
    The use case's input therefore uses
    the contract's names; a test holds each mapping's query, version and proof to the descriptor's
    declared input. An answer drawn by one of the adapter's shared mappers (an entry, by

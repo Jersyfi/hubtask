@@ -8152,6 +8152,8 @@ paths:
     post:
       tags: [auth]
       operationId: inspectInvitation
+      x-hubtask-rest: generated
+      x-hubtask-rest-request: [tenant_header]
       security: []
       summary: Name the workspace and the address an invitation is for
       description: >
@@ -8260,6 +8262,8 @@ paths:
     post:
       tags: [auth]
       operationId: startPasskeySignIn
+      x-hubtask-rest: generated
+      x-hubtask-rest-request: [host, tenant_header, user_agent, remote_addr]
       security: []
       summary: Begin a sign-in with a passkey
       description: |
@@ -8370,6 +8374,9 @@ paths:
     post:
       tags: [auth]
       operationId: agreeToTerms
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionTokensResponse
+      x-hubtask-rest-request: [tenant_header]
       security: []
       summary: Agree to the terms of use and finish the sign-in
       description: >
@@ -8442,6 +8449,8 @@ paths:
     post:
       tags: [auth]
       operationId: forgetPassword
+      x-hubtask-rest: generated
+      x-hubtask-rest-request: [host, tenant_header]
       security: []
       summary: Ask for a password reset link
       description: >
@@ -8516,6 +8525,8 @@ paths:
     post:
       tags: [auth]
       operationId: confirmAddress
+      x-hubtask-rest: generated
+      x-hubtask-rest-request: [tenant_header]
       security: []
       summary: Confirm a mail address with the link that was sent to it
       description: >
@@ -8540,6 +8551,8 @@ paths:
     post:
       tags: [auth]
       operationId: checkPassword
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: passwordCheckResponse
       security: []
       summary: Ask what only the server knows about a candidate password
       description: >
@@ -8721,6 +8734,9 @@ paths:
     get:
       tags: [auth]
       operationId: getSignInRules
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: signInRulesResponse
+      x-hubtask-rest-request: [host, tenant_header]
       security: []
       summary: What a sign-in screen may know before anybody has signed in
       description: >
@@ -8868,6 +8884,8 @@ paths:
     post:
       tags: [auth]
       operationId: startPasskeyStepUp
+      x-hubtask-rest: generated
+      x-hubtask-rest-request: [host]
       summary: The options for a fresh proof with a passkey or security key
       description: |
         The options for `navigator.credentials.get()` that prove the caller afresh at
@@ -9392,6 +9410,7 @@ paths:
     post:
       tags: [auth]
       operationId: locateOidcFlow
+      x-hubtask-rest: generated
       security: []
       summary: Where a provider's return belongs
       description: >

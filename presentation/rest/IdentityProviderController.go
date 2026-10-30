@@ -220,27 +220,6 @@ func (c *RestController) StartOidcSignIn(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, r, http.StatusCreated, answer)
 }
 
-// LocateOidcFlow answers POST /auth/oidc:locate: where a provider's return belongs. Anonymous, as
-// the return is, and in the auth bucket (RateLimit.go).
-func (c *RestController) LocateOidcFlow(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.OidcLocate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), locateOidcFlowUseCase, actorOf(r), usecase.Input{"state": body.State})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, openapi.OidcLocated{BaseUrl: out.String("base_url")})
-}
-
 // CompleteOidcSignIn answers POST /auth/oidc:callback.
 func (c *RestController) CompleteOidcSignIn(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())

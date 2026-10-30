@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -17,7 +16,6 @@ import (
 const (
 	completeSignInUseCase = "CompleteSignIn"
 	completeLinkUseCase   = "CompleteLink"
-	agreeToTermsUseCase   = "AgreeToTerms"
 )
 
 // CompleteSignIn answers POST /auth/sessions:verify. Written out for SignIn's reason: the route
@@ -84,34 +82,6 @@ func (c *RestController) CompleteLink(w http.ResponseWriter, r *http.Request) {
 	}
 	if required, _ := out["mfa_required"].(bool); required {
 		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
-
-// AgreeToTerms answers POST /auth/sessions:agree-terms: the TERMS step (UC-ID-19). Public, for
-// SignIn's reason: the pending credential in the body is what authenticates the call.
-func (c *RestController) AgreeToTerms(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.TermsAgreement
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), agreeToTermsUseCase, actorOf(r), usecase.Input{
-		"pending_token": body.PendingToken,
-		"terms_url":     body.TermsUrl,
-		"terms_version": optionalStringField(body.TermsVersion),
-		"tenant_header": r.Header.Get(TenantHeader),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
@@ -187,30 +157,6 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 const stepUpUseCase = "StepUp"
 
 const startPasskeyStepUpUseCase = "StartPasskeyStepUp"
-
-// StartPasskeyStepUp answers POST /auth/step-up:passkey-options.
-func (c *RestController) StartPasskeyStepUp(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), startPasskeyStepUpUseCase, actorOf(r), usecase.Input{"host": r.Host})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	var answer openapi.PasskeyAssertionOptions
-	encoded, err := json.Marshal(out)
-	if err == nil {
-		err = json.Unmarshal(encoded, &answer)
-	}
-	if err != nil {
-		WriteProblem(w, shared.ErrInternal.WithDetail("rest.answer_unshapeable").WithCause(err), requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, answer)
-}
 
 const startProviderStepUpUseCase = "StartProviderStepUp"
 

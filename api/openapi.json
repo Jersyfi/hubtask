@@ -12779,6 +12779,10 @@
           "auth"
         ],
         "operationId": "inspectInvitation",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-request": [
+          "tenant_header"
+        ],
         "security": [],
         "summary": "Name the workspace and the address an invitation is for",
         "description": "What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.\n",
@@ -12897,6 +12901,13 @@
           "auth"
         ],
         "operationId": "startPasskeySignIn",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-request": [
+          "host",
+          "tenant_header",
+          "user_agent",
+          "remote_addr"
+        ],
         "security": [],
         "summary": "Begin a sign-in with a passkey",
         "description": "The options to pass to `navigator.credentials.get()` for signing in to the workspace the\nrequest's host names, with no identifier: the relying party, a single-use challenge that\nlives five minutes, and `userVerification: required` - a passkey opens the account alone only\nwhen the person was verified on the device. No credential is named; the device offers the\nones it holds for this workspace.\n\nRefused with `auth.passkey_not_offered` where the workspace's rules do not offer passkeys,\nwith `auth.passkey_unavailable` where the installation has no public address or the request\ndid not arrive at the workspace's own host, and with `auth.tenant_unresolved` where no\nworkspace answers at it.\n",
@@ -13015,6 +13026,11 @@
           "auth"
         ],
         "operationId": "agreeToTerms",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionTokensResponse",
+        "x-hubtask-rest-request": [
+          "tenant_header"
+        ],
         "security": [],
         "summary": "Agree to the terms of use and finish the sign-in",
         "description": "The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.\nThe request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.\nDeclining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.\n",
@@ -13085,6 +13101,11 @@
           "auth"
         ],
         "operationId": "forgetPassword",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-request": [
+          "host",
+          "tenant_header"
+        ],
         "security": [],
         "summary": "Ask for a password reset link",
         "description": "Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after. There is no error state for \"no such address\", because there is no such answer.\nBehind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.\nAn account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.\n",
@@ -13160,6 +13181,10 @@
           "auth"
         ],
         "operationId": "confirmAddress",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-request": [
+          "tenant_header"
+        ],
         "security": [],
         "summary": "Confirm a mail address with the link that was sent to it",
         "description": "The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.\n",
@@ -13189,6 +13214,8 @@
           "auth"
         ],
         "operationId": "checkPassword",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "passwordCheckResponse",
         "security": [],
         "summary": "Ask what only the server knows about a candidate password",
         "description": "The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.\n**It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.\n`200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.\n",
@@ -13384,6 +13411,12 @@
           "auth"
         ],
         "operationId": "getSignInRules",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "signInRulesResponse",
+        "x-hubtask-rest-request": [
+          "host",
+          "tenant_header"
+        ],
         "security": [],
         "summary": "What a sign-in screen may know before anybody has signed in",
         "description": "The four things a sign-in card needs and nothing else: which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.\nPublic the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - in multi mode from the workspace's address the request arrived at, or, only at the installation's own address, from the `X-Hubtask-Tenant` header; in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after.\nWhy a public route answers this at all: a *configurable* hint is otherwise wrong. A screen saying \"at least twelve characters\" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.\n",
@@ -13523,6 +13556,10 @@
           "auth"
         ],
         "operationId": "startPasskeyStepUp",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-request": [
+          "host"
+        ],
         "summary": "The options for a fresh proof with a passkey or security key",
         "description": "The options for `navigator.credentials.get()` that prove the caller afresh at\n`POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this\nsession and account, five minutes, single use. Presence on the device suffices. Refused with\n`auth.passkey_unavailable` where the account holds none here or the request did not arrive at\nthe workspace's own host, and with `auth.step_up_session_required` for a token.\n",
         "responses": {
@@ -14042,6 +14079,7 @@
           "auth"
         ],
         "operationId": "locateOidcFlow",
+        "x-hubtask-rest": "generated",
         "security": [],
         "summary": "Where a provider's return belongs",
         "description": "A provider returns to this installation's one registered address. In multi-tenant operation that is the installation's own host, while the flow began on a workspace's host, where its session and its browser state live. Given the state the provider carried back, this answers the address of the workspace the flow belongs to, and the browser finishes there - the code and the state unchanged. The flow is not spent: it is spent where it is completed. Only a live flow is located: an unknown, expired, spent or malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In single-tenant operation the answer is the installation's own address.\n",
