@@ -67,6 +67,7 @@
     DevicesView: () => import('./views/DevicesView.svelte'),
     GrantsView: () => import('./views/GrantsView.svelte'),
     CalendarPushesView: () => import('./views/CalendarPushesView.svelte'),
+    FileStoresView: () => import('./views/FileStoresView.svelte'),
     SearchView: () => import('./views/SearchView.svelte'),
     MyTokensView: () => import('./views/MyTokensView.svelte'),
     TrashView: () => import('./views/TrashView.svelte'),
@@ -313,6 +314,8 @@
     <LazyView load={views.GrantsView} />
   {:else if route.name === 'calendars'}
     <LazyView load={views.CalendarPushesView} props={{ providerAnswer: route.query, onanswered: () => router.replace('/profile/calendars') }} />
+  {:else if route.name === 'filestores'}
+    <LazyView load={views.FileStoresView} props={{ providerAnswer: route.query, onanswered: () => router.replace('/profile/files') }} />
   {:else if route.name === 'instance'}
     <!-- The level above the workspaces (ADR-0070 §5). Its own area, and its own door: every screen
          here is drawn only while the session is raised, and the hour's end returns the reader to

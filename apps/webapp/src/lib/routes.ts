@@ -54,6 +54,9 @@ export const ROUTES: readonly Route[] = [
   // The calendar feeds written into the reader's own calendar, and the page a provider sends the
   // browser back to after the sign-in (UC-INT-16).
   { name: 'calendars', pattern: '/profile/calendars', area: 'profile' },
+  // The reader's own file store connections, and the page Microsoft sends the browser back to
+  // after the sign-in (UC-INT-17).
+  { name: 'filestores', pattern: '/profile/files', area: 'profile' },
   // ADR-0032's administration area. Every route added under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,

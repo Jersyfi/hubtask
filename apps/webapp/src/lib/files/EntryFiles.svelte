@@ -7,18 +7,22 @@
   //
   // For a reader the section is drawn only where a file is linked, as the entry's code is; for a
   // writer it is always there, since linking is what it offers. The store is told by the address
-  // unless the writer chooses it.
+  // unless the writer chooses it. A writer with a file store connection picks the file from its
+  // folders instead of pasting it, and on a Nextcloud may link a read-only share (UC-INT-17).
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Dialog, Icon, IconButton, Input, Select, Stack, type SelectOption } from '@hubtask/design-system/components';
-  import type { FileLink, FileLinkList } from '@hubtask/sync-engine';
+  import { Badge, Button, Checkbox, Dialog, Icon, IconButton, Input, Select, Stack, type SelectOption } from '@hubtask/design-system/components';
+  import type { FileLink, FileLinkList, FileStoreConnection, FileStoreItem } from '@hubtask/sync-engine';
 
   import { STORES, fileHost, fileHref, fileLinksPath } from '../data/files.ts';
   import { files } from '../data/files.svelte.ts';
+  import { linkOf } from '../data/filestore.ts';
+  import { fileStores } from '../data/filestore.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import StorePicker from './StorePicker.svelte';
 
   interface Props {
     itemId: string;
@@ -42,20 +46,39 @@
   let name = $state('');
   let isLinking = $state(false);
   let refusal = $state<string | undefined>(undefined);
+  /** The file picked from a store, while the address is still the one it gave. */
+  let picked = $state<{ connection: FileStoreConnection; item: FileStoreItem; address: string } | undefined>(undefined);
+  let isShared = $state(false);
+  const mayShare = $derived(picked !== undefined && picked.address === address && picked.connection.kind === 'NEXTCLOUD');
 
   function open() {
     address = '';
     store = '';
     name = '';
     refusal = undefined;
+    picked = undefined;
+    isShared = false;
     isOpen = true;
+  }
+
+  function pick(connection: FileStoreConnection, item: FileStoreItem) {
+    const link = linkOf(item);
+    if (!link) return;
+    address = link.address;
+    store = link.provider;
+    name = link.name;
+    picked = { connection, item, address: link.address };
   }
 
   async function link() {
     isLinking = true;
     refusal = undefined;
     try {
-      await files.link(itemId, address.trim(), store as FileLink['provider'] | '', name.trim());
+      let linked = address.trim();
+      if (mayShare && isShared && picked) {
+        linked = (await fileStores.share(picked.connection.id, picked.item.ref)).address;
+      }
+      await files.link(itemId, linked, store as FileLink['provider'] | '', name.trim());
       isOpen = false;
       toast.show({ text: t('app.files.linked'), tone: 'success' });
     } catch (error) {
@@ -119,9 +142,13 @@
 {#if isOpen}
   <Dialog bind:isOpen title={t('app.files.dialog_title')} dismissLabel={t('app.files.cancel')}>
     <Stack gap="150">
+      <StorePicker picked={picked?.item.ref} onpick={pick} />
       <Input label={t('app.files.address_label')} hint={t('app.files.address_hint')} bind:value={address} maxlength={2048} type="url" />
       <Select label={t('app.files.store_label')} options={storeOptions} bind:value={store} />
       <Input label={t('app.files.name_label')} hint={t('app.files.name_hint')} bind:value={name} maxlength={200} />
+      {#if mayShare}
+        <Checkbox label={t('app.filestores.share_label')} hint={t('app.filestores.share_hint')} bind:checked={isShared} data-share-file />
+      {/if}
       {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
     </Stack>
     {#snippet actions()}

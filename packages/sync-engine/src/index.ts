@@ -567,4 +567,10 @@ export type {
   CalendarPush,
   CalendarPushList,
   CalendarPushAuthorization,
+  FileStoreConnection,
+  FileStoreConnectionList,
+  FileStoreConnectionStart,
+  FileStoreItem,
+  FileStoreFolder,
+  FileStoreShare,
 } from './schema.ts';
