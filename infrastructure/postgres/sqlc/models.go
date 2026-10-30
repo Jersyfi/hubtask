@@ -1292,6 +1292,14 @@ type EntrySla struct {
 	Version       int32
 }
 
+type EntryStatusChange struct {
+	TenantID  pgtype.UUID
+	ItemID    pgtype.UUID
+	Seq       int64
+	Status    string
+	EnteredAt pgtype.Timestamptz
+}
+
 type EntryType struct {
 	ID              pgtype.UUID
 	TenantID        pgtype.UUID
