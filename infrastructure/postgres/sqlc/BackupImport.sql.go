@@ -771,6 +771,30 @@ func (q *Queries) ClearPageComment(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPageRestriction = `-- name: ClearPageRestriction :execrows
+DELETE FROM page_restriction
+`
+
+func (q *Queries) ClearPageRestriction(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageRestriction)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPageShare = `-- name: ClearPageShare :execrows
+DELETE FROM page_share
+`
+
+func (q *Queries) ClearPageShare(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageShare)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPageVersion = `-- name: ClearPageVersion :execrows
 DELETE FROM page_version
 `
@@ -789,6 +813,18 @@ DELETE FROM webauthn_credential
 
 func (q *Queries) ClearPasskeys(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearPasskeys)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPersonalSpace = `-- name: ClearPersonalSpace :execrows
+DELETE FROM personal_space
+`
+
+func (q *Queries) ClearPersonalSpace(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPersonalSpace)
 	if err != nil {
 		return 0, err
 	}
@@ -1956,6 +1992,36 @@ func (q *Queries) HoldsPageComment(ctx context.Context, payload []byte) (bool, e
 	return held, err
 }
 
+const holdsPageRestriction = `-- name: HoldsPageRestriction :one
+SELECT EXISTS (
+  SELECT 1 FROM page_restriction
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPageRestriction(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPageRestriction, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPageShare = `-- name: HoldsPageShare :one
+SELECT EXISTS (
+  SELECT 1 FROM page_share
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPageShare(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPageShare, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsPageVersion = `-- name: HoldsPageVersion :one
 SELECT EXISTS (
   SELECT 1 FROM page_version
@@ -1977,6 +2043,19 @@ SELECT EXISTS (SELECT 1 FROM webauthn_credential WHERE id = ($1::jsonb->>'id')::
 
 func (q *Queries) HoldsPasskey(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPasskey, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPersonalSpace = `-- name: HoldsPersonalSpace :one
+SELECT EXISTS (
+  SELECT 1 FROM personal_space WHERE account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPersonalSpace(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPersonalSpace, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4753,12 +4832,13 @@ const importPage = `-- name: ImportPage :execrows
 INSERT INTO page (
   id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
   owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-  created_by, created_at, updated_by, updated_at, version
+  created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 )
 SELECT
   r.id, r.tenant_id, r.hub_id, r.parent_id, r.title, r.body, r.icon, r.order_key, r.template,
   r.content_language, r.owner_id, r.verified_until, r.verified_at, r.verified_by, r.archived_at,
-  r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version
+  r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version,
+  coalesce(r.restricted, false), r.daily_for
 FROM jsonb_populate_record(
   NULL::page,
   ($1::jsonb - 'search_document') || jsonb_build_object('tenant_id', current_tenant_id())
@@ -4779,7 +4859,9 @@ ON CONFLICT (id) DO UPDATE SET
   deleted_at = EXCLUDED.deleted_at,
   updated_by = EXCLUDED.updated_by,
   updated_at = EXCLUDED.updated_at,
-  version = EXCLUDED.version
+  version = EXCLUDED.version,
+  restricted = EXCLUDED.restricted,
+  daily_for = EXCLUDED.daily_for
 WHERE $2::boolean
 `
 
@@ -4826,6 +4908,42 @@ type ImportPageCommentParams struct {
 
 func (q *Queries) ImportPageComment(ctx context.Context, arg ImportPageCommentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPageComment, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPageRestriction = `-- name: ImportPageRestriction :execrows
+INSERT INTO page_restriction (tenant_id, page_id, account_id, granted_by, granted_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.granted_by, r.granted_at
+FROM jsonb_populate_record(
+  NULL::page_restriction,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING
+`
+
+func (q *Queries) ImportPageRestriction(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPageRestriction, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPageShare = `-- name: ImportPageShare :execrows
+INSERT INTO page_share (tenant_id, page_id, account_id, granted_by, granted_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.granted_by, r.granted_at
+FROM jsonb_populate_record(
+  NULL::page_share,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING
+`
+
+func (q *Queries) ImportPageShare(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPageShare, payload)
 	if err != nil {
 		return 0, err
 	}
@@ -4931,6 +5049,30 @@ type ImportPasskeyParams struct {
 // export, which carries no identifier or key (tenant-export.md §9) and so is no credential.
 func (q *Queries) ImportPasskey(ctx context.Context, arg ImportPasskeyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPasskey, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPersonalSpace = `-- name: ImportPersonalSpace :execrows
+INSERT INTO personal_space (tenant_id, account_id, hub_id, created_at)
+SELECT r.tenant_id, r.account_id, r.hub_id, r.created_at
+FROM jsonb_populate_record(
+  NULL::personal_space,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET hub_id = EXCLUDED.hub_id, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportPersonalSpaceParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPersonalSpace(ctx context.Context, arg ImportPersonalSpaceParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPersonalSpace, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

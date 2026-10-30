@@ -218,6 +218,9 @@ re-mints identities must rewrite exactly these).
 | 100 | `agent_eval_runs` | `agent_eval_run` | `id` | `agent_id`→agents, `run_by`→accounts (an evaluation's counts on a model revision) |
 | 101 | `ai_provenance` | `ai_provenance` | `id` | `accepted_by`→accounts (an accepted AI value's mark: object, field names, suggestion, agent, model, prompt, who accepted when - AI-2) |
 | 102 | `agent_jobs` | `agent_job` | `id` | `agent_id`→agents, `started_by`→accounts (a shipped agent's job on an entry or a hub: how it ended, what it proposed, the tokens; never what it read or the model answered; migration 0252) |
+| 103 | `page_restrictions` | `page_restriction` | `page_id/account_id` | `page_id`→pages, `account_id`→accounts, `granted_by`→accounts (cleared when absent) (the people a restricted page names, migration 0261; `page.restricted` says a page is restricted, so a restriction whose people are gone stays closed) |
+| 104 | `page_shares` | `page_share` | `page_id/account_id` | `page_id`→pages, `account_id`→accounts, `granted_by`→accounts (cleared when absent) (a page shared read-only with one person beside its hub, UC-DOC-08) |
+| 105 | `personal_spaces` | `personal_space` | `account_id` | `account_id`→accounts, `hub_id`→containers (the private hub that is a person's own notes, UC-DOC-07) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

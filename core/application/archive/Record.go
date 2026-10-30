@@ -620,6 +620,30 @@ var entities = []Entity{
 			{Field: "author_id", Table: "account", Clearable: true},
 		},
 	},
+	// Who reads a page beyond its hub, and the hub that is a person's own notes (migration 0261).
+	{
+		Name: "page_restrictions", Table: "page_restriction", Whole: true, Later: true, Keys: []string{"page_id", "account_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "account_id", Table: "account"},
+			{Field: "granted_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "page_shares", Table: "page_share", Whole: true, Later: true, Keys: []string{"page_id", "account_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "account_id", Table: "account"},
+			{Field: "granted_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "personal_spaces", Table: "personal_space", Whole: true, Later: true, Keys: []string{"account_id"},
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "hub_id", Table: "container"},
+		},
+	},
 	// The whiteboard module's boards (migration 0233, M4). Whole and unmarked, as a page is: a
 	// board leaves without a marker when its hub is purged. Its scene is JSON in the contract's
 	// shape; where it points is rebuilt by the trigger.

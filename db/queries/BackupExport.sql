@@ -777,6 +777,47 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportPageRestrictions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.page_id::text || '/' || r.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.page_id AS key_1,
+         r.account_id AS key_2
+  FROM page_restriction r
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPageShares :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (sh.page_id::text || '/' || sh.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(sh) - 'tenant_id')::jsonb AS payload,
+         sh.page_id AS key_1,
+         sh.account_id AS key_2
+  FROM page_share sh
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPersonalSpaces :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (ps.account_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(ps) - 'tenant_id')::jsonb AS payload,
+         ps.account_id AS key_1
+  FROM personal_space ps
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportWhiteboards :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

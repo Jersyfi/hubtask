@@ -818,7 +818,7 @@ func (PageRepository) Restrict(ctx context.Context, page knowledge.Page, account
 	if rows == 0 {
 		return shared.ErrVersionConflict.WithDetail("pages.version_conflict")
 	}
-	if err := queries.ClearPageRestriction(ctx, ids[0]); err != nil {
+	if err := queries.DropPageRestriction(ctx, ids[0]); err != nil {
 		return pageFailed("writing the page restriction", err)
 	}
 	if len(accounts) == 0 {

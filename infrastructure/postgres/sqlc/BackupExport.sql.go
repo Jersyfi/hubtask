@@ -2941,6 +2941,100 @@ func (q *Queries) ExportPageComments(ctx context.Context, arg ExportPageComments
 	return items, nil
 }
 
+const exportPageRestrictions = `-- name: ExportPageRestrictions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.page_id::text || '/' || r.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.page_id AS key_1,
+         r.account_id AS key_2
+  FROM page_restriction r
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPageRestrictionsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportPageRestrictionsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPageRestrictions(ctx context.Context, arg ExportPageRestrictionsParams) ([]ExportPageRestrictionsRow, error) {
+	rows, err := q.db.Query(ctx, exportPageRestrictions, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPageRestrictionsRow{}
+	for rows.Next() {
+		var i ExportPageRestrictionsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPageShares = `-- name: ExportPageShares :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (sh.page_id::text || '/' || sh.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(sh) - 'tenant_id')::jsonb AS payload,
+         sh.page_id AS key_1,
+         sh.account_id AS key_2
+  FROM page_share sh
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPageSharesParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportPageSharesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPageShares(ctx context.Context, arg ExportPageSharesParams) ([]ExportPageSharesRow, error) {
+	rows, err := q.db.Query(ctx, exportPageShares, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPageSharesRow{}
+	for rows.Next() {
+		var i ExportPageSharesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPageVersions = `-- name: ExportPageVersions :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
@@ -3069,6 +3163,51 @@ func (q *Queries) ExportPasskeys(ctx context.Context, arg ExportPasskeysParams) 
 	items := []ExportPasskeysRow{}
 	for rows.Next() {
 		var i ExportPasskeysRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPersonalSpaces = `-- name: ExportPersonalSpaces :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (ps.account_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(ps) - 'tenant_id')::jsonb AS payload,
+         ps.account_id AS key_1
+  FROM personal_space ps
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPersonalSpacesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPersonalSpacesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPersonalSpaces(ctx context.Context, arg ExportPersonalSpacesParams) ([]ExportPersonalSpacesRow, error) {
+	rows, err := q.db.Query(ctx, exportPersonalSpaces, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPersonalSpacesRow{}
+	for rows.Next() {
+		var i ExportPersonalSpacesRow
 		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
 			return nil, err
 		}

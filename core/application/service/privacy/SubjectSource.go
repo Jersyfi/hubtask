@@ -105,6 +105,10 @@ var subjectColumns = map[string][]string{
 	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},
 	"page_version": {"author_id"},
 	"page_comment": {"author_id", "resolved_by"},
+	// The pages restricted to them or shared with them, by whom, and their own notes' hub.
+	"page_restriction": {"account_id", "granted_by"},
+	"page_share":       {"account_id", "granted_by"},
+	"personal_space":   {"account_id"},
 	// The whiteboards they made or last drew on (M4).
 	"whiteboard":         {"created_by", "updated_by"},
 	"whiteboard_version": {"author_id"},

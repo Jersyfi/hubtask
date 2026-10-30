@@ -2055,12 +2055,13 @@ DELETE FROM workflow_scheme;
 INSERT INTO page (
   id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
   owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-  created_by, created_at, updated_by, updated_at, version
+  created_by, created_at, updated_by, updated_at, version, restricted, daily_for
 )
 SELECT
   r.id, r.tenant_id, r.hub_id, r.parent_id, r.title, r.body, r.icon, r.order_key, r.template,
   r.content_language, r.owner_id, r.verified_until, r.verified_at, r.verified_by, r.archived_at,
-  r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version
+  r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version,
+  coalesce(r.restricted, false), r.daily_for
 FROM jsonb_populate_record(
   NULL::page,
   (sqlc.arg('payload')::jsonb - 'search_document') || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2081,7 +2082,9 @@ ON CONFLICT (id) DO UPDATE SET
   deleted_at = EXCLUDED.deleted_at,
   updated_by = EXCLUDED.updated_by,
   updated_at = EXCLUDED.updated_at,
-  version = EXCLUDED.version
+  version = EXCLUDED.version,
+  restricted = EXCLUDED.restricted,
+  daily_for = EXCLUDED.daily_for
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsPage :one
@@ -2140,6 +2143,62 @@ SELECT EXISTS (SELECT 1 FROM page_comment WHERE id = (sqlc.arg('payload')::jsonb
 
 -- name: ClearPageComment :execrows
 DELETE FROM page_comment;
+
+-- name: ImportPageRestriction :execrows
+INSERT INTO page_restriction (tenant_id, page_id, account_id, granted_by, granted_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.granted_by, r.granted_at
+FROM jsonb_populate_record(
+  NULL::page_restriction,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING;
+
+-- name: HoldsPageRestriction :one
+SELECT EXISTS (
+  SELECT 1 FROM page_restriction
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPageRestriction :execrows
+DELETE FROM page_restriction;
+
+-- name: ImportPageShare :execrows
+INSERT INTO page_share (tenant_id, page_id, account_id, granted_by, granted_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.granted_by, r.granted_at
+FROM jsonb_populate_record(
+  NULL::page_share,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING;
+
+-- name: HoldsPageShare :one
+SELECT EXISTS (
+  SELECT 1 FROM page_share
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPageShare :execrows
+DELETE FROM page_share;
+
+-- name: ImportPersonalSpace :execrows
+INSERT INTO personal_space (tenant_id, account_id, hub_id, created_at)
+SELECT r.tenant_id, r.account_id, r.hub_id, r.created_at
+FROM jsonb_populate_record(
+  NULL::personal_space,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET hub_id = EXCLUDED.hub_id, created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPersonalSpace :one
+SELECT EXISTS (
+  SELECT 1 FROM personal_space WHERE account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPersonalSpace :execrows
+DELETE FROM personal_space;
 
 -- name: ImportRealtimeDocument :execrows
 -- A live document's head, log and snapshots (migration 0230): written once each, so an overwrite

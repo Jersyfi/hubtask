@@ -37,15 +37,6 @@ func (q *Queries) ClaimPersonalSpace(ctx context.Context, arg ClaimPersonalSpace
 	return hub_id, err
 }
 
-const clearPageRestriction = `-- name: ClearPageRestriction :exec
-DELETE FROM page_restriction WHERE tenant_id = current_tenant_id() AND page_id = $1
-`
-
-func (q *Queries) ClearPageRestriction(ctx context.Context, pageID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, clearPageRestriction, pageID)
-	return err
-}
-
 const countHubPages = `-- name: CountHubPages :one
 SELECT count(*) FROM page WHERE tenant_id = current_tenant_id() AND hub_id = $1
 `
@@ -73,6 +64,15 @@ func (q *Queries) DeletePageShare(ctx context.Context, arg DeletePageShareParams
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const dropPageRestriction = `-- name: DropPageRestriction :exec
+DELETE FROM page_restriction WHERE tenant_id = current_tenant_id() AND page_id = $1
+`
+
+func (q *Queries) DropPageRestriction(ctx context.Context, pageID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, dropPageRestriction, pageID)
+	return err
 }
 
 const findDailyNote = `-- name: FindDailyNote :one

@@ -240,7 +240,7 @@ SELECT account_id FROM page_restriction
 WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id')
 ORDER BY granted_at, account_id;
 
--- name: ClearPageRestriction :exec
+-- name: DropPageRestriction :exec
 DELETE FROM page_restriction WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
 
 -- name: InsertPageRestriction :exec
