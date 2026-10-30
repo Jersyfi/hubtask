@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Reply_test.go, core/application/service/servicedesk/Replies_test.go, core/application/service/automation/TriggerOnEntry_test.go, test/integration/service_desk_reply_test.go]
+checked_by: [core/domain/model/servicedesk/Reply_test.go, core/application/service/servicedesk/Replies_test.go, core/application/service/automation/TriggerOnEntry_test.go, test/integration/service_desk_reply_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
 ---
 
 # Answer the usual requests the usual way
@@ -29,5 +29,4 @@ Lena writes the canned reply *Password reset* once: "Hello {{requester.name}}, y
 
 ## Where it ends
 
-* The web app's reply picker and macro button are the service desk screens' (S-18's web app part).
 * A canned reply is the workspace's; one per hub or per person is not built.

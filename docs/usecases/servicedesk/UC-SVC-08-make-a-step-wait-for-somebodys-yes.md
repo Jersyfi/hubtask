@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/work/Workflow_test.go, core/domain/model/servicedesk/Approval_test.go, core/application/service/workflow/Approval_test.go, core/application/service/servicedesk/Approvals_test.go, infrastructure/postgres/WorkflowApproval_test.go, test/integration/service_desk_approval_test.go]
+checked_by: [core/domain/model/work/Workflow_test.go, core/domain/model/servicedesk/Approval_test.go, core/application/service/workflow/Approval_test.go, core/application/service/servicedesk/Approvals_test.go, infrastructure/postgres/WorkflowApproval_test.go, test/integration/service_desk_approval_test.go, core/application/service/servicedesk/ApprovalReminders_test.go, apps/webapp/src/lib/data/workflows.test.ts]
 ---
 
 # Make a step wait for somebody's yes
@@ -26,7 +26,10 @@ Lena's workflow for purchases has a step *Approve* from *Asked* to *Ordered*. Sh
 2. A level passes by its rule over the people it counted when the approval opened - named, in its groups, named by its person fields -; a role is held along the entry's path when somebody decides.
 3. Taking such a step opens an approval and leaves the entry where it stands; when the last level passes the step is taken, and one decline moves the entry to the decline status. Another step taken meanwhile withdraws the approval. One approval waits on an entry at a time.
 4. Approvals, their decisions and delegations are in the workspace archive and the access export, and stay in their workspace.
+5. A level with hours reminds the people it counts who have not answered halfway through them, and at their end reminds them again and tells the person who asked that it is overdue; nothing is decided for anybody, and a level passed, an approval decided or withdrawn stops its clocks.
+6. The workflow designer makes a step wait for an approval and writes its levels - people, groups, roles, person fields, the rule and N -, the decline status and the hours each level has.
 
 ## Where it ends
 
-* Reminders and the timeout of an overdue level (the `APPROVAL` timer purpose), the approval mail with a link that opens the app, and the web app's screens for designing and deciding approvals are the next parts.
+* A level's hours are wall hours; counting them on a business calendar is the next release's.
+* A group named by a template cannot be carried to another workspace: groups have no stable key, so a template's approval names a role.

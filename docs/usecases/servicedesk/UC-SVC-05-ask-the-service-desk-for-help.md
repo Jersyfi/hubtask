@@ -30,5 +30,5 @@ Mehmet holds the requester role on the collection *IT help*. The portal shows hi
 
 ## Where it ends
 
-* The web app's portal screens, visibility of the requests of a whole organisation, approvals from the portal and knowledge deflection are the next parts of the service desk.
+* Visibility of the requests of a whole organisation and approvals from the portal are the next parts of the service desk; the portal's screens and knowledge deflection are built (`/portal/:id`).
 

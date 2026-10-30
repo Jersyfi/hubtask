@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/Clocks_test.go, test/integration/service_desk_repository_test.go]
+checked_by: [core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/Clocks_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
 ---
 
 # Promise response times and see which promise is about to break

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Approval_test.go, core/application/service/servicedesk/Approvals_test.go, test/integration/service_desk_approval_test.go]
+checked_by: [core/domain/model/servicedesk/Approval_test.go, core/application/service/servicedesk/Approvals_test.go, test/integration/service_desk_approval_test.go, apps/webapp/src/lib/servicedesk/approvals.test.ts]
 ---
 
 # Hand my approvals to someone while I am away
@@ -27,4 +27,4 @@ Mehmet is on leave for two weeks and hands his approvals to Lena from Monday to 
 
 ## Where it ends
 
-* The web app's screen for a delegation is the next part.
+* A delegation is set on the person's own profile, *While I am away*; one person decides for each person away at a time.
