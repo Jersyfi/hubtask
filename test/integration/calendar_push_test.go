@@ -30,7 +30,7 @@ func TestACalendarPushStaysInItsWorkspace(t *testing.T) {
 		if err := viewRepo().Insert(ctx, saved); err != nil {
 			return err
 		}
-		return feedRepo().Insert(ctx, feed, mintFeedToken(t, tenantA, 0x40))
+		return feedRepo().Insert(ctx, feed, mintFeedToken(t, tenantA, 0x20))
 	}); err != nil {
 		t.Fatal(err)
 	}

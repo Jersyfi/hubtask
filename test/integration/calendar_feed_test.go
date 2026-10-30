@@ -349,7 +349,7 @@ func TestAFeedKeepsItsKind(t *testing.T) {
 		t.Fatal(err)
 	}
 	calendar := feedIn(t, tenantA, authorA, saved.ID)
-	dataToken, calendarToken := mintFeedToken(t, tenantA, 0x60), mintFeedToken(t, tenantA, 0x70)
+	dataToken, calendarToken := mintFeedToken(t, tenantA, 0x30), mintFeedToken(t, tenantA, 0x50)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		if err := feedRepo().Insert(ctx, data, dataToken); err != nil {
 			return err

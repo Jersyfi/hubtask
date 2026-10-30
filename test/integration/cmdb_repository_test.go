@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -178,7 +179,7 @@ func TestAConnectorAndItsAlertsStayInTheirWorkspace(t *testing.T) {
 	hub, _, vm := seedCIs(ctx, t)
 	repo := postgres.NewCmdbConnectorRepository()
 	at := time.Date(2026, 10, 29, 11, 0, 0, 0, time.UTC)
-	conn := cmdb.Connector{ID: freshID(t), HubID: hub, Key: "am_" + freshName(t)[:8], Kind: cmdb.ConnectorAlertmanager,
+	conn := cmdb.Connector{ID: freshID(t), HubID: hub, Key: fmt.Sprintf("am_%d", fixtureCounter.Add(1)), Kind: cmdb.ConnectorAlertmanager,
 		Source: "alerts", Settings: map[string]string{}, Enabled: true, RunAs: authorA, CreatedAt: at, UpdatedAt: at, Version: 1}
 	alert := cmdb.Alert{ID: freshID(t), HubID: hub, Connector: conn.ID, Key: "disk", Status: cmdb.AlertFiring,
 		Title: "disk full", CI: vm, FirstAt: at, LastAt: at, Count: 1}
