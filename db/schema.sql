@@ -6001,4 +6001,43 @@ CREATE POLICY tenant_isolation ON dashboard_digest
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON dashboard_digest TO hubtask_app;
 
+-- An entry's status history (migration 0250): written by a trigger as an entry enters a status.
+CREATE TABLE entry_status_change (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id    uuid NOT NULL,
+  seq        bigint GENERATED ALWAYS AS IDENTITY,
+  status     text NOT NULL,
+  entered_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, item_id, seq),
+  CONSTRAINT entry_status_change_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE entry_status_change ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_status_change FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON entry_status_change
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON entry_status_change TO hubtask_app;
+CREATE OR REPLACE FUNCTION work_item_status_history() RETURNS trigger LANGUAGE plpgsql AS
+$$
+BEGIN
+  IF NEW.status IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.status IS NOT DISTINCT FROM OLD.status THEN
+      RETURN NULL;
+    END IF;
+    INSERT INTO entry_status_change (tenant_id, item_id, status, entered_at)
+    VALUES (NEW.tenant_id, NEW.id, NEW.status, NEW.updated_at);
+  ELSE
+    INSERT INTO entry_status_change (tenant_id, item_id, status, entered_at)
+    VALUES (NEW.tenant_id, NEW.id, NEW.status, NEW.created_at);
+  END IF;
+  RETURN NULL;
+END
+$$;
+CREATE TRIGGER work_item_status_history
+  AFTER INSERT OR UPDATE OF status ON work_item
+  FOR EACH ROW EXECUTE FUNCTION work_item_status_history();
+
 COMMIT;

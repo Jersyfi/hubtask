@@ -274,6 +274,9 @@ reasoning is backup-restore.md §8.4):
   each entry's notes and each comment rebuilds; and the slim entry's side tables
   (`work_item_announcement`, `work_item_flow`, `work_item_retention`, migration 0227), mirrors of
   the entry's own columns that the restore's write of each entry rebuilds.
+* **The status history** (`entry_status_change`, migration 0250): derived from the entries' status
+  changes as they happen; a restored entry's history starts with its restore, which records its
+  current status at its creation moment, so its cycle time and WIP age count from there.
 * **AI machinery**: the AI provider configuration (with its sealed key), the workspace's choice of AI
   source (choosing an offered model is a consent a restore must not resume), suggestions, pending AI
   requests, and embedding vectors (derived from content that is in the export). The workspace's own
