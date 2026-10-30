@@ -64,6 +64,7 @@
   import { TransportError } from '@hubtask/sync-engine';
 
   import IdentityProviderView from './IdentityProviderView.svelte';
+  import LdapDirectoryPanel from '../lib/signin/LdapDirectoryPanel.svelte';
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import { withdrawalPhase } from '../lib/instance/withdrawal.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
@@ -103,12 +104,14 @@
     passwords: PASSWORD_KEYS,
     sessions: ['session_max_days', 'session_idle_minutes'],
     ways: [],
+    directory: [],
     legal: ['imprint_url', 'privacy_url', 'terms_url', 'terms_version', 'accessibility_url'],
   };
   const TABS = [
     { id: 'passwords', code: 'app.signin_settings.passwords' },
     { id: 'sessions', code: 'app.signin_settings.sessions' },
     { id: 'ways', code: 'app.signin_settings.ways_and_providers' },
+    { id: 'directory', code: 'app.signin_settings.directory' },
   ] as const;
   const current = $derived(
     part === 'legal' ? 'legal' : TABS.some((each) => each.id === tab) ? (tab as string) : 'passwords',
@@ -588,7 +591,7 @@
 {#snippet panel()}
   {#if policy}
     <Stack gap="300">
-      {#if current !== 'ways'}
+      {#if current !== 'ways' && current !== 'directory'}
       <WorkspaceGate permission="STRUCTURE">
         <form bind:this={form} onsubmit={save} use:enterSubmits>
           <Stack gap="300">
@@ -720,6 +723,11 @@
           </WriteOnly>
         </form>
       </WorkspaceGate>
+      {/if}
+
+      {#if current === 'directory'}
+        <!-- The LDAP directory the people are synchronised from (UC-ID-31): its own saves. -->
+        <LdapDirectoryPanel />
       {/if}
 
       {#if current === 'ways'}

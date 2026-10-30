@@ -612,6 +612,14 @@ export type ConsentRegisterEntry = components['schemas']['ConsentRegisterEntry']
 export type AccessToken = components['schemas']['AccessToken'];
 export type IdentityProviderConfiguration =
   components['schemas']['IdentityProviderConfiguration'];
+/** The LDAP directory a workspace synchronises its people from; never its password (UC-ID-31). */
+export type LdapDirectory = components['schemas']['LdapDirectory'];
+/** The directory as it is set, whole; the password sealed on the way in. */
+export type LdapDirectoryConfiguration = components['schemas']['LdapDirectoryConfiguration'];
+/** How a run went, or what a dry run would do. */
+export type LdapSyncRun = components['schemas']['LdapSyncRun'];
+/** What a run did, by kind of change. */
+export type LdapSyncCounts = components['schemas']['LdapSyncCounts'];
 /** When an offered provider is withdrawn, and for *Withdraw now* the count confirmed (ADR-0076). */
 export type ProviderWithdrawal = components['schemas']['ProviderWithdrawal'];
 /** The preset a provider was configured from, which decides the mark its button draws (ADR-0069). */
