@@ -23,6 +23,7 @@ const (
 	AnchorStartedAt   Anchor = "started_at"
 	AnchorLastSeenAt  Anchor = "last_seen_at"
 	AnchorCompactedAt Anchor = "compacted_at"
+	AnchorEndedAt     Anchor = "ended_at"
 )
 
 // Action is what a rule does when the period is up (data-retention.md §2).
@@ -299,6 +300,28 @@ var catalogue = []Kind{
 		Actions:   []Action{ActionHardDelete},
 		Blockable: []string{BlockedByLegalHold},
 	},
+	{
+		// The agents' ledger (M9, UC-AGT-02): what each act was, its class and decision, never its
+		// input. Thirteen months, the owner's period (accepted.md B), so that a year's review of
+		// what the agents did reaches its start; it is also the lower bound - the ledger is the
+		// account of what an agent did, and no rule shortens it. A tenant-wide hold keeps it.
+		Name: KindAgentLedger, Anchor: AnchorOccurredAt, DefaultDays: 397, MinDays: 397,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// An agent's held acts with their input (UC-AGT-02 check 4), ninety days from when they were
+		// held - one nobody decided by then goes too; the ledger keeps that it was held.
+		Name: KindAgentRequest, Anchor: AnchorCreatedAt, DefaultDays: 90,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// A shipped agent's jobs (UC-AGT-07), ninety days from their end; a running job never.
+		Name: KindAgentJob, Anchor: AnchorEndedAt, DefaultDays: 90,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
 	{Name: KindMediaOrphan, Anchor: AnchorCreatedAt, DefaultDays: 7},
 	{Name: KindDeletedAccountResidue, Anchor: AnchorDeletedAt, DefaultDays: 30},
 }
@@ -327,6 +350,9 @@ const (
 	KindAudit                 DataKind = "AUDIT"
 	KindMediaOrphan           DataKind = "MEDIA_ORPHAN"
 	KindDocumentHistory       DataKind = "DOCUMENT_HISTORY"
+	KindAgentLedger           DataKind = "AGENT_LEDGER"
+	KindAgentRequest          DataKind = "AGENT_REQUEST"
+	KindAgentJob              DataKind = "AGENT_JOB"
 	KindDeletedAccountResidue DataKind = "DELETED_ACCOUNT_RESIDUE"
 )
 

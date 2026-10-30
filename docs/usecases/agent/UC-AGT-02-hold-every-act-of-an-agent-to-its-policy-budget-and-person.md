@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, core/application/service/access/Delegation_test.go, core/application/service/agent/Runner_test.go, core/application/service/agent/Policy_test.go, core/application/service/notification/RecordAgentNotice_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
+checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, core/application/service/access/Delegation_test.go, core/application/service/agent/Runner_test.go, core/application/service/agent/Policy_test.go, core/application/service/lifecycle/RunRetention_test.go, test/integration/agent_retention_test.go, core/application/service/notification/RecordAgentNotice_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
 ---
 
 # Hold every act of an agent to its policy, its budget and the person it acts for
@@ -59,5 +59,7 @@ incident the admin halts every agent of the workspace at once.
 * *Runs with its owner told* tells the owner by mail at most once an hour; what the agent did is its
   ledger, not the mail.
 * The traces of a run - prompts, tool calls, answers - are not kept: the ledger meters, it does not
-  trace, and their retention is the owner's decision.
-* A held act waits until somebody decides it; it does not expire.
+  trace. The ledger is kept thirteen months, a shipped agent's jobs ninety days (`AGENT_LEDGER`,
+  `AGENT_JOB`).
+* A held act waits until somebody decides it, for ninety days; then it goes with its input
+  (`AGENT_REQUEST`), and the ledger keeps that it was held.

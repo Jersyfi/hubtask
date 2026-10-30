@@ -119,6 +119,60 @@ func (q *Queries) AgentUsage(ctx context.Context, arg AgentUsageParams) (AgentUs
 	return i, err
 }
 
+const countExpiredAgentActions = `-- name: CountExpiredAgentActions :one
+SELECT count(*) FROM (
+  SELECT 1 FROM agent_action WHERE at < $1 LIMIT $2
+) AS due
+`
+
+type CountExpiredAgentActionsParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+func (q *Queries) CountExpiredAgentActions(ctx context.Context, arg CountExpiredAgentActionsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredAgentActions, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countExpiredAgentJobs = `-- name: CountExpiredAgentJobs :one
+SELECT count(*) FROM (
+  SELECT 1 FROM agent_job WHERE ended_at < $1 LIMIT $2
+) AS due
+`
+
+type CountExpiredAgentJobsParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+func (q *Queries) CountExpiredAgentJobs(ctx context.Context, arg CountExpiredAgentJobsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredAgentJobs, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countExpiredAgentRequests = `-- name: CountExpiredAgentRequests :one
+SELECT count(*) FROM (
+  SELECT 1 FROM agent_request WHERE created_at < $1 LIMIT $2
+) AS due
+`
+
+type CountExpiredAgentRequestsParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+func (q *Queries) CountExpiredAgentRequests(ctx context.Context, arg CountExpiredAgentRequestsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredAgentRequests, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const decideAgentRequest = `-- name: DecideAgentRequest :execrows
 UPDATE agent_request SET
   status = $1, decided_by = $2, decided_at = $3,
@@ -163,6 +217,78 @@ type DeleteAgentCaseParams struct {
 
 func (q *Queries) DeleteAgentCase(ctx context.Context, arg DeleteAgentCaseParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteAgentCase, arg.AgentID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredAgentActions = `-- name: DeleteExpiredAgentActions :execrows
+DELETE FROM agent_action
+WHERE id IN (
+  SELECT due.id FROM agent_action AS due
+  WHERE due.at < $1
+  ORDER BY due.at
+  LIMIT $2
+)
+`
+
+type DeleteExpiredAgentActionsParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The retention run's batch of the agents' ledger: the oldest acts past the period (AGENT_LEDGER).
+func (q *Queries) DeleteExpiredAgentActions(ctx context.Context, arg DeleteExpiredAgentActionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredAgentActions, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredAgentJobs = `-- name: DeleteExpiredAgentJobs :execrows
+DELETE FROM agent_job
+WHERE id IN (
+  SELECT due.id FROM agent_job AS due
+  WHERE due.ended_at < $1
+  ORDER BY due.ended_at
+  LIMIT $2
+)
+`
+
+type DeleteExpiredAgentJobsParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The retention run's batch of ended jobs past the period (AGENT_JOB); a running job has no end.
+func (q *Queries) DeleteExpiredAgentJobs(ctx context.Context, arg DeleteExpiredAgentJobsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredAgentJobs, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredAgentRequests = `-- name: DeleteExpiredAgentRequests :execrows
+DELETE FROM agent_request
+WHERE id IN (
+  SELECT due.id FROM agent_request AS due
+  WHERE due.created_at < $1
+  ORDER BY due.created_at
+  LIMIT $2
+)
+`
+
+type DeleteExpiredAgentRequestsParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The retention run's batch of held acts, decided or not, past the period (AGENT_REQUEST).
+func (q *Queries) DeleteExpiredAgentRequests(ctx context.Context, arg DeleteExpiredAgentRequestsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredAgentRequests, arg.Cutoff, arg.Batch)
 	if err != nil {
 		return 0, err
 	}

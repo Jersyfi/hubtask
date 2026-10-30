@@ -58,6 +58,11 @@ type RunRetention struct {
 	// DocumentHistory is a live document's compacted history's remover (DOCUMENT_HISTORY).
 	// Optional, the deliveries' reason.
 	DocumentHistory ExpiringRows
+	// AgentLedger, AgentRequests and AgentJobs are the agents' rows' removers (AGENT_LEDGER,
+	// AGENT_REQUEST, AGENT_JOB). Optional, the deliveries' reason.
+	AgentLedger   ExpiringRows
+	AgentRequests ExpiringRows
+	AgentJobs     ExpiringRows
 	// Proposals is the suggestion store's remover. Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before, and what it would have
 	// removed is a working note rather than personal content nobody looks at - a suggestion's
@@ -330,6 +335,21 @@ func (h RunRetention) Execute(
 		}
 	}
 
+	var agentSweeps []Outcome
+	for _, each := range []struct {
+		kind domain.DataKind
+		rows ExpiringRows
+	}{{domain.KindAgentLedger, h.AgentLedger}, {domain.KindAgentRequest, h.AgentRequests}, {domain.KindAgentJob, h.AgentJobs}} {
+		if each.rows == nil {
+			continue
+		}
+		swept, err := h.sweepHeldByTenant(ctx, started, each.kind, each.rows)
+		if err != nil {
+			return outcome, err
+		}
+		agentSweeps = append(agentSweeps, swept)
+	}
+
 	sessions, err := h.sweepSessions(ctx, started)
 	if err != nil {
 		return outcome, err
@@ -401,6 +421,9 @@ func (h RunRetention) Execute(
 	outcome.add(deliveries)
 	outcome.add(receipts)
 	outcome.add(documents)
+	for _, swept := range agentSweeps {
+		outcome.add(swept)
+	}
 	outcome.add(rules)
 	outcome.Matched += sessions.Matched
 	outcome.Removed += sessions.Removed

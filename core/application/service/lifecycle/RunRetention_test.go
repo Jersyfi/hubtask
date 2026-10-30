@@ -1102,3 +1102,46 @@ func TestAPassWithoutTheDeviceSweepStillRuns(t *testing.T) {
 		t.Fatalf("a pass without the device sweep failed: %v", err)
 	}
 }
+
+// The agents' kinds (accepted.md B): the ledger goes after thirteen months, held acts and jobs
+// after ninety days, in the same pass and under a tenant-wide hold not at all.
+func TestAPassSweepsTheAgentsRowsAtTheirPeriods(t *testing.T) {
+	for _, c := range []struct {
+		kind domain.DataKind
+		days int
+		set  func(*runHarness, *inboxStore)
+	}{
+		{domain.KindAgentLedger, 397, func(h *runHarness, s *inboxStore) { h.run.AgentLedger = s }},
+		{domain.KindAgentRequest, 90, func(h *runHarness, s *inboxStore) { h.run.AgentRequests = s }},
+		{domain.KindAgentJob, 90, func(h *runHarness, s *inboxStore) { h.run.AgentJobs = s }},
+	} {
+		t.Run(string(c.kind), func(t *testing.T) {
+			h := newRunHarness()
+			rows := &inboxStore{rows: []inboxRow{
+				{receivedAt: now.AddDate(0, 0, -c.days-1)},
+				{receivedAt: now.AddDate(0, 0, -c.days+1)},
+			}}
+			c.set(h, rows)
+			if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+				t.Fatalf("the run failed: %v", err)
+			}
+			if want := now.AddDate(0, 0, -c.days); !rows.askedAt.Equal(want) {
+				t.Errorf("the cutoff was %v, want %v", rows.askedAt, want)
+			}
+			if len(rows.rows) != 1 {
+				t.Errorf("%d rows left, want the one inside the period", len(rows.rows))
+			}
+
+			held := newRunHarness()
+			held.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}
+			kept := &inboxStore{rows: []inboxRow{{receivedAt: now.AddDate(0, 0, -c.days-30)}}}
+			c.set(held, kept)
+			if _, err := held.run.Execute(t.Context(), actor()); err != nil {
+				t.Fatalf("the held run failed: %v", err)
+			}
+			if len(kept.rows) != 1 {
+				t.Error("a held workspace's rows were swept")
+			}
+		})
+	}
+}

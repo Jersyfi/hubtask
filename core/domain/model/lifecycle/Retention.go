@@ -96,6 +96,11 @@ func DefaultPolicies() []Policy {
 		// A live document's compacted history, thirty days (offline-sync.md §13). No lower bound:
 		// what goes is already merged into the snapshot that stays.
 		{DataKind: KindDocumentHistory, RetainDays: 30},
+		// The agents' ledger thirteen months, which is also its lower bound; their held acts and jobs
+		// ninety days (accepted.md B).
+		{DataKind: KindAgentLedger, RetainDays: 397, MinDays: 397},
+		{DataKind: KindAgentRequest, RetainDays: 90},
+		{DataKind: KindAgentJob, RetainDays: 90},
 	}
 }
 

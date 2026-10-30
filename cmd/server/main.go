@@ -4123,6 +4123,9 @@ func run() error {
 			MailReceipts: postgres.NewMailIntakeRepository(),
 			// A live document's compacted history, thirty days (offline-sync.md §13).
 			DocumentHistory: postgres.NewRealtimeRepository(),
+			// The agents' ledger thirteen months, their held acts and jobs ninety days (accepted.md B).
+			AgentLedger: postgres.AgentLedgerExpiry{}, AgentRequests: postgres.AgentRequestExpiry{},
+			AgentJobs: postgres.AgentJobExpiry{},
 			// The SESSION kind: expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),

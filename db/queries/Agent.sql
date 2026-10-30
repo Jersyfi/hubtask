@@ -235,3 +235,48 @@ SELECT count(*)::int
 FROM agent_job
 WHERE tenant_id = current_tenant_id() AND agent_id = sqlc.arg('agent_id')::uuid
   AND status = 'RUNNING' AND started_at >= sqlc.arg('since')::timestamptz;
+
+-- name: DeleteExpiredAgentActions :execrows
+-- The retention run's batch of the agents' ledger: the oldest acts past the period (AGENT_LEDGER).
+DELETE FROM agent_action
+WHERE id IN (
+  SELECT due.id FROM agent_action AS due
+  WHERE due.at < sqlc.arg('cutoff')
+  ORDER BY due.at
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountExpiredAgentActions :one
+SELECT count(*) FROM (
+  SELECT 1 FROM agent_action WHERE at < sqlc.arg('cutoff') LIMIT sqlc.arg('ceiling')
+) AS due;
+
+-- name: DeleteExpiredAgentRequests :execrows
+-- The retention run's batch of held acts, decided or not, past the period (AGENT_REQUEST).
+DELETE FROM agent_request
+WHERE id IN (
+  SELECT due.id FROM agent_request AS due
+  WHERE due.created_at < sqlc.arg('cutoff')
+  ORDER BY due.created_at
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountExpiredAgentRequests :one
+SELECT count(*) FROM (
+  SELECT 1 FROM agent_request WHERE created_at < sqlc.arg('cutoff') LIMIT sqlc.arg('ceiling')
+) AS due;
+
+-- name: DeleteExpiredAgentJobs :execrows
+-- The retention run's batch of ended jobs past the period (AGENT_JOB); a running job has no end.
+DELETE FROM agent_job
+WHERE id IN (
+  SELECT due.id FROM agent_job AS due
+  WHERE due.ended_at < sqlc.arg('cutoff')
+  ORDER BY due.ended_at
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountExpiredAgentJobs :one
+SELECT count(*) FROM (
+  SELECT 1 FROM agent_job WHERE ended_at < sqlc.arg('cutoff') LIMIT sqlc.arg('ceiling')
+) AS due;
