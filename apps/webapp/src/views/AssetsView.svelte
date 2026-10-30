@@ -1,9 +1,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Assets* in a hub (M6, UC-AST-01 … UC-AST-08): the inventory by class, the reconciliation's runs
-  // with the items held, the open duplicates, a file's import, the connectors, the alerts and the
-  // inventory's health, one section each at its own address; and one configuration item at `/cis/:id`.
+  // *Assets* in a hub (M6, UC-AST-01 … UC-AST-13): the inventory by class, the reconciliation's runs
+  // with the items held, the open duplicates, a file's import, the connectors, the alerts, the
+  // inventory's health, the certification campaigns, the groups with the service map, the asset
+  // register and the software by product, one section each at its own address; and one
+  // configuration item at `/cis/:id`.
   //
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
   // reads every section and is offered no write; the import section is not offered to them at all.
@@ -13,6 +15,10 @@
   import type { CiClassList, CiRelationTypeList, ConfigurationItem } from '@hubtask/sync-engine';
 
   import Alerts from '../lib/assets/Alerts.svelte';
+  import Campaigns from '../lib/assets/Campaigns.svelte';
+  import Groups from '../lib/assets/Groups.svelte';
+  import Register from '../lib/assets/Register.svelte';
+  import Software from '../lib/assets/Software.svelte';
   import CiDetail from '../lib/assets/CiDetail.svelte';
   import Connectors from '../lib/assets/Connectors.svelte';
   import Duplicates from '../lib/assets/Duplicates.svelte';
@@ -111,6 +117,14 @@
           <Alerts {hubId} />
         {:else if shown === 'health'}
           <Health {hubId} {classes} {words} />
+        {:else if shown === 'campaigns'}
+          <Campaigns {hubId} {classes} {words} {mayWrite} />
+        {:else if shown === 'groups'}
+          <Groups {hubId} {classes} {words} {mayWrite} />
+        {:else if shown === 'register'}
+          <Register {hubId} {classes} {words} />
+        {:else if shown === 'software'}
+          <Software {hubId} />
         {/if}
       </Tabs>
     {/if}

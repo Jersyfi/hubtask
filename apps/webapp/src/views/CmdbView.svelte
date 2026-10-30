@@ -4,7 +4,8 @@
   // *Configuration items* under *How we work* (M6, UC-AST-02 check 6, UC-AST-06 check 5): the class
   // hierarchy Hubtask ships with the workspace's own classes beneath it, the relation catalogue with
   // which end suffers when the other fails, and the sources by precedence. An administrator adds
-  // and changes the workspace's own; a shipped class or type is read, never changed.
+  // and changes the workspace's own; a shipped class or type is read, never changed. The software
+  // aliases (UC-AST-13 check 3) say which reported product counts as which; one is added or removed.
   //
   // **What the reader may never do is not drawn** (P-05): without STRUCTURE at the workspace the
   // page lists the definitions and offers no control.
@@ -13,12 +14,17 @@
     Banner, Button, Checkbox, CheckboxGroup, Dialog, IconButton, Input, PageHeader, Select, Spinner, Stack, Switch, Tabs, Textarea,
     type SelectOption,
   } from '@hubtask/design-system/components';
-  import type { CiAttribute, CiClass, CiClassList, CiRelationType, CiRelationTypeList, CiSource, CiSourceDefine, CiSourceList } from '@hubtask/sync-engine';
+  import type {
+    CiAttribute, CiClass, CiClassList, CiRelationType, CiRelationTypeList, CiSource, CiSourceDefine, CiSourceList, SoftwareAlias, SoftwareAliasList,
+  } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import {
-    classDefine, classDraft, classesPath, classWord, cmdb, keyIsWellFormed, relationTypesPath, relationWord, sourcesPath, type ClassDraft, type Words,
+    aliasDefine, classDefine, classDraft, classesPath, classWord, cmdb, keyIsWellFormed, relationTypesPath, relationWord, softwareAliasesPath, sourcesPath,
+    type ClassDraft, type Words,
   } from '../lib/data/cmdb.svelte.ts';
+  import { untrack } from 'svelte';
+  import { engine } from '../lib/data/engine.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -44,7 +50,33 @@
     { id: 'classes', label: t('app.cmdb_admin.classes') },
     { id: 'types', label: t('app.cmdb_admin.types') },
     { id: 'sources', label: t('app.cmdb_admin.sources') },
+    { id: 'aliases', label: t('app.cmdb_admin.aliases') },
   ]);
+
+  // The software aliases (UC-AST-13 check 3), read only once their tab is opened.
+  let aliases = $state<readonly SoftwareAlias[] | undefined>(undefined);
+  $effect(() => {
+    if (shown !== 'aliases') return;
+    return untrack(() =>
+      engine.subscribe<SoftwareAliasList>({ path: softwareAliasesPath }, (state) => {
+        if (state.status === 'ready') aliases = state.data.data;
+        if (state.status === 'failed') {
+          aliases = [];
+          toast.show({ text: renderProblem(state.error, messages).message, tone: 'danger' });
+        }
+      }),
+    );
+  });
+  let isAliasOpen = $state(false);
+  let aliasDraft = $state({ matchPublisher: '', matchProduct: '', publisher: '', product: '' });
+  function openAlias() {
+    aliasDraft = { matchPublisher: '', matchProduct: '', publisher: '', product: '' };
+    isAliasOpen = true;
+  }
+  async function saveAlias() {
+    const saved = await act(() => cmdb.defineAlias(aliasDefine(aliasDraft)), t('app.cmdb_admin.alias_saved'));
+    if (saved) isAliasOpen = false;
+  }
 
   const nameOf = (key: string) => classWord(key, classes, words);
   const depthOf = (each: CiClass) => Math.max(0, each.lineage.length - 1);
@@ -259,6 +291,36 @@
             {/each}
           </ul>
         </Stack>
+      {:else if shown === 'aliases'}
+        <Stack gap="100">
+          <p class="meta">{t('app.cmdb_admin.aliases_hint')}</p>
+          {#if mayShape}<div><Button icon="plus" data-new-alias onclick={openAlias}>{t('app.cmdb_admin.new_alias')}</Button></div>{/if}
+          {#if !aliases}
+            <Spinner label={t('app.assets.loading')} />
+          {:else if aliases.length === 0}
+            <p class="meta">{t('app.cmdb_admin.aliases_none')}</p>
+          {:else}
+            <ul class="rows">
+              {#each aliases as each (each.id)}
+                <li class="row" data-alias={each.id}>
+                  <span class="what">
+                    <strong>{t('app.cmdb_admin.alias_counts_as', { product: each.product, publisher: each.publisher || '—' })}</strong>
+                    <span class="meta">
+                      {t('app.cmdb_admin.alias_matches', { product: each.match_product, publisher: each.match_publisher || t('app.cmdb_admin.any_publisher') })}
+                    </span>
+                  </span>
+                  {#if mayShape}
+                    <IconButton
+                      icon="trash" size="sm" tone="subtle" data-remove-alias={each.id}
+                      label={t('app.cmdb_admin.alias_remove', { product: each.match_product })}
+                      onclick={() => void act(() => cmdb.removeAlias(each), t('app.cmdb_admin.alias_removed'))}
+                    />
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </Stack>
       {:else}
         <Stack gap="100">
           <p class="meta">{t('app.cmdb_admin.sources_hint')}</p>
@@ -368,6 +430,27 @@
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isSourceOpen = false)}>{t('app.assets.cancel')}</Button>
       <Button tone="primary" disabledReason={sourceReason} onclick={() => void saveSource()}>{t('app.assets.save')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
+{#if isAliasOpen}
+  <Dialog bind:isOpen={isAliasOpen} title={t('app.cmdb_admin.new_alias')} dismissLabel={t('app.assets.cancel')}>
+    <Stack gap="150">
+      <p class="meta">{t('app.cmdb_admin.alias_reported')}</p>
+      <Input label={t('app.cmdb_admin.alias_match_product')} bind:value={aliasDraft.matchProduct} maxlength={200} isRequired />
+      <Input label={t('app.cmdb_admin.alias_match_publisher')} hint={t('app.cmdb_admin.alias_match_publisher_hint')} bind:value={aliasDraft.matchPublisher} maxlength={200} />
+      <p class="meta">{t('app.cmdb_admin.alias_target')}</p>
+      <Input label={t('app.cmdb_admin.alias_product')} bind:value={aliasDraft.product} maxlength={200} isRequired />
+      <Input label={t('app.cmdb_admin.alias_publisher')} bind:value={aliasDraft.publisher} maxlength={200} />
+    </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isAliasOpen = false)}>{t('app.assets.cancel')}</Button>
+      <Button
+        tone="primary"
+        disabledReason={!aliasDraft.matchProduct.trim() ? t('cmdb.alias_match_invalid') : !aliasDraft.product.trim() ? t('cmdb.alias_target_invalid') : undefined}
+        onclick={() => void saveAlias()}
+      >{t('app.assets.save')}</Button>
     {/snippet}
   </Dialog>
 {/if}
