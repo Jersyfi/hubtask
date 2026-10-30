@@ -344,7 +344,6 @@ func Descriptors() []usecase.Descriptor {
 		forgeservice.CreateCodeHook{}.Descriptor(),
 		forgeservice.UpdateCodeHook{}.Descriptor(),
 		forgeservice.RotateCodeHookSecret{}.Descriptor(),
-		forgeservice.DeleteCodeHook{}.Descriptor(),
 		forgeservice.ListEntryCodeLinks{}.Descriptor(),
 		cmdbservice.ListCiConnectors{}.Descriptor(),
 		cmdbservice.DefineCiConnector{}.Descriptor(),

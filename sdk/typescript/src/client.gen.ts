@@ -1042,11 +1042,6 @@ export class HubtaskClient {
     return this.call("PATCH", "/code-hooks/{hookId}", { "hookId": hookId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Remove a forge hook and its links */
-  deleteCodeHook(hookId: string, options: CallOptions = {}): Promise<void> {
-    return this.call("DELETE", "/code-hooks/{hookId}", { "hookId": hookId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
-  }
-
   /** Give a forge hook a new secret */
   rotateCodeHookSecret(hookId: string, options: CallOptions = {}): Promise<operations["rotateCodeHookSecret"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/code-hooks/{hookId}/secret", { "hookId": hookId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

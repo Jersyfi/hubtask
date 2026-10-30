@@ -158,7 +158,6 @@ var restDoors = map[string]restDoor{
 	"deleteBaseline":                    {UseCase: "DeleteBaseline", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBucket":                      {UseCase: "DeleteBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBusinessCalendar":            {UseCase: "DeleteBusinessCalendar", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteCodeHook":                    {UseCase: "DeleteCodeHook", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteComment":                     {UseCase: "DeleteComment", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteCustomField":                 {UseCase: "DeleteCustomField", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteDashboard":                   {UseCase: "DeleteDashboard", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1590,11 +1589,6 @@ func (c *RestController) DeleteBucket(w http.ResponseWriter, r *http.Request, co
 // DeleteBusinessCalendar answers DELETE /business-calendars/{calendarKey} by the generated mapping.
 func (c *RestController) DeleteBusinessCalendar(w http.ResponseWriter, r *http.Request, calendarKey string) {
 	c.door(w, r, restDoors["deleteBusinessCalendar"], usecase.Input{"key": calendarKey}, nil, nil, nil)
-}
-
-// DeleteCodeHook answers DELETE /code-hooks/{hookId} by the generated mapping.
-func (c *RestController) DeleteCodeHook(w http.ResponseWriter, r *http.Request, hookId openapi_types.UUID) {
-	c.door(w, r, restDoors["deleteCodeHook"], usecase.Input{"hook_id": hookId.String()}, nil, nil, nil)
 }
 
 // DeleteComment answers DELETE /items/{itemId}/comments/{commentId} by the generated mapping.

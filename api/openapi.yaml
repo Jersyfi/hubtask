@@ -4583,7 +4583,8 @@ paths:
       summary: Rename a forge hook or switch it on or off
       description: >
         A hook switched off answers its forge as unknown and links nothing; the links it wrote
-        stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+        stay. A hook is switched off, never removed. Whoever changes it is who it writes as from
+        then on. Needs STRUCTURE on the hub.
       requestBody:
         required: true
         content:
@@ -4595,21 +4596,6 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CodeHook" }
-        "4XX":
-          $ref: "#/components/responses/Problem"
-    delete:
-      tags: [code]
-      operationId: deleteCodeHook
-      x-hubtask-rest: generated
-      x-hubtask-cli: "code hook rm"
-      summary: Remove a forge hook and its links
-      description: >
-        Removes the hook and the code links it wrote from the hub's entries; the forge's own
-        commits and pull requests are untouched. Switching it off keeps the links instead. Needs
-        STRUCTURE on the hub.
-      responses:
-        "204":
-          description: Removed
         "4XX":
           $ref: "#/components/responses/Problem"
   /code-hooks/{hookId}/secret:

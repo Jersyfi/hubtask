@@ -774,11 +774,6 @@ var generatedCommands = []door{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "kind"}},
-	{Group: "code", Verb: "hook rm", OperationID: "deleteCodeHook", Method: "DELETE", Path: "/code-hooks/{hookId}", Summary: "Remove a forge hook and its links",
-		PathParams: []doorParam{
-			{Name: "hookId", Kind: "uuid", Help: "", Required: true},
-		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "code", Verb: "hook rotate", OperationID: "rotateCodeHookSecret", Method: "POST", Path: "/code-hooks/{hookId}/secret", Summary: "Give a forge hook a new secret",
 		PathParams: []doorParam{
 			{Name: "hookId", Kind: "uuid", Help: "", Required: true},

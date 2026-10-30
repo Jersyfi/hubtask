@@ -81,7 +81,8 @@ DROP POLICY IF EXISTS tenant_isolation ON code_delivery_seen;
 CREATE POLICY tenant_isolation ON code_delivery_seen
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
--- DELETE is a hook removed (its links go with it), the replacing restore's and the expired digests'.
+-- DELETE is the replacing restore's and the expired digests'; no use case removes a hook or a link -
+-- a hook is switched off, and a link goes with its entry.
 GRANT SELECT, INSERT, UPDATE, DELETE ON code_hook, code_link, code_delivery_seen TO hubtask_app;
 
 -- +goose Down

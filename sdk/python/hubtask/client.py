@@ -847,10 +847,6 @@ class Client:
         """Rename a forge hook or switch it on or off"""
         return self._call("PATCH", "/code-hooks/{hookId}", {"hookId": hook_id}, None, {}, body, "json", "application/json", "json")
 
-    def delete_code_hook(self, hook_id: str) -> None:
-        """Remove a forge hook and its links"""
-        return self._call("DELETE", "/code-hooks/{hookId}", {"hookId": hook_id}, None, {}, None, "none", None, "void")
-
     def rotate_code_hook_secret(self, hook_id: str) -> "CodeHookMinted":
         """Give a forge hook a new secret"""
         return self._call("POST", "/code-hooks/{hookId}/secret", {"hookId": hook_id}, None, {}, None, "none", None, "json")

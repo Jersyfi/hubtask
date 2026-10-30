@@ -31077,16 +31077,9 @@ type ClientInterface interface {
 	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
 	DefineCiSource(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeleteCodeHook Remove a forge hook and its links
-	//
-	// Removes the hook and the code links it wrote from the hub's entries; the forge's own commits and pull requests are untouched. Switching it off keeps the links instead. Needs STRUCTURE on the hub.
-	//
-	// Corresponds with DELETE /code-hooks/{hookId} (the `DeleteCodeHook` operationId).
-	DeleteCodeHook(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// UpdateCodeHookWithBody Rename a forge hook or switch it on or off
 	//
-	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. A hook is switched off, never removed. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -31095,7 +31088,7 @@ type ClientInterface interface {
 
 	// UpdateCodeHook Rename a forge hook or switch it on or off
 	//
-	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. A hook is switched off, never removed. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -44310,26 +44303,9 @@ func (c *Client) DefineCiSource(ctx context.Context, sourceKey string, params *D
 	return c.Client.Do(req)
 }
 
-// DeleteCodeHook Remove a forge hook and its links
-//
-// Removes the hook and the code links it wrote from the hub's entries; the forge's own commits and pull requests are untouched. Switching it off keeps the links instead. Needs STRUCTURE on the hub.
-//
-// Corresponds with DELETE /code-hooks/{hookId} (the `DeleteCodeHook` operationId).
-func (c *Client) DeleteCodeHook(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteCodeHookRequest(c.Server, hookId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 // UpdateCodeHookWithBody Rename a forge hook or switch it on or off
 //
-// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. A hook is switched off, never removed. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -44348,7 +44324,7 @@ func (c *Client) UpdateCodeHookWithBody(ctx context.Context, hookId openapi_type
 
 // UpdateCodeHook Rename a forge hook or switch it on or off
 //
-// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. A hook is switched off, never removed. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -68341,40 +68317,6 @@ func NewDefineCiSourceRequestWithBody(server string, sourceKey string, params *D
 			req.Header.Set("If-Match", headerParam0)
 		}
 
-	}
-
-	return req, nil
-}
-
-// NewDeleteCodeHookRequest constructs an http.Request for the DeleteCodeHook method
-func NewDeleteCodeHookRequest(server string, hookId openapi_types.UUID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hookId", hookId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/code-hooks/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
 	}
 
 	return req, nil
@@ -96448,18 +96390,9 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
 	DefineCiSourceWithResponse(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiSourceResult, error)
 
-	// DeleteCodeHookWithResponse Remove a forge hook and its links
-	//
-	// Removes the hook and the code links it wrote from the hub's entries; the forge's own commits and pull requests are untouched. Switching it off keeps the links instead. Needs STRUCTURE on the hub.
-	//
-	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with DELETE /code-hooks/{hookId} (the `DeleteCodeHook` operationId).
-	DeleteCodeHookWithResponse(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteCodeHookResult, error)
-
 	// UpdateCodeHookWithBodyWithResponse Rename a forge hook or switch it on or off
 	//
-	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. A hook is switched off, never removed. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -96468,7 +96401,7 @@ type ClientWithResponsesInterface interface {
 
 	// UpdateCodeHookWithResponse Rename a forge hook or switch it on or off
 	//
-	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+	// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. A hook is switched off, never removed. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -114730,47 +114663,6 @@ func (r DefineCiSourceResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DefineCiSourceResult) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type DeleteCodeHookResult struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
-	ApplicationproblemJSON4XX *Problem
-}
-
-// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
-func (r DeleteCodeHookResult) GetApplicationproblemJSON4XX() *Problem {
-	return r.ApplicationproblemJSON4XX
-}
-
-// GetBody returns the raw response body bytes
-func (r DeleteCodeHookResult) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r DeleteCodeHookResult) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r DeleteCodeHookResult) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r DeleteCodeHookResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -144883,24 +144775,9 @@ func (c *ClientWithResponses) DefineCiSourceWithResponse(ctx context.Context, so
 	return ParseDefineCiSourceResult(rsp)
 }
 
-// DeleteCodeHookWithResponse Remove a forge hook and its links
-//
-// Removes the hook and the code links it wrote from the hub's entries; the forge's own commits and pull requests are untouched. Switching it off keeps the links instead. Needs STRUCTURE on the hub.
-//
-// Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with DELETE /code-hooks/{hookId} (the `DeleteCodeHook` operationId).
-func (c *ClientWithResponses) DeleteCodeHookWithResponse(ctx context.Context, hookId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteCodeHookResult, error) {
-	rsp, err := c.DeleteCodeHook(ctx, hookId, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseDeleteCodeHookResult(rsp)
-}
-
 // UpdateCodeHookWithBodyWithResponse Rename a forge hook or switch it on or off
 //
-// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. A hook is switched off, never removed. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -144915,7 +144792,7 @@ func (c *ClientWithResponses) UpdateCodeHookWithBodyWithResponse(ctx context.Con
 
 // UpdateCodeHookWithResponse Rename a forge hook or switch it on or off
 //
-// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
+// A hook switched off answers its forge as unknown and links nothing; the links it wrote stay. A hook is switched off, never removed. Whoever changes it is who it writes as from then on. Needs STRUCTURE on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -164107,35 +163984,6 @@ func ParseDefineCiSourceResult(rsp *http.Response) (*DefineCiSourceResult, error
 			return nil, err
 		}
 		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
-		var dest Problem
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSON4XX = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseDeleteCodeHookResult parses an HTTP response from a DeleteCodeHookWithResponse call
-func ParseDeleteCodeHookResult(rsp *http.Response) (*DeleteCodeHookResult, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &DeleteCodeHookResult{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case rsp.StatusCode == 204:
-		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

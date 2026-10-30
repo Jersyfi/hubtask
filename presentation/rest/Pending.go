@@ -2854,10 +2854,6 @@ func (pending) UpdateCodeHook(w http.ResponseWriter, r *http.Request, _ openapi_
 	notAvailable(w, r)
 }
 
-func (pending) DeleteCodeHook(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
-	notAvailable(w, r)
-}
-
 func (pending) RotateCodeHookSecret(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }

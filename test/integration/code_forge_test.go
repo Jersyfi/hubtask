@@ -103,12 +103,4 @@ func TestACodeLinkStaysInItsWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		if err := repo.DeleteHook(ctx, hook.ID); !errors.Is(err, shared.ErrNotFound) {
-			t.Errorf("the workspace next door removed the hook: %v", err)
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
 }

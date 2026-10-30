@@ -22,18 +22,6 @@ func (q *Queries) CountCodeHooks(ctx context.Context, hubID pgtype.UUID) (int32,
 	return column_1, err
 }
 
-const deleteCodeHook = `-- name: DeleteCodeHook :execrows
-DELETE FROM code_hook WHERE tenant_id = current_tenant_id() AND id = $1
-`
-
-func (q *Queries) DeleteCodeHook(ctx context.Context, id pgtype.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteCodeHook, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const findCodeHook = `-- name: FindCodeHook :one
 SELECT id, hub_id, kind, name, enabled, salt, run_as, created_at, updated_at, last_delivery_at
 FROM code_hook
@@ -235,62 +223,6 @@ func (q *Queries) ListCodeLinks(ctx context.Context, arg ListCodeLinksParams) ([
 	items := []ListCodeLinksRow{}
 	for rows.Next() {
 		var i ListCodeLinksRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.ItemID,
-			&i.HubID,
-			&i.HookID,
-			&i.Kind,
-			&i.Repository,
-			&i.Ref,
-			&i.Title,
-			&i.Url,
-			&i.Author,
-			&i.State,
-			&i.HappenedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listCodeLinksOfHook = `-- name: ListCodeLinksOfHook :many
-SELECT id, item_id, hub_id, hook_id, kind, repository, ref, title, url, author, state, happened_at, updated_at
-FROM code_link
-WHERE tenant_id = current_tenant_id() AND hook_id = $1
-`
-
-type ListCodeLinksOfHookRow struct {
-	ID         pgtype.UUID
-	ItemID     pgtype.UUID
-	HubID      pgtype.UUID
-	HookID     pgtype.UUID
-	Kind       string
-	Repository string
-	Ref        string
-	Title      string
-	Url        string
-	Author     string
-	State      string
-	HappenedAt pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
-}
-
-func (q *Queries) ListCodeLinksOfHook(ctx context.Context, hookID pgtype.UUID) ([]ListCodeLinksOfHookRow, error) {
-	rows, err := q.db.Query(ctx, listCodeLinksOfHook, hookID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListCodeLinksOfHookRow{}
-	for rows.Next() {
-		var i ListCodeLinksOfHookRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ItemID,

@@ -108,7 +108,9 @@ func (entries) Entries(_ context.Context, ids []shared.ID) ([]workrepo.EntrySumm
 
 type secrets struct{}
 
-func (secrets) Derive(t, h shared.ID, salt string) string { return "s/" + t.String() + "/" + h.String() + "/" + salt }
+func (secrets) Derive(t, h shared.ID, salt string) string {
+	return "s/" + t.String() + "/" + h.String() + "/" + salt
+}
 
 type changes struct{ recorded []changelog.Change }
 
@@ -154,15 +156,6 @@ func (m *memory) FindHook(_ context.Context, id shared.ID) (domain.Hook, error) 
 	return h, nil
 }
 func (m *memory) PutHook(_ context.Context, h domain.Hook) error { m.hooks[h.ID] = h; return nil }
-func (m *memory) DeleteHook(_ context.Context, id shared.ID) error {
-	delete(m.hooks, id)
-	for k, l := range m.links {
-		if l.HookID == id {
-			delete(m.links, k)
-		}
-	}
-	return nil
-}
 func (m *memory) SeeDelivery(_ context.Context, h shared.ID, d []byte, _, _ time.Time) (bool, error) {
 	k := h.String() + string(d)
 	if m.seen[k] {
@@ -189,16 +182,6 @@ func (m *memory) ListLinks(_ context.Context, item shared.ID, _ int) ([]domain.L
 	}
 	return out, nil
 }
-func (m *memory) LinksOfHook(_ context.Context, h shared.ID) ([]domain.Link, error) {
-	var out []domain.Link
-	for _, l := range m.links {
-		if l.HookID == h {
-			out = append(out, l)
-		}
-	}
-	return out, nil
-}
-
 func newForge() (Forge, *memory, *changes) {
 	m := &memory{hooks: map[shared.ID]domain.Hook{}, links: map[shared.ID]domain.Link{}, seen: map[string]bool{}}
 	c := &changes{}
@@ -316,26 +299,5 @@ func TestAGitLabTokenIsTheSecretAndAHookSwitchedOffTakesNothing(t *testing.T) {
 	}
 	if _, err := f.Deliver(context.Background(), Delivery{TenantID: tenant, HookID: id, Token: secret, DeliveryID: "2", Body: []byte("{}")}, parse); !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("a hook switched off took a delivery: %v", err)
-	}
-}
-
-// UC-INT-13 check 5: removing a hook removes its links and tells the devices.
-func TestRemovingAHookRemovesItsLinks(t *testing.T) {
-	f, m, ch := newForge()
-	id, secret := create(t, f, domain.Forgejo)
-	body := []byte("{}")
-	parse := parseAll(domain.Signal{Kind: domain.Commit, Repository: "r", Ref: "a", Texts: []string{"WEB-42"}})
-	if _, err := f.Deliver(context.Background(), Delivery{TenantID: tenant, HookID: id, Signature: Sign(secret, body)[7:], Body: body}, parse); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := (DeleteCodeHook{f}).Descriptor().Handler.Invoke(context.Background(), as(anna), usecase.Input{"hook_id": id.String()}); err != nil {
-		t.Fatal(err)
-	}
-	if len(m.links) != 0 || len(m.hooks) != 0 {
-		t.Fatalf("left: %d links, %d hooks", len(m.links), len(m.hooks))
-	}
-	last := ch.recorded[len(ch.recorded)-1]
-	if last.Op != changelog.Delete || last.Entity != LinkEntity {
-		t.Fatalf("last change = %+v", last)
 	}
 }

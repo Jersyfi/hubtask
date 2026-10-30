@@ -2246,7 +2246,6 @@ func run() error {
 		forgeservice.CreateCodeHook{Forge: codeForge}.Descriptor(),
 		forgeservice.UpdateCodeHook{Forge: codeForge}.Descriptor(),
 		forgeservice.RotateCodeHookSecret{Forge: codeForge}.Descriptor(),
-		forgeservice.DeleteCodeHook{Forge: codeForge}.Descriptor(),
 		forgeservice.ListEntryCodeLinks{Forge: codeForge}.Descriptor(),
 		cmdbservice.ListCiConnectors{Connectors: connectors}.Descriptor(),
 		cmdbservice.DefineCiConnector{Connectors: connectors}.Descriptor(),

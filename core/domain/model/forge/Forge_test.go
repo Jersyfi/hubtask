@@ -128,4 +128,3 @@ func TestApplyFollowsTheForgesMomentAndKeepsAMerge(t *testing.T) {
 		t.Fatal("an older signal changed the link")
 	}
 }
-

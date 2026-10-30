@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package forge is the code on an entry's use cases (UC-INT-13): a hub's forge hooks - defined,
-// changed, given a new secret and removed under STRUCTURE on the hub - and an entry's commits,
+// changed, switched off and given a new secret under STRUCTURE on the hub - and an entry's commits,
 // branches and pull requests, read by whoever reads the entry.
 //
 // A forge posts; nothing here calls it. A delivery is trusted by the hook's secret - GitHub's and
@@ -44,7 +44,6 @@ const (
 	CreateCodeHookName       = "CreateCodeHook"
 	UpdateCodeHookName       = "UpdateCodeHook"
 	RotateCodeHookSecretName = "RotateCodeHookSecret"
-	DeleteCodeHookName       = "DeleteCodeHook"
 	ListEntryCodeLinksName   = "ListEntryCodeLinks"
 )
 
@@ -344,7 +343,7 @@ func (h UpdateCodeHook) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: UpdateCodeHookName, Permission: service.PermissionStructure,
 		Summary: "Renames a forge hook or switches it on or off. A hook switched off answers its forge as unknown " +
-			"and links nothing; the links it wrote stay. Whoever changes it is who it writes as from then on.",
+			"and links nothing; the links it wrote stay, and a hook is never removed. Whoever changes it is who it writes as from then on.",
 		SideEffects: "Changes the hook.", TokenScope: hooksWrite,
 		Input: []usecase.Field{
 			hookInput(),
@@ -436,54 +435,6 @@ func (h RotateCodeHookSecret) Descriptor() usecase.Descriptor {
 	}
 }
 
-// DeleteCodeHook removes a hook and the links it wrote.
-type DeleteCodeHook struct{ Forge Forge }
-
-// Descriptor is the catalogue entry.
-func (h DeleteCodeHook) Descriptor() usecase.Descriptor {
-	return usecase.Descriptor{
-		Name: DeleteCodeHookName, Permission: service.PermissionStructure,
-		Summary: "Removes a forge hook and the code links it wrote from the hub's entries. The forge's own " +
-			"commits and pull requests are untouched; switching the hook off keeps the links instead.",
-		SideEffects: "Deletes the hook and its links.", TokenScope: hooksWrite, Destructive: true,
-		Input:    []usecase.Field{hookInput()},
-		Audit:    usecase.AuditDeclaration{Action: HookDeletedAction, TargetType: hookTarget, Severity: audit.SeverityNotice},
-		Activity: usecase.ActivityDeclaration{Exempt: exemptReason},
-		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			id, err := in.ID("hook_id")
-			if err != nil {
-				return nil, err
-			}
-			f := h.Forge
-			hook, err := f.findHook(ctx, actor, id)
-			if err != nil {
-				return nil, err
-			}
-			if err := f.authorizeHub(ctx, actor, hook.HubID, true, HookDeletedAction, id); err != nil {
-				return nil, err
-			}
-			err = f.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-				links, err := f.Store.LinksOfHook(ctx, id)
-				if err != nil {
-					return err
-				}
-				if err := f.Store.DeleteHook(ctx, id); err != nil {
-					return err
-				}
-				if err := f.tombstones(ctx, actor, links); err != nil {
-					return err
-				}
-				return f.record(ctx, actor, HookDeletedAction, hookTarget, id,
-					audit.Change{Field: "links", Classification: audit.Open, To: len(links)})
-			})
-			if err != nil {
-				return nil, err
-			}
-			return usecase.Output{}, nil
-		}),
-	}
-}
-
 // ListEntryCodeLinks answers an entry's commits, branches and pull requests.
 type ListEntryCodeLinks struct{ Forge Forge }
 
@@ -532,47 +483,6 @@ func (h ListEntryCodeLinks) Descriptor() usecase.Descriptor {
 			return usecase.Output{"data": rows}, err
 		}),
 	}
-}
-
-// tombstones tells offline devices of links removed: a tombstone names the link and its
-// collection only.
-func (f Forge) tombstones(ctx context.Context, actor appshared.ActorContext, links []domain.Link) error {
-	if f.Changes == nil || len(links) == 0 {
-		return nil
-	}
-	collections, err := f.collections(ctx, links)
-	if err != nil {
-		return err
-	}
-	for _, l := range links {
-		if err := f.Changes.Record(ctx, changelog.Change{
-			TenantID: actor.TenantID, Entity: LinkEntity, EntityID: l.ID, Op: changelog.Delete,
-			ContainerID: collections[l.ItemID], ActorID: actor.AccountID, HLC: f.HLC.Next(),
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (f Forge) collections(ctx context.Context, links []domain.Link) (map[shared.ID]shared.ID, error) {
-	ids := make([]shared.ID, 0, len(links))
-	seen := map[shared.ID]bool{}
-	for _, l := range links {
-		if !seen[l.ItemID] {
-			seen[l.ItemID] = true
-			ids = append(ids, l.ItemID)
-		}
-	}
-	summaries, err := f.Entries.Entries(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[shared.ID]shared.ID, len(summaries))
-	for _, s := range summaries {
-		out[s.ID] = s.CollectionID
-	}
-	return out, nil
 }
 
 // Delivery is one post to a hook, as the intake adapter received it.

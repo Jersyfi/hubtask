@@ -24,9 +24,6 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at, last_delivery_at = EXCLUDED.last_delivery_at
 WHERE code_hook.tenant_id = current_tenant_id();
 
--- name: DeleteCodeHook :execrows
-DELETE FROM code_hook WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
-
 -- name: SeeCodeDelivery :execrows
 INSERT INTO code_delivery_seen (tenant_id, hook_id, digest, seen_at)
 VALUES (current_tenant_id(), sqlc.arg('hook_id'), sqlc.arg('digest'), sqlc.arg('at'))
@@ -59,8 +56,3 @@ FROM code_link
 WHERE tenant_id = current_tenant_id() AND item_id = sqlc.arg('item_id')
 ORDER BY happened_at DESC, id
 LIMIT sqlc.arg('max_rows');
-
--- name: ListCodeLinksOfHook :many
-SELECT id, item_id, hub_id, hook_id, kind, repository, ref, title, url, author, state, happened_at, updated_at
-FROM code_link
-WHERE tenant_id = current_tenant_id() AND hook_id = sqlc.arg('hook_id');

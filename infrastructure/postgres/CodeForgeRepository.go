@@ -123,25 +123,6 @@ func (CodeForgeRepository) PutHook(ctx context.Context, h forge.Hook) error {
 	return nil
 }
 
-func (CodeForgeRepository) DeleteHook(ctx context.Context, id shared.ID) error {
-	q, err := queriesFrom(ctx)
-	if err != nil {
-		return err
-	}
-	key, err := uuidOf(id)
-	if err != nil {
-		return shared.ErrNotFound.WithDetail("forge.hook_not_found")
-	}
-	n, err := q.DeleteCodeHook(ctx, key)
-	if err != nil {
-		return forgeFailed("removing a hook", err)
-	}
-	if n == 0 {
-		return shared.ErrNotFound.WithDetail("forge.hook_not_found")
-	}
-	return nil
-}
-
 func (CodeForgeRepository) SeeDelivery(ctx context.Context, hookID shared.ID, digest []byte, at, before time.Time) (bool, error) {
 	q, err := queriesFrom(ctx)
 	if err != nil {
@@ -216,26 +197,6 @@ func (CodeForgeRepository) ListLinks(ctx context.Context, itemID shared.ID, max 
 	out := make([]forge.Link, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, linkOf(r))
-	}
-	return out, nil
-}
-
-func (CodeForgeRepository) LinksOfHook(ctx context.Context, hookID shared.ID) ([]forge.Link, error) {
-	q, err := queriesFrom(ctx)
-	if err != nil {
-		return nil, err
-	}
-	hook, err := uuidOf(hookID)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := q.ListCodeLinksOfHook(ctx, hook)
-	if err != nil {
-		return nil, forgeFailed("listing a hook's links", err)
-	}
-	out := make([]forge.Link, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, linkOf(sqlc.ListCodeLinksRow(r)))
 	}
 	return out, nil
 }

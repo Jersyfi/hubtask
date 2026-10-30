@@ -20,8 +20,6 @@ type Store interface {
 	// FindHook answers a hook; not found for none.
 	FindHook(ctx context.Context, id shared.ID) (forge.Hook, error)
 	PutHook(ctx context.Context, hook forge.Hook) error
-	// DeleteHook removes a hook and its links; not found for none.
-	DeleteHook(ctx context.Context, id shared.ID) error
 	// SeeDelivery records a delivery's digest and forgets those seen before the cutoff; false for
 	// one seen already.
 	SeeDelivery(ctx context.Context, hookID shared.ID, digest []byte, at, before time.Time) (bool, error)
@@ -31,6 +29,4 @@ type Store interface {
 	PutLink(ctx context.Context, link forge.Link) error
 	// ListLinks answers an entry's links, the latest first, at most max.
 	ListLinks(ctx context.Context, itemID shared.ID, max int) ([]forge.Link, error)
-	// LinksOfHook answers every link a hook wrote, for the tombstones of its removal.
-	LinksOfHook(ctx context.Context, hookID shared.ID) ([]forge.Link, error)
 }

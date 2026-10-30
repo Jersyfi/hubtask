@@ -28225,9 +28225,6 @@ type ServerInterface interface {
 	// DefineCiSource Add or change a source
 	// (PUT /cmdb/sources/{sourceKey})
 	DefineCiSource(w http.ResponseWriter, r *http.Request, sourceKey string, params DefineCiSourceParams)
-	// DeleteCodeHook Remove a forge hook and its links
-	// (DELETE /code-hooks/{hookId})
-	DeleteCodeHook(w http.ResponseWriter, r *http.Request, hookId openapi_types.UUID)
 	// UpdateCodeHook Rename a forge hook or switch it on or off
 	// (PATCH /code-hooks/{hookId})
 	UpdateCodeHook(w http.ResponseWriter, r *http.Request, hookId openapi_types.UUID)
@@ -36753,32 +36750,6 @@ func (siw *ServerInterfaceWrapper) DefineCiSource(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DefineCiSource(w, r, sourceKey, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// DeleteCodeHook operation middleware
-func (siw *ServerInterfaceWrapper) DeleteCodeHook(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "hookId" -------------
-	var hookId openapi_types.UUID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "hookId", r.PathValue("hookId"), &hookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hookId", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteCodeHook(w, r, hookId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -54816,7 +54787,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb/alert-intake/{tenantId}/{connectorId}", wrapper.DeliverCiAlerts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/code-hooks", wrapper.ListCodeHooks)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/code-hooks", wrapper.CreateCodeHook)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/code-hooks/{hookId}", wrapper.DeleteCodeHook)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/code-hooks/{hookId}", wrapper.UpdateCodeHook)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/code-hooks/{hookId}/secret", wrapper.RotateCodeHookSecret)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/code-links", wrapper.ListEntryCodeLinks)
