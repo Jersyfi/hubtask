@@ -1275,6 +1275,18 @@ func (q *Queries) ClearWhiteboard(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearWhiteboardComment = `-- name: ClearWhiteboardComment :execrows
+DELETE FROM whiteboard_comment
+`
+
+func (q *Queries) ClearWhiteboardComment(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearWhiteboardComment)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearWhiteboardMedia = `-- name: ClearWhiteboardMedia :execrows
 DELETE FROM whiteboard_media
 `
@@ -2563,6 +2575,17 @@ SELECT EXISTS (SELECT 1 FROM whiteboard WHERE id = ($1::jsonb->>'id')::uuid) AS 
 
 func (q *Queries) HoldsWhiteboard(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsWhiteboard, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsWhiteboardComment = `-- name: HoldsWhiteboardComment :one
+SELECT EXISTS (SELECT 1 FROM whiteboard_comment WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsWhiteboardComment(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsWhiteboardComment, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6483,6 +6506,41 @@ type ImportWhiteboardParams struct {
 // Where the board points is the trigger's to build.
 func (q *Queries) ImportWhiteboard(ctx context.Context, arg ImportWhiteboardParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importWhiteboard, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importWhiteboardComment = `-- name: ImportWhiteboardComment :execrows
+INSERT INTO whiteboard_comment (
+  id, tenant_id, whiteboard_id, parent_id, author_id, body, element_id, x, y, resolved_at, resolved_by,
+  created_at, edited_at, deleted_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.whiteboard_id, r.parent_id, r.author_id, r.body, r.element_id, r.x, r.y, r.resolved_at,
+  r.resolved_by, r.created_at, r.edited_at, r.deleted_at, r.version
+FROM jsonb_populate_record(
+  NULL::whiteboard_comment,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  body = EXCLUDED.body,
+  resolved_at = EXCLUDED.resolved_at,
+  resolved_by = EXCLUDED.resolved_by,
+  edited_at = EXCLUDED.edited_at,
+  deleted_at = EXCLUDED.deleted_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportWhiteboardCommentParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportWhiteboardComment(ctx context.Context, arg ImportWhiteboardCommentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importWhiteboardComment, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

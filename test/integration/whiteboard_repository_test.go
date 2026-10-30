@@ -213,3 +213,58 @@ func TestABoardsPicturesStayInItsWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A board's comments are read as they were written, pinned where they were put, and the workspace
+// next door neither finds nor writes them (migration 0266, UC-CNV-09).
+func TestABoardsCommentsStayInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	_, board, _ := seedBoard(ctx, t)
+	repo := postgres.NewWhiteboardRepository()
+	at := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
+	thread := whiteboard.Comment{
+		ID: freshID(t), BoardID: board, AuthorID: authorA, Body: "Why here?", Element: "s1", X: 12.5, Y: -4,
+		CreatedAt: at, Version: 1,
+	}
+	reply := whiteboard.Comment{ID: freshID(t), BoardID: board, ParentID: thread.ID, AuthorID: authorA, Body: "Because", CreatedAt: at.Add(time.Minute), Version: 1}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.InsertComment(ctx, thread); err != nil {
+			return err
+		}
+		if err := repo.InsertComment(ctx, reply); err != nil {
+			return err
+		}
+		resolved := thread
+		resolved.ResolvedAt, resolved.ResolvedBy = &at, authorA
+		if err := repo.UpdateComment(ctx, resolved, 1); err != nil {
+			return err
+		}
+		if err := repo.UpdateComment(ctx, resolved, 1); err == nil {
+			t.Error("a stale version was written")
+		}
+		comments, err := repo.Comments(ctx, board, 10)
+		if err != nil || len(comments) != 2 {
+			t.Fatalf("comments %v, %v", comments, err)
+		}
+		got := comments[0]
+		if got.Element != "s1" || got.X != 12.5 || got.Y != -4 || got.ResolvedAt == nil || got.Version != 2 || comments[1].ParentID != thread.ID {
+			t.Errorf("read back %+v", comments)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := repo.FindComment(ctx, thread.ID); err == nil {
+			t.Error("the workspace next door found the comment")
+		}
+		if comments, _ := repo.Comments(ctx, board, 10); len(comments) != 0 {
+			t.Error("the workspace next door listed the board's comments")
+		}
+		if err := repo.UpdateComment(ctx, thread, 2); err == nil {
+			t.Error("the workspace next door changed the comment")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

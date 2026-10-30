@@ -225,6 +225,7 @@ re-mints identities must rewrite exactly these).
 | 107 | `page_articles` | `page_article` | `page_id/collection_id` | `page_id`→pages, `collection_id`→containers, `published_by`→accounts (cleared when absent) (a page published to a service's portal with its count of openings, UC-DOC-13) |
 | 108 | `page_article_ratings` | `page_article_rating` | `page_id/collection_id/account_id` | `page_id`→pages, `collection_id`→containers, `account_id`→accounts (a requester's "was this helpful?") |
 | 109 | `page_media` | `page_media` | `page_id/media_id` | `page_id`→pages, `media_id`→media_objects (the pictures and files a page holds, migration 0265, UC-DOC-14) |
+| 110 | `whiteboard_comments` | `whiteboard_comment` | `id` | `whiteboard_id`→whiteboards, `parent_id`→whiteboard_comments, `author_id`→accounts (cleared when absent) (comments pinned to a board's objects and places, migration 0266, UC-CNV-09; `element_id` names an object of the scene) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

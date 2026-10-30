@@ -920,6 +920,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"whiteboard_comment": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportWhiteboardComments(ctx, sqlc.ExportWhiteboardCommentsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportWhiteboardCommentsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"page_comment": {
 		delta: false,
 		keys:  1,

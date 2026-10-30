@@ -93,3 +93,28 @@ ON CONFLICT DO NOTHING;
 -- name: CountWhiteboardMedia :one
 SELECT count(*)::int FROM whiteboard_media
 WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id');
+
+-- name: InsertWhiteboardComment :exec
+INSERT INTO whiteboard_comment (id, tenant_id, whiteboard_id, parent_id, author_id, body, element_id, x, y, created_at, version)
+VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('whiteboard_id'), sqlc.narg('parent_id'), sqlc.arg('author_id'),
+  sqlc.arg('body'), sqlc.arg('element_id'), sqlc.arg('x'), sqlc.arg('y'), sqlc.arg('at'), 1);
+
+-- name: FindWhiteboardComment :one
+SELECT id, whiteboard_id, parent_id, author_id, body, element_id, x, y, resolved_at, resolved_by,
+       created_at, edited_at, deleted_at, version
+FROM whiteboard_comment
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
+
+-- name: ListWhiteboardComments :many
+SELECT id, whiteboard_id, parent_id, author_id, body, element_id, x, y, resolved_at, resolved_by,
+       created_at, edited_at, deleted_at, version
+FROM whiteboard_comment
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id')
+ORDER BY created_at, id
+LIMIT sqlc.arg('batch');
+
+-- name: UpdateWhiteboardComment :execrows
+UPDATE whiteboard_comment SET body = sqlc.arg('body'), resolved_at = sqlc.narg('resolved_at'),
+  resolved_by = sqlc.narg('resolved_by'), edited_at = sqlc.narg('edited_at'),
+  deleted_at = sqlc.narg('deleted_at'), version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');

@@ -89,6 +89,52 @@ func (q *Queries) FindWhiteboard(ctx context.Context, id pgtype.UUID) (FindWhite
 	return i, err
 }
 
+const findWhiteboardComment = `-- name: FindWhiteboardComment :one
+SELECT id, whiteboard_id, parent_id, author_id, body, element_id, x, y, resolved_at, resolved_by,
+       created_at, edited_at, deleted_at, version
+FROM whiteboard_comment
+WHERE tenant_id = current_tenant_id() AND id = $1
+`
+
+type FindWhiteboardCommentRow struct {
+	ID           pgtype.UUID
+	WhiteboardID pgtype.UUID
+	ParentID     pgtype.UUID
+	AuthorID     pgtype.UUID
+	Body         string
+	ElementID    string
+	X            float64
+	Y            float64
+	ResolvedAt   pgtype.Timestamptz
+	ResolvedBy   pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	EditedAt     pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	Version      int32
+}
+
+func (q *Queries) FindWhiteboardComment(ctx context.Context, id pgtype.UUID) (FindWhiteboardCommentRow, error) {
+	row := q.db.QueryRow(ctx, findWhiteboardComment, id)
+	var i FindWhiteboardCommentRow
+	err := row.Scan(
+		&i.ID,
+		&i.WhiteboardID,
+		&i.ParentID,
+		&i.AuthorID,
+		&i.Body,
+		&i.ElementID,
+		&i.X,
+		&i.Y,
+		&i.ResolvedAt,
+		&i.ResolvedBy,
+		&i.CreatedAt,
+		&i.EditedAt,
+		&i.DeletedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const findWhiteboardForUpdate = `-- name: FindWhiteboardForUpdate :one
 SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
 FROM whiteboard
@@ -217,6 +263,39 @@ func (q *Queries) InsertWhiteboard(ctx context.Context, arg InsertWhiteboardPara
 	return err
 }
 
+const insertWhiteboardComment = `-- name: InsertWhiteboardComment :exec
+INSERT INTO whiteboard_comment (id, tenant_id, whiteboard_id, parent_id, author_id, body, element_id, x, y, created_at, version)
+VALUES ($1, current_tenant_id(), $2, $3, $4,
+  $5, $6, $7, $8, $9, 1)
+`
+
+type InsertWhiteboardCommentParams struct {
+	ID           pgtype.UUID
+	WhiteboardID pgtype.UUID
+	ParentID     pgtype.UUID
+	AuthorID     pgtype.UUID
+	Body         string
+	ElementID    string
+	X            float64
+	Y            float64
+	At           pgtype.Timestamptz
+}
+
+func (q *Queries) InsertWhiteboardComment(ctx context.Context, arg InsertWhiteboardCommentParams) error {
+	_, err := q.db.Exec(ctx, insertWhiteboardComment,
+		arg.ID,
+		arg.WhiteboardID,
+		arg.ParentID,
+		arg.AuthorID,
+		arg.Body,
+		arg.ElementID,
+		arg.X,
+		arg.Y,
+		arg.At,
+	)
+	return err
+}
+
 const insertWhiteboardVersion = `-- name: InsertWhiteboardVersion :exec
 INSERT INTO whiteboard_version (tenant_id, whiteboard_id, seq, title, scene, author_id, name, created_at)
 VALUES (current_tenant_id(), $1, $2, $3, $4,
@@ -334,6 +413,72 @@ func (q *Queries) ListHubWhiteboards(ctx context.Context, arg ListHubWhiteboards
 	return items, nil
 }
 
+const listWhiteboardComments = `-- name: ListWhiteboardComments :many
+SELECT id, whiteboard_id, parent_id, author_id, body, element_id, x, y, resolved_at, resolved_by,
+       created_at, edited_at, deleted_at, version
+FROM whiteboard_comment
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = $1
+ORDER BY created_at, id
+LIMIT $2
+`
+
+type ListWhiteboardCommentsParams struct {
+	WhiteboardID pgtype.UUID
+	Batch        int32
+}
+
+type ListWhiteboardCommentsRow struct {
+	ID           pgtype.UUID
+	WhiteboardID pgtype.UUID
+	ParentID     pgtype.UUID
+	AuthorID     pgtype.UUID
+	Body         string
+	ElementID    string
+	X            float64
+	Y            float64
+	ResolvedAt   pgtype.Timestamptz
+	ResolvedBy   pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	EditedAt     pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	Version      int32
+}
+
+func (q *Queries) ListWhiteboardComments(ctx context.Context, arg ListWhiteboardCommentsParams) ([]ListWhiteboardCommentsRow, error) {
+	rows, err := q.db.Query(ctx, listWhiteboardComments, arg.WhiteboardID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWhiteboardCommentsRow{}
+	for rows.Next() {
+		var i ListWhiteboardCommentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WhiteboardID,
+			&i.ParentID,
+			&i.AuthorID,
+			&i.Body,
+			&i.ElementID,
+			&i.X,
+			&i.Y,
+			&i.ResolvedAt,
+			&i.ResolvedBy,
+			&i.CreatedAt,
+			&i.EditedAt,
+			&i.DeletedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWhiteboardVersions = `-- name: ListWhiteboardVersions :many
 SELECT seq, title, author_id, name, created_at, jsonb_array_length(scene)::int AS elements FROM whiteboard_version
 WHERE tenant_id = current_tenant_id() AND whiteboard_id = $1
@@ -428,6 +573,39 @@ func (q *Queries) UpdateWhiteboard(ctx context.Context, arg UpdateWhiteboardPara
 		arg.DeletedAt,
 		arg.UpdatedBy,
 		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateWhiteboardComment = `-- name: UpdateWhiteboardComment :execrows
+UPDATE whiteboard_comment SET body = $1, resolved_at = $2,
+  resolved_by = $3, edited_at = $4,
+  deleted_at = $5, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $6 AND version = $7
+`
+
+type UpdateWhiteboardCommentParams struct {
+	Body            string
+	ResolvedAt      pgtype.Timestamptz
+	ResolvedBy      pgtype.UUID
+	EditedAt        pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+func (q *Queries) UpdateWhiteboardComment(ctx context.Context, arg UpdateWhiteboardCommentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateWhiteboardComment,
+		arg.Body,
+		arg.ResolvedAt,
+		arg.ResolvedBy,
+		arg.EditedAt,
+		arg.DeletedAt,
 		arg.ID,
 		arg.ExpectedVersion,
 	)

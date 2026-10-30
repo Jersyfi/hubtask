@@ -3369,3 +3369,30 @@ SELECT EXISTS (
 
 -- name: ClearPageMedia :execrows
 DELETE FROM page_media;
+
+-- name: ImportWhiteboardComment :execrows
+INSERT INTO whiteboard_comment (
+  id, tenant_id, whiteboard_id, parent_id, author_id, body, element_id, x, y, resolved_at, resolved_by,
+  created_at, edited_at, deleted_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.whiteboard_id, r.parent_id, r.author_id, r.body, r.element_id, r.x, r.y, r.resolved_at,
+  r.resolved_by, r.created_at, r.edited_at, r.deleted_at, r.version
+FROM jsonb_populate_record(
+  NULL::whiteboard_comment,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  body = EXCLUDED.body,
+  resolved_at = EXCLUDED.resolved_at,
+  resolved_by = EXCLUDED.resolved_by,
+  edited_at = EXCLUDED.edited_at,
+  deleted_at = EXCLUDED.deleted_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsWhiteboardComment :one
+SELECT EXISTS (SELECT 1 FROM whiteboard_comment WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearWhiteboardComment :execrows
+DELETE FROM whiteboard_comment;

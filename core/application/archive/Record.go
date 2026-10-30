@@ -692,6 +692,16 @@ var entities = []Entity{
 			{Field: "media_id", Table: "media_object"},
 		},
 	},
+	// A board's comments pinned to its objects and places (migration 0266), after the boards; a
+	// reply's thread comes first in the file.
+	{
+		Name: "whiteboard_comments", Table: "whiteboard_comment", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "whiteboard_id", Table: "whiteboard"},
+			{Field: "parent_id", Table: "whiteboard_comment"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
 	{
 		Name: "whiteboard_versions", Table: "whiteboard_version", Whole: true, Later: true, Keys: []string{"whiteboard_id", "seq"},
 		References: []Reference{

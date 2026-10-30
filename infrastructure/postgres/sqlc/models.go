@@ -1887,6 +1887,7 @@ type Notification struct {
 	MembershipID       pgtype.UUID
 	PageID             pgtype.UUID
 	AgentID            pgtype.UUID
+	WhiteboardID       pgtype.UUID
 }
 
 type NotificationPreference struct {
@@ -2881,6 +2882,24 @@ type Whiteboard struct {
 	UpdatedBy pgtype.UUID
 	UpdatedAt pgtype.Timestamptz
 	Version   int32
+}
+
+type WhiteboardComment struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	WhiteboardID pgtype.UUID
+	ParentID     pgtype.UUID
+	AuthorID     pgtype.UUID
+	Body         string
+	ElementID    string
+	X            float64
+	Y            float64
+	ResolvedAt   pgtype.Timestamptz
+	ResolvedBy   pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	EditedAt     pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	Version      int32
 }
 
 type WhiteboardMedium struct {

@@ -116,6 +116,7 @@ var subjectColumns = map[string][]string{
 	// The whiteboards they made or last drew on (M4).
 	"whiteboard":         {"created_by", "updated_by"},
 	"whiteboard_version": {"author_id"},
+	"whiteboard_comment": {"author_id", "resolved_by"},
 	// The updates they wrote to a live page or board (F-8); an erased author leaves none.
 	"realtime_update": {"author_id"},
 	// The configuration items they made, changed or own, the relations they made, the

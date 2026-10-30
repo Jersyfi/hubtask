@@ -5057,6 +5057,51 @@ func (q *Queries) ExportWebhookSubscriptions(ctx context.Context, arg ExportWebh
 	return items, nil
 }
 
+const exportWhiteboardComments = `-- name: ExportWhiteboardComments :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (c.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(c) - 'tenant_id')::jsonb AS payload,
+         c.id AS key_1
+  FROM whiteboard_comment c
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportWhiteboardCommentsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportWhiteboardCommentsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportWhiteboardComments(ctx context.Context, arg ExportWhiteboardCommentsParams) ([]ExportWhiteboardCommentsRow, error) {
+	rows, err := q.db.Query(ctx, exportWhiteboardComments, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportWhiteboardCommentsRow{}
+	for rows.Next() {
+		var i ExportWhiteboardCommentsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportWhiteboardMedia = `-- name: ExportWhiteboardMedia :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

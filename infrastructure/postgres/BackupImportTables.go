@@ -766,6 +766,17 @@ var importers = map[string]importer{
 			return queries.ClearPersonalSpace(ctx)
 		},
 	},
+	"whiteboard_comment": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportWhiteboardComment(ctx, sqlc.ImportWhiteboardCommentParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsWhiteboardComment(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearWhiteboardComment(ctx)
+		},
+	},
 	"page_comment": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportPageComment(ctx, sqlc.ImportPageCommentParams{Payload: payload, Overwrite: overwrite})
