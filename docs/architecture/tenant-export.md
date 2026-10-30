@@ -200,6 +200,14 @@ re-mints identities must rewrite exactly these).
 | 82 | `time_absences` | `time_absence` | `id` | `account_id`→accounts, `created_by`→accounts (a span a person is away, by a kind and never a reason) |
 | 83 | `time_cost_rates` | `time_cost_rate` | `id` | `account_id`→accounts, cleared when withheld, `updated_by`→accounts (an hour's cost of a person or a role, with its validity) |
 | 84 | `time_budgets` | `time_budget` | `id` | `plan_id`→containers, `updated_by`→accounts (a hub's or collection's budget in minutes and money; not duplicated) |
+| 85 | `goal_periods` | `goal_period` | `id` | `created_by`, `closed_by`→accounts (a cycle goals are set for, closed with grades; migration 0248) |
+| 86 | `goals` | `goal` | `id` | `period_id`→goal_periods, `hub_id`→containers, `owner_id`, `created_by`, `updated_by`→accounts (an objective with its key results; `parent_id` names another goal of the file) |
+| 87 | `goal_entries` | `goal_entry` | `goal_id`, `entry_id` | `goal_id`→goals, `entry_id`→work_items (an entry linked to a goal) |
+| 88 | `goal_check_ins` | `goal_check_in` | `id` | `goal_id`→goals, `author_id`→accounts (a status, a confidence, a note and the values reported) |
+| 89 | `portfolios` | `portfolio` | `id` | `owner_id`, `created_by`, `updated_by`→accounts (`parent_id` names another portfolio of the file) |
+| 90 | `portfolio_items` | `portfolio_item` | `portfolio_id`, `container_id` | `portfolio_id`→portfolios, `container_id`→containers (a project of a portfolio with its dates and health) |
+| 91 | `portfolio_updates` | `portfolio_update` | `id` | `portfolio_id`→portfolios, `author_id`→accounts (a status update) |
+| 92 | `dashboards` | `dashboard` | `id` | `hub_id`→containers, `owner_id`, `updated_by`→accounts (widgets as their queries; no number is stored) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

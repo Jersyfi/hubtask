@@ -70,17 +70,26 @@ var subjectColumns = map[string][]string{
 	"sprint": {"created_by"},
 	// The time they recorded, their running timer, their weeks and the weeks they decided, and the
 	// time policy they set (M7).
-	"time_record":    {"account_id"},
-	"time_timer":     {"account_id"},
-	"timesheet":      {"account_id", "decided_by"},
-	"time_policy":    {"updated_by"},
+	"time_record": {"account_id"},
+	"time_timer":  {"account_id"},
+	"timesheet":   {"account_id", "decided_by"},
+	"time_policy": {"updated_by"},
 	// Their capacity and absences, the ones they recorded for others, and the rates and budgets
 	// they set or that price them (M7).
 	"time_capacity":  {"account_id", "updated_by"},
 	"time_absence":   {"account_id", "created_by"},
 	"time_cost_rate": {"account_id", "updated_by"},
 	"time_budget":    {"updated_by"},
-	"entry_estimate": {"updated_by"},
+	// The goals they own or set, the entries they linked, their check-ins, the portfolios they
+	// own and the updates they wrote, and their dashboards (M8).
+	"goal_period":      {"created_by", "closed_by"},
+	"goal":             {"owner_id", "created_by", "updated_by"},
+	"goal_entry":       {"created_by"},
+	"goal_check_in":    {"author_id"},
+	"portfolio":        {"owner_id", "created_by", "updated_by"},
+	"portfolio_update": {"author_id"},
+	"dashboard":        {"owner_id", "updated_by"},
+	"entry_estimate":   {"updated_by"},
 	// The pages they wrote, own or checked, their versions and their comments (M3).
 	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},
 	"page_version": {"author_id"},

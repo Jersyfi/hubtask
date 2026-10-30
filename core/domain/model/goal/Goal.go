@@ -14,6 +14,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
@@ -345,6 +346,7 @@ type CheckIn struct {
 	Confidence int
 	Note       string
 	Values     map[shared.ID]float64
+	At         time.Time
 }
 
 // CheckCheckIn checks a check-in against its goal: a status that judges, a confidence 0 to 10,

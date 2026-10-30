@@ -2906,3 +2906,147 @@ SELECT EXISTS (SELECT 1 FROM time_budget WHERE id = (sqlc.arg('payload')::jsonb-
 
 -- name: ClearTimeBudget :execrows
 DELETE FROM time_budget;
+
+-- name: ImportGoalPeriod :execrows
+INSERT INTO goal_period (id, tenant_id, name, start_on, end_on, state, closed_at, closed_by, created_at, created_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.name, r.start_on, r.end_on, r.state, r.closed_at, r.closed_by, r.created_at, r.created_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::goal_period,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, start_on = EXCLUDED.start_on, end_on = EXCLUDED.end_on, state = EXCLUDED.state, closed_at = EXCLUDED.closed_at, closed_by = EXCLUDED.closed_by, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsGoalPeriod :one
+SELECT EXISTS (SELECT 1 FROM goal_period WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearGoalPeriod :execrows
+DELETE FROM goal_period;
+
+-- name: ImportGoal :execrows
+INSERT INTO goal (id, tenant_id, period_id, hub_id, parent_id, title, description, owner_id, status, confidence, key_results, grade, created_at, created_by, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.period_id, r.hub_id, r.parent_id, r.title, r.description, r.owner_id, r.status, r.confidence, r.key_results, r.grade, r.created_at, r.created_by, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::goal,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  period_id = EXCLUDED.period_id, hub_id = EXCLUDED.hub_id, parent_id = EXCLUDED.parent_id, title = EXCLUDED.title, description = EXCLUDED.description, owner_id = EXCLUDED.owner_id, status = EXCLUDED.status, confidence = EXCLUDED.confidence, key_results = EXCLUDED.key_results, grade = EXCLUDED.grade, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsGoal :one
+SELECT EXISTS (SELECT 1 FROM goal WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearGoal :execrows
+DELETE FROM goal;
+
+-- name: ImportGoalEntry :execrows
+INSERT INTO goal_entry (tenant_id, goal_id, entry_id, created_at, created_by)
+SELECT r.tenant_id, r.goal_id, r.entry_id, r.created_at, r.created_by
+FROM jsonb_populate_record(
+  NULL::goal_entry,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, goal_id, entry_id) DO UPDATE SET
+  created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsGoalEntry :one
+SELECT EXISTS (
+  SELECT 1 FROM goal_entry
+  WHERE goal_id = (sqlc.arg('payload')::jsonb->>'goal_id')::uuid
+    AND entry_id = (sqlc.arg('payload')::jsonb->>'entry_id')::uuid
+) AS held;
+
+-- name: ClearGoalEntry :execrows
+DELETE FROM goal_entry;
+
+-- name: ImportGoalCheckIn :execrows
+INSERT INTO goal_check_in (id, tenant_id, goal_id, author_id, status, confidence, note, "values", created_at)
+SELECT r.id, r.tenant_id, r.goal_id, r.author_id, r.status, r.confidence, r.note, r."values", r.created_at
+FROM jsonb_populate_record(
+  NULL::goal_check_in,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  goal_id = EXCLUDED.goal_id, author_id = EXCLUDED.author_id, status = EXCLUDED.status, confidence = EXCLUDED.confidence, note = EXCLUDED.note, "values" = EXCLUDED."values", created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsGoalCheckIn :one
+SELECT EXISTS (SELECT 1 FROM goal_check_in WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearGoalCheckIn :execrows
+DELETE FROM goal_check_in;
+
+-- name: ImportPortfolio :execrows
+INSERT INTO portfolio (id, tenant_id, parent_id, name, description, owner_id, status, created_at, created_by, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.parent_id, r.name, r.description, r.owner_id, r.status, r.created_at, r.created_by, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::portfolio,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  parent_id = EXCLUDED.parent_id, name = EXCLUDED.name, description = EXCLUDED.description, owner_id = EXCLUDED.owner_id, status = EXCLUDED.status, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPortfolio :one
+SELECT EXISTS (SELECT 1 FROM portfolio WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearPortfolio :execrows
+DELETE FROM portfolio;
+
+-- name: ImportPortfolioItem :execrows
+INSERT INTO portfolio_item (tenant_id, portfolio_id, container_id, position, start_on, end_on, status)
+SELECT r.tenant_id, r.portfolio_id, r.container_id, r.position, r.start_on, r.end_on, r.status
+FROM jsonb_populate_record(
+  NULL::portfolio_item,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, portfolio_id, container_id) DO UPDATE SET
+  position = EXCLUDED.position, start_on = EXCLUDED.start_on, end_on = EXCLUDED.end_on, status = EXCLUDED.status
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPortfolioItem :one
+SELECT EXISTS (
+  SELECT 1 FROM portfolio_item
+  WHERE portfolio_id = (sqlc.arg('payload')::jsonb->>'portfolio_id')::uuid
+    AND container_id = (sqlc.arg('payload')::jsonb->>'container_id')::uuid
+) AS held;
+
+-- name: ClearPortfolioItem :execrows
+DELETE FROM portfolio_item;
+
+-- name: ImportPortfolioUpdate :execrows
+INSERT INTO portfolio_update (id, tenant_id, portfolio_id, author_id, status, summary, created_at)
+SELECT r.id, r.tenant_id, r.portfolio_id, r.author_id, r.status, r.summary, r.created_at
+FROM jsonb_populate_record(
+  NULL::portfolio_update,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  portfolio_id = EXCLUDED.portfolio_id, author_id = EXCLUDED.author_id, status = EXCLUDED.status, summary = EXCLUDED.summary, created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPortfolioUpdate :one
+SELECT EXISTS (SELECT 1 FROM portfolio_update WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearPortfolioUpdate :execrows
+DELETE FROM portfolio_update;
+
+-- name: ImportDashboard :execrows
+INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, widgets, created_at, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.owner_id, r.name, r.sharing, r.widgets, r.created_at, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::dashboard,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id, owner_id = EXCLUDED.owner_id, name = EXCLUDED.name, sharing = EXCLUDED.sharing, widgets = EXCLUDED.widgets, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsDashboard :one
+SELECT EXISTS (SELECT 1 FROM dashboard WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearDashboard :execrows
+DELETE FROM dashboard;

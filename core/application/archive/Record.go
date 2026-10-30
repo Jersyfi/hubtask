@@ -845,6 +845,78 @@ var entities = []Entity{
 			{Field: "updated_by", Table: "account", Clearable: true},
 		},
 	},
+	// Goals and insight (migration 0248, M8): periods, goals, their entries and check-ins,
+	// portfolios with their projects and updates, and dashboards. Whole and unmarked.
+	{
+		Name: "goal_periods", Table: "goal_period", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "closed_by", Table: "account", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "goals", Table: "goal", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "period_id", Table: "goal_period"},
+			{Field: "hub_id", Table: "container"},
+			{Field: "owner_id", Table: "account", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "goal_entries", Table: "goal_entry", Whole: true, Later: true,
+		Keys: []string{"goal_id", "entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "goal_id", Table: "goal"},
+			{Field: "entry_id", Table: "work_item"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "goal_check_ins", Table: "goal_check_in", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "goal_id", Table: "goal"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "portfolios", Table: "portfolio", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "owner_id", Table: "account", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "portfolio_items", Table: "portfolio_item", Whole: true, Later: true,
+		Keys: []string{"portfolio_id", "container_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "portfolio_id", Table: "portfolio"},
+			{Field: "container_id", Table: "container"},
+		},
+	},
+	{
+		Name: "portfolio_updates", Table: "portfolio_update", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "portfolio_id", Table: "portfolio"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "dashboards", Table: "dashboard", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "owner_id", Table: "account", Clearable: true},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
 	{
 		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,

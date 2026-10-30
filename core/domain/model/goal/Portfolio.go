@@ -5,6 +5,7 @@ package goal
 
 import (
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -104,6 +105,7 @@ type StatusUpdate struct {
 	AuthorID    shared.ID
 	Status      Status
 	Summary     string
+	At          time.Time
 }
 
 // CheckStatusUpdate checks an update: a judging status and a summary within bounds.

@@ -1224,3 +1224,109 @@ FROM (
   WHERE s.key_1 > sqlc.arg('after_id')::uuid
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportGoalPeriods :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM goal_period x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportGoals :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM goal x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportGoalEntries :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.goal_id::text || '/' || x.entry_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.goal_id AS key_1,
+         x.entry_id AS key_2
+  FROM goal_entry x
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportGoalCheckIns :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM goal_check_in x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPortfolios :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM portfolio x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPortfolioItems :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.portfolio_id::text || '/' || x.container_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.portfolio_id AS key_1,
+         x.container_id AS key_2
+  FROM portfolio_item x
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPortfolioUpdates :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM portfolio_update x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportDashboards :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM dashboard x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;

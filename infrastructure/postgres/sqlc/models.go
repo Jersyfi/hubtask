@@ -1142,6 +1142,20 @@ type CustomRoleGrant struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type Dashboard struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	HubID     pgtype.UUID
+	OwnerID   pgtype.UUID
+	Name      string
+	Sharing   string
+	Widgets   []byte
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+	Version   int32
+}
+
 type DataSubjectRequest struct {
 	ID               pgtype.UUID
 	TenantID         pgtype.UUID
@@ -1316,6 +1330,61 @@ type FieldClock struct {
 	EntityID pgtype.UUID
 	Field    string
 	Hlc      string
+}
+
+type Goal struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	PeriodID    pgtype.UUID
+	HubID       pgtype.UUID
+	ParentID    pgtype.UUID
+	Title       string
+	Description string
+	OwnerID     pgtype.UUID
+	Status      string
+	Confidence  int32
+	KeyResults  []byte
+	Grade       *float64
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	Version     int32
+}
+
+type GoalCheckIn struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	GoalID     pgtype.UUID
+	AuthorID   pgtype.UUID
+	Status     string
+	Confidence int32
+	Note       string
+	Values     []byte
+	CreatedAt  pgtype.Timestamptz
+}
+
+type GoalEntry struct {
+	TenantID  pgtype.UUID
+	GoalID    pgtype.UUID
+	EntryID   pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	CreatedBy pgtype.UUID
+}
+
+type GoalPeriod struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Name      string
+	StartOn   pgtype.Date
+	EndOn     pgtype.Date
+	State     string
+	ClosedAt  pgtype.Timestamptz
+	ClosedBy  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	CreatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
 }
 
 type IdempotencyKey struct {
@@ -1886,6 +1955,41 @@ type PlatformSubscription struct {
 	CreatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
 	Version        int32
+}
+
+type Portfolio struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	ParentID    pgtype.UUID
+	Name        string
+	Description string
+	OwnerID     pgtype.UUID
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	Version     int32
+}
+
+type PortfolioItem struct {
+	TenantID    pgtype.UUID
+	PortfolioID pgtype.UUID
+	ContainerID pgtype.UUID
+	Position    int32
+	StartOn     pgtype.Date
+	EndOn       pgtype.Date
+	Status      string
+}
+
+type PortfolioUpdate struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	PortfolioID pgtype.UUID
+	AuthorID    pgtype.UUID
+	Status      string
+	Summary     string
+	CreatedAt   pgtype.Timestamptz
 }
 
 type PrivacyIncident struct {

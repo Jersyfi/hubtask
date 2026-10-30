@@ -387,6 +387,18 @@ func (q *Queries) ClearCustomRoleGrant(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearDashboard = `-- name: ClearDashboard :execrows
+DELETE FROM dashboard
+`
+
+func (q *Queries) ClearDashboard(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearDashboard)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearEntryEstimate = `-- name: ClearEntryEstimate :execrows
 DELETE FROM entry_estimate
 `
@@ -441,6 +453,54 @@ DELETE FROM entry_type
 
 func (q *Queries) ClearEntryType(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearEntryType)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearGoal = `-- name: ClearGoal :execrows
+DELETE FROM goal
+`
+
+func (q *Queries) ClearGoal(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearGoal)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearGoalCheckIn = `-- name: ClearGoalCheckIn :execrows
+DELETE FROM goal_check_in
+`
+
+func (q *Queries) ClearGoalCheckIn(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearGoalCheckIn)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearGoalEntry = `-- name: ClearGoalEntry :execrows
+DELETE FROM goal_entry
+`
+
+func (q *Queries) ClearGoalEntry(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearGoalEntry)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearGoalPeriod = `-- name: ClearGoalPeriod :execrows
+DELETE FROM goal_period
+`
+
+func (q *Queries) ClearGoalPeriod(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearGoalPeriod)
 	if err != nil {
 		return 0, err
 	}
@@ -633,6 +693,42 @@ DELETE FROM plan_baseline_entry
 
 func (q *Queries) ClearPlanBaselineEntry(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearPlanBaselineEntry)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPortfolio = `-- name: ClearPortfolio :execrows
+DELETE FROM portfolio
+`
+
+func (q *Queries) ClearPortfolio(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPortfolio)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPortfolioItem = `-- name: ClearPortfolioItem :execrows
+DELETE FROM portfolio_item
+`
+
+func (q *Queries) ClearPortfolioItem(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPortfolioItem)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPortfolioUpdate = `-- name: ClearPortfolioUpdate :execrows
+DELETE FROM portfolio_update
+`
+
+func (q *Queries) ClearPortfolioUpdate(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPortfolioUpdate)
 	if err != nil {
 		return 0, err
 	}
@@ -1380,6 +1476,17 @@ func (q *Queries) HoldsCustomRoleGrant(ctx context.Context, payload []byte) (boo
 	return held, err
 }
 
+const holdsDashboard = `-- name: HoldsDashboard :one
+SELECT EXISTS (SELECT 1 FROM dashboard WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsDashboard(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsDashboard, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsEntryEstimate = `-- name: HoldsEntryEstimate :one
 SELECT EXISTS (
   SELECT 1 FROM entry_estimate WHERE entry_id = ($1::jsonb->>'entry_id')::uuid
@@ -1434,6 +1541,54 @@ SELECT EXISTS (SELECT 1 FROM entry_type WHERE id = ($1::jsonb->>'id')::uuid) AS 
 
 func (q *Queries) HoldsEntryType(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsEntryType, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsGoal = `-- name: HoldsGoal :one
+SELECT EXISTS (SELECT 1 FROM goal WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsGoal(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsGoal, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsGoalCheckIn = `-- name: HoldsGoalCheckIn :one
+SELECT EXISTS (SELECT 1 FROM goal_check_in WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsGoalCheckIn(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsGoalCheckIn, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsGoalEntry = `-- name: HoldsGoalEntry :one
+SELECT EXISTS (
+  SELECT 1 FROM goal_entry
+  WHERE goal_id = ($1::jsonb->>'goal_id')::uuid
+    AND entry_id = ($1::jsonb->>'entry_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsGoalEntry(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsGoalEntry, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsGoalPeriod = `-- name: HoldsGoalPeriod :one
+SELECT EXISTS (SELECT 1 FROM goal_period WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsGoalPeriod(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsGoalPeriod, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1618,6 +1773,43 @@ SELECT EXISTS (
 
 func (q *Queries) HoldsPlanBaselineEntry(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPlanBaselineEntry, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPortfolio = `-- name: HoldsPortfolio :one
+SELECT EXISTS (SELECT 1 FROM portfolio WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPortfolio(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPortfolio, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPortfolioItem = `-- name: HoldsPortfolioItem :one
+SELECT EXISTS (
+  SELECT 1 FROM portfolio_item
+  WHERE portfolio_id = ($1::jsonb->>'portfolio_id')::uuid
+    AND container_id = ($1::jsonb->>'container_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPortfolioItem(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPortfolioItem, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPortfolioUpdate = `-- name: HoldsPortfolioUpdate :one
+SELECT EXISTS (SELECT 1 FROM portfolio_update WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPortfolioUpdate(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPortfolioUpdate, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3327,6 +3519,31 @@ func (q *Queries) ImportCustomRoleGrant(ctx context.Context, payload []byte) (in
 	return result.RowsAffected(), nil
 }
 
+const importDashboard = `-- name: ImportDashboard :execrows
+INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, widgets, created_at, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.owner_id, r.name, r.sharing, r.widgets, r.created_at, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::dashboard,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id, owner_id = EXCLUDED.owner_id, name = EXCLUDED.name, sharing = EXCLUDED.sharing, widgets = EXCLUDED.widgets, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportDashboardParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportDashboard(ctx context.Context, arg ImportDashboardParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importDashboard, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importEntryEstimate = `-- name: ImportEntryEstimate :execrows
 INSERT INTO entry_estimate (tenant_id, entry_id, unit, value, size, updated_at, updated_by, version)
 SELECT r.tenant_id, r.entry_id, r.unit, r.value, r.size, r.updated_at, r.updated_by, r.version
@@ -3476,6 +3693,106 @@ type ImportEntryTypeParams struct {
 
 func (q *Queries) ImportEntryType(ctx context.Context, arg ImportEntryTypeParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importEntryType, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importGoal = `-- name: ImportGoal :execrows
+INSERT INTO goal (id, tenant_id, period_id, hub_id, parent_id, title, description, owner_id, status, confidence, key_results, grade, created_at, created_by, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.period_id, r.hub_id, r.parent_id, r.title, r.description, r.owner_id, r.status, r.confidence, r.key_results, r.grade, r.created_at, r.created_by, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::goal,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  period_id = EXCLUDED.period_id, hub_id = EXCLUDED.hub_id, parent_id = EXCLUDED.parent_id, title = EXCLUDED.title, description = EXCLUDED.description, owner_id = EXCLUDED.owner_id, status = EXCLUDED.status, confidence = EXCLUDED.confidence, key_results = EXCLUDED.key_results, grade = EXCLUDED.grade, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportGoalParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportGoal(ctx context.Context, arg ImportGoalParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importGoal, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importGoalCheckIn = `-- name: ImportGoalCheckIn :execrows
+INSERT INTO goal_check_in (id, tenant_id, goal_id, author_id, status, confidence, note, "values", created_at)
+SELECT r.id, r.tenant_id, r.goal_id, r.author_id, r.status, r.confidence, r.note, r."values", r.created_at
+FROM jsonb_populate_record(
+  NULL::goal_check_in,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  goal_id = EXCLUDED.goal_id, author_id = EXCLUDED.author_id, status = EXCLUDED.status, confidence = EXCLUDED.confidence, note = EXCLUDED.note, "values" = EXCLUDED."values", created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportGoalCheckInParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportGoalCheckIn(ctx context.Context, arg ImportGoalCheckInParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importGoalCheckIn, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importGoalEntry = `-- name: ImportGoalEntry :execrows
+INSERT INTO goal_entry (tenant_id, goal_id, entry_id, created_at, created_by)
+SELECT r.tenant_id, r.goal_id, r.entry_id, r.created_at, r.created_by
+FROM jsonb_populate_record(
+  NULL::goal_entry,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, goal_id, entry_id) DO UPDATE SET
+  created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by
+WHERE $2::boolean
+`
+
+type ImportGoalEntryParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportGoalEntry(ctx context.Context, arg ImportGoalEntryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importGoalEntry, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importGoalPeriod = `-- name: ImportGoalPeriod :execrows
+INSERT INTO goal_period (id, tenant_id, name, start_on, end_on, state, closed_at, closed_by, created_at, created_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.name, r.start_on, r.end_on, r.state, r.closed_at, r.closed_by, r.created_at, r.created_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::goal_period,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, start_on = EXCLUDED.start_on, end_on = EXCLUDED.end_on, state = EXCLUDED.state, closed_at = EXCLUDED.closed_at, closed_by = EXCLUDED.closed_by, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportGoalPeriodParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportGoalPeriod(ctx context.Context, arg ImportGoalPeriodParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importGoalPeriod, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
@@ -4179,6 +4496,81 @@ type ImportPlanBaselineEntryParams struct {
 
 func (q *Queries) ImportPlanBaselineEntry(ctx context.Context, arg ImportPlanBaselineEntryParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPlanBaselineEntry, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPortfolio = `-- name: ImportPortfolio :execrows
+INSERT INTO portfolio (id, tenant_id, parent_id, name, description, owner_id, status, created_at, created_by, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.parent_id, r.name, r.description, r.owner_id, r.status, r.created_at, r.created_by, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::portfolio,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  parent_id = EXCLUDED.parent_id, name = EXCLUDED.name, description = EXCLUDED.description, owner_id = EXCLUDED.owner_id, status = EXCLUDED.status, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportPortfolioParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPortfolio(ctx context.Context, arg ImportPortfolioParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPortfolio, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPortfolioItem = `-- name: ImportPortfolioItem :execrows
+INSERT INTO portfolio_item (tenant_id, portfolio_id, container_id, position, start_on, end_on, status)
+SELECT r.tenant_id, r.portfolio_id, r.container_id, r.position, r.start_on, r.end_on, r.status
+FROM jsonb_populate_record(
+  NULL::portfolio_item,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, portfolio_id, container_id) DO UPDATE SET
+  position = EXCLUDED.position, start_on = EXCLUDED.start_on, end_on = EXCLUDED.end_on, status = EXCLUDED.status
+WHERE $2::boolean
+`
+
+type ImportPortfolioItemParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPortfolioItem(ctx context.Context, arg ImportPortfolioItemParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPortfolioItem, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPortfolioUpdate = `-- name: ImportPortfolioUpdate :execrows
+INSERT INTO portfolio_update (id, tenant_id, portfolio_id, author_id, status, summary, created_at)
+SELECT r.id, r.tenant_id, r.portfolio_id, r.author_id, r.status, r.summary, r.created_at
+FROM jsonb_populate_record(
+  NULL::portfolio_update,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  portfolio_id = EXCLUDED.portfolio_id, author_id = EXCLUDED.author_id, status = EXCLUDED.status, summary = EXCLUDED.summary, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportPortfolioUpdateParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPortfolioUpdate(ctx context.Context, arg ImportPortfolioUpdateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPortfolioUpdate, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
