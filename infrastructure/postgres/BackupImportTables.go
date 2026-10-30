@@ -216,6 +216,17 @@ var importers = map[string]importer{
 			return queries.ClearBusinessCalendar(ctx)
 		},
 	},
+	"hub_business_calendar": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportHubCalendar(ctx, sqlc.ImportHubCalendarParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsHubCalendar(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearHubCalendar(ctx)
+		},
+	},
 	"sla_policy": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportSlaPolicy(ctx, sqlc.ImportSlaPolicyParams{Payload: payload, Overwrite: overwrite})

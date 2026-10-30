@@ -6663,4 +6663,28 @@ ALTER TABLE notification ADD COLUMN approval_id uuid,
       whiteboard_id, approval_id) <= 1);
 CREATE INDEX notification_approval_idx ON notification (tenant_id, approval_id) WHERE approval_id IS NOT NULL;
 
+-- A hub's own version of a workspace business calendar (migration 0270).
+CREATE TABLE hub_business_calendar (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id      uuid NOT NULL,
+  key         text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  spec        jsonb NOT NULL,
+  created_at  timestamptz NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT hub_business_calendar_key_uq UNIQUE (tenant_id, hub_id, key),
+  CONSTRAINT hub_business_calendar_hub_fkey
+    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT hub_business_calendar_key_fkey
+    FOREIGN KEY (tenant_id, key) REFERENCES business_calendar (tenant_id, key)
+);
+CREATE INDEX hub_business_calendar_key_idx ON hub_business_calendar (tenant_id, key);
+ALTER TABLE hub_business_calendar ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hub_business_calendar FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON hub_business_calendar
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
 COMMIT;

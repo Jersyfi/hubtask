@@ -186,3 +186,24 @@ FROM approval_delegation WHERE delegate_id = sqlc.arg('delegate_id');
 
 -- name: DeleteApprovalDelegation :execrows
 DELETE FROM approval_delegation WHERE account_id = sqlc.arg('account_id');
+
+-- name: InsertHubCalendar :exec
+INSERT INTO hub_business_calendar (id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version)
+VALUES (sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('hub_id'), sqlc.arg('key'), sqlc.arg('name'), sqlc.arg('spec'),
+        sqlc.arg('now'), sqlc.arg('now'), 1);
+
+-- name: UpdateHubCalendar :execrows
+UPDATE hub_business_calendar SET
+  name = sqlc.arg('name'), spec = sqlc.arg('spec'), updated_at = sqlc.arg('now'), version = version + 1
+WHERE hub_id = sqlc.arg('hub_id') AND key = sqlc.arg('key') AND version = sqlc.arg('expected_version');
+
+-- name: FindHubCalendar :one
+SELECT id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version
+FROM hub_business_calendar WHERE hub_id = sqlc.arg('hub_id') AND key = sqlc.arg('key');
+
+-- name: ListHubCalendars :many
+SELECT id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version
+FROM hub_business_calendar WHERE hub_id = sqlc.arg('hub_id') ORDER BY key;
+
+-- name: DeleteHubCalendar :execrows
+DELETE FROM hub_business_calendar WHERE hub_id = sqlc.arg('hub_id') AND key = sqlc.arg('key');

@@ -829,6 +829,13 @@ var entities = []Entity{
 		Name: "business_calendars", Table: "business_calendar", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 	},
+	// A hub's own version of a workspace calendar (migration 0270), after the calendar whose key it
+	// names; a duplicate takes it to the hub's copy.
+	{
+		Name: "hub_business_calendars", Table: "hub_business_calendar", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "hub_id", Table: "container"}},
+	},
 	{
 		Name: "sla_policies", Table: "sla_policy", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},

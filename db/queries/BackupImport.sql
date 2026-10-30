@@ -2681,6 +2681,23 @@ SELECT EXISTS (SELECT 1 FROM business_calendar WHERE id = (sqlc.arg('payload')::
 -- name: ClearBusinessCalendar :execrows
 DELETE FROM business_calendar;
 
+-- name: ImportHubCalendar :execrows
+INSERT INTO hub_business_calendar (id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.key, r.name, r.spec, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::hub_business_calendar,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, spec = EXCLUDED.spec, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsHubCalendar :one
+SELECT EXISTS (SELECT 1 FROM hub_business_calendar WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearHubCalendar :execrows
+DELETE FROM hub_business_calendar;
+
 -- name: ImportSlaPolicy :execrows
 INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version)
 SELECT r.id, r.tenant_id, r.key, r.name, r.calendar_key, r.entry_types, r.priority_field, r.goals, r.position, r.enabled, r.created_at, r.updated_at, r.version

@@ -194,6 +194,7 @@ var notThePersons = map[string]string{
 	"cmdb_ci_identifier":      "the identifying values of a configuration item, which arrive with nobody's name; the CI itself is in the map above",
 	"cmdb_alert":              "a monitoring program's problem bound to a configuration item, which names nobody; its entry is the entry's",
 	"business_calendar":       "the workspace's working hours and holidays",
+	"hub_business_calendar":   "a hub's own working hours and holidays",
 	"sla_policy":              "the workspace's promised response and resolution times",
 	"entry_sla":               "how an entry's promised times stood, which names nobody; the entry is the entry's",
 	"reply_template":          "the workspace's canned replies, text the team wrote once for many requests",

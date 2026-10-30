@@ -735,6 +735,18 @@ func (q *Queries) ClearGoalPeriod(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearHubCalendar = `-- name: ClearHubCalendar :execrows
+DELETE FROM hub_business_calendar
+`
+
+func (q *Queries) ClearHubCalendar(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearHubCalendar)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearItemAttachment = `-- name: ClearItemAttachment :execrows
 DELETE FROM item_attachment
 `
@@ -2122,6 +2134,17 @@ SELECT EXISTS (SELECT 1 FROM goal_period WHERE id = ($1::jsonb->>'id')::uuid) AS
 
 func (q *Queries) HoldsGoalPeriod(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsGoalPeriod, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsHubCalendar = `-- name: HoldsHubCalendar :one
+SELECT EXISTS (SELECT 1 FROM hub_business_calendar WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsHubCalendar(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsHubCalendar, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4953,6 +4976,31 @@ type ImportGoalPeriodParams struct {
 
 func (q *Queries) ImportGoalPeriod(ctx context.Context, arg ImportGoalPeriodParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importGoalPeriod, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importHubCalendar = `-- name: ImportHubCalendar :execrows
+INSERT INTO hub_business_calendar (id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.key, r.name, r.spec, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::hub_business_calendar,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, spec = EXCLUDED.spec, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportHubCalendarParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportHubCalendar(ctx context.Context, arg ImportHubCalendarParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importHubCalendar, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

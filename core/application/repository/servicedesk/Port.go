@@ -26,6 +26,19 @@ type Calendars interface {
 	Delete(ctx context.Context, key string) error
 }
 
+// HubCalendars stores the hubs' own versions of the workspace's calendars (migration 0270): one
+// per hub and key, under a key the workspace holds.
+type HubCalendars interface {
+	// Insert writes a hub's calendar; one the hub holds under the key is `calendars.key_taken`.
+	Insert(ctx context.Context, cal servicedesk.Calendar) error
+	Update(ctx context.Context, cal servicedesk.Calendar, expectedVersion int) error
+	// Find answers the hub's calendar of a key; shared.ErrNotFound when it keeps none.
+	Find(ctx context.Context, hubID shared.ID, key string) (servicedesk.Calendar, error)
+	// OfHub answers the hub's calendars by key.
+	OfHub(ctx context.Context, hubID shared.ID) ([]servicedesk.Calendar, error)
+	Delete(ctx context.Context, hubID shared.ID, key string) error
+}
+
 // Policies stores the workspace's SLA policies.
 type Policies interface {
 	// Insert writes a new policy; a key the workspace holds is `sla_policies.key_taken`, a

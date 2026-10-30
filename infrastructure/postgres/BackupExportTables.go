@@ -263,6 +263,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"hub_business_calendar": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportHubCalendars(ctx, sqlc.ExportHubCalendarsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportHubCalendarsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"sla_policy": {
 		delta: false,
 		keys:  1,

@@ -68,6 +68,23 @@ func (q *Queries) DeleteBusinessCalendar(ctx context.Context, key string) (int64
 	return result.RowsAffected(), nil
 }
 
+const deleteHubCalendar = `-- name: DeleteHubCalendar :execrows
+DELETE FROM hub_business_calendar WHERE hub_id = $1 AND key = $2
+`
+
+type DeleteHubCalendarParams struct {
+	HubID pgtype.UUID
+	Key   string
+}
+
+func (q *Queries) DeleteHubCalendar(ctx context.Context, arg DeleteHubCalendarParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteHubCalendar, arg.HubID, arg.Key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteReplyTemplate = `-- name: DeleteReplyTemplate :execrows
 DELETE FROM reply_template WHERE key = $1
 `
@@ -151,6 +168,33 @@ func (q *Queries) FindBusinessCalendar(ctx context.Context, key string) (Busines
 	err := row.Scan(
 		&i.ID,
 		&i.TenantID,
+		&i.Key,
+		&i.Name,
+		&i.Spec,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const findHubCalendar = `-- name: FindHubCalendar :one
+SELECT id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version
+FROM hub_business_calendar WHERE hub_id = $1 AND key = $2
+`
+
+type FindHubCalendarParams struct {
+	HubID pgtype.UUID
+	Key   string
+}
+
+func (q *Queries) FindHubCalendar(ctx context.Context, arg FindHubCalendarParams) (HubBusinessCalendar, error) {
+	row := q.db.QueryRow(ctx, findHubCalendar, arg.HubID, arg.Key)
+	var i HubBusinessCalendar
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.HubID,
 		&i.Key,
 		&i.Name,
 		&i.Spec,
@@ -325,6 +369,35 @@ func (q *Queries) InsertBusinessCalendar(ctx context.Context, arg InsertBusiness
 	_, err := q.db.Exec(ctx, insertBusinessCalendar,
 		arg.ID,
 		arg.TenantID,
+		arg.Key,
+		arg.Name,
+		arg.Spec,
+		arg.Now,
+	)
+	return err
+}
+
+const insertHubCalendar = `-- name: InsertHubCalendar :exec
+INSERT INTO hub_business_calendar (id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version)
+VALUES ($1, $2, $3, $4, $5, $6,
+        $7, $7, 1)
+`
+
+type InsertHubCalendarParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	HubID    pgtype.UUID
+	Key      string
+	Name     string
+	Spec     []byte
+	Now      pgtype.Timestamptz
+}
+
+func (q *Queries) InsertHubCalendar(ctx context.Context, arg InsertHubCalendarParams) error {
+	_, err := q.db.Exec(ctx, insertHubCalendar,
+		arg.ID,
+		arg.TenantID,
+		arg.HubID,
 		arg.Key,
 		arg.Name,
 		arg.Spec,
@@ -543,6 +616,41 @@ func (q *Queries) ListEntrySla(ctx context.Context, itemID pgtype.UUID) ([]Entry
 			&i.AtRiskAt,
 			&i.MetAt,
 			&i.BreachedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHubCalendars = `-- name: ListHubCalendars :many
+SELECT id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version
+FROM hub_business_calendar WHERE hub_id = $1 ORDER BY key
+`
+
+func (q *Queries) ListHubCalendars(ctx context.Context, hubID pgtype.UUID) ([]HubBusinessCalendar, error) {
+	rows, err := q.db.Query(ctx, listHubCalendars, hubID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []HubBusinessCalendar{}
+	for rows.Next() {
+		var i HubBusinessCalendar
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.HubID,
+			&i.Key,
+			&i.Name,
+			&i.Spec,
+			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
 		); err != nil {
@@ -898,6 +1006,36 @@ func (q *Queries) UpdateBusinessCalendar(ctx context.Context, arg UpdateBusiness
 		arg.Name,
 		arg.Spec,
 		arg.Now,
+		arg.Key,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateHubCalendar = `-- name: UpdateHubCalendar :execrows
+UPDATE hub_business_calendar SET
+  name = $1, spec = $2, updated_at = $3, version = version + 1
+WHERE hub_id = $4 AND key = $5 AND version = $6
+`
+
+type UpdateHubCalendarParams struct {
+	Name            string
+	Spec            []byte
+	Now             pgtype.Timestamptz
+	HubID           pgtype.UUID
+	Key             string
+	ExpectedVersion int32
+}
+
+func (q *Queries) UpdateHubCalendar(ctx context.Context, arg UpdateHubCalendarParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateHubCalendar,
+		arg.Name,
+		arg.Spec,
+		arg.Now,
+		arg.HubID,
 		arg.Key,
 		arg.ExpectedVersion,
 	)

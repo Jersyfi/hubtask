@@ -29,9 +29,14 @@ const MaxNameLength = 120
 
 // Calendar is a workspace's business calendar under a key: what an SLA policy counts working time
 // on. Changing it moves no clock already running - a timer keeps the calendar it was armed on.
+//
+// A hub may keep its own version of one (HubID set): its entries count on it wherever a policy
+// names the key, the others on the workspace's.
 type Calendar struct {
-	ID        shared.ID
-	TenantID  shared.ID
+	ID       shared.ID
+	TenantID shared.ID
+	// HubID is the hub whose own version this is; empty for the workspace's calendar.
+	HubID     shared.ID
 	Key       string
 	Name      string
 	Calendar  calendar.BusinessCalendar
@@ -81,7 +86,7 @@ func (c Calendar) Change(name string, spec calendar.Spec, now time.Time, normali
 	if err != nil {
 		return Calendar{}, err
 	}
-	changed.CreatedAt, changed.Version = c.CreatedAt, c.Version
+	changed.CreatedAt, changed.Version, changed.HubID = c.CreatedAt, c.Version, c.HubID
 	return changed, nil
 }
 

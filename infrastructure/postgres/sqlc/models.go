@@ -1670,6 +1670,18 @@ type GoalPeriod struct {
 	Version   int32
 }
 
+type HubBusinessCalendar struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	HubID     pgtype.UUID
+	Key       string
+	Name      string
+	Spec      []byte
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type IdempotencyKey struct {
 	TenantID     pgtype.UUID
 	Key          string
