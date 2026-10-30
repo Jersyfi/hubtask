@@ -72,6 +72,11 @@ remains fully functional (QS-09). Which AI features exist and how a person uses 
   until they are approved again. An agent with an evaluation bar goes live only once a run on its
   model passed it. A caller that is no registered agent - a person's own token over MCP among them -
   is held to the guardrails above as before.
+* **A shipped agent proposes; a person applies** (G11, UC-AGT-07): ticket triage, CI suggestion,
+  duplicate review and knowledge draft run as jobs on their own account through the gate, which
+  holds every write a shipped agent attempts whatever its policy says; the triage's labels are a
+  suggestion. A job is held to the agent's tokens per day and its runs at once, and its tokens are a
+  row of the ledger.
 * **Configuring agents get sections, not areas** (UC-AGT-06): `config:apply:<section>` beside
   `config:apply` applies that section's blocks without each block's own scope, and `config:plan`
   reads the previews a plan's reach asks for.

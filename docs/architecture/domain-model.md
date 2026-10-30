@@ -935,6 +935,14 @@ an answer set passed on one revision, scored here (UC-AGT-04). A **`Mark`** is a
 provenance - the object, the names of its fields, the suggestion, model and prompt, who accepted it
 when - kept beyond the suggestion (UC-AGT-05). All of it is stored by migration 0251 and archived.
 
+A shipped agent **proposes and never applies** (G11, UC-AGT-07): every write it attempts is held as
+a `Request` whatever its policy allows, or is a suggestion on the entry. Its owner or an
+administrator starts a **`Job`** of it on one target - an entry for ticket triage, CI suggestion and
+knowledge draft, a hub's inventory for duplicate review -, judged like an act and held to the
+agent's tokens per day and its runs at once (a job counts for a lease of fifteen minutes); the job
+runs as the agent's own account through the catalogue, and keeps how it ended, what it proposed and
+the tokens it spent, never what it read (migration 0252, archived).
+
 ## 4. Domain events
 
 Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,

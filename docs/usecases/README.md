@@ -310,6 +310,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-AGT-04](./agent/UC-AGT-04-evaluate-an-agent-before-it-goes-live.md) | Evaluate an agent before it goes live | agent |
 | [UC-AGT-05](./agent/UC-AGT-05-see-where-an-ai-value-came-from.md) | See where a value that came from AI came from | agent |
 | [UC-AGT-06](./agent/UC-AGT-06-let-an-agent-configure-only-the-sections-it-was-given.md) | Let an agent configure only the sections it was given | agent |
+| [UC-AGT-07](./agent/UC-AGT-07-let-a-shipped-agent-propose-what-it-found.md) | Let a shipped agent propose what it found, for a person to apply | agent |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
