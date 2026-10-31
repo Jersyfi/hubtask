@@ -880,7 +880,7 @@ func TestAWidgetSumsRecordedTimeAndCountsPagesAsTheReaderSees(t *testing.T) {
 		}},
 		map[string]any{"title": "Pages", "chart": "NUMBER", "source": "QUERY", "x": 6.0, "query": map[string]any{
 			"scope_container_id": hubA.String(),
-			"aggregate":    map[string]any{"source": "pages", "function": "COUNT"},
+			"aggregate":          map[string]any{"source": "pages", "function": "COUNT"},
 		}},
 	}
 	if _, err := call(t, CreateDashboard{s}.Descriptor(), admin, usecase.Input{"name": "x", "widgets": []any{
