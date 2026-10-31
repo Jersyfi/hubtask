@@ -44,6 +44,9 @@ type Runner struct {
 	Labels     LabelReader
 	Items      ItemOrders
 	Applier    backup.Applier
+	// Forms holds what an import into an existing collection would create to its types' forms;
+	// nil holds nothing, as a build without forms does.
+	Forms      FormHolder
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	// MaxBytes bounds the file read back: the upload limit, which the object cannot exceed, held
@@ -71,6 +74,7 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 	var run domain.Run
 	var object mediaObject
 	var target *repository.Target
+	var collection work.Container
 	var gone error
 	claimed := false
 	err := r.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
@@ -98,7 +102,7 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 		if run.CollectionID.IsZero() {
 			return nil
 		}
-		target, err = r.target(ctx, run)
+		target, collection, err = r.target(ctx, run)
 		if err != nil && !isTransient(err) {
 			// The collection left the hub since the import was accepted: the run's outcome.
 			gone, err = err, nil
@@ -115,7 +119,7 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 		return r.finish(ctx, scope, run, backupdomain.Report{}, nil, gone)
 	}
 
-	report, refused, applied := r.perform(ctx, in, run, object, target)
+	report, refused, applied := r.perform(ctx, in, run, object, target, collection)
 	if applied != nil && isTransient(applied) {
 		// The store or the database being away is not the file's fault: the run stays RUNNING
 		// with the progress it recorded, the job retries, and the next attempt claims the same
@@ -135,14 +139,19 @@ type mediaObject struct {
 
 // target reads the collection an import lands in, in the claim's transaction: still a live
 // collection of the run's hub, its live columns and labels, and the order keys to rank after.
-func (r Runner) target(ctx context.Context, run domain.Run) (*repository.Target, error) {
+func (r Runner) target(ctx context.Context, run domain.Run) (*repository.Target, work.Container, error) {
 	collection, err := r.Containers.Find(ctx, run.CollectionID)
 	if err != nil && !errors.Is(err, shared.ErrNotFound) {
-		return nil, err
+		return nil, work.Container{}, err
 	}
 	if err != nil || collection.Type != work.ContainerCollection || collection.ParentID != run.HubID || collection.DeletedAt != nil {
-		return nil, shared.ErrValidation.WithDetail(domain.CodeNotInHub)
+		return nil, work.Container{}, shared.ErrValidation.WithDetail(domain.CodeNotInHub)
 	}
+	target, err := r.targetOf(ctx, collection)
+	return target, collection, err
+}
+
+func (r Runner) targetOf(ctx context.Context, collection work.Container) (*repository.Target, error) {
 	target := &repository.Target{Collection: collection.ID}
 	buckets, err := r.Buckets.List(ctx, collection.ID)
 	if err != nil {
@@ -179,7 +188,9 @@ func stem(fileName string) string {
 
 // perform is the fallible middle: the file, the conversion, the archive, the apply. What it
 // answers is the outcome the run records.
-func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object mediaObject, target *repository.Target) (backupdomain.Report, []domain.Refusal, error) {
+func (r Runner) perform(
+	ctx context.Context, in RunInput, run domain.Run, object mediaObject, target *repository.Target, collection work.Container,
+) (backupdomain.Report, []domain.Refusal, error) {
 	converter, ok := r.Converters[run.Kind]
 	if !ok {
 		return backupdomain.Report{}, nil, shared.ErrValidation.WithDetail(domain.CodeKindUnsupported)
@@ -215,6 +226,11 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 	})
 	if err != nil {
 		return backupdomain.Report{}, nil, err
+	}
+	if target != nil {
+		if err := r.hold(ctx, persistence.Scope{TenantID: in.TenantID}, run, collection, &result); err != nil {
+			return backupdomain.Report{}, result.Refused, err
+		}
 	}
 
 	store := newMemoryStore()

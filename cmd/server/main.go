@@ -4608,7 +4608,7 @@ func run() error {
 		Runner: importservice.Runner{
 			Runs: importRuns, Objects: mediaObjects, Store: mediaStore, Converters: importConverters,
 			Containers: containers, Buckets: buckets, Labels: labels, Items: items,
-			Applier: backupApplier, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Applier: backupApplier, Forms: entryGate.Forms, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			MaxBytes: cfg.Request.MaxUploadBytes, SchemaVersion: schemaVersion(), ProductVersion: version,
 		},
 		Progress: jobs,

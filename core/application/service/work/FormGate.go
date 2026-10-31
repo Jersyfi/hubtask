@@ -399,3 +399,26 @@ func (g FormGate) holdRestricted(
 	}
 	return nil
 }
+
+// HoldImported holds an entry an import would create in an existing collection to its type's form,
+// as a creation through the import door is (UC-IMP-04 check 8): the caller drops a refused entry
+// and reports it rather than landing it short. A type the workspace does not hold yet is one the
+// import brings, with an empty form - not the level's system type, which a creation would fall
+// back to. Nil where the gate is not wired.
+func (g FormGate) HoldImported(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
+) error {
+	if !g.Wired() {
+		return nil
+	}
+	if item.EntryType != "" && item.EntryType != domain.SystemEntryTypeKey(item.Type) {
+		rows, err := g.Types.List(ctx)
+		if err != nil {
+			return err
+		}
+		if _, held := domain.NewEntryTypes(rows).Find(item.EntryType); !held {
+			return g.holdRestricted(ctx, actor, collection, nil, item)
+		}
+	}
+	return g.checkCreate(ctx, actor, collection, item)
+}

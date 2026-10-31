@@ -228,3 +228,36 @@ func TestAFormConditionReadsTheCustomRolesHeld(t *testing.T) {
 		}
 	}
 }
+
+// UC-IMP-04 check 8: an import into a collection is held to the form of a type the workspace
+// holds, through the import door; a type the import brings has no form yet, and is not held to
+// the level's system type's.
+func TestAnImportedEntryIsHeldToTheFormOfATypeTheWorkspaceHolds(t *testing.T) {
+	ctx := context.Background()
+	compiler := &answers{}
+	gate := FormGate{Types: formedTypes(domain.Form{Fields: []domain.FormField{
+		{Key: "custom_fields.severity", Required: true},
+	}}), Compiler: compiler}
+	collection := domain.Container{ID: collectionID}
+	importer := itemActor()
+	importer.Channel = string(domain.ChannelImport)
+
+	short := domain.WorkItem{Type: domain.ItemTask, Title: "short"}
+	refusal := formRefusal(t, gate.HoldImported(ctx, importer, collection, short), "forms.refused")
+	if refusal.Fields[0].Params["key"] != "custom_fields.severity" {
+		t.Errorf("refusal = %+v", refusal.Fields)
+	}
+	filled := short
+	filled.CustomFields = map[string]any{"severity": "high"}
+	if err := gate.HoldImported(ctx, importer, collection, filled); err != nil {
+		t.Errorf("an entry meeting its form was refused: %v", err)
+	}
+	brought := short
+	brought.EntryType = "story"
+	if err := gate.HoldImported(ctx, importer, collection, brought); err != nil {
+		t.Errorf("a type the import brings was held to the system type's form: %v", err)
+	}
+	if err := (FormGate{}).HoldImported(ctx, importer, collection, short); err != nil {
+		t.Errorf("an unwired gate holds nothing: %v", err)
+	}
+}

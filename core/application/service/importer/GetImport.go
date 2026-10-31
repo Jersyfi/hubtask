@@ -114,7 +114,11 @@ func RunOutput(run domain.Run) usecase.Output {
 	}
 	refused := make([]usecase.Output, 0, len(run.Refused))
 	for _, r := range run.Refused {
-		refused = append(refused, usecase.Output{"row": r.Row, "code": r.Code})
+		row := usecase.Output{"row": r.Row, "code": r.Code}
+		if len(r.Fields) > 0 {
+			row["fields"] = r.Fields
+		}
+		refused = append(refused, row)
 	}
 	out["refused"] = refused
 	return out
