@@ -467,3 +467,19 @@ func TestThePreferencesOfAnotherTenantAreNotListed(t *testing.T) {
 		t.Errorf("tenant B listed %d of tenant A's preferences", len(foreign))
 	}
 }
+
+// A portal requester's reply notice is a category the table takes (migration 0295), read back as
+// written.
+func TestARequestReplyIsWrittenAndReadBack(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	recipient := seedAccount(ctx, t, tenantA)
+	record := pendingNotification(t, tenantA, recipient, authorA, freshID(t))
+	record.Category = domain.CategoryRequestReply
+	if !insertNotification(ctx, t, tenantA, record) {
+		t.Fatal("the record was not written")
+	}
+	if stored, err := findNotification(ctx, t, tenantA, record.ID); err != nil || stored.Category != domain.CategoryRequestReply {
+		t.Errorf("read back as %q (%v)", stored.Category, err)
+	}
+}

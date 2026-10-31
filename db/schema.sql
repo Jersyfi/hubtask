@@ -2753,7 +2753,7 @@ CREATE TABLE notification (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   recipient_id uuid NOT NULL,
   -- RETENTION since migration 0062: the advance warning of data-retention.md §6 (R-1).
-  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS')),
+  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY')),
   channel      text NOT NULL CHECK (channel IN ('EMAIL')),
   state        text NOT NULL CHECK (state IN ('PENDING','SENT','SUPPRESSED','FAILED')),
   reason       text,                             -- a detail code, never a sentence (rule 8)
@@ -2813,7 +2813,7 @@ CREATE INDEX notification_membership_idx
 CREATE TABLE notification_preference (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id    uuid NOT NULL,
-  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS')),
+  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY')),
   channel       text NOT NULL CHECK (channel IN ('EMAIL')),
   enabled       boolean NOT NULL DEFAULT true,
   include_title boolean NOT NULL DEFAULT true,   -- data-protection.md §9: the minimum is switchable
