@@ -42,7 +42,27 @@ type Message struct {
 	// installation's receiving domain (ADR-0092 decision 8). Empty for none. Not a caller's free
 	// choice either - it is minted by this system and checked like To.
 	ReplyTo string
+	// Attachments travel beside the body: a scheduled report's tables (UC-GOL-04). Only the types
+	// AttachmentTypes names, within MaxAttachmentBytes together, under a plain file name; an
+	// adapter refuses anything else rather than sending it.
+	Attachments []Attachment
 }
+
+// Attachment is one file of a message. Its content is user content and never logged (rule 10).
+type Attachment struct {
+	// Name is the file name, ASCII letters, digits, '.', '-' and '_' only, so that it needs no
+	// header encoding and cannot end a header.
+	Name        string
+	ContentType string
+	Content     []byte
+}
+
+// AttachmentTypes are the content types a message may carry.
+var AttachmentTypes = []string{"text/csv"}
+
+// MaxAttachmentBytes bounds a message's attachments together: a mail server's limit is commonly
+// ten megabytes after base64's third, and a report larger than this is read through its link.
+const MaxAttachmentBytes = 2 << 20
 
 // NotificationHeader marks every message this system sends. The mail intake discards a message
 // carrying it, so a notification that comes back - forwarded by a rule, bounced by a server - ends
@@ -61,6 +81,10 @@ var ErrRecipientMissing = shared.ErrInternal.WithDetail("mail.recipient_missing"
 // comes from a catalogue and a title, and a title is user content - so this is checked at the
 // boundary rather than assumed away (T-06's reasoning, applied to SMTP instead of SQL).
 var ErrHeaderInjection = shared.ErrInternal.WithDetail("mail.header_injection")
+
+// ErrAttachmentRefused is an attachment of a type not in AttachmentTypes, with an unsafe name, or
+// past MaxAttachmentBytes - a caller's mistake, refused before anything is sent.
+var ErrAttachmentRefused = shared.ErrInternal.WithDetail("mail.attachment_refused")
 
 // Sender delivers a message.
 //

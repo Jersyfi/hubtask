@@ -6,6 +6,7 @@ package mail_test
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"mime/quotedprintable"
@@ -388,5 +389,51 @@ func TestAnASCIIBodyTravelsAsItIs(t *testing.T) {
 	message := smtpServer.messages()[0]
 	if strings.Contains(message, "Content-Transfer-Encoding") {
 		t.Errorf("an ASCII body was encoded:\n%s", message)
+	}
+}
+
+// A scheduled report's table travels as a CSV attachment (UC-GOL-04): one multipart message, the
+// body quoted-printable so no line of it can be taken for the boundary, the file base64.
+func TestACsvAttachmentTravelsBesideTheBody(t *testing.T) {
+	smtpServer := newServer(t)
+	sender := mail.NewSMTP(configFor(smtpServer))
+	csv := []byte("group,value\r\nOpen,3\r\n")
+	if err := sender.Send(context.Background(), port.Message{
+		To: "anna@test.invalid", Subject: "Report", Body: "--=_hubtask_part\nthe totals",
+		Attachments: []port.Attachment{{Name: "widget-1.csv", ContentType: "text/csv", Content: csv}},
+	}); err != nil {
+		t.Fatalf("sending: %v", err)
+	}
+	message := smtpServer.messages()[0]
+	if !strings.HasPrefix(headerOf(t, message, "Content-Type"), "multipart/mixed") {
+		t.Fatalf("not a multipart message:\n%s", message)
+	}
+	if strings.Contains(message, "\n--=_hubtask_part\nthe totals") {
+		t.Errorf("the body forged a part boundary:\n%s", message)
+	}
+	if !strings.Contains(message, `filename="widget-1.csv"`) || !strings.Contains(message, base64.StdEncoding.EncodeToString(csv)) {
+		t.Errorf("the attachment is missing:\n%s", message)
+	}
+}
+
+// An attachment of another type, with a name that could leave its quotes, or past the bound is
+// refused before anything is sent.
+func TestAnUnsafeAttachmentIsRefused(t *testing.T) {
+	smtpServer := newServer(t)
+	sender := mail.NewSMTP(configFor(smtpServer))
+	for name, attachment := range map[string]port.Attachment{
+		"a type":  {Name: "a.html", ContentType: "text/html", Content: []byte("x")},
+		"a name":  {Name: "a\".csv", ContentType: "text/csv", Content: []byte("x")},
+		"a size":  {Name: "a.csv", ContentType: "text/csv", Content: make([]byte, port.MaxAttachmentBytes+1)},
+		"no name": {ContentType: "text/csv", Content: []byte("x")},
+	} {
+		err := sender.Send(context.Background(), port.Message{To: "anna@test.invalid", Subject: "R", Body: "b",
+			Attachments: []port.Attachment{attachment}})
+		if !errors.Is(err, port.ErrAttachmentRefused) {
+			t.Errorf("%s: %v, want the refusal", name, err)
+		}
+	}
+	if len(smtpServer.messages()) != 0 {
+		t.Error("a refused message reached the server")
 	}
 }
