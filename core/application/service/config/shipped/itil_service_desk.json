@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 9,
+  "version": 10,
   "questions": [
     {
       "key": "first_group",
@@ -875,12 +875,13 @@
         ]
       },
       "close_resolved": {
-        "name": "Close resolved incidents after a week",
+        "name": "Close resolved incidents after five business days",
         "enabled": true,
         "trigger": {
           "kind": "RELATIVE_DATE",
           "anchor": "COMPLETED_AT",
-          "offset": "P7D"
+          "offset": "P5D",
+          "calendar": "office"
         },
         "conditions": [
           {

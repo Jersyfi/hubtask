@@ -59,7 +59,7 @@ rule can be edited into another kind.
 |---|---|---|---|
 | `EVENT` | Any domain event; field filters through `changed_fields` | The outbox dispatcher, through the matching subscriber | The event |
 | `SCHEDULE` | RRULE with a time zone ("Mondays at 08:00") | The tenant's poller, when the stored `next_run_at` has come | The occurrence's instant |
-| `RELATIVE_DATE` | "24 h before the due date", anchored on `DUE_DATE`, `CREATED_AT`, `COMPLETED_AT` ("5 days after it was done"; a reopened entry owes nothing) or `FIELD` with `anchor_field`, a `DATE` or `DATE_TIME` custom field's key ("30 days before the notice date"; a day counts from its start in UTC, an empty field owes nothing) | The same poller, when a stored occurrence has come | The occurrence row |
+| `RELATIVE_DATE` | "24 h before the due date", anchored on `DUE_DATE`, `CREATED_AT`, `COMPLETED_AT` ("5 days after it was done"; a reopened entry owes nothing) or `FIELD` with `anchor_field`, a `DATE` or `DATE_TIME` custom field's key ("30 days before the notice date"; a day counts from its start in UTC, an empty field owes nothing); with `calendar`, a business calendar's key, the offset is whole working days of it at the anchor's clock time ("5 business days after it was done") | The same poller, when a stored occurrence has come | The occurrence row |
 | `MANUAL` | A button, an API call or an MCP tool | `POST /automation/rules/{id}:trigger` | The run, so two presses are two runs |
 | `INBOUND_WEBHOOK` | A token-protected URL per rule; the body is `payload` in CEL | `POST /automation/inbound/{token}` | The delivery, so two posts are two runs |
 | `JUMBLE_ENTRY` | A new arrival in the jumble, the basis for automatic conversion | An arrival in the jumble | The entry |
@@ -98,6 +98,11 @@ a rule in place of a person — kept in step with its anchor by a subscriber; a 
 nothing**, nor does an entry in the trash or gone. The `SCHEDULE` poller serves it too.
 
 **A rule takes effect for what happens after it is switched on**; nothing walks earlier entries.
+
+**A business calendar counts working days.** A trigger naming one is read on the entry's hub's own
+version of the key, else the workspace's or the installation's, as an SLA policy's calendar is; a
+rule whose calendar no longer exists owes nothing, because plain days would come earlier than the
+rule promises.
 
 #### `MANUAL`
 
