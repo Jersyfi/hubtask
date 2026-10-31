@@ -85,6 +85,22 @@ func TestAPlanBeyondItsToleranceIsInException(t *testing.T) {
 	if last := f.audit.entries[len(f.audit.entries)-1]; last.Action != ToleranceExceededAction {
 		t.Errorf("recorded %v, want the exception", last.Action)
 	}
+
+	// The tolerance alone - the configuration document's read, inside a read-only transaction -
+	// answers the same resolution and records nothing.
+	recorded := len(f.audit.entries)
+	out, err := ReadPlanTolerance{Planner: f.planner}.Descriptor().Handler.Invoke(ctx, actor(), usecase.Input{
+		"plan_id": collection.String(), "tolerance_only": true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out["source"] != "HUB" || out["time_tolerance_days"] != 2 || out["exception"] != nil {
+		t.Errorf("the tolerance alone answered %v", out)
+	}
+	if len(f.audit.entries) != recorded {
+		t.Errorf("reading the tolerance alone recorded %v", f.audit.entries[recorded:])
+	}
 }
 
 // told records whom a plan's exception was sent to.

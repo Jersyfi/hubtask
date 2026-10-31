@@ -26462,6 +26462,9 @@ type ReadPlanToleranceParams struct {
 
 	// Zone An IANA time zone, when no calendar names one; UTC without.
 	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
+
+	// ToleranceOnly The tolerance alone, without the plan's standing against its baseline; nothing is recorded.
+	ToleranceOnly *bool `form:"tolerance_only,omitempty" json:"tolerance_only,omitempty"`
 }
 
 // SetPlanToleranceJSONBody defines parameters for SetPlanTolerance.
@@ -50856,6 +50859,19 @@ func (siw *ServerInterfaceWrapper) ReadPlanTolerance(w http.ResponseWriter, r *h
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "zone"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "zone", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "tolerance_only" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "tolerance_only", r.URL.Query(), &params.ToleranceOnly, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "tolerance_only"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tolerance_only", Err: err})
 		}
 		return
 	}

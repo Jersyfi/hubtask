@@ -264,6 +264,7 @@ paths:
       parameters:
         - { name: calendar, in: query, schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }, description: "A business calendar's key." }
         - { name: zone, in: query, schema: { type: string }, description: "An IANA time zone, when no calendar names one; UTC without." }
+        - { name: tolerance_only, in: query, schema: { type: boolean, default: false }, description: "The tolerance alone, without the plan's standing against its baseline; nothing is recorded." }
       responses:
         "200":
           description: The tolerance

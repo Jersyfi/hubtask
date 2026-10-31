@@ -1997,6 +1997,7 @@ var generatedCommands = []door{
 		},
 		Query: []doorParam{
 			{Name: "calendar", Kind: "string", Help: "A business calendar's key", Required: false},
+			{Name: "tolerance_only", Kind: "boolean", Help: "The tolerance alone, without the plan's standing against its baseline; nothing is recorded", Required: false},
 			{Name: "zone", Kind: "string", Help: "An IANA time zone, when no calendar names one; UTC without", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"baseline_id", "locked_by", "source", "time_tolerance_days"}},

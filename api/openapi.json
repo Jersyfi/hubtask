@@ -458,6 +458,15 @@
               "type": "string"
             },
             "description": "An IANA time zone, when no calendar names one; UTC without."
+          },
+          {
+            "name": "tolerance_only",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "The tolerance alone, without the plan's standing against its baseline; nothing is recorded."
           }
         ],
         "responses": {

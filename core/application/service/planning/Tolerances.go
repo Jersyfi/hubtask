@@ -103,6 +103,12 @@ type ReadPlanTolerance struct{ Planner Planner }
 
 // Execute reads it.
 func (h ReadPlanTolerance) Execute(ctx context.Context, actor appshared.ActorContext, q ScheduleQuery) (ToleranceView, error) {
+	return h.read(ctx, actor, q, false)
+}
+
+// read reads it; alone reads the tolerance without the plan's standing, which writes nothing - the
+// configuration document's read, inside a read-only transaction.
+func (h ReadPlanTolerance) read(ctx context.Context, actor appshared.ActorContext, q ScheduleQuery, alone bool) (ToleranceView, error) {
 	plan, err := h.Planner.plan(ctx, actor, q.PlanID, service.PermissionRead, PlanReadAction, itemsRead)
 	if err != nil {
 		return ToleranceView{}, err
@@ -113,7 +119,7 @@ func (h ReadPlanTolerance) Execute(ctx context.Context, actor appshared.ActorCon
 		latest []domain.Baseline
 	)
 	if err := h.Planner.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		if view.Resolution, err = h.Planner.tolerance(ctx, walk); err != nil {
+		if view.Resolution, err = h.Planner.tolerance(ctx, walk); err != nil || alone {
 			return err
 		}
 		if latest, err = h.Planner.Baselines.List(ctx, plan.ID); err != nil || len(latest) == 0 {
@@ -201,15 +207,18 @@ func (h ReadPlanTolerance) Descriptor() usecase.Descriptor {
 			"that is beyond the tolerance: the plan is then in exception.",
 		SideEffects: "Writes an audit entry when the plan is found in exception.",
 		TokenScope:  itemsRead,
-		Input:       scheduleInput(),
-		Audit:       usecase.AuditDeclaration{Action: ToleranceExceededAction},
-		Activity:    usecase.ActivityDeclaration{Exempt: "a read changes no entry."},
+		Input: append(scheduleInput(), usecase.Field{
+			Name: "tolerance_only", Kind: usecase.KindBool,
+			Description: "Read the tolerance alone, without the plan's standing against its baseline; nothing is recorded.",
+		}),
+		Audit:    usecase.AuditDeclaration{Action: ToleranceExceededAction},
+		Activity: usecase.ActivityDeclaration{Exempt: "a read changes no entry."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			q, err := scheduleQueryOf(in)
 			if err != nil {
 				return nil, err
 			}
-			view, err := h.Execute(ctx, actor, q)
+			view, err := h.read(ctx, actor, q, in.Bool("tolerance_only"))
 			if err != nil {
 				return nil, err
 			}

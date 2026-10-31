@@ -26468,6 +26468,9 @@ type ReadPlanToleranceParams struct {
 
 	// Zone An IANA time zone, when no calendar names one; UTC without.
 	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
+
+	// ToleranceOnly The tolerance alone, without the plan's standing against its baseline; nothing is recorded.
+	ToleranceOnly *bool `form:"tolerance_only,omitempty" json:"tolerance_only,omitempty"`
 }
 
 // SetPlanToleranceJSONBody defines parameters for SetPlanTolerance.
@@ -87915,6 +87918,18 @@ func NewReadPlanToleranceRequest(server string, planId PlanId, params *ReadPlanT
 		if params.Zone != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "zone", *params.Zone, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ToleranceOnly != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tolerance_only", *params.ToleranceOnly, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
