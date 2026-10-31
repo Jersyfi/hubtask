@@ -205,7 +205,7 @@ func (s OLAClocks) arm(
 				}
 			}
 			if goal.Pauses(item.Status) {
-				if timer, err = olaTimer(clocks.Pause, ctx, record); err != nil {
+				if timer, err = olaTimer(ctx, clocks.Pause, record); err != nil {
 					return err
 				}
 			}
@@ -251,8 +251,8 @@ func (s OLAClocks) follow(
 }
 
 func olaTimer(
-	step func(context.Context, calendar.Purpose, shared.ID, string) (calendar.Timer, error),
-	ctx context.Context, record domain.EntrySLA,
+	ctx context.Context, step func(context.Context, calendar.Purpose, shared.ID, string) (calendar.Timer, error),
+	record domain.EntrySLA,
 ) (calendar.Timer, error) {
 	if _, err := step(ctx, calendar.PurposeOLA, record.ID, record.Goal.WarnTimerName()); err != nil && !errors.Is(err, shared.ErrNotFound) {
 		return calendar.Timer{}, err
@@ -266,7 +266,7 @@ func (s OLAClocks) move(ctx context.Context, clocks calendarservice.Clocks, reco
 	if pause {
 		step = clocks.Pause
 	}
-	timer, err := olaTimer(step, ctx, record)
+	timer, err := olaTimer(ctx, step, record)
 	if errors.Is(err, shared.ErrNotFound) {
 		return nil
 	}
@@ -281,7 +281,7 @@ func (s OLAClocks) move(ctx context.Context, clocks calendarservice.Clocks, reco
 
 // end stops one goal's clocks: met when save, else only stopped because the entry is gone.
 func (s OLAClocks) end(ctx context.Context, clocks calendarservice.Clocks, record domain.EntrySLA, save bool, now time.Time) error {
-	timer, err := olaTimer(clocks.Stop, ctx, record)
+	timer, err := olaTimer(ctx, clocks.Stop, record)
 	if errors.Is(err, shared.ErrNotFound) || (err == nil && !save) {
 		return nil
 	}
