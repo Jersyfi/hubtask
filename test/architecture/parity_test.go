@@ -78,6 +78,9 @@ func servedRoutes(t *testing.T) map[string]bool {
 
 	controller := rest.NewRestController()
 	controller.UseCases = stubCatalogue{}
+	// The health report is a catalogue entry served by a delegated door: wired without its reader
+	// it answers the defect rather than the pending 404, which is what tells served from pending.
+	controller.Meta = &rest.MetaDoor{}
 	routes := controller.Routes()
 
 	served := map[string]bool{}

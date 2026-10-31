@@ -92,8 +92,10 @@ func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 				// audit package, which imports the port under an alias because the two share a
 				// name (core/application/service/audit). And `Action("…")` is the conversion the
 				// port itself writes, in its table of renamed actions.
+				// A generated door's dropped member is a body's dotted path (`query.page`), not a code.
 				if strings.Contains(line, "audit.Action") || strings.Contains(line, "port.Action") ||
-					actionConversion.MatchString(line) || strings.Contains(line, "Kind = \"") {
+					actionConversion.MatchString(line) || strings.Contains(line, "Kind = \"") ||
+					strings.Contains(line, "Dropped: []string{") {
 					continue
 				}
 				for _, match := range messageCode.FindAllStringSubmatch(line, -1) {
