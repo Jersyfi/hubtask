@@ -32,8 +32,13 @@ try {
     const url = new URL(route.request().url());
     // The stream is a long-lived connection the walk does not need; its absence is not an error.
     if (url.pathname.endsWith('/api/v1/stream')) return route.abort();
-    const response = await route.fetch({ url: api + url.pathname + url.search, timeout: SETTLE_MS });
-    return route.fulfill({ response });
+    try {
+      const response = await route.fetch({ url: api + url.pathname + url.search, timeout: SETTLE_MS });
+      return await route.fulfill({ response });
+    } catch {
+      // The page sees a failed request, which requestfailed records.
+      return route.abort('failed').catch(() => {});
+    }
   });
   await context.addInitScript((token) => sessionStorage.setItem('hubtask.bearer', token), bearer);
   const page = await context.newPage();
