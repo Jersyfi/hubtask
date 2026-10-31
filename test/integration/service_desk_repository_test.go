@@ -87,6 +87,15 @@ func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
+	// A next response is a goal the store takes (migration 0293).
+	other := seedWorkItemForRules(ctx, t, tenantA)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		next := record
+		next.ID, next.ItemID, next.Goal, next.ArmedAt = freshID(t), other, servicedesk.GoalNextResponse, now.Add(-3*time.Hour)
+		return repo.Records().Save(ctx, next, now)
+	}); err != nil {
+		t.Errorf("a next response was refused: %v", err)
+	}
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		records, err := repo.Records().OfItem(ctx, item)
 		if err != nil || len(records) != 1 || records[0].Standing != servicedesk.StandingMet || records[0].Version != 2 {

@@ -5578,7 +5578,7 @@ CREATE TABLE entry_sla (
   id             uuid PRIMARY KEY,
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   item_id        uuid NOT NULL,
-  goal           text NOT NULL CHECK (goal IN ('FIRST_RESPONSE', 'RESOLUTION')),
+  goal           text NOT NULL CHECK (goal IN ('FIRST_RESPONSE', 'NEXT_RESPONSE', 'RESOLUTION')),
   policy_key     text NOT NULL,
   target_seconds bigint NOT NULL CHECK (target_seconds > 0),
   standing       text NOT NULL CHECK (standing IN ('RUNNING', 'PAUSED', 'MET', 'BREACHED')),
