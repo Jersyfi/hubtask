@@ -736,6 +736,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `page.article_published` | PublishPageToPortal | `page` | INFO | Every time |
 | `page.article_unpublished` | UnpublishPageFromPortal | `page` | INFO | Every time |
+| `page.changed` | SetPageLabels | `page` | INFO | Every time |
 | `page.changed` | UpdatePage | `page` | INFO | Every time |
 | `page.created` | CopyPage | `page` | INFO | Every time |
 | `page.created` | CreatePage | `page` | INFO | Every time |
@@ -747,9 +748,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.public_link_deleted` | DeletePagePublicLink | `page` | NOTICE | Every time |
 | `page.read` | ListPageBacklinks | `page` | INFO | When refused |
 | `page.read` | ListPageComments | `page_comment` | INFO | When refused |
+| `page.read` | ListPageLabels | `page` | INFO | When refused |
 | `page.read` | ListPageVersions | `page` | INFO | When refused |
 | `page.read` | ListPages | `page` | INFO | When refused |
 | `page.read` | ListSharedPages | `page` | INFO | When refused |
+| `page.read` | ListSpaceLabels | `page` | INFO | When refused |
 | `page.read` | ListTrashedPages | `page` | INFO | When refused |
 | `page.read` | ReadPage | `page` | INFO | When refused |
 | `page.read` | ReadPageAccess | `page` | INFO | When refused |
