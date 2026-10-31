@@ -3778,6 +3778,11 @@ export class HubtaskClient {
     return this.call("GET", "/realtime/documents/{kind}/{documentId}", { "kind": kind, "documentId": documentId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The labels of a hub's pages */
+  listSpaceLabels(hubId: string, options: CallOptions = {}): Promise<operations["listSpaceLabels"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/page-labels", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** A hub's pages */
   listPages(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listPages"]['parameters']['query']> } = {}): Promise<operations["listPages"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/pages", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
@@ -3871,6 +3876,16 @@ export class HubtaskClient {
   /** What links to a page */
   listPageBacklinks(pageId: string, options: CallOptions = {}): Promise<operations["listPageBacklinks"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/pages/{pageId}/backlinks", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A page's labels */
+  listPageLabels(pageId: string, options: CallOptions = {}): Promise<operations["listPageLabels"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}/labels", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set a page's labels */
+  setPageLabels(pageId: string, body: NonNullable<operations["setPageLabels"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setPageLabels"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}:label", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Export a page as Markdown */

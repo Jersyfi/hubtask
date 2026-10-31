@@ -20805,6 +20805,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /hubs/{hubId}/page-labels:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [pages]
+      operationId: listSpaceLabels
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page space-labels"
+      summary: The labels of a hub's pages
+      description: >
+        Every label the space's live pages carry, with how many pages carry it, most used first:
+        the facet a search narrows by. A page the reader may not read is not counted. Needs READ on
+        the hub.
+      responses:
+        "200":
+          description: The labels and their counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageLabelCounts"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /hubs/{hubId}/pages:
     parameters:
       - name: hubId
@@ -21306,6 +21332,63 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /pages/{pageId}/labels:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: listPageLabels
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page labels"
+      summary: A page's labels
+      description: >
+        The labels a page carries, in alphabetical order. Needs READ on the hub.
+      responses:
+        "200":
+          description: The labels
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageLabels"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages/{pageId}:label:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: setPageLabels
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page label"
+      summary: Set a page's labels
+      description: >
+        Replaces the labels a page carries with the ones given - an empty list takes them all away.
+        A label is written in lower case, one word of letters, digits, `-`, `_` or `.`, at most 40
+        characters; a page carries at most 20. Labelling neither changes the page's version nor
+        adds one to its history. Needs WRITE_ITEMS on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [labels]
+              properties:
+                labels:
+                  type: array
+                  maxItems: 20
+                  items: { type: string, minLength: 1, maxLength: 40 }
+      responses:
+        "200":
+          description: The labels as they stand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageLabels"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /pages/{pageId}:export:
     parameters:
       - $ref: "#/components/parameters/PageId"
@@ -21346,8 +21429,10 @@ paths:
       description: >
         Pages whose title or body holds the words, stemmed in each page's language, in one hub's
         space or in every space the reader may read, best first, each with the passage that
-        matched. Archived and trashed pages are left out. A `POST` because what somebody looks for
-        is their content.
+        matched - narrowed to a label, to the person who wrote a page first and to when it last
+        changed. Without a text, the pages a label or an author names come newest first, with
+        no passage. Archived and trashed pages are left out. A `POST` because what somebody looks
+        for is their content.
       requestBody:
         required: true
         content:
@@ -37600,11 +37685,37 @@ components:
 
     PageSearch:
       type: object
-      required: [text]
+      description: >
+        A text, a label or an author at least; the moments narrow what one of them finds.
       properties:
-        text: { type: string, minLength: 1, maxLength: 200, description: "What to look for, in web search syntax." }
+        text: { type: string, maxLength: 200, description: "What to look for, in web search syntax; may be empty with a label or an author." }
         hub_id: { type: string, format: uuid, description: "One hub's space; absent for every readable space." }
         limit: { type: integer, minimum: 1, maximum: 50 }
+        label: { type: string, minLength: 1, maxLength: 40, description: "Only pages carrying this label." }
+        author_id: { type: string, format: uuid, description: "Only pages this person wrote first." }
+        updated_from: { type: string, format: date-time, description: "Only pages changed at or after this moment." }
+        updated_to: { type: string, format: date-time, description: "Only pages changed before this moment." }
+
+    PageLabels:
+      type: object
+      required: [labels]
+      properties:
+        labels:
+          type: array
+          items: { type: string }
+
+    PageLabelCounts:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [label, pages]
+            properties:
+              label: { type: string }
+              pages: { type: integer, description: "How many of the space's pages the reader may read carry it." }
 
     PageHitList:
       type: object

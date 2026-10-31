@@ -3003,6 +3003,10 @@ class Client:
         """A live document, as a WebSocket"""
         return self._call("GET", "/realtime/documents/{kind}/{documentId}", {"kind": kind, "documentId": document_id}, None, {}, None, "none", None, "void")
 
+    def list_space_labels(self, hub_id: str) -> "PageLabelCounts":
+        """The labels of a hub's pages"""
+        return self._call("GET", "/hubs/{hubId}/page-labels", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
     def list_pages(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "PageList":
         """A hub's pages"""
         return self._call("GET", "/hubs/{hubId}/pages", {"hubId": hub_id}, query, {}, None, "none", None, "json")
@@ -3078,6 +3082,14 @@ class Client:
     def list_page_backlinks(self, page_id: str) -> "PageBacklinkList":
         """What links to a page"""
         return self._call("GET", "/pages/{pageId}/backlinks", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def list_page_labels(self, page_id: str) -> "PageLabels":
+        """A page's labels"""
+        return self._call("GET", "/pages/{pageId}/labels", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def set_page_labels(self, page_id: str, body: dict[str, Any]) -> "PageLabels":
+        """Set a page's labels"""
+        return self._call("POST", "/pages/{pageId}:label", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
 
     def export_page(self, page_id: str, body: "PageExportRequest") -> "PageExport":
         """Export a page as Markdown"""

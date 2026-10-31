@@ -19063,6 +19063,21 @@ type PageInfo struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// PageLabelCounts defines model for PageLabelCounts.
+type PageLabelCounts struct {
+	Data []struct {
+		Label string `json:"label"`
+
+		// Pages How many of the space's pages the reader may read carry it.
+		Pages int `json:"pages"`
+	} `json:"data"`
+}
+
+// PageLabels defines model for PageLabels.
+type PageLabels struct {
+	Labels []string `json:"labels"`
+}
+
 // PageList defines model for PageList.
 type PageList struct {
 	Data []Page `json:"data"`
@@ -19169,14 +19184,26 @@ type PageRestrict struct {
 	Lift *bool `json:"lift,omitempty"`
 }
 
-// PageSearch defines model for PageSearch.
+// PageSearch A text, a label or an author at least; the moments narrow what one of them finds.
 type PageSearch struct {
+	// AuthorId Only pages this person wrote first.
+	AuthorId *openapi_types.UUID `json:"author_id,omitempty"`
+
 	// HubId One hub's space; absent for every readable space.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
-	Limit *int                `json:"limit,omitempty"`
 
-	// Text What to look for, in web search syntax.
-	Text string `json:"text"`
+	// Label Only pages carrying this label.
+	Label *string `json:"label,omitempty"`
+	Limit *int    `json:"limit,omitempty"`
+
+	// Text What to look for, in web search syntax; may be empty with a label or an author.
+	Text *string `json:"text,omitempty"`
+
+	// UpdatedFrom Only pages changed at or after this moment.
+	UpdatedFrom *time.Time `json:"updated_from,omitempty"`
+
+	// UpdatedTo Only pages changed before this moment.
+	UpdatedTo *time.Time `json:"updated_to,omitempty"`
 }
 
 // PageShare defines model for PageShare.
@@ -26520,6 +26547,11 @@ type CopyPageJSONBody struct {
 	Title *string `json:"title,omitempty"`
 }
 
+// SetPageLabelsJSONBody defines parameters for SetPageLabels.
+type SetPageLabelsJSONBody struct {
+	Labels []string `json:"labels"`
+}
+
 // MovePageParams defines parameters for MovePage.
 type MovePageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -28119,6 +28151,9 @@ type CopyPageJSONRequestBody CopyPageJSONBody
 
 // ExportPageJSONRequestBody defines body for ExportPage for application/json ContentType.
 type ExportPageJSONRequestBody = PageExportRequest
+
+// SetPageLabelsJSONRequestBody defines body for SetPageLabels for application/json ContentType.
+type SetPageLabelsJSONRequestBody SetPageLabelsJSONBody
 
 // MovePageJSONRequestBody defines body for MovePage for application/json ContentType.
 type MovePageJSONRequestBody = PageMove
@@ -29931,6 +29966,9 @@ type ServerInterface interface {
 	// CreateCodeHook Add a forge hook
 	// (POST /hubs/{hubId}/code-hooks)
 	CreateCodeHook(w http.ResponseWriter, r *http.Request, hubId HubId)
+	// ListSpaceLabels The labels of a hub's pages
+	// (GET /hubs/{hubId}/page-labels)
+	ListSpaceLabels(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListPages A hub's pages
 	// (GET /hubs/{hubId}/pages)
 	ListPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListPagesParams)
@@ -30501,6 +30539,9 @@ type ServerInterface interface {
 	// AddPageComment Comment on a page
 	// (POST /pages/{pageId}/comments)
 	AddPageComment(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ListPageLabels A page's labels
+	// (GET /pages/{pageId}/labels)
+	ListPageLabels(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// AttachPageMedia Attach an uploaded picture or file to a page
 	// (POST /pages/{pageId}/media)
 	AttachPageMedia(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -30534,6 +30575,9 @@ type ServerInterface interface {
 	// ExportPage Export a page as Markdown
 	// (POST /pages/{pageId}:export)
 	ExportPage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// SetPageLabels Set a page's labels
+	// (POST /pages/{pageId}:label)
+	SetPageLabels(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// MovePage Move a page
 	// (POST /pages/{pageId}:move)
 	MovePage(w http.ResponseWriter, r *http.Request, pageId PageId, params MovePageParams)
@@ -43190,6 +43234,32 @@ func (siw *ServerInterfaceWrapper) CreateCodeHook(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListSpaceLabels operation middleware
+func (siw *ServerInterfaceWrapper) ListSpaceLabels(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSpaceLabels(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPages operation middleware
 func (siw *ServerInterfaceWrapper) ListPages(w http.ResponseWriter, r *http.Request) {
 
@@ -50143,6 +50213,32 @@ func (siw *ServerInterfaceWrapper) AddPageComment(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListPageLabels operation middleware
+func (siw *ServerInterfaceWrapper) ListPageLabels(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPageLabels(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // AttachPageMedia operation middleware
 func (siw *ServerInterfaceWrapper) AttachPageMedia(w http.ResponseWriter, r *http.Request) {
 
@@ -50509,6 +50605,32 @@ func (siw *ServerInterfaceWrapper) ExportPage(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportPage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetPageLabels operation middleware
+func (siw *ServerInterfaceWrapper) SetPageLabels(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPageLabels(w, r, pageId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -58082,6 +58204,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.UploadMediaContent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/stream", wrapper.StreamChanges)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/realtime/documents/{kind}/{documentId}", wrapper.OpenRealtimeDocument)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/page-labels", wrapper.ListSpaceLabels)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/pages", wrapper.ListPages)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/pages", wrapper.CreatePage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/trashed-pages", wrapper.ListTrashedPages)
@@ -58101,6 +58224,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.DeletePageComment)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.ChangePageComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/backlinks", wrapper.ListPageBacklinks)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/labels", wrapper.ListPageLabels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:label", wrapper.SetPageLabels)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:export", wrapper.ExportPage)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages:search", wrapper.SearchPages)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:restrict", wrapper.RestrictPage)

@@ -369,6 +369,7 @@ var restDoors = map[string]restDoor{
 	"listOwnPasskeys":                   {UseCase: "ListOwnPasskeys", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPageBacklinks":                 {UseCase: "ListPageBacklinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPageComments":                  {UseCase: "ListPageComments", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listPageLabels":                    {UseCase: "ListPageLabels", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPageVersions":                  {UseCase: "ListPageVersions", Status: 200, Query: []string{"before", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before", "limit"}},
 	"listPages":                         {UseCase: "ListPages", Status: 200, Query: []string{"include_archived", "templates"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPlans":                         {UseCase: "ListPlans", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -396,6 +397,7 @@ var restDoors = map[string]restDoor{
 	"listSlaPolicies":                   {UseCase: "ListSlaPolicies", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSoftwareAliases":               {UseCase: "ListSoftwareAliases", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSoftwareProducts":              {UseCase: "ListSoftwareProducts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listSpaceLabels":                   {UseCase: "ListSpaceLabels", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSprints":                       {UseCase: "ListSprints", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSuggestions":                   {UseCase: "ListSuggestions", Status: 200, Query: []string{"cursor", "size", "status", "target_id", "target_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, QueryAs: map[string]string{"size": "page_size"}},
 	"listSyncDevices":                   {UseCase: "ListSyncDevices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -639,6 +641,7 @@ var restDoors = map[string]restDoor{
 	"setNotificationPreference":         {UseCase: "SetNotificationPreference", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setOwnAiBudget":                    {UseCase: "SetOwnAiBudget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"own_tokens_per_day"}},
 	"setOwnAvatar":                      {UseCase: "SetOwnAvatar", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setPageLabels":                     {UseCase: "SetPageLabels", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setPasswordAndSignIn":              {UseCase: "SetPasswordAndSignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"setPlanTolerance":                  {UseCase: "SetPlanTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"time_tolerance_days"}},
 	"setPublicLinksPolicy":              {UseCase: "SetPublicLinksPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3069,6 +3072,12 @@ func (c *RestController) ListPageComments(w http.ResponseWriter, r *http.Request
 	c.door(w, r, restDoors["listPageComments"], usecase.Input{"page_id": pageId.String()}, nil, nil, &answer)
 }
 
+// ListPageLabels answers GET /pages/{pageId}/labels by the generated mapping.
+func (c *RestController) ListPageLabels(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var answer openapi.PageLabels
+	c.door(w, r, restDoors["listPageLabels"], usecase.Input{"page_id": pageId.String()}, nil, nil, &answer)
+}
+
 // ListPageVersions answers GET /pages/{pageId}/versions by the generated mapping.
 func (c *RestController) ListPageVersions(w http.ResponseWriter, r *http.Request, pageId openapi.PageId, params openapi.ListPageVersionsParams) {
 	var answer openapi.PageVersionList
@@ -3253,6 +3262,12 @@ func (c *RestController) ListSoftwareAliases(w http.ResponseWriter, r *http.Requ
 func (c *RestController) ListSoftwareProducts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
 	var answer openapi.SoftwareProductList
 	c.door(w, r, restDoors["listSoftwareProducts"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
+}
+
+// ListSpaceLabels answers GET /hubs/{hubId}/page-labels by the generated mapping.
+func (c *RestController) ListSpaceLabels(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var answer openapi.PageLabelCounts
+	c.door(w, r, restDoors["listSpaceLabels"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
 }
 
 // ListSprints answers GET /collections/{collectionId}/sprints by the generated mapping.
@@ -4764,6 +4779,13 @@ func (c *RestController) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) 
 func (c *RestController) SetOwnAvatar(w http.ResponseWriter, r *http.Request) {
 	var body openapi.SetOwnAvatarJSONRequestBody
 	c.door(w, r, restDoors["setOwnAvatar"], usecase.Input{}, nil, &body, answerBy(accountResponse))
+}
+
+// SetPageLabels answers POST /pages/{pageId}:label by the generated mapping.
+func (c *RestController) SetPageLabels(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var body openapi.SetPageLabelsJSONRequestBody
+	var answer openapi.PageLabels
+	c.door(w, r, restDoors["setPageLabels"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
 }
 
 // SetPasswordAndSignIn answers POST /auth/sessions:set-password by the generated mapping.

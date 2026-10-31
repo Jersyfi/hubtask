@@ -19069,6 +19069,21 @@ type PageInfo struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// PageLabelCounts defines model for PageLabelCounts.
+type PageLabelCounts struct {
+	Data []struct {
+		Label string `json:"label"`
+
+		// Pages How many of the space's pages the reader may read carry it.
+		Pages int `json:"pages"`
+	} `json:"data"`
+}
+
+// PageLabels defines model for PageLabels.
+type PageLabels struct {
+	Labels []string `json:"labels"`
+}
+
 // PageList defines model for PageList.
 type PageList struct {
 	Data []Page `json:"data"`
@@ -19175,14 +19190,26 @@ type PageRestrict struct {
 	Lift *bool `json:"lift,omitempty"`
 }
 
-// PageSearch defines model for PageSearch.
+// PageSearch A text, a label or an author at least; the moments narrow what one of them finds.
 type PageSearch struct {
+	// AuthorId Only pages this person wrote first.
+	AuthorId *openapi_types.UUID `json:"author_id,omitempty"`
+
 	// HubId One hub's space; absent for every readable space.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
-	Limit *int                `json:"limit,omitempty"`
 
-	// Text What to look for, in web search syntax.
-	Text string `json:"text"`
+	// Label Only pages carrying this label.
+	Label *string `json:"label,omitempty"`
+	Limit *int    `json:"limit,omitempty"`
+
+	// Text What to look for, in web search syntax; may be empty with a label or an author.
+	Text *string `json:"text,omitempty"`
+
+	// UpdatedFrom Only pages changed at or after this moment.
+	UpdatedFrom *time.Time `json:"updated_from,omitempty"`
+
+	// UpdatedTo Only pages changed before this moment.
+	UpdatedTo *time.Time `json:"updated_to,omitempty"`
 }
 
 // PageShare defines model for PageShare.
@@ -26526,6 +26553,11 @@ type CopyPageJSONBody struct {
 	Title *string `json:"title,omitempty"`
 }
 
+// SetPageLabelsJSONBody defines parameters for SetPageLabels.
+type SetPageLabelsJSONBody struct {
+	Labels []string `json:"labels"`
+}
+
 // MovePageParams defines parameters for MovePage.
 type MovePageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -28125,6 +28157,9 @@ type CopyPageJSONRequestBody CopyPageJSONBody
 
 // ExportPageJSONRequestBody defines body for ExportPage for application/json ContentType.
 type ExportPageJSONRequestBody = PageExportRequest
+
+// SetPageLabelsJSONRequestBody defines body for SetPageLabels for application/json ContentType.
+type SetPageLabelsJSONRequestBody SetPageLabelsJSONBody
 
 // MovePageJSONRequestBody defines body for MovePage for application/json ContentType.
 type MovePageJSONRequestBody = PageMove
@@ -33928,6 +33963,13 @@ type ClientInterface interface {
 	// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
 	CreateCodeHook(ctx context.Context, hubId HubId, body CreateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListSpaceLabels The labels of a hub's pages
+	//
+	// Every label the space's live pages carry, with how many pages carry it, most used first: the facet a search narrows by. A page the reader may not read is not counted. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/page-labels (the `ListSpaceLabels` operationId).
+	ListSpaceLabels(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListPages A hub's pages
 	//
 	// The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
@@ -36163,6 +36205,13 @@ type ClientInterface interface {
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListPageLabels A page's labels
+	//
+	// The labels a page carries, in alphabetical order. Needs READ on the hub.
+	//
+	// Corresponds with GET /pages/{pageId}/labels (the `ListPageLabels` operationId).
+	ListPageLabels(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// AttachPageMediaWithBody Attach an uploaded picture or file to a page
 	//
 	// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
@@ -36295,6 +36344,24 @@ type ClientInterface interface {
 	// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
 	ExportPage(ctx context.Context, pageId PageId, body ExportPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SetPageLabelsWithBody Set a page's labels
+	//
+	// Replaces the labels a page carries with the ones given - an empty list takes them all away. A label is written in lower case, one word of letters, digits, `-`, `_` or `.`, at most 40 characters; a page carries at most 20. Labelling neither changes the page's version nor adds one to its history. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}:label (the `SetPageLabels` operationId).
+	SetPageLabelsWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPageLabels Set a page's labels
+	//
+	// Replaces the labels a page carries with the ones given - an empty list takes them all away. A label is written in lower case, one word of letters, digits, `-`, `_` or `.`, at most 40 characters; a page carries at most 20. Labelling neither changes the page's version nor adds one to its history. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}:label (the `SetPageLabels` operationId).
+	SetPageLabels(ctx context.Context, pageId PageId, body SetPageLabelsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// MovePageWithBody Move a page
 	//
 	// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
@@ -36390,7 +36457,7 @@ type ClientInterface interface {
 
 	// SearchPagesWithBody Find pages by their words
 	//
-	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched - narrowed to a label, to the person who wrote a page first and to when it last changed. Without a text, the pages a label or an author names come newest first, with no passage. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -36399,7 +36466,7 @@ type ClientInterface interface {
 
 	// SearchPages Find pages by their words
 	//
-	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched - narrowed to a label, to the person who wrote a page first and to when it last changed. Without a text, the pages a label or an author names come newest first, with no passage. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -49627,6 +49694,23 @@ func (c *Client) CreateCodeHook(ctx context.Context, hubId HubId, body CreateCod
 	return c.Client.Do(req)
 }
 
+// ListSpaceLabels The labels of a hub's pages
+//
+// Every label the space's live pages carry, with how many pages carry it, most used first: the facet a search narrows by. A page the reader may not read is not counted. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/page-labels (the `ListSpaceLabels` operationId).
+func (c *Client) ListSpaceLabels(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSpaceLabelsRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListPages A hub's pages
 //
 // The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
@@ -54522,6 +54606,23 @@ func (c *Client) AddPageComment(ctx context.Context, pageId PageId, body AddPage
 	return c.Client.Do(req)
 }
 
+// ListPageLabels A page's labels
+//
+// The labels a page carries, in alphabetical order. Needs READ on the hub.
+//
+// Corresponds with GET /pages/{pageId}/labels (the `ListPageLabels` operationId).
+func (c *Client) ListPageLabels(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPageLabelsRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // AttachPageMediaWithBody Attach an uploaded picture or file to a page
 //
 // Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
@@ -54814,6 +54915,44 @@ func (c *Client) ExportPage(ctx context.Context, pageId PageId, body ExportPageJ
 	return c.Client.Do(req)
 }
 
+// SetPageLabelsWithBody Set a page's labels
+//
+// Replaces the labels a page carries with the ones given - an empty list takes them all away. A label is written in lower case, one word of letters, digits, `-`, `_` or `.`, at most 40 characters; a page carries at most 20. Labelling neither changes the page's version nor adds one to its history. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}:label (the `SetPageLabels` operationId).
+func (c *Client) SetPageLabelsWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPageLabelsRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPageLabels Set a page's labels
+//
+// Replaces the labels a page carries with the ones given - an empty list takes them all away. A label is written in lower case, one word of letters, digits, `-`, `_` or `.`, at most 40 characters; a page carries at most 20. Labelling neither changes the page's version nor adds one to its history. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}:label (the `SetPageLabels` operationId).
+func (c *Client) SetPageLabels(ctx context.Context, pageId PageId, body SetPageLabelsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPageLabelsRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // MovePageWithBody Move a page
 //
 // Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
@@ -55019,7 +55158,7 @@ func (c *Client) SetPublicLinksPolicy(ctx context.Context, body SetPublicLinksPo
 
 // SearchPagesWithBody Find pages by their words
 //
-// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched - narrowed to a label, to the person who wrote a page first and to when it last changed. Without a text, the pages a label or an author names come newest first, with no passage. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
 //
 // Takes any type of body and a specified content type.
 //
@@ -55038,7 +55177,7 @@ func (c *Client) SearchPagesWithBody(ctx context.Context, contentType string, bo
 
 // SearchPages Find pages by their words
 //
-// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched - narrowed to a label, to the person who wrote a page first and to when it last changed. Without a text, the pages a label or an author names come newest first, with no passage. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -77959,6 +78098,40 @@ func NewCreateCodeHookRequestWithBody(server string, hubId HubId, contentType st
 	return req, nil
 }
 
+// NewListSpaceLabelsRequest constructs an http.Request for the ListSpaceLabels method
+func NewListSpaceLabelsRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/page-labels", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListPagesRequest constructs an http.Request for the ListPages method
 func NewListPagesRequest(server string, hubId openapi_types.UUID, params *ListPagesParams) (*http.Request, error) {
 	var err error
@@ -87061,6 +87234,40 @@ func NewAddPageCommentRequestWithBody(server string, pageId PageId, contentType 
 	return req, nil
 }
 
+// NewListPageLabelsRequest constructs an http.Request for the ListPageLabels method
+func NewListPageLabelsRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/labels", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewAttachPageMediaRequest calls the generic AttachPageMedia builder with application/json body
 func NewAttachPageMediaRequest(server string, pageId PageId, body AttachPageMediaJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -87563,6 +87770,53 @@ func NewExportPageRequestWithBody(server string, pageId PageId, contentType stri
 	}
 
 	operationPath := fmt.Sprintf("/pages/%s:export", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetPageLabelsRequest calls the generic SetPageLabels builder with application/json body
+func NewSetPageLabelsRequest(server string, pageId PageId, body SetPageLabelsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPageLabelsRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewSetPageLabelsRequestWithBody constructs an http.Request for the SetPageLabels method, with any body, and a specified content type
+func NewSetPageLabelsRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s:label", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -102947,6 +103201,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
 	CreateCodeHookWithResponse(ctx context.Context, hubId HubId, body CreateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCodeHookResult, error)
 
+	// ListSpaceLabelsWithResponse The labels of a hub's pages
+	//
+	// Every label the space's live pages carry, with how many pages carry it, most used first: the facet a search narrows by. A page the reader may not read is not counted. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/page-labels (the `ListSpaceLabels` operationId).
+	ListSpaceLabelsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListSpaceLabelsResult, error)
+
 	// ListPagesWithResponse A hub's pages
 	//
 	// The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
@@ -105444,6 +105707,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageCommentWithResponse(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error)
 
+	// ListPageLabelsWithResponse A page's labels
+	//
+	// The labels a page carries, in alphabetical order. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId}/labels (the `ListPageLabels` operationId).
+	ListPageLabelsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPageLabelsResult, error)
+
 	// AttachPageMediaWithBodyWithResponse Attach an uploaded picture or file to a page
 	//
 	// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
@@ -105588,6 +105860,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
 	ExportPageWithResponse(ctx context.Context, pageId PageId, body ExportPageJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportPageResult, error)
 
+	// SetPageLabelsWithBodyWithResponse Set a page's labels
+	//
+	// Replaces the labels a page carries with the ones given - an empty list takes them all away. A label is written in lower case, one word of letters, digits, `-`, `_` or `.`, at most 40 characters; a page carries at most 20. Labelling neither changes the page's version nor adds one to its history. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:label (the `SetPageLabels` operationId).
+	SetPageLabelsWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPageLabelsResult, error)
+
+	// SetPageLabelsWithResponse Set a page's labels
+	//
+	// Replaces the labels a page carries with the ones given - an empty list takes them all away. A label is written in lower case, one word of letters, digits, `-`, `_` or `.`, at most 40 characters; a page carries at most 20. Labelling neither changes the page's version nor adds one to its history. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:label (the `SetPageLabels` operationId).
+	SetPageLabelsWithResponse(ctx context.Context, pageId PageId, body SetPageLabelsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPageLabelsResult, error)
+
 	// MovePageWithBodyWithResponse Move a page
 	//
 	// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
@@ -105689,7 +105979,7 @@ type ClientWithResponsesInterface interface {
 
 	// SearchPagesWithBodyWithResponse Find pages by their words
 	//
-	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched - narrowed to a label, to the person who wrote a page first and to when it last changed. Without a text, the pages a label or an author names come newest first, with no passage. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -105698,7 +105988,7 @@ type ClientWithResponsesInterface interface {
 
 	// SearchPagesWithResponse Find pages by their words
 	//
-	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched - narrowed to a label, to the person who wrote a page first and to when it last changed. Without a text, the pages a label or an author names come newest first, with no passage. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -126381,6 +126671,54 @@ func (r CreateCodeHookResult) ContentType() string {
 	return ""
 }
 
+type ListSpaceLabelsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageLabelCounts
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSpaceLabelsResult) GetJSON200() *PageLabelCounts {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListSpaceLabelsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSpaceLabelsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSpaceLabelsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSpaceLabelsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSpaceLabelsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPagesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -135668,6 +136006,54 @@ func (r AddPageCommentResult) ContentType() string {
 	return ""
 }
 
+type ListPageLabelsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageLabels
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPageLabelsResult) GetJSON200() *PageLabels {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPageLabelsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPageLabelsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPageLabelsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPageLabelsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPageLabelsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type AttachPageMediaResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -136176,6 +136562,54 @@ func (r ExportPageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ExportPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetPageLabelsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageLabels
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetPageLabelsResult) GetJSON200() *PageLabels {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetPageLabelsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPageLabelsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPageLabelsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPageLabelsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPageLabelsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -154993,6 +155427,21 @@ func (c *ClientWithResponses) CreateCodeHookWithResponse(ctx context.Context, hu
 	return ParseCreateCodeHookResult(rsp)
 }
 
+// ListSpaceLabelsWithResponse The labels of a hub's pages
+//
+// Every label the space's live pages carry, with how many pages carry it, most used first: the facet a search narrows by. A page the reader may not read is not counted. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/page-labels (the `ListSpaceLabels` operationId).
+func (c *ClientWithResponses) ListSpaceLabelsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListSpaceLabelsResult, error) {
+	rsp, err := c.ListSpaceLabels(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSpaceLabelsResult(rsp)
+}
+
 // ListPagesWithResponse A hub's pages
 //
 // The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
@@ -159086,6 +159535,21 @@ func (c *ClientWithResponses) AddPageCommentWithResponse(ctx context.Context, pa
 	return ParseAddPageCommentResult(rsp)
 }
 
+// ListPageLabelsWithResponse A page's labels
+//
+// The labels a page carries, in alphabetical order. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId}/labels (the `ListPageLabels` operationId).
+func (c *ClientWithResponses) ListPageLabelsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPageLabelsResult, error) {
+	rsp, err := c.ListPageLabels(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPageLabelsResult(rsp)
+}
+
 // AttachPageMediaWithBodyWithResponse Attach an uploaded picture or file to a page
 //
 // Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
@@ -159326,6 +159790,36 @@ func (c *ClientWithResponses) ExportPageWithResponse(ctx context.Context, pageId
 	return ParseExportPageResult(rsp)
 }
 
+// SetPageLabelsWithBodyWithResponse Set a page's labels
+//
+// Replaces the labels a page carries with the ones given - an empty list takes them all away. A label is written in lower case, one word of letters, digits, `-`, `_` or `.`, at most 40 characters; a page carries at most 20. Labelling neither changes the page's version nor adds one to its history. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:label (the `SetPageLabels` operationId).
+func (c *ClientWithResponses) SetPageLabelsWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPageLabelsResult, error) {
+	rsp, err := c.SetPageLabelsWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPageLabelsResult(rsp)
+}
+
+// SetPageLabelsWithResponse Set a page's labels
+//
+// Replaces the labels a page carries with the ones given - an empty list takes them all away. A label is written in lower case, one word of letters, digits, `-`, `_` or `.`, at most 40 characters; a page carries at most 20. Labelling neither changes the page's version nor adds one to its history. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:label (the `SetPageLabels` operationId).
+func (c *ClientWithResponses) SetPageLabelsWithResponse(ctx context.Context, pageId PageId, body SetPageLabelsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPageLabelsResult, error) {
+	rsp, err := c.SetPageLabels(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPageLabelsResult(rsp)
+}
+
 // MovePageWithBodyWithResponse Move a page
 //
 // Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
@@ -159493,7 +159987,7 @@ func (c *ClientWithResponses) SetPublicLinksPolicyWithResponse(ctx context.Conte
 
 // SearchPagesWithBodyWithResponse Find pages by their words
 //
-// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched - narrowed to a label, to the person who wrote a page first and to when it last changed. Without a text, the pages a label or an author names come newest first, with no passage. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -159508,7 +160002,7 @@ func (c *ClientWithResponses) SearchPagesWithBodyWithResponse(ctx context.Contex
 
 // SearchPagesWithResponse Find pages by their words
 //
-// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched - narrowed to a label, to the person who wrote a page first and to when it last changed. Without a text, the pages a label or an author names come newest first, with no passage. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -176817,6 +177311,39 @@ func ParseCreateCodeHookResult(rsp *http.Response) (*CreateCodeHookResult, error
 	return response, nil
 }
 
+// ParseListSpaceLabelsResult parses an HTTP response from a ListSpaceLabelsWithResponse call
+func ParseListSpaceLabelsResult(rsp *http.Response) (*ListSpaceLabelsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSpaceLabelsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageLabelCounts
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListPagesResult parses an HTTP response from a ListPagesWithResponse call
 func ParseListPagesResult(rsp *http.Response) (*ListPagesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -183501,6 +184028,39 @@ func ParseAddPageCommentResult(rsp *http.Response) (*AddPageCommentResult, error
 	return response, nil
 }
 
+// ParseListPageLabelsResult parses an HTTP response from a ListPageLabelsWithResponse call
+func ParseListPageLabelsResult(rsp *http.Response) (*ListPageLabelsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPageLabelsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageLabels
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseAttachPageMediaResult parses an HTTP response from a AttachPageMediaWithResponse call
 func ParseAttachPageMediaResult(rsp *http.Response) (*AttachPageMediaResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -183839,6 +184399,39 @@ func ParseExportPageResult(rsp *http.Response) (*ExportPageResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PageExport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetPageLabelsResult parses an HTTP response from a SetPageLabelsWithResponse call
+func ParseSetPageLabelsResult(rsp *http.Response) (*SetPageLabelsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPageLabelsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageLabels
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

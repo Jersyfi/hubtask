@@ -5577,9 +5577,20 @@ class PageExport(TypedDict, total=False):
     files: Required[list[dict[str, Any]]]
 
 class PageSearch(TypedDict, total=False):
-    text: Required[str]
+    """A text, a label or an author at least; the moments narrow what one of them finds."""
+    text: str
     hub_id: str
     limit: int
+    label: str
+    author_id: str
+    updated_from: str
+    updated_to: str
+
+class PageLabels(TypedDict, total=False):
+    labels: Required[list[str]]
+
+class PageLabelCounts(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
 
 class PageHitList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]

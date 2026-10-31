@@ -1772,6 +1772,19 @@ var generatedCommands = []door{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "page", Verb: "label", OperationID: "setPageLabels", Method: "POST", Path: "/pages/{pageId}:label", Summary: "Set a page's labels",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "labels", Kind: "strings", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "page", Verb: "labels", OperationID: "listPageLabels", Method: "GET", Path: "/pages/{pageId}/labels", Summary: "A page's labels",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
 	{Group: "page", Verb: "link", OperationID: "createPagePublicLink", Method: "POST", Path: "/pages/{pageId}/public-link", Summary: "Make a page's public link",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
@@ -1833,9 +1846,13 @@ var generatedCommands = []door{
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"trashed"}},
 	{Group: "page", Verb: "search", OperationID: "searchPages", Method: "POST", Path: "/pages:search", Summary: "Find pages by their words",
 		Body: []doorParam{
+			{Name: "author_id", Kind: "uuid", Help: "Only pages this person wrote first", Required: false},
 			{Name: "hub_id", Kind: "uuid", Help: "One hub's space; absent for every readable space", Required: false},
+			{Name: "label", Kind: "string", Help: "Only pages carrying this label", Required: false},
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
-			{Name: "text", Kind: "string", Help: "What to look for, in web search syntax", Required: true},
+			{Name: "text", Kind: "string", Help: "What to look for, in web search syntax; may be empty with a label or an author", Required: false},
+			{Name: "updated_from", Kind: "string", Help: "Only pages changed at or after this moment", Required: false},
+			{Name: "updated_to", Kind: "string", Help: "Only pages changed before this moment", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title"}},
 	{Group: "page", Verb: "set", OperationID: "updatePage", Method: "PATCH", Path: "/pages/{pageId}", Summary: "Change a page",
@@ -1861,6 +1878,11 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"account_id", "granted_at", "granted_by", "page_id"}},
 	{Group: "page", Verb: "shared", OperationID: "listSharedPages", Method: "GET", Path: "/pages:shared", Summary: "The pages shared with me",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title"}},
+	{Group: "page", Verb: "space-labels", OperationID: "listSpaceLabels", Method: "GET", Path: "/hubs/{hubId}/page-labels", Summary: "The labels of a hub's pages",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"label", "pages"}},
 	{Group: "page", Verb: "today", OperationID: "openDailyNote", Method: "POST", Path: "/pages:today", Summary: "Open my note of a day",
 		Body: []doorParam{
 			{Name: "day", Kind: "string", Help: "The day; absent for today in the caller's time zone", Required: false},
