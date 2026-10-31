@@ -389,7 +389,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.linked` | LinkEntries | `entry_link` | INFO | Every time |
 | `item.member_added` | AddMember | `item` | INFO | Every time |
 | `item.member_removed` | RemoveMember | `item` | INFO | Every time |
-| `item.merged` | MergeWorkItems | `item` | INFO | When refused |
+| `item.merged` | MergeWorkItems | `item` | INFO | Every time |
 | `item.moved` | MoveWorkItem | `item` | INFO | Every time |
 | `item.moved` | ReorderWorkItem | `item` | INFO | Every time |
 | `item.purged` | PurgeWorkItem | `item` | WARNING | Every time |
@@ -493,6 +493,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `entry_requester.read` | ReadEntryRequester | `entry_requester` | INFO | When refused |
 | `entry_sla.read` | ReadEntrySla | `entry_sla` | INFO | When refused |
 | `entry_sla.reported` | ReportSla | `entry_sla` | INFO | When refused |
 

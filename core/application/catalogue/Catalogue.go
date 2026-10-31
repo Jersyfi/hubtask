@@ -156,6 +156,7 @@ func Descriptors() []usecase.Descriptor {
 		servicedeskservice.DefineSlaPolicy{}.Descriptor(),
 		servicedeskservice.DeleteSlaPolicy{}.Descriptor(),
 		servicedeskservice.ReadEntrySla{}.Descriptor(),
+		servicedeskservice.ReadEntryRequester{}.Descriptor(),
 		servicedeskservice.ListReplyTemplates{}.Descriptor(),
 		servicedeskservice.DefineReplyTemplate{}.Descriptor(),
 		servicedeskservice.DeleteReplyTemplate{}.Descriptor(),
