@@ -64,11 +64,15 @@ const (
 		`wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone, ` +
 		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, ` + visibleCustomFields + `, ` +
 		`wi.content_language, wi.calendar_uid, ` +
-		`wi.retention_pending_until, wi.retention_rule_id, wi.retention_action, ` +
-		`wi.retention_blocked_by, ` +
+		`rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id, ` +
+		`rt.action AS retention_action, rt.blocked_by AS retention_blocked_by, ` +
 		`wi.archived_at, wi.deleted_at, ` +
 		`wi.trash_batch_id, ` +
 		`wi.created_by, wi.created_at, wi.updated_at, wi.version, wi.number, wi.entry_type, wi.status`
+
+	// What a retention run marked is read from its side table (F-10, migration 0227); every
+	// statement that selects itemColumns joins it.
+	retentionJoin = ` LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id`
 
 	groupedColumns = `id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes, ` +
 		`is_completed, completed_at, completed_by, completion_count, bucket_id, order_key, assignee_id, ` +
@@ -99,7 +103,7 @@ const (
 func Rows(search repository.ItemSearch, boundary Boundary, probe int) (Statement, error) {
 	b := newBuilder(search)
 
-	b.write(`SELECT `, itemColumns, ` FROM work_item wi WHERE `)
+	b.write(`SELECT `, itemColumns, ` FROM work_item wi`, retentionJoin, ` WHERE `)
 	b.predicates(search)
 	if !boundary.IsZero() {
 		b.write(` AND (`)
@@ -151,7 +155,7 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 	// The row numbers are drawn over the identifiers alone and only the chosen rows are read
 	// whole: numbering every row of a large collection with all its columns sorted them all,
 	// spilling to disk at tens of thousands of entries (observability-reliability.md §13.2).
-	b.write(` FROM work_item wi WHERE wi.id = ANY (ARRAY(SELECT r.id FROM (SELECT wi.id, row_number() OVER (PARTITION BY `)
+	b.write(` FROM work_item wi`, retentionJoin, ` WHERE wi.id = ANY (ARRAY(SELECT r.id FROM (SELECT wi.id, row_number() OVER (PARTITION BY `)
 	if customGroup {
 		b.customValue(groupField)
 	} else {
@@ -234,7 +238,7 @@ func Search(
 	b.rank(search, meaning)
 	b.write(` AS rank, `)
 	b.byMeaning(search, meaning)
-	b.write(` AS by_meaning FROM work_item wi JOIN container c ON c.id = wi.collection_id`)
+	b.write(` AS by_meaning FROM work_item wi JOIN container c ON c.id = wi.collection_id`, retentionJoin)
 	b.meaningJoin(meaning)
 	b.write(` WHERE `)
 	b.searchPredicates(search, meaning)
@@ -266,7 +270,7 @@ func SearchRows(search repository.TextSearch, boundary Boundary, probe int) (Sta
 	b := newBuilder(repository.ItemSearch{Language: search.Request.Language})
 
 	b.write(`SELECT `, itemColumns, `, c.parent_id, 0::real AS rank, false AS by_meaning`)
-	b.write(` FROM work_item wi JOIN container c ON c.id = wi.collection_id WHERE `)
+	b.write(` FROM work_item wi JOIN container c ON c.id = wi.collection_id`, retentionJoin, ` WHERE `)
 	b.scope(search.Anchor)
 	b.restriction(search.RestrictTo)
 	b.lifecycle(view.Spec{

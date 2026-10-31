@@ -168,10 +168,12 @@ SELECT w.collection_id::uuid AS collection_id,
   ) w
   LEFT JOIN LATERAL (
     SELECT count(*) AS completed,
-           count(*) FILTER (WHERE wi.flow_finished_at >= wi.flow_started_at) AS timed,
-           avg(extract(epoch FROM wi.flow_finished_at - wi.flow_started_at))
-             FILTER (WHERE wi.flow_finished_at >= wi.flow_started_at) AS average_seconds
+           count(*) FILTER (WHERE fl.flow_finished_at >= fl.flow_started_at) AS timed,
+           avg(extract(epoch FROM fl.flow_finished_at - fl.flow_started_at))
+             FILTER (WHERE fl.flow_finished_at >= fl.flow_started_at) AS average_seconds
       FROM work_item wi
+      -- The moments from the side table (F-10, 0227), which the trigger keeps equal to the columns.
+      LEFT JOIN work_item_flow fl ON fl.tenant_id = wi.tenant_id AND fl.item_id = wi.id
      WHERE wi.collection_id = w.collection_id AND wi.parent_id IS NULL
        AND wi.is_completed = true AND wi.deleted_at IS NULL
        AND wi.completed_at >= $3::timestamptz

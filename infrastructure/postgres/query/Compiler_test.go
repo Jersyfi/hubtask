@@ -389,7 +389,7 @@ func TestGroupsAreOneWindowedQuery(t *testing.T) {
 	for _, want := range []string{
 		`row_number() OVER (PARTITION BY wi.bucket_id ORDER BY wi.order_key COLLATE "C" ASC, wi.id) AS rn`,
 		// Numbered over the identifiers alone; only the chosen rows are read whole.
-		`FROM work_item wi WHERE wi.id = ANY (ARRAY(SELECT r.id FROM (SELECT wi.id, row_number()`,
+		`FROM work_item wi LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id WHERE wi.id = ANY (ARRAY(SELECT r.id FROM (SELECT wi.id, row_number()`,
 		`) r WHERE r.rn <= $2))) g`,
 		` ORDER BY bucket_id ASC NULLS LAST, order_key COLLATE "C" ASC, id`,
 	} {

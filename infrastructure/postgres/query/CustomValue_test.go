@@ -124,7 +124,7 @@ func TestAGroupingByACustomFieldIsOneWindowedQuery(t *testing.T) {
 		t.Fatalf("compilation failed: %v", err)
 	}
 	for _, want := range []string{
-		`AND efv.ordinal = 0) AS gk FROM work_item wi WHERE wi.id = ANY (`,
+		`AND efv.ordinal = 0) AS gk FROM work_item wi LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id WHERE wi.id = ANY (`,
 		`SELECT wi.id, row_number() OVER (PARTITION BY (SELECT efv.text`,
 		` ORDER BY gk ASC NULLS LAST, order_key COLLATE "C" ASC, id`,
 	} {

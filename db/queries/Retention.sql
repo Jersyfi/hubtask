@@ -80,11 +80,12 @@ SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
        w.completed_at AS anchored_at, w.title
 FROM work_item w
 JOIN container c ON c.id = w.collection_id
+LEFT JOIN work_item_retention rt ON rt.tenant_id = w.tenant_id AND rt.item_id = w.id
 WHERE w.completed_at IS NOT NULL
   AND w.completed_at < sqlc.arg('cutoff')::timestamptz
   AND w.deleted_at IS NULL
   AND w.archived_at IS NULL
-  AND w.retention_pending_until IS NULL
+  AND rt.pending_until IS NULL
   AND (sqlc.narg('after_at')::timestamptz IS NULL
        OR (w.completed_at, w.id) > (sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid))
 ORDER BY w.completed_at, w.id
@@ -95,14 +96,15 @@ SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
        w.archived_at AS anchored_at, w.title
 FROM work_item w
 JOIN container c ON c.id = w.collection_id
+LEFT JOIN work_item_retention rt ON rt.tenant_id = w.tenant_id AND rt.item_id = w.id
 WHERE w.archived_at IS NOT NULL
   AND w.archived_at < sqlc.arg('cutoff')::timestamptz
   AND w.deleted_at IS NULL
-  AND w.retention_pending_until IS NULL
+  AND rt.pending_until IS NULL
   -- A chain's second stage takes only what its own first stage acted on, which is what
   -- `retention_rule_id` survives the act for: an entry somebody archived by hand is not part of
   -- anybody's chain, and a rule that swept it up would be a rule acting outside what it matched.
-  AND (NOT sqlc.arg('own_chain')::boolean OR w.retention_rule_id = sqlc.arg('rule_id')::uuid)
+  AND (NOT sqlc.arg('own_chain')::boolean OR rt.rule_id = sqlc.arg('rule_id')::uuid)
   AND (sqlc.narg('after_at')::timestamptz IS NULL
        OR (w.archived_at, w.id) > (sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid))
 ORDER BY w.archived_at, w.id
@@ -115,10 +117,11 @@ SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
        w.deleted_at AS anchored_at, w.title
 FROM work_item w
 JOIN container c ON c.id = w.collection_id
+LEFT JOIN work_item_retention rt ON rt.tenant_id = w.tenant_id AND rt.item_id = w.id
 WHERE w.deleted_at IS NOT NULL
   AND w.deleted_at < sqlc.arg('cutoff')::timestamptz
-  AND w.retention_pending_until IS NULL
-  AND (NOT sqlc.arg('own_chain')::boolean OR w.retention_rule_id = sqlc.arg('rule_id')::uuid)
+  AND rt.pending_until IS NULL
+  AND (NOT sqlc.arg('own_chain')::boolean OR rt.rule_id = sqlc.arg('rule_id')::uuid)
   AND (sqlc.narg('after_at')::timestamptz IS NULL
        OR (w.deleted_at, w.id) > (sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid))
 ORDER BY w.deleted_at, w.id
@@ -161,23 +164,28 @@ WHERE id = ANY(sqlc.arg('ids')::uuid[])
 -- Phase two: what the grace period has run out on.
 -- `after_at` and `after_id` continue past marked rows a hold or a retained descendant keeps, as the
 -- candidates above do.
+-- Read from the side table (F-10, 0227), whose work_item_retention_due_idx holds only the marked.
 SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
-       w.retention_pending_until, w.retention_rule_id, w.retention_action, w.title
-FROM work_item w
+       rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+       rt.action AS retention_action, w.title
+FROM work_item_retention rt
+JOIN work_item w ON w.tenant_id = rt.tenant_id AND w.id = rt.item_id
 JOIN container c ON c.id = w.collection_id
-WHERE w.retention_pending_until IS NOT NULL
-  AND w.retention_pending_until <= sqlc.arg('now')::timestamptz
+WHERE rt.pending_until IS NOT NULL
+  AND rt.pending_until <= sqlc.arg('now')::timestamptz
   AND (sqlc.narg('after_at')::timestamptz IS NULL
-       OR (w.retention_pending_until, w.id)
+       OR (rt.pending_until, rt.item_id)
           > (sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid))
-ORDER BY w.retention_pending_until, w.id
+ORDER BY rt.pending_until, rt.item_id
 LIMIT sqlc.arg('batch')::int;
 
 -- name: FindItemRetention :one
 -- What one entry's marking says, which is what `:retain` reads and what the object carries.
-SELECT retention_pending_until, retention_rule_id, retention_action, retention_blocked_by
-FROM work_item
-WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
+SELECT rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+       rt.action AS retention_action, rt.blocked_by AS retention_blocked_by
+FROM work_item w
+LEFT JOIN work_item_retention rt ON rt.tenant_id = w.tenant_id AND rt.item_id = w.id
+WHERE w.id = sqlc.arg('id') AND w.deleted_at IS NULL;
 
 -- name: ClearItemRetention :execrows
 -- `:retain`, and the end of a stage. The rule reference is cleared with it when a person takes the

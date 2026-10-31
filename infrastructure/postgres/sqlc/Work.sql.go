@@ -647,13 +647,15 @@ SELECT
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
-  -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
-  -- because §6's point is that the object itself says what is coming.
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  -- (data-retention.md §6). Read here rather than assembled by a second query, because §6's
+  -- point is that the object itself says what is coming; read from the side table (F-10, 0227),
+  -- which the trigger keeps equal to the columns every writer still writes.
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.id = $1
 `
 
@@ -775,11 +777,12 @@ SELECT
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = $1::text
 `
 
@@ -903,11 +906,12 @@ SELECT
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.id = ANY($1::uuid[])
 `
 
@@ -1870,11 +1874,12 @@ SELECT
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.collection_id = $1::uuid
   -- ` + "`" + `= OR IS NULL` + "`" + ` rather than IS NOT DISTINCT FROM, as LastWorkItemOrderKey: the page is then
   -- read in order from the index instead of sorting the whole level for fifty rows.
@@ -3032,11 +3037,12 @@ SELECT
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.path LIKE $1::text || '%'
   AND wi.id <> $2::uuid
   AND wi.deleted_at IS NULL

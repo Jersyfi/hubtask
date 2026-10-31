@@ -3448,11 +3448,12 @@ SELECT
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND wi.id > $1
 ORDER BY wi.id
 LIMIT $2
