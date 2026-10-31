@@ -914,7 +914,10 @@ a plan): one per page, only the token's hash kept, never for a page behind a res
 the person who made it at every opening. An `Article` publishes a page to one service's portal
 (UC-DOC-13): a collection's requesters, holding REQUEST there and reading no hub, are offered it
 while they type and open it - counted -, and rate it once each; never a page behind a
-restriction. A page holds its pictures and files (`page_media`, UC-DOC-14) as a board does: an
+restriction. A `LanguageVariant` is a page of the same space written in another language for it
+(`page.language_source_id`, `page.language_variant`, one page per BCP 47 tag, at most 20, one level
+only): a requester is answered the variant of their exact tag, then of its language alone, then
+the page, while the article's counts stay the page's (UC-DOC-13 check 4). A page holds its pictures and files (`page_media`, UC-DOC-14) as a board does: an
 upload is attached before the body draws it as an image of `hubtask:media/<id>` on a line of its
 own, judged at the page - the writer's own upload, or one a page they may read holds -, read by
 whoever reads one of the pages holding it, and kept as long as the page, whatever the body does
