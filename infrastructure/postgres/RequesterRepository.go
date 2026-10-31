@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -135,6 +136,55 @@ func (RequesterRepository) EraseAddress(ctx context.Context, address string, ful
 		return 0, requesterFailed("erasing an address's intake", err)
 	}
 	return int(requesters + receipts + intake), nil
+}
+
+// IntakeLinesFrom answers the entries and comments whose first line names one of the addresses.
+func (RequesterRepository) IntakeLinesFrom(ctx context.Context, addresses []string) ([]privacyrepo.IntakeLine, error) {
+	if len(addresses) == 0 {
+		return nil, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListIntakeLinesFrom(ctx, addresses)
+	if err != nil {
+		return nil, requesterFailed("reading the intake's lines of an address", err)
+	}
+	lines := make([]privacyrepo.IntakeLine, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		itemID, err := idFrom(row.ItemID)
+		if err != nil {
+			return nil, err
+		}
+		writtenBy, err := idFrom(row.WrittenBy)
+		if err != nil {
+			return nil, err
+		}
+		lines = append(lines, privacyrepo.IntakeLine{
+			Comment: row.Kind == "COMMENT", ID: id, ItemID: itemID, WrittenBy: writtenBy, Text: row.Text,
+		})
+	}
+	return lines, nil
+}
+
+// ExpiredAddresses answers the addresses of the next batch DeleteExpired removes.
+func (RequesterRepository) ExpiredAddresses(ctx context.Context, cutoff time.Time, batch int) ([]string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	addresses, err := queries.ListExpiredRequesterAddresses(ctx, sqlc.ListExpiredRequesterAddressesParams{
+		Cutoff: timestampOf(cutoff), Batch: boundedInt32(batch),
+	})
+	if err != nil {
+		return nil, requesterFailed("reading the expired requesters' addresses", err)
+	}
+	return addresses, nil
 }
 
 // cutRunes keeps a name within the column's bound rather than refusing the whole contact over it.

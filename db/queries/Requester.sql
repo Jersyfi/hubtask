@@ -68,3 +68,33 @@ JOIN requester r ON r.tenant_id = c.tenant_id AND r.id = c.requester_id
 WHERE c.tenant_id = current_tenant_id() AND c.item_id = sqlc.arg('item_id')
 ORDER BY r.address
 LIMIT 20;
+
+-- name: ListIntakeLinesFrom :many
+-- The live entries and comments whose first line is the intake's "From:" line naming one of these
+-- addresses (third answers 2): what an account filed on a requester's behalf. The prefix test is
+-- the cheap filter; the caller decides on the exact line (privacy.StripIntakeLine).
+SELECT 'ITEM'::text AS kind, w.id, w.id AS item_id, w.created_by AS written_by, coalesce(w.notes, '') AS text
+FROM work_item w
+WHERE w.tenant_id = current_tenant_id() AND w.deleted_at IS NULL AND w.notes LIKE 'From: %'
+  AND EXISTS (
+    SELECT 1 FROM unnest(sqlc.arg('addresses')::text[]) AS a(address)
+    WHERE position(lower(a.address) IN lower(split_part(w.notes, E'\n', 1))) > 0
+  )
+UNION ALL
+SELECT 'COMMENT'::text, c.id, c.item_id, c.author_id, c.body
+FROM comment c
+WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND c.kind = 'USER' AND c.body LIKE 'From: %'
+  AND EXISTS (
+    SELECT 1 FROM unnest(sqlc.arg('addresses')::text[]) AS a(address)
+    WHERE position(lower(a.address) IN lower(split_part(c.body, E'\n', 1))) > 0
+  )
+ORDER BY 1, 2
+LIMIT 1000;
+
+-- name: ListExpiredRequesterAddresses :many
+-- The addresses of the next batch DeleteExpiredRequesters removes, in its order: their intake
+-- lines go first.
+SELECT due.address FROM requester AS due
+WHERE due.last_contact_at < sqlc.arg('cutoff')
+ORDER BY due.last_contact_at
+LIMIT sqlc.arg('batch');

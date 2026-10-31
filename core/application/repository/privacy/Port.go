@@ -347,3 +347,23 @@ type Pseudonyms interface {
 	// For answers the pseudonyms of the actors named, and nothing for the actors that have none.
 	For(ctx context.Context, actorIDs []shared.ID) (map[shared.ID]string, error)
 }
+
+// IntakeLine is an entry's notes or a comment whose first line may be the mail intake's "From:"
+// line for a requester; WrittenBy is the account that filed it on their behalf.
+type IntakeLine struct {
+	Comment   bool
+	ID        shared.ID
+	ItemID    shared.ID
+	WrittenBy shared.ID
+	Text      string
+}
+
+// IntakeLines finds the intake's lines naming a requester's address (third answers 2).
+type IntakeLines interface {
+	// IntakeLinesFrom answers the live entries and comments whose first line names one of the
+	// addresses, at most a thousand; the caller judges the exact line.
+	IntakeLinesFrom(ctx context.Context, addresses []string) ([]IntakeLine, error)
+	// ExpiredAddresses answers the addresses of the next batch of requesters past the cutoff, in
+	// the order the retention run removes them.
+	ExpiredAddresses(ctx context.Context, cutoff time.Time, batch int) ([]string, error)
+}
