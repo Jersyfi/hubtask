@@ -44,6 +44,7 @@ var dialableExceptions = map[string]string{
 	"core/domain/model/filelink/Connection.go":             "the OAuth scopes a file store connection asks Microsoft for, written as addresses: names in a consent, never dialled",
 	"core/domain/model/integration/ChatBot.go":             "the scheme a homeserver's address is held to, never dialled itself: the homeserver arrives as data an administrator entered",
 	"infrastructure/filestore/Store.go":                    "Microsoft Graph's address: dialled only for a connection its owner made, through an app the operator configured",
+	"infrastructure/mailbox/Graph.go":                      "Microsoft Graph's address: dialled only for a GRAPH mailbox an administrator connected with its own OAuth grant",
 }
 
 func TestPG6NoAddressIsDialledWithoutConfiguration(t *testing.T) {
