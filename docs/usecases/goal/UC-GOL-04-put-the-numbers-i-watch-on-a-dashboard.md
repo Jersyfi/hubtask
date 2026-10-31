@@ -59,10 +59,14 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
     period by period - and draws each period as its running total of counts or sums; with both, the
     figures answer what is left between the two, a burndown, and a second series the reader cannot
     run says so while the first still draws.
+16. A widget's summary sums the time recorded on its entries and counts the live pages of its
+    bound spaces, as the reader may see them: their own time and other people's where they may see
+    it, the pages of the spaces they may read; a source they may not read says so in place.
 
 ## Where it ends
 
 * The mail carries no attachment - no CSV and no PDF (the mail port has none by design).
 * No wallboard mode, no historical snapshots, no read API for BI tools.
-* Entries from before the status history have no cycle time, WIP age or time in status.
+* Entries from before the status history have no cycle time, WIP age or time in status, and
+  none is backfilled: a history that was never written is not invented.
 * No numbers across workspaces (P-01).

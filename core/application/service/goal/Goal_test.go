@@ -842,3 +842,70 @@ func TestAWidgetDrawsCreatedBesideResolvedAndWhatIsLeft(t *testing.T) {
 		t.Fatalf("Ben's flow %v", asBen)
 	}
 }
+
+// readerSummaries answers each reader the minutes and pages their own reading allows, and records
+// the summaries it was asked, so a test sees the widget's document reach the summary unchanged.
+type readerSummaries struct{ asked *[]usecase.Input }
+
+func (r readerSummaries) Invoke(_ context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	*r.asked = append(*r.asked, in)
+	aggregate, _ := in["aggregate"].(map[string]any)
+	switch aggregate["source"] {
+	case "time":
+		minutes := "90"
+		if actor.AccountID == ben {
+			minutes = "30" // Ben sees his own records only.
+		}
+		return usecase.Output{"data": []usecase.Output{{"sum": minutes}}, "truncated": false}, nil
+	case "pages":
+		if actor.AccountID == ben {
+			return nil, shared.ErrForbidden.WithDetail("access.denied")
+		}
+		return usecase.Output{"data": []usecase.Output{{"count": int64(4)}}, "truncated": false}, nil
+	}
+	return usecase.Output{"data": []usecase.Output{}, "truncated": false}, nil
+}
+
+// UC-GOL-04 check 16: a widget's summary sums the minutes recorded on its entries and counts the
+// live pages of its bound spaces, each through the summary's own use case as the reader, so every
+// reader sees what their reading allows and a source they may not read says so in place.
+func TestAWidgetSumsRecordedTimeAndCountsPagesAsTheReaderSees(t *testing.T) {
+	s, _, _, _ := newSteward(t)
+	var asked []usecase.Input
+	s.Summaries = readerSummaries{asked: &asked}
+	widgets := []any{
+		map[string]any{"title": "Hours", "chart": "NUMBER", "source": "QUERY", "query": map[string]any{
+			"scope_container_id": listA.String(),
+			"aggregate":          map[string]any{"source": "time", "function": "SUM", "field": "minutes"},
+		}},
+		map[string]any{"title": "Pages", "chart": "NUMBER", "source": "QUERY", "x": 6.0, "query": map[string]any{
+			"scope_container_id": hubA.String(),
+			"aggregate":    map[string]any{"source": "pages", "function": "COUNT"},
+		}},
+	}
+	if _, err := call(t, CreateDashboard{s}.Descriptor(), admin, usecase.Input{"name": "x", "widgets": []any{
+		map[string]any{"title": "x", "chart": "NUMBER", "source": "QUERY", "query": map[string]any{
+			"scope_container_id": hubA.String(), "aggregate": map[string]any{"source": "pages", "function": "SUM", "field": "minutes"}}},
+	}}); code(err) != "query.aggregate_pages_count_only" {
+		t.Fatalf("pages summed: %v", err)
+	}
+	board := ok(t, CreateDashboard{s}.Descriptor(), admin, usecase.Input{"name": "Effort", "sharing": "SCOPE", "widgets": widgets})
+
+	asAdmin := ok(t, ReadDashboardFigures{s}.Descriptor(), admin, usecase.Input{"dashboard_id": board.String("id")})["widgets"].([]usecase.Output)
+	asBen := ok(t, ReadDashboardFigures{s}.Descriptor(), ben, usecase.Input{"dashboard_id": board.String("id")})["widgets"].([]usecase.Output)
+	minutesOf := func(row usecase.Output) any { return row["data"].([]usecase.Output)[0]["sum"] }
+	switch {
+	case minutesOf(asAdmin[0]) != "90" || minutesOf(asBen[0]) != "30":
+		t.Fatalf("minutes: admin %v, Ben %v", asAdmin[0], asBen[0])
+	case asAdmin[1]["data"].([]usecase.Output)[0]["count"] != int64(4):
+		t.Fatalf("the admin's pages: %v", asAdmin[1])
+	case asBen[1]["error"] != "access.denied":
+		t.Fatalf("Ben's pages: %v", asBen[1])
+	}
+	for _, in := range asked {
+		source := in["aggregate"].(map[string]any)["source"]
+		if source != "time" && source != "pages" {
+			t.Fatalf("the summary was asked %v", in)
+		}
+	}
+}
