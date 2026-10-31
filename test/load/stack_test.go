@@ -15,6 +15,7 @@
 package load
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -254,7 +255,7 @@ func seed(ctx context.Context, container *tcpostgres.PostgresContainer, tenants,
 		{"membership", "id, tenant_id, account_id, scope_type, role"},
 		{"container", "id, tenant_id, type, parent_id, name, order_key, created_by, policies"},
 		{"work_item", "id, tenant_id, collection_id, type, parent_id, path, depth, title, " +
-			"is_completed, completed_at, order_key, due_at, created_by, created_at"},
+			"is_completed, completed_at, order_key, due_at, created_by, created_at, number"},
 	}
 
 	for _, table := range tables {
@@ -264,22 +265,80 @@ func seed(ctx context.Context, container *tcpostgres.PostgresContainer, tenants,
 		if err != nil {
 			return err
 		}
-		target := "/tmp/" + table.name + ".tsv"
-		// Readable by everyone inside the container on purpose: COPY FROM is read by the server
-		// process, which runs as postgres, while the file arrives owned by root.
-		err = container.CopyFileToContainer(ctx, rows, target, 0o644)
+		// In parts, each its own statement: one COPY of 10⁷ rows holds every row's queued
+		// after-trigger and foreign-key check in the backend's memory until it ends.
+		parts, err := splitLines(rows, copyPart)
 		_ = os.Remove(rows)
 		if err != nil {
-			return fmt.Errorf("copying %s: %w", table.name, err)
+			return fmt.Errorf("splitting %s: %w", table.name, err)
 		}
-		if err := psql(ctx, container,
-			fmt.Sprintf("COPY %s (%s) FROM '%s'", table.name, table.columns, target)); err != nil {
-			return fmt.Errorf("loading %s: %w", table.name, err)
+		for index, part := range parts {
+			target := fmt.Sprintf("/tmp/%s-%d.tsv", table.name, index)
+			// Readable by everyone inside the container on purpose: COPY FROM is read by the
+			// server process, which runs as postgres, while the file arrives owned by root.
+			err = container.CopyFileToContainer(ctx, part, target, 0o644)
+			_ = os.Remove(part)
+			if err != nil {
+				return fmt.Errorf("copying %s: %w", table.name, err)
+			}
+			if err := psql(ctx, container,
+				fmt.Sprintf("COPY %s (%s) FROM '%s'", table.name, table.columns, target)); err != nil {
+				return fmt.Errorf("loading %s: %w", table.name, err)
+			}
+			if _, _, err := container.Exec(ctx, []string{"rm", "-f", target}); err != nil {
+				return fmt.Errorf("removing %s: %w", target, err)
+			}
 		}
 	}
 	// The planner needs statistics over the new rows. A ramp against a table PostgreSQL believes
 	// is empty measures the wrong plan rather than the hardware.
 	return psql(ctx, container, "ANALYZE tenant, account, membership, container, work_item")
+}
+
+// copyPart is how many rows one COPY statement loads.
+const copyPart = 500_000
+
+// splitLines cuts a COPY file into files of at most lines rows each and answers their paths.
+func splitLines(path string, lines int) ([]string, error) {
+	source, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = source.Close() }()
+
+	var parts []string
+	var part *os.File
+	var writer *bufio.Writer
+	closePart := func() error {
+		if part == nil {
+			return nil
+		}
+		if err := writer.Flush(); err != nil {
+			return err
+		}
+		return part.Close()
+	}
+	scanner := bufio.NewScanner(source)
+	scanner.Buffer(make([]byte, 0, 64<<10), 1<<20)
+	for count := 0; scanner.Scan(); count++ {
+		if count%lines == 0 {
+			if err := closePart(); err != nil {
+				return parts, err
+			}
+			if part, err = os.CreateTemp("", "hubtask-load-part-*.tsv"); err != nil {
+				return parts, err
+			}
+			parts = append(parts, part.Name())
+			writer = bufio.NewWriter(part)
+		}
+		if _, err := writer.Write(append(scanner.Bytes(), '\n')); err != nil {
+			return parts, err
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return parts, err
+	}
+	return parts, closePart()
 }
 
 // generate writes one table's COPY text into a temporary file and answers its path.

@@ -5,6 +5,7 @@ package main
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -163,5 +164,26 @@ func TestTheOrderKeysAreTheApplicationsOwnScheme(t *testing.T) {
 			t.Fatalf("position %d produced %q, which does not sort after %q", position, key, previous)
 		}
 		previous = key
+	}
+}
+
+// Every entry carries its number, counted from one in its collection without a gap or a repeat,
+// so the load never rewrites a collection's counter row once per entry (migration 0289).
+func TestEveryEntryCarriesItsCollectionsNextNumber(t *testing.T) {
+	var out bytes.Buffer
+	if err := write(&out, tableWorkItem, 2, 60, "a-seed"); err != nil {
+		t.Fatalf("%v", err)
+	}
+	next := map[string]int{}
+	for _, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		fields := strings.Split(line, "\t")
+		collection, number := fields[2], fields[len(fields)-1]
+		next[collection]++
+		if want := strconv.Itoa(next[collection]); number != want {
+			t.Fatalf("collection %s: number %q, want %s", collection, number, want)
+		}
+	}
+	if len(next) != 2*collectionsPerTenant {
+		t.Errorf("%d collections numbered, want %d", len(next), 2*collectionsPerTenant)
 	}
 }

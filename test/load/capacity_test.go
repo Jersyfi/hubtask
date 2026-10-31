@@ -81,6 +81,11 @@ type CapacityFinding struct {
 		Items   int `json:"items"`
 	} `json:"dataset"`
 	Tenants []CapacityTenant `json:"tenants"`
+	// PeakResident is the server's largest resident set over the measured paths, against the
+	// GOMEMLIMIT the run starts it with; MemoryObserved is false where the platform does not say.
+	PeakResident   int64 `json:"peak_resident_bytes"`
+	MemoryLimit    int64 `json:"memory_limit_bytes"`
+	MemoryObserved bool  `json:"memory_observed"`
 }
 
 // CapacityTenant is one workspace's paths.
@@ -114,6 +119,10 @@ func TestCapacityAtScale(t *testing.T) {
 	finding := CapacityFinding{Test: "capacity", RanAt: time.Now().UTC(), Hardware: hardware(), VCPUs: runtime.NumCPU()}
 	finding.Dataset.Tenants, finding.Dataset.Items = tenants, items
 
+	watching, stopWatching := context.WithCancel(context.Background())
+	defer stopWatching()
+	peak := watchMemory(watching, stack.serverPID)
+
 	ranks := []int{0, len(stack.tenants) / 2, len(stack.tenants) - 1}
 	seen := map[int]bool{}
 	for _, rank := range ranks {
@@ -133,6 +142,8 @@ func TestCapacityAtScale(t *testing.T) {
 		}
 		finding.Tenants = append(finding.Tenants, row)
 	}
+	finding.PeakResident, finding.MemoryObserved = peak.read()
+	finding.MemoryLimit = memoryLimitBytes
 	writeEvidence(t, fmt.Sprintf("capacity-%d.json", items), finding)
 }
 
