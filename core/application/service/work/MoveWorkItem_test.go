@@ -747,3 +747,38 @@ func TestACallerComputedRankIsTakenAsItIsOnceJudged(t *testing.T) {
 		}
 	}
 }
+
+// UC-FLW-01 check 9: a move under a parent whose type leaves the entry's type out of its allowed
+// children is refused by name and writes nothing, as a create under it is; the same move under a
+// parent allowing it goes through.
+func TestAMoveUnderAParentThatDoesNotAllowTheTypeIsRefused(t *testing.T) {
+	h := newPlacementHarness()
+	h.writer.Gate.EntryTypes = &entryTypes{rows: []domain.EntryType{
+		{Key: "change", Level: domain.ItemTask, AllowedChildren: []string{"risk"}},
+		{Key: "risk", Level: domain.ItemWorkPackage},
+	}}
+	target := h.items.stored[targetTaskID]
+	target.EntryType = "change"
+	h.items.stored[targetTaskID] = target
+
+	_, err := MoveWorkItem{Placement: h.writer}.Execute(t.Context(), placementActor(), MoveWorkItemCommand{
+		ItemID: movedPackID, TargetParentID: targetTaskID, ParentGiven: true,
+	})
+	refusal := shared.AsError(err)
+	if refusal == nil || refusal.DetailCode != "entry_types.not_allowed_here" ||
+		refusal.Params["item_id"] != movedPackID.String() {
+		t.Fatalf("a work package moved under a change allowing only risks: %v", err)
+	}
+	if len(h.items.moves) != 0 || len(h.events.appended) != 0 {
+		t.Error("a refused move wrote something")
+	}
+
+	pack := h.items.stored[movedPackID]
+	pack.EntryType = "risk"
+	h.items.stored[movedPackID] = pack
+	if _, err := (MoveWorkItem{Placement: h.writer}).Execute(t.Context(), placementActor(), MoveWorkItemCommand{
+		ItemID: movedPackID, TargetParentID: targetTaskID, ParentGiven: true,
+	}); err != nil {
+		t.Fatalf("an allowed child was refused: %v", err)
+	}
+}

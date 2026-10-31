@@ -672,3 +672,29 @@ func TestACopysTitleIsCheckedAsAnyTitleIs(t *testing.T) {
 		t.Errorf("a padded title gave %q, %v; want it trimmed", result.Item.Title, err)
 	}
 }
+
+// UC-FLW-01 check 9: a copy is a create, so a copy placed under a parent whose type leaves the
+// entry's type out of its allowed children is refused by name and writes nothing.
+func TestACopyUnderAParentThatDoesNotAllowTheTypeIsRefused(t *testing.T) {
+	h := newDuplicateHarness(t)
+	task := h.withTask()
+	pack, _ := h.withSubtree(task)
+	h.handler.Gate.EntryTypes = &entryTypes{rows: []domain.EntryType{
+		{Key: "change", Level: domain.ItemTask, AllowedChildren: []string{"risk"}},
+		{Key: "risk", Level: domain.ItemWorkPackage},
+	}}
+	task.EntryType = "change"
+	h.items.stored[task.ID] = task
+
+	_, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{
+		ItemID: pack.ID, TargetParentID: task.ID, ParentGiven: true,
+	})
+	refusal := shared.AsError(err)
+	if refusal == nil || refusal.DetailCode != "entry_types.not_allowed_here" ||
+		refusal.Params["item_id"] != pack.ID.String() {
+		t.Fatalf("a work package was copied under a change allowing only risks: %v", err)
+	}
+	if len(h.items.copies) != 0 || len(h.events.appended) != 0 {
+		t.Error("a refused copy wrote something")
+	}
+}

@@ -389,6 +389,11 @@ func (w PlacementWriter) perform(
 		if err := offer.requireLevel(fresh.item.Type, "/target_parent_id"); err != nil {
 			return err
 		}
+		if fresh.item.ParentID != fresh.command.TargetParentID {
+			if err := w.Gate.admitsUnder(ctx, fresh.parent, fresh.item); err != nil {
+				return err
+			}
+		}
 		if fresh.destination.ID != fresh.source.ID {
 			if err := offer.requireEntryType(fresh.item); err != nil {
 				return err

@@ -421,6 +421,11 @@ func (h DuplicateWorkItem) copyInto(
 		if err := offer.requireLevel(fresh.source.Type, "/target_parent_id"); err != nil {
 			return err
 		}
+		// The root's copy is held to its new parent's allowed children; below it, each copy sits
+		// under a copy of the type its original sat under, which the list already answered.
+		if err := h.Gate.admitsUnder(ctx, fresh.parent, fresh.source); err != nil {
+			return err
+		}
 
 		entries, err := h.entriesToCopy(ctx, fresh)
 		if err != nil {

@@ -56,3 +56,16 @@ func narrowByEntryType(
 	}
 	return domain.NewEntryTypes(rows).Of(item.Type, item.EntryType).Narrow(profile), nil
 }
+
+// admitsUnder refuses an existing entry placed underneath a parent whose type leaves the entry's
+// type out (UC-FLW-01 check 9). Without a registry, or with no row in it, every placement stands.
+func (g EntryGate) admitsUnder(ctx context.Context, parent *domain.WorkItem, entry domain.WorkItem) error {
+	if g.EntryTypes == nil || parent == nil {
+		return nil
+	}
+	rows, err := g.EntryTypes.List(ctx)
+	if err != nil || len(rows) == 0 {
+		return err
+	}
+	return domain.NewEntryTypes(rows).AdmitsUnder(parent, entry)
+}

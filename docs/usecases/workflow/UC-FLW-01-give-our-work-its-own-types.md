@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-12, P-17]
 state: built
 tasks: []
-checked_by: [infrastructure/postgres/StructureDocument_test.go, core/application/service/work/StructureInput_test.go, apps/webapp/src/lib/workspace/structureDraft.test.ts, core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go, core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/application/service/workflow/EntryTypeForm_test.go, test/integration/entry_type_form_test.go, infrastructure/expression/CEL_test.go, apps/webapp/src/lib/data/entryforms.test.ts, apps/webapp/src/lib/entries/listview.test.ts]
+checked_by: [infrastructure/postgres/StructureDocument_test.go, core/application/service/work/StructureInput_test.go, apps/webapp/src/lib/workspace/structureDraft.test.ts, core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go, core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/application/service/workflow/EntryTypeForm_test.go, test/integration/entry_type_form_test.go, infrastructure/expression/CEL_test.go, apps/webapp/src/lib/data/entryforms.test.ts, apps/webapp/src/lib/entries/listview.test.ts, core/application/service/work/MoveWorkItem_test.go, core/application/service/work/DuplicateWorkItem_test.go, test/integration/entry_type_placement_test.go]
 ---
 
 # Give our work its own types
@@ -39,6 +39,8 @@ works in every view. An agent creating an entry through MCP names the type the s
 6. The type is a filter, a grouping and a column in every view, and a field in the query language.
 7. REST, MCP, hubctl and the rule engine create, read and change the type the same way.
 8. In a workspace without the workflow module, no type is offered or shown.
+9. A type may name the types allowed directly underneath it; creating, moving or copying an entry
+   of another type under it is refused by name, and the type's editor sets the list.
 
 ## Where it ends
 

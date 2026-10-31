@@ -249,3 +249,37 @@ func detailOf(err error) string {
 	}
 	return ""
 }
+
+// UC-FLW-01 check 9: an entry moved or copied underneath a parent is held to the parent type's
+// allowed children exactly as a create is, its own type kept whether archived or not.
+func TestAnExistingEntryUnderAParentsAllowedChildren(t *testing.T) {
+	change := bugType
+	change.ID, change.Key, change.Name = shared.MustParseID("0192f000-0000-7000-8000-0000000000f1"), "change", "Change"
+	change.AllowedChildren = []string{"risk"}
+	risk := bugType
+	risk.ID, risk.Key, risk.Name, risk.Level = shared.MustParseID("0192f000-0000-7000-8000-0000000000f2"), "risk", "Risk", work.ItemWorkPackage
+	registry := work.NewEntryTypes([]work.EntryType{newEntryType(t, change), newEntryType(t, risk), newEntryType(t, bugType)})
+
+	changeParent := work.WorkItem{Type: work.ItemTask, EntryType: "change"}
+	bugParent := work.WorkItem{Type: work.ItemTask, EntryType: "bug"}
+	cases := []struct {
+		name   string
+		parent *work.WorkItem
+		entry  work.WorkItem
+		code   string
+	}{
+		{"the top level admits every entry", nil, work.WorkItem{Type: work.ItemWorkPackage}, ""},
+		{"an allowed child", &changeParent, work.WorkItem{Type: work.ItemWorkPackage, EntryType: "risk"}, ""},
+		{"the system type the parent leaves out", &changeParent, work.WorkItem{Type: work.ItemWorkPackage}, "entry_types.not_allowed_here"},
+		{"a parent naming no children admits every one", &bugParent, work.WorkItem{Type: work.ItemWorkPackage}, ""},
+		{"a parent of the system type admits every one", &work.WorkItem{Type: work.ItemTask}, work.WorkItem{Type: work.ItemWorkPackage, EntryType: "risk"}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := registry.AdmitsUnder(tc.parent, tc.entry)
+			if detailOf(err) != tc.code {
+				t.Fatalf("want %q, got %v", tc.code, err)
+			}
+		})
+	}
+}

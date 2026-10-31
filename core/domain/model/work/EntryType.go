@@ -463,7 +463,7 @@ func (r EntryTypes) ChooseAmong(level ItemType, key string, parent *EntryType, o
 		return "", shared.ErrValidation.WithDetail("entry_types.archived").
 			WithFields(shared.FieldError{Path: "/entry_type", Code: "entry_types.archived"})
 	}
-	if parent != nil && len(parent.AllowedChildren) > 0 && !slices.Contains(parent.AllowedChildren, t.Key) {
+	if parent != nil && !parent.Admits(t.Key) {
 		return "", shared.ErrValidation.WithDetail("entry_types.not_allowed_here").
 			WithFields(shared.FieldError{Path: "/entry_type", Code: "entry_types.not_allowed_here"})
 	}
@@ -471,6 +471,28 @@ func (r EntryTypes) ChooseAmong(level ItemType, key string, parent *EntryType, o
 		return "", nil
 	}
 	return t.Key, nil
+}
+
+// Admits reports whether an entry of the child type may sit directly underneath an entry of t; a
+// type naming no allowed children admits every one.
+func (t EntryType) Admits(child string) bool {
+	return len(t.AllowedChildren) == 0 || slices.Contains(t.AllowedChildren, child)
+}
+
+// AdmitsUnder refuses an existing entry placed directly underneath a parent whose type leaves the
+// entry's type out of its allowed children (UC-FLW-01 check 9): a move and a copy hold to the list
+// a create holds to (P-18). The entry keeps its type, archived or not; nil is the top level.
+func (r EntryTypes) AdmitsUnder(parent *WorkItem, entry WorkItem) error {
+	if parent == nil {
+		return nil
+	}
+	child := r.Of(entry.Type, entry.EntryType)
+	if r.Of(parent.Type, parent.EntryType).Admits(child.Key) {
+		return nil
+	}
+	return shared.ErrValidation.WithDetail("entry_types.not_allowed_here").
+		WithParams(map[string]string{"item_id": entry.ID.String(), "entry_type": child.Key}).
+		WithFields(shared.FieldError{Path: "/target_parent_id", Code: "entry_types.not_allowed_here"})
 }
 
 // Narrow takes from a level's capability profile what the type's behaviours switch off: a type that
