@@ -11,8 +11,6 @@ import (
 )
 
 // PageLinkTokenPrefix marks a page's public link, for secret scanning as the feed's prefix does.
-//
-//nolint:gosec // G101: a public marker, not a credential - what it prefixes is the credential
 const PageLinkTokenPrefix = "hbt_page_"
 
 // PageLinkTokenSecretBytes is the secret half's entropy, the feed token's: the token is the whole

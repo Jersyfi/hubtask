@@ -228,10 +228,11 @@ type ClassInput struct {
 
 func invalid(path, code string, params ...string) error {
 	err := shared.ErrValidation.WithDetail(code).WithFields(shared.FieldError{Path: path, Code: code})
-	if len(params) == 2 {
-		err = err.WithParams(map[string]string{params[0]: params[1]})
+	if len(params) != 2 {
+		return err
 	}
-	return err
+	key, value := params[0], params[1]
+	return err.WithParams(map[string]string{key: value})
 }
 
 // NewClass checks a workspace's class against the classes it would join. A shipped class's key

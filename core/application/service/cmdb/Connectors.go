@@ -42,7 +42,7 @@ const (
 // nor an alert's title (rule 10).
 const (
 	ConnectorDefinedAction    audit.Action = "cmdb.connector_defined"
-	ConnectorCredentialAction audit.Action = "cmdb.connector_credential_set"
+	ConnectorCredentialAction audit.Action = "cmdb.connector_credential_set" //nolint:gosec // G101: an audit code, not a credential
 	ConnectorRanAction        audit.Action = "cmdb.connector_ran"
 	ConnectorReadAction       audit.Action = "cmdb.connector_read"
 	AlertsReceivedAction      audit.Action = "cmdb.alerts_received"

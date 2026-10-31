@@ -125,7 +125,7 @@ func organisationPortal(t *testing.T, shares bool) (Portal, *queriedItems, *orga
 		Organisations: store, Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{},
 		Clock: at(monday), IDs: &seqIDs{}, Text: text.Composing{},
 	}}
-	if _, err := define.Execute(context.Background(), reader(), DefineRequesterOrganisationCommand{
+	if _, err := define.Execute(t.Context(), reader(), DefineRequesterOrganisationCommand{
 		Key: "acme", Name: "Acme", Domains: []string{"Acme.Example"}, SharesRequests: shares,
 	}); err != nil {
 		t.Fatal(err)
@@ -218,15 +218,15 @@ func TestAnOrganisationsRequestsAreSeenWhereItSharesThem(t *testing.T) {
 
 // UC-SVC-02 check 9: a policy names organisations the workspace holds, and reads them back.
 func TestAPolicyNamesOrganisationsTheWorkspaceHolds(t *testing.T) {
-	define := DefineSlaPolicy{Desk: Desk{
+	define := DefineSLAPolicy{Desk: Desk{
 		Policies: policyStore{}, Organisations: &organisationStore{rows: map[string]domain.Organisation{"acme": {Key: "acme"}}},
 		Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{},
 		Text: text.Composing{},
 	}}
-	command := DefineSlaPolicyCommand{
+	command := DefineSLAPolicyCommand{
 		Key: "key_accounts", Name: "Key accounts", EntryTypes: []string{"incident"}, Enabled: true,
 		Organisations: []string{"acme", "initech"},
-		Goals:         []domain.SlaGoal{{Kind: domain.GoalFirstResponse, Minutes: 30}},
+		Goals:         []domain.SLAGoal{{Kind: domain.GoalFirstResponse, Minutes: 30}},
 	}
 	if _, err := define.Execute(context.Background(), reader(), command); shared.AsError(err).DetailCode != "sla_policies.organisation_unknown" {
 		t.Errorf("an organisation nobody holds: %v", err)

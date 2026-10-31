@@ -95,8 +95,11 @@ func dial(t *testing.T, server *httptest.Server) *websocket.Conn {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(server.URL, "http"),
+	conn, response, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(server.URL, "http"),
 		&websocket.DialOptions{Subprotocols: []string{Subprotocol}})
+	if response != nil && response.Body != nil {
+		_ = response.Body.Close()
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

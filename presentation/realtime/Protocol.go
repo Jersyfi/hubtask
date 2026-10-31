@@ -112,7 +112,7 @@ func readUvarint(in []byte) (uint64, []byte, error) {
 	var value uint64
 	for i := 0; i < len(in) && i < 10; i++ {
 		b := in[i]
-		value |= uint64(b&0x7f) << (7 * uint(i)) //nolint:gosec // i < 10
+		value |= uint64(b&0x7f) << (7 * uint(i))
 		if b < 0x80 {
 			return value, in[i+1:], nil
 		}

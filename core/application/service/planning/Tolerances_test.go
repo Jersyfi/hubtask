@@ -35,8 +35,8 @@ func (s *settingStore) At(_ context.Context, places []settingrepo.Place, _ strin
 	return out, nil
 }
 
-func (s *settingStore) Put(_ context.Context, _ shared.ID, place settingrepo.Place, key setting.Key, entry setting.Entry, at time.Time) error {
-	_, _ = s.Remove(context.Background(), place, key)
+func (s *settingStore) Put(ctx context.Context, _ shared.ID, place settingrepo.Place, key setting.Key, entry setting.Entry, at time.Time) error {
+	_, _ = s.Remove(ctx, place, key)
 	s.stored = append(s.stored, settingrepo.Stored{Place: place, Key: key, Entry: entry, UpdatedAt: at})
 	return nil
 }

@@ -23,7 +23,7 @@ import (
 // browser carries its bearer in, because it cannot set a header on a WebSocket.
 const (
 	Subprotocol  = "hubtask.v1"
-	BearerPrefix = "hubtask.bearer."
+	BearerPrefix = "hubtask.bearer." //nolint:gosec // G101: the subprotocol's marker, not a credential
 )
 
 // The bounds of a connection (rule 7). A write that takes longer than writeTimeout is a reader

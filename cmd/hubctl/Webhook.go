@@ -196,7 +196,7 @@ func webhookRotateSecret(ctx context.Context, cli *CLI, args []string) error {
 }
 
 // envChatToken carries a Matrix account's access token to `webhook add --format MATRIX`.
-const envChatToken = "HUBTASK_CHAT_TOKEN"
+const envChatToken = "HUBTASK_CHAT_TOKEN" //nolint:gosec // G101: an environment variable's name, not a credential
 
 // readChatToken takes the room's token from the environment or standard input, never from an
 // argument, for readToken's reason: an argument is visible in `ps` and the shell history.

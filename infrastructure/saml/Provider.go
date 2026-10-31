@@ -43,7 +43,7 @@ const (
 	nsSignature = "http://www.w3.org/2000/09/xmldsig#"
 	statusOK    = "urn:oasis:names:tc:SAML:2.0:status:Success"
 	bindingPOST = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
-	bearer      = "urn:oasis:names:tc:SAML:2.0:cm:bearer"
+	bearer      = "urn:oasis:names:tc:SAML:2.0:cm:bearer" //nolint:gosec // G101: a confirmation method's name, not a credential
 	formatEmail = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
 )
 
