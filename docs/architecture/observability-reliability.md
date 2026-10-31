@@ -365,14 +365,14 @@ error; at 170 124 entries in the largest workspace a collection's page held P95 
 47 ms, a count over the hub 60 ms - and the hub's level 254 ms with eight concurrent readers while
 its figures were counted on every read (about 75 ms of database time for one), 7 ms once a
 collection's figure is kept between reads while it is unchanged (migration 0292; the first read
-after a write counts that collection again). **The hub's level read while entries are written is
-*not measured* at 10⁶**: the run predates the mixed window (`measureMixed`), so its JSON carries no
-`mixed`; P2 of the long-run plan measures it. The database held
+after a write counts that collection again). Read while two writers add entries at 40 a second
+(P2, 2026-11-01), the hub's level held P95 66 ms at 134 reads a second in the largest workspace
+and 21 ms or less in the others, the writes 20 to 23 ms. The database held
 1.2 GB per 10⁶ entries, 70 % of it indexes; the server stayed at about 200 MB resident. The run
 found and fixed a seed that grew with the square of a collection's entries (migration 0289),
 whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ is
-*not measured*** - it runs on the owner's workstation as well (accepted.md, third answers 9), after
-the long-run plan of the performance tests is shown to the owner.
+*not measured*** - it runs on the owner's workstation as well (accepted.md, third answers 9), by
+the long-run plan the owner accepted (`test/load/PLAN.md`, R1 and R3).
 
 ### 13.3 Partitioning of the entries
 
