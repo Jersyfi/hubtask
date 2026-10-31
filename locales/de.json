@@ -1268,6 +1268,7 @@
   "backup.restore_not_found": "Diese Wiederherstellung gibt es nicht.",
   "backup.restore_not_running": "Diese Wiederherstellung ist schon vorbei, darum lässt sich ihr Ergebnis nicht mehr schreiben.",
   "backup.row_conflicts": "Eine Zeile des Archivs stößt mit einer zusammen, die der Arbeitsbereich schon hat ({constraint}), darum wurde der Stapel, in dem sie war, nicht geschrieben.",
+  "backup.row_dangles": "Eine Zeile des Archivs verweist auf etwas, das weder das Archiv noch der Arbeitsbereich enthält ({constraint}), darum wurde der Stapel, in dem sie war, nicht geschrieben.",
   "backup.restore_confirmation_required": "Das würde alles in {name} ersetzen. Tippe den Namen des Arbeitsbereichs in confirmation, um es zu bestätigen.",
   "backup.restore_archive_scope_mismatch": "Dieses Archiv gehört zu einem anderen Arbeitsbereich, darum lässt es sich hier nicht wiederherstellen.",
   "backup.restore_foreign_archive_encrypted": "Dieses Archiv wurde geschrieben, bevor Archive ihr eigenes Salt mitbrachten, darum ist sein Schlüssel an ein Sicherungsziel gebunden, das diese Installation nicht hat. Stell stattdessen einen unverschlüsselten Export des Arbeitsbereichs wieder her.",

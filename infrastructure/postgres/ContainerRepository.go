@@ -38,6 +38,9 @@ var _ repository.Containers = ContainerRepository{}
 // uniqueViolation is PostgreSQL's SQLSTATE for a broken unique constraint.
 const uniqueViolation = "23505"
 
+// foreignKeyViolation is PostgreSQL's SQLSTATE for a row naming something that is not there.
+const foreignKeyViolation = "23503"
+
 // containerNameIndex is the constraint that decides whether a name is free at one level. Named
 // explicitly, so that a different unique violation - one added by a later migration - is not
 // reported to the client as a duplicate name.

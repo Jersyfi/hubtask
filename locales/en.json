@@ -2136,6 +2136,7 @@
   "backup.restore_not_found": "There is no such restore.",
   "backup.restore_not_running": "That restore is already over, so its outcome cannot be written any more.",
   "backup.row_conflicts": "A row of the archive collides with one the workspace already holds ({constraint}), so the batch it was in was not written.",
+  "backup.row_dangles": "A row of the archive names something neither the archive nor the workspace holds ({constraint}), so the batch it was in was not written.",
   "backup.restore_confirmation_required": "This would replace everything in {name}. Type the workspace's name into confirmation to confirm it.",
   "backup.restore_archive_scope_mismatch": "That archive belongs to another workspace, so it cannot be restored here.",
   "backup.restore_foreign_archive_encrypted": "That archive was written before archives carried their own salt, so its key is bound to a backup target this installation does not have. Restore an unencrypted export of the workspace instead.",

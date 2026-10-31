@@ -548,7 +548,8 @@ Rules:
   the run with `imports.not_in_hub`.
 * **A different file whose collection meets a name the hub already holds** is refused with
   `imports.collection_exists` and lands nothing; the applier answers a unique index as a conflict
-  (`containers.name_taken`, `backup.row_conflicts`),, never as a database error the queue would retry.
+  (`containers.name_taken`, `backup.row_conflicts`), and a row naming what neither the archive nor
+  the workspace holds as `backup.row_dangles` - never as a database error the queue would retry.
 * **A ZIP is bounded by what it yields, not what it declares**: 256 MiB a member and 1 GiB in all,
   beyond which it is `imports.archive_unreadable`; attachments travel into the in-memory archive by
   digest and the applier stores them as a restore does, one object per content.

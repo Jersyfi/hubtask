@@ -96,6 +96,35 @@ func TestASecondCollectionUnderATakenNameIsAConflict(t *testing.T) {
 	}
 }
 
+// A row naming by key something neither the archive nor the workspace holds - here a hub's
+// calendar under a key no workspace calendar has - is refused by its foreign key, and that refusal
+// is a conflict the restore stops on by name, not a database error the queue would retry against
+// the same row forever.
+func TestARowNamingAKeyNobodyHoldsIsRefusedByName(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub := freshID(t)
+
+	err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := importRepo().Write(ctx, "container", containerRow(hub, authorA, "Desk "+hub.String()[:8]), false); err != nil {
+			return err
+		}
+		_, err := importRepo().Write(ctx, "hub_business_calendar", map[string]any{
+			"id": freshID(t).String(), "hub_id": hub.String(), "key": "nobody_holds_this",
+			"name": "Office", "spec": map[string]any{},
+			"created_at": created.Format(time.RFC3339Nano), "updated_at": created.Format(time.RFC3339Nano),
+			"version": 1,
+		}, false)
+		return err
+	})
+	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "backup.row_dangles" {
+		t.Fatalf("the write answered %v, want the dangling row's conflict", err)
+	}
+	if got := shared.AsError(err).Params["constraint"]; got != "hub_business_calendar_key_fkey" {
+		t.Errorf("the conflict names %q, want the foreign key that refused the row", got)
+	}
+}
+
 // The three outcomes of a collision, which is the whole of the conflict rule: a row the tenant does
 // not have is written, one it has is left alone under SKIP, and replaced under OVERWRITE.
 func TestACollisionIsSettledByTheOverwriteFlag(t *testing.T) {

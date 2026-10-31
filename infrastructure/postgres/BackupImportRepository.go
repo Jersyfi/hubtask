@@ -82,9 +82,22 @@ func (r BackupImportRepository) Write(
 // A container's name is the one collision with words of its own - the same code CreateContainer
 // answers, so that one fact has one sentence - and any other index is named by its constraint,
 // which is the schema's vocabulary and not content.
+//
+// A foreign key refusing the row is answered the same way: the row names something - by identity
+// or by key - that neither the archive nor the workspace holds, and every attempt meets that again.
+// The restore stops with the constraint named rather than writing the row without it.
 func rowConflict(err error, table string, data map[string]any) error {
 	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) || pgErr.Code != uniqueViolation {
+	if !errors.As(err, &pgErr) {
+		return nil
+	}
+	if pgErr.Code == foreignKeyViolation {
+		return shared.ErrConflict.
+			WithDetail("backup.row_dangles").
+			WithParams(map[string]string{"constraint": pgErr.ConstraintName}).
+			WithCause(fmt.Errorf("importing a row into %s: %w", table, err))
+	}
+	if pgErr.Code != uniqueViolation {
 		return nil
 	}
 	if pgErr.ConstraintName == containerNameIndex {
