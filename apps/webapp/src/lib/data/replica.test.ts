@@ -780,3 +780,35 @@ test('a plan is answered from the copy without the server\'s proposals', async (
   const hub = await storeFor({ path: `/plans/${HUB}/schedule?zone=UTC` }, storage) as { entries: unknown[] };
   assert.equal(hub.entries.length, 3);
 });
+
+// connected.md §5, UC-SYN-01 check 10: offline, a page's mentions and cards resolve from the copy -
+// each object the device holds as the server shows it, one it does not hold only by its address.
+test('references resolve from the copy, what it does not hold as unavailable', async () => {
+  const storage = await workspace();
+  await storage.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', name: 'Inbox', parent_id: HUB, order_key: 'a0', handle: 'inb' }));
+  await storage.put('items', 'i-n', record({ id: 'i-n', type: 'TASK', title: 'numbered', collection_id: COLLECTION, parent_id: null, order_key: 'a3', number: 7, completion: { is_completed: true } }));
+  await storage.put('pages', 'p-1', record({ id: 'p-1', title: 'Runbook', hub_id: HUB, icon: null }));
+  await storage.put('pages', 'p-trash', record({ id: 'p-trash', title: 'Old', hub_id: HUB, trashed_at: '2026-10-01T00:00:00Z' }));
+  await storage.put('whiteboards', 'w-1', record({ id: 'w-1', title: 'Map', hub_id: HUB, elements: [{}, {}] }));
+  await storage.put('cis', 'ci-1', record({ id: 'ci-1', name: 'mail-01', hub_id: HUB, class: 'server', stage: 'LIVE' }));
+  await storage.put('goals', 'g-1', record({ id: 'g-1', title: 'Faster', status: 'ON_TRACK', hub_id: null }));
+  await storage.put('dashboards', 'd-1', record({ id: 'd-1', name: 'Desk', hub_id: HUB }));
+  const answer = (await storeFor({ path: '/references:resolve', body: { references: [
+    { kind: 'ENTRY', id: 'i-n', anchor: 'top' }, { kind: 'PAGE', id: 'p-1' }, { kind: 'PAGE', id: 'p-trash' },
+    { kind: 'WHITEBOARD', id: 'w-1' }, { kind: 'CI', id: 'ci-1' }, { kind: 'GOAL', id: 'g-1' }, { kind: 'DASHBOARD', id: 'd-1' },
+    { kind: 'COLLECTION', id: COLLECTION }, { kind: 'HUB', id: COLLECTION }, { kind: 'ENTRY', id: 'nowhere' }, { kind: 'VIEW', id: 'v-1' },
+  ] } }, storage)) as { data: Record<string, unknown>[] };
+  const rows = answer.data;
+  assert.deepEqual(rows.map((row) => [row.kind, row.id, row.available]), [
+    ['ENTRY', 'i-n', true], ['PAGE', 'p-1', true], ['PAGE', 'p-trash', false], ['WHITEBOARD', 'w-1', true], ['CI', 'ci-1', true],
+    ['GOAL', 'g-1', true], ['DASHBOARD', 'd-1', true], ['COLLECTION', COLLECTION, true], ['HUB', COLLECTION, false],
+    ['ENTRY', 'nowhere', false], ['VIEW', 'v-1', false],
+  ]);
+  assert.equal(rows[0]?.key, 'inb-7');
+  assert.equal(rows[0]?.completed, true);
+  assert.equal(rows[0]?.anchor, 'top');
+  assert.equal(rows[0]?.entry_type, 'task');
+  assert.equal(rows[3]?.element_count, 2);
+  assert.equal(rows[4]?.ci_class, 'server');
+  assert.deepEqual(rows[2], { kind: 'PAGE', id: 'p-trash', anchor: null, available: false }, 'nothing but the address of what is not held');
+});

@@ -217,6 +217,86 @@ async function one(storage: Storage, collection: string, id: string): Promise<Do
   return collection === 'items' ? (await marked(storage, [document]))[0] : document;
 }
 
+// ---------------------------------------------------------------------------------------------
+// References resolved from the copy (connected.md §5, P-19)
+// ---------------------------------------------------------------------------------------------
+
+const REFERENCE_STORES: Readonly<Record<string, string>> = {
+  ENTRY: 'items', HUB: 'containers', COLLECTION: 'containers', PAGE: 'pages', WHITEBOARD: 'whiteboards',
+  CI: 'cis', GOAL: 'goals', DASHBOARD: 'dashboards',
+};
+
+const text = (value: unknown): string | undefined => (typeof value === 'string' && value !== '' ? value : undefined);
+
+/**
+ * What `POST /references:resolve` answers, from the device's copy: the walk delivers only what the
+ * reader may read, so an object held - live, and not hidden by its collection - is shown as the
+ * server shows it, and one not held only by its address with `available: false`, as the server
+ * answers one the reader may not see. A view is the server's alone (its query is the language's),
+ * so offline it is not resolved either.
+ */
+export async function resolveHeld(storage: Storage, body: unknown): Promise<Document[]> {
+  const asked = (body as { references?: readonly { kind?: string; id?: string; anchor?: string }[] } | undefined)?.references ?? [];
+  const out: Document[] = [];
+  for (const reference of asked.slice(0, 100)) {
+    const kind = String(reference.kind ?? '');
+    const id = String(reference.id ?? '');
+    const anchor = reference.anchor ?? null;
+    const unavailable = { kind, id, anchor, available: false };
+    const store = REFERENCE_STORES[kind];
+    const held = store ? await one(storage, store, id) : undefined;
+    if (!held || held.deleted_at || held.trashed_at) {
+      out.push(unavailable);
+      continue;
+    }
+    const target: Document = { kind, id, anchor, available: true };
+    switch (kind) {
+      case 'ENTRY': {
+        if ((held.hidden as EntryHidden | undefined)?.level) {
+          out.push(unavailable);
+          continue;
+        }
+        const collection = await one(storage, 'containers', String(held.collection_id));
+        const number = typeof held.number === 'number' && held.number > 0 ? held.number : null;
+        const handle = text(collection?.handle);
+        Object.assign(target, {
+          title: held.title, level: held.type, entry_type: text(held.entry_type) ?? String(held.type ?? '').toLowerCase(),
+          completed: (held.completion as { is_completed?: boolean } | undefined)?.is_completed === true,
+          archived: Boolean(held.archived_at), collection_id: held.collection_id, number,
+          key: number !== null && handle ? `${handle}-${number}` : null,
+          start_at: held.start_at ?? null, due_at: held.due_at ?? null,
+        });
+        break;
+      }
+      case 'HUB':
+      case 'COLLECTION':
+        if (held.type !== kind) {
+          out.push(unavailable);
+          continue;
+        }
+        Object.assign(target, { title: held.name, archived: Boolean(held.archived_at), key: text(held.handle) ?? null });
+        break;
+      case 'PAGE':
+        Object.assign(target, { title: held.title, archived: Boolean(held.archived), hub_id: held.hub_id, icon: text(held.icon) ?? null });
+        break;
+      case 'WHITEBOARD':
+        Object.assign(target, { title: held.title, hub_id: held.hub_id, ...(Array.isArray(held.elements) ? { element_count: held.elements.length } : {}) });
+        break;
+      case 'CI':
+        Object.assign(target, { title: held.name, hub_id: held.hub_id, ci_class: held.class ?? held.ci_class, stage: held.stage });
+        break;
+      case 'GOAL':
+        Object.assign(target, { title: held.title, status: held.status, ...(text(held.hub_id) ? { hub_id: held.hub_id } : {}) });
+        break;
+      case 'DASHBOARD':
+        Object.assign(target, { title: held.name, ...(text(held.hub_id) ? { hub_id: held.hub_id } : {}) });
+        break;
+    }
+    out.push(target);
+  }
+  return out;
+}
+
 /**
  * The plain level question - or an entry's whole subtree, which the entry page asks for in one
  * read - or nothing for one the copy would have to understand.
@@ -373,6 +453,8 @@ async function planFromCopy(storage: Storage, planId: string, zone: string): Pro
 
 export async function storeFor(request: ResourceRequest, storage: Storage): Promise<unknown> {
   const { pathname, query } = parse(request.path);
+
+  if (pathname === '/references:resolve') return { data: await resolveHeld(storage, request.body) };
 
   if (pathname === '/items:query') {
     const scope = levelScope(request.body);
