@@ -3716,8 +3716,8 @@ class WebhookDelivery(TypedDict, total=False):
     created_at: Required[str]
 
 class RuleScope(TypedDict, total=False):
-    """Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections."""
-    type: Required[Literal["TENANT", "HUB", "COLLECTION"]]
+    """Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections. `PERSON` is a person's own rule: it acts as that person, fires on events only, on the entries they may read, and only they see and manage it - without the automation permission."""
+    type: Required[Literal["TENANT", "HUB", "COLLECTION", "PERSON"]]
     id: str
 
 class RuleTrigger(TypedDict, total=False):

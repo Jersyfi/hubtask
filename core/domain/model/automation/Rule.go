@@ -62,7 +62,13 @@ const (
 	ScopeTenant     ScopeType = "TENANT"
 	ScopeHub        ScopeType = "HUB"
 	ScopeCollection ScopeType = "COLLECTION"
+	// ScopePerson is a person's own rule (configuration/model.md §1): ID is the owner's account,
+	// the rule acts as them, only they see it, and it fires on the entries they read.
+	ScopePerson ScopeType = "PERSON"
 )
+
+// Personal reports whether the scope is a person's own, which only its owner manages.
+func (s Scope) Personal() bool { return s.Type == ScopePerson }
 
 // Scope is where the rule applies.
 //
@@ -358,6 +364,16 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	if err != nil {
 		return Rule{}, err
 	}
+	if scope.Type == ScopePerson {
+		// Acting as anybody but the owner would be impersonation; a trigger other than an event
+		// would fire on entries nobody asked the owner's reading of.
+		if in.RunAs != scope.ID {
+			return Rule{}, fieldError("/run_as", "automation.person_rule_run_as")
+		}
+		if trigger.Kind != TriggerEvent {
+			return Rule{}, fieldError("/trigger/kind", "automation.person_rule_trigger")
+		}
+	}
 	conditions, err := ValidConditionShape(in.Conditions)
 	if err != nil {
 		return Rule{}, err
@@ -410,7 +426,7 @@ func ValidScope(scope Scope) (Scope, error) {
 			return Scope{}, fieldError("/scope/id", "automation.scope_id_not_allowed")
 		}
 		return Scope{Type: ScopeTenant}, nil
-	case ScopeHub, ScopeCollection:
+	case ScopeHub, ScopeCollection, ScopePerson:
 		if scope.ID.IsZero() {
 			return Scope{}, fieldError("/scope/id", "automation.scope_id_required")
 		}

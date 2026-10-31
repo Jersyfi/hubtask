@@ -498,11 +498,27 @@ func (w Writer) setEnabled(
 	return rule, nil
 }
 
+// ownRule is the question for a person's own rule (configuration/model.md §1): its owner, signed
+// in as themselves, manages it without the automation permission; anybody else - an administrator
+// or the owner's agent included - is told it does not exist, so nobody learns of it.
+func ownRule(actor appshared.ActorContext, scope domain.Scope) error {
+	if err := actor.RequireScope(automationScope); err != nil {
+		return err
+	}
+	if actor.Kind != appshared.ActorUser || actor.AccountID.IsZero() || actor.AccountID != scope.ID {
+		return shared.ErrNotFound.WithDetail("automation.rule_not_found")
+	}
+	return nil
+}
+
 // authorize is the ordinary question: may this actor manage rules at this scope?
 func (w Writer) authorize(
 	ctx context.Context, actor appshared.ActorContext, scope domain.Scope,
 	action audit.Action, target shared.ID,
 ) error {
+	if scope.Personal() {
+		return ownRule(actor, scope)
+	}
 	return w.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionAutomation,
 		Path:       scope.Path(),
@@ -521,6 +537,9 @@ func (w Writer) authorizeRead(
 	ctx context.Context, actor appshared.ActorContext, scope domain.Scope,
 	action audit.Action, target shared.ID,
 ) error {
+	if scope.Personal() {
+		return ownRule(actor, scope)
+	}
 	return w.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission:  service.PermissionAutomation,
 		Alternative: service.PermissionReadConfiguration,
@@ -545,6 +564,9 @@ func (w Writer) permits(
 func permitsRead(
 	ctx context.Context, authorizer Authorizer, actor appshared.ActorContext, scope domain.Scope,
 ) (bool, error) {
+	if scope.Personal() {
+		return ownRule(actor, scope) == nil, nil
+	}
 	return authorizer.Permits(ctx, actor, access.Request{
 		Permission:  service.PermissionAutomation,
 		Alternative: service.PermissionReadConfiguration,

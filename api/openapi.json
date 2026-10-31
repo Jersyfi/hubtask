@@ -53858,7 +53858,7 @@
       },
       "RuleScope": {
         "type": "object",
-        "description": "Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.\n",
+        "description": "Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections. `PERSON` is a person's own rule: it acts as that person, fires on events only, on the entries they may read, and only they see and manage it - without the automation permission.\n",
         "required": [
           "type"
         ],
@@ -53868,13 +53868,14 @@
             "enum": [
               "TENANT",
               "HUB",
-              "COLLECTION"
+              "COLLECTION",
+              "PERSON"
             ]
           },
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "The hub or the collection. Absent for `TENANT`, and required for the others."
+            "description": "The hub, the collection or, for `PERSON`, the owner's account. Absent for `TENANT`, and required for the others."
           }
         }
       },

@@ -80,8 +80,8 @@ func (h RotateInboundTrigger) Execute(
 	// The automation permission at the rule's own scope. Not the composition check writing a rule
 	// needs: an address does not widen what the rule may do, and what the rule does was decided
 	// when it was written and is decided again, per action, when it runs.
-	if err := h.Authorizer.Authorize(
-		ctx, actor, runRequest(rule.Scope, InboundRotatedAction, rule.ID),
+	if err := askRun(ctx, h.Authorizer, actor, rule.Scope,
+		runRequest(rule.Scope, InboundRotatedAction, rule.ID),
 	); err != nil {
 		return MintedInboundTrigger{}, err
 	}

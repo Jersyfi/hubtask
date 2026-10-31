@@ -111,8 +111,7 @@ func (h GetRuleRun) Execute(
 	if err != nil {
 		return domain.Run{}, err
 	}
-	if err := r.Authorizer.Authorize(ctx, actor,
-		readRunRequest(rule.Scope, RunReadAction, run.ID)); err != nil {
+	if err := askRun(ctx, r.Authorizer, actor, rule.Scope, readRunRequest(rule.Scope, RunReadAction, run.ID)); err != nil {
 		return domain.Run{}, err
 	}
 	return run, nil
@@ -147,13 +146,39 @@ func (r Reader) mayRead(
 		return false, nil
 	}
 
-	allowed, err := r.Authorizer.Permits(ctx, actor, readRunRequest(rule.Scope, "", ruleID))
+	allowed, err := permitsRun(ctx, r.Authorizer, actor, rule.Scope, readRunRequest(rule.Scope, "", ruleID))
 	if err != nil {
 		// Not "may not see": nobody was refused anything, the question could not be answered.
 		return false, err
 	}
 	permitted[ruleID] = allowed
 	return allowed, nil
+}
+
+// RunAuthorizer is the part of the authoriser a run's questions use.
+type RunAuthorizer interface {
+	Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error
+	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
+}
+
+// askRun asks a run's question, which a person's own rule answers by its owner alone (ownRule).
+func askRun(
+	ctx context.Context, authorizer RunAuthorizer, actor appshared.ActorContext, scope domain.Scope, request access.Request,
+) error {
+	if scope.Personal() {
+		return ownRule(actor, scope)
+	}
+	return authorizer.Authorize(ctx, actor, request)
+}
+
+// permitsRun is askRun's quiet form, for a listing.
+func permitsRun(
+	ctx context.Context, authorizer RunAuthorizer, actor appshared.ActorContext, scope domain.Scope, request access.Request,
+) (bool, error) {
+	if scope.Personal() {
+		return ownRule(actor, scope) == nil, nil
+	}
+	return authorizer.Permits(ctx, actor, request)
 }
 
 // runRequest is the permission question a run asks: the automation permission at the rule's own

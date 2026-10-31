@@ -196,7 +196,7 @@ func (h TriggerRuleManually) authorizeSubject(
 func (h TriggerRuleManually) authorize(
 	ctx context.Context, actor appshared.ActorContext, rule domain.Rule,
 ) error {
-	return h.Authorizer.Authorize(ctx, actor, runRequest(rule.Scope, RuleTriggeredAction, rule.ID))
+	return askRun(ctx, h.Authorizer, actor, rule.Scope, runRequest(rule.Scope, RuleTriggeredAction, rule.ID))
 }
 
 // record writes the entry that says a person did this. Never the rule's name (rule 10), and

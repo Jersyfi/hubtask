@@ -4178,6 +4178,7 @@ func run() error {
 		Jumble:     postgres.NewJumbleRepository(cursors),
 		Clock:      clockadapter.System{},
 		Reach:      authorizer,
+		Readers:    authorizer,
 	}
 
 	// The relative-date producer. A second subscriber rather than a branch inside the first,

@@ -122,8 +122,8 @@ func (h TestRule) Execute(
 	// The plain permission at the rule's own scope, TriggerRuleManually's reason inverted: a dry
 	// run performs nothing, so the composition check writing a rule needs would refuse people the
 	// test exists for - somebody probing what a rule they may manage would do.
-	if err := h.Authorizer.Authorize(
-		ctx, actor, runRequest(rule.Scope, RuleTestedAction, rule.ID)); err != nil {
+	if err := askRun(ctx, h.Authorizer, actor, rule.Scope,
+		runRequest(rule.Scope, RuleTestedAction, rule.ID)); err != nil {
 		return TestOutcome{}, err
 	}
 

@@ -71,8 +71,8 @@ func (h ReplayRuleRun) Execute(
 		return TriggerRuleResult{}, err
 	}
 
-	if err := h.Authorizer.Authorize(
-		ctx, actor, runRequest(rule.Scope, RunReplayedAction, run.ID)); err != nil {
+	if err := askRun(ctx, h.Authorizer, actor, rule.Scope,
+		runRequest(rule.Scope, RunReplayedAction, run.ID)); err != nil {
 		return TriggerRuleResult{}, err
 	}
 

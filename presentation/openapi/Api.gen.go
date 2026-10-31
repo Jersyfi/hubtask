@@ -8231,6 +8231,7 @@ func (e RuleRunStatus) Valid() bool {
 const (
 	RuleScopeTypeCOLLECTION RuleScopeType = "COLLECTION"
 	RuleScopeTypeHUB        RuleScopeType = "HUB"
+	RuleScopeTypePERSON     RuleScopeType = "PERSON"
 	RuleScopeTypeTENANT     RuleScopeType = "TENANT"
 )
 
@@ -8240,6 +8241,8 @@ func (e RuleScopeType) Valid() bool {
 	case RuleScopeTypeCOLLECTION:
 		return true
 	case RuleScopeTypeHUB:
+		return true
+	case RuleScopeTypePERSON:
 		return true
 	case RuleScopeTypeTENANT:
 		return true
@@ -12371,7 +12374,7 @@ type AutomationRule struct {
 	// RunAs The account the rule acts as. It can never do more than that account may, which is why the writer has to hold those rights too.
 	RunAs openapi_types.UUID `json:"run_as"`
 
-	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections. `PERSON` is a person's own rule: it acts as that person, fires on events only, on the entries they may read, and only they see and manage it - without the automation permission.
 	Scope RuleScope `json:"scope"`
 
 	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
@@ -12397,7 +12400,7 @@ type AutomationRuleCreate struct {
 	OnError *AutomationRuleCreateOnError `json:"on_error,omitempty"`
 	RunAs   openapi_types.UUID           `json:"run_as"`
 
-	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections. `PERSON` is a person's own rule: it acts as that person, fires on events only, on the entries they may read, and only they see and manage it - without the automation permission.
 	Scope RuleScope `json:"scope"`
 
 	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
@@ -12427,7 +12430,7 @@ type AutomationRuleUpdate struct {
 	OnError         *AutomationRuleUpdateOnError `json:"on_error,omitempty"`
 	RunAs           *openapi_types.UUID          `json:"run_as,omitempty"`
 
-	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections. `PERSON` is a person's own rule: it acts as that person, fires on events only, on the entries they may read, and only they see and manage it - without the automation permission.
 	Scope *RuleScope `json:"scope,omitempty"`
 
 	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
@@ -21627,7 +21630,7 @@ type RuleDescription struct {
 	// Description What the rule should do, in the caller's own words. It travels to the provider as content, never as instruction.
 	Description string `json:"description"`
 
-	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections. `PERSON` is a person's own rule: it acts as that person, fires on events only, on the entries they may read, and only they see and manage it - without the automation permission.
 	Scope RuleScope `json:"scope"`
 }
 
@@ -21693,9 +21696,9 @@ type RuleRunPage struct {
 // RuleRunStatus How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
 type RuleRunStatus string
 
-// RuleScope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
+// RuleScope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections. `PERSON` is a person's own rule: it acts as that person, fires on events only, on the entries they may read, and only they see and manage it - without the automation permission.
 type RuleScope struct {
-	// Id The hub or the collection. Absent for `TENANT`, and required for the others.
+	// Id The hub, the collection or, for `PERSON`, the owner's account. Absent for `TENANT`, and required for the others.
 	Id   *openapi_types.UUID `json:"id,omitempty"`
 	Type RuleScopeType       `json:"type"`
 }

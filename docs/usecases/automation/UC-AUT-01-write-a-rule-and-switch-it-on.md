@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-08, P-11, P-12]
 state: built
 tasks: [G-05, G-06, G-07, G-09, F4-13, F8-04, F8-16, F8-17, F8-18, F8-22]
-checked_by: [core/application/service/automation/Rules_test.go, test/integration/automation_rule_test.go, apps/webapp/e2e/rules.test.mjs]
+checked_by: [core/application/service/automation/Rules_test.go, core/application/service/automation/PersonRules_test.go, core/application/service/privacy/Erasure_test.go, test/integration/automation_rule_test.go, apps/webapp/e2e/rules.test.mjs]
 ---
 
 # Write a rule and switch it on
@@ -52,6 +52,8 @@ A scripter does the same with `hubctl rule add` or the API; an agent through MCP
 9. Every action a use case offers is available as a rule action, and the editor builds its forms
    from what the installation declares, so an action added in a later version appears without a
    client release.
+10. A member keeps a rule of their own (*Rules → Mine*, scope `PERSON`) without the automation permission: it acts as them - another `run_as` is refused with `automation.person_rule_run_as` - and starts on an event only (`automation.person_rule_trigger`); nobody else, an administrator or the member's agent included, reads, lists or changes it (not found), and erasing the member removes it with them.
+11. A rule of one's own fires only on an entry its owner may read at that moment; an entry they cannot see starts no run.
 
 ## Where it ends
 

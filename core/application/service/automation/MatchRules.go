@@ -9,11 +9,13 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/eventbus"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
@@ -66,6 +68,14 @@ type MatchRules struct {
 	// Entitlements is what the workspace's plan leaves out: where it leaves out the rules, no
 	// event queues a run (multi-tenancy.md §4.2). Nil includes every feature.
 	Entitlements adminrepo.Entitlements
+	// Readers asks whether a person's own rule's owner reads the event's entry, the only entries
+	// such a rule fires on; nil fires no person's rule.
+	Readers ReadReach
+}
+
+// ReadReach is the authoriser's quiet question (access.Service.Permits).
+type ReadReach interface {
+	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
 }
 
 // PrivateReach is the authoriser's question about a private hub, asked for somebody a rule or a
@@ -128,6 +138,18 @@ func (m MatchRules) Deliver(ctx context.Context, envelope event.Envelope) error 
 	}
 
 	for _, rule := range rules {
+		if rule.Scope.Personal() {
+			reads, err := m.ownerReads(ctx, envelope.TenantID, rule, location)
+			if err != nil {
+				return err
+			}
+			if reads {
+				if err := m.enqueue(ctx, rule, envelope); err != nil {
+					return err
+				}
+			}
+			continue
+		}
 		if !covers(rule.Scope, location) {
 			continue
 		}
@@ -143,6 +165,17 @@ func (m MatchRules) Deliver(ctx context.Context, envelope event.Envelope) error 
 		}
 	}
 	return nil
+}
+
+// ownerReads answers whether a person's own rule's owner may read the event's entry: asked as the
+// person, at the entry's place, so a rule of theirs never fires on what they cannot see.
+func (m MatchRules) ownerReads(ctx context.Context, tenantID shared.ID, rule domain.Rule, at location) (bool, error) {
+	if m.Readers == nil || (at.HubID.IsZero() && at.CollectionID.IsZero()) || rule.RunAs != rule.Scope.ID {
+		return false, nil
+	}
+	return m.Readers.Permits(ctx, appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: tenantID, AccountID: rule.Scope.ID,
+	}, access.Request{Permission: service.PermissionRead, Path: at.Path()})
 }
 
 // hiddenFrom answers whether an event's place is a private hub the account does not reach. A rule

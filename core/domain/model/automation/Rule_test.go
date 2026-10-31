@@ -713,3 +713,42 @@ func TestACheckedRuleCarriesItsFindingsAndKnowsWhetherItIsBroken(t *testing.T) {
 		t.Error("a rule never checked reads as broken")
 	}
 }
+
+// A person's own rule (configuration/model.md §1): it names its owner, acts as them and nobody
+// else, and fires on events only - on the entries its owner reads, which the engine asks.
+func TestAPersonsRuleActsAsItsOwnerOnEventsOnly(t *testing.T) {
+	personal := func(edit func(*automation.NewRuleInput)) error {
+		in := validInput()
+		in.Scope = automation.Scope{Type: automation.ScopePerson, ID: runAsID}
+		edit(&in)
+		_, err := automation.NewRule(in)
+		return err
+	}
+	if err := personal(func(*automation.NewRuleInput) {}); err != nil {
+		t.Fatalf("a person's own rule was refused: %v", err)
+	}
+	for name, tc := range map[string]struct {
+		edit func(*automation.NewRuleInput)
+		path string
+		code string
+	}{
+		"no owner":              {func(in *automation.NewRuleInput) { in.Scope.ID = "" }, "/scope/id", "automation.scope_id_required"},
+		"acting as a colleague": {func(in *automation.NewRuleInput) { in.RunAs = authorID }, "/run_as", "automation.person_rule_run_as"},
+		"on a schedule": {func(in *automation.NewRuleInput) {
+			in.Trigger = automation.Trigger{Kind: automation.TriggerManual}
+		}, "/trigger/kind", "automation.person_rule_trigger"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := personal(tc.edit)
+			if !errors.Is(err, shared.ErrValidation) {
+				t.Fatalf("error %v, want ErrValidation", err)
+			}
+			if code := fieldCodes(t, err)[tc.path]; code != tc.code {
+				t.Errorf("%s says %q, want %q", tc.path, code, tc.code)
+			}
+		})
+	}
+	if path := (automation.Scope{Type: automation.ScopePerson, ID: runAsID}).Path(); len(path) != 1 || path[0] != identity.TenantScope() {
+		t.Errorf("a person's rule reads at %v, want the workspace alone", path)
+	}
+}

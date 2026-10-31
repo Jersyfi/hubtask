@@ -39,7 +39,13 @@ graph LR
 ```
 
 A rule holds at most 20 conditions (all must hold) and at most 50 actions; branches nest at most 3
-deep. The scope is the workspace (`TENANT`), a `HUB` or a `COLLECTION`.
+deep. The scope is the workspace (`TENANT`), a `HUB` or a `COLLECTION` - or a person (`PERSON`, the
+id their account): a person's own rule acts as them alone (`run_as` = the id, held by a CHECK,
+migration 0312), starts on an `EVENT` only, fires on an entry only when its owner may `READ` it at
+that moment (`MatchRules.Readers`), and is managed and seen by its owner alone, signed in as
+themselves, without the `AUTOMATION` permission - anybody else is answered not found. It is not a
+section of the configuration document, and an erasure takes it with the person (UC-AUT-01 checks
+10 and 11).
 
 ### 1.1 Triggers
 

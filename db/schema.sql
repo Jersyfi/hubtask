@@ -2609,7 +2609,8 @@ CREATE UNIQUE INDEX auto_assign_policy_scope_uq ON auto_assign_policy (tenant_id
 CREATE TABLE automation_rule (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  scope_type  text NOT NULL CHECK (scope_type IN ('TENANT','HUB','COLLECTION')),
+  -- PERSON is a person's own rule (migration 0312): scope_id is the owner, who it acts as.
+  scope_type  text NOT NULL CHECK (scope_type IN ('TENANT','HUB','COLLECTION','PERSON')),
   scope_id    uuid,
   name        text NOT NULL,
   enabled     boolean NOT NULL DEFAULT true,
@@ -2644,7 +2645,9 @@ CREATE TABLE automation_rule (
   -- it, drawn from the name by a trigger when the writer named none.
   key         text CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$'),
   CONSTRAINT automation_rule_run_as_fkey
-    FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
+    FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT,
+  CONSTRAINT automation_rule_person_run_as_check
+    CHECK (scope_type <> 'PERSON' OR (scope_id IS NOT NULL AND run_as = scope_id))
 );
 CREATE UNIQUE INDEX automation_rule_tenant_id_uq ON automation_rule (tenant_id, id);
 CREATE UNIQUE INDEX automation_rule_key_uq ON automation_rule
