@@ -119,6 +119,82 @@ func CostMinor(minutes int, hourMinor int64) int64 {
 	return (product + 30) / 60
 }
 
+// BillingRate is what an hour of billable time on a hub or a collection is charged to its client
+// from a day on, until a day where it ends. A collection's own rate comes before its hub's; it
+// prices what is billed, never what the time cost.
+type BillingRate struct {
+	ID shared.ID
+	// PlanID is the hub or the collection.
+	PlanID    shared.ID
+	HourMinor int64
+	Currency  string
+	From      Day
+	// To is the last day it holds; nil while it holds on.
+	To      *Day
+	Version int
+}
+
+// HoldsOn reports whether the rate bills a day.
+func (r BillingRate) HoldsOn(d Day) bool { return r.From <= d && (r.To == nil || d <= *r.To) }
+
+// CheckBillingRate holds a billing rate to a plan, an amount in bounds, a currency code and an
+// ordered validity, as a cost rate is held.
+func CheckBillingRate(r BillingRate) error {
+	if r.PlanID.IsZero() {
+		return invalid("/plan_id", "time.rate_subject_required")
+	}
+	return CheckCostRate(CostRate{Role: "plan", HourMinor: r.HourMinor, Currency: r.Currency, From: r.From, To: r.To})
+}
+
+// CheckBillingOverlap refuses a billing rate whose validity shares a day with another of the same
+// plan, so that a day of a plan is billed at one rate.
+func CheckBillingOverlap(existing []BillingRate, r BillingRate) error {
+	for _, other := range existing {
+		if other.ID == r.ID || other.PlanID != r.PlanID {
+			continue
+		}
+		startsBeforeEnd := r.To == nil || other.From <= *r.To
+		endsAfterStart := other.To == nil || r.From <= *other.To
+		if startsBeforeEnd && endsAfterStart {
+			return invalid("/from", "time.rate_overlaps")
+		}
+	}
+	return nil
+}
+
+// BillingRates answers the rate billing a day's time on a collection of a hub.
+type BillingRates struct {
+	rates []BillingRate
+}
+
+// NewBillingRates holds the billing rates of some plans.
+func NewBillingRates(rates []BillingRate) BillingRates { return BillingRates{rates: rates} }
+
+// For answers the collection's rate holding on the day, else the hub's, and whether one does.
+// Time on no plan is billed at no rate.
+func (b BillingRates) For(hub, collection shared.ID, d Day) (BillingRate, bool) {
+	for _, plan := range []shared.ID{collection, hub} {
+		if plan.IsZero() {
+			continue
+		}
+		for _, rate := range b.rates {
+			if rate.PlanID == plan && rate.HoldsOn(d) {
+				return rate, true
+			}
+		}
+	}
+	return BillingRate{}, false
+}
+
+// BillableValueMinor answers what billable minutes are worth at a billing rate; a record that is
+// not billable is worth nothing, and a correction's negative minutes a negative amount.
+func BillableValueMinor(minutes int, billable bool, hourMinor int64) int64 {
+	if !billable {
+		return 0
+	}
+	return CostMinor(minutes, hourMinor)
+}
+
 // Budget is what a hub or a collection may spend: hours, money in one currency, or both.
 type Budget struct {
 	// PlanID is the hub or collection.

@@ -3,7 +3,11 @@
 
 package timekeeping
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+)
 
 func TestCostRatesAreChecked(t *testing.T) {
 	end := day(t, "2026-12-31")
@@ -127,5 +131,74 @@ func TestABudgetBurnsByTimeAndMoney(t *testing.T) {
 	}
 	if empty := BurnOf(budget, nil, rates); empty.Minutes != 0 || len(empty.Weeks) != 0 {
 		t.Errorf("no records %+v", empty)
+	}
+}
+
+func TestABillingRateBillsTheCollectionBeforeItsHub(t *testing.T) {
+	hub, collection, elsewhere := entryA, entryB, entryC
+	october := day(t, "2026-10-31")
+	rates := NewBillingRates([]BillingRate{
+		{ID: recordID, PlanID: hub, HourMinor: 10000, Currency: "EUR", From: day(t, "2026-01-01")},
+		{ID: third, PlanID: collection, HourMinor: 12000, Currency: "EUR", From: day(t, "2026-11-01")},
+	})
+	cases := []struct {
+		name            string
+		hub, collection shared.ID
+		on              Day
+		want            int64
+		billed          bool
+	}{
+		{"the hub's before the collection's begins", hub, collection, october, 10000, true},
+		{"the collection's once it holds", hub, collection, day(t, "2026-11-02"), 12000, true},
+		{"the hub's for time on the hub itself", hub, "", day(t, "2026-11-02"), 10000, true},
+		{"none before any holds", hub, collection, day(t, "2025-12-31"), 0, false},
+		{"none on another plan", elsewhere, "", october, 0, false},
+		{"none for time on no plan", "", "", october, 0, false},
+	}
+	for _, c := range cases {
+		rate, ok := rates.For(c.hub, c.collection, c.on)
+		if ok != c.billed || rate.HourMinor != c.want {
+			t.Errorf("%s: %d %v, want %d %v", c.name, rate.HourMinor, ok, c.want, c.billed)
+		}
+	}
+	if got := BillableValueMinor(90, true, 10000); got != 15000 {
+		t.Errorf("an hour and a half at 100.00 is worth %d, want 15000", got)
+	}
+	if got := BillableValueMinor(90, false, 10000); got != 0 {
+		t.Errorf("time that is not billable is worth %d, want 0", got)
+	}
+	if got := BillableValueMinor(-30, true, 10000); got != -5000 {
+		t.Errorf("a correction of half an hour is worth %d, want -5000", got)
+	}
+}
+
+func TestBillingRatesAreChecked(t *testing.T) {
+	end := day(t, "2026-12-31")
+	start := day(t, "2026-01-01")
+	held := []BillingRate{{ID: recordID, PlanID: entryA, Currency: "EUR", From: start, To: &end}}
+	cases := []struct {
+		name string
+		rate BillingRate
+		want string
+	}{
+		{"a plan's rate", BillingRate{PlanID: entryB, HourMinor: 9000, Currency: "EUR", From: start}, ""},
+		{"no plan", BillingRate{HourMinor: 9000, Currency: "EUR", From: start}, "time.rate_subject_required"},
+		{"a negative amount", BillingRate{PlanID: entryB, HourMinor: -1, Currency: "EUR"}, "time.rate_out_of_range"},
+		{"a malformed currency", BillingRate{PlanID: entryB, Currency: "eu"}, "time.currency_invalid"},
+		{"an end before the start", BillingRate{PlanID: entryB, Currency: "EUR", From: end, To: &start}, "time.range_reversed"},
+	}
+	for _, c := range cases {
+		if got := code(CheckBillingRate(c.rate)); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+	if got := code(CheckBillingOverlap(held, BillingRate{ID: third, PlanID: entryA, From: end})); got != "time.rate_overlaps" {
+		t.Errorf("two rates of one plan on one day: %q", got)
+	}
+	if got := code(CheckBillingOverlap(held, BillingRate{ID: third, PlanID: entryB, From: end})); got != "" {
+		t.Errorf("rates of two plans on one day: %q", got)
+	}
+	if got := code(CheckBillingOverlap(held, BillingRate{ID: recordID, PlanID: entryA, From: start})); got != "" {
+		t.Errorf("a rate changed in place: %q", got)
 	}
 }
