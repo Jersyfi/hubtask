@@ -89,6 +89,10 @@ func isIdentifierURL(value string) bool {
 		// The Adaptive Card schema a chat room's card names as its `$schema`, a dialect like
 		// JSON Schema's: written into the message and never fetched.
 		"adaptivecards.io/schemas/",
+		// The claim types an identity provider names SAML attributes by: attribute names inside
+		// a signed assertion, never fetched.
+		"schemas.xmlsoap.org/ws/2005/05/identity/claims/",
+		"schemas.microsoft.com/identity/claims/",
 	} {
 		if strings.Contains(value, identifier) {
 			return true
