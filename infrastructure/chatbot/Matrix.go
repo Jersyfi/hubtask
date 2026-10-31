@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package chatbot speaks the Matrix client-server API for a hub's bot (UC-INT-18), through the
-// guarded client (rule 6): who the account is, joining its room, a sync filtered to that room's
-// messages, and a notice posted once per transaction.
+// Package chatbot speaks the chat platforms for a hub's bot, every call through the guarded client
+// (rule 6): the Matrix client-server API - who the account is, joining its room, a sync filtered
+// to that room's messages, a notice posted once per transaction (UC-INT-18) - and the deliveries
+// Slack, Teams and Mattermost post to the bot's intake, verified and answered in each platform's
+// format (UC-INT-19).
 package chatbot
 
 import (
