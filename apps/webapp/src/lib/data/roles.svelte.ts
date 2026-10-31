@@ -13,13 +13,14 @@ import type {
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
+import { CONFIG_CHECK } from './touches.ts';
 
 export * from './roles.ts';
 
 const PATH = '/roles';
 const GRANTS = '/role-grants';
 /** A custom role's grant is a membership the decision reads, so a write here changes what may be done. */
-const TOUCHES = [PATH, '/access/explain', '/memberships'];
+const TOUCHES = [PATH, '/access/explain', '/memberships', CONFIG_CHECK];
 
 /** A place: the workspace, a hub or a collection. */
 export interface Place {

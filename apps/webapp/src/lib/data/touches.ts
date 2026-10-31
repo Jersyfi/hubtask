@@ -48,3 +48,9 @@ export function touchesOf(id: string): readonly string[] {
  * no such write changes.
  */
 export const TOUCHES_ANY_ENTRY: readonly string[] = [ENTRY_LISTS, ANY_ENTRY_DOCUMENT, ANY_ENTRY_HISTORY];
+
+/**
+ * The configuration check (configuration/ui.md A5): a write to a building block it reads - a
+ * type, a workflow, a role, a field, a rule - may add or settle a finding, so each one names it.
+ */
+export const CONFIG_CHECK = '/config/check';

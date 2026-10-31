@@ -16,6 +16,7 @@ import type { FormActor } from '@hubtask/expression';
 import { engine } from './engine.ts';
 import { actorOf, offlineFormState, withOwnGrants, type HeldGrant, type HeldRole } from './entryforms.ts';
 import { etagFor } from './etag.ts';
+import { CONFIG_CHECK } from './touches.ts';
 import { roles } from './roles.svelte.ts';
 
 export {
@@ -62,7 +63,7 @@ class EntryTypes {
   create(body: EntryTypeCreate): Promise<EntryType> {
     return engine.mutate<EntryType>('POST', PATH, body, {
       idempotencyKey: crypto.randomUUID(),
-      invalidates: [PATH],
+      invalidates: [PATH, CONFIG_CHECK],
     });
   }
 
@@ -73,7 +74,7 @@ class EntryTypes {
   change(type: Pick<EntryType, 'key' | 'version'>, body: EntryTypeChange): Promise<EntryType> {
     return engine.mutate<EntryType>('PATCH', `${PATH}/${encodeURIComponent(type.key)}`, body, {
       ...(type.version > 0 ? { ifMatch: etagFor(type.version) } : {}),
-      invalidates: [PATH],
+      invalidates: [PATH, CONFIG_CHECK],
     });
   }
 
@@ -84,7 +85,7 @@ class EntryTypes {
   setForm(type: Pick<EntryType, 'key' | 'version'>, form: EntryForm): Promise<EntryType> {
     return engine.mutate<EntryType>('PUT', `${PATH}/${encodeURIComponent(type.key)}/form`, form, {
       ...(type.version > 0 ? { ifMatch: etagFor(type.version) } : {}),
-      invalidates: [PATH],
+      invalidates: [PATH, CONFIG_CHECK],
     });
   }
 
@@ -117,7 +118,7 @@ class EntryTypes {
   async remove(type: Pick<EntryType, 'key' | 'version'>): Promise<void> {
     await engine.mutate<void>('DELETE', `${PATH}/${encodeURIComponent(type.key)}`, undefined, {
       ...(type.version > 0 ? { ifMatch: etagFor(type.version) } : {}),
-      invalidates: [PATH],
+      invalidates: [PATH, CONFIG_CHECK],
     });
   }
 }

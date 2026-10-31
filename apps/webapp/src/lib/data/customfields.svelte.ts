@@ -27,7 +27,7 @@ import type {
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
-import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, touchesOf } from './touches.ts';
+import { ANY_ENTRY_DOCUMENT, CONFIG_CHECK, ENTRY_LISTS, touchesOf } from './touches.ts';
 
 /**
  * Where a scope's definitions live.
@@ -46,7 +46,7 @@ export const definitionsPath = (collectionId?: string) =>
  * path begins with it. `/items` is there because a definition decides what an entry *shows*: a
  * field taken out of use has to stop being drawn on the entries that hold a value for it.
  */
-const TOUCHES = ['/custom-fields', ENTRY_LISTS, ANY_ENTRY_DOCUMENT];
+const TOUCHES = ['/custom-fields', ENTRY_LISTS, ANY_ENTRY_DOCUMENT, CONFIG_CHECK];
 
 class CustomFields {
   #scopes = $state<Record<string, ResourceState<readonly CustomFieldDefinition[]>>>({});

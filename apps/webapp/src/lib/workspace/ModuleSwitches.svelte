@@ -20,6 +20,7 @@
 
   import ValueSource from './ValueSource.svelte';
   import ViewAsFile from '../settings/ViewAsFile.svelte';
+  import SectionFindings from '../settings/SectionFindings.svelte';
   import ViewSectionsAsFile from '../settings/ViewSectionsAsFile.svelte';
   import { asksFirst, isSetHere, moduleCodes, modules, unavailableBecause } from '../data/modules.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -147,6 +148,7 @@
         <ViewAsFile values={shown} {place} />
       {/if}
     </Inline>
+    {#if hubId}<SectionFindings sections={['scheme', 'tolerance']} {hubId} />{/if}
   {/if}
 </Stack>
 

@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines } from './overview.ts';
+import { backupState, findingsIn, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines } from './overview.ts';
 
 test('limits: fullest first, reached and near told apart, no line without a ceiling or a count', () => {
   const lines = limitLines([
@@ -83,4 +83,17 @@ test('a configuration finding opens the page of the block it names', () => {
   assert.equal(pageOfFinding('scheme.incident', 'h1'), '/hubs/h1/settings/structure');
   assert.equal(pageOfFinding('scheme.incident'), undefined);
   assert.equal(pageOfFinding('nothing.here'), undefined);
+});
+
+// configuration/ui.md A5: each block's own page shows the findings about its sections, in the
+// check's order, and none about another page's blocks.
+test('a page shows the findings about its own sections', () => {
+  const findings = [
+    { path: 'types.incident', code: 'config.check.required_unfillable' },
+    { path: 'workflows.flow', code: 'config.check.done_unreachable' },
+    { path: 'types.change', code: 'config.check.required_unfillable' },
+    { path: 'typesetting.x', code: 'other' },
+  ];
+  assert.deepEqual(findingsIn(findings, ['types']).map((f) => f.path), ['types.incident', 'types.change']);
+  assert.deepEqual(findingsIn(findings, ['roles']), []);
 });

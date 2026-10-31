@@ -21,6 +21,7 @@
 import type { ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { CONFIG_CHECK } from './touches.ts';
 
 const PATH = '/automation/rules';
 
@@ -145,7 +146,7 @@ class Rules {
   async write(draft: RuleDraft): Promise<Rule> {
     const created = await engine.mutate<Rule>('POST', PATH, draft, {
       idempotencyKey: crypto.randomUUID(),
-      invalidates: [PATH],
+      invalidates: [PATH, CONFIG_CHECK],
     });
     // Into the page at once: the editor navigates to the new rule's address the moment the
     // write answers, and the list's re-read lands a beat later - the beat in which the screen
@@ -159,7 +160,7 @@ class Rules {
   async change(ruleId: string, draft: RuleDraft, version: number): Promise<Rule> {
     return engine.mutate<Rule>('PATCH', `${PATH}/${ruleId}`, draft, {
       ifMatch: String(version),
-      invalidates: [PATH],
+      invalidates: [PATH, CONFIG_CHECK],
     });
   }
 
@@ -170,21 +171,21 @@ class Rules {
    * without anything enumerating tenants.
    */
   async check(): Promise<readonly Rule[]> {
-    const answer = await engine.mutate<{ data?: readonly Rule[] }>('POST', `${PATH}:check`, {}, { invalidates: [PATH] });
+    const answer = await engine.mutate<{ data?: readonly Rule[] }>('POST', `${PATH}:check`, {}, { invalidates: [PATH, CONFIG_CHECK] });
     return answer.data ?? [];
   }
 
   /** Two calls rather than a flag, so the trail says which of the two somebody did. */
   async enable(ruleId: string): Promise<void> {
-    await engine.mutate('POST', `${PATH}/${ruleId}:enable`, {}, { invalidates: [PATH] });
+    await engine.mutate('POST', `${PATH}/${ruleId}:enable`, {}, { invalidates: [PATH, CONFIG_CHECK] });
   }
 
   async disable(ruleId: string): Promise<void> {
-    await engine.mutate('POST', `${PATH}/${ruleId}:disable`, {}, { invalidates: [PATH] });
+    await engine.mutate('POST', `${PATH}/${ruleId}:disable`, {}, { invalidates: [PATH, CONFIG_CHECK] });
   }
 
   async remove(ruleId: string): Promise<void> {
-    await engine.mutate('DELETE', `${PATH}/${ruleId}`, undefined, { invalidates: [PATH] });
+    await engine.mutate('DELETE', `${PATH}/${ruleId}`, undefined, { invalidates: [PATH, CONFIG_CHECK] });
   }
 
   /**
@@ -195,7 +196,7 @@ class Rules {
   async rotateInbound(ruleId: string): Promise<InboundToken> {
     return engine.mutate<InboundToken>('POST', `${PATH}/${ruleId}:rotate-inbound-token`, {}, {
       idempotencyKey: crypto.randomUUID(),
-      invalidates: [PATH],
+      invalidates: [PATH, CONFIG_CHECK],
     });
   }
 }

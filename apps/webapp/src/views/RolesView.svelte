@@ -30,6 +30,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import SectionFindings from '../lib/settings/SectionFindings.svelte';
 
   const TENANT = { scopeType: 'TENANT' } as const;
   const WORKSPACE_PLACE = '';
@@ -197,6 +198,7 @@
 <Stack gap="300">
   <p class="quiet">{t('app.roles.intro')}</p>
   <div class="file"><ViewSectionsAsFile sections={['roles']} /></div>
+  <SectionFindings sections={['roles']} />
 
   {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
 

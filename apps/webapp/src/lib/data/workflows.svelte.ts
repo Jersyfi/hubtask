@@ -13,7 +13,7 @@ import type {
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
-import { TOUCHES_ANY_ENTRY } from './touches.ts';
+import { CONFIG_CHECK, TOUCHES_ANY_ENTRY } from './touches.ts';
 
 export * from './workflows.ts';
 
@@ -42,20 +42,20 @@ class Workflows {
 
   create(key: string, name: string, shape: WorkflowShape): Promise<Workflow> {
     return engine.mutate<Workflow>('POST', PATH, { key, name, shape }, {
-      idempotencyKey: crypto.randomUUID(), invalidates: [PATH],
+      idempotencyKey: crypto.randomUUID(), invalidates: [PATH, CONFIG_CHECK],
     });
   }
 
   /** Saves the draft beside what is in force (UC-FLW-02 check 3). */
   saveDraft(workflow: Pick<Workflow, 'key' | 'version'>, shape: WorkflowShape, name?: string): Promise<Workflow> {
     return engine.mutate<Workflow>('PATCH', `${PATH}/${encodeURIComponent(workflow.key)}`, { shape, ...(name ? { name } : {}) }, {
-      ...(workflow.version > 0 ? { ifMatch: etagFor(workflow.version) } : {}), invalidates: [PATH],
+      ...(workflow.version > 0 ? { ifMatch: etagFor(workflow.version) } : {}), invalidates: [PATH, CONFIG_CHECK],
     });
   }
 
   discardDraft(workflow: Pick<Workflow, 'key' | 'version'>): Promise<Workflow> {
     return engine.mutate<Workflow>('PATCH', `${PATH}/${encodeURIComponent(workflow.key)}`, { discard: true }, {
-      ...(workflow.version > 0 ? { ifMatch: etagFor(workflow.version) } : {}), invalidates: [PATH],
+      ...(workflow.version > 0 ? { ifMatch: etagFor(workflow.version) } : {}), invalidates: [PATH, CONFIG_CHECK],
     });
   }
 
@@ -67,12 +67,12 @@ class Workflows {
   publish(workflow: Pick<Workflow, 'key' | 'version'>, mapping: Record<string, string>): Promise<Workflow> {
     return engine.mutate<Workflow>('POST', `${PATH}/${encodeURIComponent(workflow.key)}:publish`, { mapping }, {
       ...(workflow.version > 0 ? { ifMatch: etagFor(workflow.version) } : {}),
-      invalidates: [PATH, ...TOUCHES_ANY_ENTRY],
+      invalidates: [PATH, CONFIG_CHECK, ...TOUCHES_ANY_ENTRY],
     });
   }
 
   async remove(key: string): Promise<void> {
-    await engine.mutate<void>('DELETE', `${PATH}/${encodeURIComponent(key)}`, undefined, { invalidates: [PATH] });
+    await engine.mutate<void>('DELETE', `${PATH}/${encodeURIComponent(key)}`, undefined, { invalidates: [PATH, CONFIG_CHECK] });
   }
 
   /** What using a workflow in a hub or collection would do (UC-FLW-02 check 4). */
@@ -82,7 +82,7 @@ class Workflows {
 
   setScheme(change: WorkflowSchemeChange): Promise<WorkflowSchemeResult> {
     return engine.mutate<WorkflowSchemeResult>('PUT', SCHEME, { ...change, confirm: true }, {
-      invalidates: [PATH, ...TOUCHES_ANY_ENTRY],
+      invalidates: [PATH, CONFIG_CHECK, ...TOUCHES_ANY_ENTRY],
     });
   }
 

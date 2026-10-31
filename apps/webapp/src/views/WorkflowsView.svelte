@@ -29,6 +29,7 @@
   import TryStep from '../lib/workflows/TryStep.svelte';
   import WorkflowDiagram from '../lib/workflows/WorkflowDiagram.svelte';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import SectionFindings from '../lib/settings/SectionFindings.svelte';
   import WorkflowLists from '../lib/workflows/WorkflowLists.svelte';
 
   interface Props {
@@ -197,6 +198,7 @@
 
   <p class="quiet">{t('app.workflow_designer.intro')}</p>
   <div class="file"><ViewSectionsAsFile sections={['workflows']} /></div>
+  <SectionFindings sections={['workflows']} />
 
   {#if !mayShape}
     <Banner tone="info" title={t('app.workflow_designer.not_yours')} />

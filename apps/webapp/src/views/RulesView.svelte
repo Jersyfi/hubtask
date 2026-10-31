@@ -46,6 +46,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { eventWords } from '../lib/automation/words.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import SectionFindings from '../lib/settings/SectionFindings.svelte';
 
   interface Props {
     onnavigate?: (path: string) => void;
@@ -185,6 +186,8 @@
         {/if}
       {/snippet}
     </PageHeader>
+
+    <SectionFindings sections={['rules']} />
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting"><Spinner label={t('app.rules.reading')} /> <span>{t('app.rules.reading')}</span></p>

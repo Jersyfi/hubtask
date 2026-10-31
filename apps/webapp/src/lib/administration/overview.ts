@@ -170,3 +170,16 @@ export function pageOfFinding(path: string, hubId?: string): string | undefined 
   if (section === 'scheme') return hubId ? `/hubs/${hubId}/settings/structure` : undefined;
   return CHECK_PAGES[section];
 }
+
+/** A finding as `/config/check` answers it, the part a page reads. */
+export interface FindingAt {
+  readonly path: string;
+}
+
+/**
+ * The findings a block's own page shows (configuration/ui.md A5): those about a block of the
+ * sections the page configures, in the check's order - errors first.
+ */
+export function findingsIn<F extends FindingAt>(findings: readonly F[], sections: readonly string[]): F[] {
+  return findings.filter((finding) => sections.includes(finding.path.slice(0, Math.max(0, finding.path.indexOf('.'))) || finding.path));
+}
