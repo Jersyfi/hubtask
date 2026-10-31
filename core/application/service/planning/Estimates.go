@@ -126,7 +126,8 @@ func (h SetEntryEstimate) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			out := usecase.Output{"item_id": id.String()}
-			for k, v := range EstimateOutput(estimate, true).(usecase.Output) {
+			estimated, _ := EstimateOutput(estimate, true).(usecase.Output)
+			for k, v := range estimated {
 				out[k] = v
 			}
 			return out, nil

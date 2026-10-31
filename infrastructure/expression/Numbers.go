@@ -22,7 +22,10 @@ func (wholeNumbersAsDoubles) Optimize(ctx *cel.OptimizerContext, a *celast.AST) 
 		return e.Kind() == celast.LiteralKind && e.AsLiteral().Type() == types.IntType
 	})
 	for _, literal := range literals {
-		whole := literal.AsLiteral().(types.Int)
+		whole, isInt := literal.AsLiteral().(types.Int)
+		if !isInt {
+			continue
+		}
 		ctx.UpdateExpr(literal, ctx.NewLiteral(types.Double(whole)))
 	}
 	return a

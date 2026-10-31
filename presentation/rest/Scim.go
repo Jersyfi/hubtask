@@ -388,6 +388,13 @@ func scimUserOut(base string, p identityservice.DirectoryPerson) map[string]any 
 	return out
 }
 
+// scimLocation is the location a resource's meta names.
+func scimLocation(out map[string]any) string {
+	meta, _ := out["meta"].(map[string]any)
+	location, _ := meta["location"].(string)
+	return location
+}
+
 // scimGroupOut is a group as a directory reads it; members only where they were read.
 func scimGroupOut(base string, g identityservice.DirectoryGroup, withMembers bool) map[string]any {
 	out := map[string]any{

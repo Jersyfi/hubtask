@@ -712,8 +712,8 @@ func (r *trackerRun) issue(index int, collection shared.ID, statusKeys map[strin
 	} else if parent.Key != "" {
 		r.epics[issue.Key] = parent.Key
 	}
-	if day := readDay(issue.Fields["duedate"]); day != nil {
-		at, err := time.ParseInLocation("2006-01-02", day.(string), r.zone)
+	if day, ok := readDay(issue.Fields["duedate"]).(string); ok {
+		at, err := time.ParseInLocation("2006-01-02", day, r.zone)
 		if err == nil {
 			at = at.UTC()
 			item.DueAt, item.DueDateOnly, item.DueZone = &at, true, r.zone.String()

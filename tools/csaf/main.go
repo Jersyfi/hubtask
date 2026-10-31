@@ -208,7 +208,8 @@ func (a Advisory) Document() map[string]any {
 	}
 	if a.Kind == "vex" {
 		vulnerability["flags"] = []any{map[string]any{"label": a.Justification, "product_ids": ids(a.NotAffected)}}
-		vulnerability["notes"] = append(vulnerability["notes"].([]any),
+		notes, _ := vulnerability["notes"].([]any)
+		vulnerability["notes"] = append(notes,
 			map[string]any{"category": "other", "title": "Component", "text": a.Component})
 	}
 	if a.Remediation != "" && len(a.Affected) > 0 {

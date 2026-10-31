@@ -180,9 +180,10 @@ func (d Desk) export(ctx context.Context, actor appshared.ActorContext, hub shar
 		if err != nil {
 			return current{}, err
 		}
-		rows, _ := normal.(map[string]any)[s.rows].([]any)
+		document, _ := normal.(map[string]any)
+		rows, _ := document[s.rows].([]any)
 		if s.rowsOf != nil {
-			rows = s.rowsOf(normal.(map[string]any))
+			rows = s.rowsOf(document)
 		}
 		blocks := domain.Section{}
 		byKey := map[string]map[string]any{}

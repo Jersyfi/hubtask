@@ -485,7 +485,7 @@ func (h ListMyRequests) Execute(
 // raisedBy is the filter of the entries these people raised: one IN of up to view.MaxValues per
 // leaf, joined by OR, within the query's bounds for MaxOrganisationMembers.
 func raisedBy(accounts []shared.ID) map[string]any {
-	leaves := make([]any, 0, len(accounts)/view.MaxValues+1)
+	leaves := make([]map[string]any, 0, len(accounts)/view.MaxValues+1)
 	for start := 0; start < len(accounts); start += view.MaxValues {
 		chunk := accounts[start:min(start+view.MaxValues, len(accounts))]
 		values := make([]any, 0, len(chunk))
@@ -495,9 +495,13 @@ func raisedBy(accounts []shared.ID) map[string]any {
 		leaves = append(leaves, map[string]any{"field": view.FieldCreatedBy, "op": "IN", "value": values})
 	}
 	if len(leaves) == 1 {
-		return leaves[0].(map[string]any)
+		return leaves[0]
 	}
-	return map[string]any{"op": "OR", "nodes": leaves}
+	nodes := make([]any, 0, len(leaves))
+	for _, leaf := range leaves {
+		nodes = append(nodes, leaf)
+	}
+	return map[string]any{"op": "OR", "nodes": nodes}
 }
 
 // Descriptor is the catalogue entry.

@@ -203,6 +203,18 @@ func (b *builder) history(key string, item, collection shared.ID, author string,
 	})
 }
 
+// counted reads a count the builder itself wrote; a value of any other type counts from zero.
+func counted(value any) int {
+	n, _ := value.(int)
+	return n
+}
+
+// summed reads a sum the builder itself wrote, as counted reads a count.
+func summed(value any) float64 {
+	n, _ := value.(float64)
+	return n
+}
+
 // attachment adds a file to an entry: one media object per content, so that the same bytes
 // attached twice are one object referenced twice, its bytes handed to the archive by digest.
 func (b *builder) attachment(item shared.ID, name string, content []byte, at time.Time) {
@@ -212,7 +224,7 @@ func (b *builder) attachment(item shared.ID, name string, content []byte, at tim
 		return
 	}
 	b.linked[key] = true
-	row["ref_count"] = row["ref_count"].(int) + 1
+	row["ref_count"] = counted(row["ref_count"]) + 1
 	b.records["item_attachments"] = append(b.records["item_attachments"], archive.Record{
 		ID: key, Op: archive.OpUpsert, UpdatedAt: b.source.Now,
 		Data: map[string]any{"item_id": item.String(), "media_id": id.String()},
@@ -228,7 +240,7 @@ func (b *builder) pageFile(page shared.ID, name string, content []byte, at time.
 		return id
 	}
 	b.linked[key] = true
-	row["ref_count"] = row["ref_count"].(int) + 1
+	row["ref_count"] = counted(row["ref_count"]) + 1
 	b.records["page_media"] = append(b.records["page_media"], archive.Record{
 		ID: page.String() + "/" + id.String(), Op: archive.OpUpsert, UpdatedAt: b.source.Now,
 		Data: map[string]any{"page_id": page.String(), "media_id": id.String()},

@@ -364,15 +364,15 @@ func (r *trackerRun) sprints(project string, indexes []int, collection shared.ID
 			}
 			committed := row.state != "PLANNED"
 			if committed {
-				row.data["committed_count"] = row.data["committed_count"].(int) + 1
-				row.data["committed_value"] = row.data["committed_value"].(float64) + points[p.entry]
+				row.data["committed_count"] = counted(row.data["committed_count"]) + 1
+				row.data["committed_value"] = summed(row.data["committed_value"]) + points[p.entry]
 			}
 			if outcome == "DONE" {
-				row.data["completed_count"] = row.data["completed_count"].(int) + 1
-				row.data["completed_value"] = row.data["completed_value"].(float64) + points[p.entry]
+				row.data["completed_count"] = counted(row.data["completed_count"]) + 1
+				row.data["completed_value"] = summed(row.data["completed_value"]) + points[p.entry]
 			}
 			b.records["sprint_entries"] = append(b.records["sprint_entries"], archive.Record{
-				ID: row.data["id"].(string) + "/" + p.entry.String(), Op: archive.OpUpsert, UpdatedAt: b.source.Now,
+				ID: sprintRowID(row.data) + "/" + p.entry.String(), Op: archive.OpUpsert, UpdatedAt: b.source.Now,
 				Data: map[string]any{
 					"sprint_id": row.data["id"], "entry_id": p.entry.String(), "added_at": stamp(row.start),
 					"removed_at": nil, "committed": committed, "outcome": outcome,
@@ -382,9 +382,15 @@ func (r *trackerRun) sprints(project string, indexes []int, collection shared.ID
 	}
 	for _, row := range order {
 		b.records["sprints"] = append(b.records["sprints"], archive.Record{
-			ID: row.data["id"].(string), Op: archive.OpUpsert, UpdatedAt: b.source.Now, Data: row.data,
+			ID: sprintRowID(row.data), Op: archive.OpUpsert, UpdatedAt: b.source.Now, Data: row.data,
 		})
 	}
+}
+
+// sprintRowID is the identity a sprint row was built with.
+func sprintRowID(data map[string]any) string {
+	id, _ := data["id"].(string)
+	return id
 }
 
 // sprintRow reads one sprint: its days in the import's zone, a sprint without them starting

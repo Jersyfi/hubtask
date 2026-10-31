@@ -168,7 +168,7 @@ func (c *ScimDoor) CreateScimUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := scimUserOut(c.BaseURL, person)
-	w.Header().Set("Location", out["meta"].(map[string]any)["location"].(string))
+	w.Header().Set("Location", scimLocation(out))
 	writeScim(w, r, http.StatusCreated, out)
 }
 
@@ -292,7 +292,7 @@ func (c *ScimDoor) CreateScimGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := scimGroupOut(c.BaseURL, group, true)
-	w.Header().Set("Location", out["meta"].(map[string]any)["location"].(string))
+	w.Header().Set("Location", scimLocation(out))
 	writeScim(w, r, http.StatusCreated, out)
 }
 

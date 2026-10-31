@@ -150,8 +150,8 @@ func Answer(questions []Question, document Document, answers map[string]string) 
 				continue
 			}
 			answered, whole := answerValue(map[string]any(block), values)
-			if whole {
-				kept[key] = Block(answered.(map[string]any))
+			if document, isBlock := answered.(map[string]any); whole && isBlock {
+				kept[key] = Block(document)
 			}
 		}
 		out[name] = kept

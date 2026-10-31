@@ -79,8 +79,9 @@ func (c CaseLabels) Labels(
 	if one, ok := payload[labelsKey].(string); ok {
 		chosen = []any{one}
 	}
-	for _, id := range chosen {
-		if name, ok := names[id.(string)]; ok {
+	for _, raw := range chosen {
+		id, _ := raw.(string)
+		if name, ok := names[id]; ok && id != "" {
 			labels = append(labels, name)
 		}
 	}

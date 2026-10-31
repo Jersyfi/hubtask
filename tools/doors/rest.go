@@ -486,7 +486,9 @@ func restDoor(
 		if !ok {
 			continue
 		}
-		fmt.Sscan(status, &door.Status)
+		if _, err := fmt.Sscan(status, &door.Status); err != nil {
+			return door, fmt.Errorf("response status %q is no number: %w", status, err)
+		}
 		door.Empty = len(response.Content) == 0 && door.Status != 204
 		if content, ok := response.Content["application/json"]; ok {
 			answer := doc.composed(content.Schema)
@@ -540,7 +542,9 @@ func restDoor(
 		}
 		for _, status := range []string{"200", "201", "202"} {
 			if _, ok := op.Responses[status]; ok && status != fmt.Sprint(door.Status) {
-				fmt.Sscan(status, &door.AlternateStatus)
+				if _, err := fmt.Sscan(status, &door.AlternateStatus); err != nil {
+					return door, fmt.Errorf("response status %q is no number: %w", status, err)
+				}
 				break
 			}
 		}
@@ -568,7 +572,10 @@ func serverTypes(source []byte) (map[string][]*ast.Field, map[string]bool, map[s
 			continue
 		}
 		for _, spec := range gen.Specs {
-			typeSpec := spec.(*ast.TypeSpec)
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
 			bodies[typeSpec.Name.Name] = true
 			if ident, ok := typeSpec.Type.(*ast.Ident); ok && ident.Name == "string" {
 				texts["openapi."+typeSpec.Name.Name] = true

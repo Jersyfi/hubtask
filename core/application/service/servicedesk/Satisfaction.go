@@ -102,7 +102,8 @@ func (h RateMyRequest) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			return RatingOutput(&rating).(usecase.Output), nil
+			out, _ := RatingOutput(&rating).(usecase.Output)
+			return out, nil
 		}),
 	}, requestTarget)
 }
