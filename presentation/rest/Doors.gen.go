@@ -18,6 +18,7 @@ var restDoors = map[string]restDoor{
 	"activateAgent":         {UseCase: "ActivateAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addAgentCase":          {UseCase: "AddAgentCase", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addComment":            {UseCase: "AddComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addHubTemplatePage":    {UseCase: "AddHubTemplatePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addLabel":              {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addMember":             {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addOperator":           {UseCase: "AddOperator", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -348,6 +349,7 @@ var restDoors = map[string]restDoor{
 	"listGoals":                         {UseCase: "ListGoals", Status: 200, Query: []string{"hub_id", "owner_id", "parent_id", "period_id", "workspace_only"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGroups":                        {UseCase: "ListGroups", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listHubCalendars":                  {UseCase: "ListHubCalendars", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listHubTemplatePages":              {UseCase: "ListHubTemplatePages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listIdentityProviderPresets":       {UseCase: "ListIdentityProviderPresets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listIdentityProviders":             {UseCase: "ListIdentityProviders", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listInstallationPresets":           {UseCase: "ListInstallationPresets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -798,6 +800,13 @@ func (c *RestController) AddAgentCase(w http.ResponseWriter, r *http.Request, ag
 func (c *RestController) AddComment(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.AddCommentParams) {
 	var body openapi.AddCommentJSONRequestBody
 	c.door(w, r, restDoors["addComment"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(commentResponse))
+}
+
+// AddHubTemplatePage answers POST /hubs/{hubId}/template-pages by the generated mapping.
+func (c *RestController) AddHubTemplatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var body openapi.AddHubTemplatePageJSONRequestBody
+	var answer openapi.HubTemplatePage
+	c.door(w, r, restDoors["addHubTemplatePage"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
 }
 
 // AddLabel answers PUT /items/{itemId}/labels/{labelId} by the generated mapping.
@@ -2992,6 +3001,12 @@ func (c *RestController) ListGroups(w http.ResponseWriter, r *http.Request, para
 func (c *RestController) ListHubCalendars(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
 	var answer openapi.BusinessCalendarList
 	c.door(w, r, restDoors["listHubCalendars"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
+}
+
+// ListHubTemplatePages answers GET /hubs/{hubId}/template-pages by the generated mapping.
+func (c *RestController) ListHubTemplatePages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var answer openapi.HubTemplatePageList
+	c.door(w, r, restDoors["listHubTemplatePages"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
 }
 
 // ListIdentityProviderPresets answers GET /identity-provider-presets by the generated mapping.

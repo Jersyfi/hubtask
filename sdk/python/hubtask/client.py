@@ -3043,6 +3043,14 @@ class Client:
         """Add a sample entry"""
         return self._call("POST", "/hubs/{hubId}/sample-entries", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_hub_template_pages(self, hub_id: str) -> "HubTemplatePageList":
+        """The pages a template brought to the hub"""
+        return self._call("GET", "/hubs/{hubId}/template-pages", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def add_hub_template_page(self, hub_id: str, body: dict[str, Any]) -> "HubTemplatePage":
+        """Add a template's page"""
+        return self._call("POST", "/hubs/{hubId}/template-pages", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
     def remove_sample_entries(self, hub_id: str) -> dict[str, Any]:
         """Remove the hub's sample entries"""
         return self._call("POST", "/hubs/{hubId}/sample-entries:remove", {"hubId": hub_id}, None, {}, None, "none", None, "json")

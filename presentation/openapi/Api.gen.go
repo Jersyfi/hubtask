@@ -16677,6 +16677,19 @@ type HubPrivacy struct {
 	Private bool `json:"private"`
 }
 
+// HubTemplatePage defines model for HubTemplatePage.
+type HubTemplatePage struct {
+	Icon   *string            `json:"icon,omitempty"`
+	Key    string             `json:"key"`
+	PageId openapi_types.UUID `json:"page_id"`
+	Title  string             `json:"title"`
+}
+
+// HubTemplatePageList defines model for HubTemplatePageList.
+type HubTemplatePageList struct {
+	Pages []HubTemplatePage `json:"pages"`
+}
+
 // IdentityProvider One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
 type IdentityProvider struct {
 	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.
@@ -26230,6 +26243,18 @@ type ReadServiceMapParams struct {
 	ServiceId *openapi_types.UUID `form:"service_id,omitempty" json:"service_id,omitempty"`
 }
 
+// AddHubTemplatePageJSONBody defines parameters for AddHubTemplatePage.
+type AddHubTemplatePageJSONBody struct {
+	// Body The body in Markdown.
+	Body *string `json:"body,omitempty"`
+	Icon *string `json:"icon,omitempty"`
+	Key  string  `json:"key"`
+
+	// Subpages Pages written beneath it in the same write; at most 100 pages in all.
+	Subpages *[]PageSubpage `json:"subpages,omitempty"`
+	Title    string         `json:"title"`
+}
+
 // ListWhiteboardsParams defines parameters for ListWhiteboards.
 type ListWhiteboardsParams struct {
 	Trashed *bool `form:"trashed,omitempty" json:"trashed,omitempty"`
@@ -28349,6 +28374,9 @@ type CreateReleaseJSONRequestBody CreateReleaseJSONBody
 // AddSampleEntryJSONRequestBody defines body for AddSampleEntry for application/json ContentType.
 type AddSampleEntryJSONRequestBody AddSampleEntryJSONBody
 
+// AddHubTemplatePageJSONRequestBody defines body for AddHubTemplatePage for application/json ContentType.
+type AddHubTemplatePageJSONRequestBody AddHubTemplatePageJSONBody
+
 // CreateWhiteboardJSONRequestBody defines body for CreateWhiteboard for application/json ContentType.
 type CreateWhiteboardJSONRequestBody = WhiteboardCreate
 
@@ -30466,6 +30494,12 @@ type ServerInterface interface {
 	// ListSoftwareProducts A hub's software, normalised
 	// (GET /hubs/{hubId}/software)
 	ListSoftwareProducts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListHubTemplatePages The pages a template brought to the hub
+	// (GET /hubs/{hubId}/template-pages)
+	ListHubTemplatePages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// AddHubTemplatePage Add a template's page
+	// (POST /hubs/{hubId}/template-pages)
+	AddHubTemplatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListTrashedPages A hub's trashed pages
 	// (GET /hubs/{hubId}/trashed-pages)
 	ListTrashedPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
@@ -44284,6 +44318,58 @@ func (siw *ServerInterfaceWrapper) ListSoftwareProducts(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListSoftwareProducts(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListHubTemplatePages operation middleware
+func (siw *ServerInterfaceWrapper) ListHubTemplatePages(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHubTemplatePages(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddHubTemplatePage operation middleware
+func (siw *ServerInterfaceWrapper) AddHubTemplatePage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddHubTemplatePage(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -59212,6 +59298,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/page-drafts", wrapper.SetSpaceDrafts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/sample-entries", wrapper.ListSampleEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/sample-entries", wrapper.AddSampleEntry)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/template-pages", wrapper.ListHubTemplatePages)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/template-pages", wrapper.AddHubTemplatePage)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/sample-entries:remove", wrapper.RemoveSampleEntries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/trashed-pages", wrapper.ListTrashedPages)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}", wrapper.TrashPage)

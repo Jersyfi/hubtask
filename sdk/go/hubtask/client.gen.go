@@ -16683,6 +16683,19 @@ type HubPrivacy struct {
 	Private bool `json:"private"`
 }
 
+// HubTemplatePage defines model for HubTemplatePage.
+type HubTemplatePage struct {
+	Icon   *string            `json:"icon,omitempty"`
+	Key    string             `json:"key"`
+	PageId openapi_types.UUID `json:"page_id"`
+	Title  string             `json:"title"`
+}
+
+// HubTemplatePageList defines model for HubTemplatePageList.
+type HubTemplatePageList struct {
+	Pages []HubTemplatePage `json:"pages"`
+}
+
 // IdentityProvider One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
 type IdentityProvider struct {
 	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.
@@ -26236,6 +26249,18 @@ type ReadServiceMapParams struct {
 	ServiceId *openapi_types.UUID `form:"service_id,omitempty" json:"service_id,omitempty"`
 }
 
+// AddHubTemplatePageJSONBody defines parameters for AddHubTemplatePage.
+type AddHubTemplatePageJSONBody struct {
+	// Body The body in Markdown.
+	Body *string `json:"body,omitempty"`
+	Icon *string `json:"icon,omitempty"`
+	Key  string  `json:"key"`
+
+	// Subpages Pages written beneath it in the same write; at most 100 pages in all.
+	Subpages *[]PageSubpage `json:"subpages,omitempty"`
+	Title    string         `json:"title"`
+}
+
 // ListWhiteboardsParams defines parameters for ListWhiteboards.
 type ListWhiteboardsParams struct {
 	Trashed *bool `form:"trashed,omitempty" json:"trashed,omitempty"`
@@ -28354,6 +28379,9 @@ type CreateReleaseJSONRequestBody CreateReleaseJSONBody
 
 // AddSampleEntryJSONRequestBody defines body for AddSampleEntry for application/json ContentType.
 type AddSampleEntryJSONRequestBody AddSampleEntryJSONBody
+
+// AddHubTemplatePageJSONRequestBody defines body for AddHubTemplatePage for application/json ContentType.
+type AddHubTemplatePageJSONRequestBody AddHubTemplatePageJSONBody
 
 // CreateWhiteboardJSONRequestBody defines body for CreateWhiteboard for application/json ContentType.
 type CreateWhiteboardJSONRequestBody = WhiteboardCreate
@@ -34589,6 +34617,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
 	ListSoftwareProducts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListHubTemplatePages The pages a template brought to the hub
+	//
+	// The pages of the hub's space a template brought - a guide, a knowledge space's first pages - marked under their key and not in the trash. Needs STRUCTURE or READ_CONFIGURATION on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/template-pages (the `ListHubTemplatePages` operationId).
+	ListHubTemplatePages(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddHubTemplatePageWithBody Add a template's page
+	//
+	// Writes a page at the top of the hub's space, with the pages beneath it, marked under its key, as a hub's configuration document does for a template's pages. A key the hub already marks is refused (`config.template_page_taken`). Needs STRUCTURE on the hub and what writing the page needs.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/template-pages (the `AddHubTemplatePage` operationId).
+	AddHubTemplatePageWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddHubTemplatePage Add a template's page
+	//
+	// Writes a page at the top of the hub's space, with the pages beneath it, marked under its key, as a hub's configuration document does for a template's pages. A key the hub already marks is refused (`config.template_page_taken`). Needs STRUCTURE on the hub and what writing the page needs.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/template-pages (the `AddHubTemplatePage` operationId).
+	AddHubTemplatePage(ctx context.Context, hubId openapi_types.UUID, body AddHubTemplatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTrashedPages A hub's trashed pages
 	//
@@ -50733,6 +50786,61 @@ func (c *Client) ReadServiceMap(ctx context.Context, hubId openapi_types.UUID, p
 // Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
 func (c *Client) ListSoftwareProducts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListSoftwareProductsRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListHubTemplatePages The pages a template brought to the hub
+//
+// The pages of the hub's space a template brought - a guide, a knowledge space's first pages - marked under their key and not in the trash. Needs STRUCTURE or READ_CONFIGURATION on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/template-pages (the `ListHubTemplatePages` operationId).
+func (c *Client) ListHubTemplatePages(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHubTemplatePagesRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddHubTemplatePageWithBody Add a template's page
+//
+// Writes a page at the top of the hub's space, with the pages beneath it, marked under its key, as a hub's configuration document does for a template's pages. A key the hub already marks is refused (`config.template_page_taken`). Needs STRUCTURE on the hub and what writing the page needs.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/template-pages (the `AddHubTemplatePage` operationId).
+func (c *Client) AddHubTemplatePageWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddHubTemplatePageRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddHubTemplatePage Add a template's page
+//
+// Writes a page at the top of the hub's space, with the pages beneath it, marked under its key, as a hub's configuration document does for a template's pages. A key the hub already marks is refused (`config.template_page_taken`). Needs STRUCTURE on the hub and what writing the page needs.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/template-pages (the `AddHubTemplatePage` operationId).
+func (c *Client) AddHubTemplatePage(ctx context.Context, hubId openapi_types.UUID, body AddHubTemplatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddHubTemplatePageRequest(c.Server, hubId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -79960,6 +80068,87 @@ func NewListSoftwareProductsRequest(server string, hubId openapi_types.UUID) (*h
 	return req, nil
 }
 
+// NewListHubTemplatePagesRequest constructs an http.Request for the ListHubTemplatePages method
+func NewListHubTemplatePagesRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/template-pages", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddHubTemplatePageRequest calls the generic AddHubTemplatePage builder with application/json body
+func NewAddHubTemplatePageRequest(server string, hubId openapi_types.UUID, body AddHubTemplatePageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddHubTemplatePageRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewAddHubTemplatePageRequestWithBody constructs an http.Request for the AddHubTemplatePage method, with any body, and a specified content type
+func NewAddHubTemplatePageRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/template-pages", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListTrashedPagesRequest constructs an http.Request for the ListTrashedPages method
 func NewListTrashedPagesRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
 	var err error
@@ -105191,6 +105380,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
 	ListSoftwareProductsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListSoftwareProductsResult, error)
 
+	// ListHubTemplatePagesWithResponse The pages a template brought to the hub
+	//
+	// The pages of the hub's space a template brought - a guide, a knowledge space's first pages - marked under their key and not in the trash. Needs STRUCTURE or READ_CONFIGURATION on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/template-pages (the `ListHubTemplatePages` operationId).
+	ListHubTemplatePagesWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListHubTemplatePagesResult, error)
+
+	// AddHubTemplatePageWithBodyWithResponse Add a template's page
+	//
+	// Writes a page at the top of the hub's space, with the pages beneath it, marked under its key, as a hub's configuration document does for a template's pages. A key the hub already marks is refused (`config.template_page_taken`). Needs STRUCTURE on the hub and what writing the page needs.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/template-pages (the `AddHubTemplatePage` operationId).
+	AddHubTemplatePageWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddHubTemplatePageResult, error)
+
+	// AddHubTemplatePageWithResponse Add a template's page
+	//
+	// Writes a page at the top of the hub's space, with the pages beneath it, marked under its key, as a hub's configuration document does for a template's pages. A key the hub already marks is refused (`config.template_page_taken`). Needs STRUCTURE on the hub and what writing the page needs.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/template-pages (the `AddHubTemplatePage` operationId).
+	AddHubTemplatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body AddHubTemplatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*AddHubTemplatePageResult, error)
+
 	// ListTrashedPagesWithResponse A hub's trashed pages
 	//
 	// The space's trash, the latest first, without the bodies. Needs READ on the hub.
@@ -129520,6 +129736,102 @@ func (r ListSoftwareProductsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListSoftwareProductsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListHubTemplatePagesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *HubTemplatePageList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHubTemplatePagesResult) GetJSON200() *HubTemplatePageList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListHubTemplatePagesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHubTemplatePagesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHubTemplatePagesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHubTemplatePagesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHubTemplatePagesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddHubTemplatePageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *HubTemplatePage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AddHubTemplatePageResult) GetJSON201() *HubTemplatePage {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddHubTemplatePageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddHubTemplatePageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddHubTemplatePageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddHubTemplatePageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddHubTemplatePageResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -158606,6 +158918,51 @@ func (c *ClientWithResponses) ListSoftwareProductsWithResponse(ctx context.Conte
 	return ParseListSoftwareProductsResult(rsp)
 }
 
+// ListHubTemplatePagesWithResponse The pages a template brought to the hub
+//
+// The pages of the hub's space a template brought - a guide, a knowledge space's first pages - marked under their key and not in the trash. Needs STRUCTURE or READ_CONFIGURATION on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/template-pages (the `ListHubTemplatePages` operationId).
+func (c *ClientWithResponses) ListHubTemplatePagesWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListHubTemplatePagesResult, error) {
+	rsp, err := c.ListHubTemplatePages(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHubTemplatePagesResult(rsp)
+}
+
+// AddHubTemplatePageWithBodyWithResponse Add a template's page
+//
+// Writes a page at the top of the hub's space, with the pages beneath it, marked under its key, as a hub's configuration document does for a template's pages. A key the hub already marks is refused (`config.template_page_taken`). Needs STRUCTURE on the hub and what writing the page needs.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/template-pages (the `AddHubTemplatePage` operationId).
+func (c *ClientWithResponses) AddHubTemplatePageWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddHubTemplatePageResult, error) {
+	rsp, err := c.AddHubTemplatePageWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddHubTemplatePageResult(rsp)
+}
+
+// AddHubTemplatePageWithResponse Add a template's page
+//
+// Writes a page at the top of the hub's space, with the pages beneath it, marked under its key, as a hub's configuration document does for a template's pages. A key the hub already marks is refused (`config.template_page_taken`). Needs STRUCTURE on the hub and what writing the page needs.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/template-pages (the `AddHubTemplatePage` operationId).
+func (c *ClientWithResponses) AddHubTemplatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body AddHubTemplatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*AddHubTemplatePageResult, error) {
+	rsp, err := c.AddHubTemplatePage(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddHubTemplatePageResult(rsp)
+}
+
 // ListTrashedPagesWithResponse A hub's trashed pages
 //
 // The space's trash, the latest first, without the bodies. Needs READ on the hub.
@@ -181081,6 +181438,72 @@ func ParseListSoftwareProductsResult(rsp *http.Response) (*ListSoftwareProductsR
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListHubTemplatePagesResult parses an HTTP response from a ListHubTemplatePagesWithResponse call
+func ParseListHubTemplatePagesResult(rsp *http.Response) (*ListHubTemplatePagesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHubTemplatePagesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest HubTemplatePageList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddHubTemplatePageResult parses an HTTP response from a AddHubTemplatePageWithResponse call
+func ParseAddHubTemplatePageResult(rsp *http.Response) (*AddHubTemplatePageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddHubTemplatePageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest HubTemplatePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

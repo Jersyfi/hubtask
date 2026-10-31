@@ -3828,6 +3828,16 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/sample-entries", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The pages a template brought to the hub */
+  listHubTemplatePages(hubId: string, options: CallOptions = {}): Promise<operations["listHubTemplatePages"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/template-pages", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a template's page */
+  addHubTemplatePage(hubId: string, body: NonNullable<operations["addHubTemplatePage"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addHubTemplatePage"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/template-pages", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Remove the hub's sample entries */
   removeSampleEntries(hubId: string, options: CallOptions = {}): Promise<operations["removeSampleEntries"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/sample-entries:remove", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

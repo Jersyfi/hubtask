@@ -30959,6 +30959,111 @@
         }
       }
     },
+    "/hubs/{hubId}/template-pages": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "listHubTemplatePages",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "config template-pages",
+        "summary": "The pages a template brought to the hub",
+        "description": "The pages of the hub's space a template brought - a guide, a knowledge space's first pages - marked under their key and not in the trash. Needs STRUCTURE or READ_CONFIGURATION on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The pages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubTemplatePageList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "addHubTemplatePage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "config template-page-add",
+        "summary": "Add a template's page",
+        "description": "Writes a page at the top of the hub's space, with the pages beneath it, marked under its key, as a hub's configuration document does for a template's pages. A key the hub already marks is refused (`config.template_page_taken`). Needs STRUCTURE on the hub and what writing the page needs.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "title"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "body": {
+                    "type": "string",
+                    "maxLength": 1048576,
+                    "description": "The body in Markdown."
+                  },
+                  "icon": {
+                    "type": "string",
+                    "maxLength": 16
+                  },
+                  "subpages": {
+                    "type": "array",
+                    "maxItems": 99,
+                    "description": "Pages written beneath it in the same write; at most 100 pages in all.",
+                    "items": {
+                      "$ref": "#/components/schemas/PageSubpage"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubTemplatePage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/hubs/{hubId}/sample-entries:remove": {
       "parameters": [
         {
@@ -62804,6 +62909,44 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SampleEntry"
+            }
+          }
+        }
+      },
+      "HubTemplatePage": {
+        "type": "object",
+        "required": [
+          "key",
+          "page_id",
+          "title"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "page_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "HubTemplatePageList": {
+        "type": "object",
+        "required": [
+          "pages"
+        ],
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubTemplatePage"
             }
           }
         }

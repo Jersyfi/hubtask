@@ -1154,6 +1154,23 @@ var generatedCommands = []door{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"removed"}},
+	{Group: "config", Verb: "template-page-add", OperationID: "addHubTemplatePage", Method: "POST", Path: "/hubs/{hubId}/template-pages", Summary: "Add a template's page",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "body", Kind: "string", Help: "The body in Markdown", Required: false},
+			{Name: "icon", Kind: "string", Help: "", Required: false},
+			{Name: "key", Kind: "string", Help: "", Required: true},
+			{Name: "subpages", Kind: "json", Help: "Pages written beneath it in the same write; at most 100 pages in all", Required: false},
+			{Name: "title", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "title"}},
+	{Group: "config", Verb: "template-pages", OperationID: "listHubTemplatePages", Method: "GET", Path: "/hubs/{hubId}/template-pages", Summary: "The pages a template brought to the hub",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
 	{Group: "config", Verb: "version", OperationID: "readConfigVersion", Method: "GET", Path: "/config/versions/{version}", Summary: "One configuration version with its document",
 		PathParams: []doorParam{
 			{Name: "version", Kind: "integer", Help: "", Required: true},

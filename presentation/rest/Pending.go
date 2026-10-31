@@ -3098,3 +3098,11 @@ func (pending) SaveConfigDraft(w http.ResponseWriter, r *http.Request, _, _ stri
 func (pending) DiscardConfigDraft(w http.ResponseWriter, r *http.Request, _, _ string) {
 	notAvailable(w, r)
 }
+
+func (pending) ListHubTemplatePages(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) AddHubTemplatePage(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}

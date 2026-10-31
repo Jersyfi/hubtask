@@ -5420,6 +5420,15 @@ class SampleEntry(TypedDict, total=False):
 class SampleEntryList(TypedDict, total=False):
     samples: Required[list["SampleEntry"]]
 
+class HubTemplatePage(TypedDict, total=False):
+    key: Required[str]
+    page_id: Required[str]
+    title: Required[str]
+    icon: str | None
+
+class HubTemplatePageList(TypedDict, total=False):
+    pages: Required[list["HubTemplatePage"]]
+
 class PageSpaceDrafts(TypedDict, total=False):
     drafts: Required[bool]
     source: Required[str]
