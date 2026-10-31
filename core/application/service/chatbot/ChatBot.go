@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package chatbot is the use cases of a hub's Matrix bot (UC-INT-18): an administrator of the hub
-// seats a Matrix account in one room, and every minute it reads what the room said - a link to
-// one of the hub's entries is answered with the entry's title and status, a message `!task
-// <title>` becomes an entry in the hub's collection. It reads and writes as whoever set it up,
-// while they may, so a room never learns more than they could show it.
+// Package chatbot is the use cases of a hub's chat bot: an administrator of the hub seats it in one
+// room - a Matrix account read every minute (UC-INT-18), or a Slack, Teams or Mattermost app that
+// posts to the bot's intake (UC-INT-19) - and a link to one of the hub's entries is answered with
+// the entry's title and status, a command becomes an entry in the hub's collection. It reads and
+// writes as whoever set it up, while they may, so a room never learns more than they could show it.
 package chatbot
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"html"
 	"strings"
@@ -58,6 +59,9 @@ const (
 	createEntry = "CreateWorkItem"
 	callLimit   = 20 * time.Second
 	runLimit    = time.Minute
+	// answerLimit keeps an intake's answer inside what the platforms wait for: Slack three
+	// seconds for an event's acknowledgement, Teams fifteen.
+	answerLimit = 8 * time.Second
 )
 
 // Authorizer records a refusal and answers it.
@@ -103,6 +107,8 @@ type Bots struct {
 	Containers workrepo.Containers
 	Entries    Entries
 	Room       roomport.Room
+	// Platforms are the platforms that post to a bot's intake; one missing refuses its bots.
+	Platforms  map[integration.DeliveryFormat]roomport.Platform
 	Invoker    Invoker
 	Texts      Texts
 	Addresses  Addresses
@@ -183,9 +189,13 @@ func (b Bots) find(ctx context.Context, actor appshared.ActorContext, id shared.
 
 // Output is a bot on the wire: never its token.
 func Output(bot integration.ChatBot) usecase.Output {
+	platform := bot.Platform
+	if platform == "" {
+		platform = integration.FormatMatrix
+	}
 	out := usecase.Output{
 		"id": bot.ID.String(), "hub_id": bot.HubID.String(), "collection_id": bot.CollectionID.String(),
-		"homeserver": bot.Homeserver, "room": bot.Room, "bot_user": bot.BotUser, "unfurl": bot.Unfurl,
+		"platform": string(platform), "homeserver": bot.Homeserver, "room": bot.Room, "bot_user": bot.BotUser, "unfurl": bot.Unfurl,
 		"capture": bot.Capture, "enabled": bot.Enabled, "run_as": bot.RunAs.String(),
 		"created_at": bot.CreatedAt.UTC(), "updated_at": bot.UpdatedAt.UTC(),
 	}
@@ -248,18 +258,27 @@ type CreateChatBot struct{ Bots Bots }
 func (h CreateChatBot) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: CreateChatBotName, Permission: service.PermissionStructure,
-		Summary: "Seats a Matrix account in one room for a hub, by its homeserver, the room's identifier and the " +
-			"account's access token: it joins the room and from then on answers links to the hub's entries with " +
-			"their title and status, and makes `!task <title>` messages entries in the chosen collection - as the " +
-			"caller, while they may. The token is kept sealed and never answered.",
-		SideEffects: "Joins the room, stores the bot with its sealed token, queues its first read and writes an audit entry.",
-		TokenScope:  botsWrite,
+		Summary: "Seats a chat bot in one room for a hub: a Matrix account by its homeserver, the room's identifier " +
+			"and its access token, which joins the room; or a Slack, Teams or Mattermost app by the channel's " +
+			"identifier and the app's credentials, which the platform proves on every post to the bot's intake. " +
+			"From then on it answers links to the hub's entries with their title and status, and makes commands " +
+			"entries in the chosen collection - as the caller, while they may. Credentials are kept sealed and never answered.",
+		SideEffects: "Joins a Matrix room or proves the app's credentials with its platform, stores the bot with its sealed " +
+			"credentials, queues a Matrix bot's first read and writes an audit entry.",
+		TokenScope: botsWrite,
 		Input: []usecase.Field{
 			hubInput(),
 			{Name: "collection_id", Kind: usecase.KindID, Required: true, Description: "The hub's collection captured tasks land in."},
-			{Name: "homeserver", Kind: usecase.KindString, Required: true, Description: "The account's homeserver, its https address."},
-			{Name: "room", Kind: usecase.KindString, Required: true, Description: "The room's identifier, `!…:server`."},
-			{Name: "access_token", Kind: usecase.KindString, Required: true, Description: "The bot account's access token."},
+			{Name: "platform", Kind: usecase.KindString, Description: "MATRIX (the default), SLACK, TEAMS or MATTERMOST."},
+			{Name: "homeserver", Kind: usecase.KindString, Description: "The Matrix homeserver or the Mattermost server, its https address."},
+			{Name: "room", Kind: usecase.KindString, Required: true, Description: "The room's identifier: `!…:server`, a Slack or Mattermost channel's, a Teams conversation's."},
+			{Name: "access_token", Kind: usecase.KindString, Description: "The Matrix account's access token, or the Slack app's bot token."},
+			{Name: "signing_secret", Kind: usecase.KindString, Description: "The Slack app's signing secret."},
+			{Name: "app_id", Kind: usecase.KindString, Description: "The Teams bot's application identifier."},
+			{Name: "app_tenant", Kind: usecase.KindString, Description: "The Entra tenant the Teams bot is registered in."},
+			{Name: "app_password", Kind: usecase.KindString, Description: "The Teams bot's client secret."},
+			{Name: "command_token", Kind: usecase.KindString, Description: "The Mattermost slash command's token."},
+			{Name: "webhook_token", Kind: usecase.KindString, Description: "The Mattermost outgoing webhook's token."},
 			{Name: "locale", Kind: usecase.KindString, Description: "The language the bot answers in; the installation's when empty."},
 			{Name: "unfurl", Kind: usecase.KindBool, Description: "Whether links to the hub's entries are answered."},
 			{Name: "capture", Kind: usecase.KindBool, Description: "Whether `!task` messages become entries."},
@@ -283,30 +302,33 @@ func (h CreateChatBot) invoke(ctx context.Context, actor appshared.ActorContext,
 	if err != nil {
 		return nil, err
 	}
-	homeserver, room, locale, err := integration.CheckChatBot(in.String("homeserver"), in.String("room"), in.String("locale"), in.Bool("unfurl"), in.Bool("capture"))
+	platform, err := integration.ParseChatPlatform(in.String("platform"))
 	if err != nil {
 		return nil, err
 	}
-	raw := strings.TrimSpace(in.String("access_token"))
-	if raw == "" {
-		return nil, invalid("/access_token", "chatbot.token_required")
+	homeserver, room, locale, err := integration.CheckChatBotOn(platform, in.String("homeserver"), in.String("room"), in.String("locale"), in.Bool("unfurl"), in.Bool("capture"))
+	if err != nil {
+		return nil, err
+	}
+	token, creds, err := credentialsFrom(platform, in)
+	if err != nil {
+		return nil, err
 	}
 	if err := b.collectionOf(ctx, actor, hub, collection); err != nil {
 		return nil, err
 	}
-	token := secret.New(raw)
 	call, cancel := context.WithTimeout(ctx, callLimit)
 	defer cancel()
-	user, err := b.Room.WhoAmI(call, homeserver, token)
+	user, err := b.seat(call, platform, homeserver, room, token, creds)
 	if err != nil {
 		return nil, err
 	}
-	if err := b.Room.Join(call, homeserver, token, room); err != nil {
-		return nil, err
+	if platform.PostsToIntake() {
+		token = secret.New(bundle(creds))
 	}
 	now := b.Clock.Now()
 	bot := integration.ChatBot{
-		ID: b.IDs.NewID(), TenantID: actor.TenantID, HubID: hub, CollectionID: collection, Homeserver: homeserver,
+		ID: b.IDs.NewID(), TenantID: actor.TenantID, HubID: hub, CollectionID: collection, Platform: platform, Homeserver: homeserver,
 		Room: room, BotUser: user, Locale: locale, Unfurl: in.Bool("unfurl"), Capture: in.Bool("capture"), Enabled: true,
 		RunAs: actor.AccountID, CreatedAt: now, UpdatedAt: now, Version: 1,
 	}
@@ -325,13 +347,14 @@ func (h CreateChatBot) invoke(ctx context.Context, actor appshared.ActorContext,
 		if err := b.Store.Insert(ctx, bot, sealed); err != nil {
 			return err
 		}
-		if b.Jobs != nil {
+		if b.Jobs != nil && !platform.PostsToIntake() {
 			if _, err := b.Jobs.Enqueue(ctx, Job(actor.TenantID, bot.ID, now)); err != nil {
 				return err
 			}
 		}
 		return b.record(ctx, actor, CreatedAction, bot.ID,
 			audit.Change{Field: "hub_id", Classification: audit.Open, To: hub.String()},
+			audit.Change{Field: "platform", Classification: audit.Open, To: string(platform)},
 			audit.Change{Field: "homeserver", Classification: audit.Open, To: homeserver})
 	})
 	if err != nil {
@@ -398,7 +421,10 @@ func (h UpdateChatBot) invoke(ctx context.Context, actor appshared.ActorContext,
 			return nil, err
 		}
 	}
-	if _, _, bot.Locale, err = integration.CheckChatBot(bot.Homeserver, bot.Room, bot.Locale, bot.Unfurl, bot.Capture); err != nil {
+	if bot.Platform == "" {
+		bot.Platform = integration.FormatMatrix
+	}
+	if _, _, bot.Locale, err = integration.CheckChatBotOn(bot.Platform, bot.Homeserver, bot.Room, bot.Locale, bot.Unfurl, bot.Capture); err != nil {
 		return nil, err
 	}
 	now := b.Clock.Now()
@@ -407,7 +433,7 @@ func (h UpdateChatBot) invoke(ctx context.Context, actor appshared.ActorContext,
 		if err := b.Store.Update(ctx, bot); err != nil {
 			return err
 		}
-		if bot.Enabled && !wasOn && b.Jobs != nil {
+		if bot.Enabled && !wasOn && b.Jobs != nil && !bot.Platform.PostsToIntake() {
 			if _, err := b.Jobs.Enqueue(ctx, Job(actor.TenantID, bot.ID, now)); err != nil {
 				return err
 			}
@@ -488,7 +514,7 @@ func (b Bots) Run(ctx context.Context, tenantID, botID shared.ID) (time.Time, er
 	if err != nil {
 		return time.Time{}, err
 	}
-	if !bot.Enabled {
+	if !bot.Enabled || bot.Platform.PostsToIntake() {
 		return time.Time{}, nil
 	}
 	bot.TenantID = tenantID
@@ -534,8 +560,8 @@ func (b Bots) read(ctx context.Context, bot integration.ChatBot, sealed crypto.S
 		if m.Sender == bot.BotUser {
 			continue
 		}
-		for _, notice := range b.answer(ctx, actor, bot, base, m) {
-			if err := b.Room.Post(ctx, bot.Homeserver, token, bot.Room, notice.txn, notice.Notice); err != nil {
+		for _, r := range b.answer(ctx, actor, bot, base, m) {
+			if err := b.Room.Post(ctx, bot.Homeserver, token, bot.Room, r.txn, notice(r.Card)); err != nil {
 				return next, codeOf(err)
 			}
 		}
@@ -544,32 +570,50 @@ func (b Bots) read(ctx context.Context, bot integration.ChatBot, sealed crypto.S
 }
 
 type reply struct {
-	roomport.Notice
+	roomport.Card
 	txn string
 }
 
+// answer is a Matrix message's replies, each keyed by the message's event so a retried post is
+// one notice.
 func (b Bots) answer(ctx context.Context, actor appshared.ActorContext, bot integration.ChatBot, base string, m roomport.Message) []reply {
-	out := []reply{}
 	if title, ok := integration.Captured(m.Body); ok && bot.Capture {
-		created, err := b.Invoker.Invoke(ctx, createEntry, actor, usecase.Input{
-			"type": "TASK", "title": title, "collection_id": bot.CollectionID.String(),
-		})
-		headline := b.Texts.Render(bot.Locale, "chat.bot_captured", nil)
-		link := ""
-		if err != nil {
-			headline = b.Texts.Render(bot.Locale, "chat.bot_capture_refused", nil)
-			title = ""
-		} else if base != "" {
-			link = strings.TrimSuffix(base, "/") + "/items/" + created.String("id")
-		}
-		return append(out, reply{Notice: notice(headline, title, link), txn: "hubtask-" + m.EventID})
+		return []reply{{Card: b.captured(ctx, actor, bot, base, title), txn: "hubtask-" + m.EventID}}
 	}
+	out := []reply{}
 	if !bot.Unfurl {
 		return out
 	}
 	ids := integration.LinkedEntries(m.Body, base)
+	inHub := b.ofHub(ctx, actor, bot, ids)
+	for i, id := range ids {
+		if card, ok := b.unfurled(ctx, actor, bot, base, id, inHub); ok {
+			out = append(out, reply{Card: card, txn: "hubtask-" + m.EventID + "-" + string(rune('a'+i))})
+		}
+	}
+	return out
+}
+
+// captured makes the entry a command asks for and answers its card, or the refusal's.
+func (b Bots) captured(ctx context.Context, actor appshared.ActorContext, bot integration.ChatBot, base, title string) roomport.Card {
+	created, err := b.Invoker.Invoke(ctx, createEntry, actor, usecase.Input{
+		"type": "TASK", "title": title, "collection_id": bot.CollectionID.String(),
+	})
+	if err != nil {
+		return roomport.Card{Headline: b.Texts.Render(bot.Locale, "chat.bot_capture_refused", nil)}
+	}
+	card := roomport.Card{Headline: b.Texts.Render(bot.Locale, "chat.bot_captured", nil), Title: title}
+	if base != "" {
+		card.Link = strings.TrimSuffix(base, "/") + "/items/" + created.String("id")
+	}
+	return card
+}
+
+// ofHub answers which of the entries are the bot's hub's.
+func (b Bots) ofHub(ctx context.Context, actor appshared.ActorContext, bot integration.ChatBot, ids []shared.ID) map[shared.ID]bool {
+	inHub := map[shared.ID]bool{}
 	if len(ids) == 0 {
-		return out
+		return inHub
 	}
 	var summaries []workrepo.EntrySummary
 	if err := b.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -577,34 +621,35 @@ func (b Bots) answer(ctx context.Context, actor appshared.ActorContext, bot inte
 		summaries, err = b.Entries.Entries(ctx, ids)
 		return err
 	}); err != nil {
-		return out
+		return inHub
 	}
-	inHub := map[shared.ID]bool{}
 	for _, s := range summaries {
 		inHub[s.ID] = s.HubID == bot.HubID
 	}
-	for i, id := range ids {
-		if !inHub[id] {
-			// Another hub's entry, or none: this room is not told it exists.
-			continue
-		}
-		entry, err := b.Invoker.Invoke(ctx, getEntry, actor, usecase.Input{"item_id": id.String()})
-		if err != nil {
-			continue
-		}
-		headline := b.Texts.Render(bot.Locale, "chat.bot_unfurled", nil)
-		if status := entry.String("status"); status != "" {
-			headline = b.Texts.Render(bot.Locale, "chat.bot_unfurled_status", map[string]string{"status": status})
-		}
-		link := strings.TrimSuffix(base, "/") + "/items/" + id.String()
-		out = append(out, reply{Notice: notice(headline, entry.String("title"), link), txn: "hubtask-" + m.EventID + "-" + string(rune('a'+i))})
-	}
-	return out
+	return inHub
 }
 
-// notice is a sentence, an entry's title and its link at most - never its notes (UC-INT-18
-// check 2, data-protection.md §9).
-func notice(headline, title, link string) roomport.Notice {
+// unfurled answers an entry's card, read as the bot's actor; another hub's entry, or one the
+// actor may not read, is not answered - the room is not told it exists.
+func (b Bots) unfurled(ctx context.Context, actor appshared.ActorContext, bot integration.ChatBot, base string, id shared.ID, inHub map[shared.ID]bool) (roomport.Card, bool) {
+	if !inHub[id] {
+		return roomport.Card{}, false
+	}
+	entry, err := b.Invoker.Invoke(ctx, getEntry, actor, usecase.Input{"item_id": id.String()})
+	if err != nil {
+		return roomport.Card{}, false
+	}
+	headline := b.Texts.Render(bot.Locale, "chat.bot_unfurled", nil)
+	if status := entry.String("status"); status != "" {
+		headline = b.Texts.Render(bot.Locale, "chat.bot_unfurled_status", map[string]string{"status": status})
+	}
+	return roomport.Card{Headline: headline, Title: entry.String("title"), Link: strings.TrimSuffix(base, "/") + "/items/" + id.String()}, true
+}
+
+// notice is a Matrix card: a sentence, an entry's title and its link at most - never its notes
+// (UC-INT-18 check 2, data-protection.md §9).
+func notice(card roomport.Card) roomport.Notice {
+	headline, title, link := card.Headline, card.Title, card.Link
 	lines := []string{headline}
 	formatted := "<strong>" + html.EscapeString(headline) + "</strong>"
 	if title != "" {
@@ -621,4 +666,212 @@ func notice(headline, title, link string) roomport.Notice {
 		formatted += "<br>" + html.EscapeString(title)
 	}
 	return roomport.Notice{Body: strings.Join(lines, "\n"), HTML: formatted}
+}
+
+// credentials is the plain form of a platform bot's sealed credentials.
+type credentials struct {
+	Token         string `json:"token,omitempty"`
+	SigningSecret string `json:"signing_secret,omitempty"`
+	AppID         string `json:"app_id,omitempty"`
+	AppTenant     string `json:"app_tenant,omitempty"`
+	AppPassword   string `json:"app_password,omitempty"`
+	CommandToken  string `json:"command_token,omitempty"`
+	WebhookToken  string `json:"webhook_token,omitempty"`
+}
+
+func bundle(c roomport.Credentials) string {
+	raw, _ := json.Marshal(credentials{
+		Token: c.Token.Reveal(), SigningSecret: c.SigningSecret.Reveal(), AppID: c.AppID, AppTenant: c.AppTenant,
+		AppPassword: c.AppPassword.Reveal(), CommandToken: c.CommandToken.Reveal(), WebhookToken: c.WebhookToken.Reveal(),
+	})
+	return string(raw)
+}
+
+func unbundle(s secret.Secret) (roomport.Credentials, error) {
+	var c credentials
+	if err := json.Unmarshal([]byte(s.Reveal()), &c); err != nil {
+		return roomport.Credentials{}, err
+	}
+	return roomport.Credentials{
+		Token: secret.New(c.Token), SigningSecret: secret.New(c.SigningSecret), AppID: c.AppID, AppTenant: c.AppTenant,
+		AppPassword: secret.New(c.AppPassword), CommandToken: secret.New(c.CommandToken), WebhookToken: secret.New(c.WebhookToken),
+	}, nil
+}
+
+// credentialsFrom reads what a platform's bot is seated with: a Matrix account's token alone, or
+// the app's credentials - each platform's own, every one of them required for what the bot does.
+func credentialsFrom(platform integration.DeliveryFormat, in usecase.Input) (secret.Secret, roomport.Credentials, error) {
+	field := func(name string) string { return strings.TrimSpace(in.String(name)) }
+	var c roomport.Credentials
+	switch platform {
+	case integration.FormatMatrix:
+		if field("access_token") == "" {
+			return secret.Secret{}, c, invalid("/access_token", "chatbot.token_required")
+		}
+		return secret.New(field("access_token")), c, nil
+	case integration.FormatSlack:
+		if !strings.HasPrefix(field("access_token"), "xoxb-") {
+			return secret.Secret{}, c, invalid("/access_token", "chatbot.token_required")
+		}
+		if field("signing_secret") == "" {
+			return secret.Secret{}, c, invalid("/signing_secret", "chatbot.signing_secret_required")
+		}
+		c.Token, c.SigningSecret = secret.New(field("access_token")), secret.New(field("signing_secret"))
+	case integration.FormatTeams:
+		app, tenant := strings.ToLower(field("app_id")), strings.ToLower(field("app_tenant"))
+		if _, err := shared.ParseID(app); err != nil {
+			return secret.Secret{}, c, invalid("/app_id", "chatbot.app_required")
+		}
+		if _, err := shared.ParseID(tenant); err != nil {
+			return secret.Secret{}, c, invalid("/app_tenant", "chatbot.app_required")
+		}
+		if field("app_password") == "" {
+			return secret.Secret{}, c, invalid("/app_password", "chatbot.app_required")
+		}
+		c.AppID, c.AppTenant, c.AppPassword = app, tenant, secret.New(field("app_password"))
+	case integration.FormatMattermost:
+		if in.Bool("unfurl") && field("webhook_token") == "" {
+			return secret.Secret{}, c, invalid("/webhook_token", "chatbot.webhook_token_required")
+		}
+		if in.Bool("capture") && field("command_token") == "" {
+			return secret.Secret{}, c, invalid("/command_token", "chatbot.command_token_required")
+		}
+		c.CommandToken, c.WebhookToken = secret.New(field("command_token")), secret.New(field("webhook_token"))
+	}
+	return secret.Secret{}, c, nil
+}
+
+// seat proves the bot's credentials before it is stored and answers its own identifier.
+func (b Bots) seat(ctx context.Context, platform integration.DeliveryFormat, homeserver, room string, token secret.Secret, creds roomport.Credentials) (string, error) {
+	if platform == integration.FormatMatrix {
+		user, err := b.Room.WhoAmI(ctx, homeserver, token)
+		if err != nil {
+			return "", err
+		}
+		return user, b.Room.Join(ctx, homeserver, token, room)
+	}
+	adapter := b.Platforms[platform]
+	if adapter == nil {
+		return "", shared.ErrUnavailable.WithDetail("chatbot.homeserver_unreachable")
+	}
+	return adapter.Check(ctx, creds)
+}
+
+// Delivery is one post a platform made to a bot's intake.
+type Delivery struct {
+	TenantID shared.ID
+	BotID    shared.ID
+	Header   map[string][]string
+	Body     []byte
+}
+
+// refused is every reason an intake does not serve: one answer, so the address answers nothing to
+// whoever tries bots, secrets or timestamps (T-32).
+func refused() error { return shared.ErrNotFound.WithDetail("chatbot.unknown") }
+
+// Receive answers a platform's post to a bot's intake (UC-INT-19): proven by the platform's
+// signature or token, it is answered in the platform's format as the bot's actor. A delivery from
+// another room than the bot's is acknowledged and not answered; an answer the platform does not
+// take is recorded on the bot, and the next one that goes through clears it.
+func (b Bots) Receive(ctx context.Context, d Delivery) (roomport.Response, error) {
+	scope := persistence.Scope{TenantID: d.TenantID}
+	var (
+		bot    integration.ChatBot
+		sealed crypto.Sealed
+	)
+	if err := b.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		var err error
+		bot, sealed, err = b.Store.Find(ctx, d.BotID)
+		return err
+	}); err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return roomport.Response{}, refused()
+		}
+		return roomport.Response{}, err
+	}
+	adapter := b.Platforms[bot.Platform]
+	if !bot.Enabled || !bot.Platform.PostsToIntake() || adapter == nil {
+		return roomport.Response{}, refused()
+	}
+	bot.TenantID = d.TenantID
+	opened, err := b.Encryptor.Open(ctx, sealed, tokenPurpose(bot.ID))
+	if err != nil {
+		return roomport.Response{}, refused()
+	}
+	creds, err := unbundle(opened)
+	if err != nil {
+		return roomport.Response{}, refused()
+	}
+	in, err := adapter.Read(ctx, creds, bot.BotUser, roomport.Delivery{Header: d.Header, Body: d.Body, Now: b.Clock.Now()})
+	if err != nil {
+		return roomport.Response{}, refused()
+	}
+	call, cancel := context.WithTimeout(ctx, answerLimit)
+	defer cancel()
+	switch {
+	case in.Asks == roomport.AsksChallenge:
+		return adapter.Answer(call, creds, in, nil)
+	case in.Asks == roomport.AsksNothing || !bot.SameRoom(in.Room):
+		return adapter.Answer(call, creds, roomport.Inbound{}, nil)
+	}
+	base := ""
+	if b.Addresses != nil {
+		base, _ = b.Addresses.Of(ctx)
+	}
+	cards := b.cards(call, runAs(bot), bot, base, in)
+	answer, err := adapter.Answer(call, creds, in, cards)
+	failure := ""
+	if err != nil {
+		failure = codeOf(err)
+		answer, _ = adapter.Answer(call, creds, roomport.Inbound{}, nil)
+	}
+	if failure != bot.Failure {
+		bot.Read("", failure, b.Clock.Now())
+		if err := b.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error { return b.Store.Record(ctx, bot) }); err != nil {
+			return roomport.Response{}, err
+		}
+	}
+	return answer, nil
+}
+
+// cards answers what a verified delivery asks, as far as the bot does it.
+func (b Bots) cards(ctx context.Context, actor appshared.ActorContext, bot integration.ChatBot, base string, in roomport.Inbound) []roomport.Card {
+	out := []roomport.Card{}
+	switch in.Asks {
+	case roomport.AsksCapture:
+		if title, ok := integration.Captured(integration.CaptureCommand + " " + in.Text); ok && bot.Capture {
+			out = append(out, b.captured(ctx, actor, bot, base, title))
+		}
+	case roomport.AsksUnfurl:
+		if !bot.Unfurl {
+			return out
+		}
+		type wanted struct {
+			id   shared.ID
+			link string
+		}
+		asked := []wanted{}
+		for _, link := range in.Links {
+			if ids := integration.LinkedEntries(link, base); len(ids) > 0 && len(asked) < integration.MaxUnfurlsPerPost {
+				asked = append(asked, wanted{id: ids[0], link: link})
+			}
+		}
+		if len(in.Links) == 0 {
+			for _, id := range integration.LinkedEntries(in.Text, base) {
+				asked = append(asked, wanted{id: id})
+			}
+		}
+		ids := make([]shared.ID, 0, len(asked))
+		for _, w := range asked {
+			ids = append(ids, w.id)
+		}
+		inHub := b.ofHub(ctx, actor, bot, ids)
+		for _, w := range asked {
+			if card, ok := b.unfurled(ctx, actor, bot, base, w.id, inHub); ok {
+				card.For = w.link
+				out = append(out, card)
+			}
+		}
+	}
+	return out
 }
