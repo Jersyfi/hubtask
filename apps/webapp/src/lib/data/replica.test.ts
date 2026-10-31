@@ -812,3 +812,28 @@ test('references resolve from the copy, what it does not hold as unavailable', a
   assert.equal(rows[4]?.ci_class, 'server');
   assert.deepEqual(rows[2], { kind: 'PAGE', id: 'p-trash', anchor: null, available: false }, 'nothing but the address of what is not held');
 });
+
+// A board draws its columns offline (offline-sync.md §4.4): the workflows are the shipped one -
+// its stored row where the workspace has one - and the workspace's own by key, with the scheme.
+test('the workflows and the scheme are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  assert.equal(await storeFor({ path: '/workflows' }, storage), undefined, 'a copy without the scheme asks the server');
+
+  const shipped = { key: 'default', system: true, name: null, version: 0, published: { statuses: [{ key: 'todo' }], initial: 'todo', steps: [] }, draft: null };
+  await storage.put('workflow_scheme', 'w-1', record({
+    scheme: [{ container_id: 'c-1', entry_type: null, workflow: 'support' }],
+    shipped,
+  }));
+  await storage.put('workflows', 'wf-2', record({ key: 'support', system: false, version: 3 }));
+  await storage.put('workflows', 'wf-1', record({ key: 'release', system: false, version: 1 }));
+
+  const first = await storeFor({ path: '/workflows' }, storage) as { data: Record<string, unknown>[]; scheme: unknown[] };
+  assert.deepEqual(first.data.map((row) => row.key), ['default', 'release', 'support']);
+  assert.equal(first.data[0]?.version, 0, 'the shipped workflow as the domain defines it');
+  assert.deepEqual(first.scheme, [{ container_id: 'c-1', entry_type: null, workflow: 'support' }]);
+
+  await storage.put('workflows', 'wf-0', record({ key: 'default', system: false, version: 2, published: shipped.published }));
+  const stored = await storeFor({ path: '/workflows' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(stored.data.map((row) => [row.key, row.version, row.system]), [['default', 2, true], ['release', 1, false], ['support', 3, false]],
+    'the shipped workflow\'s stored row, still the shipped one');
+});

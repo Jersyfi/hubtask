@@ -835,6 +835,18 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return { data: rows };
   }
 
+  if (pathname === '/workflows') {
+    // The shipped workflow first - its stored row where it has one - then the workspace's own by
+    // key, as ListWorkflows orders them. Without the scheme the copy cannot draw a board.
+    const held = (await documents(storage, 'workflow_scheme'))[0];
+    const shipped = held?.shipped as Document | undefined;
+    if (!held || !shipped) return undefined;
+    const rows = await documents(storage, 'workflows');
+    const stored = rows.find((row) => row.key === shipped.key);
+    const own = rows.filter((row) => row.key !== shipped.key).sort((a, b) => String(a.key).localeCompare(String(b.key)));
+    return { data: [stored ? { ...stored, system: true } : shipped, ...own], scheme: held.scheme ?? [] };
+  }
+
   if (pathname === '/link-types') {
     const rows = (await documents(storage, 'link_types')).sort((a, b) =>
       Number(a.position ?? 0) - Number(b.position ?? 0) || String(a.key).localeCompare(String(b.key)));
@@ -1179,7 +1191,8 @@ const VOCABULARY: Readonly<Record<string, { entity: VocabularyEntity; collection
  * workflow's draft or a custom role created, changed or deleted, and a link drawn or removed.
  * A versioned entity carries the version the copy holds as `base_version`, so a change made
  * against an older one is refused by the server rather than laid over a newer one. Publishing a
- * workflow, its scheme, a type's form and a role's grants stay online: §4.4 gives them no entity.
+ * workflow, setting its scheme, a type's form and a role's grants stay online: §4.4 gives them no
+ * mutation - the scheme is read from the copy, never written there.
  */
 async function vocabularyOf(
   method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',

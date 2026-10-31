@@ -87,7 +87,7 @@ A **null cursor is the initial synchronisation**: the current state, one kind at
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
 templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
 pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
-goals, check-ins, dashboards, sprints, entries' open sprints and estimates, releases and entries' releases, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios, the agents' models, agents, held acts, evaluation cases and runs), paged by identifier, each row
+goals, check-ins, dashboards, sprints, entries' open sprints and estimates, releases and entries' releases, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios, the agents' models, agents, held acts, evaluation cases and runs, and the workflow scheme), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -318,14 +318,22 @@ one merge rule (`core/domain/model/sync`, `Entity.Rule`):
 
 Under either rule a deletion of an entity already gone is `applied`, and a deletion is not versioned:
 the use case's own guards (a type in use, a system type) decide. A workflow is written to its
-draft; publishing it moves entries and stays online, as does the scheme. Custom field definitions are in
+draft; publishing it moves entries and stays online, as does setting the scheme. The scheme itself
+travels as one record (`workflow_scheme`, under the workspace's identifier and no container, reaching
+every member as `ListWorkflows` does), recorded whenever a hub or collection takes or drops a workflow
+and carrying the shipped workflow as the domain defines it, so a device that holds no row of it still
+knows its statuses; the shipped workflow's first row, stored when it is first used, is recorded as a
+`workflow` too. Custom field definitions are in
 the replica but have no entity mutation; they, grants of a role, the configuration document and
 settings are written online.
 
 A client queues them like an entry's: the web app maps a type's, link type's, workflow's or role's
 creation, change and deletion and a link drawn or removed to the entity mutation
 (`apps/webapp/src/lib/data/replica.ts`, `vocabularyOf`), a change carrying the version its copy holds
-as `base_version`, and answers the type and link type lists from the replica while offline. A
+as `base_version`, and answers the type, link type and workflow lists - the workflows with the
+scheme, so a board draws its columns and a step is offered - from the replica while offline. The
+role catalogue (`GET /roles`) stays online: the permission catalogue and the shipped roles are the
+server's, and the roles screen is an administrator's. A
 creation is predicted under an identifier the device mints; the server's answer names the entity's
 own and replaces the prediction. A change of an entity the copy does not hold goes online.
 
