@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { byPriorityOf, byPriorityText, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, reportRows } from './desk.ts';
+import { byPriorityOf, byPriorityText, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, policyDefinitionOf, reportRows } from './desk.ts';
 
 test('a calendar is written from its days and one span, and read back the same (UC-SVC-01 check 1)', () => {
   const hours = hoursOf(['FRIDAY', 'MONDAY'], '08:00', '18:00');
@@ -63,4 +63,15 @@ test('an entry\'s goals keep apart the requester\'s and each team\'s (UC-SVC-02 
   ].map(goalKey);
   assert.equal(new Set(keys).size, keys.length);
   assert.equal(keys[3], 'SLA:incidents:FIRST_RESPONSE');
+});
+
+test('a policy keeps the group that makes it an OLA, and an OLA names no organisations (UC-SVC-02 check 10)', () => {
+  const form = { name: ' Network team ', types: 'incident, problem', organisations: 'acme', calendar: 'office', priority: '', position: '2', enabled: true, group: '' };
+  const goals = [{ kind: 'RESOLUTION' as const, minutes: 60, by_priority: {}, pause_statuses: [], warn_percent: 80 }];
+  assert.deepEqual(policyDefinitionOf(form, goals), {
+    name: 'Network team', entry_types: ['incident', 'problem'], organisations: ['acme'], goals, position: 2, enabled: true, calendar: 'office',
+  });
+  const ola = policyDefinitionOf({ ...form, group: '0192f000-0000-7000-8000-00000000000a' }, goals);
+  assert.equal(ola.assignee_group, '0192f000-0000-7000-8000-00000000000a');
+  assert.deepEqual(ola.organisations, []);
 });

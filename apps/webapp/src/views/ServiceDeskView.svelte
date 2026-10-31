@@ -21,6 +21,7 @@
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { calendarsPath, desk, organisationsPath, policiesPath, repliesPath, slaReportPath } from '../lib/data/desk.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
+  import { groups } from '../lib/data/groups.svelte.ts';
   import { keyFrom } from '../lib/data/entrytypes.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -28,7 +29,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { WEEKDAYS, byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, reportRows } from '../lib/servicedesk/desk.ts';
+  import { WEEKDAYS, byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, policyDefinitionOf, reportRows } from '../lib/servicedesk/desk.ts';
   import { domainsOf } from '../lib/servicedesk/organisations.ts';
 
   $effect(() => page.entitle(t('app.desk.title')));
@@ -44,6 +45,7 @@
   const policyRows = $derived(policies.state.status === 'ready' ? policies.state.data.data : undefined);
   const replyRows = $derived(replies.state.status === 'ready' ? replies.state.data.data : undefined);
   const organisations = untrack(() => resource<RequesterOrganisationList>(organisationsPath));
+  $effect(() => untrack(() => groups.open()));
   const organisationRows = $derived(organisations.state.status === 'ready' ? organisations.state.data.data : undefined);
 
   let refusal = $state<string | undefined>(undefined);
@@ -84,7 +86,7 @@
   }
 
   // A policy: its types, calendar, priority field and the two goals.
-  const emptyPolicy = () => ({ key: '', name: '', calendar: '', types: '', organisations: '', priority: '', first: '480', firstBy: '', next: '', nextBy: '', resolution: '2400', resolutionBy: '', pauses: '', warn: '80', enabled: true, position: '0' });
+  const emptyPolicy = () => ({ key: '', name: '', group: '', calendar: '', types: '', organisations: '', priority: '', first: '480', firstBy: '', next: '', nextBy: '', resolution: '2400', resolutionBy: '', pauses: '', warn: '80', enabled: true, position: '0' });
   let policy = $state(emptyPolicy());
   const words = (text: string) => text.split(',').map((each) => each.trim()).filter((each) => each !== '');
 
@@ -93,7 +95,7 @@
     const next = row.goals.find((goal) => goal.kind === 'NEXT_RESPONSE');
     const resolution = row.goals.find((goal) => goal.kind === 'RESOLUTION');
     policy = {
-      key: row.key, name: row.name, calendar: row.calendar ?? '', types: row.entry_types.join(', '), organisations: row.organisations.join(', '), priority: row.priority_field ?? '',
+      key: row.key, name: row.name, group: row.assignee_group ?? '', calendar: row.calendar ?? '', types: row.entry_types.join(', '), organisations: row.organisations.join(', '), priority: row.priority_field ?? '',
       first: String(first?.minutes ?? ''), firstBy: byPriorityText(first), next: String(next?.minutes ?? ''), nextBy: byPriorityText(next), resolution: String(resolution?.minutes ?? ''),
       resolutionBy: byPriorityText(resolution), pauses: (resolution?.pause_statuses ?? first?.pause_statuses ?? []).join(', '),
       warn: String(resolution?.warn_percent ?? first?.warn_percent ?? 80), enabled: row.enabled, position: String(row.position),
@@ -114,14 +116,12 @@
     });
     const goals = [
       ...(policy.first.trim() ? [goal('FIRST_RESPONSE', policy.first, firstBy)] : []),
-      ...(policy.next.trim() ? [goal('NEXT_RESPONSE', policy.next, nextBy)] : []),
+      // An OLA promises a first response and a resolution only (UC-SVC-02 check 10).
+      ...(policy.next.trim() && !policy.group ? [goal('NEXT_RESPONSE', policy.next, nextBy)] : []),
       ...(policy.resolution.trim() ? [goal('RESOLUTION', policy.resolution, resolutionBy)] : []),
     ];
     const key = policy.key || keyFrom(policy.name);
-    const saved = await attempt(() => desk.definePolicy(key, {
-      name: policy.name.trim(), entry_types: words(policy.types), organisations: words(policy.organisations), goals, position: Number(policy.position) || 0, enabled: policy.enabled,
-      ...(policy.calendar ? { calendar: policy.calendar } : {}), ...(policy.priority.trim() ? { priority_field: policy.priority.trim() } : {}),
-    }), 'app.desk.policy_saved');
+    const saved = await attempt(() => desk.definePolicy(key, policyDefinitionOf(policy, goals)), 'app.desk.policy_saved');
     if (saved) policy = emptyPolicy();
   }
 
@@ -160,6 +160,13 @@
     else if (state.status === 'failed') refusal = renderProblem(state.error as never, messages).message;
   }
   const rows = $derived(report ? reportRows(report) : []);
+  // Whose promise a policy is: the requester's, or a team's OLA (UC-SVC-02 check 10). A group
+  // already named but gone stays offered by its identifier, so a save drops nothing unseen.
+  const groupOptions = $derived([
+    { value: '', label: t('app.desk.policy_requester') },
+    ...groups.all.map((group) => ({ value: group.id, label: group.name })),
+    ...(policy.group && !groups.all.some((group) => group.id === policy.group) ? [{ value: policy.group, label: policy.group }] : []),
+  ]);
   const calendarOptions = $derived([{ value: '', label: t('app.desk.around_the_clock') }, ...(calendarRows ?? []).map((row) => ({ value: row.key, label: row.name }))]);
 </script>
 
@@ -223,6 +230,7 @@
                 <span>
                   <strong>{row.name}</strong> · {row.entry_types.join(', ')}
                   {#if row.organisations.length > 0}· {t('app.desk.policy_for', { organisations: row.organisations.join(', ') })}{/if}
+                  {#if row.assignee_group}· {t('app.desk.policy_ola', { group: groups.nameOf(row.assignee_group) ?? row.assignee_group })}{/if}
                   {#if !row.enabled}<Badge size="sm">{t('app.desk.off')}</Badge>{/if}
                 </span>
                 {#if mayShape}
@@ -241,7 +249,10 @@
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={policy.name} required />
               <Input label={t('app.desk.types')} hint={t('app.desk.types_hint')} bind:value={policy.types} required />
-              <Input label={t('app.desk.policy_organisations')} hint={t('app.desk.policy_organisations_hint')} bind:value={policy.organisations} />
+              <Select label={t('app.desk.policy_group')} hint={t('app.desk.policy_group_hint')} options={groupOptions} bind:value={policy.group} />
+              {#if !policy.group}
+                <Input label={t('app.desk.policy_organisations')} hint={t('app.desk.policy_organisations_hint')} bind:value={policy.organisations} />
+              {/if}
               <div class="fields">
                 <Select label={t('app.desk.calendar')} options={calendarOptions} bind:value={policy.calendar} />
                 <Input label={t('app.desk.priority_field')} hint={t('app.desk.priority_field_hint')} bind:value={policy.priority} />
@@ -250,10 +261,12 @@
                 <Input label={t('app.desk.first_response')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.first} />
                 <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.firstBy} />
               </div>
-              <div class="fields">
-                <Input label={t('app.desk.next_response')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.next} />
-                <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.nextBy} />
-              </div>
+              {#if !policy.group}
+                <div class="fields">
+                  <Input label={t('app.desk.next_response')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.next} />
+                  <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.nextBy} />
+                </div>
+              {/if}
               <div class="fields">
                 <Input label={t('app.desk.resolution')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.resolution} />
                 <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.resolutionBy} />

@@ -7,7 +7,7 @@
  * counts per policy and goal. Pure, tested beside.
  */
 
-import type { BusinessCalendar, SlaGoal, SlaReport } from '@hubtask/sync-engine';
+import type { BusinessCalendar, SlaGoal, SlaPolicyDefine, SlaReport } from '@hubtask/sync-engine';
 
 export const WEEKDAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
@@ -121,4 +121,27 @@ export function otherRequests<T extends { id: string }>(rows: readonly T[], self
  */
 export function goalKey(goal: { kind?: string; policy_key: string; goal: string }): string {
   return `${goal.kind ?? 'SLA'}:${goal.policy_key}:${goal.goal}`;
+}
+
+/** The policy form's words as the contract takes them. */
+export interface PolicyForm {
+  name: string; types: string; organisations: string; calendar: string; priority: string; position: string; enabled: boolean;
+  /** The group whose OLA the policy is; empty for the requester's promise. */
+  group: string;
+}
+
+const commaWords = (text: string) => text.split(',').map((each) => each.trim()).filter((each) => each !== '');
+
+/**
+ * A policy to define from its form. The group is sent whenever it is set, so that saving an OLA
+ * keeps it one (UC-SVC-02 check 10); an OLA names no organisations, which the server refuses.
+ */
+export function policyDefinitionOf(form: PolicyForm, goals: SlaPolicyDefine['goals']): SlaPolicyDefine {
+  const group = form.group.trim();
+  return {
+    name: form.name.trim(), entry_types: commaWords(form.types), organisations: group ? [] : commaWords(form.organisations), goals,
+    position: Number(form.position) || 0, enabled: form.enabled,
+    ...(form.calendar ? { calendar: form.calendar } : {}), ...(form.priority.trim() ? { priority_field: form.priority.trim() } : {}),
+    ...(group ? { assignee_group: group } : {}),
+  };
 }
