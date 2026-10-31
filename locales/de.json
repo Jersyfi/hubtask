@@ -6135,6 +6135,8 @@
   "app.flow.anchor_field": "einem Datumsfeld",
   "app.flow.anchor_field_key": "Datumsfeld",
   "app.flow.anchor_field_key_hint": "Der Schlüssel eines Datums- oder Zeitpunktfelds, etwa contract_notice_by. Ein Eintrag mit leerem Feld schuldet nichts.",
+  "app.flow.relative_calendar": "Geschäftskalender",
+  "app.flow.relative_calendar_hint": "Der Schlüssel eines Geschäftskalenders: der Abstand zählt dann dessen Arbeitstage, nur ganze Tage. Leer zählt jeden Tag.",
   "app.flow.relative_hint": "Verschiebt sich die Fälligkeit, verschiebt sich der Lauf mit. Eine gelöschte Fälligkeit schuldet nichts - ebenso wenig ein wieder geöffneter Eintrag, gemessen vom Erledigen -, und was vor dem Einschalten schon fällig war, wird nicht nachgeholt.",
   "app.flow.manual_button": "Jetzt starten",
   "app.flow.start_only_manual": "Von Hand startet nur eine Regel mit dem Auslöser „{trigger}“. Wähle diesen Auslöser, um sie hier zu starten.",

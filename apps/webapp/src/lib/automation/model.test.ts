@@ -140,6 +140,9 @@ test('a relative date on a business calendar keeps its calendar when it is edite
     offset: 'P5D',
     calendar: 'office',
   });
+  // Cleared in the inspector, the offset counts every day again.
+  draft.trigger = { ...draft.trigger, calendar: undefined };
+  assert.deepEqual(toRuleDraft(draft, 'n').trigger, { kind: 'RELATIVE_DATE', anchor: 'COMPLETED_AT', offset: 'P5D' });
 });
 
 test('a path names one step through the arms, and translates to the pointer a refusal carries', () => {

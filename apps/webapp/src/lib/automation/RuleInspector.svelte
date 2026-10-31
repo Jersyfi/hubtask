@@ -330,6 +330,18 @@
           }}
         />
       {/if}
+      <Input
+        label={t('app.flow.relative_calendar')}
+        hint={t('app.flow.relative_calendar_hint')}
+        error={errors.get('/trigger/calendar')}
+        value={draft.trigger.calendar ?? ''}
+        autocomplete="off"
+        spellcheck={false}
+        oninput={(event: Event) => {
+          const calendar = value(event).trim();
+          onupdate((current) => ({ ...current, trigger: { ...current.trigger, calendar: calendar === '' ? undefined : calendar } }));
+        }}
+      />
       <Callout>{t('app.flow.relative_hint')}</Callout>
     {:else if draft.trigger.kind === 'STEP_TAKEN'}
       <Select

@@ -6135,6 +6135,8 @@
   "app.flow.anchor_field": "a date field",
   "app.flow.anchor_field_key": "Date field",
   "app.flow.anchor_field_key_hint": "The key of a date or date-and-time field, such as contract_notice_by. An entry whose field is empty owes nothing.",
+  "app.flow.relative_calendar": "Business calendar",
+  "app.flow.relative_calendar_hint": "A business calendar's key: the offset then counts its working days, whole days only. Empty counts every day.",
   "app.flow.relative_hint": "When the due date moves, the run moves with it. A cleared due date owes nothing - nor does a reopened entry, measured from its completion - and what was due before the rule was switched on is not caught up.",
   "app.flow.manual_button": "Start now",
   "app.flow.start_only_manual": "Only a rule whose trigger is “{trigger}” starts by hand. Choose that trigger to start it here.",
