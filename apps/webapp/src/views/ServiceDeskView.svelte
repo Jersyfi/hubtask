@@ -84,7 +84,7 @@
   }
 
   // A policy: its types, calendar, priority field and the two goals.
-  const emptyPolicy = () => ({ key: '', name: '', calendar: '', types: '', priority: '', first: '480', firstBy: '', next: '', nextBy: '', resolution: '2400', resolutionBy: '', pauses: '', warn: '80', enabled: true, position: '0' });
+  const emptyPolicy = () => ({ key: '', name: '', calendar: '', types: '', organisations: '', priority: '', first: '480', firstBy: '', next: '', nextBy: '', resolution: '2400', resolutionBy: '', pauses: '', warn: '80', enabled: true, position: '0' });
   let policy = $state(emptyPolicy());
   const words = (text: string) => text.split(',').map((each) => each.trim()).filter((each) => each !== '');
 
@@ -93,7 +93,7 @@
     const next = row.goals.find((goal) => goal.kind === 'NEXT_RESPONSE');
     const resolution = row.goals.find((goal) => goal.kind === 'RESOLUTION');
     policy = {
-      key: row.key, name: row.name, calendar: row.calendar ?? '', types: row.entry_types.join(', '), priority: row.priority_field ?? '',
+      key: row.key, name: row.name, calendar: row.calendar ?? '', types: row.entry_types.join(', '), organisations: row.organisations.join(', '), priority: row.priority_field ?? '',
       first: String(first?.minutes ?? ''), firstBy: byPriorityText(first), next: String(next?.minutes ?? ''), nextBy: byPriorityText(next), resolution: String(resolution?.minutes ?? ''),
       resolutionBy: byPriorityText(resolution), pauses: (resolution?.pause_statuses ?? first?.pause_statuses ?? []).join(', '),
       warn: String(resolution?.warn_percent ?? first?.warn_percent ?? 80), enabled: row.enabled, position: String(row.position),
@@ -119,7 +119,7 @@
     ];
     const key = policy.key || keyFrom(policy.name);
     const saved = await attempt(() => desk.definePolicy(key, {
-      name: policy.name.trim(), entry_types: words(policy.types), goals, position: Number(policy.position) || 0, enabled: policy.enabled,
+      name: policy.name.trim(), entry_types: words(policy.types), organisations: words(policy.organisations), goals, position: Number(policy.position) || 0, enabled: policy.enabled,
       ...(policy.calendar ? { calendar: policy.calendar } : {}), ...(policy.priority.trim() ? { priority_field: policy.priority.trim() } : {}),
     }), 'app.desk.policy_saved');
     if (saved) policy = emptyPolicy();
@@ -222,6 +222,7 @@
               <Inline gap="100" align="center" justify="between">
                 <span>
                   <strong>{row.name}</strong> · {row.entry_types.join(', ')}
+                  {#if row.organisations.length > 0}· {t('app.desk.policy_for', { organisations: row.organisations.join(', ') })}{/if}
                   {#if !row.enabled}<Badge size="sm">{t('app.desk.off')}</Badge>{/if}
                 </span>
                 {#if mayShape}
@@ -240,6 +241,7 @@
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={policy.name} required />
               <Input label={t('app.desk.types')} hint={t('app.desk.types_hint')} bind:value={policy.types} required />
+              <Input label={t('app.desk.policy_organisations')} hint={t('app.desk.policy_organisations_hint')} bind:value={policy.organisations} />
               <div class="fields">
                 <Select label={t('app.desk.calendar')} options={calendarOptions} bind:value={policy.calendar} />
                 <Input label={t('app.desk.priority_field')} hint={t('app.desk.priority_field_hint')} bind:value={policy.priority} />
