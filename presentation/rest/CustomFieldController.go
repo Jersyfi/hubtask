@@ -11,15 +11,6 @@ import (
 // The vocabulary a workspace adds to its entries, answered by the generated mapping
 // (Doors.gen.go); customFieldResponse draws a definition wherever one is answered.
 
-// itemTypeNames maps the generated enum onto the plain strings the catalogue takes.
-func itemTypeNames(types []openapi.ItemType) []string {
-	names := make([]string, 0, len(types))
-	for _, itemType := range types {
-		names = append(names, string(itemType))
-	}
-	return names
-}
-
 // customFieldResponse maps the catalogue's projection onto the contract's schema.
 func customFieldResponse(out usecase.Output) openapi.CustomFieldDefinition {
 	createdAt := timeValue(out["created_at"])

@@ -19,10 +19,6 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// createContainerUseCase is the catalogue name. The route it is reached through comes from the
-// specification; the two are reconciled by the parity test rather than by this constant.
-const createContainerUseCase = "CreateContainer"
-
 // etag is the version as a strong entity tag. Strong rather than weak because If-Match requires
 // strong comparison (RFC 9110 §13.1.1), and this is what optimistic locking is built on.
 func etag(version int) string { return `"` + strconv.Itoa(version) + `"` }
@@ -182,15 +178,6 @@ func autoAssignResponse(value any) *openapi.AutoAssignPolicy {
 		policy.Candidates = candidates
 	}
 	return policy
-}
-
-// optionalStringField turns an absent field into an absent entry rather than an empty string, so
-// that the catalogue sees the same thing whichever channel the call came through.
-func optionalStringField(value *string) any {
-	if value == nil {
-		return nil
-	}
-	return *value
 }
 
 // uuidValue is the generated type's form of an identifier. A value the use case produced is

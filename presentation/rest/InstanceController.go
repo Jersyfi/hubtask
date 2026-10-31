@@ -148,11 +148,3 @@ func instanceJournalEntryResponse(row usecase.Output) openapi.InstanceJournalEnt
 	}
 	return entry
 }
-
-// censusCount narrows one of the census's numbers. The catalogue is untyped by construction - it is
-// one shape for three channels - and a count comes out of the database as an `int64`, which the
-// contract calls an integer.
-func censusCount(value any) int {
-	counted, _ := value.(int64)
-	return int(counted)
-}

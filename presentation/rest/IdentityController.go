@@ -4,16 +4,13 @@
 package rest
 
 import (
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -109,32 +106,6 @@ func versionFromIfMatch(header *string) (int, bool) {
 		return 0, false
 	}
 	return version, true
-}
-
-// identity is the shape every handler above shares: the catalogue has to be wired, the actor comes
-// from the context, a failure becomes a problem document, and a success is written by the caller.
-//
-// A helper rather than seven copies, because the copy that gets it wrong is the one that forgets
-// to check whether the catalogue is wired and panics on a nil interface.
-func (c *RestController) identity(
-	w http.ResponseWriter, r *http.Request,
-	invoke func(appshared.ActorContext) (usecase.Output, error),
-	respond func(usecase.Output),
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	out, err := invoke(actor)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	respond(out)
 }
 
 // accountSummaryResponse maps the narrower projection. Built from its own four fields rather than
@@ -264,19 +235,6 @@ func groupResponse(out usecase.Output) openapi.Group {
 		group.Description = &description
 	}
 	return group
-}
-
-// optionalUUIDList maps a list of identifiers for the catalogue. An absent list is absent; an
-// empty one is an empty list, because emptying a group is an instruction rather than a no-op.
-func optionalUUIDList(values *[]openapi_types.UUID) any {
-	if values == nil {
-		return nil
-	}
-	ids := make([]any, 0, len(*values))
-	for _, value := range *values {
-		ids = append(ids, value.String())
-	}
-	return ids
 }
 
 // groupDetailResponse is a group with its members, and whether this reader may change them.

@@ -784,10 +784,6 @@ func stringsOutput(paths []string) []any {
 	return out
 }
 
-func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Output {
-	return presetOutputAt(preset, redirectURL, "", "")
-}
-
 // presetOutputAt is presetOutput where the installation's SAML addresses are known: a SAML preset's
 // redirect is the assertion consumer service, and its metadata address the suggested entity ID.
 func presetOutputAt(preset domain.ProviderPreset, redirectURL, acsURL, metadataURL string) usecase.Output {

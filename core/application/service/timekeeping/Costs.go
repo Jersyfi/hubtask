@@ -356,18 +356,6 @@ func (k Keeper) rolesAt(ctx context.Context, actor appshared.ActorContext, lines
 	return out, nil
 }
 
-func depth(s identity.Scope) int {
-	switch s.Type {
-	case identity.ScopeTenant:
-		return 0
-	case identity.ScopeHub:
-		return 1
-	case identity.ScopeCollection:
-		return 2
-	}
-	return 3
-}
-
 // BurnOutput is a budget and its burn on the wire.
 func BurnOutput(b domain.Burn, held bool) usecase.Output {
 	weeks := make([]usecase.Output, 0, len(b.Weeks))

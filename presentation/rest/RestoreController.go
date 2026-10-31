@@ -79,15 +79,6 @@ func backupArchiveResponse(out usecase.Output) openapi.BackupArchive {
 	return archive
 }
 
-// identifierList turns a body's identifiers into what the catalogue takes.
-func identifierList(ids []openapi_types.UUID) []any {
-	out := make([]any, 0, len(ids))
-	for _, id := range ids {
-		out = append(out, id.String())
-	}
-	return out
-}
-
 // acceptedRestore is the pointer a 202 hands back.
 func acceptedRestore(out usecase.Output) openapi.JobRef {
 	ref := openapi.JobRef{

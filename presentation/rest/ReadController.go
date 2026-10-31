@@ -5,7 +5,6 @@ package rest
 
 import (
 	"net/http"
-	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -21,55 +20,6 @@ import (
 const (
 	getContainerUseCase = "GetContainer"
 )
-
-// expansionsOf reads the relations a client asked for and reports which of them this installation
-// serves.
-//
-// `labels` is served. Everything else the contract's example names - children, the
-// assignee, the cover - is not, and is refused by name rather
-// than ignored: a client that asked for children and received an entry without them cannot tell
-// that from an entry that has none, and would render an empty tree (api-guidelines.md §6).
-//
-// The list is comma separated in one query parameter (`style: form, explode: false`), and the
-// generated type hands it over already split. An empty entry is skipped rather than refused:
-// `?expand=` binds as one empty string rather than as no parameter, and a client that always sends
-// the parameter and leaves it empty is asking for the plain entry.
-func expansionsOf(expand *[]string) (labels bool, err error) {
-	asked, err := expansionsAllowing(expand, false)
-	return asked.labels, err
-}
-
-// expansions is what a read was asked to include besides the entries themselves.
-type expansions struct {
-	labels bool
-	// counts is served by `POST /items:query` alone: what each entry holds, counted for the page.
-	counts bool
-}
-
-// expansionsAllowing reads `expand`, refusing `counts` where the endpoint does not serve it.
-func expansionsAllowing(expand *[]string, mayCount bool) (expansions, error) {
-	var asked expansions
-	if expand == nil {
-		return asked, nil
-	}
-
-	for _, relation := range *expand {
-		switch relation = strings.TrimSpace(relation); relation {
-		case "":
-			continue
-		case "labels":
-			asked.labels = true
-		case "counts":
-			if !mayCount {
-				return expansions{}, expandNotSupported(relation)
-			}
-			asked.counts = true
-		default:
-			return expansions{}, expandNotSupported(relation)
-		}
-	}
-	return asked, nil
-}
 
 func expandNotSupported(relation string) error {
 	return shared.ErrValidation.
