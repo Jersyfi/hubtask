@@ -1265,6 +1265,15 @@ export function fallback(route, request, path) {
   if (/^\/items\/[^/]+\/(code-links|file-links|provenance)$/u.test(read) && request.method() === 'GET') {
     return route.fulfill({ json: { data: [] } });
   }
+  // No workflow binds the entries and no link type is defined beyond none, so an entry offers no
+  // step (`EntrySteps`, `WorkflowList`, `LinkTypeList`).
+  if (/^\/items\/[^/]+\/steps$/u.test(read) && request.method() === 'GET') {
+    return route.fulfill({ json: { workflow: null, status: null, steps: [] } });
+  }
+  if (read === '/workflows' && request.method() === 'GET') return route.fulfill({ json: { data: [], scheme: [] } });
+  if (read === '/link-types' && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
+  // No calendar is pushed to; the installation has no provider's app (`CalendarPushList`).
+  if (read === '/integrations/calendar-pushes' && request.method() === 'GET') return route.fulfill({ json: { data: [], providers: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
 

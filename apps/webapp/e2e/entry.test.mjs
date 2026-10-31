@@ -416,7 +416,9 @@ test('chromium: 1280 px — the cover row offers both kinds, and no cover takes 
   const editor = page.getByRole('dialog', { name: 'Cover' });
   await editor.waitFor({ timeout: 5_000 });
 
-  // The row says where a cover goes, rather than only what is missing.
+  // The row says where a cover goes, rather than only what is missing. The editor's body is
+  // loaded on first use (`LazyView`), so the dialog stands before its words do.
+  await editor.getByText(/drawn at the top of this entry/).waitFor({ timeout: 5_000 }).catch(() => {});
   assert.match((await editor.textContent()) ?? '', /drawn at the top of this entry and on its card/);
 
   // Both kinds are offered: the ten colours of the design system, and a picture.
