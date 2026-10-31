@@ -4,8 +4,11 @@
 package goal
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -366,11 +369,92 @@ func (r DashboardDigests) compose(ctx context.Context, actor appshared.ActorCont
 	} else {
 		subject, body = subject+digestWithheld, body+digestWithheld
 	}
-	return mail.Message{
+	message := mail.Message{
 		To:      read.account.Email,
 		Subject: r.Renderer.Render(locale, subject, params),
 		Body:    r.Renderer.Render(locale, body, params),
-	}, true, nil
+	}
+	if read.titles {
+		// A table's rows name groups and goals, which travel only where titles may.
+		message.Attachments = digestTables(dashboard, figures)
+	}
+	return message, true, nil
+}
+
+// digestTables is one CSV file per TABLE widget in reading order, of the rows the subscriber was
+// computed (UC-GOL-04): a goal's title, status and progress, or a summary's group, period and value.
+// A widget the subscriber cannot compute has no file; files stop before mail.MaxAttachmentBytes.
+func digestTables(d domain.Dashboard, figures usecase.Output) []mail.Attachment {
+	byID := map[string]usecase.Output{}
+	if widgets, ok := figures["widgets"].([]usecase.Output); ok {
+		for _, w := range widgets {
+			id, _ := w["id"].(string)
+			byID[id] = w
+		}
+	}
+	ordered := append([]domain.Widget(nil), d.Widgets...)
+	sortReading(ordered)
+	var out []mail.Attachment
+	total, n := 0, 0
+	for _, w := range ordered {
+		if w.Chart != domain.ChartTable {
+			continue
+		}
+		n++
+		figure := byID[w.ID.String()]
+		if figure == nil || figure["error"] != nil {
+			continue
+		}
+		content := tableCSV(w.Source == domain.WidgetGoals, rowsOf(figure["data"]))
+		if total+len(content) > mail.MaxAttachmentBytes {
+			break
+		}
+		total += len(content)
+		out = append(out, mail.Attachment{Name: "table-" + itoa(n) + ".csv", ContentType: "text/csv", Content: content})
+	}
+	return out
+}
+
+// tableCSV writes the rows, a text cell a spreadsheet would read as a formula quoted with a leading
+// apostrophe, as the web app's export does.
+func tableCSV(goals bool, rows []map[string]any) []byte {
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+	writer.UseCRLF = true
+	columns := []string{"group", "period", "value"}
+	if goals {
+		columns = []string{"title", "status", "progress"}
+	}
+	_ = writer.Write(columns)
+	for _, row := range rows {
+		line := make([]string, len(columns))
+		for i, column := range columns {
+			value := row[column]
+			if column == "value" && (value == nil || value == "") {
+				value = row["count"]
+			}
+			line[i] = neutralCell(value, column != "value" && column != "progress")
+		}
+		_ = writer.Write(line)
+	}
+	writer.Flush()
+	return buffer.Bytes()
+}
+
+// neutralCell writes one cell; a text cell (never a figure, whose minus is its sign) that a
+// spreadsheet would read as a formula is quoted.
+func neutralCell(value any, text bool) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		if text && v != "" && strings.ContainsRune("=+-@\t\r", rune(v[0])) {
+			return "'" + v
+		}
+		return v
+	default:
+		return fmt.Sprint(v)
+	}
 }
 
 // digestLines is one line per NUMBER widget in reading order: its title and total, or that the

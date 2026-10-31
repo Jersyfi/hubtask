@@ -130,6 +130,9 @@ func digestWidgets() []any {
 			"scope_container_id": listS.String(), "aggregate": map[string]any{"function": "COUNT"},
 		}},
 		map[string]any{"title": "Split", "chart": "PIE", "source": "VIEW", "y": 2.0, "view_id": viewID.String()},
+		map[string]any{"title": "Rows", "chart": "TABLE", "source": "QUERY", "y": 4.0, "query": map[string]any{
+			"scope_container_id": listA.String(), "aggregate": map[string]any{"function": "COUNT", "group_by": "is_completed"},
+		}},
 	}
 }
 
@@ -213,6 +216,11 @@ func TestADigestMailsTheSubscribersOwnTotals(t *testing.T) {
 	if strings.Contains(m.Body, "Split") {
 		t.Fatalf("a chart that is not a number reached the mail: %q", m.Body)
 	}
+	// UC-GOL-04 check 13: each TABLE widget travels as a CSV file of the subscriber's rows.
+	if len(m.Attachments) != 1 || m.Attachments[0].Name != "table-1.csv" || m.Attachments[0].ContentType != "text/csv" ||
+		!strings.HasPrefix(string(m.Attachments[0].Content), "group,period,value\r\n") {
+		t.Fatalf("attachments = %+v", m.Attachments)
+	}
 	if !next.After(set["next_at"].(time.Time)) || store.digests[id].LastSentAt == nil {
 		t.Fatalf("next = %v, digest = %+v", next, store.digests[id])
 	}
@@ -226,6 +234,9 @@ func TestADigestMailsTheSubscribersOwnTotals(t *testing.T) {
 	if strings.Contains(withheld.Subject+withheld.Body, "Team") || strings.Contains(withheld.Body, "Launch") ||
 		!strings.Contains(withheld.Body, "email.dashboard_digest.line.withheld position=1") {
 		t.Fatalf("a title travelled: %+v", withheld)
+	}
+	if len(withheld.Attachments) != 0 {
+		t.Fatalf("a table travelled where no title may: %+v", withheld.Attachments)
 	}
 
 	delete(store.dashboards, shared.MustParseID(board.String("id")))
@@ -252,5 +263,26 @@ func TestADigestTotalReadsInTheSubscribersLocale(t *testing.T) {
 		if got := digestLines(board, figures, true, separator, render); !strings.Contains(got, want) {
 			t.Errorf("with %q the line is %q, want %s", separator, got, want)
 		}
+	}
+}
+
+// UC-GOL-04 check 13: a group a spreadsheet would read as a formula is quoted, a negative figure is
+// not, and a widget the subscriber cannot compute has no file.
+func TestADigestTableIsANeutralCsv(t *testing.T) {
+	first, second := shared.MustParseID("018f0000-0000-7000-8000-0000000000e1"), shared.MustParseID("018f0000-0000-7000-8000-0000000000e2")
+	board := domain.Dashboard{Widgets: []domain.Widget{
+		{ID: first, Chart: domain.ChartTable, Source: domain.WidgetQuery},
+		{ID: second, Chart: domain.ChartTable, Source: domain.WidgetQuery, Y: 1},
+	}}
+	figures := usecase.Output{"widgets": []usecase.Output{
+		{"id": first.String(), "data": []usecase.Output{{"group": "=HYPERLINK(1)", "value": "-2.5"}, {"group": "Done", "count": 3}}},
+		{"id": second.String(), "error": "dashboards.widget_forbidden"},
+	}}
+	files := digestTables(board, figures)
+	if len(files) != 1 {
+		t.Fatalf("files = %+v", files)
+	}
+	if got, want := string(files[0].Content), "group,period,value\r\n'=HYPERLINK(1),,-2.5\r\nDone,,3\r\n"; got != want {
+		t.Errorf("csv = %q, want %q", got, want)
 	}
 }
