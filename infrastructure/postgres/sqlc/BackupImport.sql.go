@@ -1131,6 +1131,18 @@ func (q *Queries) ClearPrivateHubAccess(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPublicForm = `-- name: ClearPublicForm :execrows
+DELETE FROM public_form
+`
+
+func (q *Queries) ClearPublicForm(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPublicForm)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearRealtimeDocument = `-- name: ClearRealtimeDocument :execrows
 DELETE FROM realtime_document
 `
@@ -2662,6 +2674,19 @@ SELECT EXISTS (SELECT 1 FROM private_hub_access WHERE id = ($1::jsonb->>'id')::u
 
 func (q *Queries) HoldsPrivateHubAccess(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPrivateHubAccess, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPublicForm = `-- name: HoldsPublicForm :one
+SELECT EXISTS (
+  SELECT 1 FROM public_form WHERE collection_id = ($1::jsonb->>'collection_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPublicForm(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPublicForm, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6364,6 +6389,34 @@ type ImportPrivateHubAccessParams struct {
 // rather than refused by the foreign key.
 func (q *Queries) ImportPrivateHubAccess(ctx context.Context, arg ImportPrivateHubAccessParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPrivateHubAccess, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPublicForm = `-- name: ImportPublicForm :execrows
+INSERT INTO public_form (tenant_id, collection_id, token_hash, created_by, created_at)
+SELECT r.tenant_id, r.collection_id, r.token_hash, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::public_form,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE r.token_hash IS NOT NULL
+ON CONFLICT (tenant_id, collection_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportPublicFormParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// An export carries no token hash (tenant-export.md §9): such a link is skipped, and its
+// collection is made a new link after the import.
+func (q *Queries) ImportPublicForm(ctx context.Context, arg ImportPublicFormParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPublicForm, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

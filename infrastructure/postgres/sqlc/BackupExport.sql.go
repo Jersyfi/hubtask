@@ -4368,6 +4368,51 @@ func (q *Queries) ExportPrivateHubAccesses(ctx context.Context, arg ExportPrivat
 	return items, nil
 }
 
+const exportPublicForms = `-- name: ExportPublicForms :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (f.collection_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(f) - 'tenant_id')::jsonb AS payload,
+         f.collection_id AS key_1
+  FROM public_form f
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPublicFormsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPublicFormsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPublicForms(ctx context.Context, arg ExportPublicFormsParams) ([]ExportPublicFormsRow, error) {
+	rows, err := q.db.Query(ctx, exportPublicForms, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPublicFormsRow{}
+	for rows.Next() {
+		var i ExportPublicFormsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportRealtimeDocuments = `-- name: ExportRealtimeDocuments :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

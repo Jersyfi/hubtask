@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -125,4 +126,18 @@ type Organisations interface {
 	Delete(ctx context.Context, key string) error
 	// OfDomain answers the organisation a mail domain belongs to; shared.ErrNotFound for none.
 	OfDomain(ctx context.Context, domain string) (servicedesk.Organisation, error)
+}
+
+// PublicForms stores a collection's public form (UC-SVC-13). It alone knows how a token becomes
+// its hash - the pepper is the adapter's secret (security.md §8) - so the port takes the token
+// whole.
+type PublicForms interface {
+	// Put writes the collection's link under a new token, replacing the one it had.
+	Put(ctx context.Context, form servicedesk.PublicForm, token integration.FormLinkToken) error
+	// Find answers the collection's link; found false when it has none.
+	Find(ctx context.Context, collectionID shared.ID) (servicedesk.PublicForm, bool, error)
+	// FindByToken answers the link a token names inside the caller's transaction, or not found.
+	FindByToken(ctx context.Context, token integration.FormLinkToken) (servicedesk.PublicForm, error)
+	// Delete takes the collection's link away and says whether it had one.
+	Delete(ctx context.Context, collectionID shared.ID) (bool, error)
 }

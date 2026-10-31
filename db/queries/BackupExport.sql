@@ -845,6 +845,19 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportPublicForms :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (f.collection_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(f) - 'tenant_id')::jsonb AS payload,
+         f.collection_id AS key_1
+  FROM public_form f
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportPageArticles :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

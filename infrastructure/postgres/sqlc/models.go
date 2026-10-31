@@ -2587,6 +2587,14 @@ type PrivateHubAccess struct {
 	EndsAt   pgtype.Timestamptz
 }
 
+type PublicForm struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	TokenHash    []byte
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
 type QuotaReached struct {
 	TenantID  pgtype.UUID
 	Quota     string

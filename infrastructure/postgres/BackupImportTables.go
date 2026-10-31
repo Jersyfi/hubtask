@@ -865,6 +865,17 @@ var importers = map[string]importer{
 			return queries.ClearPageArticleRating(ctx)
 		},
 	},
+	"public_form": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportPublicForm(ctx, sqlc.ImportPublicFormParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPublicForm(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPublicForm(ctx)
+		},
+	},
 	"page_public_link": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportPagePublicLink(ctx, sqlc.ImportPagePublicLinkParams{Payload: payload, Overwrite: overwrite})

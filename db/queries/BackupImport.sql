@@ -2258,6 +2258,28 @@ SELECT EXISTS (
 -- name: ClearPagePublicLink :execrows
 DELETE FROM page_public_link;
 
+-- name: ImportPublicForm :execrows
+-- An export carries no token hash (tenant-export.md §9): such a link is skipped, and its
+-- collection is made a new link after the import.
+INSERT INTO public_form (tenant_id, collection_id, token_hash, created_by, created_at)
+SELECT r.tenant_id, r.collection_id, r.token_hash, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::public_form,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE r.token_hash IS NOT NULL
+ON CONFLICT (tenant_id, collection_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPublicForm :one
+SELECT EXISTS (
+  SELECT 1 FROM public_form WHERE collection_id = (sqlc.arg('payload')::jsonb->>'collection_id')::uuid
+) AS held;
+
+-- name: ClearPublicForm :execrows
+DELETE FROM public_form;
+
 -- name: ImportPageArticle :execrows
 INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, views)
 SELECT r.tenant_id, r.page_id, r.collection_id, r.published_by, r.published_at, coalesce(r.views, 0)

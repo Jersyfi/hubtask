@@ -7389,4 +7389,25 @@ CREATE TRIGGER requester_organisation_domains_unique
   BEFORE INSERT OR UPDATE OF domains ON requester_organisation
   FOR EACH ROW EXECUTE FUNCTION requester_organisation_domains_unique();
 
+
+-- Migration 0302: a collection's public form (UC-SVC-13); only the token's hash is kept.
+CREATE TABLE public_form (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id uuid NOT NULL,
+  token_hash    bytea NOT NULL,
+  created_by    uuid NOT NULL,
+  created_at    timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, collection_id),
+  CONSTRAINT public_form_collection_fkey FOREIGN KEY (tenant_id, collection_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT public_form_created_by_fkey FOREIGN KEY (tenant_id, created_by)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX public_form_token_uq ON public_form (token_hash);
+ALTER TABLE public_form ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public_form FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON public_form
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public_form TO hubtask_app;
+
 COMMIT;

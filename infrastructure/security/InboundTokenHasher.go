@@ -86,3 +86,26 @@ func NewPageLinkHasher(installationSecret secret.Secret) InboundTokenHasher {
 	mac.Write([]byte(pageLinkPepperInfo))
 	return InboundTokenHasher{pepper: mac.Sum(nil)}
 }
+
+// publicFormPepperInfo separates a public form's link tokens from every other secret the
+// installation key protects.
+const publicFormPepperInfo = "hubtask/public-form-link/v1"
+
+// NewPublicFormHasher is the same construction under the public form link's own purpose label.
+func NewPublicFormHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(publicFormPepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}
+
+// publicFormChallengePepperInfo separates the signature on a public form's proof-of-work
+// challenge from every other use of the installation key: a challenge's tag can never be a
+// stored hash of anything.
+const publicFormChallengePepperInfo = "hubtask/public-form-challenge/v1"
+
+// NewPublicFormChallengeSigner is the keyed hash a public form's challenge is signed with.
+func NewPublicFormChallengeSigner(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(publicFormChallengePepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}

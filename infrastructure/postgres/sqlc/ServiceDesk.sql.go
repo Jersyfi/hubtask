@@ -96,6 +96,18 @@ func (q *Queries) DeleteHubCalendar(ctx context.Context, arg DeleteHubCalendarPa
 	return result.RowsAffected(), nil
 }
 
+const deletePublicForm = `-- name: DeletePublicForm :execrows
+DELETE FROM public_form WHERE tenant_id = current_tenant_id() AND collection_id = $1
+`
+
+func (q *Queries) DeletePublicForm(ctx context.Context, collectionID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePublicForm, collectionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteReplyTemplate = `-- name: DeleteReplyTemplate :execrows
 DELETE FROM reply_template WHERE key = $1
 `
@@ -225,6 +237,43 @@ func (q *Queries) FindHubCalendar(ctx context.Context, arg FindHubCalendarParams
 		&i.UpdatedAt,
 		&i.Version,
 	)
+	return i, err
+}
+
+const findPublicForm = `-- name: FindPublicForm :one
+SELECT collection_id, created_by, created_at FROM public_form
+WHERE tenant_id = current_tenant_id() AND collection_id = $1
+`
+
+type FindPublicFormRow struct {
+	CollectionID pgtype.UUID
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+func (q *Queries) FindPublicForm(ctx context.Context, collectionID pgtype.UUID) (FindPublicFormRow, error) {
+	row := q.db.QueryRow(ctx, findPublicForm, collectionID)
+	var i FindPublicFormRow
+	err := row.Scan(&i.CollectionID, &i.CreatedBy, &i.CreatedAt)
+	return i, err
+}
+
+const findPublicFormByHash = `-- name: FindPublicFormByHash :one
+SELECT collection_id, created_by, created_at FROM public_form
+WHERE token_hash = $1
+`
+
+type FindPublicFormByHashRow struct {
+	CollectionID pgtype.UUID
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+// The unauthenticated route's lookup: bounded to the token's tenant by row level security.
+func (q *Queries) FindPublicFormByHash(ctx context.Context, tokenHash []byte) (FindPublicFormByHashRow, error) {
+	row := q.db.QueryRow(ctx, findPublicFormByHash, tokenHash)
+	var i FindPublicFormByHashRow
+	err := row.Scan(&i.CollectionID, &i.CreatedBy, &i.CreatedAt)
 	return i, err
 }
 
@@ -924,6 +973,31 @@ func (q *Queries) PendingApprovalOfItem(ctx context.Context, itemID pgtype.UUID)
 		&i.Version,
 	)
 	return i, err
+}
+
+const putPublicForm = `-- name: PutPublicForm :exec
+INSERT INTO public_form (tenant_id, collection_id, token_hash, created_by, created_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4)
+ON CONFLICT (tenant_id, collection_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+`
+
+type PutPublicFormParams struct {
+	CollectionID pgtype.UUID
+	TokenHash    []byte
+	CreatedBy    pgtype.UUID
+	At           pgtype.Timestamptz
+}
+
+// One link per collection: a new token replaces the old, which stops answering (UC-SVC-13).
+func (q *Queries) PutPublicForm(ctx context.Context, arg PutPublicFormParams) error {
+	_, err := q.db.Exec(ctx, putPublicForm,
+		arg.CollectionID,
+		arg.TokenHash,
+		arg.CreatedBy,
+		arg.At,
+	)
+	return err
 }
 
 const reportEntrySla = `-- name: ReportEntrySla :many

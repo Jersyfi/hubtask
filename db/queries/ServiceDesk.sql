@@ -238,3 +238,22 @@ DELETE FROM requester_organisation WHERE key = sqlc.arg('key');
 -- The organisation a mail domain belongs to; a domain is in at most one (migration 0287).
 SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version
 FROM requester_organisation WHERE domains @> ARRAY[sqlc.arg('domain')::text] LIMIT 1;
+
+-- name: PutPublicForm :exec
+-- One link per collection: a new token replaces the old, which stops answering (UC-SVC-13).
+INSERT INTO public_form (tenant_id, collection_id, token_hash, created_by, created_at)
+VALUES (current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('token_hash'), sqlc.arg('created_by'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, collection_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at;
+
+-- name: FindPublicForm :one
+SELECT collection_id, created_by, created_at FROM public_form
+WHERE tenant_id = current_tenant_id() AND collection_id = sqlc.arg('collection_id');
+
+-- name: FindPublicFormByHash :one
+-- The unauthenticated route's lookup: bounded to the token's tenant by row level security.
+SELECT collection_id, created_by, created_at FROM public_form
+WHERE token_hash = sqlc.arg('token_hash');
+
+-- name: DeletePublicForm :execrows
+DELETE FROM public_form WHERE tenant_id = current_tenant_id() AND collection_id = sqlc.arg('collection_id');

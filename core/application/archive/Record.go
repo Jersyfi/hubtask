@@ -877,6 +877,14 @@ var entities = []Entity{
 		Name: "business_calendars", Table: "business_calendar", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 	},
+	// A collection's public form (migration 0302): its token's hash leaves in a backup only (§9).
+	{
+		Name: "public_forms", Table: "public_form", Whole: true, Later: true, Keys: []string{"collection_id"},
+		References: []Reference{
+			{Field: "collection_id", Table: "container"},
+			{Field: "created_by", Table: "account"},
+		},
+	},
 	// A hub's own version of a workspace calendar (migration 0270), after the calendar whose key it
 	// names; a duplicate takes it to the hub's copy.
 	{
