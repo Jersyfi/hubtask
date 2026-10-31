@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -105,6 +106,26 @@ func (o *objects) Seal(_ context.Context, object domain.Object) error {
 		return o.sealErr
 	}
 	o.sealed = append(o.sealed, object)
+	o.stored[object.ID] = object
+	return nil
+}
+
+// Held answers the stored objects held for a scan, oldest first.
+func (o *objects) Held(_ context.Context, batch int) ([]domain.Object, error) {
+	held := []domain.Object{}
+	for _, object := range o.stored {
+		if object.Held() && object.DeletedAt == nil {
+			held = append(held, object)
+		}
+	}
+	slices.SortFunc(held, func(a, b domain.Object) int { return a.CreatedAt.Compare(b.CreatedAt) })
+	return held[:min(batch, len(held))], nil
+}
+
+func (o *objects) Settle(_ context.Context, object domain.Object) error {
+	if stored, ok := o.stored[object.ID]; !ok || !stored.Held() {
+		return shared.ErrConflict.WithDetail("media.not_held")
+	}
 	o.stored[object.ID] = object
 	return nil
 }

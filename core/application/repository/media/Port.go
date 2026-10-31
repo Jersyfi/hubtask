@@ -65,10 +65,17 @@ type Objects interface {
 	// be served is the domain's question.
 	Find(ctx context.Context, id shared.ID) (media.Object, error)
 
-	// Seal writes the confirmation: PENDING becomes READY with the judged type and the measured
-	// size. Zero rows matched - already READY, marked, gone - comes back as ErrConflict, and the
+	// Seal writes the confirmation: PENDING becomes object.Status - READY, or PENDING_SCAN where
+	// the scanner could not answer - with the judged type and the measured size. Zero rows matched - already READY, marked, gone - comes back as ErrConflict, and the
 	// caller reads the row again to answer from what is there.
 	Seal(ctx context.Context, object media.Object) error
+
+	// Held returns up to batch live objects held for a scan, oldest first.
+	Held(ctx context.Context, batch int) ([]media.Object, error)
+
+	// Settle writes a scan's verdict on a held object - READY or INFECTED, as object.Status says.
+	// One no longer held, marked or gone comes back as ErrConflict.
+	Settle(ctx context.Context, object media.Object) error
 
 	// AdjustRefCount moves the counter by delta, floored at zero. The fast half of reference
 	// counting; the reconciliation's recount is what keeps it honest.

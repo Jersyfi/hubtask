@@ -24,6 +24,8 @@ func (objectDouble) Find(context.Context, shared.ID) (media.Object, error) {
 	return media.Object{}, shared.ErrNotFound
 }
 func (objectDouble) Seal(context.Context, media.Object) error             { return nil }
+func (objectDouble) Held(context.Context, int) ([]media.Object, error)    { return nil, nil }
+func (objectDouble) Settle(context.Context, media.Object) error           { return nil }
 func (objectDouble) AdjustRefCount(context.Context, shared.ID, int) error { return nil }
 func (objectDouble) MarkDeleted(context.Context, shared.ID, time.Time) (bool, error) {
 	return false, nil

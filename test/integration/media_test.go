@@ -587,3 +587,72 @@ func TestMediaIsInvisibleFromAnotherTenant(t *testing.T) {
 		}
 	})
 }
+
+// A file held for a scan is listed for the scan job in its own workspace only, settled once by a
+// verdict, and another workspace neither lists nor settles it.
+func TestAHeldFileIsListedAndSettledInItsWorkspaceOnly(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	staged := stagedMedia(ctx, t, tenantA, authorA, media.UsageAttachment)
+	held, err := staged.HeldForScan("application/pdf", 4090)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return mediaRepo().Seal(ctx, held)
+	}); err != nil {
+		t.Fatalf("sealing held: %v", err)
+	}
+	if stored := findMedia(ctx, t, tenantA, staged.ID); stored.Status != media.StatusPendingScan {
+		t.Fatalf("stored %s, want PENDING_SCAN", stored.Status)
+	}
+
+	listed := func(tenant shared.ID) []media.Object {
+		t.Helper()
+		var objects []media.Object
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			objects, err = mediaRepo().Held(ctx, 1000)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return objects
+	}
+	contains := func(objects []media.Object, id shared.ID) bool {
+		for _, o := range objects {
+			if o.ID == id {
+				return true
+			}
+		}
+		return false
+	}
+	if !contains(listed(tenantA), staged.ID) {
+		t.Fatal("the held file is not listed in its workspace")
+	}
+	if contains(listed(tenantB), staged.ID) {
+		t.Fatal("another workspace lists the held file")
+	}
+
+	clean, err := held.Scanned(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = write(ctx, t, tenantB, func(ctx context.Context) error { return mediaRepo().Settle(ctx, clean) })
+	if shared.AsError(err).DetailCode != "media.not_held" {
+		t.Fatalf("another workspace settled the file: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return mediaRepo().Settle(ctx, clean) }); err != nil {
+		t.Fatalf("settling: %v", err)
+	}
+	if stored := findMedia(ctx, t, tenantA, staged.ID); stored.Status != media.StatusReady {
+		t.Fatalf("settled %s, want READY", stored.Status)
+	}
+	err = write(ctx, t, tenantA, func(ctx context.Context) error { return mediaRepo().Settle(ctx, clean) })
+	if shared.AsError(err).DetailCode != "media.not_held" {
+		t.Fatalf("a second verdict answered %v", err)
+	}
+	if contains(listed(tenantA), staged.ID) {
+		t.Fatal("a settled file is still listed")
+	}
+}

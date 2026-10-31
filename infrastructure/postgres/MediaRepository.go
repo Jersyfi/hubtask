@@ -108,6 +108,7 @@ func (r MediaRepository) Seal(ctx context.Context, object media.Object) error {
 	}
 
 	affected, err := queries.SealMediaObject(ctx, sqlc.SealMediaObjectParams{
+		Status:   string(object.Status),
 		MimeType: object.ContentType,
 		ByteSize: object.ByteSize,
 		ID:       id,
@@ -119,6 +120,57 @@ func (r MediaRepository) Seal(ctx context.Context, object media.Object) error {
 	}
 	if affected == 0 {
 		return shared.ErrConflict.WithDetail("media.already_confirmed")
+	}
+	return nil
+}
+
+// Held returns up to batch objects held for a scan, oldest first.
+func (r MediaRepository) Held(ctx context.Context, batch int) ([]media.Object, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListHeldMediaObjects(ctx, boundedInt32(batch))
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the media held for a scan: %w", err))
+	}
+	objects := make([]media.Object, 0, len(rows))
+	for _, row := range rows {
+		object, err := mediaObjectFrom(
+			row.ID, row.TenantID, row.StorageKey, row.FileName, row.MimeType, row.ByteSize,
+			row.Checksum, row.Usage, row.Status, row.RefCount, row.CreatedBy, row.CreatedAt,
+			row.DeletedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		objects = append(objects, object)
+	}
+	return objects, nil
+}
+
+// Settle writes a scan's verdict on a held object; one no longer held is ErrConflict.
+func (r MediaRepository) Settle(ctx context.Context, object media.Object) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(object.ID)
+	if err != nil {
+		return err
+	}
+	affected, err := queries.SettleMediaScan(ctx, sqlc.SettleMediaScanParams{
+		Status: string(object.Status), ID: id,
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("settling the scan of the media object %s: %w", object.ID, err))
+	}
+	if affected == 0 {
+		return shared.ErrConflict.WithDetail("media.not_held")
 	}
 	return nil
 }

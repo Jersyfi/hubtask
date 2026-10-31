@@ -90,6 +90,12 @@ const (
 	StatusPending Status = "PENDING"
 	// StatusReady is sealed: the bytes were read back, judged and measured.
 	StatusReady Status = "READY"
+	// StatusPendingScan is sealed but held: judged and measured, and the installation's scanner
+	// has not answered for it yet. It may join an entry; its bytes are never served.
+	StatusPendingScan Status = "PENDING_SCAN"
+	// StatusInfected is what a scan of a held object found malicious: the bytes are gone and the
+	// record stays for what pointed at it.
+	StatusInfected Status = "INFECTED"
 )
 
 // MaxFileNameLength counts code points, for the reason every length here does (I-W7).
@@ -177,7 +183,7 @@ func NewPendingObject(input NewObjectInput) (Object, error) {
 // Idempotent by refusal: sealing a READY object is the caller's signal to answer with what is
 // there rather than to judge again, and the ErrConflict tells it apart from success.
 func (o Object) Sealed(judgedType string, measuredSize int64) (Object, error) {
-	if o.Status == StatusReady {
+	if o.Status != StatusPending {
 		return Object{}, shared.ErrConflict.WithDetail("media.already_confirmed")
 	}
 	if o.DeletedAt != nil {
@@ -190,16 +196,45 @@ func (o Object) Sealed(judgedType string, measuredSize int64) (Object, error) {
 	return o, nil
 }
 
+// HeldForScan returns the object sealed and held for a scan: the judgement recorded, the bytes not served
+// until a scan clears them (security.md §4, T-11).
+func (o Object) HeldForScan(judgedType string, measuredSize int64) (Object, error) {
+	sealed, err := o.Sealed(judgedType, measuredSize)
+	if err != nil {
+		return Object{}, err
+	}
+	sealed.Status = StatusPendingScan
+	return sealed, nil
+}
+
+// Held reports whether the object waits for a scan.
+func (o Object) Held() bool { return o.Status == StatusPendingScan }
+
+// Scanned settles a held object by the scan's verdict: READY when clean, INFECTED when not.
+func (o Object) Scanned(malicious bool) (Object, error) {
+	if o.Status != StatusPendingScan {
+		return Object{}, shared.ErrConflict.WithDetail("media.not_held")
+	}
+	o.Status = StatusReady
+	if malicious {
+		o.Status = StatusInfected
+	}
+	return o, nil
+}
+
 // Attachable answers whether the object may join an item right now - as a cover or an
 // attachment, which is what its usage says it was staged for.
 func (o Object) Attachable(usage Usage) error {
 	if o.DeletedAt != nil {
 		return notFound()
 	}
-	if o.Status != StatusReady {
-		return shared.ErrValidation.
-			WithDetail("media.not_ready").
-			WithFields(shared.FieldError{Path: "/media_id", Code: "media.not_ready"})
+	if o.Status == StatusInfected {
+		return Infected()
+	}
+	// A held object joins: what it is attached to serves nothing of it until a scan clears it, and
+	// refusing it would turn a scanner that is down into uploads that are down.
+	if o.Status != StatusReady && o.Status != StatusPendingScan {
+		return notReady()
 	}
 	if o.Usage != usage {
 		return shared.ErrValidation.
@@ -217,12 +252,29 @@ func (o Object) Portrayable() error {
 	if err := o.Attachable(UsageAvatar); err != nil {
 		return err
 	}
+	if o.Status != StatusReady {
+		// Shown to every member beside a name: a picture is drawn, so a held one is not one yet.
+		return notReady()
+	}
 	if DeliveryFor(o.ContentType) != DispositionInline {
 		return shared.ErrValidation.
 			WithDetail("media.avatar_not_an_image").
 			WithFields(shared.FieldError{Path: "/media_id", Code: "media.avatar_not_an_image"})
 	}
 	return nil
+}
+
+// Infected is the refusal of a file a scan found malicious.
+func Infected() error {
+	return shared.ErrValidation.
+		WithDetail("media.infected").
+		WithFields(shared.FieldError{Path: "/media_id", Code: "media.infected"})
+}
+
+func notReady() error {
+	return shared.ErrValidation.
+		WithDetail("media.not_ready").
+		WithFields(shared.FieldError{Path: "/media_id", Code: "media.not_ready"})
 }
 
 // notFound is the one answer for an object on its way out, and it carries a code because the

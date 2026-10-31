@@ -20,15 +20,31 @@ FROM media_object
 WHERE id = $1;
 
 -- name: SealMediaObject :execrows
--- The confirmation's write: PENDING becomes READY, carrying the judged type and the measured
--- size. Matches only a live PENDING row, so a double confirmation and a confirmation racing the
--- reconciliation job both come back as zero rows - the caller reads the row again and answers
--- from what it finds.
+-- The confirmation's write: PENDING becomes READY - or PENDING_SCAN, held for a scanner that could
+-- not answer - carrying the judged type and the measured size. Matches only a live PENDING row,
+-- so a double confirmation and a confirmation racing the reconciliation job both come back as zero
+-- rows - the caller reads the row again and answers from what it finds.
 UPDATE media_object SET
-  status    = 'READY',
+  status    = sqlc.arg('status'),
   mime_type = sqlc.arg('mime_type'),
   byte_size = sqlc.arg('byte_size')
 WHERE id = sqlc.arg('id')::uuid AND status = 'PENDING' AND deleted_at IS NULL;
+
+-- name: ListHeldMediaObjects :many
+-- The files held for a scan, oldest first: what the scan job takes up while the scanner answers
+-- again. media_object_reconcile_idx leads with (tenant_id, status).
+SELECT id, tenant_id, storage_key, file_name, mime_type, byte_size, checksum, usage, status,
+       ref_count, created_by, created_at, deleted_at
+FROM media_object
+WHERE status = 'PENDING_SCAN' AND deleted_at IS NULL
+ORDER BY created_at, id
+LIMIT sqlc.arg('batch');
+
+-- name: SettleMediaScan :execrows
+-- A scan's verdict on a held file: READY, or INFECTED. Matches only a live held row, so two
+-- scans of one file settle it once.
+UPDATE media_object SET status = sqlc.arg('status')
+WHERE id = sqlc.arg('id')::uuid AND status = 'PENDING_SCAN' AND deleted_at IS NULL;
 
 -- name: AdjustMediaRefCount :execrows
 -- The fast half of reference counting: the use case that adds or drops a reference moves the
@@ -103,7 +119,7 @@ UPDATE media_object SET deleted_at = sqlc.arg('now')
 WHERE deleted_at IS NULL
   AND ref_count = 0
   AND (
-    (status = 'READY'
+    (status IN ('READY', 'PENDING_SCAN', 'INFECTED')
       AND unreferenced_since IS NOT NULL
       AND unreferenced_since < sqlc.arg('unreferenced_before'))
     OR (status = 'PENDING' AND created_at < sqlc.arg('pending_before'))

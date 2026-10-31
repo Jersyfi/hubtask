@@ -217,3 +217,54 @@ func detailOf(err error) string {
 	}
 	return shared.AsError(err).DetailCode
 }
+
+// A file the scanner could not answer for is held: confirmed, attachable as a cover or an
+// attachment, never a picture, and cleared or found malicious once a scan answers.
+func TestAHeldObjectJoinsButIsSettledOnlyByAScan(t *testing.T) {
+	object, err := media.NewPendingObject(staging())
+	if err != nil {
+		t.Fatal(err)
+	}
+	held, err := object.HeldForScan("application/pdf", 4096)
+	if err != nil || held.Status != media.StatusPendingScan || held.ContentType != "application/pdf" {
+		t.Fatalf("held %+v, %v", held, err)
+	}
+	if _, err := held.Sealed("application/pdf", 4096); shared.AsError(err).DetailCode != "media.already_confirmed" {
+		t.Errorf("sealing a held object was answered with %v", err)
+	}
+	if err := held.Attachable(media.UsageAttachment); err != nil {
+		t.Errorf("a held attachment was refused: %v", err)
+	}
+	if !held.Held() || object.Held() {
+		t.Errorf("Held() answered %v for the held object and %v for the staged one", held.Held(), object.Held())
+	}
+
+	cleared, err := held.Scanned(false)
+	if err != nil || cleared.Status != media.StatusReady {
+		t.Errorf("a clean scan answered %+v, %v", cleared, err)
+	}
+	infected, err := held.Scanned(true)
+	if err != nil || infected.Status != media.StatusInfected {
+		t.Errorf("a malicious scan answered %+v, %v", infected, err)
+	}
+	if err := infected.Attachable(media.UsageAttachment); shared.AsError(err).DetailCode != "media.infected" {
+		t.Errorf("an infected object joined: %v", err)
+	}
+	if _, err := cleared.Scanned(false); shared.AsError(err).DetailCode != "media.not_held" {
+		t.Errorf("scanning what is not held was answered with %v", err)
+	}
+
+	avatar := staging()
+	avatar.Usage = media.UsageAvatar
+	picture, err := media.NewPendingObject(avatar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	heldPicture, err := picture.HeldForScan("image/png", 4096)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := heldPicture.Portrayable(); shared.AsError(err).DetailCode != "media.not_ready" {
+		t.Errorf("a held picture was shown: %v", err)
+	}
+}

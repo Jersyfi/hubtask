@@ -6336,14 +6336,20 @@ func (e MailboxPresetProtocol) Valid() bool {
 
 // Defines values for MediaObjectStatus.
 const (
-	MediaObjectStatusPENDING MediaObjectStatus = "PENDING"
-	MediaObjectStatusREADY   MediaObjectStatus = "READY"
+	MediaObjectStatusINFECTED    MediaObjectStatus = "INFECTED"
+	MediaObjectStatusPENDING     MediaObjectStatus = "PENDING"
+	MediaObjectStatusPENDINGSCAN MediaObjectStatus = "PENDING_SCAN"
+	MediaObjectStatusREADY       MediaObjectStatus = "READY"
 )
 
 // Valid indicates whether the value is a known member of the MediaObjectStatus enum.
 func (e MediaObjectStatus) Valid() bool {
 	switch e {
+	case MediaObjectStatusINFECTED:
+		return true
 	case MediaObjectStatusPENDING:
+		return true
+	case MediaObjectStatusPENDINGSCAN:
 		return true
 	case MediaObjectStatusREADY:
 		return true
@@ -18372,7 +18378,7 @@ type MediaObject struct {
 	// Size Declared while PENDING, measured once READY.
 	Size int64 `json:"size"`
 
-	// Status PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Only READY objects can cover or be attached.
+	// Status PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Where the installation scans uploads, PENDING_SCAN is a confirmed object held while the scanner could not answer: it may cover or be attached, and is never downloaded until the scan clears it. INFECTED is one a later scan found malicious: its bytes are gone, and it is never downloaded. Only READY and PENDING_SCAN objects can cover or be attached.
 	Status MediaObjectStatus `json:"status"`
 
 	// Upload Where to put the bytes, present in the answer that staged the upload and on a GET while the object is PENDING and the target has not expired.
@@ -18380,7 +18386,7 @@ type MediaObject struct {
 	Usage  MediaObjectUsage `json:"usage"`
 }
 
-// MediaObjectStatus PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Only READY objects can cover or be attached.
+// MediaObjectStatus PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Where the installation scans uploads, PENDING_SCAN is a confirmed object held while the scanner could not answer: it may cover or be attached, and is never downloaded until the scan clears it. INFECTED is one a later scan found malicious: its bytes are gone, and it is never downloaded. Only READY and PENDING_SCAN objects can cover or be attached.
 type MediaObjectStatus string
 
 // MediaObjectUsage defines model for MediaObject.Usage.
@@ -35958,7 +35964,7 @@ type ClientInterface interface {
 
 	// ConfirmMediaUpload performs a POST /media/{mediaId}:confirm (the `ConfirmMediaUpload` operationId) request.
 	//
-	// Seals the upload: the server reads the object's head back from storage, sniffs it, checks the size against what was declared and against the installation's limit, and marks the object READY with the judged content type - never the claim. A refusal removes the staged bytes. Idempotent: confirming a READY object succeeds and changes nothing, which is what makes an upload confirmed twice one media object.
+	// Seals the upload: the server reads the object's head back from storage, sniffs it, checks the size against what was declared and against the installation's limit, and marks the object READY with the judged content type - never the claim. Where the installation scans uploads, the bytes are scanned too: a malicious file is refused with `media.infected`, and a file the scanner could not answer for is held PENDING_SCAN and scanned again until it answers. A refusal removes the staged bytes. Idempotent: confirming a READY or held object succeeds and changes nothing, which is what makes an upload confirmed twice one media object.
 	ConfirmMediaUpload(ctx context.Context, mediaId MediaId, params *ConfirmMediaUploadParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DownloadMediaContent performs a GET /media/{mediaId}:content (the `DownloadMediaContent` operationId) request.
@@ -53959,7 +53965,7 @@ func (c *Client) GetMedia(ctx context.Context, mediaId MediaId, reqEditors ...Re
 
 // ConfirmMediaUpload performs a POST /media/{mediaId}:confirm (the `ConfirmMediaUpload` operationId) request.
 //
-// Seals the upload: the server reads the object's head back from storage, sniffs it, checks the size against what was declared and against the installation's limit, and marks the object READY with the judged content type - never the claim. A refusal removes the staged bytes. Idempotent: confirming a READY object succeeds and changes nothing, which is what makes an upload confirmed twice one media object.
+// Seals the upload: the server reads the object's head back from storage, sniffs it, checks the size against what was declared and against the installation's limit, and marks the object READY with the judged content type - never the claim. Where the installation scans uploads, the bytes are scanned too: a malicious file is refused with `media.infected`, and a file the scanner could not answer for is held PENDING_SCAN and scanned again until it answers. A refusal removes the staged bytes. Idempotent: confirming a READY or held object succeeds and changes nothing, which is what makes an upload confirmed twice one media object.
 func (c *Client) ConfirmMediaUpload(ctx context.Context, mediaId MediaId, params *ConfirmMediaUploadParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConfirmMediaUploadRequest(c.Server, mediaId, params)
 	if err != nil {
@@ -105414,7 +105420,7 @@ type ClientWithResponsesInterface interface {
 
 	// ConfirmMediaUploadWithResponse performs a POST /media/{mediaId}:confirm (the `ConfirmMediaUpload` operationId) request.
 	//
-	// Seals the upload: the server reads the object's head back from storage, sniffs it, checks the size against what was declared and against the installation's limit, and marks the object READY with the judged content type - never the claim. A refusal removes the staged bytes. Idempotent: confirming a READY object succeeds and changes nothing, which is what makes an upload confirmed twice one media object.
+	// Seals the upload: the server reads the object's head back from storage, sniffs it, checks the size against what was declared and against the installation's limit, and marks the object READY with the judged content type - never the claim. Where the installation scans uploads, the bytes are scanned too: a malicious file is refused with `media.infected`, and a file the scanner could not answer for is held PENDING_SCAN and scanned again until it answers. A refusal removes the staged bytes. Idempotent: confirming a READY or held object succeeds and changes nothing, which is what makes an upload confirmed twice one media object.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	ConfirmMediaUploadWithResponse(ctx context.Context, mediaId MediaId, params *ConfirmMediaUploadParams, reqEditors ...RequestEditorFn) (*ConfirmMediaUploadResult, error)
@@ -159002,7 +159008,7 @@ func (c *ClientWithResponses) GetMediaWithResponse(ctx context.Context, mediaId 
 
 // ConfirmMediaUploadWithResponse performs a POST /media/{mediaId}:confirm (the `ConfirmMediaUpload` operationId) request.
 //
-// Seals the upload: the server reads the object's head back from storage, sniffs it, checks the size against what was declared and against the installation's limit, and marks the object READY with the judged content type - never the claim. A refusal removes the staged bytes. Idempotent: confirming a READY object succeeds and changes nothing, which is what makes an upload confirmed twice one media object.
+// Seals the upload: the server reads the object's head back from storage, sniffs it, checks the size against what was declared and against the installation's limit, and marks the object READY with the judged content type - never the claim. Where the installation scans uploads, the bytes are scanned too: a malicious file is refused with `media.infected`, and a file the scanner could not answer for is held PENDING_SCAN and scanned again until it answers. A refusal removes the staged bytes. Idempotent: confirming a READY or held object succeeds and changes nothing, which is what makes an upload confirmed twice one media object.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ConfirmMediaUploadWithResponse(ctx context.Context, mediaId MediaId, params *ConfirmMediaUploadParams, reqEditors ...RequestEditorFn) (*ConfirmMediaUploadResult, error) {

@@ -4236,7 +4236,7 @@ class MediaObject(TypedDict, total=False):
     size: Required[int]
     checksum: str | None
     usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR"]]
-    status: Required[Literal["PENDING", "READY"]]
+    status: Required[Literal["PENDING", "READY", "PENDING_SCAN", "INFECTED"]]
     ref_count: Required[int]
     created_by: Required[str]
     created_at: Required[str]

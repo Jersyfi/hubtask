@@ -20616,14 +20616,17 @@ paths:
       description: >
         Seals the upload: the server reads the object's head back from storage, sniffs it, checks
         the size against what was declared and against the installation's limit, and marks the
-        object READY with the judged content type - never the claim. A refusal removes the
-        staged bytes. Idempotent: confirming a READY object succeeds and changes nothing, which
-        is what makes an upload confirmed twice one media object.
+        object READY with the judged content type - never the claim. Where the installation
+        scans uploads, the bytes are scanned too: a malicious file is refused with
+        `media.infected`, and a file the scanner could not answer for is held PENDING_SCAN and
+        scanned again until it answers. A refusal removes the staged bytes. Idempotent:
+        confirming a READY or held object succeeds and changes nothing, which is what makes an
+        upload confirmed twice one media object.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200":
-          description: The object, READY
+          description: The object, READY or held for a scan
           content:
             application/json:
               schema:
@@ -33793,10 +33796,14 @@ components:
           enum: [COVER, ATTACHMENT, IMPORT, AVATAR]
         status:
           type: string
-          enum: [PENDING, READY]
+          enum: [PENDING, READY, PENDING_SCAN, INFECTED]
           description: >
             PENDING between staging and confirmation; READY once the bytes were read back,
-            judged and sealed. Only READY objects can cover or be attached.
+            judged and sealed. Where the installation scans uploads, PENDING_SCAN is a confirmed
+            object held while the scanner could not answer: it may cover or be attached, and is
+            never downloaded until the scan clears it. INFECTED is one a later scan found
+            malicious: its bytes are gone, and it is never downloaded. Only READY and PENDING_SCAN
+            objects can cover or be attached.
         ref_count:
           type: integer
           description: >
