@@ -10807,6 +10807,7 @@
   "app.consent.scope.config_apply_workflows": "Workflows der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_settings": "Einstellungen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_structure": "Struktur der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_pages": "Schreibweise der Seiten aus der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_scheme": "Workflow-Schemata der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_tolerance": "Zeittoleranz der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_collection_structure": "Struktur der Sammlungen der Konfiguration anwenden, ohne deren eigenen Bereich",

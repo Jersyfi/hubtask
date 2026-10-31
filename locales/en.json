@@ -10807,6 +10807,7 @@
   "app.consent.scope.config_apply_workflows": "Apply the configuration's workflows without their own permission scope",
   "app.consent.scope.config_apply_settings": "Apply the configuration's settings without their own permission scope",
   "app.consent.scope.config_apply_structure": "Apply the configuration's structure without their own permission scope",
+  "app.consent.scope.config_apply_pages": "Apply the configuration's way of writing pages without its own permission scope",
   "app.consent.scope.config_apply_scheme": "Apply the configuration's workflow schemes without their own permission scope",
   "app.consent.scope.config_apply_tolerance": "Apply the configuration's time tolerance without its own permission scope",
   "app.consent.scope.config_apply_collection_structure": "Apply the configuration's collection structure without its own permission scope",
