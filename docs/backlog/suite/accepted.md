@@ -175,4 +175,5 @@ The bar for the role reviews and the UI/UX run:
   newcomer is guided rather than handed every setting at once (progressive disclosure).
 - Every bug found by clicking through is fixed.
 - A workspace pre-filled with realistic data in every product, so the owner can see what exists,
-  and a design direction with mockups shown to the owner before the screens are rebuilt.
+  and a design direction with mockups written into the repository and then built. The owner
+  said the same day that the direction is not presented for approval but built as planned.
