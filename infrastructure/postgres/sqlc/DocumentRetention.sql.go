@@ -11,6 +11,74 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countAgedWhiteboardThreads = `-- name: CountAgedWhiteboardThreads :one
+SELECT count(*) FROM (
+  SELECT 1 FROM whiteboard_comment t
+  JOIN whiteboard b ON b.tenant_id = t.tenant_id AND b.id = t.whiteboard_id
+  WHERE t.tenant_id = current_tenant_id() AND t.parent_id IS NULL
+    AND t.resolved_at IS NOT NULL AND t.resolved_at < $1::timestamptz
+    AND NOT (b.hub_id = ANY(coalesce($2::uuid[], '{}')))
+    AND NOT EXISTS (
+      SELECT 1 FROM whiteboard_comment w
+       WHERE w.tenant_id = t.tenant_id AND (w.id = t.id OR w.parent_id = t.id)
+         AND w.author_id = ANY(coalesce($3::uuid[], '{}')))
+  LIMIT $4::int
+) AS due
+`
+
+type CountAgedWhiteboardThreadsParams struct {
+	Cutoff       pgtype.Timestamptz
+	HeldHubs     []pgtype.UUID
+	HeldAccounts []pgtype.UUID
+	Ceiling      int32
+}
+
+func (q *Queries) CountAgedWhiteboardThreads(ctx context.Context, arg CountAgedWhiteboardThreadsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAgedWhiteboardThreads,
+		arg.Cutoff,
+		arg.HeldHubs,
+		arg.HeldAccounts,
+		arg.Ceiling,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countAgedWhiteboardVersions = `-- name: CountAgedWhiteboardVersions :one
+SELECT count(*) FROM (
+  SELECT 1 FROM whiteboard_version d
+  JOIN whiteboard b ON b.tenant_id = d.tenant_id AND b.id = d.whiteboard_id
+  WHERE d.tenant_id = current_tenant_id() AND d.name = ''
+    AND d.created_at < $1::timestamptz
+    AND NOT (b.hub_id = ANY(coalesce($2::uuid[], '{}')))
+    AND (d.author_id IS NULL OR NOT (d.author_id = ANY(coalesce($3::uuid[], '{}'))))
+    AND EXISTS (
+      SELECT 1 FROM whiteboard_version n
+       WHERE n.tenant_id = d.tenant_id AND n.whiteboard_id = d.whiteboard_id AND n.seq > d.seq)
+  LIMIT $4::int
+) AS due
+`
+
+type CountAgedWhiteboardVersionsParams struct {
+	Cutoff       pgtype.Timestamptz
+	HeldHubs     []pgtype.UUID
+	HeldAccounts []pgtype.UUID
+	Ceiling      int32
+}
+
+func (q *Queries) CountAgedWhiteboardVersions(ctx context.Context, arg CountAgedWhiteboardVersionsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAgedWhiteboardVersions,
+		arg.Cutoff,
+		arg.HeldHubs,
+		arg.HeldAccounts,
+		arg.Ceiling,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countThinnedPageVersions = `-- name: CountThinnedPageVersions :one
 SELECT count(*) FROM (
   SELECT 1 FROM page_version d
@@ -44,6 +112,85 @@ func (q *Queries) CountThinnedPageVersions(ctx context.Context, arg CountThinned
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const deleteAgedWhiteboardThreads = `-- name: DeleteAgedWhiteboardThreads :execrows
+DELETE FROM whiteboard_comment c
+WHERE (c.tenant_id, c.id) IN (
+  SELECT t.tenant_id, t.id FROM whiteboard_comment t
+  JOIN whiteboard b ON b.tenant_id = t.tenant_id AND b.id = t.whiteboard_id
+  WHERE t.tenant_id = current_tenant_id() AND t.parent_id IS NULL
+    AND t.resolved_at IS NOT NULL AND t.resolved_at < $1::timestamptz
+    AND NOT (b.hub_id = ANY(coalesce($2::uuid[], '{}')))
+    AND NOT EXISTS (
+      SELECT 1 FROM whiteboard_comment w
+       WHERE w.tenant_id = t.tenant_id AND (w.id = t.id OR w.parent_id = t.id)
+         AND w.author_id = ANY(coalesce($3::uuid[], '{}')))
+  ORDER BY t.resolved_at
+  LIMIT $4::int
+)
+`
+
+type DeleteAgedWhiteboardThreadsParams struct {
+	Cutoff       pgtype.Timestamptz
+	HeldHubs     []pgtype.UUID
+	HeldAccounts []pgtype.UUID
+	Batch        int32
+}
+
+func (q *Queries) DeleteAgedWhiteboardThreads(ctx context.Context, arg DeleteAgedWhiteboardThreadsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAgedWhiteboardThreads,
+		arg.Cutoff,
+		arg.HeldHubs,
+		arg.HeldAccounts,
+		arg.Batch,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteAgedWhiteboardVersions = `-- name: DeleteAgedWhiteboardVersions :execrows
+
+DELETE FROM whiteboard_version v
+WHERE (v.tenant_id, v.whiteboard_id, v.seq) IN (
+  SELECT d.tenant_id, d.whiteboard_id, d.seq FROM whiteboard_version d
+  JOIN whiteboard b ON b.tenant_id = d.tenant_id AND b.id = d.whiteboard_id
+  WHERE d.tenant_id = current_tenant_id() AND d.name = ''
+    AND d.created_at < $1::timestamptz
+    AND NOT (b.hub_id = ANY(coalesce($2::uuid[], '{}')))
+    AND (d.author_id IS NULL OR NOT (d.author_id = ANY(coalesce($3::uuid[], '{}'))))
+    AND EXISTS (
+      SELECT 1 FROM whiteboard_version n
+       WHERE n.tenant_id = d.tenant_id AND n.whiteboard_id = d.whiteboard_id AND n.seq > d.seq)
+  ORDER BY d.created_at
+  LIMIT $4::int
+)
+`
+
+type DeleteAgedWhiteboardVersionsParams struct {
+	Cutoff       pgtype.Timestamptz
+	HeldHubs     []pgtype.UUID
+	HeldAccounts []pgtype.UUID
+	Batch        int32
+}
+
+// A whiteboard's history past the workspace's WHITEBOARD_HISTORY period (UC-CNV-06, UC-CNV-09):
+// unnamed versions that are not their board's newest, oldest first, and threads resolved before the
+// cutoff, whose replies go by the parent's cascade. A board in a held hub stays, and so does a
+// version by a held or restricted author or a thread one of them wrote in.
+func (q *Queries) DeleteAgedWhiteboardVersions(ctx context.Context, arg DeleteAgedWhiteboardVersionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAgedWhiteboardVersions,
+		arg.Cutoff,
+		arg.HeldHubs,
+		arg.HeldAccounts,
+		arg.Batch,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteThinnedPageVersions = `-- name: DeleteThinnedPageVersions :execrows

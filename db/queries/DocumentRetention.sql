@@ -98,3 +98,68 @@ SELECT count(*) FROM (
          AND (n.created_at AT TIME ZONE 'UTC')::date = (d.created_at AT TIME ZONE 'UTC')::date)
   LIMIT sqlc.arg('ceiling')::int
 ) AS due;
+
+-- A whiteboard's history past the workspace's WHITEBOARD_HISTORY period (UC-CNV-06, UC-CNV-09):
+-- unnamed versions that are not their board's newest, oldest first, and threads resolved before the
+-- cutoff, whose replies go by the parent's cascade. A board in a held hub stays, and so does a
+-- version by a held or restricted author or a thread one of them wrote in.
+
+-- name: DeleteAgedWhiteboardVersions :execrows
+DELETE FROM whiteboard_version v
+WHERE (v.tenant_id, v.whiteboard_id, v.seq) IN (
+  SELECT d.tenant_id, d.whiteboard_id, d.seq FROM whiteboard_version d
+  JOIN whiteboard b ON b.tenant_id = d.tenant_id AND b.id = d.whiteboard_id
+  WHERE d.tenant_id = current_tenant_id() AND d.name = ''
+    AND d.created_at < sqlc.arg('cutoff')::timestamptz
+    AND NOT (b.hub_id = ANY(coalesce(sqlc.narg('held_hubs')::uuid[], '{}')))
+    AND (d.author_id IS NULL OR NOT (d.author_id = ANY(coalesce(sqlc.narg('held_accounts')::uuid[], '{}'))))
+    AND EXISTS (
+      SELECT 1 FROM whiteboard_version n
+       WHERE n.tenant_id = d.tenant_id AND n.whiteboard_id = d.whiteboard_id AND n.seq > d.seq)
+  ORDER BY d.created_at
+  LIMIT sqlc.arg('batch')::int
+);
+
+-- name: CountAgedWhiteboardVersions :one
+SELECT count(*) FROM (
+  SELECT 1 FROM whiteboard_version d
+  JOIN whiteboard b ON b.tenant_id = d.tenant_id AND b.id = d.whiteboard_id
+  WHERE d.tenant_id = current_tenant_id() AND d.name = ''
+    AND d.created_at < sqlc.arg('cutoff')::timestamptz
+    AND NOT (b.hub_id = ANY(coalesce(sqlc.narg('held_hubs')::uuid[], '{}')))
+    AND (d.author_id IS NULL OR NOT (d.author_id = ANY(coalesce(sqlc.narg('held_accounts')::uuid[], '{}'))))
+    AND EXISTS (
+      SELECT 1 FROM whiteboard_version n
+       WHERE n.tenant_id = d.tenant_id AND n.whiteboard_id = d.whiteboard_id AND n.seq > d.seq)
+  LIMIT sqlc.arg('ceiling')::int
+) AS due;
+
+-- name: DeleteAgedWhiteboardThreads :execrows
+DELETE FROM whiteboard_comment c
+WHERE (c.tenant_id, c.id) IN (
+  SELECT t.tenant_id, t.id FROM whiteboard_comment t
+  JOIN whiteboard b ON b.tenant_id = t.tenant_id AND b.id = t.whiteboard_id
+  WHERE t.tenant_id = current_tenant_id() AND t.parent_id IS NULL
+    AND t.resolved_at IS NOT NULL AND t.resolved_at < sqlc.arg('cutoff')::timestamptz
+    AND NOT (b.hub_id = ANY(coalesce(sqlc.narg('held_hubs')::uuid[], '{}')))
+    AND NOT EXISTS (
+      SELECT 1 FROM whiteboard_comment w
+       WHERE w.tenant_id = t.tenant_id AND (w.id = t.id OR w.parent_id = t.id)
+         AND w.author_id = ANY(coalesce(sqlc.narg('held_accounts')::uuid[], '{}')))
+  ORDER BY t.resolved_at
+  LIMIT sqlc.arg('batch')::int
+);
+
+-- name: CountAgedWhiteboardThreads :one
+SELECT count(*) FROM (
+  SELECT 1 FROM whiteboard_comment t
+  JOIN whiteboard b ON b.tenant_id = t.tenant_id AND b.id = t.whiteboard_id
+  WHERE t.tenant_id = current_tenant_id() AND t.parent_id IS NULL
+    AND t.resolved_at IS NOT NULL AND t.resolved_at < sqlc.arg('cutoff')::timestamptz
+    AND NOT (b.hub_id = ANY(coalesce(sqlc.narg('held_hubs')::uuid[], '{}')))
+    AND NOT EXISTS (
+      SELECT 1 FROM whiteboard_comment w
+       WHERE w.tenant_id = t.tenant_id AND (w.id = t.id OR w.parent_id = t.id)
+         AND w.author_id = ANY(coalesce(sqlc.narg('held_accounts')::uuid[], '{}')))
+  LIMIT sqlc.arg('ceiling')::int
+) AS due;

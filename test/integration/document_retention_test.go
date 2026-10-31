@@ -107,3 +107,130 @@ func TestTheDocumentRetentionStaysInItsWorkspaceAndKeepsWhatItMust(t *testing.T)
 func postgresDocument(id shared.ID) lifecycle.TrashedDocument {
 	return lifecycle.TrashedDocument{Entity: "page", ID: id}
 }
+
+// WHITEBOARD_HISTORY against the real statements (UC-CNV-06 check 5): another workspace's pass
+// removes nothing of this one's; this one's takes an unnamed version past the cutoff and a thread
+// resolved before it with its reply, while a named version, the board's newest, an open thread and
+// a thread a held author wrote in stay.
+func TestABoardsHistoryAgesOutInItsWorkspaceAndKeepsWhatItMust(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	pool := adminPool(ctx, t)
+	var hub string
+	if err := pool.QueryRow(ctx, `SELECT parent_id::text FROM container WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), collection.String()).Scan(&hub); err != nil {
+		t.Fatalf("reading the hub: %v", err)
+	}
+	long := time.Now().UTC().AddDate(0, 0, -200)
+	board := freshID(t)
+	if _, err := pool.Exec(ctx, `INSERT INTO whiteboard (id, tenant_id, hub_id, title, created_by, created_at,
+		updated_by, updated_at) VALUES ($1, $2, $3, 'B', $4, $5, $4, $5)`,
+		board.String(), tenantA.String(), hub, authorA.String(), long); err != nil {
+		t.Fatalf("writing a board: %v", err)
+	}
+	for seq, name := range []string{"", "Agreed", "", ""} {
+		if _, err := pool.Exec(ctx, `INSERT INTO whiteboard_version (tenant_id, whiteboard_id, seq, title, scene, name, created_at)
+			VALUES ($1, $2, $3, 'B', '[]', $4, $5)`, tenantA.String(), board.String(), seq+1, name, long.Add(time.Duration(seq)*time.Hour)); err != nil {
+			t.Fatalf("writing a version: %v", err)
+		}
+	}
+	comment := func(parent any, author string, resolved any) shared.ID {
+		t.Helper()
+		id := freshID(t)
+		if _, err := pool.Exec(ctx, `INSERT INTO whiteboard_comment (id, tenant_id, whiteboard_id, parent_id, author_id, body,
+			resolved_at, created_at) VALUES ($1, $2, $3, $4, $5, 'c', $6, $7)`,
+			id.String(), tenantA.String(), board.String(), parent, author, resolved, long); err != nil {
+			t.Fatalf("writing a comment: %v", err)
+		}
+		return id
+	}
+	gone := comment(nil, authorA.String(), long)
+	comment(gone.String(), authorA.String(), nil)
+	open := comment(nil, authorA.String(), nil)
+	held := comment(nil, authorA.String(), long)
+	heldAuthor := freshID(t).String()
+	if _, err := pool.Exec(ctx, `INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Held')`,
+		heldAuthor, tenantA.String()); err != nil {
+		t.Fatalf("writing the held author: %v", err)
+	}
+	comment(held.String(), heldAuthor, nil)
+
+	history := postgres.WhiteboardHistoryAging{}
+	cutoff := time.Now().UTC().AddDate(0, 0, -30)
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		n, err := history.DeleteAged(ctx, cutoff, nil, nil, 100)
+		if err != nil || n != 0 {
+			t.Errorf("another workspace aged out %d rows (%v)", n, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	heldAccounts := []shared.ID{shared.MustParseID(heldAuthor)}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		due, err := history.CountAged(ctx, cutoff, nil, heldAccounts, 100)
+		if err != nil {
+			return err
+		}
+		n, err := history.DeleteAged(ctx, cutoff, nil, heldAccounts, 100)
+		if err != nil {
+			return err
+		}
+		if n != due {
+			t.Errorf("counted %d due and removed %d", due, n)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var seqs []int32
+	rows, err := pool.Query(ctx, `SELECT seq FROM whiteboard_version WHERE tenant_id = $1 AND whiteboard_id = $2 ORDER BY seq`,
+		tenantA.String(), board.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var seq int32
+		if err := rows.Scan(&seq); err != nil {
+			t.Fatal(err)
+		}
+		seqs = append(seqs, seq)
+	}
+	rows.Close()
+	if len(seqs) != 2 || seqs[0] != 2 || seqs[1] != 4 {
+		t.Errorf("versions left %v, want the named 2 and the newest 4", seqs)
+	}
+	var left []string
+	rows, err = pool.Query(ctx, `SELECT id::text FROM whiteboard_comment WHERE tenant_id = $1 AND whiteboard_id = $2 AND parent_id IS NULL`,
+		tenantA.String(), board.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		left = append(left, id)
+	}
+	rows.Close()
+	if len(left) != 2 || !containsText(left, open.String()) || !containsText(left, held.String()) {
+		t.Errorf("threads left %v, want the open one and the held one", left)
+	}
+	var replies int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM whiteboard_comment WHERE tenant_id = $1 AND parent_id = $2`,
+		tenantA.String(), gone.String()).Scan(&replies); err != nil || replies != 0 {
+		t.Errorf("%d replies of the removed thread stayed (%v)", replies, err)
+	}
+}
+
+func containsText(list []string, want string) bool {
+	for _, each := range list {
+		if each == want {
+			return true
+		}
+	}
+	return false
+}

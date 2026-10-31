@@ -218,3 +218,83 @@ func TestPageVersionsAreThinnedAfterNinetyDaysAndHoldsKeepThem(t *testing.T) {
 		t.Errorf("a workspace hold left %d of 3 and reported %+v", versions.due, outcome)
 	}
 }
+
+// boardHistoryStore stands in for the board history's statement: it records what the pass asked.
+type boardHistoryStore struct {
+	due      int
+	asked    time.Time
+	hubs     []shared.ID
+	accounts []shared.ID
+}
+
+func (s *boardHistoryStore) DeleteAged(_ context.Context, cutoff time.Time, hubs, accounts []shared.ID, batch int) (int, error) {
+	s.asked, s.hubs, s.accounts = cutoff, hubs, accounts
+	n := min(s.due, batch)
+	s.due -= n
+	return n, nil
+}
+
+func (s *boardHistoryStore) CountAged(_ context.Context, _ time.Time, _, _ []shared.ID, ceiling int) (int, error) {
+	return min(s.due, ceiling), nil
+}
+
+// WHITEBOARD_HISTORY (UC-CNV-06 check 5): kept whole without the workspace's rule, and with a rule
+// that only announces; aged out past the period of a workspace's HARD_DELETE rule, a hub's or an
+// account's hold handed to the statement and a workspace's hold stopping it.
+func TestABoardsHistoryIsKeptUnlessTheWorkspaceAgesItOut(t *testing.T) {
+	rule := func(action domain.Action, enabled bool) *ruleStore {
+		return &ruleStore{stored: []domain.Rule{{
+			ID: holdID, Scope: domain.Scope{Kind: domain.ScopeTenant}, DataKind: domain.KindWhiteboardHistory,
+			RetainDays: 180, Action: action, Enabled: enabled,
+		}}}
+	}
+	for _, tc := range []struct {
+		name  string
+		rules *ruleStore
+	}{
+		{"no rule", &ruleStore{}},
+		{"a rule that only announces", rule(domain.ActionNotifyOnly, true)},
+		{"a rule switched off", rule(domain.ActionHardDelete, false)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newRunHarness()
+			history := &boardHistoryStore{due: 3}
+			h.run.Documents = DocumentSweep{Whiteboards: history, Rules: tc.rules}
+			if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+				t.Fatalf("the run failed: %v", err)
+			}
+			if history.due != 3 || !history.asked.IsZero() {
+				t.Fatalf("%d of 3 left, asked for %v", history.due, history.asked)
+			}
+		})
+	}
+
+	h := newRunHarness()
+	history := &boardHistoryStore{due: 3}
+	h.run.Documents = DocumentSweep{Whiteboards: history, Rules: rule(domain.ActionHardDelete, true)}
+	h.holds.holds = domain.Holds{
+		{ID: holdID, Scope: domain.HoldContainer, ScopeID: hubID, Reason: "Audit"},
+		{ID: holdID, Scope: domain.HoldAccount, ScopeID: accountID, Reason: "Audit"},
+	}
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+	if want := now.AddDate(0, 0, -180); !history.asked.Equal(want) {
+		t.Errorf("the cutoff was %v, want %v", history.asked, want)
+	}
+	if history.due != 0 || !slices.Contains(history.hubs, hubID) || !slices.Contains(history.accounts, accountID) {
+		t.Errorf("left %d, held hubs %v, accounts %v", history.due, history.hubs, history.accounts)
+	}
+
+	h = newRunHarness()
+	history = &boardHistoryStore{due: 3}
+	h.run.Documents = DocumentSweep{Whiteboards: history, Rules: rule(domain.ActionHardDelete, true)}
+	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+	if history.due != 3 || outcome.Blocked[BlockedByLegalHold] == 0 {
+		t.Errorf("a workspace hold left %d of 3 and reported %+v", history.due, outcome)
+	}
+}

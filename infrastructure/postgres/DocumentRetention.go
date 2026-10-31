@@ -23,6 +23,9 @@ type DocumentTrash struct{}
 // PageVersionThinning removes the page versions PAGE_VERSION lets go.
 type PageVersionThinning struct{}
 
+// WhiteboardHistoryAging removes the board history a workspace's WHITEBOARD_HISTORY rule lets go.
+type WhiteboardHistoryAging struct{}
+
 func documentRetentionFailed(what string, err error) error {
 	return shared.ErrUnavailable.WithDetail("postgres.query_failed").WithCause(fmt.Errorf("%s: %w", what, err))
 }
@@ -170,6 +173,64 @@ func (PageVersionThinning) CountThinned(
 		return 0, documentRetentionFailed("counting thinned page versions", err)
 	}
 	return int(n), nil
+}
+
+// DeleteAged removes a batch of aged versions, then of resolved threads in what room is left.
+func (WhiteboardHistoryAging) DeleteAged(
+	ctx context.Context, cutoff time.Time, heldHubs, heldAccounts []shared.ID, batch int,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	hubs, accounts, err := heldArrays(heldHubs, heldAccounts)
+	if err != nil {
+		return 0, err
+	}
+	versions, err := queries.DeleteAgedWhiteboardVersions(ctx, sqlc.DeleteAgedWhiteboardVersionsParams{
+		Cutoff: timestampOf(cutoff), HeldHubs: hubs, HeldAccounts: accounts, Batch: boundedInt32(batch),
+	})
+	if err != nil {
+		return 0, documentRetentionFailed("ageing out board versions", err)
+	}
+	room := batch - int(versions)
+	if room <= 0 {
+		return int(versions), nil
+	}
+	threads, err := queries.DeleteAgedWhiteboardThreads(ctx, sqlc.DeleteAgedWhiteboardThreadsParams{
+		Cutoff: timestampOf(cutoff), HeldHubs: hubs, HeldAccounts: accounts, Batch: boundedInt32(room),
+	})
+	if err != nil {
+		return 0, documentRetentionFailed("ageing out resolved board threads", err)
+	}
+	return int(versions + threads), nil
+}
+
+// CountAged counts the versions and threads due, up to ceiling.
+func (WhiteboardHistoryAging) CountAged(
+	ctx context.Context, cutoff time.Time, heldHubs, heldAccounts []shared.ID, ceiling int,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	hubs, accounts, err := heldArrays(heldHubs, heldAccounts)
+	if err != nil {
+		return 0, err
+	}
+	versions, err := queries.CountAgedWhiteboardVersions(ctx, sqlc.CountAgedWhiteboardVersionsParams{
+		Cutoff: timestampOf(cutoff), HeldHubs: hubs, HeldAccounts: accounts, Ceiling: boundedInt32(ceiling),
+	})
+	if err != nil {
+		return 0, documentRetentionFailed("counting aged board versions", err)
+	}
+	threads, err := queries.CountAgedWhiteboardThreads(ctx, sqlc.CountAgedWhiteboardThreadsParams{
+		Cutoff: timestampOf(cutoff), HeldHubs: hubs, HeldAccounts: accounts, Ceiling: boundedInt32(ceiling),
+	})
+	if err != nil {
+		return 0, documentRetentionFailed("counting aged board threads", err)
+	}
+	return min(int(versions+threads), ceiling), nil
 }
 
 func heldArrays(hubs, accounts []shared.ID) (heldHubs, heldAccounts []pgtype.UUID, err error) {

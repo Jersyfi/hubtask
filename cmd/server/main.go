@@ -4417,10 +4417,12 @@ func run() error {
 			AgentJobs: postgres.AgentJobExpiry{},
 			// Requesters without an account, 24 months after their last contact (accepted.md B).
 			Requesters: postgres.RequesterRepository{IDs: ids},
-			// Pages and boards trashed on their own, after the trash's period, and page versions
-			// thinned after ninety days (accepted.md B).
+			// Pages and boards trashed on their own, after the trash's period, page versions
+			// thinned after ninety days (accepted.md B), and a board's history only under the
+			// workspace's own rule (WHITEBOARD_HISTORY).
 			Documents: lifecycle.DocumentSweep{
 				Trash: postgres.DocumentTrash{}, Versions: postgres.PageVersionThinning{},
+				Whiteboards: postgres.WhiteboardHistoryAging{}, Rules: postgres.NewRetentionRuleRepository(),
 				Changes: changes, HLC: hybrid,
 			},
 			// The SESSION kind: expired and revoked sessions age out through the engine,

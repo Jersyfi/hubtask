@@ -36,11 +36,23 @@ type PageVersions interface {
 	CountThinned(ctx context.Context, cutoff time.Time, heldHubs, heldAccounts []shared.ID, ceiling int) (int, error)
 }
 
+// WhiteboardHistory ages out a board's history (WHITEBOARD_HISTORY): unnamed versions created
+// before the cutoff that are not their board's newest, and threads resolved before it with their
+// replies. The held hubs and accounts are kept back by the statement itself, as PageVersions' are.
+type WhiteboardHistory interface {
+	DeleteAged(ctx context.Context, cutoff time.Time, heldHubs, heldAccounts []shared.ID, batch int) (int, error)
+	CountAged(ctx context.Context, cutoff time.Time, heldHubs, heldAccounts []shared.ID, ceiling int) (int, error)
+}
+
 // DocumentSweep is what the pass needs beyond the trash of entries for pages and boards. Optional
 // as a whole and per field: wired without it, the pass sweeps exactly what it did before.
 type DocumentSweep struct {
 	Trash    TrashedDocuments
 	Versions PageVersions
+	// Whiteboards is a board's history, swept only under the workspace's own rule, which
+	// Rules reads; the two come together or the history is kept.
+	Whiteboards WhiteboardHistory
+	Rules       repository.Rules
 	// Changes and HLC tell offline devices that a purged page or board is gone; a nil Changes
 	// records nothing, and the next walk leaves it out.
 	Changes changelog.ChangeLog
@@ -177,6 +189,63 @@ func (h RunRetention) sweepPageVersions(ctx context.Context, started time.Time) 
 	return h.sweepHeldByTenant(ctx, started, domain.KindPageVersion, scopedRows{
 		versions: h.Documents.Versions, hubs: hubs, accounts: accounts,
 	})
+}
+
+// sweepWhiteboardHistory ages out the boards' history under the workspace's rule for
+// WHITEBOARD_HISTORY, and keeps everything where there is none: the kind has no default period. A
+// rule that only announces (NOTIFY_ONLY, a broad rule's start) or is switched off removes nothing.
+// A hold on the workspace stops it; one on a hub or an account, and a restricted author, keep what
+// they cover back in the statement.
+func (h RunRetention) sweepWhiteboardHistory(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.Documents.Whiteboards == nil || h.Documents.Rules == nil {
+		return Outcome{}, nil
+	}
+	rule, found, err := workspaceRule(ctx, h.Documents.Rules, domain.KindWhiteboardHistory)
+	if err != nil || !found || rule.Action != domain.ActionHardDelete {
+		return Outcome{}, err
+	}
+	holds, err := h.Purger.Holds.Active(ctx)
+	if err != nil {
+		return Outcome{}, err
+	}
+	restricted, err := restrictionsOf(ctx, h.Purger.Restrictions)
+	if err != nil {
+		return Outcome{}, err
+	}
+	hubs, accounts := heldScopes(holds, restricted)
+	return h.sweepHeldUntil(ctx, started, domain.KindWhiteboardHistory, rule.Cutoff(started), boardRows{
+		history: h.Documents.Whiteboards, hubs: hubs, accounts: accounts,
+	})
+}
+
+// workspaceRule is the enabled rule naming the whole workspace for a kind; a kind's rules are
+// unique per scope, so there is at most one.
+func workspaceRule(ctx context.Context, rules repository.Rules, kind domain.DataKind) (domain.Rule, bool, error) {
+	all, err := rules.List(ctx)
+	if err != nil {
+		return domain.Rule{}, false, err
+	}
+	for _, rule := range rulesFor(all, kind) {
+		if rule.Scope.Kind == domain.ScopeTenant {
+			return rule, true, nil
+		}
+	}
+	return domain.Rule{}, false, nil
+}
+
+// boardRows adapts WhiteboardHistory to the tenant-held sweep's port.
+type boardRows struct {
+	history  WhiteboardHistory
+	hubs     []shared.ID
+	accounts []shared.ID
+}
+
+func (b boardRows) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	return b.history.DeleteAged(ctx, cutoff, b.hubs, b.accounts, batch)
+}
+
+func (b boardRows) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
+	return b.history.CountAged(ctx, cutoff, b.hubs, b.accounts, ceiling)
 }
 
 // heldScopes are the hubs and accounts a hold narrower than the workspace names, with the

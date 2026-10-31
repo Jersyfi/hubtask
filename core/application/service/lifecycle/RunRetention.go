@@ -63,7 +63,8 @@ type RunRetention struct {
 	AgentLedger   ExpiringRows
 	AgentRequests ExpiringRows
 	AgentJobs     ExpiringRows
-	// Documents are pages' and boards' trash and page versions (TRASH, PAGE_VERSION).
+	// Documents are pages' and boards' trash, page versions and boards' history (TRASH,
+	// PAGE_VERSION, WHITEBOARD_HISTORY).
 	Documents DocumentSweep
 	// Requesters is the record of requesters without an account (REQUESTER). Optional, the
 	// deliveries' reason.
@@ -367,6 +368,11 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	boards, err := h.sweepWhiteboardHistory(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	requesters := Outcome{}
 	if h.Requesters != nil {
 		if requesters, err = h.sweepHeldByTenant(ctx, started, domain.KindRequester, h.Requesters); err != nil {
@@ -449,6 +455,7 @@ func (h RunRetention) Execute(
 		outcome.add(swept)
 	}
 	outcome.add(versions)
+	outcome.add(boards)
 	outcome.add(requesters)
 	outcome.add(rules)
 	outcome.Matched += sessions.Matched
@@ -991,13 +998,19 @@ func (h RunRetention) sweepHeldByTenant(
 	if err != nil {
 		return Outcome{}, err
 	}
+	return h.sweepHeldUntil(ctx, started, kind, policy.Cutoff(started), rows)
+}
 
+// sweepHeldUntil is sweepHeldByTenant past the period's reading: one batch of rows older than the
+// cutoff, logged as a run and stopped by a hold on the whole workspace.
+func (h RunRetention) sweepHeldUntil(
+	ctx context.Context, started time.Time, kind domain.DataKind, cutoff time.Time, rows ExpiringRows,
+) (Outcome, error) {
 	runID := h.IDs.NewID()
 	if err := h.Runs.Start(ctx, runID, kind, started); err != nil {
 		return Outcome{}, err
 	}
 
-	cutoff := policy.Cutoff(started)
 	matched, err := rows.CountExpired(ctx, cutoff, h.Purger.BatchSize)
 	if err != nil {
 		return Outcome{}, err

@@ -79,6 +79,13 @@ func TestWhatARuleCannotMean(t *testing.T) {
 			func(in *domain.NewRuleInput) { in.Scope.ID = ruleColl },
 			domain.CodeScopeIDMismatch,
 		},
+		"a whiteboard history rule for one hub": {
+			func(in *domain.NewRuleInput) {
+				in.DataKind, in.Action = domain.KindWhiteboardHistory, domain.ActionHardDelete
+				in.Scope = domain.Scope{Kind: domain.ScopeHub, ID: ruleColl}
+			},
+			domain.CodeScopeWorkspaceOnly,
+		},
 		"a collection rule that names none": {
 			func(in *domain.NewRuleInput) { in.Scope = domain.Scope{Kind: domain.ScopeCollection} },
 			domain.CodeScopeIDMismatch,
@@ -354,7 +361,7 @@ func TestTheFirstBlockingReasonWins(t *testing.T) {
 // The catalogue is the document's, and every kind it names is here - with the ones nothing sweeps
 // marked rather than absent.
 func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
-	const documented = 27
+	const documented = 28
 	if len(domain.Catalogue()) != documented {
 		t.Fatalf("the catalogue has %d kinds, and data-retention.md §3 lists %d",
 			len(domain.Catalogue()), documented)

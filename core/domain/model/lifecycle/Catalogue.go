@@ -108,6 +108,10 @@ type Kind struct {
 	// MaxDays is the upper bound where the operator has set one, and nil where there is none.
 	// Exceeding it needs a justification and writes an audit entry (§4.4).
 	MaxDays *int
+	// WorkspaceOnly says a rule for this kind names the whole workspace: its rows sit in no
+	// collection a narrower rule could be matched against, so a hub's rule would be one the pass
+	// never reads, and it is refused rather than stored.
+	WorkspaceOnly bool
 	// Actions are what this build can do to this kind. An action outside the set is refused at
 	// configuration time rather than skipped at run time.
 	Actions []Action
@@ -335,6 +339,17 @@ var catalogue = []Kind{
 		Blockable: []string{BlockedByLegalHold},
 	},
 	{
+		// A whiteboard's history (UC-CNV-06, UC-CNV-09; accepted.md, second answers 6): its
+		// unnamed versions by their creation and its resolved threads, replies included, by their
+		// resolution. Kept whole unless the workspace writes a rule - no default period, because a
+		// board's history is the record of how a team decided. A named version, each board's newest
+		// version and an open thread stay whatever the rule says; a hold on the workspace, the
+		// board's hub or an author keeps what it covers, and so does a restricted author.
+		Name: KindWhiteboardHistory, Anchor: AnchorCreatedAt, WorkspaceOnly: true,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
 		// A requester without an account - somebody who wrote in by mail and whose request an
 		// account filed on their behalf (accepted.md B, data-protection.md §4): their address, name
 		// and which entries they wrote on, removed 24 months after they last wrote. The entries are
@@ -375,6 +390,7 @@ const (
 	KindAgentRequest          DataKind = "AGENT_REQUEST"
 	KindAgentJob              DataKind = "AGENT_JOB"
 	KindPageVersion           DataKind = "PAGE_VERSION"
+	KindWhiteboardHistory     DataKind = "WHITEBOARD_HISTORY"
 	KindRequester             DataKind = "REQUESTER"
 	KindDeletedAccountResidue DataKind = "DELETED_ACCOUNT_RESIDUE"
 )
