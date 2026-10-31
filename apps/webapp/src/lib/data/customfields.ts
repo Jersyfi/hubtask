@@ -54,7 +54,21 @@ export function definitionsFor(
 
 /** The kinds whose options are a closed set. Every other kind carries none. */
 export function takesOptions(kind: string): boolean {
-  return kind === 'SELECT' || kind === 'MULTI_SELECT';
+  return kind === 'SELECT' || kind === 'MULTI_SELECT' || kind === 'CASCADING_SELECT' || kind === 'STATUS';
+}
+
+/**
+ * The options a two-level choice offers, as the contract writes them: a parent, and a parent and a
+ * child joined by `/`, each child under a parent the list holds. Answers the first option that
+ * breaks the rule, so the dialog can name it before the server refuses it.
+ */
+export function cascadingOptionFault(options: readonly string[]): string | undefined {
+  for (const option of options) {
+    const parts = option.split('/');
+    if (parts.length > 2 || parts.some((part) => part.trim() === '')) return option;
+    if (parts.length === 2 && !options.includes(parts[0] as string)) return option;
+  }
+  return undefined;
 }
 
 /** The kind whose definition names a currency. Every other kind carries none. */
@@ -97,7 +111,7 @@ export function isValidCurrency(code: string): boolean {
 
 /** The kinds a value of which is several entries of a list rather than one. */
 function isListKind(kind: string): boolean {
-  return kind === 'MULTI_SELECT' || kind === 'USER_SET';
+  return kind === 'MULTI_SELECT' || kind === 'USER_SET' || kind === 'LABEL';
 }
 
 /** The kinds that travel as a JSON number. */
@@ -119,6 +133,14 @@ function isNumberKind(kind: string): boolean {
 export function valueFor(kind: string, raw: string | number | boolean | readonly string[] | null): unknown {
   if (raw === null || raw === undefined) return null;
 
+  if (kind === 'LABEL') {
+    // Labels are written in lower case and kept once each, as the server stores them.
+    const words = (Array.isArray(raw) ? raw : String(raw).split(/[\s,]+/))
+      .map((word) => String(word).trim().toLowerCase())
+      .filter((word) => word !== '');
+    const unique = [...new Set(words)];
+    return unique.length === 0 ? null : unique;
+  }
   if (isListKind(kind)) {
     const list = Array.isArray(raw) ? raw : [];
     return list.length === 0 ? null : list;
@@ -158,10 +180,12 @@ export function valueFor(kind: string, raw: string | number | boolean | readonly
  * | Kind | Offered | Left out, and why |
  * |---|---|---|
  * | `TEXT`, `URL` | the equalities, `IS_NULL`, `CONTAINS`, `STARTS_WITH` | the ranges — an order of words is the server's to give, not a filter anybody asks for |
- * | `SELECT` | `EQ NEQ IN NOT_IN IS_NULL` | `CONTAINS` — a substring of a closed set is a chooser used wrongly |
- * | `MULTI_SELECT`, `USER_SET` | `CONTAINS CONTAINS_ANY CONTAINS_ALL IS_NULL` | the equalities — they compare whole arrays, which is not what "has this one" means |
- * | `NUMBER`, `MONEY`, `DURATION`, `DATE` | the equalities, `IS_NULL` and `LT LTE GT GTE BETWEEN` | `CONTAINS` — a substring of a number |
- * | `USER`, `REFERENCE` | `EQ NEQ IN NOT_IN IS_NULL` | the ranges — a person or an entry has no order |
+ * | `SELECT`, `STATUS` | `EQ NEQ IN NOT_IN IS_NULL` | `CONTAINS` — a substring of a closed set is a chooser used wrongly |
+ * | `CASCADING_SELECT` | `EQ NEQ IN NOT_IN IS_NULL STARTS_WITH` | `CONTAINS`; `STARTS_WITH` finds a parent with every child under it |
+ * | `MULTI_SELECT`, `USER_SET`, `LABEL` | `CONTAINS CONTAINS_ANY CONTAINS_ALL IS_NULL` | the equalities — they compare whole arrays, which is not what "has this one" means |
+ * | `NUMBER`, `MONEY`, `DURATION`, `DATE`, `DATE_TIME` | the equalities, `IS_NULL` and `LT LTE GT GTE BETWEEN` | `CONTAINS` — a substring of a number |
+ * | `IP_ADDRESS` | those and `STARTS_WITH` | `CONTAINS`; an address ranges as an address, and a prefix finds a subnet written out |
+ * | `USER`, `REFERENCE`, `GROUP`, `FILE` | `EQ NEQ IN NOT_IN IS_NULL` | the ranges — a person, an entry, a group or a file has no order |
  * | `BOOL` | `EQ NEQ IS_NULL` | `IN`/`NOT_IN` over two values is `EQ`/`NEQ`; `CONTAINS` is meaningless |
  * | `RICH_TEXT` | `CONTAINS IS_NULL` | everything that compares a whole value — formatted text is never compared |
  * | anything else | `EQ NEQ IS_NULL` | a kind this client has never met gets what is true of any value |
@@ -179,13 +203,22 @@ export function operatorsFor(kind: string): readonly string[] {
     case 'DURATION':
     case 'CALCULATED':
     case 'DATE':
+    case 'DATE_TIME':
       return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'LT', 'LTE', 'GT', 'GTE', 'BETWEEN'];
+    case 'IP_ADDRESS':
+      return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'LT', 'LTE', 'GT', 'GTE', 'BETWEEN', 'STARTS_WITH'];
+    case 'CASCADING_SELECT':
+      return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'STARTS_WITH'];
     case 'SELECT':
+    case 'STATUS':
     case 'USER':
     case 'REFERENCE':
+    case 'GROUP':
+    case 'FILE':
       return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL'];
     case 'MULTI_SELECT':
     case 'USER_SET':
+    case 'LABEL':
       return ['CONTAINS', 'CONTAINS_ANY', 'CONTAINS_ALL', 'IS_NULL'];
     case 'RICH_TEXT':
       return ['CONTAINS', 'IS_NULL'];
@@ -201,7 +234,10 @@ export function operatorsFor(kind: string): readonly string[] {
  * (`CustomShape.sorts`). A set, a person, an entry and formatted text have no single order.
  */
 export function sortsBy(kind: string): boolean {
-  return ['TEXT', 'URL', 'SELECT', 'NUMBER', 'MONEY', 'DURATION', 'CALCULATED', 'DATE', 'BOOL'].includes(kind);
+  return [
+    'TEXT', 'URL', 'SELECT', 'NUMBER', 'MONEY', 'DURATION', 'CALCULATED', 'DATE', 'BOOL',
+    'DATE_TIME', 'IP_ADDRESS', 'CASCADING_SELECT', 'STATUS',
+  ].includes(kind);
 }
 
 /**
@@ -209,7 +245,7 @@ export function sortsBy(kind: string): boolean {
  * several values and formatted text none worth a column.
  */
 export function groupsBy(kind: string): boolean {
-  return sortsBy(kind) || kind === 'USER' || kind === 'REFERENCE';
+  return sortsBy(kind) || kind === 'USER' || kind === 'REFERENCE' || kind === 'GROUP' || kind === 'FILE';
 }
 
 /**
@@ -223,8 +259,8 @@ export function groupsBy(kind: string): boolean {
 function filterKindOf(kind: string): string {
   if (isNumberKind(kind)) return 'number';
   if (kind === 'BOOL') return 'boolean';
-  if (kind === 'SELECT' || kind === 'MULTI_SELECT') return 'enum';
-  if (kind === 'USER' || kind === 'USER_SET' || kind === 'REFERENCE') return 'id';
+  if (takesOptions(kind)) return 'enum';
+  if (['USER', 'USER_SET', 'REFERENCE', 'GROUP', 'FILE'].includes(kind)) return 'id';
   return 'string';
 }
 
@@ -267,6 +303,10 @@ export interface ValueReading {
   readonly nameOf: (accountId: string) => string | undefined;
   /** An entry's title, or `undefined` for one this replica does not hold. */
   readonly titleOf: (itemId: string) => string | undefined;
+  /** A group's name, a file's name and a moment in the reader's clock, where the caller has them. */
+  readonly groupOf?: (groupId: string) => string | undefined;
+  readonly fileOf?: (mediaId: string) => string | undefined;
+  readonly moment?: (iso: string) => string;
   /** What an account or an entry this client cannot name reads as. */
   readonly unknown: string;
 }
@@ -297,6 +337,14 @@ export function valueText(
       return (Array.isArray(held) ? held : [held]).map((id) => reading.nameOf(String(id)) ?? reading.unknown).join(', ');
     case 'REFERENCE':
       return reading.titleOf(String(held)) ?? reading.unknown;
+    case 'GROUP':
+      return reading.groupOf?.(String(held)) ?? reading.unknown;
+    case 'FILE':
+      return reading.fileOf?.(String(held)) ?? reading.unknown;
+    case 'DATE_TIME':
+      return reading.moment ? reading.moment(String(held)) : String(held);
+    case 'CASCADING_SELECT':
+      return String(held).split('/').join(' › ');
     case 'RICH_TEXT':
       return String(held).trim().split('\n')[0];
     default:

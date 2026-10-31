@@ -42,7 +42,12 @@
   import { items } from '../data/items.svelte.ts';
   import { resolved, targetLabel } from '../data/links.svelte.ts';
   import { mayReadField, mayWriteField, roles } from '../data/roles.svelte.ts';
+  import { groups } from '../data/groups.svelte.ts';
+  import { media } from '../data/media.svelte.ts';
+  import { formatDateTime } from '../i18n/datetime.ts';
+  import { onMount, untrack } from 'svelte';
   import EntryPicker from './EntryPicker.svelte';
+  import AttachmentChoice from './AttachmentChoice.svelte';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -103,6 +108,20 @@
   );
   const named = resolved(() => elsewhere.map((id) => ({ kind: 'ENTRY' as const, id })));
 
+  // A GROUP picks among the workspace's groups, read only where a field of the kind is drawn; the
+  // server holds the choice to them (`fields.value_not_a_group`). A FILE's picker reads the entry's
+  // attachments itself (AttachmentChoice).
+  function groupOptions(value: unknown) {
+    const options = [
+      { value: '', label: t('app.fields.pick_group_none') },
+      ...groups.all.map((group) => ({ value: group.id, label: group.name })),
+    ];
+    if (typeof value === 'string' && value !== '' && !groups.all.some((group) => group.id === value)) {
+      options.push({ value, label: t('app.links.unavailable') });
+    }
+    return options;
+  }
+
   /** The field whose search across collections is open. */
   let searchingKey = $state<string | undefined>(undefined);
 
@@ -114,6 +133,12 @@
   );
 
   const values = $derived((item.custom_fields ?? {}) as Record<string, unknown>);
+
+  const wantsGroups = $derived(applicable.some((definition) => definition.kind === 'GROUP'));
+  onMount(() => {
+    if (untrack(() => wantsGroups)) return groups.open();
+    return undefined;
+  });
 
   /**
    * Whether the reader may write a restricted field here (UC-ID-27 check 4): what they hold at the
@@ -137,6 +162,12 @@
       if (typeof value === 'number') return numbers.format(value);
       if (typeof value === 'boolean') return value ? t('app.permissions.yes') : t('app.permissions.no');
       if (typeof value === 'string' && (definition.kind === 'USER' || definition.kind === 'USER_SET')) return accounts.nameOf(value) ?? t('app.people.unnamed');
+      if (typeof value === 'string' && definition.kind === 'GROUP') return groups.nameOf(value) ?? t('app.links.unavailable');
+      if (typeof value === 'string' && definition.kind === 'FILE') {
+        media.resolve([value]);
+        return media.fileNameOf(value) ?? t('app.links.unavailable');
+      }
+      if (typeof value === 'string' && definition.kind === 'DATE_TIME') return formatDateTime(value, messages.locale);
       return typeof value === 'string' ? value : JSON.stringify(value);
     };
     return Array.isArray(held) ? held.map(one).join(', ') : one(held);
@@ -209,6 +240,10 @@
         return t('app.fields.duration_hint');
       case 'RICH_TEXT':
         return t('app.fields.rich_text_hint');
+      case 'LABEL':
+        return t('app.fields.label_hint');
+      case 'IP_ADDRESS':
+        return t('app.fields.address_hint');
       default:
         return undefined;
     }
@@ -269,6 +304,18 @@
                 unassignedLabel={t('app.fields.pick_none')}
                 onSelect={(ids) => write(definition, multiple ? ids : (ids[0] ?? null))}
               />
+            {/snippet}
+            {#snippet group({ value })}
+              <Select
+                label={t('app.fields.pick_group')}
+                size="sm"
+                options={groupOptions(value)}
+                value={typeof value === 'string' ? value : ''}
+                onchange={(event) => write(definition, (event.currentTarget as HTMLSelectElement).value || null)}
+              />
+            {/snippet}
+            {#snippet file({ value })}
+              <AttachmentChoice itemId={item.id} {value} onchoose={(id) => write(definition, id)} />
             {/snippet}
             {#snippet reference({ value })}
               <Select

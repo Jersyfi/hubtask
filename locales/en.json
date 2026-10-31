@@ -11003,5 +11003,21 @@
   "fields.value_not_a_group": "{key} expects a group of this workspace.",
   "fields.value_not_an_address": "{key} expects an IPv4 or IPv6 address.",
   "fields.value_not_an_attachment": "{key} expects a file attached to this entry.",
-  "fields.value_not_a_label": "{key} expects labels of letters, digits, -, _ and ., at most {maximum} characters each."
+  "fields.value_not_a_label": "{key} expects labels of letters, digits, -, _ and ., at most {maximum} characters each.",
+  "app.fields.kind_DATE_TIME": "A date and time",
+  "app.fields.kind_GROUP": "A group",
+  "app.fields.kind_CASCADING_SELECT": "One of a list, in two levels",
+  "app.fields.kind_IP_ADDRESS": "An IP address",
+  "app.fields.kind_FILE": "One of the entry's files",
+  "app.fields.kind_LABEL": "Labels",
+  "app.fields.kind_STATUS": "A state",
+  "app.fields.cascading_hint": "One per line: a parent, or a parent and a child joined by /, such as Hardware/Laptop.",
+  "app.fields.status_hint": "One per line, in the order a record passes through them.",
+  "app.fields.label_hint": "Words separated by spaces, in lower case.",
+  "app.fields.address_hint": "An IPv4 or IPv6 address, such as 192.168.0.10.",
+  "app.fields.pick_group": "Which group",
+  "app.fields.pick_group_none": "No group",
+  "app.fields.pick_file": "Which of the entry's files",
+  "app.fields.pick_file_none": "No file",
+  "app.fields.pick_file_empty": "Attach a file to the entry first."
 }

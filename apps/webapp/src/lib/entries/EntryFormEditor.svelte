@@ -94,7 +94,7 @@
     const custom = customKeyOf(key);
     const kind = definitions.find((definition) => definition.key === custom)?.kind as string | undefined;
     if (!kind) return typed.trim();
-    const listed = kind === 'MULTI_SELECT' || kind === 'USER_SET' ? typed.split(',').map((each) => each.trim()).filter(Boolean) : typed;
+    const listed = kind === 'MULTI_SELECT' || kind === 'USER_SET' || kind === 'LABEL' ? typed.split(',').map((each) => each.trim()).filter(Boolean) : typed;
     return valueFor(kind, listed);
   }
 

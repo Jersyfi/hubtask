@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import type { CustomFieldDefinition } from '@hubtask/sync-engine';
 
 import {
+  cascadingOptionFault,
   FILTER_PREFIX,
   appliesTo,
   definitionsFor,
@@ -66,7 +67,7 @@ test('a type carries only the fields that name it', () => {
   );
 });
 
-test('only a SELECT and a MULTI_SELECT have options', () => {
+test('only the pick kinds have options', () => {
   assert.equal(takesOptions('SELECT'), true);
   assert.equal(takesOptions('MULTI_SELECT'), true);
   assert.equal(takesOptions('TEXT'), false);
@@ -221,4 +222,58 @@ test('a calculated field is computed in the browser from the scope\'s number fie
   assert.equal(calculatedOf(total, inScope, { hours: 2 }), null, 'an empty input leaves no value');
   assert.equal(calculatedOf({ kind: 'CALCULATED', formula: 'entry.custom_fields.note + 1' } as never, inScope, { note: 'x' }), null, 'a text field is no input');
   assert.equal(calculatedOf({ kind: 'NUMBER' } as never, inScope, {}), null);
+});
+
+test('the register kinds: options, travel shape, comparisons, order and reading', () => {
+  for (const kind of ['CASCADING_SELECT', 'STATUS']) assert.equal(takesOptions(kind), true);
+  for (const kind of ['LABEL', 'DATE_TIME', 'GROUP', 'IP_ADDRESS', 'FILE']) assert.equal(takesOptions(kind), false);
+
+  assert.equal(cascadingOptionFault(['Hardware', 'Hardware/Laptop']), undefined);
+  assert.equal(cascadingOptionFault(['Hardware/Laptop']), 'Hardware/Laptop');
+  assert.equal(cascadingOptionFault(['A', 'A/B/C']), 'A/B/C');
+
+  assert.deepEqual(valueFor('LABEL', 'Backend ops, backend'), ['backend', 'ops']);
+  assert.deepEqual(valueFor('LABEL', ['V2', 'v2']), ['v2']);
+  assert.equal(valueFor('LABEL', ' '), null);
+  assert.equal(valueFor('IP_ADDRESS', ' 10.0.0.1 '), '10.0.0.1');
+  assert.equal(valueFor('DATE_TIME', '2026-10-31T09:00:00.000Z'), '2026-10-31T09:00:00.000Z');
+
+  const fields = queryFieldsFor([
+    definition({ key: 'seen', kind: 'DATE_TIME' }),
+    definition({ key: 'address', kind: 'IP_ADDRESS' }),
+    definition({ key: 'tags', kind: 'LABEL' }),
+    definition({ key: 'team', kind: 'GROUP' }),
+    definition({ key: 'state', kind: 'STATUS', options: ['Planned', 'In use'] }),
+    definition({ key: 'category', kind: 'CASCADING_SELECT', options: ['Hardware', 'Hardware/Laptop'] }),
+  ]);
+  const by = (key: string) => fields.find((field) => field.field === FILTER_PREFIX + key);
+  assert.equal(by('seen')?.sortable, true);
+  assert.ok(by('seen')?.operators.includes('BETWEEN'));
+  assert.ok(by('address')?.operators.includes('STARTS_WITH'));
+  assert.equal(by('address')?.sortable, true);
+  assert.deepEqual(by('tags')?.operators, ['CONTAINS', 'CONTAINS_ANY', 'CONTAINS_ALL', 'IS_NULL']);
+  assert.equal(by('tags')?.groupable, false);
+  assert.equal(by('team')?.kind, 'id');
+  assert.equal(by('team')?.sortable, false);
+  assert.equal(by('team')?.groupable, true);
+  assert.deepEqual(by('state')?.values, ['Planned', 'In use']);
+  assert.ok(by('category')?.operators.includes('STARTS_WITH'));
+
+  const reading = {
+    number: String,
+    amount: String,
+    duration: String,
+    nameOf: () => undefined,
+    titleOf: () => undefined,
+    groupOf: (id: string) => (id === 'g-1' ? 'Service desk' : undefined),
+    fileOf: (id: string) => (id === 'm-1' ? 'contract.pdf' : undefined),
+    moment: (iso: string) => `at ${iso}`,
+    unknown: 'Not visible',
+  };
+  assert.equal(valueText({ kind: 'GROUP' }, 'g-1', reading), 'Service desk');
+  assert.equal(valueText({ kind: 'GROUP' }, 'g-2', reading), 'Not visible');
+  assert.equal(valueText({ kind: 'FILE' }, 'm-1', reading), 'contract.pdf');
+  assert.equal(valueText({ kind: 'DATE_TIME' }, '2026-10-31T09:00:00Z', reading), 'at 2026-10-31T09:00:00Z');
+  assert.equal(valueText({ kind: 'CASCADING_SELECT' }, 'Hardware/Laptop', reading), 'Hardware › Laptop');
+  assert.equal(valueText({ kind: 'LABEL' }, ['backend', 'ops'], reading), 'backend, ops');
 });

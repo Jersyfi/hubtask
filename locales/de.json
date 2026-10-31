@@ -11000,5 +11000,21 @@
   "fields.value_not_a_group": "{key} erwartet eine Gruppe dieses Arbeitsbereichs.",
   "fields.value_not_an_address": "{key} erwartet eine IPv4- oder IPv6-Adresse.",
   "fields.value_not_an_attachment": "{key} erwartet eine Datei, die an diesem Eintrag hängt.",
-  "fields.value_not_a_label": "{key} erwartet Schlagwörter aus Buchstaben, Ziffern, -, _ und ., höchstens {maximum} Zeichen je Wort."
+  "fields.value_not_a_label": "{key} erwartet Schlagwörter aus Buchstaben, Ziffern, -, _ und ., höchstens {maximum} Zeichen je Wort.",
+  "app.fields.kind_DATE_TIME": "Datum und Uhrzeit",
+  "app.fields.kind_GROUP": "Eine Gruppe",
+  "app.fields.kind_CASCADING_SELECT": "Eines aus einer Liste, zweistufig",
+  "app.fields.kind_IP_ADDRESS": "Eine IP-Adresse",
+  "app.fields.kind_FILE": "Eine Datei des Eintrags",
+  "app.fields.kind_LABEL": "Schlagwörter",
+  "app.fields.kind_STATUS": "Ein Zustand",
+  "app.fields.cascading_hint": "Eine pro Zeile: ein Oberbegriff oder ein Oberbegriff und ein Unterbegriff, verbunden durch /, etwa Hardware/Laptop.",
+  "app.fields.status_hint": "Einer pro Zeile, in der Reihenfolge, die ein Datensatz durchläuft.",
+  "app.fields.label_hint": "Wörter, durch Leerzeichen getrennt, in Kleinbuchstaben.",
+  "app.fields.address_hint": "Eine IPv4- oder IPv6-Adresse, etwa 192.168.0.10.",
+  "app.fields.pick_group": "Welche Gruppe",
+  "app.fields.pick_group_none": "Keine Gruppe",
+  "app.fields.pick_file": "Welche Datei des Eintrags",
+  "app.fields.pick_file_none": "Keine Datei",
+  "app.fields.pick_file_empty": "Hänge zuerst eine Datei an den Eintrag."
 }

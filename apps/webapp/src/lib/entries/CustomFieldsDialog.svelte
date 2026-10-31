@@ -35,7 +35,7 @@
   import { holds, offerIn, typesWith } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { isCalculated, isValidCurrency, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
+  import { cascadingOptionFault, isCalculated, isValidCurrency, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -60,10 +60,11 @@
 
   const existing = $derived(customFields.of(collectionId));
 
-  /** The fourteen the contract declares, in the contract's own order. */
+  /** The kinds the contract declares, in the contract's own order. */
   const KINDS = [
     'TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL',
     'MONEY', 'DURATION', 'REFERENCE', 'USER_SET', 'RICH_TEXT', 'CALCULATED',
+    'DATE_TIME', 'GROUP', 'CASCADING_SELECT', 'IP_ADDRESS', 'FILE', 'LABEL', 'STATUS',
   ];
 
   let key = $state('');
@@ -85,6 +86,8 @@
   let deleting = $state<CustomFieldDefinition | undefined>(undefined);
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  /** The first option of a two-level choice that breaks its rule, named on the options field. */
+  let orphanOption = $state<string | undefined>(undefined);
 
   const keyIsWrong = $derived(key !== '' && !isValidKey(key));
   const currencyIsWrong = $derived(currency !== '' && !isValidCurrency(currency));
@@ -176,6 +179,9 @@
       return;
     }
     if (keyIsWrong && editing === undefined) return;
+    // A two-level choice's child names its parent among the options, said before the server would.
+    orphanOption = (editing?.kind ?? kind) === 'CASCADING_SELECT' ? cascadingOptionFault(optionList()) : undefined;
+    if (orphanOption !== undefined) return;
     if (currencyIsWrong && editing === undefined) return;
     const current = editing;
     void attempt(async () => {
@@ -311,9 +317,15 @@
         {/if}
 
         {#if takesOptions(editing?.kind ?? kind)}
+          {@const optionKind = editing?.kind ?? kind}
           <Textarea
             label={t('app.fields.options')}
-            hint={t('app.fields.options_hint')}
+            hint={optionKind === 'CASCADING_SELECT'
+              ? t('app.fields.cascading_hint')
+              : optionKind === 'STATUS'
+                ? t('app.fields.status_hint')
+                : t('app.fields.options_hint')}
+            error={orphanOption === undefined ? undefined : t('fields.option_without_parent', { option: orphanOption })}
             bind:value={options}
             rows={4}
           />
