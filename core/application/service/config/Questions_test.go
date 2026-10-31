@@ -43,3 +43,28 @@ func TestTheDesksFirstGroupIsAGroupOfTheWorkspace(t *testing.T) {
 		t.Error("an unanswered question left out a rule that asks nothing")
 	}
 }
+
+// UC-CFG-01 check 11: the desk's CAB member is held by the group named on applying, and left to an
+// administrator where nobody named one.
+func TestTheDesksCabMemberIsHeldByTheGroupAskedFor(t *testing.T) {
+	f := newFixture()
+	desk := itilTemplate(t)
+
+	answered, err := f.desk.answered(t.Context(), person, desk, desk.Document, map[string]string{"cab_group": knownGroup})
+	if err != nil {
+		t.Fatalf("answering: %v", err)
+	}
+	if got := domain.Canonical(answered[sectionRoleGroups]["cab_member"]); got != `{"groups":["`+knownGroup+`"]}` {
+		t.Errorf("the CAB member is held by %s", got)
+	}
+	open, err := f.desk.answered(t.Context(), person, desk, desk.Document, nil)
+	if err != nil {
+		t.Fatalf("taking the desk without an answer: %v", err)
+	}
+	if _, held := open[sectionRoleGroups]["cab_member"]; held {
+		t.Error("the CAB member was granted with no group named")
+	}
+	if _, held := open[sectionRoles]["cab_member"]; !held {
+		t.Error("an open question left out the role itself")
+	}
+}

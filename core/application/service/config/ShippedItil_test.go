@@ -41,7 +41,7 @@ func itilTemplate(t *testing.T) domain.Template {
 // every block one the use cases that apply it accept, and every section one the document has.
 func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	template := itilTemplate(t)
-	if template.Origin != domain.OriginHubtask || template.Version != 6 || !reservedKey(template.Key) {
+	if template.Origin != domain.OriginHubtask || template.Version != 7 || !reservedKey(template.Key) {
 		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
 	}
 	// Its hub part (configuration.md §6): the hub's switches and which of the template's workflows
@@ -116,7 +116,7 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 			if trigger["kind"] != "EVENT" || trigger["event_type"] != string(event.ItemUpdated) {
 				t.Errorf("the P1 escalation is on %v", trigger)
 			}
-			if !strings.Contains(domain.Canonical(block["actions"]), `"value":"answer:first_group"`) || len(template.Questions) != 1 ||
+			if !strings.Contains(domain.Canonical(block["actions"]), `"value":"answer:first_group"`) || len(template.Questions) != 2 ||
 				template.Questions[0].Key != "first_group" || template.Questions[0].Kind != domain.QuestionGroup || template.Questions[0].Required {
 				t.Errorf("the P1 escalation does not hand the incident to the group asked for: %v %v", block, template.Questions)
 			}

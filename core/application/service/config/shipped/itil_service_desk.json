@@ -1,9 +1,13 @@
 {
   "key": "itil_service_desk",
-  "version": 6,
+  "version": 7,
   "questions": [
     {
       "key": "first_group",
+      "kind": "GROUP"
+    },
+    {
+      "key": "cab_group",
       "kind": "GROUP"
     }
   ],
@@ -22,6 +26,13 @@
         "permissions": [
           "READ",
           "COMMENT"
+        ]
+      }
+    },
+    "role_groups": {
+      "cab_member": {
+        "groups": [
+          "answer:cab_group"
         ]
       }
     },
