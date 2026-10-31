@@ -3371,6 +3371,16 @@ export class HubtaskClient {
     return this.call("PUT", "/containers/{containerId}/policies", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Show a logo of the service's own on its portal */
+  setDeskLogo(containerId: string, body: NonNullable<operations["setDeskLogo"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setDeskLogo"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/containers/{containerId}/desk-logo", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Go back to the icon and the colour */
+  removeDeskLogo(containerId: string, options: CallOptions = {}): Promise<operations["removeDeskLogo"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/containers/{containerId}/desk-logo", { "containerId": containerId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** PATCH /containers/{containerId}/structure */
   setContainerStructure(containerId: string, body: NonNullable<operations["setContainerStructure"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setContainerStructure"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/containers/{containerId}/structure", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

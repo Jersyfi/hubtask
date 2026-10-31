@@ -293,3 +293,14 @@ WHERE token_hash = sqlc.arg('token_hash');
 
 -- name: DeletePublicForm :execrows
 DELETE FROM public_form WHERE tenant_id = current_tenant_id() AND collection_id = sqlc.arg('collection_id');
+
+-- name: FindDeskLogo :one
+-- A collection's logo as its portal draws it (migration 0313); NULL for none.
+SELECT logo_media_id FROM container
+WHERE id = sqlc.arg('collection_id')::uuid AND type = 'COLLECTION' AND deleted_at IS NULL;
+
+-- name: SetDeskLogo :execrows
+-- The logo and no other column: it is not part of the collection as the replica holds it, so the
+-- row's version and its updated_at stay. NULL takes it away.
+UPDATE container SET logo_media_id = sqlc.narg('logo_media_id')
+WHERE id = sqlc.arg('collection_id')::uuid AND type = 'COLLECTION' AND deleted_at IS NULL;

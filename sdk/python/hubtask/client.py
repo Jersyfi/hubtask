@@ -2679,6 +2679,14 @@ class Client:
         """PUT /containers/{containerId}/policies"""
         return self._call("PUT", "/containers/{containerId}/policies", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def set_desk_logo(self, container_id: str, body: "DeskLogoInput") -> "DeskLogo":
+        """Show a logo of the service's own on its portal"""
+        return self._call("PUT", "/containers/{containerId}/desk-logo", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_desk_logo(self, container_id: str) -> "DeskLogo":
+        """Go back to the icon and the colour"""
+        return self._call("DELETE", "/containers/{containerId}/desk-logo", {"containerId": container_id}, None, {}, None, "none", None, "json")
+
     def set_container_structure(self, container_id: str, body: "StructureChange", *, if_match: str | None = None) -> "Container":
         """PATCH /containers/{containerId}/structure"""
         return self._call("PATCH", "/containers/{containerId}/structure", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")

@@ -96,6 +96,8 @@ FROM (
     + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments))
     -- A person's picture: reclaimed only once nobody shows it any more.
     + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id)
+    -- A desk's logo, a trashed collection's included: it may come back.
+    + (SELECT count(*) FROM container d WHERE d.logo_media_id = o.id)
     -- A board's pictures and files, trashed boards included: they may come back.
     + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
     -- A page's pictures and files, trashed pages included, for the same reason.
@@ -173,6 +175,14 @@ LIMIT 50;
 SELECT EXISTS (
   SELECT 1 FROM account WHERE avatar_media_id = sqlc.arg('media_id')::uuid AND deleted_at IS NULL
 )::boolean AS serves;
+
+-- name: ListMediaServedDesks :many
+-- The collections that show an object as their desk's logo, for GetMedia's authorisation: whoever
+-- may raise a request at one of them may read it, as the portal draws it. A trashed collection
+-- serves nothing until it is restored.
+SELECT id FROM container
+WHERE logo_media_id = sqlc.arg('media_id')::uuid AND deleted_at IS NULL
+LIMIT 50;
 
 -- name: InsertItemAttachment :execrows
 -- ON CONFLICT DO NOTHING, for the reason AddItemMember gives: attaching what is already attached

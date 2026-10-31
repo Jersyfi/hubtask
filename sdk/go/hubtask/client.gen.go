@@ -6411,6 +6411,7 @@ const (
 	MediaObjectUsageATTACHMENT MediaObjectUsage = "ATTACHMENT"
 	MediaObjectUsageAVATAR     MediaObjectUsage = "AVATAR"
 	MediaObjectUsageCOVER      MediaObjectUsage = "COVER"
+	MediaObjectUsageDESKLOGO   MediaObjectUsage = "DESK_LOGO"
 	MediaObjectUsageIMPORT     MediaObjectUsage = "IMPORT"
 )
 
@@ -6422,6 +6423,8 @@ func (e MediaObjectUsage) Valid() bool {
 	case MediaObjectUsageAVATAR:
 		return true
 	case MediaObjectUsageCOVER:
+		return true
+	case MediaObjectUsageDESKLOGO:
 		return true
 	case MediaObjectUsageIMPORT:
 		return true
@@ -6453,6 +6456,7 @@ const (
 	MediaUploadRequestUsageATTACHMENT MediaUploadRequestUsage = "ATTACHMENT"
 	MediaUploadRequestUsageAVATAR     MediaUploadRequestUsage = "AVATAR"
 	MediaUploadRequestUsageCOVER      MediaUploadRequestUsage = "COVER"
+	MediaUploadRequestUsageDESKLOGO   MediaUploadRequestUsage = "DESK_LOGO"
 	MediaUploadRequestUsageIMPORT     MediaUploadRequestUsage = "IMPORT"
 )
 
@@ -6464,6 +6468,8 @@ func (e MediaUploadRequestUsage) Valid() bool {
 	case MediaUploadRequestUsageAVATAR:
 		return true
 	case MediaUploadRequestUsageCOVER:
+		return true
+	case MediaUploadRequestUsageDESKLOGO:
 		return true
 	case MediaUploadRequestUsageIMPORT:
 		return true
@@ -15621,6 +15627,20 @@ type DeprecatedField struct {
 	Sunset *openapi_types.Date `json:"sunset,omitempty"`
 }
 
+// DeskLogo defines model for DeskLogo.
+type DeskLogo struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// LogoMediaId The logo the portal shows; null for the collection's icon and colour.
+	LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
+}
+
+// DeskLogoInput defines model for DeskLogoInput.
+type DeskLogoInput struct {
+	// MediaId A confirmed media object the caller staged with usage `DESK_LOGO`.
+	MediaId openapi_types.UUID `json:"media_id"`
+}
+
 // DroppedReference defines model for DroppedReference.
 type DroppedReference struct {
 	// Code A stable message code saying why.
@@ -18569,11 +18589,11 @@ type MediaUploadRequest struct {
 	// Size The exact size in bytes. Bounded by the installation's upload limit.
 	Size int64 `json:"size"`
 
-	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB.
+	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
 	Usage MediaUploadRequestUsage `json:"usage"`
 }
 
-// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB.
+// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
 type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
@@ -20920,7 +20940,10 @@ type PublicFormView struct {
 
 		// Icon The name of an icon of the design system's set; empty for none.
 		Icon string `json:"icon"`
-		Name string `json:"name"`
+
+		// LogoMediaId The desk's own logo, a picture every requester of the service may read (`GET /media/{mediaId}`); null draws the icon and the colour.
+		LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
+		Name        string              `json:"name"`
 	} `json:"desk,omitempty"`
 }
 
@@ -21286,7 +21309,10 @@ type RequestCatalogue struct {
 
 		// Icon The name of an icon of the design system's set; empty for none.
 		Icon string `json:"icon"`
-		Name string `json:"name"`
+
+		// LogoMediaId The desk's own logo, a picture every requester of the service may read (`GET /media/{mediaId}`); null draws the icon and the colour.
+		LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
+		Name        string              `json:"name"`
 	} `json:"desk,omitempty"`
 }
 
@@ -28321,6 +28347,9 @@ type UpdateBucketApplicationMergePatchPlusJSONRequestBody = BucketUpdate
 // ReorderBucketJSONRequestBody defines body for ReorderBucket for application/json ContentType.
 type ReorderBucketJSONRequestBody ReorderBucketJSONBody
 
+// SetDeskLogoJSONRequestBody defines body for SetDeskLogo for application/json ContentType.
+type SetDeskLogoJSONRequestBody = DeskLogoInput
+
 // CreateLabelJSONRequestBody defines body for CreateLabel for application/json ContentType.
 type CreateLabelJSONRequestBody = LabelCreate
 
@@ -33565,6 +33594,51 @@ type ClientInterface interface {
 	// Moves a column along its board. An absent before_bucket_id moves it to the right hand end.
 	ReorderBucket(ctx context.Context, containerId ContainerId, bucketId BucketId, params *ReorderBucketParams, body ReorderBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RemoveDeskLogo Go back to the icon and the colour
+	//
+	// Takes the desk's logo away: the portal draws the collection's icon and colour again.
+	// Idempotent - a desk without a logo answers as it is. The picture itself is removed once
+	// nothing points at it. Needs STRUCTURE at the collection.
+	//
+	// Corresponds with DELETE /containers/{containerId}/desk-logo (the `RemoveDeskLogo` operationId).
+	RemoveDeskLogo(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDeskLogoWithBody Show a logo of the service's own on its portal
+	//
+	// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
+	// in place of its icon and colour. The picture is staged and confirmed like any other upload
+	// (`POST /media` with usage `DESK_LOGO`, the bytes, then `POST /media/{mediaId}:confirm`), and
+	// every requester of the service may read it. Needs STRUCTURE at the collection.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+	// one staged for something else, `media.logo_not_an_image` for bytes that are not a PNG, JPEG,
+	// GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+	// `servicedesk.logo_needs_a_collection` for a hub. A logo already set is replaced; the one it
+	// replaces is removed once nothing points at it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /containers/{containerId}/desk-logo (the `SetDeskLogo` operationId).
+	SetDeskLogoWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDeskLogo Show a logo of the service's own on its portal
+	//
+	// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
+	// in place of its icon and colour. The picture is staged and confirmed like any other upload
+	// (`POST /media` with usage `DESK_LOGO`, the bytes, then `POST /media/{mediaId}:confirm`), and
+	// every requester of the service may read it. Needs STRUCTURE at the collection.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+	// one staged for something else, `media.logo_not_an_image` for bytes that are not a PNG, JPEG,
+	// GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+	// `servicedesk.logo_needs_a_collection` for a hub. A logo already set is replaced; the one it
+	// replaces is removed once nothing points at it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /containers/{containerId}/desk-logo (the `SetDeskLogo` operationId).
+	SetDeskLogo(ctx context.Context, containerId ContainerId, body SetDeskLogoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListLabels performs a GET /containers/{containerId}/labels (the `ListLabels` operationId) request.
 	ListLabels(ctx context.Context, containerId ContainerId, params *ListLabelsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -36508,7 +36582,7 @@ type ClientInterface interface {
 
 	// GetMedia performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 	//
-	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.
+	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on; for a person's picture by every member of the workspace, and for a desk's logo by whoever may raise a request at its collection.
 	GetMedia(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfirmMediaUpload performs a POST /media/{mediaId}:confirm (the `ConfirmMediaUpload` operationId) request.
@@ -48313,6 +48387,81 @@ func (c *Client) ReorderBucket(ctx context.Context, containerId ContainerId, buc
 	return c.Client.Do(req)
 }
 
+// RemoveDeskLogo Go back to the icon and the colour
+//
+// Takes the desk's logo away: the portal draws the collection's icon and colour again.
+// Idempotent - a desk without a logo answers as it is. The picture itself is removed once
+// nothing points at it. Needs STRUCTURE at the collection.
+//
+// Corresponds with DELETE /containers/{containerId}/desk-logo (the `RemoveDeskLogo` operationId).
+func (c *Client) RemoveDeskLogo(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveDeskLogoRequest(c.Server, containerId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetDeskLogoWithBody Show a logo of the service's own on its portal
+//
+// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
+// in place of its icon and colour. The picture is staged and confirmed like any other upload
+// (`POST /media` with usage `DESK_LOGO`, the bytes, then `POST /media/{mediaId}:confirm`), and
+// every requester of the service may read it. Needs STRUCTURE at the collection.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+// one staged for something else, `media.logo_not_an_image` for bytes that are not a PNG, JPEG,
+// GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+// `servicedesk.logo_needs_a_collection` for a hub. A logo already set is replaced; the one it
+// replaces is removed once nothing points at it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /containers/{containerId}/desk-logo (the `SetDeskLogo` operationId).
+func (c *Client) SetDeskLogoWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDeskLogoRequestWithBody(c.Server, containerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetDeskLogo Show a logo of the service's own on its portal
+//
+// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
+// in place of its icon and colour. The picture is staged and confirmed like any other upload
+// (`POST /media` with usage `DESK_LOGO`, the bytes, then `POST /media/{mediaId}:confirm`), and
+// every requester of the service may read it. Needs STRUCTURE at the collection.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+// one staged for something else, `media.logo_not_an_image` for bytes that are not a PNG, JPEG,
+// GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+// `servicedesk.logo_needs_a_collection` for a hub. A logo already set is replaced; the one it
+// replaces is removed once nothing points at it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /containers/{containerId}/desk-logo (the `SetDeskLogo` operationId).
+func (c *Client) SetDeskLogo(ctx context.Context, containerId ContainerId, body SetDeskLogoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDeskLogoRequest(c.Server, containerId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListLabels performs a GET /containers/{containerId}/labels (the `ListLabels` operationId) request.
 func (c *Client) ListLabels(ctx context.Context, containerId ContainerId, params *ListLabelsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListLabelsRequest(c.Server, containerId, params)
@@ -54886,7 +55035,7 @@ func (c *Client) DeleteMedia(ctx context.Context, mediaId MediaId, reqEditors ..
 
 // GetMedia performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 //
-// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.
+// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on; for a person's picture by every member of the workspace, and for a desk's logo by whoever may raise a request at its collection.
 func (c *Client) GetMedia(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetMediaRequest(c.Server, mediaId)
 	if err != nil {
@@ -75191,6 +75340,87 @@ func NewReorderBucketRequestWithBody(server string, containerId ContainerId, buc
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewRemoveDeskLogoRequest constructs an http.Request for the RemoveDeskLogo method
+func NewRemoveDeskLogoRequest(server string, containerId ContainerId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/desk-logo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetDeskLogoRequest calls the generic SetDeskLogo builder with application/json body
+func NewSetDeskLogoRequest(server string, containerId ContainerId, body SetDeskLogoJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetDeskLogoRequestWithBody(server, containerId, "application/json", bodyReader)
+}
+
+// NewSetDeskLogoRequestWithBody constructs an http.Request for the SetDeskLogo method, with any body, and a specified content type
+func NewSetDeskLogoRequestWithBody(server string, containerId ContainerId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/desk-logo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -104213,6 +104443,53 @@ type ClientWithResponsesInterface interface {
 	// Moves a column along its board. An absent before_bucket_id moves it to the right hand end.
 	ReorderBucketWithResponse(ctx context.Context, containerId ContainerId, bucketId BucketId, params *ReorderBucketParams, body ReorderBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*ReorderBucketResult, error)
 
+	// RemoveDeskLogoWithResponse Go back to the icon and the colour
+	//
+	// Takes the desk's logo away: the portal draws the collection's icon and colour again.
+	// Idempotent - a desk without a logo answers as it is. The picture itself is removed once
+	// nothing points at it. Needs STRUCTURE at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /containers/{containerId}/desk-logo (the `RemoveDeskLogo` operationId).
+	RemoveDeskLogoWithResponse(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*RemoveDeskLogoResult, error)
+
+	// SetDeskLogoWithBodyWithResponse Show a logo of the service's own on its portal
+	//
+	// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
+	// in place of its icon and colour. The picture is staged and confirmed like any other upload
+	// (`POST /media` with usage `DESK_LOGO`, the bytes, then `POST /media/{mediaId}:confirm`), and
+	// every requester of the service may read it. Needs STRUCTURE at the collection.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+	// one staged for something else, `media.logo_not_an_image` for bytes that are not a PNG, JPEG,
+	// GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+	// `servicedesk.logo_needs_a_collection` for a hub. A logo already set is replaced; the one it
+	// replaces is removed once nothing points at it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /containers/{containerId}/desk-logo (the `SetDeskLogo` operationId).
+	SetDeskLogoWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDeskLogoResult, error)
+
+	// SetDeskLogoWithResponse Show a logo of the service's own on its portal
+	//
+	// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
+	// in place of its icon and colour. The picture is staged and confirmed like any other upload
+	// (`POST /media` with usage `DESK_LOGO`, the bytes, then `POST /media/{mediaId}:confirm`), and
+	// every requester of the service may read it. Needs STRUCTURE at the collection.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+	// one staged for something else, `media.logo_not_an_image` for bytes that are not a PNG, JPEG,
+	// GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+	// `servicedesk.logo_needs_a_collection` for a hub. A logo already set is replaced; the one it
+	// replaces is removed once nothing points at it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /containers/{containerId}/desk-logo (the `SetDeskLogo` operationId).
+	SetDeskLogoWithResponse(ctx context.Context, containerId ContainerId, body SetDeskLogoJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDeskLogoResult, error)
+
 	// ListLabelsWithResponse performs a GET /containers/{containerId}/labels (the `ListLabels` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -107490,7 +107767,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetMediaWithResponse performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 	//
-	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.
+	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on; for a person's picture by every member of the workspace, and for a desk's logo by whoever may raise a request at its collection.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetMediaWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetMediaResult, error)
@@ -125058,6 +125335,102 @@ func (r ReorderBucketResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReorderBucketResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveDeskLogoResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeskLogo
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemoveDeskLogoResult) GetJSON200() *DeskLogo {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveDeskLogoResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveDeskLogoResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveDeskLogoResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveDeskLogoResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveDeskLogoResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetDeskLogoResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeskLogo
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetDeskLogoResult) GetJSON200() *DeskLogo {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetDeskLogoResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetDeskLogoResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetDeskLogoResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetDeskLogoResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetDeskLogoResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -156893,6 +157266,71 @@ func (c *ClientWithResponses) ReorderBucketWithResponse(ctx context.Context, con
 	return ParseReorderBucketResult(rsp)
 }
 
+// RemoveDeskLogoWithResponse Go back to the icon and the colour
+//
+// Takes the desk's logo away: the portal draws the collection's icon and colour again.
+// Idempotent - a desk without a logo answers as it is. The picture itself is removed once
+// nothing points at it. Needs STRUCTURE at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /containers/{containerId}/desk-logo (the `RemoveDeskLogo` operationId).
+func (c *ClientWithResponses) RemoveDeskLogoWithResponse(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*RemoveDeskLogoResult, error) {
+	rsp, err := c.RemoveDeskLogo(ctx, containerId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveDeskLogoResult(rsp)
+}
+
+// SetDeskLogoWithBodyWithResponse Show a logo of the service's own on its portal
+//
+// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
+// in place of its icon and colour. The picture is staged and confirmed like any other upload
+// (`POST /media` with usage `DESK_LOGO`, the bytes, then `POST /media/{mediaId}:confirm`), and
+// every requester of the service may read it. Needs STRUCTURE at the collection.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+// one staged for something else, `media.logo_not_an_image` for bytes that are not a PNG, JPEG,
+// GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+// `servicedesk.logo_needs_a_collection` for a hub. A logo already set is replaced; the one it
+// replaces is removed once nothing points at it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /containers/{containerId}/desk-logo (the `SetDeskLogo` operationId).
+func (c *ClientWithResponses) SetDeskLogoWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDeskLogoResult, error) {
+	rsp, err := c.SetDeskLogoWithBody(ctx, containerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDeskLogoResult(rsp)
+}
+
+// SetDeskLogoWithResponse Show a logo of the service's own on its portal
+//
+// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
+// in place of its icon and colour. The picture is staged and confirmed like any other upload
+// (`POST /media` with usage `DESK_LOGO`, the bytes, then `POST /media/{mediaId}:confirm`), and
+// every requester of the service may read it. Needs STRUCTURE at the collection.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+// one staged for something else, `media.logo_not_an_image` for bytes that are not a PNG, JPEG,
+// GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+// `servicedesk.logo_needs_a_collection` for a hub. A logo already set is replaced; the one it
+// replaces is removed once nothing points at it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /containers/{containerId}/desk-logo (the `SetDeskLogo` operationId).
+func (c *ClientWithResponses) SetDeskLogoWithResponse(ctx context.Context, containerId ContainerId, body SetDeskLogoJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDeskLogoResult, error) {
+	rsp, err := c.SetDeskLogo(ctx, containerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDeskLogoResult(rsp)
+}
+
 // ListLabelsWithResponse performs a GET /containers/{containerId}/labels (the `ListLabels` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -162348,7 +162786,7 @@ func (c *ClientWithResponses) DeleteMediaWithResponse(ctx context.Context, media
 
 // GetMediaWithResponse performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 //
-// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.
+// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on; for a person's picture by every member of the workspace, and for a desk's logo by whoever may raise a request at its collection.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetMediaWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetMediaResult, error) {
@@ -178112,6 +178550,72 @@ func ParseReorderBucketResult(rsp *http.Response) (*ReorderBucketResult, error) 
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseRemoveDeskLogoResult parses an HTTP response from a RemoveDeskLogoWithResponse call
+func ParseRemoveDeskLogoResult(rsp *http.Response) (*RemoveDeskLogoResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveDeskLogoResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeskLogo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetDeskLogoResult parses an HTTP response from a SetDeskLogoWithResponse call
+func ParseSetDeskLogoResult(rsp *http.Response) (*SetDeskLogoResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetDeskLogoResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeskLogo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

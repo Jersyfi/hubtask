@@ -1501,6 +1501,7 @@ type Container struct {
 	Private       bool
 	Handle        *string
 	ItemCounter   int64
+	LogoMediaID   pgtype.UUID
 }
 
 type ContainerMilestone struct {

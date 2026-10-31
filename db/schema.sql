@@ -1005,6 +1005,8 @@ CREATE TABLE container (
   -- stable key in the configuration document.
   handle       text CHECK (handle IS NULL OR handle ~ '^[a-z][a-z0-9]{1,19}$'),
   item_counter bigint NOT NULL DEFAULT 0,
+  -- A desk's own logo (migration 0313); cleared when the picture goes.
+  logo_media_id uuid,
   CHECK ((type = 'HUB') = (parent_id IS NULL)),
   CONSTRAINT container_private_hub_check CHECK (NOT private OR type = 'HUB')
 );
@@ -2156,7 +2158,7 @@ CREATE TABLE media_object (
   byte_size   bigint NOT NULL CHECK (byte_size >= 0),
   checksum    text,
   usage       text NOT NULL CONSTRAINT media_object_usage_check
-              CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR')),
+              CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR', 'DESK_LOGO')),
   ref_count   integer NOT NULL DEFAULT 0,
   -- NULL where nobody uploaded it: a mail attachment arrives over an intake that authenticates the
   -- tenant and no person, and an account here would be an uploader this system invented
@@ -2313,6 +2315,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON template_page TO hubtask_app;
 ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey
   FOREIGN KEY (tenant_id, avatar_media_id) REFERENCES media_object (tenant_id, id)
   ON DELETE SET NULL (avatar_media_id);
+-- The same for a desk's logo (migration 0313).
+ALTER TABLE container ADD CONSTRAINT container_logo_media_fkey
+  FOREIGN KEY (tenant_id, logo_media_id) REFERENCES media_object (tenant_id, id)
+  ON DELETE SET NULL (logo_media_id);
 
 CREATE TABLE item_attachment (
   tenant_id uuid NOT NULL,

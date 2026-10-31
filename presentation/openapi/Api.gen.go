@@ -6405,6 +6405,7 @@ const (
 	MediaObjectUsageATTACHMENT MediaObjectUsage = "ATTACHMENT"
 	MediaObjectUsageAVATAR     MediaObjectUsage = "AVATAR"
 	MediaObjectUsageCOVER      MediaObjectUsage = "COVER"
+	MediaObjectUsageDESKLOGO   MediaObjectUsage = "DESK_LOGO"
 	MediaObjectUsageIMPORT     MediaObjectUsage = "IMPORT"
 )
 
@@ -6416,6 +6417,8 @@ func (e MediaObjectUsage) Valid() bool {
 	case MediaObjectUsageAVATAR:
 		return true
 	case MediaObjectUsageCOVER:
+		return true
+	case MediaObjectUsageDESKLOGO:
 		return true
 	case MediaObjectUsageIMPORT:
 		return true
@@ -6447,6 +6450,7 @@ const (
 	MediaUploadRequestUsageATTACHMENT MediaUploadRequestUsage = "ATTACHMENT"
 	MediaUploadRequestUsageAVATAR     MediaUploadRequestUsage = "AVATAR"
 	MediaUploadRequestUsageCOVER      MediaUploadRequestUsage = "COVER"
+	MediaUploadRequestUsageDESKLOGO   MediaUploadRequestUsage = "DESK_LOGO"
 	MediaUploadRequestUsageIMPORT     MediaUploadRequestUsage = "IMPORT"
 )
 
@@ -6458,6 +6462,8 @@ func (e MediaUploadRequestUsage) Valid() bool {
 	case MediaUploadRequestUsageAVATAR:
 		return true
 	case MediaUploadRequestUsageCOVER:
+		return true
+	case MediaUploadRequestUsageDESKLOGO:
 		return true
 	case MediaUploadRequestUsageIMPORT:
 		return true
@@ -15615,6 +15621,20 @@ type DeprecatedField struct {
 	Sunset *openapi_types.Date `json:"sunset,omitempty"`
 }
 
+// DeskLogo defines model for DeskLogo.
+type DeskLogo struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// LogoMediaId The logo the portal shows; null for the collection's icon and colour.
+	LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
+}
+
+// DeskLogoInput defines model for DeskLogoInput.
+type DeskLogoInput struct {
+	// MediaId A confirmed media object the caller staged with usage `DESK_LOGO`.
+	MediaId openapi_types.UUID `json:"media_id"`
+}
+
 // DroppedReference defines model for DroppedReference.
 type DroppedReference struct {
 	// Code A stable message code saying why.
@@ -18563,11 +18583,11 @@ type MediaUploadRequest struct {
 	// Size The exact size in bytes. Bounded by the installation's upload limit.
 	Size int64 `json:"size"`
 
-	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB.
+	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
 	Usage MediaUploadRequestUsage `json:"usage"`
 }
 
-// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB.
+// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
 type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
@@ -20914,7 +20934,10 @@ type PublicFormView struct {
 
 		// Icon The name of an icon of the design system's set; empty for none.
 		Icon string `json:"icon"`
-		Name string `json:"name"`
+
+		// LogoMediaId The desk's own logo, a picture every requester of the service may read (`GET /media/{mediaId}`); null draws the icon and the colour.
+		LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
+		Name        string              `json:"name"`
 	} `json:"desk,omitempty"`
 }
 
@@ -21280,7 +21303,10 @@ type RequestCatalogue struct {
 
 		// Icon The name of an icon of the design system's set; empty for none.
 		Icon string `json:"icon"`
-		Name string `json:"name"`
+
+		// LogoMediaId The desk's own logo, a picture every requester of the service may read (`GET /media/{mediaId}`); null draws the icon and the colour.
+		LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
+		Name        string              `json:"name"`
 	} `json:"desk,omitempty"`
 }
 
@@ -28315,6 +28341,9 @@ type UpdateBucketApplicationMergePatchPlusJSONRequestBody = BucketUpdate
 // ReorderBucketJSONRequestBody defines body for ReorderBucket for application/json ContentType.
 type ReorderBucketJSONRequestBody ReorderBucketJSONBody
 
+// SetDeskLogoJSONRequestBody defines body for SetDeskLogo for application/json ContentType.
+type SetDeskLogoJSONRequestBody = DeskLogoInput
+
 // CreateLabelJSONRequestBody defines body for CreateLabel for application/json ContentType.
 type CreateLabelJSONRequestBody = LabelCreate
 
@@ -30276,6 +30305,12 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}/buckets/{bucketId}:reorder)
 	ReorderBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params ReorderBucketParams)
+	// RemoveDeskLogo Go back to the icon and the colour
+	// (DELETE /containers/{containerId}/desk-logo)
+	RemoveDeskLogo(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+	// SetDeskLogo Show a logo of the service's own on its portal
+	// (PUT /containers/{containerId}/desk-logo)
+	SetDeskLogo(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (GET /containers/{containerId}/labels)
 	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ListLabelsParams)
@@ -40669,6 +40704,58 @@ func (siw *ServerInterfaceWrapper) ReorderBucket(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReorderBucket(w, r, containerId, bucketId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveDeskLogo operation middleware
+func (siw *ServerInterfaceWrapper) RemoveDeskLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveDeskLogo(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetDeskLogo operation middleware
+func (siw *ServerInterfaceWrapper) SetDeskLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetDeskLogo(w, r, containerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -59296,6 +59383,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}", wrapper.GetContainer)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/desk-logo", wrapper.RemoveDeskLogo)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/desk-logo", wrapper.SetDeskLogo)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/structure", wrapper.SetContainerStructure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/structure:preview", wrapper.PreviewContainerStructure)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/privacy", wrapper.SetHubPrivacy)

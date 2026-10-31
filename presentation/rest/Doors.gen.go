@@ -558,6 +558,7 @@ var restDoors = map[string]restDoor{
 	"removeBudget":                      {UseCase: "RemoveBudget", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeCapacity":                    {UseCase: "RemoveCapacity", Status: 204, Query: []string{"account_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeCostRate":                    {UseCase: "RemoveCostRate", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeDeskLogo":                    {UseCase: "RemoveDeskLogo", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeIdentityProvider":            {UseCase: "RemoveIdentityProvider", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeInstanceAiProvider":          {UseCase: "RemoveInstanceAiProvider", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeInstanceIdentityProvider":    {UseCase: "RemoveInstanceIdentityProvider", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -646,6 +647,7 @@ var restDoors = map[string]restDoor{
 	"setCustomField":                    {UseCase: "SetCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setDashboardDigest":                {UseCase: "SetDashboardDigest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hour", "weekday"}},
 	"setDependencyTiming":               {UseCase: "SetDependencyTiming", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"lag_days"}},
+	"setDeskLogo":                       {UseCase: "SetDeskLogo", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setDueDate":                        {UseCase: "SetDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setEntryEstimate":                  {UseCase: "SetEntryEstimate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setEntryScheduling":                {UseCase: "SetEntryScheduling", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4300,6 +4302,12 @@ func (c *RestController) RemoveCostRate(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["removeCostRate"], usecase.Input{"rate_id": rateId.String()}, params, nil, nil)
 }
 
+// RemoveDeskLogo answers DELETE /containers/{containerId}/desk-logo by the generated mapping.
+func (c *RestController) RemoveDeskLogo(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
+	var answer openapi.DeskLogo
+	c.door(w, r, restDoors["removeDeskLogo"], usecase.Input{"container_id": containerId.String()}, nil, nil, &answer)
+}
+
 // RemoveIdentityProvider answers DELETE /identity-providers/{providerId} by the generated mapping.
 func (c *RestController) RemoveIdentityProvider(w http.ResponseWriter, r *http.Request, providerId openapi.ProviderId, params openapi.RemoveIdentityProviderParams) {
 	c.door(w, r, restDoors["removeIdentityProvider"], usecase.Input{"id": providerId.String()}, params, nil, nil)
@@ -4839,6 +4847,13 @@ func (c *RestController) SetDependencyTiming(w http.ResponseWriter, r *http.Requ
 	var body openapi.SetDependencyTimingJSONRequestBody
 	var answer openapi.EntryLink
 	c.door(w, r, restDoors["setDependencyTiming"], usecase.Input{"link_id": linkId.String()}, nil, &body, &answer)
+}
+
+// SetDeskLogo answers PUT /containers/{containerId}/desk-logo by the generated mapping.
+func (c *RestController) SetDeskLogo(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
+	var body openapi.SetDeskLogoJSONRequestBody
+	var answer openapi.DeskLogo
+	c.door(w, r, restDoors["setDeskLogo"], usecase.Input{"container_id": containerId.String()}, nil, &body, &answer)
 }
 
 // SetDueDate answers PUT /items/{itemId}/due by the generated mapping.

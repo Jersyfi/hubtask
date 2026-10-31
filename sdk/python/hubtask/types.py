@@ -143,6 +143,13 @@ class AccountInvite(TypedDict, total=False):
     email: Required[str]
     display_name: str | None
 
+class DeskLogoInput(TypedDict, total=False):
+    media_id: Required[str]
+
+class DeskLogo(TypedDict, total=False):
+    collection_id: Required[str]
+    logo_media_id: Required[str | None]
+
 class AvatarInput(TypedDict, total=False):
     media_id: Required[str]
 
@@ -4297,7 +4304,7 @@ class MediaObject(TypedDict, total=False):
     content_type: Required[str]
     size: Required[int]
     checksum: str | None
-    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO"]]
     status: Required[Literal["PENDING", "READY", "PENDING_SCAN", "INFECTED"]]
     ref_count: Required[int]
     created_by: Required[str]
@@ -4315,7 +4322,7 @@ class MediaUploadRequest(TypedDict, total=False):
     file_name: str | None
     content_type: str | None
     size: Required[int]
-    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO"]]
 
 class MediaPage(TypedDict, total=False):
     data: Required[list["MediaObject"]]

@@ -213,6 +213,19 @@ func (q *Queries) FindBusinessCalendar(ctx context.Context, key string) (Busines
 	return i, err
 }
 
+const findDeskLogo = `-- name: FindDeskLogo :one
+SELECT logo_media_id FROM container
+WHERE id = $1::uuid AND type = 'COLLECTION' AND deleted_at IS NULL
+`
+
+// A collection's logo as its portal draws it (migration 0313); NULL for none.
+func (q *Queries) FindDeskLogo(ctx context.Context, collectionID pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findDeskLogo, collectionID)
+	var logo_media_id pgtype.UUID
+	err := row.Scan(&logo_media_id)
+	return logo_media_id, err
+}
+
 const findEntryOla = `-- name: FindEntryOla :one
 SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
        at_risk_at, met_at, breached_at, updated_at, version
@@ -1252,6 +1265,26 @@ func (q *Queries) SaveSatisfactionRating(ctx context.Context, arg SaveSatisfacti
 		&i.Version,
 	)
 	return i, err
+}
+
+const setDeskLogo = `-- name: SetDeskLogo :execrows
+UPDATE container SET logo_media_id = $1
+WHERE id = $2::uuid AND type = 'COLLECTION' AND deleted_at IS NULL
+`
+
+type SetDeskLogoParams struct {
+	LogoMediaID  pgtype.UUID
+	CollectionID pgtype.UUID
+}
+
+// The logo and no other column: it is not part of the collection as the replica holds it, so the
+// row's version and its updated_at stay. NULL takes it away.
+func (q *Queries) SetDeskLogo(ctx context.Context, arg SetDeskLogoParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setDeskLogo, arg.LogoMediaID, arg.CollectionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const slaDueOf = `-- name: SlaDueOf :many

@@ -2217,6 +2217,14 @@ func (pending) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, _ string,
 func (pending) ReportSla(w http.ResponseWriter, r *http.Request, _ openapi.ReportSlaParams) {
 	notAvailable(w, r)
 }
+func (pending) SetDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
 func (pending) ListRequestCatalogue(w http.ResponseWriter, r *http.Request, _ openapi.ListRequestCatalogueParams) {
 	notAvailable(w, r)
 }

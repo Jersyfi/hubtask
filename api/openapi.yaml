@@ -18272,6 +18272,59 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /containers/{containerId}/desk-logo:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    put:
+      tags: [servicedesk]
+      operationId: setDeskLogo
+      x-hubtask-rest: generated
+      summary: Show a logo of the service's own on its portal
+      description: |
+        Makes an uploaded picture the logo the portal shows for a collection serving as a service,
+        in place of its icon and colour. The picture is staged and confirmed like any other upload
+        (`POST /media` with usage `DESK_LOGO`, the bytes, then `POST /media/{mediaId}:confirm`), and
+        every requester of the service may read it. Needs STRUCTURE at the collection.
+
+        Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+        one staged for something else, `media.logo_not_an_image` for bytes that are not a PNG, JPEG,
+        GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+        `servicedesk.logo_needs_a_collection` for a hub. A logo already set is replaced; the one it
+        replaces is removed once nothing points at it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeskLogoInput"
+      responses:
+        "200":
+          description: The logo the desk shows now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeskLogo"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [servicedesk]
+      operationId: removeDeskLogo
+      x-hubtask-rest: generated
+      summary: Go back to the icon and the colour
+      description: |
+        Takes the desk's logo away: the portal draws the collection's icon and colour again.
+        Idempotent - a desk without a logo answers as it is. The picture itself is removed once
+        nothing points at it. Needs STRUCTURE at the collection.
+      responses:
+        "200":
+          description: The desk, without a logo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeskLogo"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}/structure:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -20667,7 +20720,8 @@ paths:
       description: >
         The media object's record, with a download target when it is READY. Readable by its
         uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it
-        is placed on, and - for a person's picture - by every member of the workspace.
+        is placed on; for a person's picture by every member of the workspace, and for a
+        desk's logo by whoever may raise a request at its collection.
       responses:
         "200":
           description: The media object
@@ -23586,6 +23640,25 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         display_name: { type: [string, "null"], maxLength: 200 }
+
+    DeskLogoInput:
+      type: object
+      required: [media_id]
+      properties:
+        media_id:
+          type: string
+          format: uuid
+          description: A confirmed media object the caller staged with usage `DESK_LOGO`.
+
+    DeskLogo:
+      type: object
+      required: [collection_id, logo_media_id]
+      properties:
+        collection_id: { type: string, format: uuid }
+        logo_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The logo the portal shows; null for the collection's icon and colour.
 
     AvatarInput:
       type: object
@@ -28836,12 +28909,18 @@ components:
             The service the portal is for, as its team presents it: the collection's name,
             description, icon and colour. Absent on a public form, which names no collection.
           type: object
-          required: [name, description, icon, color_token]
+          required: [name, description, icon, color_token, logo_media_id]
           properties:
             name: { type: string }
             description: { type: string, description: "Empty for none." }
             icon: { type: string, description: "The name of an icon of the design system's set; empty for none." }
             color_token: { type: string, description: "One of the label colour tokens; empty for none." }
+            logo_media_id:
+              type: [string, "null"]
+              format: uuid
+              description: >
+                The desk's own logo, a picture every requester of the service may read
+                (`GET /media/{mediaId}`); null draws the icon and the colour.
         data:
           type: array
           items:
@@ -34480,7 +34559,7 @@ components:
         checksum: { type: [string, "null"] }
         usage:
           type: string
-          enum: [COVER, ATTACHMENT, IMPORT, AVATAR]
+          enum: [COVER, ATTACHMENT, IMPORT, AVATAR, DESK_LOGO]
         status:
           type: string
           enum: [PENDING, READY, PENDING_SCAN, INFECTED]
@@ -34543,12 +34622,13 @@ components:
           description: The exact size in bytes. Bounded by the installation's upload limit.
         usage:
           type: string
-          enum: [COVER, ATTACHMENT, IMPORT, AVATAR]
+          enum: [COVER, ATTACHMENT, IMPORT, AVATAR, DESK_LOGO]
           description: >
             What the object is for. `IMPORT` stages a file for `POST /imports` and nothing
             else: an object staged as an import cannot become a cover or an attachment, and it is
             deleted when the import's job ends. `AVATAR` stages a picture for
-            `PUT /accounts/me/avatar`, at most 5 MB.
+            `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for
+            `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
 
     MediaPage:
       type: object
