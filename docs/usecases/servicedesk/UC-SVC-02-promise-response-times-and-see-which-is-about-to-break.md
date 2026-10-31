@@ -29,9 +29,10 @@ Lena's policy *incidents* measures entries of the type *incident*: a first respo
 5. When a goal passes its share, it is marked at risk and `item.sla_at_risk` is announced once; when its time runs out, it is breached and `item.sla_breached` is announced once - a rule on either escalates. A breached goal stays breached.
 6. Whoever may read the entry reads how its goals stand: target, running, standing still, met or breached, when it falls due and when it was at risk; somebody who may not read it is told it does not exist.
 7. Somebody holding STRUCTURE at the workspace counts the goals armed in a period of at most a year per policy, goal and standing; the count names no entry.
+8. A policy may promise a next response: armed by each public comment of the requester once the first response is met - their words the mail intake filed count as theirs, the administrator's own reply on what the intake filed does not -, met by the next public comment of somebody else or the completion, never by an internal note, and armed again by the requester's next comment; a breached next response stays breached.
 
 ## Where it ends
 
 * One policy measures an entry; a policy changed or deleted later moves no clock already running.
 * A policy takes effect for entries that appear, or take its type, after it is defined; nothing re-measures older entries.
-* The goals are a first response and a resolution; next-response goals, OLAs and supplier contracts on the same entry are the next release's.
+* The goals are a first response, a next response and a resolution; OLAs and supplier contracts on the same entry are the next release's.
