@@ -325,6 +325,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `config.planned` | ValidateConfig | `configuration` | INFO | When refused |
 | `config.policy_set` | SetConfigPolicy | `configuration` | INFO | Every time |
 | `config.proposed` | ProposeConfig | `configuration` | INFO | Every time |
+| `config.read` | CheckConfig | `configuration` | INFO | When refused |
 | `config.read` | ExplainConfig | `configuration` | INFO | When refused |
 | `config.read` | ExportConfig | `configuration` | INFO | When refused |
 | `config.read` | ListConfigProposals | `configuration` | INFO | When refused |

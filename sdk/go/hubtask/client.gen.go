@@ -1296,22 +1296,22 @@ func (e AuditEntryOutcome) Valid() bool {
 
 // Defines values for AuditEntrySeverity.
 const (
-	CRITICAL AuditEntrySeverity = "CRITICAL"
-	INFO     AuditEntrySeverity = "INFO"
-	NOTICE   AuditEntrySeverity = "NOTICE"
-	WARNING  AuditEntrySeverity = "WARNING"
+	AuditEntrySeverityCRITICAL AuditEntrySeverity = "CRITICAL"
+	AuditEntrySeverityINFO     AuditEntrySeverity = "INFO"
+	AuditEntrySeverityNOTICE   AuditEntrySeverity = "NOTICE"
+	AuditEntrySeverityWARNING  AuditEntrySeverity = "WARNING"
 )
 
 // Valid indicates whether the value is a known member of the AuditEntrySeverity enum.
 func (e AuditEntrySeverity) Valid() bool {
 	switch e {
-	case CRITICAL:
+	case AuditEntrySeverityCRITICAL:
 		return true
-	case INFO:
+	case AuditEntrySeverityINFO:
 		return true
-	case NOTICE:
+	case AuditEntrySeverityNOTICE:
 		return true
-	case WARNING:
+	case AuditEntrySeverityWARNING:
 		return true
 	default:
 		return false
@@ -3283,6 +3283,24 @@ func (e ConfigDocumentRequestMode) Valid() bool {
 	case ConfigDocumentRequestModeMERGE:
 		return true
 	case ConfigDocumentRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigFindingSeverity.
+const (
+	ConfigFindingSeverityERROR   ConfigFindingSeverity = "ERROR"
+	ConfigFindingSeverityWARNING ConfigFindingSeverity = "WARNING"
+)
+
+// Valid indicates whether the value is a known member of the ConfigFindingSeverity enum.
+func (e ConfigFindingSeverity) Valid() bool {
+	switch e {
+	case ConfigFindingSeverityERROR:
+		return true
+	case ConfigFindingSeverityWARNING:
 		return true
 	default:
 		return false
@@ -14192,6 +14210,11 @@ type ConfigChange struct {
 // ConfigChangeOp defines model for ConfigChange.Op.
 type ConfigChangeOp string
 
+// ConfigCheck defines model for ConfigCheck.
+type ConfigCheck struct {
+	Findings []ConfigFinding `json:"findings"`
+}
+
 // ConfigCounts defines model for ConfigCounts.
 type ConfigCounts struct {
 	Added   int `json:"added"`
@@ -14249,6 +14272,19 @@ type ConfigExport struct {
 	Version  int      `json:"version"`
 	Withheld []string `json:"withheld"`
 }
+
+// ConfigFinding defines model for ConfigFinding.
+type ConfigFinding struct {
+	Code   string             `json:"code"`
+	Params *map[string]string `json:"params,omitempty"`
+
+	// Path The key path of the block to change, a section and a block key dotted - `workflows.incident`.
+	Path     string                `json:"path"`
+	Severity ConfigFindingSeverity `json:"severity"`
+}
+
+// ConfigFindingSeverity defines model for ConfigFinding.Severity.
+type ConfigFindingSeverity string
 
 // ConfigPlan defines model for ConfigPlan.
 type ConfigPlan struct {
@@ -25220,6 +25256,12 @@ type ExportConfigParams struct {
 	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
+// CheckConfigParams defines parameters for CheckConfig.
+type CheckConfigParams struct {
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
 // ExplainConfigParams defines parameters for ExplainConfig.
 type ExplainConfigParams struct {
 	Key string `form:"key" json:"key"`
@@ -32504,6 +32546,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /config (the `ExportConfig` operationId).
 	ExportConfig(ctx context.Context, params *ExportConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckConfig Check the configuration in force
+	//
+	// What the configuration in force would make people meet before they meet it: a workflow whose entries can never be completed, a status no step leads to, a step only roles that do not exist may take, a rule that answers its own change, a hub's scheme naming a workflow the workspace does not hold. Each finding names a severity, a message code, the key path of the block to change and its parameters. Writes nothing.
+	//
+	// Corresponds with GET /config/check (the `CheckConfig` operationId).
+	CheckConfig(ctx context.Context, params *CheckConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExplainConfig Explain one key of the configuration
 	//
@@ -46431,6 +46480,23 @@ func (c *Client) SetCollectionHandle(ctx context.Context, collectionId openapi_t
 // Corresponds with GET /config (the `ExportConfig` operationId).
 func (c *Client) ExportConfig(ctx context.Context, params *ExportConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExportConfigRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckConfig Check the configuration in force
+//
+// What the configuration in force would make people meet before they meet it: a workflow whose entries can never be completed, a status no step leads to, a step only roles that do not exist may take, a rule that answers its own change, a hub's scheme naming a workflow the workspace does not hold. Each finding names a severity, a message code, the key path of the block to change and its parameters. Writes nothing.
+//
+// Corresponds with GET /config/check (the `CheckConfig` operationId).
+func (c *Client) CheckConfig(ctx context.Context, params *CheckConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckConfigRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -71756,6 +71822,60 @@ func NewExportConfigRequest(server string, params *ExportConfigParams) (*http.Re
 	}
 
 	operationPath := fmt.Sprintf("/config")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCheckConfigRequest constructs an http.Request for the CheckConfig method
+func NewCheckConfigRequest(server string, params *CheckConfigParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/check")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -100851,6 +100971,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /config (the `ExportConfig` operationId).
 	ExportConfigWithResponse(ctx context.Context, params *ExportConfigParams, reqEditors ...RequestEditorFn) (*ExportConfigResult, error)
 
+	// CheckConfigWithResponse Check the configuration in force
+	//
+	// What the configuration in force would make people meet before they meet it: a workflow whose entries can never be completed, a status no step leads to, a step only roles that do not exist may take, a rule that answers its own change, a hub's scheme naming a workflow the workspace does not hold. Each finding names a severity, a message code, the key path of the block to change and its parameters. Writes nothing.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /config/check (the `CheckConfig` operationId).
+	CheckConfigWithResponse(ctx context.Context, params *CheckConfigParams, reqEditors ...RequestEditorFn) (*CheckConfigResult, error)
+
 	// ExplainConfigWithResponse Explain one key of the configuration
 	//
 	// One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.
@@ -120126,6 +120255,54 @@ func (r ExportConfigResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ExportConfigResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckConfigResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigCheck
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckConfigResult) GetJSON200() *ConfigCheck {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckConfigResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckConfigResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckConfigResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckConfigResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckConfigResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -151504,6 +151681,21 @@ func (c *ClientWithResponses) ExportConfigWithResponse(ctx context.Context, para
 	return ParseExportConfigResult(rsp)
 }
 
+// CheckConfigWithResponse Check the configuration in force
+//
+// What the configuration in force would make people meet before they meet it: a workflow whose entries can never be completed, a status no step leads to, a step only roles that do not exist may take, a rule that answers its own change, a hub's scheme naming a workflow the workspace does not hold. Each finding names a severity, a message code, the key path of the block to change and its parameters. Writes nothing.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /config/check (the `CheckConfig` operationId).
+func (c *ClientWithResponses) CheckConfigWithResponse(ctx context.Context, params *CheckConfigParams, reqEditors ...RequestEditorFn) (*CheckConfigResult, error) {
+	rsp, err := c.CheckConfig(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckConfigResult(rsp)
+}
+
 // ExplainConfigWithResponse Explain one key of the configuration
 //
 // One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.
@@ -171657,6 +171849,39 @@ func ParseExportConfigResult(rsp *http.Response) (*ExportConfigResult, error) {
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseCheckConfigResult parses an HTTP response from a CheckConfigWithResponse call
+func ParseCheckConfigResult(rsp *http.Response) (*CheckConfigResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckConfigResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigCheck
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

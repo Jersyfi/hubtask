@@ -1116,6 +1116,11 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "kind", "state"}},
+	{Group: "config", Verb: "check", OperationID: "checkConfig", Method: "GET", Path: "/config/check", Summary: "Check the configuration in force",
+		Query: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the …", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
 	{Group: "config", Verb: "propose", OperationID: "proposeConfig", Method: "POST", Path: "/config:propose", Summary: "Propose a planned change for a person to decide",
 		Body: []doorParam{
 			{Name: "acknowledge", Kind: "boolean", Help: "", Required: false},

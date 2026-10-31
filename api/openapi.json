@@ -25583,6 +25583,38 @@
         }
       }
     },
+    "/config/check": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "checkConfig",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "config check",
+        "summary": "Check the configuration in force",
+        "description": "What the configuration in force would make people meet before they meet it: a workflow whose entries can never be completed, a status no step leads to, a step only roles that do not exist may take, a rule that answers its own change, a hub's scheme naming a workflow the workspace does not hold. Each finding names a severity, a message code, the key path of the block to change and its parameters. Writes nothing.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ConfigHub"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The findings, errors first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigCheck"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/config:validate": {
       "post": {
         "tags": [
@@ -46588,6 +46620,50 @@
           "allowed": {
             "type": "array",
             "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ConfigCheck": {
+        "type": "object",
+        "required": [
+          "findings"
+        ],
+        "properties": {
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigFinding"
+            }
+          }
+        }
+      },
+      "ConfigFinding": {
+        "type": "object",
+        "required": [
+          "severity",
+          "code",
+          "path"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "ERROR",
+              "WARNING"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "The key path of the block to change, a section and a block key dotted - `workflows.incident`."
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
               "type": "string"
             }
           }

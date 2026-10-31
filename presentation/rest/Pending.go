@@ -1824,6 +1824,9 @@ func (pending) ExportConfig(w http.ResponseWriter, r *http.Request, _ openapi.Ex
 func (pending) ExplainConfig(w http.ResponseWriter, r *http.Request, _ openapi.ExplainConfigParams) {
 	notAvailable(w, r)
 }
+func (pending) CheckConfig(w http.ResponseWriter, r *http.Request, _ openapi.CheckConfigParams) {
+	notAvailable(w, r)
+}
 func (pending) ValidateConfig(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) PlanConfig(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
 func (pending) ProposeConfig(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }

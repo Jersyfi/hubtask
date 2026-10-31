@@ -2521,6 +2521,15 @@ class ConfigExplanation(TypedDict, total=False):
     applies_to: Required[str]
     allowed: list[str]
 
+class ConfigCheck(TypedDict, total=False):
+    findings: Required[list["ConfigFinding"]]
+
+class ConfigFinding(TypedDict, total=False):
+    severity: Required[Literal["ERROR", "WARNING"]]
+    code: Required[str]
+    path: Required[str]
+    params: dict[str, Any]
+
 class ConfigRefusal(TypedDict, total=False):
     path: Required[str]
     code: Required[str]

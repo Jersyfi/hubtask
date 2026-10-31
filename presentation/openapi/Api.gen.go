@@ -1290,22 +1290,22 @@ func (e AuditEntryOutcome) Valid() bool {
 
 // Defines values for AuditEntrySeverity.
 const (
-	CRITICAL AuditEntrySeverity = "CRITICAL"
-	INFO     AuditEntrySeverity = "INFO"
-	NOTICE   AuditEntrySeverity = "NOTICE"
-	WARNING  AuditEntrySeverity = "WARNING"
+	AuditEntrySeverityCRITICAL AuditEntrySeverity = "CRITICAL"
+	AuditEntrySeverityINFO     AuditEntrySeverity = "INFO"
+	AuditEntrySeverityNOTICE   AuditEntrySeverity = "NOTICE"
+	AuditEntrySeverityWARNING  AuditEntrySeverity = "WARNING"
 )
 
 // Valid indicates whether the value is a known member of the AuditEntrySeverity enum.
 func (e AuditEntrySeverity) Valid() bool {
 	switch e {
-	case CRITICAL:
+	case AuditEntrySeverityCRITICAL:
 		return true
-	case INFO:
+	case AuditEntrySeverityINFO:
 		return true
-	case NOTICE:
+	case AuditEntrySeverityNOTICE:
 		return true
-	case WARNING:
+	case AuditEntrySeverityWARNING:
 		return true
 	default:
 		return false
@@ -3277,6 +3277,24 @@ func (e ConfigDocumentRequestMode) Valid() bool {
 	case ConfigDocumentRequestModeMERGE:
 		return true
 	case ConfigDocumentRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigFindingSeverity.
+const (
+	ConfigFindingSeverityERROR   ConfigFindingSeverity = "ERROR"
+	ConfigFindingSeverityWARNING ConfigFindingSeverity = "WARNING"
+)
+
+// Valid indicates whether the value is a known member of the ConfigFindingSeverity enum.
+func (e ConfigFindingSeverity) Valid() bool {
+	switch e {
+	case ConfigFindingSeverityERROR:
+		return true
+	case ConfigFindingSeverityWARNING:
 		return true
 	default:
 		return false
@@ -14186,6 +14204,11 @@ type ConfigChange struct {
 // ConfigChangeOp defines model for ConfigChange.Op.
 type ConfigChangeOp string
 
+// ConfigCheck defines model for ConfigCheck.
+type ConfigCheck struct {
+	Findings []ConfigFinding `json:"findings"`
+}
+
 // ConfigCounts defines model for ConfigCounts.
 type ConfigCounts struct {
 	Added   int `json:"added"`
@@ -14243,6 +14266,19 @@ type ConfigExport struct {
 	Version  int      `json:"version"`
 	Withheld []string `json:"withheld"`
 }
+
+// ConfigFinding defines model for ConfigFinding.
+type ConfigFinding struct {
+	Code   string             `json:"code"`
+	Params *map[string]string `json:"params,omitempty"`
+
+	// Path The key path of the block to change, a section and a block key dotted - `workflows.incident`.
+	Path     string                `json:"path"`
+	Severity ConfigFindingSeverity `json:"severity"`
+}
+
+// ConfigFindingSeverity defines model for ConfigFinding.Severity.
+type ConfigFindingSeverity string
 
 // ConfigPlan defines model for ConfigPlan.
 type ConfigPlan struct {
@@ -25214,6 +25250,12 @@ type ExportConfigParams struct {
 	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
+// CheckConfigParams defines parameters for CheckConfig.
+type CheckConfigParams struct {
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
 // ExplainConfigParams defines parameters for ExplainConfig.
 type ExplainConfigParams struct {
 	Key string `form:"key" json:"key"`
@@ -29467,6 +29509,9 @@ type ServerInterface interface {
 	// ExportConfig The configuration document in force
 	// (GET /config)
 	ExportConfig(w http.ResponseWriter, r *http.Request, params ExportConfigParams)
+	// CheckConfig Check the configuration in force
+	// (GET /config/check)
+	CheckConfig(w http.ResponseWriter, r *http.Request, params CheckConfigParams)
 	// ExplainConfig Explain one key of the configuration
 	// (GET /config/explain)
 	ExplainConfig(w http.ResponseWriter, r *http.Request, params ExplainConfigParams)
@@ -38727,6 +38772,39 @@ func (siw *ServerInterfaceWrapper) ExportConfig(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportConfig(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckConfig operation middleware
+func (siw *ServerInterfaceWrapper) CheckConfig(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CheckConfigParams
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckConfig(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -57650,6 +57728,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/config-schema", wrapper.ReadConfigSchema)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config", wrapper.ExportConfig)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/explain", wrapper.ExplainConfig)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/check", wrapper.CheckConfig)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config:validate", wrapper.ValidateConfig)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config:plan", wrapper.PlanConfig)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config:propose", wrapper.ProposeConfig)

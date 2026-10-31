@@ -3206,6 +3206,11 @@ export class HubtaskClient {
     return this.call("GET", "/config/explain", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Check the configuration in force */
+  checkConfig(options: CallOptions & { readonly query?: NonNullable<operations["checkConfig"]['parameters']['query']> } = {}): Promise<operations["checkConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config/check", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Check a configuration document */
   validateConfig(body: NonNullable<operations["validateConfig"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["validateConfig"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/config:validate", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

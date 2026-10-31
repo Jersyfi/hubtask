@@ -71,6 +71,7 @@ var restDoors = map[string]restDoor{
 	"changePreset":                      {UseCase: "ChangePreset", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeRole":                        {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeWhiteboardComment":           {UseCase: "ChangeWhiteboardComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"checkConfig":                       {UseCase: "CheckConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkInGoal":                       {UseCase: "CheckInGoal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"confidence"}},
 	"checkMailbox":                      {UseCase: "CheckMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkPassword":                     {UseCase: "CheckPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1119,6 +1120,12 @@ func (c *RestController) ChangeWhiteboardComment(w http.ResponseWriter, r *http.
 	var body openapi.ChangeWhiteboardCommentApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.WhiteboardComment
 	c.door(w, r, restDoors["changeWhiteboardComment"], usecase.Input{"comment_id": commentId.String()}, params, &body, &answer)
+}
+
+// CheckConfig answers GET /config/check by the generated mapping.
+func (c *RestController) CheckConfig(w http.ResponseWriter, r *http.Request, params openapi.CheckConfigParams) {
+	var answer openapi.ConfigCheck
+	c.door(w, r, restDoors["checkConfig"], usecase.Input{}, params, nil, &answer)
 }
 
 // CheckInGoal answers POST /goals/{goalId}/check-ins by the generated mapping.

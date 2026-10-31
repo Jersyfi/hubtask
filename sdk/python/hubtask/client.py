@@ -2547,6 +2547,10 @@ class Client:
         """Explain one key of the configuration"""
         return self._call("GET", "/config/explain", {}, query, {}, None, "none", None, "json")
 
+    def check_config(self, *, query: dict[str, Any] | None = None) -> "ConfigCheck":
+        """Check the configuration in force"""
+        return self._call("GET", "/config/check", {}, query, {}, None, "none", None, "json")
+
     def validate_config(self, body: "ConfigDocumentRequest") -> "ConfigValidation":
         """Check a configuration document"""
         return self._call("POST", "/config:validate", {}, None, {}, body, "json", "application/json", "json")
