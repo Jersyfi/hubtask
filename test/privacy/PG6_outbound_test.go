@@ -45,6 +45,7 @@ var dialableExceptions = map[string]string{
 	"core/domain/model/integration/ChatBot.go":             "the scheme a homeserver's address is held to, never dialled itself: the homeserver arrives as data an administrator entered",
 	"infrastructure/filestore/Store.go":                    "Microsoft Graph's address: dialled only for a connection its owner made, through an app the operator configured",
 	"infrastructure/mailbox/Graph.go":                      "Microsoft Graph's address: dialled only for a GRAPH mailbox an administrator connected with its own OAuth grant",
+	"infrastructure/environment/EnvConfig.go":              "the scheme prefix a framed origin is held to (HUBTASK_UI_FRAME_SOURCES): a shape rule, never a destination",
 }
 
 func TestPG6NoAddressIsDialledWithoutConfiguration(t *testing.T) {
