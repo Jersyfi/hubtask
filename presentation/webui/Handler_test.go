@@ -279,3 +279,36 @@ func TestTheEmbeddedBundleIsUsable(t *testing.T) {
 		t.Errorf("GET / = %d, want 200", recorder.Code)
 	}
 }
+
+// HUBTASK_UI_FRAME_ANCESTORS: the configured origins replace `frame-ancestors 'none'` on the
+// interface's policy and change nothing else; none leaves the policy as it is, and the API's own
+// policy never takes them.
+func TestTheFrameAncestorsWidenOnlyTheInterfacesFrameDirective(t *testing.T) {
+	t.Parallel()
+
+	if got := webui.EmbeddableBy(webui.ContentSecurityPolicy, nil); got != webui.ContentSecurityPolicy {
+		t.Errorf("no origins changed the policy: %q", got)
+	}
+	origins := []string{"https://portal.example.org", "https://element.example.org"}
+	got := webui.EmbeddableBy(webui.ContentSecurityPolicy, origins)
+	want := strings.Replace(webui.ContentSecurityPolicy, "frame-ancestors 'none'",
+		"frame-ancestors https://portal.example.org https://element.example.org", 1)
+	if got != want {
+		t.Errorf("the embeddable policy:\n got %q\nwant %q", got, want)
+	}
+
+	h, err := webui.NewHandler(bundle(), rest.WriteSecurityHeaders, "", origins...)
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	if csp := get(t, h, "/").Header().Get("Content-Security-Policy"); csp != want {
+		t.Errorf("GET /: CSP = %q", csp)
+	}
+
+	api := httptest.NewRecorder()
+	rest.Secured{Next: http.NotFoundHandler()}.ServeHTTP(api,
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/meta", nil))
+	if csp := api.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "frame-ancestors 'none'") {
+		t.Errorf("the API's policy is %q", csp)
+	}
+}

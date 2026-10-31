@@ -549,6 +549,10 @@ type UIConfig struct {
 	// front of it, or a deployment that only serves integrations. Then "/" is 404 and the API is
 	// untouched, which is the honest answer: there is nothing there.
 	Enabled bool
+	// FrameAncestors are the origins that may embed the interface in a frame - a portal such as
+	// openDesk's - each a complete origin. Empty by default, which keeps `frame-ancestors 'none'`;
+	// it widens the interface's policy only, never the API's.
+	FrameAncestors []string
 }
 
 // LocaleConfig is the installation-wide fallback, the last link in the resolution chain

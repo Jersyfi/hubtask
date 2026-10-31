@@ -872,3 +872,33 @@ func TestTheOperatorsVariableNamesAWorkspaceAndAnAddress(t *testing.T) {
 		})
 	}
 }
+
+// HUBTASK_UI_FRAME_ANCESTORS is empty by default, takes complete origins, and refuses a wildcard
+// or anything that would add a directive.
+func TestTheFrameAncestorsAreCompleteOriginsOnly(t *testing.T) {
+	withRequiredSecrets(t)
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.UI.FrameAncestors) != 0 {
+		t.Fatalf("frame ancestors by default = %v", cfg.UI.FrameAncestors)
+	}
+
+	t.Setenv("HUBTASK_UI_FRAME_ANCESTORS", "https://portal.example.org, https://chat.example.org:8443")
+	cfg, err = load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.UI.FrameAncestors) != 2 || cfg.UI.FrameAncestors[1] != "https://chat.example.org:8443" {
+		t.Fatalf("frame ancestors = %v", cfg.UI.FrameAncestors)
+	}
+
+	for _, refused := range []string{"*", "https://*.example.org", "portal.example.org",
+		"https://portal.example.org/path", "https://a.example.org; script-src *"} {
+		t.Setenv("HUBTASK_UI_FRAME_ANCESTORS", refused)
+		if _, err := load(t); err == nil || !strings.Contains(err.Error(), "config.frame_ancestor_invalid") {
+			t.Errorf("%q answered %v", refused, err)
+		}
+	}
+}

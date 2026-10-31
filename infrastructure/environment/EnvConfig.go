@@ -200,7 +200,8 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			Directory:       get("HUBTASK_LOCALE_DIR", ""),
 		},
 		UI: env.UIConfig{
-			Enabled: getBool("HUBTASK_UI_ENABLED", true),
+			Enabled:        getBool("HUBTASK_UI_ENABLED", true),
+			FrameAncestors: getList("HUBTASK_UI_FRAME_ANCESTORS"),
 		},
 	}
 
@@ -372,6 +373,7 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateLoadShed(cfg.LoadShed)...)
 	errs = append(errs, validateRequest(cfg.Request)...)
 	errs = append(errs, validateCORS(cfg.CORS)...)
+	errs = append(errs, validateFrameAncestors(cfg.UI.FrameAncestors)...)
 	errs = append(errs, validateOutbound(cfg.Outbound)...)
 	errs = append(errs, validateLocale(cfg.Locale)...)
 	errs = append(errs, validateTracing(cfg.Tracing)...)
@@ -639,6 +641,25 @@ func validateCORS(c env.CORSConfig) []error {
 		if !found || (scheme != "http" && scheme != "https") ||
 			rest == "" || strings.ContainsAny(rest, "/?#") {
 			errs = append(errs, corsOriginError(origin))
+		}
+	}
+	return errs
+}
+
+// validateFrameAncestors holds the embedding origins to what validateCORS holds the CORS list to,
+// and refuses a wildcard outright: a policy that lets any page frame the interface is the
+// clickjacking it exists to prevent.
+func validateFrameAncestors(origins []string) []error {
+	var errs []error
+	for _, origin := range origins {
+		scheme, rest, found := strings.Cut(origin, "://")
+		if !found || (scheme != "http" && scheme != "https") || rest == "" ||
+			strings.ContainsAny(rest, "/?#*; '\"") {
+			errs = append(errs, configError("config.frame_ancestor_invalid", "HUBTASK_UI_FRAME_ANCESTORS").
+				WithParams(map[string]string{
+					"variable": "HUBTASK_UI_FRAME_ANCESTORS",
+					"value":    origin,
+				}))
 		}
 	}
 	return errs

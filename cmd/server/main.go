@@ -3922,7 +3922,7 @@ func run() error {
 			if originErr != nil {
 				return fmt.Errorf("web interface: %w", originErr)
 			}
-			handler, uiErr := webui.NewHandler(files, rest.WriteSecurityHeaders, mediaOrigin)
+			handler, uiErr := webui.NewHandler(files, rest.WriteSecurityHeaders, mediaOrigin, cfg.UI.FrameAncestors...)
 			if uiErr != nil {
 				return fmt.Errorf("web interface: %w", uiErr)
 			}

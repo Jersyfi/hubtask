@@ -1920,6 +1920,7 @@
   "config.locale_dir_missing": "{variable} nennt {value}, und das ist kein Verzeichnis, das dieser Prozess lesen kann. Entferne die Variable oder lass sie auf das Verzeichnis mit den Katalogdateien zeigen.",
   "config.locale_file_invalid": "{variable} enthält eine Datei, die dieser Prozess nicht als Katalog lesen kann: {file}. Ein Katalog ist <tag>.json, eine flache Zuordnung von Meldungscodes zu Sätzen.",
   "config.cors_origin_invalid": "{variable} nimmt vollständige Origins wie https://app.example.com. {value} ist keiner.",
+  "config.frame_ancestor_invalid": "{variable} nimmt vollständige Origins wie https://portal.example.org, ohne Platzhalter. {value} ist keiner.",
   "config.backup_not_configured": "Kein Zeitplan schreibt in ein Sicherungsziel, darum wird nichts gesichert.",
   "config.backup_coverage_unchecked": "Die Sicherungsziele ließen sich nicht zählen, daher wurde nicht geprüft, ob diese Installation gesichert wird.",
   "config.smtp_missing": "Es ist kein SMTP-Server eingerichtet. Benachrichtigungen per E-Mail sind nicht verfügbar.",

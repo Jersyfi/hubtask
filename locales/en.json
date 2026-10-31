@@ -201,6 +201,7 @@
   "config.locale_dir_missing": "{variable} names {value}, which is not a directory this process can read. Unset it, or point it at the directory holding the catalogue files.",
   "config.locale_file_invalid": "{variable} holds a file this process cannot read as a catalogue: {file}. A catalogue is <tag>.json, a flat map of message codes to sentences.",
   "config.cors_origin_invalid": "{variable} takes complete origins such as https://app.example.com. {value} is not one.",
+  "config.frame_ancestor_invalid": "{variable} takes complete origins such as https://portal.example.org, without a wildcard. {value} is not one.",
   "config.backup_not_configured": "No schedule writes to a backup target, so nothing is being backed up.",
   "config.backup_coverage_unchecked": "The backup targets could not be counted, so whether this installation is backed up was not checked.",
   "config.smtp_missing": "No SMTP server is configured. Notifications by email are unavailable.",

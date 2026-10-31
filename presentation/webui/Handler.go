@@ -66,6 +66,17 @@ func PolicyFor(mediaOrigin string) string {
 	return policy
 }
 
+// EmbeddableBy is a policy with `frame-ancestors 'none'` replaced by the origins that may frame
+// the interface - a portal embedding it (HUBTASK_UI_FRAME_ANCESTORS). None answers the policy
+// unchanged. The origins are the operator's, validated as complete origins at start; the API's
+// own policy never takes them, so a frame can show the interface and never an API answer.
+func EmbeddableBy(policy string, origins []string) string {
+	if len(origins) == 0 {
+		return policy
+	}
+	return strings.Replace(policy, "frame-ancestors 'none'", "frame-ancestors "+strings.Join(origins, " "), 1)
+}
+
 // Cache-Control for the two kinds of file a bundle contains.
 //
 // The pairing is what makes an update take effect on the next reload while a browser still gets
@@ -125,7 +136,9 @@ type Handler struct {
 // revalidate" degenerates into "always re-download": an embedded file has no modification time -
 // every byte of it was fixed when the binary was linked - so there would be nothing for the
 // browser to ask about. With one, a reload that changes nothing costs a 304.
-func NewHandler(files fs.FS, headers SecurityHeaderWriter, mediaOrigin string) (Handler, error) {
+func NewHandler(
+	files fs.FS, headers SecurityHeaderWriter, mediaOrigin string, frameAncestors ...string,
+) (Handler, error) {
 	if files == nil {
 		return Handler{}, fmt.Errorf("webui: no bundle")
 	}
@@ -151,7 +164,7 @@ func NewHandler(files fs.FS, headers SecurityHeaderWriter, mediaOrigin string) (
 	if err != nil {
 		return Handler{}, fmt.Errorf("webui: reading the bundle: %w", err)
 	}
-	return Handler{Files: files, SecurityHeaders: headers, etags: etags, policy: PolicyFor(mediaOrigin)}, nil
+	return Handler{Files: files, SecurityHeaders: headers, etags: etags, policy: EmbeddableBy(PolicyFor(mediaOrigin), frameAncestors)}, nil
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
