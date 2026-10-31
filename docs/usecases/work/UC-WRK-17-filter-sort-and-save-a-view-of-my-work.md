@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-09, P-11, P-12, P-13]
 state: partial
 tasks: [B-12, D-07, D-08, F2-13, F3-15, F10-14]
-checked_by: [test/integration/query_language_test.go, test/integration/typed_field_test.go, core/domain/model/view/CustomShape_test.go, infrastructure/postgres/query/CustomValue_test.go, test/integration/query_test.go, test/integration/saved_view_test.go, test/integration/saved_view_acceptance_test.go, test/integration/export_test.go, core/domain/model/view/Filter_test.go, core/domain/model/view/SavedView_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/timeline.test.mjs, apps/webapp/e2e/subtreeviews.test.mjs, apps/webapp/src/lib/data/query.test.ts, apps/webapp/src/lib/data/customfields.test.ts, test/integration/query_aggregate_test.go, infrastructure/postgres/query/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, core/application/service/work/AggregateView_test.go]
+checked_by: [core/domain/model/view/Line_test.go, core/application/service/work/QueryItems_test.go, test/integration/query_language_test.go, test/integration/typed_field_test.go, core/domain/model/view/CustomShape_test.go, infrastructure/postgres/query/CustomValue_test.go, test/integration/query_test.go, test/integration/saved_view_test.go, test/integration/saved_view_acceptance_test.go, test/integration/export_test.go, core/domain/model/view/Filter_test.go, core/domain/model/view/SavedView_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/timeline.test.mjs, apps/webapp/e2e/subtreeviews.test.mjs, apps/webapp/src/lib/data/query.test.ts, apps/webapp/src/lib/data/customfields.test.ts, test/integration/query_aggregate_test.go, infrastructure/postgres/query/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, core/application/service/work/AggregateView_test.go]
 ---
 
 # Filter, sort and save a view of my work
@@ -58,6 +58,13 @@ before saving a new one. At the end of the month the lead exports the view as CS
     per day, week or month; it counts only what the same query would list to that reader, a
     summary over the whole workspace reads only the collections the reader may read, and a saved
     view that stores no summary is refused with `views.aggregate_missing`.
+12. A query is also written as one line - `status = open AND custom_fields.priority >= 3 ORDER BY
+    due_at DESC` - through `q` on `POST /items:query` and its export, the MCP tool and hubctl: it
+    is read into the same conditions and order, held to the same fields, operators and bounds, a
+    line that cannot be read is refused with `query.line_malformed` naming the character it stops
+    at, and a line sent beside conditions or an order is refused with `query.line_with_filter`.
+    In the web app, the filter bar's text mode writes the line from the conditions and the
+    conditions from the line.
 
 ## Where it ends
 
@@ -73,3 +80,4 @@ before saving a new one. At the end of the month the lead exports the view as CS
 ## Today
 
 * Check 6: not met — applying a view sets the query and the layout, but the filter panel keeps its own empty state: the view's conditions are not shown, and touching the filter replaces them.
+* Check 12: not met — the line is served on every door, but the web app's filter bar has no text mode yet.

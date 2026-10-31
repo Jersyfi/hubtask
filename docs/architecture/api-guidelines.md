@@ -252,6 +252,21 @@ and the limit are parameters (§3.1).
 `/meta/capabilities` announces this as `features.search_filter: true`, so a client that also talks
 to an older server tells rather than probes.
 
+**The query as a line.** `POST /items:query` and `POST /items:export` (and the MCP tool and
+`hubctl` beside them) take `q` instead of `filter` and `sort`: `status = open AND
+custom_fields.priority >= 3 ORDER BY due_at DESC`. The comparisons are `=`, `!=`, `<`, `<=`, `>`,
+`>=`, `~` (CONTAINS), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`,
+`CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH`, `MATCHES`; `NOT` binds tighter
+than `AND`, `AND` than `OR`, brackets group; the keywords are case-insensitive and reserved. A text
+is quoted with `'` or `"` and a backslash takes the next character; a bare word is read by the
+field's kind (a number, `true`/`false`, else a text) and a placeholder (`@me`, `@today+P3D`) stays
+one. The line is only another spelling: `core/domain/model/view.ParseLine` turns it into the filter
+document and the sort list, which then go through the same field catalogue, operators, bounds and
+price as the tree, so the line adds no rule and no SQL. It is at most 4000 bytes and ten brackets
+deep; one that cannot be read is `query.line_malformed` with the character (`at`, from 1) where it
+stops, and a line beside `filter` or `sort` is `query.line_with_filter`. `FormatLine` writes a tree
+back as a line that reads to the same tree.
+
 ### 3.1 How a query becomes SQL
 
 The filter, sort and grouping of `items:query` and `/search`, and the aggregation of
