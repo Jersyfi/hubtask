@@ -33902,10 +33902,12 @@ type ClientInterface interface {
 	// The feed reads as its owner reads, evaluated at every fetch: an owner who loses access to half the view sees the feed narrow with them, and a revoked membership is not survived by a token that remembers better days.
 	CreateCalendarFeed(ctx context.Context, params *CreateCalendarFeedParams, body CreateCalendarFeedJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RevokeCalendarFeed performs a DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId) request.
+	// RevokeCalendarFeed Revoke a calendar feed, which answers nothing from then on
 	//
 	// Revokes the feed. The row stays with the moment it was revoked - which is what makes "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.
 	// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
+	//
+	// Corresponds with DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId).
 	RevokeCalendarFeed(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCalendarPushes The caller's calendar pushes
@@ -49682,10 +49684,12 @@ func (c *Client) CreateCalendarFeed(ctx context.Context, params *CreateCalendarF
 	return c.Client.Do(req)
 }
 
-// RevokeCalendarFeed performs a DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId) request.
+// RevokeCalendarFeed Revoke a calendar feed, which answers nothing from then on
 //
 // Revokes the feed. The row stays with the moment it was revoked - which is what makes "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.
 // Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
+//
+// Corresponds with DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId).
 func (c *Client) RevokeCalendarFeed(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeCalendarFeedRequest(c.Server, feedId)
 	if err != nil {
@@ -101871,12 +101875,14 @@ type ClientWithResponsesInterface interface {
 	// The feed reads as its owner reads, evaluated at every fetch: an owner who loses access to half the view sees the feed narrow with them, and a revoked membership is not survived by a token that remembers better days.
 	CreateCalendarFeedWithResponse(ctx context.Context, params *CreateCalendarFeedParams, body CreateCalendarFeedJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCalendarFeedResult, error)
 
-	// RevokeCalendarFeedWithResponse performs a DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId) request.
+	// RevokeCalendarFeedWithResponse Revoke a calendar feed, which answers nothing from then on
 	//
 	// Revokes the feed. The row stays with the moment it was revoked - which is what makes "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.
 	// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
 	//
 	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId).
 	RevokeCalendarFeedWithResponse(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*RevokeCalendarFeedResult, error)
 
 	// ListCalendarPushesWithResponse The caller's calendar pushes
@@ -153359,12 +153365,14 @@ func (c *ClientWithResponses) CreateCalendarFeedWithResponse(ctx context.Context
 	return ParseCreateCalendarFeedResult(rsp)
 }
 
-// RevokeCalendarFeedWithResponse performs a DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId) request.
+// RevokeCalendarFeedWithResponse Revoke a calendar feed, which answers nothing from then on
 //
 // Revokes the feed. The row stays with the moment it was revoked - which is what makes "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.
 // Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
 //
 // Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId).
 func (c *ClientWithResponses) RevokeCalendarFeedWithResponse(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*RevokeCalendarFeedResult, error) {
 	rsp, err := c.RevokeCalendarFeed(ctx, feedId, reqEditors...)
 	if err != nil {

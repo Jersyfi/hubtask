@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -31,22 +30,10 @@ func tokenGroup() group {
 		summary: "personal access tokens - mint, list, revoke",
 		commands: []command{
 			{
-				name:    "ls",
-				usage:   "[--account <id>]",
-				summary: "list one's own tokens, or a service account's",
-				run:     tokenList,
-			},
-			{
 				name:    "create",
 				usage:   "--name <text> --scope <a,b> (--days <n> | --expires <RFC3339>) [--account <id>]",
 				summary: "mint a token and print it once",
 				run:     tokenCreate,
-			},
-			{
-				name:    "revoke",
-				usage:   "<token-id>",
-				summary: "stop a token; the call after this one is refused",
-				run:     tokenRevoke,
 			},
 		},
 	}
@@ -54,49 +41,10 @@ func tokenGroup() group {
 
 func serviceAccountGroup() group {
 	return group{
-		name:    "service-account",
-		summary: "accounts that exist only to be acted through",
-		commands: []command{
-			{
-				name:    "ls",
-				summary: "list the workspace's service accounts",
-				run:     serviceAccountList,
-			},
-			{
-				name:    "create",
-				usage:   "--name <text>",
-				summary: "create a service account an integration or a rule can act as",
-				run:     serviceAccountCreate,
-			},
-		},
+		name:     "service-account",
+		summary:  "accounts that exist only to be acted through",
+		commands: []command{},
 	}
-}
-
-func tokenList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "token", "ls", "[--account <id>]")
-	account := flags.String("account", "", "whose tokens; omitted means one's own")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *account != "" {
-		owner, err := cli.parseID("--account", *account)
-		if err != nil {
-			return err
-		}
-		query.Set("account_id", owner.String())
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var tokens []openapi.AccessToken
-	if err := client.Get(ctx, tokensPath, query, &tokens); err != nil {
-		return err
-	}
-	return cli.Emit(tokens, tokenTable(tokens))
 }
 
 func tokenCreate(ctx context.Context, cli *CLI, args []string) error {
@@ -160,67 +108,6 @@ func tokenCreate(ctx context.Context, cli *CLI, args []string) error {
 	printf(cli.Err,
 		"that is the whole credential and is shown once: store it, and revoke the token if it leaks\n")
 	return nil
-}
-
-func tokenRevoke(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "token revoke <token-id>"
-	token, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "token", "revoke", "<token-id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(ctx, tokensPath+"/"+token.String(), ""); err != nil {
-		return err
-	}
-	printf(cli.Err, "token revoked: %s (the next call presenting it is refused)\n", token)
-	return nil
-}
-
-func serviceAccountList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "service-account", "ls", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var accounts []openapi.Account
-	if err := client.Get(ctx, serviceAccountPath, nil, &accounts); err != nil {
-		return err
-	}
-	return cli.Emit(accounts, serviceAccountTable(accounts))
-}
-
-func serviceAccountCreate(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "service-account", "create", "--name <text>")
-	name := flags.String("name", "", "what it does - \"the nightly export\", not \"svc1\"")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if *name == "" {
-		return usagef("a service account needs --name: it is what the audit trail shows")
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var created openapi.Account
-	if err := client.Post(ctx, serviceAccountPath,
-		openapi.ServiceAccountCreate{DisplayName: *name}, &created); err != nil {
-		return err
-	}
-	return cli.Emit(created, serviceAccountTable([]openapi.Account{created}))
 }
 
 // scopeArgument reads the comma separated list. Empty is refused here rather than sent: the
@@ -292,16 +179,4 @@ func tokenTable(tokens []openapi.AccessToken) Table {
 		Columns: []string{"id", "name", "scopes", "expires", "last used", "revoked"},
 		Rows:    rows,
 	}
-}
-
-func serviceAccountTable(accounts []openapi.Account) Table {
-	rows := make([][]string, 0, len(accounts))
-	for _, account := range accounts {
-		rows = append(rows, []string{
-			account.Id.String(),
-			account.DisplayName,
-			string(account.Status),
-		})
-	}
-	return Table{Columns: []string{"id", "name", "status"}, Rows: rows}
 }

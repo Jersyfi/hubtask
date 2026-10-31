@@ -6,8 +6,6 @@ package main
 import (
 	"context"
 	"strings"
-
-	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 // The sign-ins a person can see and end.
@@ -22,11 +20,6 @@ func sessionGroup() group {
 		summary: "the sign-ins on this account, and ending them",
 		commands: []command{
 			{
-				name:    "ls",
-				summary: "the account's own sessions, newest first",
-				run:     sessionList,
-			},
-			{
 				name:    "revoke",
 				usage:   "<id> | --all",
 				summary: "end one session, or every one including this shell's",
@@ -34,23 +27,6 @@ func sessionGroup() group {
 			},
 		},
 	}
-}
-
-func sessionList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "session", "ls", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var sessions []openapi.Session
-	if err := client.Get(ctx, sessionsPath, nil, &sessions); err != nil {
-		return err
-	}
-	return cli.Emit(sessions, sessionTable(sessions))
 }
 
 // sessionRevoke ends one session or all of them, and forgets the local one where it was among
@@ -107,24 +83,4 @@ func sessionRevoke(ctx context.Context, cli *CLI, args []string) error {
 	}
 	printf(cli.Err, "session %s is over\n", sessionID)
 	return nil
-}
-
-func sessionTable(sessions []openapi.Session) Table {
-	rows := make([][]string, 0, len(sessions))
-	for _, session := range sessions {
-		rows = append(rows, []string{
-			session.Id.String(),
-			map[bool]string{true: "yes", false: "-"}[session.Current],
-			shortTime(&session.CreatedAt),
-			shortTime(session.LastUsedAt),
-			text(session.UserAgent),
-			// The network, coarsened where it was recorded - a /24 or a /48, never an address
-			// (T-01). The column is called what it holds so that nobody reads it as one.
-			text(session.IpClass),
-		})
-	}
-	return Table{
-		Columns: []string{"id", "this one", "opened", "last used", "client", "network"},
-		Rows:    rows,
-	}
 }

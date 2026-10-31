@@ -1614,7 +1614,7 @@ export class HubtaskClient {
     return this.call("POST", "/integrations/calendar-feeds", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** DELETE /integrations/calendar-feeds/{feedId} */
+  /** Revoke a calendar feed, which answers nothing from then on */
   revokeCalendarFeed(feedId: string, options: CallOptions = {}): Promise<void> {
     return this.call("DELETE", "/integrations/calendar-feeds/{feedId}", { "feedId": feedId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }

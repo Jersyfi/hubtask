@@ -11787,6 +11787,14 @@
           "automation"
         ],
         "operationId": "listRules",
+        "x-hubtask-cli": "rule ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "name",
+          "enabled",
+          "failure_count",
+          "next_run_at"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "ruleResponse",
         "summary": "The workspace's automation rules",
@@ -11876,6 +11884,7 @@
           "automation"
         ],
         "operationId": "getRule",
+        "x-hubtask-cli": "rule show",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "ruleResponse",
         "summary": "One rule, as it stands",
@@ -11959,6 +11968,7 @@
           "automation"
         ],
         "operationId": "enableRule",
+        "x-hubtask-cli": "rule enable",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "ruleResponse",
         "summary": "Switch a rule on",
@@ -11996,6 +12006,7 @@
           "automation"
         ],
         "operationId": "disableRule",
+        "x-hubtask-cli": "rule disable",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "ruleResponse",
         "summary": "Switch a rule off",
@@ -12153,6 +12164,7 @@
           "automation"
         ],
         "operationId": "triggerRuleManually",
+        "x-hubtask-cli": "rule trigger",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "ruleRunAcceptedResponse",
         "summary": "Run a rule now",
@@ -12414,6 +12426,14 @@
           "automation"
         ],
         "operationId": "listRuleRuns",
+        "x-hubtask-cli": "rule runs",
+        "x-hubtask-cli-columns": [
+          "id",
+          "rule_id",
+          "status",
+          "started_at",
+          "error_code"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "runResponse",
         "summary": "What the rules have done",
@@ -12526,6 +12546,7 @@
           "automation"
         ],
         "operationId": "getRuleRun",
+        "x-hubtask-cli": "rule run show",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "runResponse",
         "summary": "One run, with every condition and every action",
@@ -12563,6 +12584,7 @@
           "automation"
         ],
         "operationId": "replayRuleRun",
+        "x-hubtask-cli": "rule replay",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "ruleRunAcceptedResponse",
         "summary": "Complete a failed run",
@@ -12595,6 +12617,14 @@
           "webhooks"
         ],
         "operationId": "listWebhookSubscriptions",
+        "x-hubtask-cli": "webhook ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "target_url",
+          "event_types",
+          "state",
+          "failure_count"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "webhookResponse",
         "summary": "The workspace's webhook subscriptions",
@@ -12671,6 +12701,7 @@
           "webhooks"
         ],
         "operationId": "getWebhookSubscription",
+        "x-hubtask-cli": "webhook show",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "webhookResponse",
         "summary": "One webhook subscription",
@@ -12735,6 +12766,7 @@
           "webhooks"
         ],
         "operationId": "deleteWebhookSubscription",
+        "x-hubtask-cli": "webhook rm",
         "x-hubtask-rest": "generated",
         "summary": "Unsubscribe",
         "description": "The `unsubscribe` half of the REST hooks pattern. The deliveries go with the subscription: a delivery log for a subscription nobody can reach any more is a record of attempts against an address the workspace no longer knows.\n",
@@ -12759,6 +12791,15 @@
           "webhooks"
         ],
         "operationId": "listWebhookDeliveries",
+        "x-hubtask-cli": "webhook deliveries",
+        "x-hubtask-cli-columns": [
+          "id",
+          "event_id",
+          "status",
+          "attempt",
+          "response_status",
+          "error_code"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "deliveryResponse",
         "summary": "What was delivered, and what happened to it",
@@ -12818,6 +12859,13 @@
           "webhooks"
         ],
         "operationId": "replayWebhookDelivery",
+        "x-hubtask-cli": "webhook replay",
+        "x-hubtask-cli-columns": [
+          "id",
+          "event_id",
+          "status",
+          "attempt"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "deliveryResponse",
         "summary": "Send a dead-lettered delivery again",
@@ -13032,6 +13080,14 @@
           "calendar"
         ],
         "operationId": "listCalendarFeeds",
+        "x-hubtask-cli": "calendar ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "kind",
+          "view_id",
+          "created_at",
+          "revoked_at"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "calendarFeedResponse",
         "description": "The caller's own calendar feeds, newest first - never anybody else's, whatever the role: a feed is a credential its owner holds, and an administrator who could list them could subscribe to them.\nThe token is not among the fields. It is shown once, when the feed is created, and stored only as its hash; a feed whose token was lost is revoked and made again.\n",
@@ -13105,7 +13161,9 @@
           "calendar"
         ],
         "operationId": "revokeCalendarFeed",
+        "x-hubtask-cli": "calendar revoke",
         "x-hubtask-rest": "generated",
+        "summary": "Revoke a calendar feed, which answers nothing from then on",
         "description": "Revokes the feed. The row stays with the moment it was revoked - which is what makes \"this token was revoked on Tuesday\" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.\nSomebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.\n",
         "responses": {
           "204": {
@@ -14437,6 +14495,7 @@
           "backup"
         ],
         "operationId": "getBackupRun",
+        "x-hubtask-cli": "backup show",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "backupRunResponse",
         "x-hubtask-rest-path": {
@@ -14577,6 +14636,7 @@
           "backup"
         ],
         "operationId": "getRestoreRun",
+        "x-hubtask-cli": "restore show",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "restoreRunResponse",
         "summary": "What one restore did, or is about to do",
@@ -14655,6 +14715,7 @@
           "jobs"
         ],
         "operationId": "cancelJob",
+        "x-hubtask-cli": "job cancel",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "jobResponse",
         "summary": "Stop a piece of background work",
@@ -14768,6 +14829,15 @@
           "containers"
         ],
         "operationId": "listTrash",
+        "x-hubtask-cli": "trash ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "kind",
+          "subtype",
+          "title",
+          "deleted_at",
+          "version"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "trashEntryResponse",
         "summary": "What is in the trash",
@@ -15975,6 +16045,15 @@
           "auth"
         ],
         "operationId": "listSessions",
+        "x-hubtask-cli": "session ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "current",
+          "created_at",
+          "last_used_at",
+          "user_agent",
+          "ip_class"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "sessionResponse",
         "summary": "The caller's active sessions",
@@ -17266,6 +17345,15 @@
           "auth"
         ],
         "operationId": "listAccessTokens",
+        "x-hubtask-cli": "token ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "name",
+          "scopes",
+          "expires_at",
+          "last_used_at",
+          "revoked_at"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "accessTokenResponse",
         "summary": "The caller's own personal access tokens",
@@ -17357,6 +17445,7 @@
           "auth"
         ],
         "operationId": "revokeAccessToken",
+        "x-hubtask-cli": "token revoke",
         "x-hubtask-rest": "generated",
         "summary": "Revoke a personal access token",
         "description": "Takes effect on the next call: the hash is checked against the row on every request, so a revoked token refuses immediately rather than at the end of some cache's life.\nThe row stays, stamped with the moment it was withdrawn, and that stamp is separate from the expiry - \"it ran out\" and \"somebody pulled it\" are different answers to \"why did this stop working\", and a reader of the trail is owed both.\nRevoking twice is not an error; somebody else's token is not found rather than forbidden.\n",
@@ -17376,6 +17465,12 @@
           "auth"
         ],
         "operationId": "listServiceAccounts",
+        "x-hubtask-cli": "service-account ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "display_name",
+          "status"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "accountResponse",
         "summary": "The workspace's service accounts",
@@ -17404,6 +17499,7 @@
           "auth"
         ],
         "operationId": "createServiceAccount",
+        "x-hubtask-cli": "service-account create",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-location": "/auth/service-accounts/{id}",
         "x-hubtask-rest-answer": "accountResponse",

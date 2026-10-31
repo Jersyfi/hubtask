@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"io"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -35,8 +34,6 @@ func webhookGroup() group {
 				summary: "subscribe an external system - the secret is shown once",
 				run:     webhookAdd,
 			},
-			{name: "ls", usage: "", summary: "the workspace's subscriptions", run: webhookList},
-			{name: "show", usage: "<id>", summary: "one subscription", run: webhookShow},
 			{
 				name:    "pause",
 				usage:   "<id>",
@@ -44,19 +41,6 @@ func webhookGroup() group {
 				run:     webhookPause,
 			},
 			{name: "resume", usage: "<id>", summary: "start delivering again", run: webhookResume},
-			{name: "rm", usage: "<id>", summary: "unsubscribe", run: webhookRemove},
-			{
-				name:    "deliveries",
-				usage:   "<id> [--status <s>] [--cursor <c>] [--size <n>]",
-				summary: "what was sent to it, newest first",
-				run:     webhookDeliveries,
-			},
-			{
-				name:    "replay",
-				usage:   "<id> <delivery id>",
-				summary: "send one delivery again, carrying the event identifier it carried",
-				run:     webhookReplay,
-			},
 			{
 				name:    "rotate-secret",
 				usage:   "<id> [--grace <seconds>]",
@@ -141,39 +125,6 @@ func webhookAdd(ctx context.Context, cli *CLI, args []string) error {
 	})
 }
 
-func webhookList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "webhook", "ls", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var subscriptions []openapi.WebhookSubscription
-	if err := client.Get(ctx, webhooksPath, nil, &subscriptions); err != nil {
-		return err
-	}
-	return cli.Emit(subscriptions, webhookTable(subscriptions))
-}
-
-func webhookShow(ctx context.Context, cli *CLI, args []string) error {
-	webhookID, err := cli.onlyID(args, "webhook show <id>")
-	if err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var subscription openapi.WebhookSubscription
-	if err := client.Get(ctx, webhooksPath+"/"+webhookID.String(), nil, &subscription); err != nil {
-		return err
-	}
-	return cli.Emit(subscription, webhookTable([]openapi.WebhookSubscription{subscription}))
-}
-
 func webhookPause(ctx context.Context, cli *CLI, args []string) error {
 	return webhookState(ctx, cli, args, "pause", openapi.WebhookSubscriptionUpdateStatePAUSED)
 }
@@ -203,96 +154,6 @@ func webhookState(
 		return err
 	}
 	return cli.Emit(updated, webhookTable([]openapi.WebhookSubscription{updated}))
-}
-
-func webhookRemove(ctx context.Context, cli *CLI, args []string) error {
-	webhookID, err := cli.onlyID(args, "webhook rm <id>")
-	if err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(ctx, webhooksPath+"/"+webhookID.String(), ""); err != nil {
-		return err
-	}
-	printf(cli.Err, "unsubscribed: %s (nothing more is delivered to it)\n", webhookID.String())
-	return nil
-}
-
-func webhookDeliveries(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "webhook deliveries <id> [--status <s>] [--cursor <c>] [--size <n>]"
-	webhookID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "webhook", "deliveries", "<id> [--status <s>]")
-	status := flags.String("status", "", "PENDING, SUCCEEDED, FAILED, DEAD_LETTER or FILTER_FAILED")
-	cursor := flags.String("cursor", "", "continue the previous page")
-	size := flags.Int("size", 0, "how many at most")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *status != "" {
-		query.Set("status", *status)
-	}
-	if *size > 0 {
-		query.Set("size", strconv.Itoa(*size))
-	}
-	if *cursor != "" {
-		query.Set("cursor", *cursor)
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var page openapi.WebhookDeliveryPage
-	if err := client.Get(ctx,
-		webhooksPath+"/"+webhookID.String()+"/deliveries", query, &page); err != nil {
-		return err
-	}
-	if err := cli.Emit(page, deliveryTable(page.Data)); err != nil {
-		return err
-	}
-	cli.reportMore(page.Page)
-	return nil
-}
-
-// webhookReplay takes two identifiers, and the order is the path's: the subscription owns the
-// delivery, and a delivery identifier on its own names nothing.
-func webhookReplay(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "webhook replay <id> <delivery id>"
-	webhookID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	deliveryID, rest, err := cli.takeID(rest, usage)
-	if err != nil {
-		return err
-	}
-	if len(rest) > 0 {
-		return usagef("unexpected argument %q: hubctl %s", rest[0], usage)
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var delivery openapi.WebhookDelivery
-	if err := client.Post(ctx, webhooksPath+"/"+webhookID.String()+
-		"/deliveries/"+deliveryID.String()+":replay", nil, &delivery); err != nil {
-		return err
-	}
-	if !cli.JSON {
-		// The same event identifier, deliberately: a subscriber that deduplicates on it recognises
-		// the repeat rather than acting twice (automation.md §3.1).
-		printf(cli.Err, "queued again, carrying the event it carried: %s\n", delivery.EventId.String())
-	}
-	return cli.Emit(delivery, deliveryTable([]openapi.WebhookDelivery{delivery}))
 }
 
 func webhookRotateSecret(ctx context.Context, cli *CLI, args []string) error {
@@ -394,31 +255,4 @@ func webhookScope(scope *openapi.WebhookScope) string {
 		return string(openapi.WebhookScopeTypeTENANT)
 	}
 	return string(scope.Type) + ":" + scope.Id.String()
-}
-
-func deliveryTable(deliveries []openapi.WebhookDelivery) Table {
-	rows := make([][]string, 0, len(deliveries))
-	for _, delivery := range deliveries {
-		rows = append(rows, []string{
-			delivery.Id.String(),
-			delivery.EventId.String(),
-			string(delivery.Status),
-			strconv.Itoa(delivery.Attempt),
-			responseStatus(delivery),
-			text(delivery.ErrorCode),
-		})
-	}
-	return Table{
-		Columns: []string{"id", "event", "status", "attempt", "answer", "error"},
-		Rows:    rows,
-	}
-}
-
-// responseStatus is what the target said, and a dash where it said nothing at all - a timeout and
-// a 500 are different failures and the column has to be able to show which.
-func responseStatus(delivery openapi.WebhookDelivery) string {
-	if delivery.ResponseStatus == nil {
-		return "-"
-	}
-	return strconv.Itoa(*delivery.ResponseStatus)
 }

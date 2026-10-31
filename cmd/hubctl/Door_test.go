@@ -179,3 +179,19 @@ func TestConfigVersionAndProposeAreGenerated(t *testing.T) {
 		t.Errorf("%s %q", stub.request.URL.Path, stub.body)
 	}
 }
+
+// An answer that is a plain array is listed by its rows, and a door that answers nothing says
+// what it did rather than staying silent.
+func TestAPlainArrayIsListedAndNoAnswerIsSaid(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `[{"id":"`+roleGrantID+`","target_url":"https://hooks.example.test","state":"ACTIVE"}]`)
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "webhook", "ls")
+	if code != exitOK || !strings.Contains(out, roleGrantID) || !strings.Contains(out, "TARGET_URL") {
+		t.Fatalf("exit %d, %q: %s", code, out, errOut)
+	}
+
+	gone := serveJSON(t, http.StatusNoContent, "")
+	code, out, errOut = invokeAgainst(t, gone, signedIn(gone), "", "webhook", "rm", roleGrantID)
+	if code != exitOK || out != "" || !strings.Contains(errOut, "done:") || !strings.Contains(errOut, roleGrantID) {
+		t.Errorf("exit %d, out %q, err %q", code, out, errOut)
+	}
+}

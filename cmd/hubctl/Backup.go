@@ -49,12 +49,6 @@ func backupGroup() group {
 				run:     backupList,
 			},
 			{
-				name:    "show",
-				usage:   "<id>",
-				summary: "what one run did",
-				run:     backupShow,
-			},
-			{
 				name:    "verify",
 				usage:   "<id> [--follow] [--wait <d>]",
 				summary: "check an archive's checksums and that it decrypts",
@@ -346,28 +340,6 @@ func modeOf(archive openapi.BackupArchive) string {
 		return "-"
 	}
 	return string(*archive.Mode)
-}
-
-func backupShow(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "backup show <id>"
-	runID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "backup", "show", "<id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var run openapi.BackupRun
-	if err := client.Get(ctx, backupsPath+"/"+runID.String(), nil, &run); err != nil {
-		return err
-	}
-	return cli.Emit(run, runTable([]openapi.BackupRun{run}))
 }
 
 func backupVerify(ctx context.Context, cli *CLI, args []string) error {

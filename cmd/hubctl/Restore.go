@@ -37,12 +37,6 @@ func restoreGroup() group {
 				// silently capped it at thirty seconds.
 				waits: true,
 			},
-			{
-				name:    "show",
-				usage:   "<id>",
-				summary: "what one restore did, or was about to do",
-				run:     restoreShow,
-			},
 		},
 	}
 }
@@ -121,28 +115,6 @@ func restoreRun(ctx context.Context, cli *CLI, args []string) error {
 		request.TargetTenantId = &tenantID
 	}
 	return cli.startRestore(ctx, request, *wait)
-}
-
-func restoreShow(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "restore show <id>"
-	restoreID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "restore", "show", "<id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var run openapi.RestoreRun
-	if err := client.Get(ctx, restoresPath+"/"+restoreID.String(), nil, &run); err != nil {
-		return err
-	}
-	return cli.emitRestore(run)
 }
 
 // restoreRequest is what every one of the three commands builds, so that the passphrase, the

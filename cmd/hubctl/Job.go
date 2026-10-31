@@ -45,12 +45,6 @@ func jobGroup() group {
 				run:     jobShow,
 				waits:   true,
 			},
-			{
-				name:    "cancel",
-				usage:   "<id>",
-				summary: "stop a piece of background work",
-				run:     jobCancel,
-			},
 		},
 	}
 }
@@ -83,28 +77,6 @@ func jobShow(ctx context.Context, cli *CLI, args []string) error {
 
 	var job openapi.Job
 	if err := client.Get(ctx, jobsPath+"/"+jobID.String(), nil, &job); err != nil {
-		return err
-	}
-	return cli.Emit(job, jobTable(job))
-}
-
-func jobCancel(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "job cancel <id>"
-	jobID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "job", "cancel", "<id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var job openapi.Job
-	if err := client.Post(ctx, jobsPath+"/"+jobID.String()+":cancel", nil, &job); err != nil {
 		return err
 	}
 	return cli.Emit(job, jobTable(job))

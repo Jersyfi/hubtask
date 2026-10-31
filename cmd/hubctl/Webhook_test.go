@@ -146,7 +146,7 @@ func TestAReplayNamesTheEventItRepeats(t *testing.T) {
 		`{"id":"`+deliveryID+`","subscription_id":"`+webhookID+`","event_id":"`+eventIdentity+`",
 		  "status":"PENDING","attempt":2,"created_at":"2026-08-20T08:00:00Z"}`)
 
-	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
 		"webhook", "replay", webhookID, deliveryID)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
@@ -154,8 +154,8 @@ func TestAReplayNamesTheEventItRepeats(t *testing.T) {
 	if !strings.Contains(stub.request.URL.Path, webhookID+"/deliveries/"+deliveryID) {
 		t.Errorf("the path is %q", stub.request.URL.Path)
 	}
-	if !strings.Contains(errOut, eventIdentity) {
-		t.Errorf("the note does not name the event: %q", errOut)
+	if !strings.Contains(out, eventIdentity) {
+		t.Errorf("the answer does not name the event: %q", out)
 	}
 }
 

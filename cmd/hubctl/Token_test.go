@@ -148,7 +148,7 @@ func TestListingNamesTheAccountInTheQuery(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, `[]`)
 
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"token", "ls", "--account", machineID)
+		"token", "ls", "--account-id", machineID)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -164,7 +164,7 @@ func TestRevokingSaysWhatItDid(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if !strings.Contains(errOut, "revoked") || !strings.Contains(errOut, tokenID) {
+	if !strings.Contains(errOut, "revoke") || !strings.Contains(errOut, tokenID) {
 		t.Errorf("the confirmation does not name what stopped: %q", errOut)
 	}
 }
@@ -177,12 +177,12 @@ func TestCreatingAServiceAccountNeedsAName(t *testing.T) {
 	if code == exitOK {
 		t.Fatal("a nameless service account was accepted")
 	}
-	if !strings.Contains(errOut, "audit trail") {
-		t.Errorf("the refusal does not say why a name matters: %q", errOut)
+	if code != exitUsage || !strings.Contains(errOut, "--display-name") {
+		t.Errorf("exit %d, the refusal does not name the flag: %q", code, errOut)
 	}
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"service-account", "create", "--name", "the nightly export")
+		"service-account", "create", "--display-name", "the nightly export")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}

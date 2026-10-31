@@ -6817,6 +6817,8 @@ paths:
     get:
       tags: [automation]
       operationId: listRules
+      x-hubtask-cli: "rule ls"
+      x-hubtask-cli-columns: [id, name, enabled, failure_count, next_run_at]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: ruleResponse
       summary: The workspace's automation rules
@@ -6886,6 +6888,7 @@ paths:
     get:
       tags: [automation]
       operationId: getRule
+      x-hubtask-cli: "rule show"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: ruleResponse
       summary: One rule, as it stands
@@ -6947,6 +6950,7 @@ paths:
     post:
       tags: [automation]
       operationId: enableRule
+      x-hubtask-cli: "rule enable"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: ruleResponse
       summary: Switch a rule on
@@ -6975,6 +6979,7 @@ paths:
     post:
       tags: [automation]
       operationId: disableRule
+      x-hubtask-cli: "rule disable"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: ruleResponse
       summary: Switch a rule off
@@ -7109,6 +7114,7 @@ paths:
     post:
       tags: [automation]
       operationId: triggerRuleManually
+      x-hubtask-cli: "rule trigger"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: ruleRunAcceptedResponse
       summary: Run a rule now
@@ -7372,6 +7378,8 @@ paths:
     get:
       tags: [automation]
       operationId: listRuleRuns
+      x-hubtask-cli: "rule runs"
+      x-hubtask-cli-columns: [id, rule_id, status, started_at, error_code]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: runResponse
       summary: What the rules have done
@@ -7442,6 +7450,7 @@ paths:
     get:
       tags: [automation]
       operationId: getRuleRun
+      x-hubtask-cli: "rule run show"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: runResponse
       summary: One run, with every condition and every action
@@ -7464,6 +7473,7 @@ paths:
     post:
       tags: [automation]
       operationId: replayRuleRun
+      x-hubtask-cli: "rule replay"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: ruleRunAcceptedResponse
       summary: Complete a failed run
@@ -7497,6 +7507,8 @@ paths:
     get:
       tags: [webhooks]
       operationId: listWebhookSubscriptions
+      x-hubtask-cli: "webhook ls"
+      x-hubtask-cli-columns: [id, target_url, event_types, state, failure_count]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: webhookResponse
       summary: The workspace's webhook subscriptions
@@ -7559,6 +7571,7 @@ paths:
     get:
       tags: [webhooks]
       operationId: getWebhookSubscription
+      x-hubtask-cli: "webhook show"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: webhookResponse
       summary: One webhook subscription
@@ -7604,6 +7617,7 @@ paths:
     delete:
       tags: [webhooks]
       operationId: deleteWebhookSubscription
+      x-hubtask-cli: "webhook rm"
       x-hubtask-rest: generated
       summary: Unsubscribe
       description: >
@@ -7622,6 +7636,8 @@ paths:
     get:
       tags: [webhooks]
       operationId: listWebhookDeliveries
+      x-hubtask-cli: "webhook deliveries"
+      x-hubtask-cli-columns: [id, event_id, status, attempt, response_status, error_code]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: deliveryResponse
       summary: What was delivered, and what happened to it
@@ -7656,6 +7672,8 @@ paths:
     post:
       tags: [webhooks]
       operationId: replayWebhookDelivery
+      x-hubtask-cli: "webhook replay"
+      x-hubtask-cli-columns: [id, event_id, status, attempt]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: deliveryResponse
       summary: Send a dead-lettered delivery again
@@ -7833,6 +7851,8 @@ paths:
     get:
       tags: [calendar]
       operationId: listCalendarFeeds
+      x-hubtask-cli: "calendar ls"
+      x-hubtask-cli-columns: [id, kind, view_id, created_at, revoked_at]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: calendarFeedResponse
       description: >
@@ -7891,7 +7911,9 @@ paths:
     delete:
       tags: [calendar]
       operationId: revokeCalendarFeed
+      x-hubtask-cli: "calendar revoke"
       x-hubtask-rest: generated
+      summary: Revoke a calendar feed, which answers nothing from then on
       description: >
         Revokes the feed. The row stays with the moment it was revoked - which is what makes
         "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a
@@ -8795,6 +8817,7 @@ paths:
     get:
       tags: [backup]
       operationId: getBackupRun
+      x-hubtask-cli: "backup show"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: backupRunResponse
       x-hubtask-rest-path:
@@ -8874,6 +8897,7 @@ paths:
     get:
       tags: [backup]
       operationId: getRestoreRun
+      x-hubtask-cli: "restore show"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: restoreRunResponse
       summary: What one restore did, or is about to do
@@ -8929,6 +8953,7 @@ paths:
     post:
       tags: [jobs]
       operationId: cancelJob
+      x-hubtask-cli: "job cancel"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: jobResponse
       summary: Stop a piece of background work
@@ -9027,6 +9052,8 @@ paths:
     get:
       tags: [items, containers]
       operationId: listTrash
+      x-hubtask-cli: "trash ls"
+      x-hubtask-cli-columns: [id, kind, subtype, title, deleted_at, version]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: trashEntryResponse
       summary: What is in the trash
@@ -9981,6 +10008,8 @@ paths:
     get:
       tags: [auth]
       operationId: listSessions
+      x-hubtask-cli: "session ls"
+      x-hubtask-cli-columns: [id, current, created_at, last_used_at, user_agent, ip_class]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: sessionResponse
       summary: The caller's active sessions
@@ -11142,6 +11171,8 @@ paths:
     get:
       tags: [auth]
       operationId: listAccessTokens
+      x-hubtask-cli: "token ls"
+      x-hubtask-cli-columns: [id, name, scopes, expires_at, last_used_at, revoked_at]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: accessTokenResponse
       summary: The caller's own personal access tokens
@@ -11231,6 +11262,7 @@ paths:
     delete:
       tags: [auth]
       operationId: revokeAccessToken
+      x-hubtask-cli: "token revoke"
       x-hubtask-rest: generated
       summary: Revoke a personal access token
       description: >
@@ -11252,6 +11284,8 @@ paths:
     get:
       tags: [auth]
       operationId: listServiceAccounts
+      x-hubtask-cli: "service-account ls"
+      x-hubtask-cli-columns: [id, display_name, status]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: accountResponse
       summary: The workspace's service accounts
@@ -11273,6 +11307,7 @@ paths:
     post:
       tags: [auth]
       operationId: createServiceAccount
+      x-hubtask-cli: "service-account create"
       x-hubtask-rest: generated
       x-hubtask-rest-location: /auth/service-accounts/{id}
       x-hubtask-rest-answer: accountResponse

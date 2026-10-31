@@ -1300,7 +1300,7 @@ class Client:
         return self._call("POST", "/integrations/calendar-feeds", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def revoke_calendar_feed(self, feed_id: str) -> None:
-        """DELETE /integrations/calendar-feeds/{feedId}"""
+        """Revoke a calendar feed, which answers nothing from then on"""
         return self._call("DELETE", "/integrations/calendar-feeds/{feedId}", {"feedId": feed_id}, None, {}, None, "none", None, "void")
 
     def list_calendar_pushes(self) -> "CalendarPushList":

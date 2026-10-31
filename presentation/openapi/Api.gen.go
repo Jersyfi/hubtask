@@ -29707,7 +29707,7 @@ type ServerInterface interface {
 
 	// (POST /integrations/calendar-feeds)
 	CreateCalendarFeed(w http.ResponseWriter, r *http.Request, params CreateCalendarFeedParams)
-
+	// RevokeCalendarFeed Revoke a calendar feed, which answers nothing from then on
 	// (DELETE /integrations/calendar-feeds/{feedId})
 	RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
 	// ListCalendarPushes The caller's calendar pushes
