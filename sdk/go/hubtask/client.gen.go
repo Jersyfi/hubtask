@@ -16636,10 +16636,13 @@ type ImportRun struct {
 	Kind    ImportKind          `json:"kind"`
 	MediaId *openapi_types.UUID `json:"media_id,omitempty"`
 
-	// Refused The rows the converter could not read, by their number in the source and the code that says why. The rest of the file lands; a file that is not the kind it claims to be fails the import instead.
+	// Refused The rows that did not land, by their number in the source and the code that says why: one the converter could not read, or - for an import into a collection - an entry its type's form refuses, with the entries under it. The rest of the file lands; a file that is not the kind it claims to be fails the import instead.
 	Refused *[]struct {
 		Code string `json:"code"`
-		Row  int    `json:"row"`
+
+		// Fields For an entry the form refuses: the form's keys it left short (`title`, `custom_fields.<key>`) and the checks it failed, by key.
+		Fields *[]string `json:"fields,omitempty"`
+		Row    int       `json:"row"`
 	} `json:"refused,omitempty"`
 
 	// Report What landed, in the restore's shape; absent until the job has run.

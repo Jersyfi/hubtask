@@ -58593,7 +58593,7 @@
           },
           "refused": {
             "type": "array",
-            "description": "The rows the converter could not read, by their number in the source and the code that says why. The rest of the file lands; a file that is not the kind it claims to be fails the import instead.\n",
+            "description": "The rows that did not land, by their number in the source and the code that says why: one the converter could not read, or - for an import into a collection - an entry its type's form refuses, with the entries under it. The rest of the file lands; a file that is not the kind it claims to be fails the import instead.\n",
             "items": {
               "type": "object",
               "required": [
@@ -58606,6 +58606,13 @@
                 },
                 "code": {
                   "type": "string"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "For an entry the form refuses: the form's keys it left short (`title`, `custom_fields.<key>`) and the checks it failed, by key.\n"
                 }
               }
             }

@@ -51,15 +51,18 @@ func importRunResponse(out usecase.Output) openapi.ImportRun {
 		run.Report = restoreReportResponse(report)
 	}
 	if refused, ok := out["refused"].([]usecase.Output); ok {
-		rows := make([]struct {
-			Code string `json:"code"`
-			Row  int    `json:"row"`
-		}, 0, len(refused))
+		type refusal = struct {
+			Code   string    `json:"code"`
+			Fields *[]string `json:"fields,omitempty"`
+			Row    int       `json:"row"`
+		}
+		rows := make([]refusal, 0, len(refused))
 		for _, each := range refused {
-			rows = append(rows, struct {
-				Code string `json:"code"`
-				Row  int    `json:"row"`
-			}{Code: each.String("code"), Row: each.Int("row")})
+			row := refusal{Code: each.String("code"), Row: each.Int("row")}
+			if fields, ok := each["fields"].([]string); ok && len(fields) > 0 {
+				row.Fields = &fields
+			}
+			rows = append(rows, row)
 		}
 		run.Refused = &rows
 	}
