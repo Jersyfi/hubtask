@@ -35,6 +35,9 @@ type Template struct {
 	// switches, structure, scheme and calendars - beside the workspace's part; nil for a template
 	// of the workspace only.
 	Hub Document
+	// Collection is the part a collection takes (configuration.md §6): the collection sections of
+	// a hub's document, each block keyed without a handle; nil for a template no collection takes.
+	Collection Document
 	// Questions are what applying the template asks (Answer); only Hubtask's own ask any yet.
 	Questions []Question
 	CreatedBy shared.ID
@@ -43,6 +46,9 @@ type Template struct {
 
 // ForHubs reports whether a hub can be set up from the template.
 func (t Template) ForHubs() bool { return t.Hub != nil }
+
+// ForCollections reports whether a collection can be set up from the template.
+func (t Template) ForCollections() bool { return t.Collection != nil }
 
 // Provenance is how a place records what it was set up from: `key@version`.
 func (t Template) Provenance() string { return Provenance(t.Key, t.Version) }
@@ -53,7 +59,8 @@ func Provenance(key string, version int) string { return key + "@" + strconv.Ito
 // TemplateUse is a template a workspace or a hub took: the version, and the template's document as
 // it was then - the hub's part for a hub - the base of a three-way upgrade.
 type TemplateUse struct {
-	// HubID is the hub that took the template's hub part, empty for the workspace.
+	// HubID is the hub that took the template's hub part - or the collection that took its
+	// collection part -, empty for the workspace.
 	HubID       shared.ID
 	TemplateKey string
 	Version     int

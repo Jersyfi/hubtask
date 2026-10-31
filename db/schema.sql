@@ -373,6 +373,7 @@ CREATE TABLE config_proposal (
   created_at          timestamptz NOT NULL,
   decided_at          timestamptz,
   hub_id              uuid,
+  collection_id       uuid,  -- migration 0310: the collection taking a template's collection part
   UNIQUE (tenant_id, id)
 );
 CREATE INDEX config_proposal_waiting_idx ON config_proposal (tenant_id, created_at DESC) WHERE state = 'WAITING';
@@ -7045,6 +7046,8 @@ CREATE POLICY tenant_isolation ON hub_business_calendar
 
 -- A hub template's part and the hubs that took it (migration 0271).
 ALTER TABLE config_template ADD COLUMN hub_document jsonb;
+-- A template's collection part (migration 0310); a collection's use is a row below under its id.
+ALTER TABLE config_template ADD COLUMN collection_document jsonb;
 CREATE TABLE config_hub_template_use (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   hub_id       uuid NOT NULL,

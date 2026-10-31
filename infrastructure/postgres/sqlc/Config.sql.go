@@ -52,7 +52,7 @@ func (q *Queries) DropConfigSandbox(ctx context.Context) (int64, error) {
 
 const findConfigProposal = `-- name: FindConfigProposal :one
 SELECT id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
+       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id, collection_id
 FROM config_proposal WHERE id = $1
 `
 
@@ -78,6 +78,7 @@ func (q *Queries) FindConfigProposal(ctx context.Context, id pgtype.UUID) (Confi
 		&i.CreatedAt,
 		&i.DecidedAt,
 		&i.HubID,
+		&i.CollectionID,
 	)
 	return i, err
 }
@@ -132,7 +133,7 @@ func (q *Queries) FindConfigSandbox(ctx context.Context) (ConfigSandbox, error) 
 }
 
 const findConfigTemplate = `-- name: FindConfigTemplate :one
-SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document
+SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document, collection_document
 FROM config_template WHERE key = $1 AND version = $2
 `
 
@@ -155,6 +156,7 @@ func (q *Queries) FindConfigTemplate(ctx context.Context, arg FindConfigTemplate
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.HubDocument,
+		&i.CollectionDocument,
 	)
 	return i, err
 }
@@ -162,11 +164,12 @@ func (q *Queries) FindConfigTemplate(ctx context.Context, arg FindConfigTemplate
 const insertConfigProposal = `-- name: InsertConfigProposal :exec
 INSERT INTO config_proposal (id, tenant_id, state, document, mode, base_hash, plan_hash, template,
                              added, changed, removed, hides_data, changes_permissions, proposed_by,
-                             created_at, hub_id)
+                             created_at, hub_id, collection_id)
 VALUES ($1, current_tenant_id(), 'WAITING', $2, $3,
         $4, $5, $6, $7,
         $8, $9, $10,
-        $11, $12, $13, $14)
+        $11, $12, $13, $14,
+        $15)
 `
 
 type InsertConfigProposalParams struct {
@@ -184,6 +187,7 @@ type InsertConfigProposalParams struct {
 	ProposedBy         pgtype.UUID
 	At                 pgtype.Timestamptz
 	HubID              pgtype.UUID
+	CollectionID       pgtype.UUID
 }
 
 func (q *Queries) InsertConfigProposal(ctx context.Context, arg InsertConfigProposalParams) error {
@@ -202,6 +206,7 @@ func (q *Queries) InsertConfigProposal(ctx context.Context, arg InsertConfigProp
 		arg.ProposedBy,
 		arg.At,
 		arg.HubID,
+		arg.CollectionID,
 	)
 	return err
 }
@@ -255,21 +260,24 @@ func (q *Queries) InsertConfigRevision(ctx context.Context, arg InsertConfigRevi
 }
 
 const insertConfigTemplate = `-- name: InsertConfigTemplate :exec
-INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document)
+INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document,
+                             collection_document)
 VALUES ($1, current_tenant_id(), $2, $3, $4,
-        $5, $6, $7, $8, $9)
+        $5, $6, $7, $8, $9,
+        $10)
 `
 
 type InsertConfigTemplateParams struct {
-	ID          pgtype.UUID
-	Key         string
-	Version     int32
-	Name        string
-	Origin      string
-	Document    []byte
-	CreatedBy   pgtype.UUID
-	At          pgtype.Timestamptz
-	HubDocument []byte
+	ID                 pgtype.UUID
+	Key                string
+	Version            int32
+	Name               string
+	Origin             string
+	Document           []byte
+	CreatedBy          pgtype.UUID
+	At                 pgtype.Timestamptz
+	HubDocument        []byte
+	CollectionDocument []byte
 }
 
 func (q *Queries) InsertConfigTemplate(ctx context.Context, arg InsertConfigTemplateParams) error {
@@ -283,6 +291,7 @@ func (q *Queries) InsertConfigTemplate(ctx context.Context, arg InsertConfigTemp
 		arg.CreatedBy,
 		arg.At,
 		arg.HubDocument,
+		arg.CollectionDocument,
 	)
 	return err
 }
@@ -358,7 +367,7 @@ func (q *Queries) ListConfigHubTemplateUses(ctx context.Context, hubID pgtype.UU
 
 const listConfigProposals = `-- name: ListConfigProposals :many
 SELECT id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
+       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id, collection_id
 FROM config_proposal
 WHERE $1::text IS NULL OR state = $1::text
 ORDER BY created_at DESC
@@ -398,6 +407,7 @@ func (q *Queries) ListConfigProposals(ctx context.Context, arg ListConfigProposa
 			&i.CreatedAt,
 			&i.DecidedAt,
 			&i.HubID,
+			&i.CollectionID,
 		); err != nil {
 			return nil, err
 		}
@@ -512,7 +522,7 @@ func (q *Queries) ListConfigTemplateUses(ctx context.Context) ([]ConfigTemplateU
 }
 
 const listConfigTemplates = `-- name: ListConfigTemplates :many
-SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document
+SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document, collection_document
 FROM config_template
 ORDER BY key, version DESC
 `
@@ -538,6 +548,7 @@ func (q *Queries) ListConfigTemplates(ctx context.Context) ([]ConfigTemplate, er
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.HubDocument,
+			&i.CollectionDocument,
 		); err != nil {
 			return nil, err
 		}

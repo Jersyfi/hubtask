@@ -38,20 +38,21 @@ VALUES (current_tenant_id(), sqlc.arg('version'), sqlc.arg('document'), sqlc.arg
 -- name: InsertConfigProposal :exec
 INSERT INTO config_proposal (id, tenant_id, state, document, mode, base_hash, plan_hash, template,
                              added, changed, removed, hides_data, changes_permissions, proposed_by,
-                             created_at, hub_id)
+                             created_at, hub_id, collection_id)
 VALUES (sqlc.arg('id'), current_tenant_id(), 'WAITING', sqlc.arg('document'), sqlc.arg('mode'),
         sqlc.arg('base_hash'), sqlc.arg('plan_hash'), sqlc.narg('template'), sqlc.arg('added'),
         sqlc.arg('changed'), sqlc.arg('removed'), sqlc.arg('hides_data'),
-        sqlc.arg('changes_permissions'), sqlc.narg('proposed_by'), sqlc.arg('at'), sqlc.narg('hub_id'));
+        sqlc.arg('changes_permissions'), sqlc.narg('proposed_by'), sqlc.arg('at'), sqlc.narg('hub_id'),
+        sqlc.narg('collection_id'));
 
 -- name: FindConfigProposal :one
 SELECT id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
+       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id, collection_id
 FROM config_proposal WHERE id = sqlc.arg('id');
 
 -- name: ListConfigProposals :many
 SELECT id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
+       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id, collection_id
 FROM config_proposal
 WHERE sqlc.narg('state')::text IS NULL OR state = sqlc.narg('state')::text
 ORDER BY created_at DESC
@@ -64,18 +65,20 @@ SET state = sqlc.arg('state'), decided_by = sqlc.narg('decided_by'), decided_at 
 WHERE id = sqlc.arg('id') AND state = 'WAITING';
 
 -- name: InsertConfigTemplate :exec
-INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document)
+INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document,
+                             collection_document)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('key'), sqlc.arg('version'), sqlc.arg('name'),
-        sqlc.arg('origin'), sqlc.arg('document'), sqlc.narg('created_by'), sqlc.arg('at'), sqlc.narg('hub_document'));
+        sqlc.arg('origin'), sqlc.arg('document'), sqlc.narg('created_by'), sqlc.arg('at'), sqlc.narg('hub_document'),
+        sqlc.narg('collection_document'));
 
 -- name: ListConfigTemplates :many
 -- Every version of every template, newest version first within a key.
-SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document
+SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document, collection_document
 FROM config_template
 ORDER BY key, version DESC;
 
 -- name: FindConfigTemplate :one
-SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document
+SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document, collection_document
 FROM config_template WHERE key = sqlc.arg('key') AND version = sqlc.arg('version');
 
 -- name: UpsertConfigTemplateUse :exec

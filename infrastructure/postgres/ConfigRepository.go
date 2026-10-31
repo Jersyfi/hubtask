@@ -241,8 +241,12 @@ func (ConfigRepository) InsertProposal(ctx context.Context, p domain.Proposal) e
 	if err != nil {
 		return err
 	}
+	collection, err := optionalUUID(p.CollectionID)
+	if err != nil {
+		return err
+	}
 	err = queries.InsertConfigProposal(ctx, sqlc.InsertConfigProposalParams{
-		ID: id, HubID: hub, Document: document, Mode: string(p.Mode), BaseHash: p.BaseHash, PlanHash: p.PlanHash,
+		ID: id, HubID: hub, CollectionID: collection, Document: document, Mode: string(p.Mode), BaseHash: p.BaseHash, PlanHash: p.PlanHash,
 		Template: optionalText(p.Template), Added: boundedInt32(p.Counts.Added), Changed: boundedInt32(p.Counts.Changed),
 		Removed: boundedInt32(p.Counts.Removed), HidesData: p.Flags.HidesData,
 		ChangesPermissions: p.Flags.ChangesPermissions, ProposedBy: proposer, At: timestampOf(p.CreatedAt),
@@ -277,8 +281,8 @@ func proposalFrom(row sqlc.ConfigProposal) (domain.Proposal, error) {
 	if err != nil {
 		return domain.Proposal{}, err
 	}
-	ids := make([]shared.ID, 5)
-	for i, value := range []pgtype.UUID{row.ID, row.TenantID, row.ProposedBy, row.DecidedBy, row.HubID} {
+	ids := make([]shared.ID, 6)
+	for i, value := range []pgtype.UUID{row.ID, row.TenantID, row.ProposedBy, row.DecidedBy, row.HubID, row.CollectionID} {
 		id, err := optionalID(value)
 		if err != nil {
 			return domain.Proposal{}, err
@@ -290,7 +294,7 @@ func proposalFrom(row sqlc.ConfigProposal) (domain.Proposal, error) {
 		Mode: domain.Mode(row.Mode), BaseHash: row.BaseHash, PlanHash: row.PlanHash, Template: textOf(row.Template),
 		Counts:     domain.Counts{Added: int(row.Added), Changed: int(row.Changed), Removed: int(row.Removed)},
 		Flags:      domain.Flags{HidesData: row.HidesData, ChangesPermissions: row.ChangesPermissions},
-		ProposedBy: ids[2], DecidedBy: ids[3], HubID: ids[4], CreatedAt: timeFrom(row.CreatedAt), DecidedAt: optionalTime(row.DecidedAt),
+		ProposedBy: ids[2], DecidedBy: ids[3], HubID: ids[4], CollectionID: ids[5], CreatedAt: timeFrom(row.CreatedAt), DecidedAt: optionalTime(row.DecidedAt),
 	}, nil
 }
 
@@ -366,9 +370,16 @@ func (ConfigRepository) InsertTemplate(ctx context.Context, t domain.Template) e
 			return err
 		}
 	}
+	var collection []byte
+	if t.ForCollections() {
+		if collection, err = documentBytes(t.Collection); err != nil {
+			return err
+		}
+	}
 	err = queries.InsertConfigTemplate(ctx, sqlc.InsertConfigTemplateParams{
 		ID: id, Key: t.Key, Version: boundedInt32(t.Version), Name: t.Name, Origin: string(t.Origin),
 		Document: document, CreatedBy: creator, At: timestampOf(t.CreatedAt), HubDocument: hub,
+		CollectionDocument: collection,
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
@@ -394,20 +405,32 @@ func configTemplateFrom(row sqlc.ConfigTemplate) (domain.Template, error) {
 		}
 		ids[i] = id
 	}
-	var hub domain.Document
-	if row.HubDocument != nil {
-		if hub, err = documentFrom(row.HubDocument); err != nil {
-			return domain.Template{}, err
-		}
-		if hub == nil {
-			hub = domain.Document{}
-		}
+	hub, err := partFrom(row.HubDocument)
+	if err != nil {
+		return domain.Template{}, err
+	}
+	collection, err := partFrom(row.CollectionDocument)
+	if err != nil {
+		return domain.Template{}, err
 	}
 	return domain.Template{
 		ID: ids[0], TenantID: ids[1], Key: row.Key, Version: int(row.Version), Name: row.Name,
-		Origin: domain.TemplateOrigin(row.Origin), Document: document, Hub: hub, CreatedBy: ids[2],
+		Origin: domain.TemplateOrigin(row.Origin), Document: document, Hub: hub, Collection: collection, CreatedBy: ids[2],
 		CreatedAt: timeFrom(row.CreatedAt),
 	}, nil
+}
+
+// partFrom reads a template's hub or collection part: nil where the template has none, an empty
+// document where it has one that sets nothing.
+func partFrom(raw []byte) (domain.Document, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	part, err := documentFrom(raw)
+	if err != nil || part != nil {
+		return part, err
+	}
+	return domain.Document{}, nil
 }
 
 func (ConfigRepository) ListTemplates(ctx context.Context) ([]domain.Template, error) {

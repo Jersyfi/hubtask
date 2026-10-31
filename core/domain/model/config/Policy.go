@@ -144,6 +144,8 @@ type Proposal struct {
 	DecidedAt  *time.Time
 	// HubID is the hub whose document the proposal changes, empty for the workspace's.
 	HubID shared.ID
+	// CollectionID is the collection of that hub taking a template's collection part, or empty.
+	CollectionID shared.ID
 }
 
 // ErrProposalDecided refuses a decision on a proposal that is no longer waiting.

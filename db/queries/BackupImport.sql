@@ -1905,11 +1905,11 @@ DELETE FROM config_revision;
 -- name: ImportConfigProposal :execrows
 INSERT INTO config_proposal (
   id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-  hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
+  hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id, collection_id
 )
 SELECT r.id, r.tenant_id, r.state, r.document, r.mode, r.base_hash, r.plan_hash, r.template, r.added,
        r.changed, r.removed, r.hides_data, r.changes_permissions, r.proposed_by, r.decided_by,
-       r.created_at, r.decided_at, r.hub_id
+       r.created_at, r.decided_at, r.hub_id, r.collection_id
 FROM jsonb_populate_record(
   NULL::config_proposal,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1929,8 +1929,10 @@ DELETE FROM config_proposal;
 -- name: ImportConfigTemplate :execrows
 -- A template's version is never rewritten: one the workspace holds, by identity or by key and
 -- version, is kept.
-INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document)
-SELECT r.id, r.tenant_id, r.key, r.version, r.name, r.origin, r.document, r.created_by, r.created_at, r.hub_document
+INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document,
+                             collection_document)
+SELECT r.id, r.tenant_id, r.key, r.version, r.name, r.origin, r.document, r.created_by, r.created_at, r.hub_document,
+       r.collection_document
 FROM jsonb_populate_record(
   NULL::config_template,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())

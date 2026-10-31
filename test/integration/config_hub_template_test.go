@@ -81,3 +81,72 @@ func TestAHubsTemplateStaysInItsWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A collection template (migration 0310, configuration.md §6): a template version keeps the part a
+// collection takes, the collection's use is recorded under the collection - not its hub - and a
+// proposal keeps the collection it would record it for; the workspace next door reads none of it.
+func TestACollectionsTemplateStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewConfigRepository()
+	hub, collection := seedHubWithCollection(ctx, t, tenantA, authorA)
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	key := "queue_kit_" + time.Now().Format("150405000000")
+	part := domain.Document{"collection_views": domain.Section{"board": domain.Block{"name": "Board", "layout": "LIST_EXPANDED"}}}
+	template := domain.Template{
+		ID: freshID(t), TenantID: tenantA, Key: key, Version: 1, Name: "Queue kit", Origin: domain.OriginWorkspace,
+		Document: domain.Document{}, Collection: part, CreatedBy: authorA, CreatedAt: now,
+	}
+	proposal := domain.Proposal{
+		ID: freshID(t), TenantID: tenantA, State: domain.ProposalWaiting, Document: part, Mode: domain.ModeMerge,
+		BaseHash: "base", PlanHash: "plan", Template: template.Provenance(), ProposedBy: authorA, CreatedAt: now,
+		HubID: hub.ID, CollectionID: collection.ID,
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := store.InsertTemplate(ctx, template); err != nil {
+			return err
+		}
+		if err := store.InsertProposal(ctx, proposal); err != nil {
+			return err
+		}
+		return store.PutTemplateUse(ctx, domain.TemplateUse{HubID: collection.ID, TemplateKey: key, Version: 1, Document: part, At: now})
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		found, err := store.FindTemplate(ctx, key, 1)
+		if err != nil {
+			return err
+		}
+		if !found.ForCollections() || found.ForHubs() || found.Collection["collection_views"]["board"]["name"] != "Board" {
+			t.Errorf("the collection part read back %v, hub part %v", found.Collection, found.Hub)
+		}
+		kept, err := store.FindProposal(ctx, proposal.ID)
+		if err != nil {
+			return err
+		}
+		if kept.CollectionID != collection.ID || kept.HubID != hub.ID {
+			t.Errorf("the proposal read back for %q in %q", kept.CollectionID, kept.HubID)
+		}
+		if uses, err := store.TemplateUses(ctx, collection.ID); err != nil || len(uses) != 1 || uses[0].HubID != collection.ID {
+			t.Errorf("the collection's use read back %+v %v", uses, err)
+		}
+		if uses, err := store.TemplateUses(ctx, hub.ID); err != nil || len(uses) != 0 {
+			t.Errorf("the collection's use is read for its hub: %+v %v", uses, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if uses, err := store.TemplateUses(ctx, collection.ID); err != nil || len(uses) != 0 {
+			t.Errorf("B reads A's collection's template: %v %v", uses, err)
+		}
+		if _, err := store.FindProposal(ctx, proposal.ID); err == nil {
+			t.Error("B finds A's proposal for a collection")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

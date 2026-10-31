@@ -1414,6 +1414,7 @@ type ConfigProposal struct {
 	CreatedAt          pgtype.Timestamptz
 	DecidedAt          pgtype.Timestamptz
 	HubID              pgtype.UUID
+	CollectionID       pgtype.UUID
 }
 
 type ConfigRevision struct {
@@ -1445,16 +1446,17 @@ type ConfigSandbox struct {
 }
 
 type ConfigTemplate struct {
-	ID          pgtype.UUID
-	TenantID    pgtype.UUID
-	Key         string
-	Version     int32
-	Name        string
-	Origin      string
-	Document    []byte
-	CreatedBy   pgtype.UUID
-	CreatedAt   pgtype.Timestamptz
-	HubDocument []byte
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	Key                string
+	Version            int32
+	Name               string
+	Origin             string
+	Document           []byte
+	CreatedBy          pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
+	HubDocument        []byte
+	CollectionDocument []byte
 }
 
 type ConfigTemplateUse struct {
