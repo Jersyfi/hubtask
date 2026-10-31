@@ -18678,7 +18678,7 @@ paths:
       operationId: exportItems
       x-hubtask-rest: generated
       x-hubtask-rest-writer: { by: exportItemsWriter, members: [format, time_zone] }
-      x-hubtask-rest-flatten: { query: { filter: filter, sort: sort, include_archived: include_archived, include_trashed: include_trashed, scope.container_id: scope_container_id, scope.item_id: scope_item_id, scope.include_descendants: include_descendants } }
+      x-hubtask-rest-flatten: { query: { q: q, filter: filter, sort: sort, include_archived: include_archived, include_trashed: include_trashed, scope.container_id: scope_container_id, scope.item_id: scope_item_id, scope.include_descendants: include_descendants } }
       x-hubtask-rest-drop: [query.page, query.count, query.group_by, query.expand]
       summary: The result of a query, as a file
       description: >
@@ -34332,6 +34332,19 @@ components:
                 False narrows the scope to one level: the entries directly in the collection, or
                 the direct children of the entry. Ignored for a hub, whose items always sit at
                 least one collection down.
+        q:
+          type: string
+          maxLength: 4000
+          description: >
+            The filter and the order as one line instead of `filter` and `sort`, for example
+            `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are
+            `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`,
+            `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`,
+            `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is
+            quoted with `'` or `"` and a backslash escapes the next character. The line is read
+            into the same filter and order, so the fields, operators and bounds are the same; a
+            line that cannot be read is `query.line_malformed` with the character it stops at,
+            and a line sent with `filter` or `sort` is `query.line_with_filter`.
         filter: { $ref: "#/components/schemas/FilterNode" }
         sort:
           type: array

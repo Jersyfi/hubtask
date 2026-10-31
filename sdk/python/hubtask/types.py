@@ -4372,6 +4372,7 @@ class ItemAggregateResult(TypedDict, total=False):
 
 class ItemQuery(TypedDict, total=False):
     scope: Required[dict[str, Any]]
+    q: str
     filter: "FilterNode"
     sort: list["SortTerm"]
     group_by: dict[str, Any]

@@ -17241,6 +17241,9 @@ type ItemQuery struct {
 		Size   *int    `json:"size,omitempty"`
 	} `json:"page,omitempty"`
 
+	// Q The filter and the order as one line instead of `filter` and `sort`, for example `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is quoted with `'` or `"` and a backslash escapes the next character. The line is read into the same filter and order, so the fields, operators and bounds are the same; a line that cannot be read is `query.line_malformed` with the character it stops at, and a line sent with `filter` or `sort` is `query.line_with_filter`.
+	Q *string `json:"q,omitempty"`
+
 	// Scope Where to look. Exactly one of `container_id` and `item_id`, and it is required: an unanchored query is a scan of the whole tenant, and the permission is checked against this scope once for the whole result.
 	Scope struct {
 		// ContainerId A collection, or a hub - with `include_descendants`, a hub covers the items of every collection in it.

@@ -319,6 +319,15 @@ func (h QueryItems) Descriptor() usecase.Descriptor {
 					"children of the entry.",
 			},
 			{
+				Name: "q", Kind: usecase.KindString,
+				Description: "The filter and the order as one line instead of filter and sort, for " +
+					"example: status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC. " +
+					"Comparisons =, !=, <, <=, >, >=, ~ (contains), IN (...), NOT IN (...), IS EMPTY, " +
+					"IS NOT EMPTY, BETWEEN ... AND ..., CONTAINS, CONTAINS ANY (...), CONTAINS ALL (...), " +
+					"STARTS WITH and MATCHES, joined by AND, OR, NOT and brackets; texts quoted. " +
+					"Held to the same fields, operators and bounds as filter.",
+			},
+			{
 				Name: "filter", Kind: usecase.KindObject,
 				Description: "The filter tree: a leaf of field, op and value, or a combination of " +
 					"op AND, OR or NOT with nodes. At most five levels and fifty nodes. A value " +
@@ -491,11 +500,27 @@ func specOf(in usecase.Input) (view.Spec, error) {
 	if err != nil {
 		return view.Spec{}, err
 	}
-	filter, err := view.ParseFilter(in["filter"], "/filter")
+	filterOf, sortOf, filterPath, sortPath := in["filter"], in["sort"], "/filter", "/sort"
+	if in.Present("q") {
+		// One spelling or the other: a line beside a tree would leave which one counts to a guess.
+		if in.Present("filter") || in.Present("sort") {
+			return view.Spec{}, shared.ErrValidation.WithDetail("query.line_with_filter").
+				WithFields(shared.FieldError{Path: "/q", Code: "query.line_with_filter"})
+		}
+		lineFilter, lineSort, err := view.ParseLine(in.String("q"), "/q")
+		if err != nil {
+			return view.Spec{}, err
+		}
+		filterOf, sortOf, filterPath, sortPath = lineFilter, nil, "/q", "/q"
+		if lineSort != nil {
+			sortOf = lineSort
+		}
+	}
+	filter, err := view.ParseFilter(filterOf, filterPath)
 	if err != nil {
 		return view.Spec{}, err
 	}
-	sort, err := view.ParseSort(in["sort"], "/sort")
+	sort, err := view.ParseSort(sortOf, sortPath)
 	if err != nil {
 		return view.Spec{}, err
 	}

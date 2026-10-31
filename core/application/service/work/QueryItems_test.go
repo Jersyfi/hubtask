@@ -6,6 +6,7 @@ package work
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -431,5 +432,41 @@ func TestCountsAreStampedOnEveryRowAndZeroWhereNothingIsHeld(t *testing.T) {
 	withCounts(unasked, nil)
 	if _, present := unasked["data"].([]usecase.Output)[0]["counts"]; present {
 		t.Error("counts were added though nobody asked")
+	}
+}
+
+// UC-WRK-17 check 12: a line is read into the same filter and order the tree would be, its
+// placeholders resolved alike; a line beside a tree is refused rather than one of them guessed.
+func TestQueryItemsReadsALineAsTheFilterAndTheOrder(t *testing.T) {
+	store, containerStore, uow := queryFixture()
+	_, err := queryHandler(store, containerStore, uow, &authorizer{}).invoke(t.Context(), actorFixture(), usecase.Input{
+		"scope_container_id": readCollectionID.String(),
+		"q":                  "created_by = @me AND (status = open OR status = 'in review') ORDER BY due_at DESC",
+	})
+	if err != nil {
+		t.Fatalf("querying: %v", err)
+	}
+	spec := store.searched[0].Spec
+	if spec.Filter == nil || spec.Filter.Op != "AND" || len(spec.Filter.Nodes) != 2 || spec.Filter.Nodes[1].Op != "OR" {
+		t.Fatalf("the line arrived as %+v", spec.Filter)
+	}
+	if got := spec.Filter.Nodes[0].Values[0]; got.IsPlaceholder() || got.ID != accountID {
+		t.Errorf("@me resolved to %+v", got)
+	}
+	if len(spec.Sort) != 1 || spec.Sort[0].Field.Name != "due_at" || !spec.Sort[0].Descending {
+		t.Errorf("the order arrived as %+v", spec.Sort)
+	}
+
+	for name, input := range map[string]usecase.Input{
+		"query.line_with_filter": {"q": "status = open", "filter": map[string]any{"field": "status", "op": "EQ", "value": "open"}},
+		"query.line_malformed":   {"q": "status = 'open"},
+		"query.field_unknown":    {"q": "colour = red"},
+	} {
+		input["scope_container_id"] = readCollectionID.String()
+		_, err := queryHandler(store, containerStore, uow, &authorizer{}).invoke(t.Context(), actorFixture(), input)
+		var domainErr *shared.Error
+		if !errors.As(err, &domainErr) || len(domainErr.Fields) != 1 || domainErr.Fields[0].Code != name || !strings.HasPrefix(domainErr.Fields[0].Path, "/q") {
+			t.Errorf("%v answered %v, want %s at /q", input["q"], err, name)
+		}
 	}
 }
