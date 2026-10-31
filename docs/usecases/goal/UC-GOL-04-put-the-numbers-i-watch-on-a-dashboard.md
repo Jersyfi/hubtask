@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-13, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts, core/domain/model/goal/Running_test.go]
+checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, infrastructure/mail/SMTP_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts, core/domain/model/goal/Running_test.go]
 ---
 
 # Put the numbers I watch on a dashboard
@@ -62,10 +62,14 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
 16. A widget's summary sums the time recorded on its entries and counts the live pages of its
     bound spaces, as the reader may see them: their own time and other people's where they may see
     it, the pages of the spaces they may read; a source they may not read says so in place.
+17. The digest carries each table widget's rows as a CSV file, computed as the subscriber, where
+    their mail lets titles travel; a widget they cannot compute has no file, and no text in a file
+    runs as a formula.
 
 ## Where it ends
 
-* The mail carries no attachment - no CSV and no PDF (the mail port has none by design).
+* The mail carries no PDF (the owner's answer of 2026-10-30: CSV and a link), and a table larger
+  than the mail's bound is read through the link.
 * No wallboard mode, no historical snapshots, no read API for BI tools.
 * Entries from before the status history have no cycle time, WIP age or time in status, and
   none is backfilled: a history that was never written is not invented.
