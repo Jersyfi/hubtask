@@ -66,7 +66,11 @@ func (RequesterRepository) AddressesOn(ctx context.Context, itemID shared.ID) ([
 	}
 	out := make([]servicedesk.RequesterAddress, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, servicedesk.RequesterAddress{Address: row.Address, Name: row.DisplayName})
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, servicedesk.RequesterAddress{ID: id, Address: row.Address, Name: row.DisplayName})
 	}
 	return out, nil
 }

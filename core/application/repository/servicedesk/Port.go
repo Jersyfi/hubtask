@@ -152,3 +152,15 @@ type PublicForms interface {
 	// Delete takes the collection's link away and says whether it had one.
 	Delete(ctx context.Context, collectionID shared.ID) (bool, error)
 }
+
+// SatisfactionLinks stores the satisfaction question mailed to a requester without an account
+// (UC-SVC-07 check 6), hashing its token as PublicForms does.
+type SatisfactionLinks interface {
+	// Put writes the requester's link on the entry under a new token, replacing the one it had.
+	Put(ctx context.Context, link servicedesk.SatisfactionLink, token integration.SatisfactionLinkToken) error
+	// FindByToken answers the link a token names inside the caller's transaction, or not found.
+	FindByToken(ctx context.Context, token integration.SatisfactionLinkToken) (servicedesk.SatisfactionLink, error)
+	// Use marks the link answered at now and says whether it still was unanswered and alive: of
+	// two answers at once, one wins.
+	Use(ctx context.Context, token integration.SatisfactionLinkToken, now time.Time) (bool, error)
+}

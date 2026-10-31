@@ -3,11 +3,16 @@
 
 package servicedesk
 
-import "github.com/Jersyfi/hubtask/core/domain/model/work"
+import (
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
+)
 
 // RequesterAddress is a requester without an account, by the address their mail came from and the
 // name it gave (accepted.md B).
 type RequesterAddress struct {
+	// ID is the requester's record, which a satisfaction link hangs on.
+	ID      shared.ID
 	Address string
 	Name    string
 }

@@ -7443,4 +7443,26 @@ CREATE POLICY tenant_isolation ON public_form
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON public_form TO hubtask_app;
 
+-- Migration 0304: a resolution mail's satisfaction link (UC-SVC-07 check 6), one per requester and
+-- entry, hung on the contact; only the token's hash is kept.
+CREATE TABLE satisfaction_link (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  requester_id uuid NOT NULL,
+  item_id      uuid NOT NULL,
+  token_hash   bytea NOT NULL,
+  created_at   timestamptz NOT NULL,
+  expires_at   timestamptz NOT NULL,
+  used_at      timestamptz,
+  PRIMARY KEY (tenant_id, requester_id, item_id),
+  CHECK (expires_at > created_at),
+  CONSTRAINT satisfaction_link_contact_fkey FOREIGN KEY (tenant_id, requester_id, item_id)
+    REFERENCES requester_contact (tenant_id, requester_id, item_id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX satisfaction_link_token_uq ON satisfaction_link (token_hash);
+ALTER TABLE satisfaction_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE satisfaction_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON satisfaction_link
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON satisfaction_link TO hubtask_app;
+
 COMMIT;

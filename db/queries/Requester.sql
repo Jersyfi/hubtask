@@ -62,7 +62,7 @@ WHERE tenant_id = current_tenant_id() AND lower(sender) = lower(sqlc.arg('addres
 
 -- name: ListRequesterAddressesOn :many
 -- Who an entry was filed for by mail: the addresses a public reply on it is mailed to (UC-SVC-12).
-SELECT r.address, r.display_name
+SELECT r.id, r.address, r.display_name
 FROM requester_contact c
 JOIN requester r ON r.tenant_id = c.tenant_id AND r.id = c.requester_id
 WHERE c.tenant_id = current_tenant_id() AND c.item_id = sqlc.arg('item_id')
@@ -98,3 +98,22 @@ SELECT due.address FROM requester AS due
 WHERE due.last_contact_at < sqlc.arg('cutoff')
 ORDER BY due.last_contact_at
 LIMIT sqlc.arg('batch');
+
+-- name: PutSatisfactionLink :exec
+-- One link per requester and entry (migration 0304): a resolution mailed again replaces the token,
+-- and the old one stops answering.
+INSERT INTO satisfaction_link (tenant_id, requester_id, item_id, token_hash, created_at, expires_at, used_at)
+VALUES (current_tenant_id(), sqlc.arg('requester_id'), sqlc.arg('item_id'), sqlc.arg('token_hash'),
+        sqlc.arg('created_at'), sqlc.arg('expires_at'), NULL)
+ON CONFLICT (tenant_id, requester_id, item_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_at = EXCLUDED.created_at, expires_at = EXCLUDED.expires_at, used_at = NULL;
+
+-- name: FindSatisfactionLinkByHash :one
+-- The unauthenticated route's lookup: bounded to the token's tenant by row level security.
+SELECT requester_id, item_id, created_at, expires_at, used_at FROM satisfaction_link
+WHERE token_hash = sqlc.arg('token_hash');
+
+-- name: UseSatisfactionLink :execrows
+-- Answers the link once: of two answers at the same moment, one finds it unused.
+UPDATE satisfaction_link SET used_at = sqlc.arg('at')
+WHERE token_hash = sqlc.arg('token_hash') AND used_at IS NULL AND expires_at > sqlc.arg('at');

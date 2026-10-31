@@ -2859,6 +2859,16 @@ type RuleRun struct {
 	Occasion         *string
 }
 
+type SatisfactionLink struct {
+	TenantID    pgtype.UUID
+	RequesterID pgtype.UUID
+	ItemID      pgtype.UUID
+	TokenHash   []byte
+	CreatedAt   pgtype.Timestamptz
+	ExpiresAt   pgtype.Timestamptz
+	UsedAt      pgtype.Timestamptz
+}
+
 type SatisfactionRating struct {
 	ID       pgtype.UUID
 	TenantID pgtype.UUID

@@ -111,6 +111,33 @@ func (q *Queries) DiscardIntakeFrom(ctx context.Context, address string) (int64,
 	return result.RowsAffected(), nil
 }
 
+const findSatisfactionLinkByHash = `-- name: FindSatisfactionLinkByHash :one
+SELECT requester_id, item_id, created_at, expires_at, used_at FROM satisfaction_link
+WHERE token_hash = $1
+`
+
+type FindSatisfactionLinkByHashRow struct {
+	RequesterID pgtype.UUID
+	ItemID      pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	ExpiresAt   pgtype.Timestamptz
+	UsedAt      pgtype.Timestamptz
+}
+
+// The unauthenticated route's lookup: bounded to the token's tenant by row level security.
+func (q *Queries) FindSatisfactionLinkByHash(ctx context.Context, tokenHash []byte) (FindSatisfactionLinkByHashRow, error) {
+	row := q.db.QueryRow(ctx, findSatisfactionLinkByHash, tokenHash)
+	var i FindSatisfactionLinkByHashRow
+	err := row.Scan(
+		&i.RequesterID,
+		&i.ItemID,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.UsedAt,
+	)
+	return i, err
+}
+
 const listExpiredRequesterAddresses = `-- name: ListExpiredRequesterAddresses :many
 SELECT due.address FROM requester AS due
 WHERE due.last_contact_at < $1
@@ -203,7 +230,7 @@ func (q *Queries) ListIntakeLinesFrom(ctx context.Context, addresses []string) (
 }
 
 const listRequesterAddressesOn = `-- name: ListRequesterAddressesOn :many
-SELECT r.address, r.display_name
+SELECT r.id, r.address, r.display_name
 FROM requester_contact c
 JOIN requester r ON r.tenant_id = c.tenant_id AND r.id = c.requester_id
 WHERE c.tenant_id = current_tenant_id() AND c.item_id = $1
@@ -212,6 +239,7 @@ LIMIT 20
 `
 
 type ListRequesterAddressesOnRow struct {
+	ID          pgtype.UUID
 	Address     string
 	DisplayName string
 }
@@ -226,7 +254,7 @@ func (q *Queries) ListRequesterAddressesOn(ctx context.Context, itemID pgtype.UU
 	items := []ListRequesterAddressesOnRow{}
 	for rows.Next() {
 		var i ListRequesterAddressesOnRow
-		if err := rows.Scan(&i.Address, &i.DisplayName); err != nil {
+		if err := rows.Scan(&i.ID, &i.Address, &i.DisplayName); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -235,6 +263,35 @@ func (q *Queries) ListRequesterAddressesOn(ctx context.Context, itemID pgtype.UU
 		return nil, err
 	}
 	return items, nil
+}
+
+const putSatisfactionLink = `-- name: PutSatisfactionLink :exec
+INSERT INTO satisfaction_link (tenant_id, requester_id, item_id, token_hash, created_at, expires_at, used_at)
+VALUES (current_tenant_id(), $1, $2, $3,
+        $4, $5, NULL)
+ON CONFLICT (tenant_id, requester_id, item_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_at = EXCLUDED.created_at, expires_at = EXCLUDED.expires_at, used_at = NULL
+`
+
+type PutSatisfactionLinkParams struct {
+	RequesterID pgtype.UUID
+	ItemID      pgtype.UUID
+	TokenHash   []byte
+	CreatedAt   pgtype.Timestamptz
+	ExpiresAt   pgtype.Timestamptz
+}
+
+// One link per requester and entry (migration 0304): a resolution mailed again replaces the token,
+// and the old one stops answering.
+func (q *Queries) PutSatisfactionLink(ctx context.Context, arg PutSatisfactionLinkParams) error {
+	_, err := q.db.Exec(ctx, putSatisfactionLink,
+		arg.RequesterID,
+		arg.ItemID,
+		arg.TokenHash,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+	)
+	return err
 }
 
 const recordRequesterContact = `-- name: RecordRequesterContact :exec
@@ -284,6 +341,25 @@ WHERE tenant_id = current_tenant_id() AND lower(sender) = lower($1::text)
 // The same in the mode that keeps the workspace's content: the text stays without the address.
 func (q *Queries) ReleaseIntakeFrom(ctx context.Context, address string) (int64, error) {
 	result, err := q.db.Exec(ctx, releaseIntakeFrom, address)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const useSatisfactionLink = `-- name: UseSatisfactionLink :execrows
+UPDATE satisfaction_link SET used_at = $1
+WHERE token_hash = $2 AND used_at IS NULL AND expires_at > $1
+`
+
+type UseSatisfactionLinkParams struct {
+	At        pgtype.Timestamptz
+	TokenHash []byte
+}
+
+// Answers the link once: of two answers at the same moment, one finds it unused.
+func (q *Queries) UseSatisfactionLink(ctx context.Context, arg UseSatisfactionLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, useSatisfactionLink, arg.At, arg.TokenHash)
 	if err != nil {
 		return 0, err
 	}

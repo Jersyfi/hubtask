@@ -98,6 +98,17 @@ func NewPublicFormHasher(installationSecret secret.Secret) InboundTokenHasher {
 	return InboundTokenHasher{pepper: mac.Sum(nil)}
 }
 
+// satisfactionLinkPepperInfo separates the satisfaction links of resolution mails from every other
+// secret the installation key protects.
+const satisfactionLinkPepperInfo = "hubtask/satisfaction-link/v1"
+
+// NewSatisfactionLinkHasher is the same construction under the satisfaction link's own purpose label.
+func NewSatisfactionLinkHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(satisfactionLinkPepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}
+
 // publicFormChallengePepperInfo separates the signature on a public form's proof-of-work
 // challenge from every other use of the installation key: a challenge's tag can never be a
 // stored hash of anything.
