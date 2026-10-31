@@ -6290,7 +6290,7 @@ BEGIN
     RETURN;
   END IF;
   -- A workspace's own deletion cascades to its entries; nothing is recorded for a workspace gone.
-  (SELECT 1 FROM tenant t WHERE t.id = tenant) THEN
+  IF NOT EXISTS (SELECT 1 FROM tenant t WHERE t.id = tenant) THEN
     RETURN;
   END IF;
   token := nullif(current_setting('hubtask.figure_token', true), '')::bigint;
