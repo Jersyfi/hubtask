@@ -26,7 +26,9 @@ type entryTypes struct {
 func (e *entryTypes) OfHubInCollection(context.Context, shared.ID, shared.ID) (bool, error) {
 	return e.bound, nil
 }
-func (e *entryTypes) OfHubUnder(context.Context, string, shared.ID) (bool, error) { return e.bound, nil }
+func (e *entryTypes) OfHubUnder(context.Context, string, shared.ID) (bool, error) {
+	return e.bound, nil
+}
 
 func (e *entryTypes) List(context.Context) ([]domain.EntryType, error) { return e.rows, nil }
 func (e *entryTypes) Find(_ context.Context, key string) (domain.EntryType, error) {
