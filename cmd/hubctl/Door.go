@@ -20,7 +20,8 @@ import (
 // itself with `x-hubtask-cli`, read from Doors.gen.go. This file is the one interpreter of that
 // table - a new command is a line in the contract, never a hand-written function, so the command
 // and the operation cannot drift. A hand-written command of the same name wins: it is kept where
-// it does more than the operation (a prompt, a table a person reads better).
+// it does more than the operation (a prompt, a table a person reads better), and says so in
+// HandWritten_test.go.
 
 // door is one generated command; doorParam one argument or flag of it.
 type door struct {

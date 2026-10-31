@@ -82,8 +82,13 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    which a walk decides for itself). `x-hubtask-rest-cache:
    no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be
    stored. `x-hubtask-cli` names
-   the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`; a hand-written
-   command of the same name is kept.
+   the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`
+   (`x-hubtask-cli-columns` the columns of a list, `data` or a plain array); a boolean parameter
+   is a switch, a missing or malformed identifier is refused before the call, an answer of no body
+   says what was done on standard error, and a page names its `--cursor`. A hand-written command
+   of the same name is kept, and every hand-written command names why it does more than its
+   operation - a prompt, a file, a followed job, a shown-once warning, a table a person reads
+   better - in `cmd/hubctl/HandWritten_test.go`, whose test fails for one that does not.
 2. **One major path:** `/api/v1`. Additive changes (new fields, new endpoints, new enum values in *responses*) are compatible and need no new version.
 3. **Clients must be tolerant:** ignore unknown fields. This is documented in the contract.
 4. **Self-describing:** `GET /api/v1/meta/capabilities` answers the vocabulary (item types, capability profiles, field types, enum values, limits, locales, query fields, automation, event types); frontends and agents configure themselves from it rather than hard-coding. An optional surface is announced under `features`; a client that does not find its flag renders what it had before and calls no route of that surface.
