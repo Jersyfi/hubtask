@@ -135,7 +135,9 @@ a step that moves its writers lands one release before the drop:
   `INSERT … ON CONFLICT DO NOTHING` on the side row), names the columns nowhere and keeps the
   trigger for the older binary still rolling out. The first migration of the release after it drops
   the trigger and `work_item_mirror_side_rows`, the eight columns, `wi_due_announce_idx`,
-  `work_item_retention_idx` and the generated `search_vector`.
+  `work_item_retention_idx` and the generated `search_vector`. Until then no new query names
+  the eight columns: `TestNoNewQueryNamesTheSlimEntrysMirroredColumns` holds the queries that still
+  do to a list, which each moved writer leaves.
 
 ---
 
