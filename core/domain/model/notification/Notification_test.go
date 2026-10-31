@@ -147,6 +147,9 @@ func TestTheClosedSetsAreClosed(t *testing.T) {
 			t.Errorf("%s does not print as itself", category)
 		}
 	}
+	if !notification.CategoryRequestReply.Valid() || !notification.CategoryRequestReply.Suppressible() {
+		t.Error("a requester's reply notification is not a category they may switch off")
+	}
 	if notification.Category("GOSSIP").Valid() {
 		t.Error("an invented category reads as known")
 	}

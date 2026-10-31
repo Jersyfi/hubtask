@@ -74,13 +74,18 @@ const (
 	// no silent variant for anyone" (UC-ID-16), and a member's own preference would be one. Whether
 	// the mail names the hub stays the member's choice.
 	CategoryEmergencyAccess Category = "EMERGENCY_ACCESS"
+	// CategoryRequestReply is the team's public answer on a request a requester raised in the
+	// portal (UC-SVC-05): told to them, with a link into the portal they follow it in. Its own
+	// category rather than COMMENT, because the link and the switch are a requester's, not a
+	// team member's.
+	CategoryRequestReply Category = "REQUEST_REPLY"
 )
 
 // Categories is the closed set, in the order the schema's check constraint lists them.
 func Categories() []Category {
 	return []Category{
 		CategoryAssignment, CategoryMembership, CategoryComment, CategoryInvitation,
-		CategoryReminder, CategoryIntegration, CategoryRetention, CategoryEmergencyAccess,
+		CategoryReminder, CategoryIntegration, CategoryRetention, CategoryEmergencyAccess, CategoryRequestReply,
 	}
 }
 
