@@ -558,6 +558,10 @@ type UIConfig struct {
 	// openDesk's - each a complete origin. Empty by default, which keeps `frame-ancestors 'none'`;
 	// it widens the interface's policy only, never the API's.
 	FrameAncestors []string
+	// FrameSources are the https origins a page's embed may frame, sandboxed - a dashboard, a
+	// video. Empty by default, which frames nothing and draws every embed as a link card; it
+	// widens the interface's policy only, never the API's.
+	FrameSources []string
 }
 
 // LocaleConfig is the installation-wide fallback, the last link in the resolution chain

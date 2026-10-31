@@ -14,7 +14,7 @@ export type { LiveDocumentOptions, LiveSocket, LiveStatus } from './live.ts';
 export { compareBodies, MAX_COMPARED_LINES } from './compare.ts';
 export type { CompareLine } from './compare.ts';
 export {
-  createPageEditor, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, passageTops, replaceFromMarkdown, revealBlock, seedFromMarkdown,
+  createPageEditor, embedFrame, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, passageTops, replaceFromMarkdown, revealBlock, seedFromMarkdown,
   setPassages, taskLineOf,
 } from './editor.ts';
 export { linkLine, mirrorTicks, taskLineAt, taskLines, tickedEntries } from './tasks.ts';

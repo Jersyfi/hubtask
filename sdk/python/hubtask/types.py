@@ -5371,6 +5371,7 @@ class Capabilities(TypedDict, total=False):
     account_link: str
     modules_on: list["Module"]
     not_included: list["PlanFeature"]
+    frame_sources: list[str]
     deprecations: list["DeprecatedField"]
 
 class DeprecatedField(TypedDict, total=False):

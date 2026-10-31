@@ -204,6 +204,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		UI: env.UIConfig{
 			Enabled:        getBool("HUBTASK_UI_ENABLED", true),
 			FrameAncestors: getList("HUBTASK_UI_FRAME_ANCESTORS"),
+			FrameSources:   getList("HUBTASK_UI_FRAME_SOURCES"),
 		},
 	}
 
@@ -376,6 +377,7 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateRequest(cfg.Request)...)
 	errs = append(errs, validateCORS(cfg.CORS)...)
 	errs = append(errs, validateFrameAncestors(cfg.UI.FrameAncestors)...)
+	errs = append(errs, validateFrameSources(cfg.UI.FrameSources)...)
 	errs = append(errs, validateOutbound(cfg.Outbound)...)
 	errs = append(errs, validateLocale(cfg.Locale)...)
 	errs = append(errs, validateTracing(cfg.Tracing)...)
@@ -660,6 +662,23 @@ func validateFrameAncestors(origins []string) []error {
 			errs = append(errs, configError("config.frame_ancestor_invalid", "HUBTASK_UI_FRAME_ANCESTORS").
 				WithParams(map[string]string{
 					"variable": "HUBTASK_UI_FRAME_ANCESTORS",
+					"value":    origin,
+				}))
+		}
+	}
+	return errs
+}
+
+// validateFrameSources holds the framed origins to complete https origins: a wildcard would frame
+// the whole web, and an http frame on an https interface is mixed content the browser refuses.
+func validateFrameSources(origins []string) []error {
+	var errs []error
+	for _, origin := range origins {
+		rest, found := strings.CutPrefix(origin, "https://")
+		if !found || rest == "" || strings.ContainsAny(rest, "/?#*; '\"") {
+			errs = append(errs, configError("config.frame_source_invalid", "HUBTASK_UI_FRAME_SOURCES").
+				WithParams(map[string]string{
+					"variable": "HUBTASK_UI_FRAME_SOURCES",
 					"value":    origin,
 				}))
 		}

@@ -196,6 +196,21 @@ func TestTheManifestReportsTheInstallation(t *testing.T) {
 	}
 }
 
+// The origins a page's embed may frame are the operator's, answered as configured so a client frames
+// exactly what the interface's policy allows; none is an empty list, never absent.
+func TestTheManifestNamesTheFramedOrigins(t *testing.T) {
+	use := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	capabilities, err := use.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil || capabilities.FrameSources == nil || len(capabilities.FrameSources) != 0 {
+		t.Fatalf("by default: %v, %v", capabilities.FrameSources, err)
+	}
+	use.Config.UI.FrameSources = []string{"https://dashboards.example.org"}
+	capabilities, err = use.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil || len(capabilities.FrameSources) != 1 || capabilities.FrameSources[0] != "https://dashboards.example.org" {
+		t.Fatalf("configured: %v, %v", capabilities.FrameSources, err)
+	}
+}
+
 // Nothing is invented when the SMTP server is absent: a client uses this to decide whether to
 // offer the action at all.
 func TestAnUnconfiguredFeatureIsReportedAsAbsent(t *testing.T) {

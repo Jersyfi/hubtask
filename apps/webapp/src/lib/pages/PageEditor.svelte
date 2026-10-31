@@ -26,6 +26,7 @@
   import type { PageRead, ReferenceTarget } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { referencesIn, resolveRequest, targetLabel } from '../data/links.svelte.ts';
   import { items } from '../data/items.svelte.ts';
@@ -140,6 +141,8 @@
     },
     day: (iso: string) => formatDay(`${iso}T12:00:00Z`, messages.locale),
     words: (key) => t(`app.pages.block_${key}`),
+    // The origins the interface's policy frames; any other embed stays a link card.
+    frames: () => manifest.value?.frame_sources ?? [],
   };
 
   let resolving = 0;
@@ -612,6 +615,15 @@
     text-decoration: none;
   }
   .editor :global(.page-embed__host) { color: var(--text-secondary); }
+  .editor :global(.page-embed__frame) {
+    display: block;
+    inline-size: 100%;
+    aspect-ratio: 16 / 9;
+    margin-block: var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-md);
+    background: var(--bg-surface-sunken);
+  }
   .editor :global(.page-date),
   .editor :global(.page-status) {
     padding-inline: var(--sp-050);

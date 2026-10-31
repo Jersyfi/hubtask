@@ -873,6 +873,36 @@ func TestTheOperatorsVariableNamesAWorkspaceAndAnAddress(t *testing.T) {
 	}
 }
 
+// HUBTASK_UI_FRAME_SOURCES is empty by default and takes complete https origins only: an http
+// frame on an https interface would be mixed content, and a wildcard frames the whole web.
+func TestTheFrameSourcesAreCompleteHTTPSOriginsOnly(t *testing.T) {
+	withRequiredSecrets(t)
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.UI.FrameSources) != 0 {
+		t.Fatalf("frame sources by default = %v", cfg.UI.FrameSources)
+	}
+
+	t.Setenv("HUBTASK_UI_FRAME_SOURCES", "https://dashboards.example.org, https://video.example.org:8443")
+	cfg, err = load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.UI.FrameSources) != 2 || cfg.UI.FrameSources[1] != "https://video.example.org:8443" {
+		t.Fatalf("frame sources = %v", cfg.UI.FrameSources)
+	}
+
+	for _, refused := range []string{"*", "https://*.example.org", "dashboards.example.org",
+		"http://dashboards.example.org", "https://dashboards.example.org/path", "https://a.example.org; script-src *"} {
+		t.Setenv("HUBTASK_UI_FRAME_SOURCES", refused)
+		if _, err := load(t); err == nil || !strings.Contains(err.Error(), "config.frame_source_invalid") {
+			t.Errorf("%q answered %v", refused, err)
+		}
+	}
+}
+
 // HUBTASK_UI_FRAME_ANCESTORS is empty by default, takes complete origins, and refuses a wildcard
 // or anything that would add a directive.
 func TestTheFrameAncestorsAreCompleteOriginsOnly(t *testing.T) {

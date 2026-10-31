@@ -77,6 +77,23 @@ func EmbeddableBy(policy string, origins []string) string {
 	return strings.Replace(policy, "frame-ancestors 'none'", "frame-ancestors "+strings.Join(origins, " "), 1)
 }
 
+// FramingSources is a policy with a `frame-src` of the origins a page's embed may frame
+// (HUBTASK_UI_FRAME_SOURCES). None answers the policy unchanged, and `default-src 'none'` then
+// frames nothing. The origins are the operator's, validated as complete https origins at start;
+// the API's own policy never takes them.
+func FramingSources(policy string, origins []string) string {
+	if len(origins) == 0 {
+		return policy
+	}
+	return policy + "; frame-src " + strings.Join(origins, " ")
+}
+
+// FramingSources answers the handler with the origins its pages may frame added to its policy.
+func (h Handler) FramingSources(origins []string) Handler {
+	h.policy = FramingSources(h.policy, origins)
+	return h
+}
+
 // Cache-Control for the two kinds of file a bundle contains.
 //
 // The pairing is what makes an update take effect on the next reload while a browser still gets

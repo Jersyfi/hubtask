@@ -45,6 +45,8 @@ export interface ReferenceDrawing {
   day?(iso: string): string;
   /** The words of the blocks that have no content of their own to show. */
   words?(key: 'toc_empty' | 'children' | 'embed' | 'details'): string;
+  /** The https origins the interface's policy frames (HUBTASK_UI_FRAME_SOURCES); none frames nothing. */
+  frames?(): readonly string[];
 }
 
 const referenceAttributes = {
@@ -245,9 +247,20 @@ export const ChildPages = Node.create<DrawingOptions>({
 });
 
 /**
- * A video, a recording or another page of the web, `::embed <https address>`. Drawn as a card that
- * opens it in a new tab: the interface's policy frames no other origin (security.md §9), and a frame
- * the policy refused would be an empty box.
+ * The frame an embed is drawn in, or nothing for the link card: only an https address whose origin
+ * the installation frames, since a frame the policy refused would be an empty box (security.md §9).
+ * The sandbox never pairs scripts with the framed page's own origin, which would let it lift the
+ * sandbox off itself.
+ */
+export function embedFrame(src: string, frames: readonly string[] | undefined): { src: string; sandbox: string; referrerpolicy: string } | undefined {
+  const address = embeddable(src);
+  if (!address || !frames?.includes(new URL(address).origin)) return undefined;
+  return { src: address, sandbox: 'allow-scripts allow-popups allow-presentation', referrerpolicy: 'no-referrer' };
+}
+
+/**
+ * A video, a recording or another page of the web, `::embed <https address>`. Framed, sandboxed,
+ * where the installation frames its origin (embedFrame); otherwise a card that opens it in a new tab.
  */
 export const Embed = Node.create<DrawingOptions>({
   name: 'embed',
@@ -266,7 +279,17 @@ export const Embed = Node.create<DrawingOptions>({
       dom.className = 'page-embed';
       dom.setAttribute('contenteditable', 'false');
       const address = embeddable(String(node.attrs['src'] ?? ''));
-      if (address) {
+      const frame = address ? embedFrame(address, drawing?.frames?.()) : undefined;
+      if (frame) {
+        const view = document.createElement('iframe');
+        view.className = 'page-embed__frame';
+        view.src = frame.src;
+        view.setAttribute('sandbox', frame.sandbox);
+        view.referrerPolicy = frame.referrerpolicy as ReferrerPolicy;
+        view.loading = 'lazy';
+        view.title = drawing?.words?.('embed') ?? '';
+        dom.append(view);
+      } else if (address) {
         const link = document.createElement('a');
         link.className = 'page-embed__link';
         link.href = address;

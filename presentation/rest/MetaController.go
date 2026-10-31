@@ -344,7 +344,10 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		accountLink = &link
 	}
 
+	frameSources := append([]string{}, source.FrameSources...)
+
 	return openapi.Capabilities{
+		FrameSources:           &frameSources,
 		ProductVersion:         &productVersion,
 		ApiVersion:             &apiVersion,
 		TenancyMode:            &tenancy,

@@ -4036,7 +4036,7 @@ func run() error {
 			if uiErr != nil {
 				return fmt.Errorf("web interface: %w", uiErr)
 			}
-			ui = handler
+			ui = handler.FramingSources(cfg.UI.FrameSources)
 			if webui.IsPlaceholder(files) {
 				// Worth saying once at startup rather than leaving somebody to discover it in a
 				// browser: this binary was built without a frontend build, so "/" answers the

@@ -312,3 +312,34 @@ func TestTheFrameAncestorsWidenOnlyTheInterfacesFrameDirective(t *testing.T) {
 		t.Errorf("the API's policy is %q", csp)
 	}
 }
+
+// HUBTASK_UI_FRAME_SOURCES: the configured origins become the interface's `frame-src` and change
+// nothing else; none leaves the policy as it is (default-src 'none' frames nothing), and the
+// API's own policy never takes them.
+func TestTheFrameSourcesWidenOnlyTheInterfacesFrameSource(t *testing.T) {
+	t.Parallel()
+
+	if got := webui.FramingSources(webui.ContentSecurityPolicy, nil); got != webui.ContentSecurityPolicy {
+		t.Errorf("no origins changed the policy: %q", got)
+	}
+	origins := []string{"https://dashboards.example.org", "https://video.example.org"}
+	want := webui.ContentSecurityPolicy + "; frame-src https://dashboards.example.org https://video.example.org"
+	if got := webui.FramingSources(webui.ContentSecurityPolicy, origins); got != want {
+		t.Errorf("the framing policy:\n got %q\nwant %q", got, want)
+	}
+
+	h, err := webui.NewHandler(bundle(), rest.WriteSecurityHeaders, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	if csp := get(t, h.FramingSources(origins), "/").Header().Get("Content-Security-Policy"); csp != want {
+		t.Errorf("GET /: CSP = %q", csp)
+	}
+
+	api := httptest.NewRecorder()
+	rest.Secured{Next: http.NotFoundHandler()}.ServeHTTP(api,
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/meta", nil))
+	if csp := api.Header().Get("Content-Security-Policy"); strings.Contains(csp, "dashboards.example.org") {
+		t.Errorf("the API's policy is %q", csp)
+	}
+}

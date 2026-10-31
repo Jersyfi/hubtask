@@ -214,7 +214,7 @@ this list with its row.
 | Fourth answers | The two read endpoints for a Nextcloud widget and search provider | open: build it (accepted.md, "The owner's fourth answers", item 8) |
 | Fourth answers | A public, revocable roadmap link per portfolio behind a setting | open: build it (accepted.md, "The owner's fourth answers", item 9) |
 | Fourth answers | The n8n and Zapier publish job on a version tag | open: build it (accepted.md, "The owner's fourth answers", item 10) |
-| Fourth answers | Sandboxed embeds of the origins in HUBTASK_UI_FRAME_SOURCES | open: build it (accepted.md, "The owner's fourth answers", item 12) |
+| Fourth answers | Sandboxed embeds of the origins in HUBTASK_UI_FRAME_SOURCES | closed: `HUBTASK_UI_FRAME_SOURCES` (https origins, `config.frame_source_invalid`), `frame-src` on the interface's policy only (`webui.FramingSources`), `frame_sources` in `/meta/capabilities`, the editor's `embedFrame` sandboxed frame for a listed origin and a link card otherwise; `TestTheFrameSourcesWidenOnlyTheInterfacesFrameSource`, `blocks.test.ts` |
 | Fourth answers | The performance plan P2, R1, R3 (and R2 after a fix) on the workstation | open: build it (accepted.md, "The owner's fourth answers", item 13) |
 
 ## State

@@ -159,6 +159,9 @@ type Capabilities struct {
 	// AccountLink is the provider's account link, answered only to the workspace's owners and
 	// administrators and only where one is in force (multi-tenancy.md §4.2); empty otherwise.
 	AccountLink string
+	// FrameSources are the https origins a page's embed may frame (HUBTASK_UI_FRAME_SOURCES),
+	// empty - never nil - where the operator set none.
+	FrameSources []string
 	// Legal is the four links this installation is obliged to show, resolved for the caller's
 	// workspace or - where there is none - for the installation itself (ADR-0068 §7).
 	//
@@ -651,6 +654,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		NotIncluded:          notIncluded,
 		ModulesOn:            modulesOn,
 		AccountLink:          accountLink,
+		FrameSources:         append([]string{}, g.Config.UI.FrameSources...),
 	}, nil
 }
 

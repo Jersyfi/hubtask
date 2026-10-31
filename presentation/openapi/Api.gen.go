@@ -13076,6 +13076,9 @@ type Capabilities struct {
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
 
+	// FrameSources The complete https origins a page's embed may show in a frame, as the installation's operator set them; empty by default. A client frames an embed, sandboxed and without its own origin's rights, only where its origin is listed here, and draws every other embed as a link card, because the interface's policy frames no other origin.
+	FrameSources *[]string `json:"frame_sources,omitempty"`
+
 	// Instance What this caller may do at the level above the workspaces. Caller-scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.
 	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled.
 	Instance  *InstanceReach `json:"instance,omitempty"`

@@ -62883,6 +62883,13 @@
             },
             "description": "The features the caller's workspace's plan leaves out, in the order of `PlanFeature`; empty where the workspace is on no plan or its plan leaves out nothing. Caller-scoped like `workspace_permissions`: absent for an anonymous caller.\nA feature that is left out rests: automation rules run nowhere, webhooks deliver nothing, the workspace's own sign-in providers sign nobody in. Nothing is deleted, everything stays readable, and it works again from the moment the plan includes it. Creating, changing, switching on, running or sending is refused with `403 plan.not_included`, the feature as its parameter; switching off, pausing, rotating a secret and deleting stay. A client draws \"Not included in your plan\" in place of the refused controls. `automation_actions` already leaves out the actions of a feature named here.\n"
           },
+          "frame_sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The complete https origins a page's embed may show in a frame, as the installation's operator set them; empty by default. A client frames an embed, sandboxed and without its own origin's rights, only where its origin is listed here, and draws every other embed as a link card, because the interface's policy frames no other origin.\n"
+          },
           "deprecations": {
             "type": "array",
             "items": {
