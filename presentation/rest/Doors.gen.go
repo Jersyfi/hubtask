@@ -219,6 +219,7 @@ var restDoors = map[string]restDoor{
 	"detachMedia":                       {UseCase: "DetachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disableRule":                       {UseCase: "DisableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disableTotp":                       {UseCase: "DisableTotp", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"discardConfigDraft":                {UseCase: "DiscardConfigDraft", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"discardPageDraft":                  {UseCase: "DiscardPageDraft", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"discardTimer":                      {UseCase: "DiscardTimer", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disconnectCalendarPush":            {UseCase: "DisconnectCalendarPush", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -323,6 +324,7 @@ var restDoors = map[string]restDoor{
 	"listCis":                           {UseCase: "ListCis", Status: 200, Query: []string{"after", "class", "include_merged", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listCodeHooks":                     {UseCase: "ListCodeHooks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listComments":                      {UseCase: "ListComments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listConfigDrafts":                  {UseCase: "ListConfigDrafts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigProposals":               {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigTemplates":               {UseCase: "ListConfigTemplates", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigVersions":                {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before"}},
@@ -616,6 +618,7 @@ var restDoors = map[string]restDoor{
 	"rotateWebhookSecret":               {UseCase: "RotateWebhookSecret", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"grace_seconds"}},
 	"runAgentEvaluation":                {UseCase: "RunAgentEvaluation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"runCiConnector":                    {UseCase: "RunCiConnector", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"saveConfigDraft":                   {UseCase: "SaveConfigDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"saveMailSettings":                  {UseCase: "SaveMailSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ReadOnly: []string{"address", "domain"}},
 	"savePreset":                        {UseCase: "SavePreset", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"saveVoiceSettings":                 {UseCase: "SaveVoiceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ReadOnly: []string{"installation_skill"}},
@@ -2129,6 +2132,11 @@ func (c *RestController) DisableTotp(w http.ResponseWriter, r *http.Request, par
 	c.door(w, r, restDoors["disableTotp"], usecase.Input{}, params, &body, nil)
 }
 
+// DiscardConfigDraft answers DELETE /config/drafts/{section}/{key} by the generated mapping.
+func (c *RestController) DiscardConfigDraft(w http.ResponseWriter, r *http.Request, section string, key string) {
+	c.door(w, r, restDoors["discardConfigDraft"], usecase.Input{"section": section, "key": key}, nil, nil, nil)
+}
+
 // DiscardPageDraft answers DELETE /pages/{pageId}/draft by the generated mapping.
 func (c *RestController) DiscardPageDraft(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
 	c.door(w, r, restDoors["discardPageDraft"], usecase.Input{"page_id": pageId.String()}, nil, nil, nil)
@@ -2846,6 +2854,12 @@ func (c *RestController) ListCodeHooks(w http.ResponseWriter, r *http.Request, h
 // ListComments answers GET /items/{itemId}/comments by the generated mapping.
 func (c *RestController) ListComments(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.ListCommentsParams) {
 	c.door(w, r, restDoors["listComments"], usecase.Input{"item_id": itemId.String()}, params, nil, answerPage(commentResponse))
+}
+
+// ListConfigDrafts answers GET /config/drafts by the generated mapping.
+func (c *RestController) ListConfigDrafts(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.ConfigDraftList
+	c.door(w, r, restDoors["listConfigDrafts"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListConfigProposals answers GET /config/proposals by the generated mapping.
@@ -4636,6 +4650,13 @@ func (c *RestController) RunCiConnector(w http.ResponseWriter, r *http.Request, 
 	var body openapi.RunCiConnectorJSONRequestBody
 	var answer openapi.CiConnectorRun
 	c.door(w, r, restDoors["runCiConnector"], usecase.Input{"connector_id": connectorId.String()}, nil, &body, &answer)
+}
+
+// SaveConfigDraft answers PUT /config/drafts/{section}/{key} by the generated mapping.
+func (c *RestController) SaveConfigDraft(w http.ResponseWriter, r *http.Request, section string, key string, params openapi.SaveConfigDraftParams) {
+	var body openapi.SaveConfigDraftJSONRequestBody
+	var answer openapi.ConfigDraft
+	c.door(w, r, restDoors["saveConfigDraft"], usecase.Input{"section": section, "key": key}, params, &body, &answer)
 }
 
 // SaveMailSettings answers PUT /mail/settings by the generated mapping.

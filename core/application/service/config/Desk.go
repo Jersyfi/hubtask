@@ -71,7 +71,9 @@ type Desk struct {
 	Catalogue Catalogue
 	Store     configrepo.Store
 	// Samples marks a template's sample entries (configuration.md §6).
-	Samples    configrepo.Samples
+	Samples configrepo.Samples
+	// Drafts keeps the blocks saved beside the ones in force (ui.md A4).
+	Drafts     configrepo.Drafts
 	Settings   settingrepo.Settings
 	Authorizer Authorizer
 	Audit      audit.Sink

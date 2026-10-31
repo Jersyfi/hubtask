@@ -3281,6 +3281,21 @@ export class HubtaskClient {
     return this.call("POST", "/config/templates/{key}:plan", { "key": key }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The drafts saved beside the configuration in force */
+  listConfigDrafts(options: CallOptions = {}): Promise<operations["listConfigDrafts"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config/drafts", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Save a block's draft */
+  saveConfigDraft(section: string, key: string, body: NonNullable<operations["saveConfigDraft"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["saveConfigDraft"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/config/drafts/{section}/{key}", { "section": section, "key": key }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Throw a block's draft away */
+  discardConfigDraft(section: string, key: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/config/drafts/{section}/{key}", { "section": section, "key": key }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The configuration sandbox and what promoting it would do */
   readConfigSandbox(options: CallOptions = {}): Promise<operations["readConfigSandbox"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/config/sandbox", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

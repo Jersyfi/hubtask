@@ -654,6 +654,9 @@ func (d Desk) apply(ctx context.Context, actor appshared.ActorContext, in usecas
 		if err := d.run(ctx, actor, p.Ops, in.String("step_up_token")); err != nil {
 			return err
 		}
+		if err := d.publishedDrafts(ctx, hub, document); err != nil {
+			return err
+		}
 		template, err := d.provenance(ctx, actor, in.String("template"), hub)
 		if err != nil {
 			return err
@@ -905,6 +908,9 @@ func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id share
 			return domain.ErrNotAcknowledged()
 		}
 		if err := d.run(ctx, actor, p.Ops, stepUp); err != nil {
+			return err
+		}
+		if err := d.publishedDrafts(ctx, proposal.HubID, proposal.Document); err != nil {
 			return err
 		}
 		template, err := d.provenance(ctx, actor, proposal.Template, proposal.HubID)

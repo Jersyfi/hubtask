@@ -26152,6 +26152,124 @@
         }
       }
     },
+    "/config/drafts": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "listConfigDrafts",
+        "x-hubtask-rest": "generated",
+        "summary": "The drafts saved beside the configuration in force",
+        "description": "Lists the drafts of a type with its form, an SLA policy or a role, by section and key. A draft changes nothing in force; publishing it is `POST /config:plan` and `/config:apply` with its block in the document, and that apply removes the draft it put in force. Needs STRUCTURE or READ_CONFIGURATION at the workspace.\n",
+        "responses": {
+          "200": {
+            "description": "The drafts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigDraftList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config/drafts/{section}/{key}": {
+      "parameters": [
+        {
+          "name": "section",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "types",
+              "sla_policies",
+              "roles"
+            ]
+          }
+        },
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "saveConfigDraft",
+        "x-hubtask-rest": "generated",
+        "summary": "Save a block's draft",
+        "description": "Saves a draft of one block as the configuration document writes it; the block in force stays in force for everybody until the draft is published. A draft may be unfinished: only its attributes are checked to be the section's (`config.attribute_unknown`). A save over a draft saved since the version given is refused with `config.draft_version_conflict`. Needs STRUCTURE at the workspace; the plan scope is enough, since nothing runs.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "block"
+                ],
+                "properties": {
+                  "block": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "The block as the configuration document writes it."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigDraft"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "discardConfigDraft",
+        "x-hubtask-rest": "generated",
+        "summary": "Throw a block's draft away",
+        "description": "The block in force stays as it is. Needs STRUCTURE at the workspace.",
+        "responses": {
+          "204": {
+            "description": "Discarded"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/config/sandbox": {
       "get": {
         "tags": [
@@ -48285,6 +48403,60 @@
           "from_sandbox": {
             "type": "boolean",
             "description": "Promotes the sandbox - what it changed since its copy - instead of a document."
+          }
+        }
+      },
+      "ConfigDraft": {
+        "type": "object",
+        "required": [
+          "section",
+          "key",
+          "block",
+          "saved_by",
+          "saved_at",
+          "version"
+        ],
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": [
+              "types",
+              "sla_policies",
+              "roles"
+            ]
+          },
+          "key": {
+            "type": "string"
+          },
+          "block": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The block as the configuration document writes it, perhaps unfinished."
+          },
+          "saved_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "saved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "ConfigDraftList": {
+        "type": "object",
+        "required": [
+          "drafts"
+        ],
+        "properties": {
+          "drafts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigDraft"
+            }
           }
         }
       },

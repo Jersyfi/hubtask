@@ -321,6 +321,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `config.applied` | ApplyConfig | `configuration` | INFO | Every time |
 | `config.applied` | DecideConfigProposal | `configuration` | INFO | Every time |
+| `config.draft_discarded` | DiscardConfigDraft | `configuration` | INFO | Every time |
+| `config.draft_saved` | SaveConfigDraft | `configuration` | INFO | Every time |
 | `config.planned` | PlanConfig | `configuration` | INFO | When refused |
 | `config.planned` | PlanConfigTemplate | `configuration` | INFO | When refused |
 | `config.planned` | ValidateConfig | `configuration` | INFO | When refused |
@@ -726,6 +728,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | GetImport | `` |  | When refused |
 | `` | GetSignInRules | `` |  | When refused |
 | `` | InspectInvitation | `` |  | When refused |
+| `` | ListConfigDrafts | `` |  | When refused |
 | `` | ListRoles | `` |  | When refused |
 | `` | ListSampleEntries | `` |  | When refused |
 | `` | LocateOidcFlow | `` |  | When refused |

@@ -2607,6 +2607,18 @@ class Client:
         """Plan taking or upgrading a template"""
         return self._call("POST", "/config/templates/{key}:plan", {"key": key}, None, {}, body, "json", "application/json", "json")
 
+    def list_config_drafts(self) -> "ConfigDraftList":
+        """The drafts saved beside the configuration in force"""
+        return self._call("GET", "/config/drafts", {}, None, {}, None, "none", None, "json")
+
+    def save_config_draft(self, section: str, key: str, body: dict[str, Any], *, if_match: str | None = None) -> "ConfigDraft":
+        """Save a block's draft"""
+        return self._call("PUT", "/config/drafts/{section}/{key}", {"section": section, "key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def discard_config_draft(self, section: str, key: str) -> None:
+        """Throw a block's draft away"""
+        return self._call("DELETE", "/config/drafts/{section}/{key}", {"section": section, "key": key}, None, {}, None, "none", None, "void")
+
     def read_config_sandbox(self) -> "ConfigSandbox":
         """The configuration sandbox and what promoting it would do"""
         return self._call("GET", "/config/sandbox", {}, None, {}, None, "none", None, "json")

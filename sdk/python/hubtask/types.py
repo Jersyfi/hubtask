@@ -2657,6 +2657,17 @@ class ConfigApplyRequest(TypedDict, total=False):
     hub_id: str
     from_sandbox: bool
 
+class ConfigDraft(TypedDict, total=False):
+    section: Required[Literal["types", "sla_policies", "roles"]]
+    key: Required[str]
+    block: Required[dict[str, Any]]
+    saved_by: Required[str]
+    saved_at: Required[str]
+    version: Required[int]
+
+class ConfigDraftList(TypedDict, total=False):
+    drafts: Required[list["ConfigDraft"]]
+
 class ConfigSandbox(TypedDict, total=False):
     exists: Required[bool]
     document: "ConfigDocument"

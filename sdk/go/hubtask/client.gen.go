@@ -3289,6 +3289,27 @@ func (e ConfigDocumentRequestMode) Valid() bool {
 	}
 }
 
+// Defines values for ConfigDraftSection.
+const (
+	Roles       ConfigDraftSection = "roles"
+	SlaPolicies ConfigDraftSection = "sla_policies"
+	Types       ConfigDraftSection = "types"
+)
+
+// Valid indicates whether the value is a known member of the ConfigDraftSection enum.
+func (e ConfigDraftSection) Valid() bool {
+	switch e {
+	case Roles:
+		return true
+	case SlaPolicies:
+		return true
+	case Types:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConfigFindingSeverity.
 const (
 	ConfigFindingSeverityERROR   ConfigFindingSeverity = "ERROR"
@@ -14345,6 +14366,25 @@ type ConfigDocumentRequest struct {
 
 // ConfigDocumentRequestMode defines model for ConfigDocumentRequest.Mode.
 type ConfigDocumentRequestMode string
+
+// ConfigDraft defines model for ConfigDraft.
+type ConfigDraft struct {
+	// Block The block as the configuration document writes it, perhaps unfinished.
+	Block   map[string]interface{} `json:"block"`
+	Key     string                 `json:"key"`
+	SavedAt time.Time              `json:"saved_at"`
+	SavedBy openapi_types.UUID     `json:"saved_by"`
+	Section ConfigDraftSection     `json:"section"`
+	Version int                    `json:"version"`
+}
+
+// ConfigDraftSection defines model for ConfigDraft.Section.
+type ConfigDraftSection string
+
+// ConfigDraftList defines model for ConfigDraftList.
+type ConfigDraftList struct {
+	Drafts []ConfigDraft `json:"drafts"`
+}
 
 // ConfigExplanation defines model for ConfigExplanation.
 type ConfigExplanation struct {
@@ -25680,6 +25720,18 @@ type CheckConfigParams struct {
 	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
+// SaveConfigDraftJSONBody defines parameters for SaveConfigDraft.
+type SaveConfigDraftJSONBody struct {
+	// Block The block as the configuration document writes it.
+	Block map[string]interface{} `json:"block"`
+}
+
+// SaveConfigDraftParams defines parameters for SaveConfigDraft.
+type SaveConfigDraftParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ExplainConfigParams defines parameters for ExplainConfig.
 type ExplainConfigParams struct {
 	Key string `form:"key" json:"key"`
@@ -28122,6 +28174,9 @@ type CreateSprintJSONRequestBody CreateSprintJSONBody
 
 // SetCollectionHandleJSONRequestBody defines body for SetCollectionHandle for application/json ContentType.
 type SetCollectionHandleJSONRequestBody = CollectionHandle
+
+// SaveConfigDraftJSONRequestBody defines body for SaveConfigDraft for application/json ContentType.
+type SaveConfigDraftJSONRequestBody SaveConfigDraftJSONBody
 
 // SetConfigPolicyJSONRequestBody defines body for SetConfigPolicy for application/json ContentType.
 type SetConfigPolicyJSONRequestBody = ConfigPolicy
@@ -33098,6 +33153,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /config/check (the `CheckConfig` operationId).
 	CheckConfig(ctx context.Context, params *CheckConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListConfigDrafts The drafts saved beside the configuration in force
+	//
+	// Lists the drafts of a type with its form, an SLA policy or a role, by section and key. A draft changes nothing in force; publishing it is `POST /config:plan` and `/config:apply` with its block in the document, and that apply removes the draft it put in force. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+	//
+	// Corresponds with GET /config/drafts (the `ListConfigDrafts` operationId).
+	ListConfigDrafts(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DiscardConfigDraft Throw a block's draft away
+	//
+	// The block in force stays as it is. Needs STRUCTURE at the workspace.
+	//
+	// Corresponds with DELETE /config/drafts/{section}/{key} (the `DiscardConfigDraft` operationId).
+	DiscardConfigDraft(ctx context.Context, section string, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SaveConfigDraftWithBody Save a block's draft
+	//
+	// Saves a draft of one block as the configuration document writes it; the block in force stays in force for everybody until the draft is published. A draft may be unfinished: only its attributes are checked to be the section's (`config.attribute_unknown`). A save over a draft saved since the version given is refused with `config.draft_version_conflict`. Needs STRUCTURE at the workspace; the plan scope is enough, since nothing runs.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /config/drafts/{section}/{key} (the `SaveConfigDraft` operationId).
+	SaveConfigDraftWithBody(ctx context.Context, section string, key string, params *SaveConfigDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SaveConfigDraft Save a block's draft
+	//
+	// Saves a draft of one block as the configuration document writes it; the block in force stays in force for everybody until the draft is published. A draft may be unfinished: only its attributes are checked to be the section's (`config.attribute_unknown`). A save over a draft saved since the version given is refused with `config.draft_version_conflict`. Needs STRUCTURE at the workspace; the plan scope is enough, since nothing runs.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /config/drafts/{section}/{key} (the `SaveConfigDraft` operationId).
+	SaveConfigDraft(ctx context.Context, section string, key string, params *SaveConfigDraftParams, body SaveConfigDraftJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExplainConfig Explain one key of the configuration
 	//
@@ -47350,6 +47437,78 @@ func (c *Client) ExportConfig(ctx context.Context, params *ExportConfigParams, r
 // Corresponds with GET /config/check (the `CheckConfig` operationId).
 func (c *Client) CheckConfig(ctx context.Context, params *CheckConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCheckConfigRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListConfigDrafts The drafts saved beside the configuration in force
+//
+// Lists the drafts of a type with its form, an SLA policy or a role, by section and key. A draft changes nothing in force; publishing it is `POST /config:plan` and `/config:apply` with its block in the document, and that apply removes the draft it put in force. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+//
+// Corresponds with GET /config/drafts (the `ListConfigDrafts` operationId).
+func (c *Client) ListConfigDrafts(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListConfigDraftsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DiscardConfigDraft Throw a block's draft away
+//
+// The block in force stays as it is. Needs STRUCTURE at the workspace.
+//
+// Corresponds with DELETE /config/drafts/{section}/{key} (the `DiscardConfigDraft` operationId).
+func (c *Client) DiscardConfigDraft(ctx context.Context, section string, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDiscardConfigDraftRequest(c.Server, section, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SaveConfigDraftWithBody Save a block's draft
+//
+// Saves a draft of one block as the configuration document writes it; the block in force stays in force for everybody until the draft is published. A draft may be unfinished: only its attributes are checked to be the section's (`config.attribute_unknown`). A save over a draft saved since the version given is refused with `config.draft_version_conflict`. Needs STRUCTURE at the workspace; the plan scope is enough, since nothing runs.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /config/drafts/{section}/{key} (the `SaveConfigDraft` operationId).
+func (c *Client) SaveConfigDraftWithBody(ctx context.Context, section string, key string, params *SaveConfigDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSaveConfigDraftRequestWithBody(c.Server, section, key, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SaveConfigDraft Save a block's draft
+//
+// Saves a draft of one block as the configuration document writes it; the block in force stays in force for everybody until the draft is published. A draft may be unfinished: only its attributes are checked to be the section's (`config.attribute_unknown`). A save over a draft saved since the version given is refused with `config.draft_version_conflict`. Needs STRUCTURE at the workspace; the plan scope is enough, since nothing runs.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /config/drafts/{section}/{key} (the `SaveConfigDraft` operationId).
+func (c *Client) SaveConfigDraft(ctx context.Context, section string, key string, params *SaveConfigDraftParams, body SaveConfigDraftJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSaveConfigDraftRequest(c.Server, section, key, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -73409,6 +73568,143 @@ func NewCheckConfigRequest(server string, params *CheckConfigParams) (*http.Requ
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListConfigDraftsRequest constructs an http.Request for the ListConfigDrafts method
+func NewListConfigDraftsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/drafts")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDiscardConfigDraftRequest constructs an http.Request for the DiscardConfigDraft method
+func NewDiscardConfigDraftRequest(server string, section string, key string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "section", section, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/drafts/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSaveConfigDraftRequest calls the generic SaveConfigDraft builder with application/json body
+func NewSaveConfigDraftRequest(server string, section string, key string, params *SaveConfigDraftParams, body SaveConfigDraftJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSaveConfigDraftRequestWithBody(server, section, key, params, "application/json", bodyReader)
+}
+
+// NewSaveConfigDraftRequestWithBody constructs an http.Request for the SaveConfigDraft method, with any body, and a specified content type
+func NewSaveConfigDraftRequestWithBody(server string, section string, key string, params *SaveConfigDraftParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "section", section, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/drafts/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -103297,6 +103593,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /config/check (the `CheckConfig` operationId).
 	CheckConfigWithResponse(ctx context.Context, params *CheckConfigParams, reqEditors ...RequestEditorFn) (*CheckConfigResult, error)
 
+	// ListConfigDraftsWithResponse The drafts saved beside the configuration in force
+	//
+	// Lists the drafts of a type with its form, an SLA policy or a role, by section and key. A draft changes nothing in force; publishing it is `POST /config:plan` and `/config:apply` with its block in the document, and that apply removes the draft it put in force. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /config/drafts (the `ListConfigDrafts` operationId).
+	ListConfigDraftsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListConfigDraftsResult, error)
+
+	// DiscardConfigDraftWithResponse Throw a block's draft away
+	//
+	// The block in force stays as it is. Needs STRUCTURE at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /config/drafts/{section}/{key} (the `DiscardConfigDraft` operationId).
+	DiscardConfigDraftWithResponse(ctx context.Context, section string, key string, reqEditors ...RequestEditorFn) (*DiscardConfigDraftResult, error)
+
+	// SaveConfigDraftWithBodyWithResponse Save a block's draft
+	//
+	// Saves a draft of one block as the configuration document writes it; the block in force stays in force for everybody until the draft is published. A draft may be unfinished: only its attributes are checked to be the section's (`config.attribute_unknown`). A save over a draft saved since the version given is refused with `config.draft_version_conflict`. Needs STRUCTURE at the workspace; the plan scope is enough, since nothing runs.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /config/drafts/{section}/{key} (the `SaveConfigDraft` operationId).
+	SaveConfigDraftWithBodyWithResponse(ctx context.Context, section string, key string, params *SaveConfigDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveConfigDraftResult, error)
+
+	// SaveConfigDraftWithResponse Save a block's draft
+	//
+	// Saves a draft of one block as the configuration document writes it; the block in force stays in force for everybody until the draft is published. A draft may be unfinished: only its attributes are checked to be the section's (`config.attribute_unknown`). A save over a draft saved since the version given is refused with `config.draft_version_conflict`. Needs STRUCTURE at the workspace; the plan scope is enough, since nothing runs.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /config/drafts/{section}/{key} (the `SaveConfigDraft` operationId).
+	SaveConfigDraftWithResponse(ctx context.Context, section string, key string, params *SaveConfigDraftParams, body SaveConfigDraftJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveConfigDraftResult, error)
+
 	// ExplainConfigWithResponse Explain one key of the configuration
 	//
 	// One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.
@@ -123057,6 +123389,143 @@ func (r CheckConfigResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CheckConfigResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListConfigDraftsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigDraftList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListConfigDraftsResult) GetJSON200() *ConfigDraftList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListConfigDraftsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListConfigDraftsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListConfigDraftsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListConfigDraftsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListConfigDraftsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DiscardConfigDraftResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DiscardConfigDraftResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DiscardConfigDraftResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DiscardConfigDraftResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DiscardConfigDraftResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DiscardConfigDraftResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SaveConfigDraftResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigDraft
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SaveConfigDraftResult) GetJSON200() *ConfigDraft {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SaveConfigDraftResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SaveConfigDraftResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SaveConfigDraftResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SaveConfigDraftResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SaveConfigDraftResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -155423,6 +155892,66 @@ func (c *ClientWithResponses) CheckConfigWithResponse(ctx context.Context, param
 	return ParseCheckConfigResult(rsp)
 }
 
+// ListConfigDraftsWithResponse The drafts saved beside the configuration in force
+//
+// Lists the drafts of a type with its form, an SLA policy or a role, by section and key. A draft changes nothing in force; publishing it is `POST /config:plan` and `/config:apply` with its block in the document, and that apply removes the draft it put in force. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /config/drafts (the `ListConfigDrafts` operationId).
+func (c *ClientWithResponses) ListConfigDraftsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListConfigDraftsResult, error) {
+	rsp, err := c.ListConfigDrafts(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListConfigDraftsResult(rsp)
+}
+
+// DiscardConfigDraftWithResponse Throw a block's draft away
+//
+// The block in force stays as it is. Needs STRUCTURE at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /config/drafts/{section}/{key} (the `DiscardConfigDraft` operationId).
+func (c *ClientWithResponses) DiscardConfigDraftWithResponse(ctx context.Context, section string, key string, reqEditors ...RequestEditorFn) (*DiscardConfigDraftResult, error) {
+	rsp, err := c.DiscardConfigDraft(ctx, section, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDiscardConfigDraftResult(rsp)
+}
+
+// SaveConfigDraftWithBodyWithResponse Save a block's draft
+//
+// Saves a draft of one block as the configuration document writes it; the block in force stays in force for everybody until the draft is published. A draft may be unfinished: only its attributes are checked to be the section's (`config.attribute_unknown`). A save over a draft saved since the version given is refused with `config.draft_version_conflict`. Needs STRUCTURE at the workspace; the plan scope is enough, since nothing runs.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /config/drafts/{section}/{key} (the `SaveConfigDraft` operationId).
+func (c *ClientWithResponses) SaveConfigDraftWithBodyWithResponse(ctx context.Context, section string, key string, params *SaveConfigDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveConfigDraftResult, error) {
+	rsp, err := c.SaveConfigDraftWithBody(ctx, section, key, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSaveConfigDraftResult(rsp)
+}
+
+// SaveConfigDraftWithResponse Save a block's draft
+//
+// Saves a draft of one block as the configuration document writes it; the block in force stays in force for everybody until the draft is published. A draft may be unfinished: only its attributes are checked to be the section's (`config.attribute_unknown`). A save over a draft saved since the version given is refused with `config.draft_version_conflict`. Needs STRUCTURE at the workspace; the plan scope is enough, since nothing runs.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /config/drafts/{section}/{key} (the `SaveConfigDraft` operationId).
+func (c *ClientWithResponses) SaveConfigDraftWithResponse(ctx context.Context, section string, key string, params *SaveConfigDraftParams, body SaveConfigDraftJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveConfigDraftResult, error) {
+	rsp, err := c.SaveConfigDraft(ctx, section, key, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSaveConfigDraftResult(rsp)
+}
+
 // ExplainConfigWithResponse Explain one key of the configuration
 //
 // One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.
@@ -176145,6 +176674,101 @@ func ParseCheckConfigResult(rsp *http.Response) (*CheckConfigResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ConfigCheck
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListConfigDraftsResult parses an HTTP response from a ListConfigDraftsWithResponse call
+func ParseListConfigDraftsResult(rsp *http.Response) (*ListConfigDraftsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListConfigDraftsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigDraftList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDiscardConfigDraftResult parses an HTTP response from a DiscardConfigDraftWithResponse call
+func ParseDiscardConfigDraftResult(rsp *http.Response) (*DiscardConfigDraftResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DiscardConfigDraftResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSaveConfigDraftResult parses an HTTP response from a SaveConfigDraftWithResponse call
+func ParseSaveConfigDraftResult(rsp *http.Response) (*SaveConfigDraftResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SaveConfigDraftResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigDraft
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

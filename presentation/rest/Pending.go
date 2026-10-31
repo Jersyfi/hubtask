@@ -3086,3 +3086,15 @@ func (pending) AddSampleEntry(w http.ResponseWriter, r *http.Request, _ openapi_
 func (pending) RemoveSampleEntries(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+
+func (pending) ListConfigDrafts(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SaveConfigDraft(w http.ResponseWriter, r *http.Request, _, _ string, _ openapi.SaveConfigDraftParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DiscardConfigDraft(w http.ResponseWriter, r *http.Request, _, _ string) {
+	notAvailable(w, r)
+}

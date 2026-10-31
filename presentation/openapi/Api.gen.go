@@ -3283,6 +3283,27 @@ func (e ConfigDocumentRequestMode) Valid() bool {
 	}
 }
 
+// Defines values for ConfigDraftSection.
+const (
+	Roles       ConfigDraftSection = "roles"
+	SlaPolicies ConfigDraftSection = "sla_policies"
+	Types       ConfigDraftSection = "types"
+)
+
+// Valid indicates whether the value is a known member of the ConfigDraftSection enum.
+func (e ConfigDraftSection) Valid() bool {
+	switch e {
+	case Roles:
+		return true
+	case SlaPolicies:
+		return true
+	case Types:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConfigFindingSeverity.
 const (
 	ConfigFindingSeverityERROR   ConfigFindingSeverity = "ERROR"
@@ -14339,6 +14360,25 @@ type ConfigDocumentRequest struct {
 
 // ConfigDocumentRequestMode defines model for ConfigDocumentRequest.Mode.
 type ConfigDocumentRequestMode string
+
+// ConfigDraft defines model for ConfigDraft.
+type ConfigDraft struct {
+	// Block The block as the configuration document writes it, perhaps unfinished.
+	Block   map[string]interface{} `json:"block"`
+	Key     string                 `json:"key"`
+	SavedAt time.Time              `json:"saved_at"`
+	SavedBy openapi_types.UUID     `json:"saved_by"`
+	Section ConfigDraftSection     `json:"section"`
+	Version int                    `json:"version"`
+}
+
+// ConfigDraftSection defines model for ConfigDraft.Section.
+type ConfigDraftSection string
+
+// ConfigDraftList defines model for ConfigDraftList.
+type ConfigDraftList struct {
+	Drafts []ConfigDraft `json:"drafts"`
+}
 
 // ConfigExplanation defines model for ConfigExplanation.
 type ConfigExplanation struct {
@@ -25674,6 +25714,18 @@ type CheckConfigParams struct {
 	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
+// SaveConfigDraftJSONBody defines parameters for SaveConfigDraft.
+type SaveConfigDraftJSONBody struct {
+	// Block The block as the configuration document writes it.
+	Block map[string]interface{} `json:"block"`
+}
+
+// SaveConfigDraftParams defines parameters for SaveConfigDraft.
+type SaveConfigDraftParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ExplainConfigParams defines parameters for ExplainConfig.
 type ExplainConfigParams struct {
 	Key string `form:"key" json:"key"`
@@ -28117,6 +28169,9 @@ type CreateSprintJSONRequestBody CreateSprintJSONBody
 // SetCollectionHandleJSONRequestBody defines body for SetCollectionHandle for application/json ContentType.
 type SetCollectionHandleJSONRequestBody = CollectionHandle
 
+// SaveConfigDraftJSONRequestBody defines body for SaveConfigDraft for application/json ContentType.
+type SaveConfigDraftJSONRequestBody SaveConfigDraftJSONBody
+
 // SetConfigPolicyJSONRequestBody defines body for SetConfigPolicy for application/json ContentType.
 type SetConfigPolicyJSONRequestBody = ConfigPolicy
 
@@ -30033,6 +30088,15 @@ type ServerInterface interface {
 	// CheckConfig Check the configuration in force
 	// (GET /config/check)
 	CheckConfig(w http.ResponseWriter, r *http.Request, params CheckConfigParams)
+	// ListConfigDrafts The drafts saved beside the configuration in force
+	// (GET /config/drafts)
+	ListConfigDrafts(w http.ResponseWriter, r *http.Request)
+	// DiscardConfigDraft Throw a block's draft away
+	// (DELETE /config/drafts/{section}/{key})
+	DiscardConfigDraft(w http.ResponseWriter, r *http.Request, section string, key string)
+	// SaveConfigDraft Save a block's draft
+	// (PUT /config/drafts/{section}/{key})
+	SaveConfigDraft(w http.ResponseWriter, r *http.Request, section string, key string, params SaveConfigDraftParams)
 	// ExplainConfig Explain one key of the configuration
 	// (GET /config/explain)
 	ExplainConfig(w http.ResponseWriter, r *http.Request, params ExplainConfigParams)
@@ -39475,6 +39539,114 @@ func (siw *ServerInterfaceWrapper) CheckConfig(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CheckConfig(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListConfigDrafts operation middleware
+func (siw *ServerInterfaceWrapper) ListConfigDrafts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListConfigDrafts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DiscardConfigDraft operation middleware
+func (siw *ServerInterfaceWrapper) DiscardConfigDraft(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "section" -------------
+	var section string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "section", r.PathValue("section"), &section, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "section", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiscardConfigDraft(w, r, section, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveConfigDraft operation middleware
+func (siw *ServerInterfaceWrapper) SaveConfigDraft(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "section" -------------
+	var section string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "section", r.PathValue("section"), &section, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "section", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SaveConfigDraftParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveConfigDraft(w, r, section, key, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -58931,6 +59103,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/templates", wrapper.ListConfigTemplates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/templates", wrapper.PublishConfigTemplate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/templates/{key}:plan", wrapper.PlanConfigTemplate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/drafts", wrapper.ListConfigDrafts)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/config/drafts/{section}/{key}", wrapper.DiscardConfigDraft)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/config/drafts/{section}/{key}", wrapper.SaveConfigDraft)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/sandbox", wrapper.ReadConfigSandbox)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/sandbox", wrapper.WriteConfigSandbox)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/modules", wrapper.ListModules)
