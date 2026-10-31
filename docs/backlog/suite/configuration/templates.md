@@ -60,6 +60,6 @@ Grouped by what people come for; each names the standard it follows (`standards.
 | Programmes and portfolio | Portfolio, OKR, Scaled agile (PI planning, ART board, ROAM risks) |
 | Service | ITIL service desk, Internal IT, Facility requests, HR requests, Customer support |
 | Business processes | Approvals (purchase, leave, travel), Onboarding / offboarding, Procurement, CAPA (ISO 9001), Risk and controls register (ISO 27001), Records of processing (GDPR) |
-| Registers | IT asset register, Risk register (likelihood × impact as a calculated score), Contacts and organisations, Vendors and contracts - record types (kept, never done, never scheduled) with their fields and forms, for the workspace; no hub part, since a record runs no workflow |
+| Registers | IT asset register, Risk register (likelihood × impact as a calculated score), Contacts and organisations, Vendors and contracts (an internal comment 30 days before a live contract's notice date, a rule measured from the date field) - record types (kept, never done, never scheduled) with their fields and forms, for the workspace; no hub part, since a record runs no workflow |
 
 The catalogue is curated: few, good, standard-aligned. Customers build their own world on them.

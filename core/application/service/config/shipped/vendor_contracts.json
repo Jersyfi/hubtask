@@ -1,6 +1,6 @@
 {
   "key": "vendor_contracts",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -194,6 +194,33 @@
             }
           ]
         }
+      }
+    },
+    "rules": {
+      "renewal_reminder": {
+        "name": "Remind of a contract's notice date",
+        "enabled": true,
+        "trigger": {
+          "kind": "RELATIVE_DATE",
+          "anchor": "FIELD",
+          "anchor_field": "contract_notice_by",
+          "offset": "-P30D"
+        },
+        "conditions": [
+          {
+            "expr": "item.entry_type == 'contract' && item.custom_fields.contract_status == 'Active'"
+          }
+        ],
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "ADD_COMMENT",
+            "params": {
+              "body": "The notice date of this contract is 30 days away: renew it or give notice.",
+              "internal": true
+            }
+          }
+        ]
       }
     }
   }

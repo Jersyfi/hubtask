@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/service/workflow"
+	automationmodel "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -41,6 +42,7 @@ func TestTheRegisterTemplatesAreWholeRegisters(t *testing.T) {
 		"contact_register":  {"organisation", "contact"},
 		"vendor_contracts":  {"vendor", "contract"},
 	}
+	versions := map[string]int{"it_asset_register": 1, "risk_register": 1, "contact_register": 1, "vendor_contracts": 2}
 	fieldOwner := map[string]string{}
 	for key, types := range expected {
 		template, ok := byKey[key]
@@ -48,7 +50,7 @@ func TestTheRegisterTemplatesAreWholeRegisters(t *testing.T) {
 			t.Errorf("%s is not shipped", key)
 			continue
 		}
-		if template.Origin != domain.OriginHubtask || template.Version != 1 || !reservedKey(key) || template.ForHubs() {
+		if template.Origin != domain.OriginHubtask || template.Version != versions[key] || !reservedKey(key) || template.ForHubs() {
 			t.Errorf("%s is %v %d, for hubs %v", key, template.Origin, template.Version, template.ForHubs())
 		}
 		for name := range template.Document {
@@ -125,6 +127,28 @@ func TestTheRegisterTemplatesAreWholeRegisters(t *testing.T) {
 	contract := byKey["vendor_contracts"].Document[sectionFields]
 	if text(contract["contract_document"]["kind"]) != "FILE" || text(contract["contract_vendor"]["kind"]) != "REFERENCE" {
 		t.Errorf("a contract does not hold its document and its vendor: %v", contract)
+	}
+
+	// The renewal reminder measures from the contract's notice date, a DATE field of the template,
+	// and is a rule CreateRule accepts.
+	reminder := byKey["vendor_contracts"].Document[sectionRules]["renewal_reminder"]
+	trigger, _ := reminder["trigger"].(map[string]any)
+	anchored := text(trigger["anchor_field"])
+	if trigger["anchor"] != "FIELD" || text(contract[anchored]["kind"]) != "DATE" {
+		t.Fatalf("the renewal reminder is %v", reminder)
+	}
+	if _, err := automationmodel.NewRule(automationmodel.NewRuleInput{
+		ID: id, TenantID: tenant, Key: "renewal_reminder", Name: text(reminder["name"]),
+		Scope: automationmodel.Scope{Type: automationmodel.ScopeTenant}, RunAs: id,
+		Trigger: automationmodel.Trigger{
+			Kind: automationmodel.TriggerRelativeDate, Anchor: automationmodel.AnchorField,
+			AnchorField: anchored, Offset: text(trigger["offset"]),
+		},
+		Conditions: []automationmodel.Condition{{Expr: "item.entry_type == 'contract'"}},
+		Actions:    []automationmodel.Action{{Kind: "ADD_COMMENT", Params: map[string]any{"body": "x"}}},
+		OnError:    automationmodel.OnErrorStop, CreatedBy: id, Now: time.Now(), Text: textport.Composing{},
+	}); err != nil {
+		t.Errorf("the renewal reminder: %v", err)
 	}
 }
 
