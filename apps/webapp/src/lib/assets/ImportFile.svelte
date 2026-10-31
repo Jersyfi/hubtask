@@ -3,7 +3,7 @@
 <script lang="ts">
   // A file brought into the inventory (UC-AST-04 check 5): the file read in the browser, its format
   // found, a CSV table's or JSON array's columns mapped to the class's attributes (a source's saved
-  // mapping first), a dry run's decisions shown row by row, and then the import itself - all through
+  // mapping first) - a workbook's first sheet read as such a table (check 6) -, a dry run's decisions shown row by row, and then the import itself - all through
   // the reconciliation of UC-AST-02 as the source chosen. Only a member who may write sees it.
 
   import { untrack } from 'svelte';
@@ -12,6 +12,7 @@
 
   import { classWord, cmdb, fileColumns, fileFormat, guessMapping, instantiable, sourcesPath, type Words } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
+  import { base64Of, isZip, workbookColumns } from '../data/workbook.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -19,6 +20,8 @@
 
   /** What the contract takes (`CiFileImport.content`); a larger file is refused before it is sent. */
   const MAX_BYTES = 5 * 1024 * 1024;
+  /** A workbook travels as base64, a third larger than its bytes. */
+  const MAX_WORKBOOK_BYTES = Math.floor((MAX_BYTES * 3) / 4);
 
   interface Props {
     hubId: string;
@@ -49,8 +52,10 @@
   let run = $state<CiRun | undefined>(undefined);
   let isBusy = $state(false);
 
-  const tabular = $derived(format === 'CSV' || format === 'JSON');
-  const columns = $derived(content && tabular ? fileColumns(format, content) : []);
+  const tabular = $derived(format === 'CSV' || format === 'JSON' || format === 'XLSX');
+  // A workbook's columns are read once from its bytes; a text's from the text as it stands.
+  let sheetColumns = $state<string[]>([]);
+  const columns = $derived(!content || !tabular ? [] : format === 'XLSX' ? sheetColumns : fileColumns(format, content));
   const chosen = $derived(classes.find((each) => each.key === mapClass));
   const columnOptions = $derived<SelectOption[]>([{ value: '', label: t('app.assets.import_none') }, ...columns.map((each) => ({ value: each, label: each }))]);
   const attributeOptions = $derived<SelectOption[]>([
@@ -65,13 +70,22 @@
     const file = (event.currentTarget as HTMLInputElement).files?.[0];
     run = undefined;
     if (!file) return;
-    if (file.size > MAX_BYTES) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const workbook = /\.xlsx$/iu.test(file.name) || isZip(bytes);
+    if (file.size > (workbook ? MAX_WORKBOOK_BYTES : MAX_BYTES)) {
       toast.show({ text: t('app.assets.import_too_large'), tone: 'danger' });
       return;
     }
     fileName = file.name;
-    content = await file.text();
-    format = fileFormat(file.name, content);
+    if (workbook) {
+      sheetColumns = await workbookColumns(bytes);
+      content = base64Of(bytes);
+      format = 'XLSX';
+    } else {
+      sheetColumns = [];
+      content = new TextDecoder().decode(bytes);
+      format = fileFormat(file.name, content);
+    }
     adopt();
   }
 
@@ -125,7 +139,7 @@
     }
   }
 
-  const formats = $derived<SelectOption[]>((['CSV', 'JSON', 'CYCLONEDX', 'SPDX'] as const).map((each) => ({ value: each, label: t(`app.assets.format.${each}`) })));
+  const formats = $derived<SelectOption[]>((format === 'XLSX' ? (['XLSX'] as const) : (['CSV', 'JSON', 'CYCLONEDX', 'SPDX'] as const)).map((each) => ({ value: each, label: t(`app.assets.format.${each}`) })));
   const sourceOptions = $derived<SelectOption[]>(sources.map((each) => ({ value: each.key, label: each.key })));
   const classOptions = $derived<SelectOption[]>(instantiable(classes).map((each) => ({ value: each.key, label: classWord(each.key, classes, words) })));
 </script>
@@ -138,7 +152,7 @@
   {/if}
   <label class="file">
     <span>{t('app.assets.import_file')}</span>
-    <input type="file" accept=".csv,.json,text/csv,application/json" onchange={readFile} />
+    <input type="file" accept=".csv,.json,.xlsx,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange={readFile} />
     <span class="meta">{fileName || t('app.assets.import_hint')}</span>
   </label>
   {#if content}

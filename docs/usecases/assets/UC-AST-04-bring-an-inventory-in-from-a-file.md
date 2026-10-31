@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
 state: built
 tasks: []
-checked_by: [core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/cmdb/FileXlsx_test.go]
+checked_by: [core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/cmdb/FileXlsx_test.go, apps/webapp/src/lib/data/workbook.test.ts]
 ---
 
 # Bring an inventory in from a file
@@ -34,5 +34,5 @@ Dana exports the old asset spreadsheet as CSV, maps *Host* to the name, *Serial*
 ## Where it ends
 
 * No spreadsheet format other than CSV and XLSX, no mapping packs per tool - the following release.
-* The *Assets* screen reads CSV and JSON in the browser for its mapping; an XLSX workbook is
-  imported through the API.
+* The *Assets* screen reads only a workbook's header row in the browser, for its mapping; the
+  rows are read by the server.
