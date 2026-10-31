@@ -15827,6 +15827,17 @@ type EntryOnCi struct {
 	Title     string             `json:"title"`
 }
 
+// EntryRequester defines model for EntryRequester.
+type EntryRequester struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// Organisation The portal organisation of the requester's mail domain; null for none.
+	Organisation *struct {
+		Key  string `json:"key"`
+		Name string `json:"name"`
+	} `json:"organisation"`
+}
+
 // EntryScheduling defines model for EntryScheduling.
 type EntryScheduling struct {
 	ItemId    openapi_types.UUID  `json:"item_id"`
@@ -34862,6 +34873,13 @@ type ClientInterface interface {
 	// Corresponds with GET /items/{itemId}/reply-templates/{templateKey} (the `RenderReplyTemplate` operationId).
 	RenderReplyTemplate(ctx context.Context, itemId ItemId, templateKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReadEntryRequester Who raised the entry, and their organisation
+	//
+	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+	//
+	// Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
+	ReadEntryRequester(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetEntrySchedulingWithBody Whether the scheduler may move an entry, and whether it is a milestone
 	//
 	// AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
@@ -51766,6 +51784,23 @@ func (c *Client) UpdateReminderWithApplicationMergePatchPlusJSONBody(ctx context
 // Corresponds with GET /items/{itemId}/reply-templates/{templateKey} (the `RenderReplyTemplate` operationId).
 func (c *Client) RenderReplyTemplate(ctx context.Context, itemId ItemId, templateKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRenderReplyTemplateRequest(c.Server, itemId, templateKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadEntryRequester Who raised the entry, and their organisation
+//
+// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+//
+// Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
+func (c *Client) ReadEntryRequester(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadEntryRequesterRequest(c.Server, itemId)
 	if err != nil {
 		return nil, err
 	}
@@ -82310,6 +82345,40 @@ func NewRenderReplyTemplateRequest(server string, itemId ItemId, templateKey str
 	return req, nil
 }
 
+// NewReadEntryRequesterRequest constructs an http.Request for the ReadEntryRequester method
+func NewReadEntryRequesterRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/requester", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewSetEntrySchedulingRequest calls the generic SetEntryScheduling builder with application/json body
 func NewSetEntrySchedulingRequest(server string, itemId ItemId, body SetEntrySchedulingJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -103857,6 +103926,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /items/{itemId}/reply-templates/{templateKey} (the `RenderReplyTemplate` operationId).
 	RenderReplyTemplateWithResponse(ctx context.Context, itemId ItemId, templateKey string, reqEditors ...RequestEditorFn) (*RenderReplyTemplateResult, error)
+
+	// ReadEntryRequesterWithResponse Who raised the entry, and their organisation
+	//
+	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
+	ReadEntryRequesterWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadEntryRequesterResult, error)
 
 	// SetEntrySchedulingWithBodyWithResponse Whether the scheduler may move an entry, and whether it is a milestone
 	//
@@ -130580,6 +130658,54 @@ func (r RenderReplyTemplateResult) ContentType() string {
 	return ""
 }
 
+type ReadEntryRequesterResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryRequester
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadEntryRequesterResult) GetJSON200() *EntryRequester {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadEntryRequesterResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadEntryRequesterResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadEntryRequesterResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadEntryRequesterResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadEntryRequesterResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SetEntrySchedulingResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -156525,6 +156651,21 @@ func (c *ClientWithResponses) RenderReplyTemplateWithResponse(ctx context.Contex
 	return ParseRenderReplyTemplateResult(rsp)
 }
 
+// ReadEntryRequesterWithResponse Who raised the entry, and their organisation
+//
+// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
+func (c *ClientWithResponses) ReadEntryRequesterWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadEntryRequesterResult, error) {
+	rsp, err := c.ReadEntryRequester(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadEntryRequesterResult(rsp)
+}
+
 // SetEntrySchedulingWithBodyWithResponse Whether the scheduler may move an entry, and whether it is a milestone
 //
 // AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
@@ -179601,6 +179742,39 @@ func ParseRenderReplyTemplateResult(rsp *http.Response) (*RenderReplyTemplateRes
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest RenderedReply
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadEntryRequesterResult parses an HTTP response from a ReadEntryRequesterWithResponse call
+func ParseReadEntryRequesterResult(rsp *http.Response) (*ReadEntryRequesterResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadEntryRequesterResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryRequester
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

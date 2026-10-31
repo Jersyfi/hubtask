@@ -15821,6 +15821,17 @@ type EntryOnCi struct {
 	Title     string             `json:"title"`
 }
 
+// EntryRequester defines model for EntryRequester.
+type EntryRequester struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// Organisation The portal organisation of the requester's mail domain; null for none.
+	Organisation *struct {
+		Key  string `json:"key"`
+		Name string `json:"name"`
+	} `json:"organisation"`
+}
+
 // EntryScheduling defines model for EntryScheduling.
 type EntryScheduling struct {
 	ItemId    openapi_types.UUID  `json:"item_id"`
@@ -30181,6 +30192,9 @@ type ServerInterface interface {
 	// RenderReplyTemplate A canned reply filled for an entry
 	// (GET /items/{itemId}/reply-templates/{templateKey})
 	RenderReplyTemplate(w http.ResponseWriter, r *http.Request, itemId ItemId, templateKey string)
+	// ReadEntryRequester Who raised the entry, and their organisation
+	// (GET /items/{itemId}/requester)
+	ReadEntryRequester(w http.ResponseWriter, r *http.Request, itemId ItemId)
 	// SetEntryScheduling Whether the scheduler may move an entry, and whether it is a milestone
 	// (PUT /items/{itemId}/scheduling)
 	SetEntryScheduling(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -46607,6 +46621,32 @@ func (siw *ServerInterfaceWrapper) RenderReplyTemplate(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ReadEntryRequester operation middleware
+func (siw *ServerInterfaceWrapper) ReadEntryRequester(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadEntryRequester(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetEntryScheduling operation middleware
 func (siw *ServerInterfaceWrapper) SetEntryScheduling(w http.ResponseWriter, r *http.Request) {
 
@@ -57421,6 +57461,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DeleteSlaPolicy)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DefineSlaPolicy)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-report", wrapper.ReportSla)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/requester", wrapper.ReadEntryRequester)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/sla", wrapper.ReadEntrySla)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requester-organisations", wrapper.ListRequesterOrganisations)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/requester-organisations/{organisationKey}", wrapper.DeleteRequesterOrganisation)

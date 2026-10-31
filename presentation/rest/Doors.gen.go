@@ -478,6 +478,7 @@ var restDoors = map[string]restDoor{
 	"readDashboardFigures":              {UseCase: "ReadDashboardFigures", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readEncryptionStatus":              {UseCase: "ReadEncryptionStatus", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readEntryApprovals":                {UseCase: "ReadEntryApprovals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readEntryRequester":                {UseCase: "ReadEntryRequester", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readEntrySla":                      {UseCase: "ReadEntrySla", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readEstimatesVsActuals":            {UseCase: "ReadEstimatesVsActuals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readGoal":                          {UseCase: "ReadGoal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3776,6 +3777,12 @@ func (c *RestController) ReadEncryptionStatus(w http.ResponseWriter, r *http.Req
 func (c *RestController) ReadEntryApprovals(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
 	var answer openapi.ApprovalList
 	c.door(w, r, restDoors["readEntryApprovals"], usecase.Input{"item_id": itemId.String()}, nil, nil, &answer)
+}
+
+// ReadEntryRequester answers GET /items/{itemId}/requester by the generated mapping.
+func (c *RestController) ReadEntryRequester(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var answer openapi.EntryRequester
+	c.door(w, r, restDoors["readEntryRequester"], usecase.Input{"item_id": itemId.String()}, nil, nil, &answer)
 }
 
 // ReadEntrySla answers GET /items/{itemId}/sla by the generated mapping.

@@ -2178,6 +2178,10 @@ class PortalOrganisation(TypedDict, total=False):
     name: Required[str]
     shares_requests: Required[bool]
 
+class EntryRequester(TypedDict, total=False):
+    account_id: Required[str]
+    organisation: Required[Any | dict[str, Any]]
+
 class RequesterOrganisation(TypedDict, total=False):
     key: Required[str]
     name: Required[str]

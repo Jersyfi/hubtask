@@ -3556,6 +3556,28 @@ paths:
               schema: { $ref: "#/components/schemas/SlaReport" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /items/{itemId}/requester:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [servicedesk]
+      operationId: readEntryRequester
+      x-hubtask-rest: generated
+      x-hubtask-cli: "item requester"
+      summary: Who raised the entry, and their organisation
+      description: >
+        The person who raised the entry - its creator - and the portal organisation their mail
+        domain belongs to, if any, for the side panel a handler reads beside a request; their other
+        requests are a query by `created_by`, which answers what the reader may see. The address
+        itself is not answered. Needs READ on the entry and the service desk switched on.
+      responses:
+        "200":
+          description: The requester
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntryRequester" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /items/{itemId}/sla:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -28186,6 +28208,20 @@ components:
       properties:
         name: { type: string }
         shares_requests: { type: boolean }
+    EntryRequester:
+      type: object
+      required: [account_id, organisation]
+      properties:
+        account_id: { type: string, format: uuid }
+        organisation:
+          description: The portal organisation of the requester's mail domain; null for none.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [key, name]
+              properties:
+                key: { type: string }
+                name: { type: string }
     RequesterOrganisation:
       type: object
       required: [key, name, domains, shares_requests, version]

@@ -1473,6 +1473,11 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
+	{Group: "item", Verb: "requester", OperationID: "readEntryRequester", Method: "GET", Path: "/items/{itemId}/requester", Summary: "Who raised the entry, and their organisation",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"account_id"}},
 	{Group: "item", Verb: "rm", OperationID: "trashWorkItem", Method: "DELETE", Path: "/items/{itemId}", Summary: "",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},

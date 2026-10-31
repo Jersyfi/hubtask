@@ -683,6 +683,10 @@ class Client:
         """How the SLA goals of a period stood"""
         return self._call("GET", "/sla-report", {}, query, {}, None, "none", None, "json")
 
+    def read_entry_requester(self, item_id: str) -> "EntryRequester":
+        """Who raised the entry, and their organisation"""
+        return self._call("GET", "/items/{itemId}/requester", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
     def read_entry_sla(self, item_id: str) -> "EntrySlaList":
         """How an entry's SLA goals stand"""
         return self._call("GET", "/items/{itemId}/sla", {"itemId": item_id}, None, {}, None, "none", None, "json")

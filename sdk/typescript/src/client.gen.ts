@@ -836,6 +836,11 @@ export class HubtaskClient {
     return this.call("GET", "/sla-report", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Who raised the entry, and their organisation */
+  readEntryRequester(itemId: string, options: CallOptions = {}): Promise<operations["readEntryRequester"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/requester", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** How an entry's SLA goals stand */
   readEntrySla(itemId: string, options: CallOptions = {}): Promise<operations["readEntrySla"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/items/{itemId}/sla", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
