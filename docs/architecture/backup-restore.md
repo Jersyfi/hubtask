@@ -270,7 +270,10 @@ still asked because the archive is read through the caller's own workspace's tar
   `backup.restore_foreign_archive_encrypted`, not left to fail as a decryption error.
 * **`duplicate` applies to content, not to context.** Accounts, media and webhook subscriptions fall
   back to `skip`, and the report says so. A copy gets a **derived** identity, so a resumed restore
-  produces the same identifiers and the copies point at each other.
+  produces the same identifiers and the copies point at each other. A reference is remapped only
+  to a row the workspace held before the restore; one to a row the restore wrote new, or left
+  alone, keeps pointing at it - in a resumed attempt too, which reads whether the earlier one wrote
+  the copy.
 * **A copy also changes what the schema insists is unique.** Each entity declares the columns a copy
   may not carry unchanged; an integration test compares that with the unique indexes. Today:
   * **A name is suffixed** at the top of the duplicated tree where it is not free:

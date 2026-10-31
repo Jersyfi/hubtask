@@ -888,7 +888,7 @@ func (s *state) withhold(table, id string) {
 // would meet the rows the first one wrote and duplicate them (BK-7).
 func (s *state) stage(ctx context.Context, entity archive.Entity, record archive.Record) error {
 	if s.skip(entity) {
-		return nil
+		return s.recallIdentity(ctx, entity, record.ID)
 	}
 	s.decided[entity.Name]++
 
@@ -1273,6 +1273,41 @@ func (s *state) write(ctx context.Context, item staged) error {
 	if id, named := data["id"].(string); named && (written || collided) {
 		s.land(item.entity.Table, id)
 	}
+	if outcome != domain.ConflictDuplicate {
+		s.keepIdentity(item.entity, item.record.ID)
+	}
+	return nil
+}
+
+// keepIdentity remembers that a row kept its original identity - written new, or left alone - so
+// that what points at it keeps pointing there. Without it the remap's question "does the tenant
+// hold this?" would answer yes for a row this restore just wrote, and a comment on a new entry in
+// a duplicated collection would be pointed at a copy of the entry nobody writes.
+func (s *state) keepIdentity(entity archive.Entity, id string) {
+	if s.plan.remapAll || ruleOf(s.plan.restore) != domain.ConflictDuplicate || !entity.HasOwnIdentity() {
+		return
+	}
+	s.live[entity.Table+"/"+id] = false
+}
+
+// recallIdentity is keepIdentity for a record an earlier attempt decided: the copy it would have
+// been given is in the tenant if and only if it was duplicated, because a copy is written in the
+// batch that decides its original.
+func (s *state) recallIdentity(ctx context.Context, entity archive.Entity, id string) error {
+	if s.plan.remapAll || ruleOf(s.plan.restore) != domain.ConflictDuplicate ||
+		!entity.Duplicable || !entity.HasOwnIdentity() {
+		return nil
+	}
+	copied := domain.DuplicateID(s.plan.restore.ID, entity.Name, id).String()
+	held, err := s.applier.Import.Holds(ctx, entity.Table, map[string]any{"id": copied})
+	if err != nil {
+		return err
+	}
+	if held {
+		s.remap[entity.Table+"/"+id] = copied
+		return nil
+	}
+	s.live[entity.Table+"/"+id] = false
 	return nil
 }
 

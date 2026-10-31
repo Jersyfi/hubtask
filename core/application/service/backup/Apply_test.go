@@ -1556,3 +1556,48 @@ func TestAnArchiveWrittenBeforeSaltsStillRestoresFromItsTarget(t *testing.T) {
 		t.Fatal("nothing was restored")
 	}
 }
+
+// commentedRows is a collection the workspace still holds, an entry it holds and one it does not,
+// and a comment on the new one.
+func commentedRows(export *rows) {
+	containerRows(export)
+	export.byTable["comment"] = []repository.Row{
+		{ID: "k1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{"id": "k1", "item_id": "w2"}},
+	}
+}
+
+// A DUPLICATE remaps a reference to a row the workspace held before the restore. One to a row the
+// restore itself just wrote new keeps pointing at that row - asked of the tenant alone, the new
+// entry looks held, and its comment would be pointed at a copy of it nobody writes. The same
+// holds for an attempt resumed after the entry's batch committed.
+func TestADuplicateKeepsPointingAtWhatItWroteNew(t *testing.T) {
+	for _, resumed := range []bool{false, true} {
+		h := newApplyHarness(t, commentedRows)
+		h.imports.tables["container"] = map[string]map[string]any{"c1": {"id": "c1"}}
+		h.imports.tables["work_item"] = map[string]map[string]any{"w1": {"id": "w1", "collection_id": "c1"}}
+		in := h.accept(t, func(r *domain.Restore) { r.ConflictRule = domain.ConflictDuplicate })
+
+		if resumed {
+			// The container's and the entries' copies land; the comment's batch does not.
+			h.imports.failAfter = 3
+			if _, err := h.applier().Apply(context.Background(), in); err == nil {
+				t.Fatal("the first attempt did not fail")
+			}
+			restore := h.restores.stored[restoreID]
+			restore.Status = domain.RestoreRunning
+			h.restores.stored[restoreID] = restore
+			h.imports.failAfter = 0
+		}
+		if _, err := h.applier().Apply(context.Background(), in); err != nil {
+			t.Fatalf("restoring (resumed %v): %v", resumed, err)
+		}
+
+		comment := h.imports.tables["comment"]["k1"]
+		if comment == nil || comment["item_id"] != "w2" {
+			t.Errorf("resumed %v: the comment on the new entry is %v, want it on w2", resumed, comment)
+		}
+		if h.imports.tables["work_item"]["w2"]["collection_id"] != domain.DuplicateID(restoreID, "containers", "c1").String() {
+			t.Errorf("resumed %v: the new entry is not in the collection's copy", resumed)
+		}
+	}
+}
