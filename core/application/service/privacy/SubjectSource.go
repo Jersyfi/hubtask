@@ -152,6 +152,7 @@ var subjectColumns = map[string][]string{
 	"config_revision": {"actor_id", "proposed_by"},
 	"config_proposal": {"proposed_by", "decided_by"},
 	"config_template": {"created_by"},
+	"config_draft":    {"saved_by"},
 	// The trail's own entries about them. An access request that left these out would be
 	// incomplete: they are personal data, and they are the record of what was done with the
 	// person's data.
@@ -196,6 +197,8 @@ var notThePersons = map[string]string{
 	"link_type":               "the workspace's vocabulary of links",
 	"config_template_use":     "which template the workspace took at which version, which names nobody",
 	"config_hub_template_use": "which template a hub took at which version, which names nobody",
+	"sample_entry":            "which entry a template brought as a sample, which names nobody; the entry itself is in the map above",
+	"template_page":           "which page a template brought, which names nobody; the page itself is in the map above",
 	"realtime_document":       "a live document's head - its last place and its snapshot's - which names nobody",
 	"realtime_snapshot":       "a compaction of many authors' updates into one state, which names nobody; each author's own updates are in the map above",
 	"whiteboard_media":        "which media object lies on which board - the file itself is in media_objects, filtered by who uploaded it",
