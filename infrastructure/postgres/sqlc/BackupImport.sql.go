@@ -1311,6 +1311,18 @@ func (q *Queries) ClearRetentionPolicy(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearSampleEntry = `-- name: ClearSampleEntry :execrows
+DELETE FROM sample_entry
+`
+
+func (q *Queries) ClearSampleEntry(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearSampleEntry)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearSatisfactionRating = `-- name: ClearSatisfactionRating :execrows
 DELETE FROM satisfaction_rating
 `
@@ -2889,6 +2901,19 @@ SELECT EXISTS (SELECT 1 FROM retention_policy WHERE data_kind = ($1::jsonb->>'da
 
 func (q *Queries) HoldsRetentionPolicy(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsRetentionPolicy, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsSampleEntry = `-- name: HoldsSampleEntry :one
+SELECT EXISTS (
+  SELECT 1 FROM sample_entry WHERE item_id = ($1::jsonb->>'item_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsSampleEntry(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsSampleEntry, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6912,6 +6937,31 @@ type ImportRetentionPolicyParams struct {
 
 func (q *Queries) ImportRetentionPolicy(ctx context.Context, arg ImportRetentionPolicyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importRetentionPolicy, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importSampleEntry = `-- name: ImportSampleEntry :execrows
+INSERT INTO sample_entry (tenant_id, item_id, hub_id, key, created_at)
+SELECT r.tenant_id, r.item_id, r.hub_id, r.key, r.created_at
+FROM jsonb_populate_record(
+  NULL::sample_entry,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, item_id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id, key = EXCLUDED.key, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportSampleEntryParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportSampleEntry(ctx context.Context, arg ImportSampleEntryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importSampleEntry, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

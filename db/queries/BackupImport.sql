@@ -3869,3 +3869,22 @@ SELECT EXISTS (
 
 -- name: ClearPageDraft :execrows
 DELETE FROM page_draft;
+
+-- name: ImportSampleEntry :execrows
+INSERT INTO sample_entry (tenant_id, item_id, hub_id, key, created_at)
+SELECT r.tenant_id, r.item_id, r.hub_id, r.key, r.created_at
+FROM jsonb_populate_record(
+  NULL::sample_entry,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, item_id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id, key = EXCLUDED.key, created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsSampleEntry :one
+SELECT EXISTS (
+  SELECT 1 FROM sample_entry WHERE item_id = (sqlc.arg('payload')::jsonb->>'item_id')::uuid
+) AS held;
+
+-- name: ClearSampleEntry :execrows
+DELETE FROM sample_entry;

@@ -729,6 +729,14 @@ var entities = []Entity{
 			{Field: "updated_by", Table: "account"},
 		},
 	},
+	// A template's sample entries (migration 0307): the mark only, after the entries it names.
+	{
+		Name: "sample_entries", Table: "sample_entry", Whole: true, Later: true, Keys: []string{"item_id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "hub_id", Table: "container"},
+		},
+	},
 	// The labels a page carries (migration 0297), after the pages.
 	{
 		Name: "page_labels", Table: "page_label", Whole: true, Later: true, Keys: []string{"page_id", "label"},

@@ -1874,3 +1874,16 @@ FROM (
   WHERE s.key_1 > sqlc.arg('after_id')::uuid
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportSampleEntries :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (e.item_id)::text AS record_id,
+         e.created_at AS changed_at,
+         (to_jsonb(e) - 'tenant_id')::jsonb AS payload,
+         e.item_id AS key_1
+  FROM sample_entry e
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;

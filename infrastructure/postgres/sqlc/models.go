@@ -2869,6 +2869,14 @@ type RuleRun struct {
 	Occasion         *string
 }
 
+type SampleEntry struct {
+	TenantID  pgtype.UUID
+	ItemID    pgtype.UUID
+	HubID     pgtype.UUID
+	Key       string
+	CreatedAt pgtype.Timestamptz
+}
+
 type SatisfactionLink struct {
 	TenantID    pgtype.UUID
 	RequesterID pgtype.UUID

@@ -247,6 +247,7 @@ re-mints identities must rewrite exactly these).
 | 131 | `requester_contacts` | `requester_contact` | `requester_id/item_id` | `requester_id`→requesters, `item_id`→work_items (an entry a requester wrote on) |
 | 132 | `page_labels` | `page_label` | `page_id/label` | `page_id`→pages (the labels a page carries, migration 0297, UC-DOC-01 check 9) |
 | 135 | `page_drafts` | `page_draft` | `page_id` | `page_id`→pages, `updated_by`→accounts (what waits on a page to be published in a space with drafts, migration 0306, UC-DOC-15) |
+| 136 | `sample_entries` | `sample_entry` | `item_id` | `item_id`→work_items, `hub_id`→containers (the mark of a template's sample entry, migration 0307, configuration.md §6) |
 | 126 | `file_links` | `file_link` | `id` | `item_id`→work_items, `added_by`→accounts (an entry's file or folder in a file store by its address, migration 0276; the file itself stays in its store) |
 | 127 | `requester_organisations` | `requester_organisation` | `id` | none (a portal's organisation: its key, name, mail domains and whether its members see each other's requests, migration 0287) |
 | 133 | `public_forms` | `public_form` | `collection_id` | `collection_id`→containers, `created_by`→accounts (a collection's public form, UC-SVC-13; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
