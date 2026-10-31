@@ -122,6 +122,9 @@ practice. Rules:
   person are the team's and stay, with the `From:` line the intake wrote. A hold on the workspace
   keeps it all, recorded as kept, and the remainder erases it when the hold is released; no
   narrower hold reaches what an address sent.
+  The record's one other use is answering the person: a public reply on an entry filed for them is
+  mailed to the address, one mail per address (UC-SVC-12); the queued job names the comment only,
+  so an address erased while it waits is mailed nothing.
 * **An installation-wide case is a loop, not a wider query**: one workspace at a time under its own
   tenant context, through the ordinary repositories; only the tenant identifiers from
   `subject_tenants()` cross the boundary ([multi-tenancy.md](./multi-tenancy.md) §2.1). It needs

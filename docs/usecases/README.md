@@ -314,6 +314,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-SVC-09](./servicedesk/UC-SVC-09-approve-or-decline-with-a-reason.md) | Approve or decline, with a reason | servicedesk |
 | [UC-SVC-10](./servicedesk/UC-SVC-10-hand-my-approvals-to-someone-while-i-am-away.md) | Hand my approvals to someone while I am away | servicedesk |
 | [UC-SVC-11](./servicedesk/UC-SVC-11-see-the-requests-of-my-organisation.md) | See the requests of my organisation in the portal | servicedesk |
+| [UC-SVC-12](./servicedesk/UC-SVC-12-answer-a-requester-by-mail.md) | Answer a requester by mail and get their reply on the request | servicedesk |
 | [UC-TIM-01](./timekeeping/UC-TIM-01-track-my-time-on-what-i-work-on.md) | Track my time on what I work on | timekeeping |
 | [UC-TIM-02](./timekeeping/UC-TIM-02-fill-in-and-hand-in-my-week.md) | Fill in and hand in my week | timekeeping |
 | [UC-TIM-03](./timekeeping/UC-TIM-03-approve-a-teams-time.md) | Approve a team's time | timekeeping |
