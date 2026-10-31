@@ -1,6 +1,12 @@
 {
   "key": "itil_service_desk",
-  "version": 5,
+  "version": 6,
+  "questions": [
+    {
+      "key": "first_group",
+      "kind": "GROUP"
+    }
+  ],
   "document": {
     "modules": {
       "workflows": {
@@ -53,6 +59,12 @@
         "applies_to": [
           "TASK"
         ]
+      },
+      "responding_group": {
+        "kind": "GROUP",
+        "applies_to": [
+          "TASK"
+        ]
       }
     },
     "types": {
@@ -93,6 +105,10 @@
             },
             {
               "key": "custom_fields.priority",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.responding_group",
               "section": "triage"
             }
           ],
@@ -951,6 +967,39 @@
                   }
                 }
               ]
+            }
+          }
+        ]
+      },
+      "p1_escalation": {
+        "name": "Hand a P1 incident to the first responding group",
+        "enabled": true,
+        "trigger": {
+          "kind": "EVENT",
+          "event_type": "de.hubtask.work.item.updated.v1",
+          "changed_fields": [
+            "custom_fields.priority"
+          ]
+        },
+        "conditions": [
+          {
+            "expr": "item.entry_type == 'incident' && item.custom_fields.priority == 'P1'"
+          }
+        ],
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "SET_CUSTOM_FIELD",
+            "params": {
+              "key": "responding_group",
+              "value": "answer:first_group"
+            }
+          },
+          {
+            "kind": "ADD_COMMENT",
+            "params": {
+              "body": "This incident is P1: the first responding group takes it now.",
+              "internal": true
             }
           }
         ]

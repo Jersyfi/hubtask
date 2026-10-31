@@ -265,6 +265,11 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 	case "ListContainers", "ListSavedViews", "ListRules", "CreateSavedView", "UpdateSavedView", "DeleteSavedView",
 		"CreateRule", "UpdateRule", "EnableRule", "DisableRule", "DeleteRule":
 		return furniture(w, name, in)
+	case "GetGroup":
+		if in["group_id"] == knownGroup {
+			return usecase.Output{"id": knownGroup}, nil
+		}
+		return nil, shared.ErrNotFound.WithDetail("groups.not_found")
 	case "SetModule":
 	default:
 		// Every other section is withheld, as a module switched off withholds it.
