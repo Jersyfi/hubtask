@@ -171,8 +171,17 @@ use case's refusals, the collection's structure among them: writing a value or a
 entry's collection hides fails the step with `capability_not_supported`
 ([domain-model.md](./domain-model.md) §2), and the run records it.
 
-A planned kind not yet served is refused as §2.2 says; notification actions are not built
-([UC-AUT-09](../usecases/automation/UC-AUT-09-have-a-rule-tell-people.md)).
+A planned kind not yet served is refused as §2.2 says.
+
+**The notification steps** ([UC-AUT-09](../usecases/automation/UC-AUT-09-have-a-rule-tell-people.md)).
+`NOTIFY_ACCOUNT`, `NOTIFY_GROUP` and `NOTIFY_ROLE` tell an account, each member of a group, or
+every holder of a built-in or custom role along the entry's path (directly or through a group,
+where the authoriser says the role counts) that something happened to the entry the run is about.
+Each recipient is asked the read question on the entry; one who may not read it, or whose
+processing is restricted, is not told. The message is a notification record of category `SLA`,
+decided by the recipient's preference and sent by the delivery job: a title and a link, never a
+note or an attachment. An unknown recipient is refused at the save; one step tells at most 500
+people and is refused whole beyond that.
 
 **The flow kinds.**
 

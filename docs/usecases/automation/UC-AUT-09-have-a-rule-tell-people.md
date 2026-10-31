@@ -5,9 +5,9 @@ context: automation
 actors: [PE-admin, PE-owner, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-12]
-state: specified
+state: built
 tasks: []
-checked_by: []
+checked_by: [core/application/service/notification/NotifyPeople_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/automation/Recipients_test.go, test/integration/role_holders_test.go, apps/webapp/src/lib/automation/words.test.ts]
 ---
 
 # Have a rule tell people something
@@ -40,10 +40,3 @@ language; a member who switched that kind of message off does not.
 * Whether a rule may mail an address that is no account in the workspace (`SEND_EMAIL` in
   automation.md) is not decided by this use case; it is a question for the owner.
 * No message to a channel that is not built; mail is the only one today.
-
-## Today
-
-* Check 1: not met — no action names an account or a group as recipient; `NOTIFY_ACCOUNT` and `NOTIFY_GROUP` are refused with `automation.action_unknown`.
-* Check 2: not met — no rule step reaches the notification path.
-* Check 3: not met — there is no notification step whose recipients could be narrowed.
-* Check 4: not met — there is no recipient for the save or the check to refuse or flag.
