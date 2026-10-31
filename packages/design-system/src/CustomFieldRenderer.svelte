@@ -3,15 +3,17 @@
 <script lang="ts">
   // A field the installation added, drawn as whatever its kind says it is.
   //
-  // **Thirteen kinds, and one this component has never heard of.** The schema has carried
+  // **Twenty kinds, and one this component has never heard of.** The schema has carried
   // `TEXT`, `NUMBER`, `DATE`, `SELECT`, `MULTI_SELECT`, `BOOL`, `USER` and `URL` since the first
-  // migration, and `MONEY`, `DURATION`, `REFERENCE`, `USER_SET` and `RICH_TEXT` since the typed
-  // fields; a client one version behind a server will meet a kind that is not among them.
+  // migration, `MONEY`, `DURATION`, `REFERENCE`, `USER_SET` and `RICH_TEXT` since the typed
+  // fields, and `DATE_TIME`, `GROUP`, `CASCADING_SELECT`, `IP_ADDRESS`, `FILE`, `LABEL` and
+  // `STATUS` since the registers; a client one version behind a server will meet a kind that is
+  // not among them. (`CALCULATED` is shown by the caller, never edited.)
   // Tolerance towards unknown fields is a binding client requirement, so an unknown kind is
   // rendered **read-only with the reason** rather than dropped: a value the reader cannot see is
   // indistinguishable from a value that is not there, and the second one is a data-loss report.
   //
-  // **`USER`, `USER_SET` and `REFERENCE` are slots.** Who may be named, and which entries may be
+  // **`USER`, `USER_SET`, `REFERENCE`, `GROUP` and `FILE` are slots.** Who may be named, and which entries may be
   // pointed at, are the domain's answers, so the pickers are handed in rather than imported — which
   // is also what keeps this component from depending on the people or the entries half of the model
   // to draw the kinds that have nothing to do with either.
@@ -29,7 +31,7 @@
   import ReasonMark from './_ReasonMark.svelte';
   import { provideReasonGroup } from './reason.ts';
 
-  /** The thirteen the contract declares. A string beside them is a kind from a newer server. */
+  /** The kinds the contract declares. A string beside them is a kind from a newer server. */
   export type CustomFieldKind =
     | 'TEXT'
     | 'NUMBER'
@@ -43,7 +45,14 @@
     | 'DURATION'
     | 'REFERENCE'
     | 'USER_SET'
-    | 'RICH_TEXT';
+    | 'RICH_TEXT'
+    | 'DATE_TIME'
+    | 'GROUP'
+    | 'CASCADING_SELECT'
+    | 'IP_ADDRESS'
+    | 'FILE'
+    | 'LABEL'
+    | 'STATUS';
 
   /** One definition, narrowed to what is drawn. The shape `CustomFieldDefinition` has. */
   export interface FieldDefinition {
@@ -51,9 +60,12 @@
     readonly key: string;
     /** What a person reads. Resolved by the caller, because this package writes no text. */
     readonly label: string;
-    /** One of the thirteen, or a kind from a server this client has not caught up with. */
+    /** One of the contract's kinds, or one from a server this client has not caught up with. */
     readonly kind: CustomFieldKind | (string & {});
-    /** The permitted values of a `SELECT` or a `MULTI_SELECT`, and empty for every other kind. */
+    /**
+     * The permitted values of a `SELECT`, `MULTI_SELECT`, `CASCADING_SELECT` (written `Parent`
+     * and `Parent/Child`) or `STATUS`, and empty for every other kind.
+     */
     readonly options?: readonly string[];
     /** Whether it has to hold a value. Shown, because a reader owes nothing they were not told. */
     readonly isRequired?: boolean;
@@ -84,6 +96,10 @@
     user?: Snippet<[{ value: FieldValue; multiple: boolean }]>;
     /** The picker for a `REFERENCE` field: which entry it points at. Absent, as for `user`. */
     reference?: Snippet<[{ value: FieldValue }]>;
+    /** The picker for a `GROUP` field: one of the workspace's groups. Absent, as for `user`. */
+    group?: Snippet<[{ value: FieldValue }]>;
+    /** The picker for a `FILE` field: one of the entry's own attachments. Absent, as for `user`. */
+    file?: Snippet<[{ value: FieldValue }]>;
     /**
      * Why a kind this client does not know cannot be edited. Required, for the reason
      * `disabledReason` is: a control that cannot be used owes the reader the reason.
@@ -123,11 +139,19 @@
     amounts,
     durations,
     reference,
+    group,
+    file,
     onChange,
   }: Props = $props();
 
 
-  const options = $derived((definition.options ?? []).map((option) => ({ value: option, label: option })));
+  // A two-level choice's child is read under its parent: `Hardware/Laptop` as `Hardware › Laptop`.
+  const options = $derived(
+    (definition.options ?? []).map((option) => ({
+      value: option,
+      label: definition.kind === 'CASCADING_SELECT' ? option.split('/').join(' › ') : option,
+    })),
+  );
   const chosen = $derived(Array.isArray(value) ? (value as readonly string[]) : []);
   const text = $derived(value === null || value === undefined ? '' : String(value));
 
@@ -150,13 +174,35 @@
   const KNOWN = new Set([
     'TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL',
     'MONEY', 'DURATION', 'REFERENCE', 'USER_SET', 'RICH_TEXT',
+    'DATE_TIME', 'GROUP', 'CASCADING_SELECT', 'IP_ADDRESS', 'FILE', 'LABEL', 'STATUS',
   ]);
-  /** A people or entry field with no picker is as undrawable as a kind nobody has heard of. */
+  /** A field of a slot kind with no picker is as undrawable as a kind nobody has heard of. */
   const isUnknown = $derived(
     !KNOWN.has(definition.kind) ||
       ((definition.kind === 'USER' || definition.kind === 'USER_SET') && !user) ||
-      (definition.kind === 'REFERENCE' && !reference),
+      (definition.kind === 'REFERENCE' && !reference) ||
+      (definition.kind === 'GROUP' && !group) ||
+      (definition.kind === 'FILE' && !file),
   );
+
+  // A moment travels in UTC and is written in the reader's own clock: `datetime-local` holds the
+  // local wall time, which the browser's Date turns back into the instant.
+  const pad = (n: number) => String(n).padStart(2, '0');
+  function localOf(iso: string): string {
+    const at = new Date(iso);
+    if (Number.isNaN(at.getTime())) return '';
+    return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
+  }
+  function instantOf(local: string): string | null {
+    if (local === '') return null;
+    const at = new Date(local);
+    return Number.isNaN(at.getTime()) ? null : at.toISOString();
+  }
+
+  // Labels are typed as words and written when the field is left, so a space between two of them
+  // is not swallowed by the value it would otherwise become on every key.
+  let labelDraft = $state<string | undefined>(undefined);
+  const labelText = $derived(labelDraft ?? chosen.join(' '));
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
@@ -195,7 +241,7 @@
     {disabledReason}
     onchange={(event) => onChange?.((event.currentTarget as HTMLInputElement).checked)}
   />
-{:else if definition.kind === 'SELECT'}
+{:else if definition.kind === 'SELECT' || definition.kind === 'CASCADING_SELECT' || definition.kind === 'STATUS'}
   <Select
     label={definition.label}
     hint={definition.hint}
@@ -234,6 +280,41 @@
     {#if definition.hint}<p class="hint">{definition.hint}</p>{/if}
     {@render user?.({ value, multiple: definition.kind === 'USER_SET' })}
   </div>
+{:else if definition.kind === 'GROUP' || definition.kind === 'FILE'}
+  <div class="slot">
+    <p class="label">
+      {definition.label}
+      {#if definition.isRequired}<span class="required" aria-hidden="true">*</span>{/if}
+    </p>
+    {#if definition.hint}<p class="hint">{definition.hint}</p>{/if}
+    {#if definition.kind === 'GROUP'}{@render group?.({ value })}{:else}{@render file?.({ value })}{/if}
+  </div>
+{:else if definition.kind === 'DATE_TIME'}
+  <Input
+    label={definition.label}
+    hint={definition.hint}
+    isRequired={definition.isRequired}
+    type="datetime-local"
+    value={localOf(text)}
+    {disabledReason}
+    onchange={(event) => onChange?.(instantOf((event.currentTarget as HTMLInputElement).value))}
+  />
+{:else if definition.kind === 'LABEL'}
+  <Input
+    label={definition.label}
+    hint={definition.hint}
+    isRequired={definition.isRequired}
+    type="text"
+    value={labelText}
+    {disabledReason}
+    oninput={(event) => (labelDraft = (event.currentTarget as HTMLInputElement).value)}
+    onblur={() => {
+      if (labelDraft === undefined) return;
+      const words = labelDraft.split(/[\s,]+/).filter((word) => word !== '');
+      labelDraft = undefined;
+      onChange?.(words);
+    }}
+  />
 {:else if definition.kind === 'REFERENCE'}
   <div class="slot">
     <p class="label">
