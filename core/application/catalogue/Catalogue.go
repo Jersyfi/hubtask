@@ -464,6 +464,8 @@ func Descriptors() []usecase.Descriptor {
 		work.ReopenWorkItem{}.Descriptor(),
 		work.MoveWorkItem{}.Descriptor(),
 		work.DuplicateWorkItem{}.Descriptor(),
+		work.MergeWorkItems{}.Descriptor(),
+		work.SplitWorkItem{}.Descriptor(),
 		work.BulkUpdateWorkItems{}.Descriptor(),
 		work.ReorderWorkItem{}.Descriptor(),
 		work.ArchiveWorkItem{}.Descriptor(),

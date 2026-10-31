@@ -3181,6 +3181,10 @@ func run() error {
 		duplicate.Descriptor(),
 		work.ReorderWorkItem{Placement: placement}.Descriptor(),
 		work.ArchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
+		work.MergeWorkItems{
+			Link: work.LinkEntries{Linking: linking}, Archive: work.ArchiveWorkItem{Lifecycle: itemLifecycle},
+		}.Descriptor(),
+		work.SplitWorkItem{Duplicate: duplicate, Link: work.LinkEntries{Linking: linking}}.Descriptor(),
 		work.UnarchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
 		work.TrashWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
 		work.RestoreWorkItem{Lifecycle: itemLifecycle}.Descriptor(),

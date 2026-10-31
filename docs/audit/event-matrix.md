@@ -380,6 +380,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.due_cleared` | ClearDueDate | `item` | INFO | Every time |
 | `item.due_set` | SetDueDate | `item` | INFO | Every time |
 | `item.duplicated` | DuplicateWorkItem | `item` | INFO | Every time |
+| `item.duplicated` | SplitWorkItem | `item` | INFO | Every time |
 | `item.entry_type_set` | SetItemEntryType | `item` | INFO | Every time |
 | `item.estimated` | ClearEntryEstimate | `item` | INFO | Every time |
 | `item.estimated` | SetEntryEstimate | `item` | INFO | Every time |
@@ -388,6 +389,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.linked` | LinkEntries | `entry_link` | INFO | Every time |
 | `item.member_added` | AddMember | `item` | INFO | Every time |
 | `item.member_removed` | RemoveMember | `item` | INFO | Every time |
+| `item.merged` | MergeWorkItems | `item` | INFO | When refused |
 | `item.moved` | MoveWorkItem | `item` | INFO | Every time |
 | `item.moved` | ReorderWorkItem | `item` | INFO | Every time |
 | `item.purged` | PurgeWorkItem | `item` | WARNING | Every time |

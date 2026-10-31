@@ -177,6 +177,9 @@ type duplication struct {
 	// no account, an entry needs one, and the person who wrote the series is the honest answer -
 	// they are the one who asked for this entry to exist, weeks ago.
 	createdBy shared.ID
+	// notes replaces the root copy's notes, and is nil for an ordinary duplicate. A split sets it:
+	// the part split off is described by what the person wrote for it.
+	notes *string
 }
 
 // plan reads what the copy depends on and asks the permission questions.
@@ -378,6 +381,7 @@ func (h DuplicateWorkItem) copyInto(
 		fresh.series = plan.series
 		fresh.seriesSource = plan.seriesSource
 		fresh.createdBy = plan.createdBy
+		fresh.notes = plan.notes
 		if err := fresh.destination.EnsureAcceptsItems(); err != nil {
 			return err
 		}
@@ -648,6 +652,9 @@ func (h DuplicateWorkItem) copyOf(
 		copied.Depth = spot.Depth
 		if plan.command.Title != "" {
 			copied.Title = plan.command.Title
+		}
+		if plan.notes != nil {
+			copied.Notes = *plan.notes
 		}
 		if plan.dueOverride != nil {
 			copied.Due = plan.dueOverride

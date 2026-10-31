@@ -34983,7 +34983,7 @@ type ClientInterface interface {
 
 	// MergeWorkItemsWithBody Merge the entry into another
 	//
-	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -34992,7 +34992,7 @@ type ClientInterface interface {
 
 	// MergeWorkItems Merge the entry into another
 	//
-	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -52057,7 +52057,7 @@ func (c *Client) SuggestDuplicates(ctx context.Context, itemId ItemId, reqEditor
 
 // MergeWorkItemsWithBody Merge the entry into another
 //
-// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
 //
 // Takes any type of body and a specified content type.
 //
@@ -52076,7 +52076,7 @@ func (c *Client) MergeWorkItemsWithBody(ctx context.Context, itemId ItemId, cont
 
 // MergeWorkItems Merge the entry into another
 //
-// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -103997,7 +103997,7 @@ type ClientWithResponsesInterface interface {
 
 	// MergeWorkItemsWithBodyWithResponse Merge the entry into another
 	//
-	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -104006,7 +104006,7 @@ type ClientWithResponsesInterface interface {
 
 	// MergeWorkItemsWithResponse Merge the entry into another
 	//
-	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -156760,7 +156760,7 @@ func (c *ClientWithResponses) SuggestDuplicatesWithResponse(ctx context.Context,
 
 // MergeWorkItemsWithBodyWithResponse Merge the entry into another
 //
-// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -156775,7 +156775,7 @@ func (c *ClientWithResponses) MergeWorkItemsWithBodyWithResponse(ctx context.Con
 
 // MergeWorkItemsWithResponse Merge the entry into another
 //
-// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
