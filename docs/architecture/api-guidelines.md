@@ -53,8 +53,10 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    an address from the installation's base URL. `x-hubtask-rest-etag` may name a nested part's member (`item.version`, a moved or copied
    entry's), or an output's member the answer does not show where the contract declares the
    `ETag` header (a workspace structure's version). `x-hubtask-rest-expand: { word: input }` turns the
-   `expand` parameter's words into the boolean inputs they name and refuses any other word by
-   name (`items.expand_not_supported`). An operation whose connection an adapter holds rather than one use case
+   `expand` parameter's words - or a body's `expand` member's, a query sent as a document - into
+   the boolean inputs they name and refuses any other word by name (`items.expand_not_supported`).
+   A flattened member may name a deeper one by its dotted path (`scope.container_id`), and a
+   nested integer reaches the use case as an integer, as a top-level one does. An operation whose connection an adapter holds rather than one use case
    answers - the change stream, a live document, the sync protocol's pull, push and snapshot - is
    marked `x-hubtask-rest: delegated` with `x-hubtask-rest-to: <field>`: the generated door hands
    the request to the controller's field, or answers the pending 404 where it is not wired. So is

@@ -26712,6 +26712,24 @@
           "items"
         ],
         "operationId": "queryItems",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-flatten": {
+          "scope": {
+            "container_id": "scope_container_id",
+            "item_id": "scope_item_id",
+            "include_descendants": "include_descendants"
+          },
+          "page": {
+            "cursor": "cursor",
+            "size": "size"
+          }
+        },
+        "x-hubtask-rest-expand": {
+          "labels": "expand_labels",
+          "counts": "expand_counts"
+        },
+        "x-hubtask-rest-answer": "queryResponse",
+        "x-hubtask-rest-list": "whole",
         "summary": "The generic query - the basis for list, kanban, and timeline",
         "description": "One filter grammar behind every view. A `POST` because the query is a document rather than\na set of parameters, and it reads: nothing is written, and the same request may be repeated.\n\nThe query is always anchored to a scope the caller names, and the permission is checked\nagainst that scope once - a refusal is a refusal rather than an empty result. Which fields\nmay be filtered, sorted and grouped, and with which operators, is answered by\n`GET /meta/capabilities` under `query_fields`; a field that is not in that list is refused\nwith `query.field_unknown` rather than ignored.\n",
         "requestBody": {

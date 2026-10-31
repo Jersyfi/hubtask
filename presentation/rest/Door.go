@@ -120,19 +120,9 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		}
 		for _, name := range d.Query {
 			if name == "expand" && d.Expand != nil {
-				words, _ := values[name].([]any)
-				for _, word := range words {
-					text, _ := word.(string)
-					text = strings.TrimSpace(text)
-					if text == "" {
-						continue
-					}
-					input, named := d.Expand[text]
-					if !named {
-						WriteProblem(w, expandNotSupported(text), requestID)
-						return
-					}
-					in[input] = true
+				if err := expandInto(d, in, values[name]); err != nil {
+					WriteProblem(w, err, requestID)
+					return
 				}
 				continue
 			}
@@ -165,15 +155,16 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 				if slices.Contains(d.ReadOnly, name) || slices.Contains(d.Dropped, name) {
 					continue
 				}
+				if name == "expand" && d.Expand != nil {
+					if err := expandInto(d, in, value); err != nil {
+						WriteProblem(w, err, requestID)
+						return
+					}
+					continue
+				}
 				if inputs, flat := d.Flatten[name]; flat {
 					nested, _ := value.(map[string]any)
-					for member, inner := range nested {
-						if input, named := inputs[member]; named && inner != nil {
-							if _, taken := in[input]; !taken {
-								in[input] = inner
-							}
-						}
-					}
+					flattenInto(d, in, inputs, "", nested)
 					continue
 				}
 				// The path names the resource; a body member of the same name never moves it. An
@@ -294,6 +285,44 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		w.Header().Set("ETag", etag(tagged.Int(member)))
 	}
 	writeJSON(w, r, d.Status, written)
+}
+
+// expandInto turns the words of an `expand` - a query parameter's or a body member's - into the
+// boolean inputs the door names, and refuses a word it does not name.
+func expandInto(d restDoor, in usecase.Input, value any) error {
+	words, _ := value.([]any)
+	for _, word := range words {
+		text, _ := word.(string)
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+		input, named := d.Expand[text]
+		if !named {
+			return expandNotSupported(text)
+		}
+		in[input] = true
+	}
+	return nil
+}
+
+// flattenInto hands a nested member's members on as the flat inputs named, a deeper one by its
+// dotted path (`scope.container_id`); a member not named is the door's to leave out.
+func flattenInto(d restDoor, in usecase.Input, inputs map[string]string, prefix string, nested map[string]any) {
+	for member, inner := range nested {
+		path := prefix + member
+		if deeper, isObject := inner.(map[string]any); isObject {
+			if _, whole := inputs[path]; !whole {
+				flattenInto(d, in, inputs, path+".", deeper)
+				continue
+			}
+		}
+		if input, named := inputs[path]; named && inner != nil {
+			if _, taken := in[input]; !taken {
+				in[input] = whole(d, input, inner)
+			}
+		}
+	}
 }
 
 // shown says whether a shown-once member carries anything: a secret, or a list of them.

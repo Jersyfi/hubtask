@@ -100,11 +100,30 @@ func TestEveryGeneratedBodyMemberIsADeclaredInput(t *testing.T) {
 						}
 						continue
 					}
+					if name == "expand" && door.Expand != nil {
+						for word, input := range door.Expand {
+							if !fields[input] {
+								t.Errorf("%s: the word %s reaches %s as %q, which it does not declare", op.OperationID, word, door.UseCase, input)
+							}
+						}
+						continue
+					}
 					if inputs, flat := door.Flatten[name]; flat {
+						// Every nested member is named - a deeper one by its dotted path - and each
+						// name is a declared input: a member the door would leave out is a lie too.
 						nested := map[string]bodySchema{}
 						members(member, nested)
 						for inner := range nested {
-							if input, named := inputs[inner]; !named || !fields[input] {
+							deeper := false
+							for path := range inputs {
+								deeper = deeper || strings.HasPrefix(path, inner+".")
+							}
+							if _, named := inputs[inner]; !named && !deeper {
+								t.Errorf("%s: %s.%s reaches %s under no name", op.OperationID, name, inner, door.UseCase)
+							}
+						}
+						for inner, input := range inputs {
+							if !fields[input] {
 								t.Errorf("%s: %s.%s reaches %s as %q, which it does not declare", op.OperationID, name, inner, door.UseCase, input)
 							}
 						}

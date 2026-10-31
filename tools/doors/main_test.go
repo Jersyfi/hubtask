@@ -245,6 +245,7 @@ func TestACacheAndAWholeAnswerAreDeclaredMarks(t *testing.T) {
 		"x-hubtask-rest-null-to: { read_only: clear_read_only }":                 false,
 		"x-hubtask-rest-null-to: { colour: clear_colour }":                       true,
 		"x-hubtask-rest-form: changeThingForm":                                   true,
+		"x-hubtask-rest-expand: { labels: expand_labels }":                       true,
 		"x-hubtask-rest-status: \"201\"":                                         true,
 		"x-hubtask-rest-status: \"200\"":                                         false,
 	} {

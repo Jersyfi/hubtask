@@ -351,15 +351,23 @@ func restDoor(
 		if door.BodyType == "" {
 			return door, fmt.Errorf("no generated JSON request body type")
 		}
-		for name := range op.Flatten {
+		for name, inputs := range op.Flatten {
 			held := false
 			for _, content := range op.RequestBody.Content {
-				_, held = doc.resolve(content.Schema).Properties[name]
+				var member schema
+				member, held = doc.resolve(content.Schema).Properties[name]
+				// A nested integer reaches the use case as a Go integer, as a top-level one does.
+				for inner, input := range inputs {
+					if property, ok := doc.nested(member, inner); ok && doc.kind(property) == "integer" && !slicesContains(door.Integers, input) {
+						door.Integers = append(door.Integers, input)
+					}
+				}
 			}
 			if !held {
 				return door, fmt.Errorf("x-hubtask-rest-flatten names %s, which the body does not hold", name)
 			}
 		}
+		sort.Strings(door.Integers)
 		door.Flatten = op.Flatten
 		for _, name := range op.Drop {
 			held := false
@@ -424,7 +432,15 @@ func restDoor(
 	}
 	door.UTC = op.UTC
 	if len(op.Expand) > 0 && !slicesContains(door.Query, "expand") {
-		return door, fmt.Errorf("x-hubtask-rest-expand needs the expand query parameter")
+		held := false
+		if op.RequestBody != nil {
+			for _, content := range op.RequestBody.Content {
+				_, held = doc.composed(content.Schema).Properties["expand"]
+			}
+		}
+		if !held {
+			return door, fmt.Errorf("x-hubtask-rest-expand needs the expand query parameter or body member")
+		}
 	}
 	door.Expand = op.Expand
 

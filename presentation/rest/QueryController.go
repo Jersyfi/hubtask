@@ -9,48 +9,10 @@ import (
 	"io"
 	"net/http"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
-
-const queryItemsUseCase = "QueryItems"
-
-// QueryItems answers POST /items:query.
-//
-// A POST that reads: the query is a document rather than a set of parameters, and a URL long
-// enough to carry a filter tree is a URL a proxy truncates. Nothing is written, and the same
-// request may be repeated (api-guidelines.md §3).
-func (c *RestController) QueryItems(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	var body openapi.ItemQuery
-	document, err := decodeQuery(r, &body)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	asked, err := expansionsAllowing(body.Expand, true)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), queryItemsUseCase, actor, queryInput(body, document, asked))
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, queryResponse(out))
-}
 
 // decodeQuery reads the body twice from the same bytes: once into the generated type, so that an
 // unknown field is refused and the scalars are typed, and once untyped, so that the parts of the

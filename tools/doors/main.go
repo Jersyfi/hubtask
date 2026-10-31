@@ -465,3 +465,15 @@ func writeParams(b *bytes.Buffer, field string, params []Param) {
 	}
 	b.WriteString("\t\t},\n")
 }
+
+// nested finds a member of a member by its dotted path (`scope.container_id`).
+func (doc document) nested(s schema, path string) (schema, bool) {
+	for _, part := range strings.Split(path, ".") {
+		member, ok := doc.composed(s).Properties[part]
+		if !ok {
+			return schema{}, false
+		}
+		s = member
+	}
+	return s, true
+}
