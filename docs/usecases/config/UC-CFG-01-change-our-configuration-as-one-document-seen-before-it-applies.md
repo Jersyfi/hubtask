@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-18]
 state: built
 tasks: [S-09]
-checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/e2e/changes.test.mjs, core/application/service/config/RoleGroups_test.go, core/application/service/config/Questions_test.go, core/application/service/config/Samples_test.go, test/integration/sample_entry_repository_test.go]
+checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/e2e/changes.test.mjs, core/application/service/config/RoleGroups_test.go, core/application/service/config/Questions_test.go, core/application/service/config/Samples_test.go, test/integration/sample_entry_repository_test.go, core/application/service/config/Drafts_test.go, core/application/service/config/ServiceDesk_test.go, test/integration/config_draft_repository_test.go, apps/webapp/src/lib/data/configdrafts.test.ts]
 ---
 
 # Change our configuration as one document, seen before it applies
@@ -97,6 +97,13 @@ the two versions and rolls the hub's workflow back.
     key while they are out of the trash, an upgrade of the template neither adds nor removes them,
     and `POST /hubs/{hubId}/sample-entries:remove` (*Remove sample entries* in the hub's settings, *Modules*)
     moves every marked entry into the trash and no other.
+13. A type with its form, an SLA policy or a role people work with is changed as a draft
+    (`PUT /config/drafts/{section}/{key}`; *Save draft* in the form editor, the policy and the
+    role): the block in force stays in force for everybody, however unfinished the draft is, and
+    only the draft's attributes are checked. *Review and publish* plans the drafted block and shows
+    what it changes and reaches; applying that plan puts it in force and removes the draft, while a
+    draft saved again since is kept. An apply touching a policy keeps its requester organisations
+    and its OLA group.
 
 ## Where it ends
 
@@ -105,3 +112,5 @@ the two versions and rolls the hub's workflow back.
 * An agent's token and the sections it may apply are UC-AGT-06; taking and upgrading a template is
   planned and applied as any document here.
 * No sandbox of a hub's own document: the sandbox copies the workspace's document.
+* Drafts are the workspace's blocks only - a hub's own document has none -, and a workflow keeps
+  its own draft (UC-FLW-03). A draft of a template is a template version not yet published.

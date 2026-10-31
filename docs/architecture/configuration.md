@@ -61,6 +61,14 @@ somebody changed since is refused with `version_conflict`), writes one configura
 one trail entry naming the actor (`actor.type = AI_AGENT` for an agent) and the counts — never
 content (rule 10).
 
+**Drafts** (ui.md A4, UC-CFG-01 check 13). A type with its form, an SLA policy and a role — the
+blocks every agent and door meets at once — are changed as a draft kept beside the block in force
+(`config_draft`, `PUT /config/drafts/{section}/{key}`). A draft may be unfinished: only its
+attributes are checked, so a half-made form never reaches anybody. Publishing is the ordinary plan
+and apply of the drafted block, and the apply that puts exactly that block in force removes its
+draft in the same transaction; a draft saved again since stays. Saving a draft needs the plan
+scope, like the sandbox, because nothing runs. A workflow keeps its own draft (UC-FLW-03).
+
 ## 3. Safety for agents
 
 | Measure | Default |

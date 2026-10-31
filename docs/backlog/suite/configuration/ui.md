@@ -35,7 +35,7 @@ Providers · AI · Backup targets · Platform · Encryption · Operators · Jour
 | A1 | **Source on every value** | a chip — *Hubtask default*, *Installation*, *Plan Business*, *Workspace*, *Hub Support*, *Set here* — a lock where locked, *Reset* where set here |
 | A2 | **Why** | the chip opens: where the value comes from, who locked it and when, what the reader may do, who to ask |
 | A3 | **Preview before save** | the save bar says what the change reaches ("4 collections, 37 open entries move status, 2 people lose *Approve*") and opens the plan |
-| A4 | **Draft and publish** for blocks shared by many (workflow, form, role, SLA, template) | edits are a draft; publish shows the plan |
+| A4 | **Draft and publish** for blocks shared by many (workflow, form, role, SLA, template) | edits are a draft; publish shows the plan (a workflow's own draft, UC-FLW-03; a type with its form, an SLA policy and a role through `config_draft`, published by plan and apply, UC-CFG-01 check 13; a template by its next version) |
 | A5 | **Configuration check** | findings with severity and a fix link: a required field no channel can fill, a step nobody may take, a status no step reaches, a rule that loops, two fields with one meaning, a lock that could move up |
 | A6 | **View as** | choose a person or role; the app is shown as they would see it, with a banner; "Can Anna create a *change* in *IT*? No — her role lacks the channel *Create* for that type" |
 | A7 | **Settings search** | the palette finds a setting by words and lists it at every level the reader may reach |
