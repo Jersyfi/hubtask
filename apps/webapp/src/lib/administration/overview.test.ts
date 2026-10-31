@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, ruleLines } from './overview.ts';
+import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines } from './overview.ts';
 
 test('limits: fullest first, reached and near told apart, no line without a ceiling or a count', () => {
   const lines = limitLines([
@@ -75,4 +75,12 @@ test('requests: overdue and soon only, soonest first', () => {
 test('a degraded feature links to its page only where the workspace sets it', () => {
   assert.equal(pageOfFeature('ai'), '/administration/ai');
   assert.equal(pageOfFeature('media'), undefined);
+});
+
+test('a configuration finding opens the page of the block it names', () => {
+  assert.equal(pageOfFinding('workflows.incident'), '/administration/workflows');
+  assert.equal(pageOfFinding('rules.loops'), '/administration/rules');
+  assert.equal(pageOfFinding('scheme.incident', 'h1'), '/hubs/h1/settings/structure');
+  assert.equal(pageOfFinding('scheme.incident'), undefined);
+  assert.equal(pageOfFinding('nothing.here'), undefined);
 });

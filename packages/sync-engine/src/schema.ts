@@ -200,6 +200,9 @@ export type ConfigApplyResult = components['schemas']['ConfigApplyResult'];
 export type ConfigVersion = components['schemas']['ConfigVersion'];
 export type ConfigVersionList = components['schemas']['ConfigVersionList'];
 export type ConfigProposal = components['schemas']['ConfigProposal'];
+/** The configuration check's findings (configuration/ui.md A5). */
+export type ConfigCheck = components['schemas']['ConfigCheck'];
+export type ConfigFinding = components['schemas']['ConfigFinding'];
 export type ConfigProposalList = components['schemas']['ConfigProposalList'];
 /** The sandbox: a copy of the configuration where changes run nothing, and its promotion's plan. */
 export type ConfigSandbox = components['schemas']['ConfigSandbox'];

@@ -17,8 +17,11 @@
 
   import { Badge, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
-  import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, ruleLines, type ArchiveReading } from '../lib/administration/overview.ts';
+  import type { ConfigCheck } from '@hubtask/sync-engine';
+
+  import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, type ArchiveReading } from '../lib/administration/overview.ts';
   import { backup } from '../lib/data/backup.svelte.ts';
+  import { engine } from '../lib/data/engine.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { health } from '../lib/data/health.svelte.ts';
   import { privacy, standingOf, deadlinePhrase } from '../lib/data/privacy.svelte.ts';
@@ -37,6 +40,18 @@
   const mayReadRequests = $derived(holdsHere('MANAGE_MEMBERS') === true);
 
   $effect(() => untrack(() => quotas.open()));
+
+  // The configuration check (configuration/ui.md A5, UC-CFG-01 check 10): what the configuration
+  // in force would strand people on, found before they meet it.
+  const mayCheck = $derived(holdsHere('STRUCTURE') === true || mayReadConfiguration);
+  let check = $state<{ status: string; data?: ConfigCheck }>({ status: 'idle' });
+  $effect(() => {
+    if (!mayCheck) return;
+    return untrack(() => engine.subscribe<ConfigCheck>({ path: '/config/check' }, (next) => {
+      check = next.status === 'ready' ? { status: 'ready', data: next.data } : { status: next.status };
+    }));
+  });
+  const findings = $derived(check.data?.findings ?? []);
   $effect(() => {
     if (mayReadRules) return untrack(() => rules.open());
   });
@@ -106,6 +121,7 @@
       { id: 'backup', shown: mayReadBackup, needs: lastBackup === undefined ? targets.length > 0 : lastBackup.state !== 'opened' },
       { id: 'requests', shown: mayReadRequests, needs: owed.length > 0 },
       { id: 'health', shown: true, needs: degraded.length > 0 },
+      { id: 'check', shown: mayCheck, needs: findings.length > 0 },
     ]
       .filter((card) => card.shown)
       .sort((a, b) => Number(b.needs) - Number(a.needs)),
@@ -201,6 +217,29 @@
             </ul>
           {/if}
           <a class="go" href="/administration/privacy">{t('app.admin_overview.open_requests')}</a>
+        {:else if card.id === 'check'}
+          <h2 id="card-check">{t('app.admin.check_title')}</h2>
+          {#if reading(check.status)}
+            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
+          {:else if findings.length === 0}
+            <p class="quiet">{t('app.admin.check_none')}</p>
+          {:else}
+            <ul class="lines" data-testid="config-findings">
+              {#each findings.slice(0, 8) as finding, index (index)}
+                {@const where = pageOfFinding(finding.path)}
+                <li>
+                  {#if where}
+                    <a href={where} title={t('app.admin.check_open', { path: finding.path })}>{t(finding.code, finding.params ?? {})}</a>
+                  {:else}
+                    <span>{t(finding.code, finding.params ?? {})}</span>
+                  {/if}
+                  <Badge tone={finding.severity === 'ERROR' ? 'danger' : 'warning'}>
+                    {t(finding.severity === 'ERROR' ? 'app.admin.check_error' : 'app.admin.check_warning')}
+                  </Badge>
+                </li>
+              {/each}
+            </ul>
+          {/if}
         {:else if card.id === 'health'}
           <h2 id="card-health">{t('app.admin_overview.health')}</h2>
           {#if degraded.length === 0}

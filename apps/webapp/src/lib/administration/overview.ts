@@ -153,3 +153,20 @@ const FEATURE_PAGES: Readonly<Record<string, string>> = {
 };
 
 export const pageOfFeature = (feature: string): string | undefined => FEATURE_PAGES[feature];
+
+/**
+ * The page that changes the block a configuration check's finding is about (configuration/ui.md
+ * A5): its section's administration page, or a hub's settings for the hub's own scheme.
+ */
+const CHECK_PAGES: Readonly<Record<string, string>> = {
+  workflows: '/administration/workflows',
+  rules: '/administration/rules',
+  roles: '/administration/permissions',
+  types: '/administration/types',
+};
+
+export function pageOfFinding(path: string, hubId?: string): string | undefined {
+  const section = path.slice(0, Math.max(0, path.indexOf('.'))) || path;
+  if (section === 'scheme') return hubId ? `/hubs/${hubId}/settings/structure` : undefined;
+  return CHECK_PAGES[section];
+}
