@@ -400,7 +400,9 @@ WITH articles AS (
     AND s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
 ), chosen AS (
   SELECT DISTINCT ON (r.page_id) r.page_id AS article_id, r.views, p.title, p.icon, p.updated_at,
-         p.body, p.content_language, p.language_variant, p.search_document
+         p.body, p.content_language, p.search_document,
+         -- A tag left behind on the page itself, once a variant of a source since purged, is none.
+         (CASE WHEN p.id <> r.page_id THEN p.language_variant END)::text AS language_variant
   FROM articles r
   JOIN page p ON p.tenant_id = current_tenant_id()
     AND (p.id = r.page_id
@@ -408,11 +410,12 @@ WITH articles AS (
              AND lower(p.language_variant) = ANY(sqlc.arg('languages')::text[])
              AND NOT page_behind_restriction(p.id)))
   ORDER BY r.page_id,
-           coalesce(array_position(sqlc.arg('languages')::text[], lower(p.language_variant)),
+           coalesce(CASE WHEN p.id <> r.page_id
+                         THEN array_position(sqlc.arg('languages')::text[], lower(p.language_variant)) END,
                     cardinality(sqlc.arg('languages')::text[]) + 1)
 )
 SELECT c.article_id AS id, c.title, c.icon, c.updated_at,
-       coalesce(c.language_variant, c.content_language) AS content_language,
+       coalesce(c.language_variant, c.content_language, '')::text AS content_language,
        CASE WHEN sqlc.arg('text')::text = '' THEN ''::text
             ELSE ts_headline(hubtask_text_config(c.content_language), c.body, q.query,
                    'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»')::text END AS excerpt

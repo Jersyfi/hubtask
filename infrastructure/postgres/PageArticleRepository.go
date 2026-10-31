@@ -124,12 +124,8 @@ func (PageArticleRepository) Search(ctx context.Context, collectionID shared.ID,
 	}
 	return mapRows(rows, func(row sqlc.SearchPageArticlesRow) (repository.ArticleHit, error) {
 		id, err := idFrom(row.ID)
-		var language string
-		if row.ContentLanguage != nil {
-			language = *row.ContentLanguage
-		}
 		return repository.ArticleHit{
-			PageID: id, Title: row.Title, Icon: row.Icon, Excerpt: row.Excerpt, ContentLanguage: language,
+			PageID: id, Title: row.Title, Icon: row.Icon, Excerpt: row.Excerpt, ContentLanguage: row.ContentLanguage,
 			UpdatedAt: timeFrom(row.UpdatedAt),
 		}, err
 	})
