@@ -366,6 +366,9 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 		"ReplayWebhookDelivery":          entitlement.Webhooks,
 		"ConfigureIdentityProvider":      entitlement.OwnSignInProviders,
 		"ConfigureFirstIdentityProvider": entitlement.OwnSignInProviders,
+		// An LDAP directory is an own sign-in provider (third answers 6).
+		"ConfigureLdapDirectory": entitlement.OwnSignInProviders,
+		"SyncLdapDirectory":      entitlement.OwnSignInProviders,
 	}
 	got := map[string]entitlement.Feature{}
 	for _, descriptor := range catalogue.Descriptors() {
