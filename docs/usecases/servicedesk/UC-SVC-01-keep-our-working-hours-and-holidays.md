@@ -28,12 +28,16 @@ Lena runs the IT desk of a district office. She defines the calendar *office*: M
 4. Any member of the workspace reads the calendars; another workspace neither reads one nor names it in a policy.
 5. Somebody holding STRUCTURE on a hub keeps the hub's own version of a workspace calendar under its key - its own hours, holidays and zone -, and every policy naming the key counts on it for the hub's entries; a key the workspace holds no calendar under is refused, a workspace calendar a hub keeps its own version of cannot be deleted (`calendars.in_use`), and dropping the hub's version counts the hub's entries on the workspace's again.
 6. The operator offers business calendars in the instance file (`business_calendars`, each in the
-   shape a workspace defines one); a plan or a capacity that names a key the workspace holds no
-   calendar under counts on the installation's, a workspace calendar of the same key stands in
-   front of it, and a malformed one or a key named twice refuses the start.
+   shape a workspace defines one); a plan, a capacity or an SLA policy that names a key the
+   workspace holds no calendar under counts on the installation's, a workspace calendar of the same
+   key stands in front of it, and a malformed one or a key named twice refuses the start. A policy
+   naming a key neither holds is refused (`sla_policies.calendar_unknown`), and a workspace calendar
+   a policy names is deleted only where the installation offers its key (`calendars.in_use`).
 
 ## Where it ends
 
 * One calendar per key at the workspace, and one version of it per hub; the installation's change
-  only through the instance file, and an SLA policy names a calendar the workspace holds.
+  only through the instance file; a hub's own version is of a workspace calendar, never of the
+  installation's. An entry whose policy names a calendar the instance file no longer offers is kept,
+  and its goals are not armed.
 * A holiday is a whole local day; half days are spans of their own weekday.

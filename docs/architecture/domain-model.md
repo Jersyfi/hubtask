@@ -743,7 +743,10 @@ deadline and a change's effectiveness check.
   its own version of cannot be deleted either. The installation offers calendars of its own in the
   instance file (`business_calendars`, no identity and no row): a reader by key - planning,
   capacity, the SLA clocks - meets the workspace's of a key first and the installation's where the
-  workspace holds none (`WithInstallation`).
+  workspace holds none (`WithInstallation`). A policy's calendar is held by key in the use cases,
+  not by a foreign key (migration 0291): it names one the workspace or the installation holds, and a
+  workspace calendar a policy names goes only where the installation offers its key; a policy whose
+  calendar the instance file stopped offering arms nothing.
 * **`SlaPolicy`** (UC-SVC-02): the entry types it measures, a `FIRST_RESPONSE` and a `RESOLUTION`
   goal - a target in working minutes, narrower per option of a priority field, the workflow
   statuses it stands still in, the share at which it is at risk -, a calendar by key or none
