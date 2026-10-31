@@ -172,3 +172,89 @@ func TestAnUnshapedCustomSortIsADefect(t *testing.T) {
 		t.Fatalf("detail %q", detail)
 	}
 }
+
+var (
+	momentShape  = view.CustomShape{Resolved: true, Defined: true, Column: view.CustomInstant, Moment: true}
+	addressShape = view.CustomShape{Resolved: true, Defined: true, Column: view.CustomAddress}
+)
+
+// UC-WRK-17 check 10: a moment ranges over its instant, an address over `addr` as an address, and
+// both sort from a cursor key of their own type.
+func TestAMomentAndAnAddressRangeAndSortByTheirValue(t *testing.T) {
+	cases := []struct {
+		name     string
+		document string
+		shape    view.CustomShape
+		fragment string
+		arg      any
+	}{
+		{"a moment", `{"field":"custom_fields.seen","op":"GTE","value":"2026-10-31T10:00:00+01:00"}`, momentShape,
+			`efv.ts >= $3::timestamptz)`, time.Date(2026, 10, 31, 9, 0, 0, 0, time.UTC)},
+		{"an address", `{"field":"custom_fields.seen","op":"BETWEEN","value":["10.0.0.0","10.0.0.255"]}`, addressShape,
+			`efv.addr BETWEEN $3::inet AND $4::inet)`, "10.0.0.255"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			spec := shapedSearch(t, documentOf(t, c.document), view.Spec{}, map[string]view.CustomShape{"seen": c.shape})
+			search := searchOf(t, nil, view.Spec{})
+			search.Spec = spec
+			statement, err := Rows(search, Boundary{}, 51)
+			if err != nil {
+				t.Fatalf("compilation failed: %v", err)
+			}
+			if !strings.Contains(statement.SQL, c.fragment) {
+				t.Fatalf("the statement is %s", statement.SQL)
+			}
+			if !containsArg(statement.Args, c.arg) {
+				t.Errorf("%#v is not among %#v", c.arg, statement.Args)
+			}
+		})
+	}
+
+	sort, err := view.ParseSort([]any{map[string]any{"field": "custom_fields.seen"}}, "/sort")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		shape  view.CustomShape
+		value  string
+		key    string
+		cursor string
+	}{
+		{momentShape, "2026-10-31T09:00:00Z", "2026-10-31T09:00:00Z", `::timestamptz IS NULL THEN false`},
+		{addressShape, "10.0.0.7", "10.0.0.7", `::inet IS NULL THEN false`},
+	} {
+		spec := shapedSearch(t, nil, view.Spec{Sort: sort}, map[string]view.CustomShape{"seen": c.shape})
+		item := work.WorkItem{CustomFields: map[string]any{"seen": c.value}}
+		if key := Key(spec.Sort[0], item); key != keyValue+c.key {
+			t.Errorf("the cursor key of %s is %q", c.value, key)
+		}
+		search := searchOf(t, nil, view.Spec{})
+		search.Spec = spec
+		statement, err := Rows(search, Boundary{Keys: []string{keyValue + c.key}, ID: task}, 51)
+		if err != nil {
+			t.Fatalf("compilation failed: %v", err)
+		}
+		if !strings.Contains(statement.SQL, c.cursor) {
+			t.Errorf("compiled to\n  %s\nand should contain\n  %s", statement.SQL, c.cursor)
+		}
+	}
+
+	group, err := view.ParseGroupBy(map[string]any{"field": "custom_fields.seen"}, "/group_by")
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := shapedSearch(t, nil, view.Spec{GroupBy: group}, map[string]view.CustomShape{"seen": addressShape})
+	if key, _ := GroupKey(spec.GroupBy.Field, work.WorkItem{CustomFields: map[string]any{"seen": "10.0.0.7"}}); key != "10.0.0.7" {
+		t.Errorf("an address groups as %q", key)
+	}
+	search := searchOf(t, nil, view.Spec{})
+	search.Spec = spec
+	counted, err := Count(search)
+	if err != nil {
+		t.Fatalf("the count failed: %v", err)
+	}
+	if !strings.Contains(counted.SQL, `host((SELECT efv.addr`) {
+		t.Errorf("an address is counted as %s", counted.SQL)
+	}
+}

@@ -4,6 +4,7 @@
 package view
 
 import (
+	"net/netip"
 	"slices"
 	"strconv"
 	"time"
@@ -20,6 +21,8 @@ const (
 	CustomInstant CustomColumn = "ts"
 	CustomText    CustomColumn = "text"
 	CustomRef     CustomColumn = "ref"
+	// CustomAddress is an IP_ADDRESS's `addr`, ordered as addresses rather than as text.
+	CustomAddress CustomColumn = "addr"
 	// CustomProse is formatted text, which has no column at all.
 	CustomProse CustomColumn = "prose"
 )
@@ -38,8 +41,11 @@ type CustomShape struct {
 	// range, sort or grouping on it has one meaning.
 	Ambiguous bool
 	Column    CustomColumn
-	// Set says one entry may hold several values (MULTI_SELECT, USER_SET).
+	// Set says one entry may hold several values (MULTI_SELECT, USER_SET, LABEL).
 	Set bool
+	// Moment says an instant column holds moments (DATE_TIME) rather than days (DATE): a range's
+	// bound is read as a moment, and a day and a moment under one key are ambiguous.
+	Moment bool
 }
 
 // ShapeOf answers the shape of the kinds the definitions under one key have in a scope.
@@ -50,7 +56,7 @@ func ShapeOf(kinds []work.CustomFieldKind) CustomShape {
 	shape := shapeOfKind(kinds[0])
 	for _, kind := range kinds[1:] {
 		other := shapeOfKind(kind)
-		if other.Column != shape.Column || other.Set != shape.Set {
+		if other.Column != shape.Column || other.Set != shape.Set || other.Moment != shape.Moment {
 			return CustomShape{Resolved: true, Defined: true, Ambiguous: true}
 		}
 	}
@@ -65,7 +71,12 @@ func shapeOfKind(kind work.CustomFieldKind) CustomShape {
 		shape.Column = CustomNumber
 	case work.CustomFieldDate:
 		shape.Column = CustomInstant
-	case work.CustomFieldUser, work.CustomFieldUserSet, work.CustomFieldReference:
+	case work.CustomFieldDateTime:
+		shape.Column, shape.Moment = CustomInstant, true
+	case work.CustomFieldIPAddress:
+		shape.Column = CustomAddress
+	case work.CustomFieldUser, work.CustomFieldUserSet, work.CustomFieldReference, work.CustomFieldGroup,
+		work.CustomFieldFile:
 		shape.Column = CustomRef
 	case work.CustomFieldRichText:
 		shape.Column = CustomProse
@@ -78,14 +89,14 @@ func shapeOfKind(kind work.CustomFieldKind) CustomShape {
 // ranges reports whether a range operator means something over the shape.
 func (s CustomShape) ranges() bool {
 	return !s.Defined ||
-		(!s.Ambiguous && slices.Contains([]CustomColumn{CustomNumber, CustomInstant, CustomText}, s.Column))
+		(!s.Ambiguous && slices.Contains([]CustomColumn{CustomNumber, CustomInstant, CustomText, CustomAddress}, s.Column))
 }
 
 // sorts reports whether entries can be ordered by the shape's one value.
 func (s CustomShape) sorts() bool {
 	return !s.Defined ||
 		(!s.Ambiguous && !s.Set &&
-			slices.Contains([]CustomColumn{CustomNumber, CustomInstant, CustomText}, s.Column))
+			slices.Contains([]CustomColumn{CustomNumber, CustomInstant, CustomText, CustomAddress}, s.Column))
 }
 
 // groups reports whether entries can be put in one group per value of the shape.
@@ -200,7 +211,7 @@ func shapedNode(node Node, shapeFor func(Field) (Field, bool), path string) (Nod
 		return typedOperator(node, path)
 	}
 	if !isRange(node.Op) {
-		return node, nil
+		return canonicalAddresses(node), nil
 	}
 	if !field.Custom.ranges() {
 		return Node{}, fieldError(path+"/op", "query.operator_unsupported", map[string]string{
@@ -227,7 +238,7 @@ func typedOperator(node Node, path string) (Node, error) {
 	fits := !shape.Defined
 	if shape.Defined && !shape.Ambiguous {
 		if node.Op == OpStartsWith {
-			fits = !shape.Set && shape.Column == CustomText
+			fits = !shape.Set && (shape.Column == CustomText || shape.Column == CustomAddress)
 		} else {
 			fits = shape.Set
 		}
@@ -257,6 +268,13 @@ func rangeValue(shape CustomShape, value Value, path string) (Value, error) {
 		if value.Kind != KindString {
 			return Value{}, fieldError(path, "query.value_type_invalid", nil)
 		}
+		if shape.Moment {
+			moment, err := time.Parse(time.RFC3339Nano, value.Text)
+			if err != nil {
+				return Value{}, fieldError(path, "query.value_type_invalid", nil)
+			}
+			return Value{Kind: KindTimestamp, Time: moment.UTC()}, nil
+		}
 		day, err := time.Parse(time.DateOnly, value.Text)
 		if err != nil {
 			return Value{}, fieldError(path, "query.value_type_invalid", nil)
@@ -266,8 +284,31 @@ func rangeValue(shape CustomShape, value Value, path string) (Value, error) {
 		if value.Kind != KindString {
 			return Value{}, fieldError(path, "query.value_type_invalid", nil)
 		}
+	case CustomAddress:
+		address, err := netip.ParseAddr(value.Text)
+		if value.Kind != KindString || err != nil || address.Zone() != "" {
+			return Value{}, fieldError(path, "query.value_type_invalid", nil)
+		}
+		return Value{Kind: KindString, Text: address.String()}, nil
 	}
 	return value, nil
+}
+
+// canonicalAddresses spells an address an equality compares the way the field stores it, so
+// `2001:DB8::1` finds what was written `2001:db8::1`. A value that is no address stays as it was
+// and matches nothing.
+func canonicalAddresses(node Node) Node {
+	if !node.Field.Custom.Defined || node.Field.Custom.Column != CustomAddress {
+		return node
+	}
+	values := slices.Clone(node.Values)
+	for index, value := range values {
+		if address, err := netip.ParseAddr(value.Text); value.Kind == KindString && err == nil {
+			values[index].Text = address.String()
+		}
+	}
+	node.Values = values
+	return node
 }
 
 func valueIndex(node Node, index int) string {

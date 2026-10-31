@@ -115,3 +115,90 @@ func TestTheShapeHoldsARangeASortAndAGrouping(t *testing.T) {
 		})
 	}
 }
+
+// UC-WRK-17 check 10: a moment ranges and sorts by its instant, never beside a day under one key; an
+// address ranges and sorts by the address and compares in its canonical spelling; a group and a
+// file are identifiers with no order; labels are a set; a two-level choice and a state are text.
+func TestTheRegisterKindsHaveTheirShape(t *testing.T) {
+	moment := view.ShapeOf([]work.CustomFieldKind{work.CustomFieldDateTime})
+	address := view.ShapeOf([]work.CustomFieldKind{work.CustomFieldIPAddress})
+	if moment != (view.CustomShape{Resolved: true, Defined: true, Column: view.CustomInstant, Moment: true}) {
+		t.Errorf("a moment is %+v", moment)
+	}
+	if address != (view.CustomShape{Resolved: true, Defined: true, Column: view.CustomAddress}) {
+		t.Errorf("an address is %+v", address)
+	}
+	if got := view.ShapeOf([]work.CustomFieldKind{work.CustomFieldDate, work.CustomFieldDateTime}); !got.Ambiguous {
+		t.Errorf("a day and a moment under one key are %+v", got)
+	}
+	for kind, want := range map[work.CustomFieldKind]view.CustomShape{
+		work.CustomFieldGroup:           {Resolved: true, Defined: true, Column: view.CustomRef},
+		work.CustomFieldFile:            {Resolved: true, Defined: true, Column: view.CustomRef},
+		work.CustomFieldLabel:           {Resolved: true, Defined: true, Column: view.CustomText, Set: true},
+		work.CustomFieldCascadingSelect: {Resolved: true, Defined: true, Column: view.CustomText},
+		work.CustomFieldStatus:          {Resolved: true, Defined: true, Column: view.CustomText},
+	} {
+		if got := view.ShapeOf([]work.CustomFieldKind{kind}); got != want {
+			t.Errorf("%s is %+v, want %+v", kind, got, want)
+		}
+	}
+
+	shape := func(t *testing.T, filter any, sort any, with view.CustomShape) (view.Spec, error) {
+		t.Helper()
+		var spec view.Spec
+		var err error
+		if filter != nil {
+			if spec.Filter, err = view.ParseFilter(filter, "/filter"); err != nil {
+				t.Fatalf("the grammar refused the filter: %v", err)
+			}
+		}
+		if spec.Sort, err = view.ParseSort(sort, "/sort"); err != nil {
+			t.Fatalf("the grammar refused the sort: %v", err)
+		}
+		return spec.Shaped(map[string]view.CustomShape{"f": with})
+	}
+
+	t.Run("a moment's bound is an instant", func(t *testing.T) {
+		shaped, err := shape(t, map[string]any{"field": "custom_fields.f", "op": "GTE",
+			"value": "2026-10-31T10:00:00+01:00"}, nil, moment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := shaped.Filter.Values[0]; got.Kind != view.KindTimestamp || got.Time.UTC().Hour() != 9 {
+			t.Errorf("the bound is %+v", got)
+		}
+	})
+	t.Run("a day is no moment's bound", func(t *testing.T) {
+		_, err := shape(t, map[string]any{"field": "custom_fields.f", "op": "LT", "value": "2026-10-31"}, nil, moment)
+		if detail := shared.AsError(err).DetailCode; detail != "query.value_type_invalid" {
+			t.Fatalf("detail %q", detail)
+		}
+	})
+	t.Run("an address ranges and sorts", func(t *testing.T) {
+		if _, err := shape(t, map[string]any{"field": "custom_fields.f", "op": "BETWEEN",
+			"value": []any{"10.0.0.0", "10.0.0.255"}}, []any{map[string]any{"field": "custom_fields.f"}}, address); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("a host name is no address's bound", func(t *testing.T) {
+		_, err := shape(t, map[string]any{"field": "custom_fields.f", "op": "GT", "value": "intranet"}, nil, address)
+		if detail := shared.AsError(err).DetailCode; detail != "query.value_type_invalid" {
+			t.Fatalf("detail %q", detail)
+		}
+	})
+	t.Run("an address compares in its canonical spelling", func(t *testing.T) {
+		shaped, err := shape(t, map[string]any{"field": "custom_fields.f", "op": "IN",
+			"value": []any{"2001:DB8:0:0:0:0:0:1", "10.0.0.1"}}, nil, address)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := shaped.Filter.Values[0].Text; got != "2001:db8::1" {
+			t.Errorf("the value compared is %q", got)
+		}
+	})
+	t.Run("an address takes a prefix", func(t *testing.T) {
+		if _, err := shape(t, map[string]any{"field": "custom_fields.f", "op": "STARTS_WITH", "value": "10.0."}, nil, address); err != nil {
+			t.Fatal(err)
+		}
+	})
+}

@@ -5,6 +5,7 @@ package query
 
 import (
 	"math"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +43,8 @@ func customColumn(shape view.CustomShape) (string, bool) {
 		return `efv.text`, true
 	case view.CustomRef:
 		return `efv.ref`, true
+	case view.CustomAddress:
+		return `efv.addr`, true
 	}
 	return "", false
 }
@@ -57,6 +60,8 @@ func customCast(shape view.CustomShape) string {
 		return `::timestamptz`
 	case view.CustomRef:
 		return `::uuid`
+	case view.CustomAddress:
+		return `::inet`
 	}
 	return `::text`
 }
@@ -93,6 +98,13 @@ func (b *builder) customGroupKey(field view.Field) {
 		b.write(`((`)
 		b.customValue(field)
 		b.write(`) AT TIME ZONE 'UTC')::date::text`)
+		return
+	}
+	if field.Custom.Defined && field.Custom.Column == view.CustomAddress {
+		// host() is the address without its mask, the spelling netip gives in customKeyOf.
+		b.write(`host(`)
+		b.customValue(field)
+		b.write(`)`)
 		return
 	}
 	b.write(`(`)
@@ -154,6 +166,9 @@ func (b *builder) customBound(shape view.CustomShape, value view.Value) {
 	case view.CustomInstant:
 		b.param(value.Time)
 		b.write(`::timestamptz`)
+	case view.CustomAddress:
+		b.param(value.Text)
+		b.write(`::inet`)
 	default:
 		b.text(value)
 	}
@@ -179,6 +194,14 @@ func (b *builder) customBoundary(field view.Field, raw string) {
 		}
 		b.param(moment.UTC())
 		b.write(`::timestamptz`)
+	case field.Custom.Column == view.CustomAddress:
+		address, err := netip.ParseAddr(raw)
+		if err != nil {
+			b.fail(errCursorInvalid)
+			return
+		}
+		b.param(address.String())
+		b.write(`::inet`)
 	default:
 		b.param(raw)
 		b.write(`::text`)
@@ -208,6 +231,16 @@ func customKeyOf(field view.Field, item work.WorkItem, forCursor bool) (string, 
 	case string:
 		switch field.Custom.Column {
 		case view.CustomInstant:
+			if field.Custom.Moment {
+				moment, err := time.Parse(time.RFC3339, typed)
+				if err != nil {
+					return "", false
+				}
+				if forCursor {
+					return moment.UTC().Format(time.RFC3339Nano), true
+				}
+				return moment.UTC().Format(time.DateOnly), true
+			}
 			day, err := time.Parse(time.DateOnly, typed)
 			if err != nil {
 				return "", false
@@ -222,6 +255,12 @@ func customKeyOf(field view.Field, item work.WorkItem, forCursor bool) (string, 
 				return "", false
 			}
 			return id.String(), true
+		case view.CustomAddress:
+			address, err := netip.ParseAddr(typed)
+			if err != nil {
+				return "", false
+			}
+			return address.String(), true
 		}
 		return truncateRunes(typed, customTextLength), true
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // estimated writes one value under a defined key, through the statement every writer uses.
@@ -144,6 +145,77 @@ func TestACustomDateRangesByItsDay(t *testing.T) {
 	}, nil, nil)
 	if len(result.Items) != 1 || result.Items[0].ID != late {
 		t.Fatalf("the range answered %v", entryIDs(result.Items))
+	}
+}
+
+// UC-WRK-17 check 10 against the database: a moment ranges by its instant, an address ranges and
+// sorts as an address in `addr` (10.0.0.9 before 10.0.0.10, which text would not give), labels are
+// a set, and a state and a two-level choice compare as text (migration 0298).
+func TestTheRegisterKindsRangeSortAndMatchInTheDatabase(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	seen := definedField(ctx, t, tenantA, collection, "seen_at", work.CustomFieldDateTime)
+	address := definedField(ctx, t, tenantA, collection, "address", work.CustomFieldIPAddress)
+	labels := definedField(ctx, t, tenantA, collection, "tags", work.CustomFieldLabel)
+	state := definedField(ctx, t, tenantA, collection, "state", work.CustomFieldStatus, "Planned", "In use")
+	kind := definedField(ctx, t, tenantA, collection, "category", work.CustomFieldCascadingSelect, "Hardware", "Hardware/Laptop")
+
+	nine := seedTask(ctx, t, tenantA, authorA, collection)
+	ten := seedTask(ctx, t, tenantA, authorA, collection)
+	estimated(ctx, t, tenantA, nine, seen, "2026-10-31T08:00:00Z")
+	estimated(ctx, t, tenantA, ten, seen, "2026-10-31T12:00:00Z")
+	estimated(ctx, t, tenantA, nine, address, "10.0.0.9")
+	estimated(ctx, t, tenantA, ten, address, "10.0.0.10")
+	estimated(ctx, t, tenantA, nine, labels, []any{"backend", "ops"})
+	estimated(ctx, t, tenantA, ten, state, "In use")
+	estimated(ctx, t, tenantA, ten, kind, "Hardware/Laptop")
+
+	if got := typedQuery(ctx, t, tenantA, collection, map[string]any{
+		"field": "custom_fields.seen_at", "op": "GT", "value": "2026-10-31T11:00:00+01:00",
+	}, nil, nil); len(got.Items) != 1 || got.Items[0].ID != ten {
+		t.Errorf("the moment's range answered %v", entryIDs(got.Items))
+	}
+	if got := typedQuery(ctx, t, tenantA, collection, map[string]any{
+		"field": "custom_fields.address", "op": "BETWEEN", "value": []any{"10.0.0.0", "10.0.0.9"},
+	}, nil, nil); len(got.Items) != 1 || got.Items[0].ID != nine {
+		t.Errorf("the address's range answered %v", entryIDs(got.Items))
+	}
+	if got := typedQuery(ctx, t, tenantA, collection, nil,
+		[]any{map[string]any{"field": "custom_fields.address"}}, nil); len(got.Items) != 2 || got.Items[0].ID != nine {
+		t.Errorf("the address's sort answered %v", entryIDs(got.Items))
+	}
+	if got := typedQuery(ctx, t, tenantA, collection, map[string]any{
+		"field": "custom_fields.tags", "op": "CONTAINS_ANY", "value": []any{"ops"},
+	}, nil, nil); len(got.Items) != 1 || got.Items[0].ID != nine {
+		t.Errorf("the labels answered %v", entryIDs(got.Items))
+	}
+	if got := typedQuery(ctx, t, tenantA, collection, map[string]any{
+		"field": "custom_fields.category", "op": "STARTS_WITH", "value": "Hardware",
+	}, nil, nil); len(got.Items) != 1 || got.Items[0].ID != ten {
+		t.Errorf("the two-level choice answered %v", entryIDs(got.Items))
+	}
+	if got := typedQuery(ctx, t, tenantA, collection, nil, nil,
+		map[string]any{"field": "custom_fields.state"}); len(got.Groups) != 2 || got.Groups[0].Key != "In use" {
+		t.Errorf("the state's groups are %+v", got.Groups)
+	}
+
+	// Gate SG-3: another tenant reads none of the typed values, an address's included.
+	addresses := func(tenant shared.ID) int {
+		var n int
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			tx, err := postgres.FromContext(ctx)
+			if err != nil {
+				return err
+			}
+			return tx.QueryRow(ctx, `SELECT count(*) FROM entry_field_value WHERE addr IS NOT NULL`).Scan(&n)
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if own, foreign := addresses(tenantA), addresses(tenantB); own != 2 || foreign != 0 {
+		t.Errorf("the own tenant reads %d addresses, another %d", own, foreign)
 	}
 }
 
