@@ -50,6 +50,10 @@ func ServerErrors(r io.Reader) ([]LogError, error) {
 	return rows(counted), scanner.Err()
 }
 
+// migrationProbe is goose's first statement on an empty database, which asks for its version table
+// before it exists: every run's stack starts that way, so the row says nothing about the product.
+const migrationProbe = `relation "goose_db_version" does not exist`
+
 // PostgresErrors reads PostgreSQL's log and answers its WARNING, ERROR, FATAL and PANIC lines, one
 // row per message with its values masked.
 func PostgresErrors(r io.Reader) ([]LogError, error) {
@@ -58,7 +62,7 @@ func PostgresErrors(r io.Reader) ([]LogError, error) {
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for scanner.Scan() {
 		match := postgresSeverity.FindStringSubmatch(scanner.Text())
-		if match == nil {
+		if match == nil || strings.HasPrefix(match[2], migrationProbe) {
 			continue
 		}
 		message := varying.ReplaceAllString(match[2], "…")

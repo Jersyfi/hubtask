@@ -41,3 +41,16 @@ func TestPostgresErrorsAreCountedWithTheirValuesMasked(t *testing.T) {
 		t.Errorf("got %+v", got)
 	}
 }
+
+// The migration tool's first look at an empty database is its own probe, not the product's error;
+// any other missing relation still counts.
+func TestTheMigrationToolsFirstProbeIsNotAnError(t *testing.T) {
+	log := strings.Join([]string{
+		`2026-10-31 23:52:03.706 UTC [79] ERROR:  relation "goose_db_version" does not exist at character 36`,
+		`2026-10-31 23:52:04.706 UTC [80] ERROR:  relation "work_item" does not exist at character 15`,
+	}, "\n")
+	got, err := PostgresErrors(strings.NewReader(log))
+	if err != nil || len(got) != 1 || got[0].Count != 1 {
+		t.Fatalf("rows %+v (%v)", got, err)
+	}
+}
