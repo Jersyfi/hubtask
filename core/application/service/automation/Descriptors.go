@@ -511,6 +511,7 @@ func triggerOutput(trigger domain.Trigger) map[string]any {
 		"anchor":       string(trigger.Anchor),
 		"anchor_field": trigger.AnchorField,
 		"offset":       trigger.Offset,
+		"calendar":     trigger.Calendar,
 		"workflow":     trigger.Workflow,
 		"step":         trigger.Step,
 	} {
@@ -567,8 +568,8 @@ func triggerFrom(value any) (domain.Trigger, error) {
 		EventType: event.Type(textOf(document["event_type"])),
 		RRule:     textOf(document["rrule"]), Timezone: textOf(document["timezone"]),
 		Anchor: domain.DateAnchor(textOf(document["anchor"])), Offset: textOf(document["offset"]),
-		AnchorField: textOf(document["anchor_field"]),
-		Workflow:    textOf(document["workflow"]), Step: textOf(document["step"]),
+		AnchorField: textOf(document["anchor_field"]), Calendar: textOf(document["calendar"]),
+		Workflow: textOf(document["workflow"]), Step: textOf(document["step"]),
 	}
 	for _, field := range listOf(document["changed_fields"]) {
 		if name := textOf(field); name != "" {

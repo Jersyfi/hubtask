@@ -3737,6 +3737,7 @@ class RuleTrigger(TypedDict, total=False):
     anchor: Literal["DUE_DATE", "CREATED_AT", "COMPLETED_AT", "FIELD"]
     anchor_field: str
     offset: str
+    calendar: str
     workflow: str
     step: str
 

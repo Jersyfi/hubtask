@@ -33124,6 +33124,15 @@ components:
           description: >
             `RELATIVE_DATE` only, and required there: a signed ISO 8601 duration, `-PT24H` for
             "24 hours before".
+        calendar:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{0,49}$"
+          description: >
+            `RELATIVE_DATE` only, and optional: the key of a business calendar whose working days
+            the offset counts, at the anchor's clock time - `P5D` is five business days. On one,
+            the offset is whole days only. The entry's hub's own version of the calendar counts
+            where it keeps one; a rule whose calendar no longer exists owes nothing rather than
+            counting plain days.
         workflow:
           type: string
           pattern: "^[a-z][a-z0-9_]{0,49}$"

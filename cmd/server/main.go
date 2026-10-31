@@ -4195,6 +4195,10 @@ func run() error {
 		Rules: automationRuns, Occurrences: postgres.NewAutomationRuleRepository(cursors),
 		Entries: items, Containers: containers, Jobs: jobs,
 		Clock: clockadapter.System{}, IDs: ids,
+		Calendars: servicedeskservice.RuleCalendars{
+			Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+			HubCalendars: serviceDeskStore.HubCalendars(),
+		},
 	}
 
 	// The optional bus (ADR-0042). Everything about it is conditional on a URL having been

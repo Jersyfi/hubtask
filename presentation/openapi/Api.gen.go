@@ -21826,6 +21826,9 @@ type RuleTrigger struct {
 	// AnchorField `FIELD` anchors only, and required there: the key of a `DATE` or `DATE_TIME` custom field. A day is measured from its start in UTC; a value that is no date owes nothing.
 	AnchorField *string `json:"anchor_field,omitempty"`
 
+	// Calendar `RELATIVE_DATE` only, and optional: the key of a business calendar whose working days the offset counts, at the anchor's clock time - `P5D` is five business days. On one, the offset is whole days only. The entry's hub's own version of the calendar counts where it keeps one; a rule whose calendar no longer exists owes nothing rather than counting plain days.
+	Calendar *string `json:"calendar,omitempty"`
+
 	// ChangedFields `EVENT` only, optional. Narrows an `item.updated` trigger to the fields that moved, so that a rule about deadlines does not fire on a rename.
 	ChangedFields *[]string `json:"changed_fields,omitempty"`
 

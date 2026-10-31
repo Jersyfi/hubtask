@@ -107,6 +107,7 @@ func triggerResponse(value any) openapi.RuleTrigger {
 		"timezone":     &trigger.Timezone,
 		"offset":       &trigger.Offset,
 		"anchor_field": &trigger.AnchorField,
+		"calendar":     &trigger.Calendar,
 		"step":         &trigger.Step,
 		"workflow":     &trigger.Workflow,
 	} {
