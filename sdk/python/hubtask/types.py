@@ -2473,6 +2473,8 @@ class EntryType(TypedDict, total=False):
     archived: Required[bool]
     version: Required[int]
     form: "EntryForm"
+    hub_id: str | None
+    copied_from: str | None
 
 class EntryForm(TypedDict, total=False):
     """A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them."""
@@ -2531,6 +2533,12 @@ class EntryTypeCreate(TypedDict, total=False):
     estimable: bool
     allowed_children: list[str]
     position: int
+    hub_id: str
+
+class EntryTypeCopy(TypedDict, total=False):
+    hub_id: Required[str]
+    key: Required[str]
+    name: str
 
 class EntryTypeChange(TypedDict, total=False):
     """JSON Merge Patch; only what is sent changes."""

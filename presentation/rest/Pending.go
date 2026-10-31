@@ -1783,6 +1783,7 @@ func (pending) ChangeEntryType(w http.ResponseWriter, r *http.Request, _ string,
 }
 
 func (pending) DeleteEntryType(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+func (pending) CopyEntryTypeHere(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
 
 func (pending) SetEntryTypeForm(w http.ResponseWriter, r *http.Request, _ string, _ openapi.SetEntryTypeFormParams) {
 	notAvailable(w, r)

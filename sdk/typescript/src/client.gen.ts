@@ -3086,6 +3086,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/entry-types/{key}", { "key": key }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Make a copy of a shared entry type at a hub */
+  copyEntryTypeHere(key: string, body: NonNullable<operations["copyEntryTypeHere"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["copyEntryTypeHere"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/entry-types/{key}:copy-here", { "key": key }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Set an entry type's form */
   setEntryTypeForm(key: string, body: NonNullable<operations["setEntryTypeForm"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setEntryTypeForm"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/entry-types/{key}/form", { "key": key }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

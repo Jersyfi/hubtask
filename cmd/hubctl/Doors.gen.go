@@ -2849,6 +2849,16 @@ var generatedCommands = []door{
 			{Name: "size", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "kind", "subtype", "title", "deleted_at", "version"}},
+	{Group: "type", Verb: "copy-here", OperationID: "copyEntryTypeHere", Method: "POST", Path: "/entry-types/{key}:copy-here", Summary: "Make a copy of a shared entry type at a hub",
+		PathParams: []doorParam{
+			{Name: "key", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "The hub the copy belongs to", Required: true},
+			{Name: "key", Kind: "string", Help: "The copy's own key, free in the workspace", Required: true},
+			{Name: "name", Kind: "string", Help: "The copy's name; unset keeps the source's", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name", "level", "version"}},
 	{Group: "type", Verb: "form evaluate", OperationID: "evaluateEntryForm", Method: "POST", Path: "/entry-types/{key}/form:evaluate", Summary: "Answer a type's form for a draft",
 		PathParams: []doorParam{
 			{Name: "key", Kind: "string", Help: "", Required: true},

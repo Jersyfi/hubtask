@@ -115,6 +115,7 @@ var restDoors = map[string]restDoor{
 	"connectFileStore":                  {UseCase: "ConnectFileStore", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"connectMailbox":                    {UseCase: "ConnectMailbox", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
 	"convertJumbleEntry":                {UseCase: "ConvertJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"copyEntryTypeHere":                 {UseCase: "CopyEntryTypeHere", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyPage":                          {UseCase: "CopyPage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "/pages/{id}", NullClears: false, Integers: []string(nil)},
 	"copyTimesheetWeek":                 {UseCase: "CopyTimesheetWeek", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"correctTimeRecord":                 {UseCase: "CorrectTimeRecord", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
@@ -1433,6 +1434,13 @@ func (c *RestController) ConnectMailbox(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params openapi.ConvertJumbleEntryParams) {
 	var body openapi.ConvertJumbleEntryJSONRequestBody
 	c.door(w, r, restDoors["convertJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, params, &body, answerBy(jumbleEntryResponse))
+}
+
+// CopyEntryTypeHere answers POST /entry-types/{key}:copy-here by the generated mapping.
+func (c *RestController) CopyEntryTypeHere(w http.ResponseWriter, r *http.Request, key string) {
+	var body openapi.CopyEntryTypeHereJSONRequestBody
+	var answer openapi.EntryType
+	c.door(w, r, restDoors["copyEntryTypeHere"], usecase.Input{"source_key": key}, nil, &body, &answer)
 }
 
 // CopyPage answers POST /pages/{pageId}:copy by the generated mapping.

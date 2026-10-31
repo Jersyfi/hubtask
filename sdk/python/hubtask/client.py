@@ -2451,6 +2451,10 @@ class Client:
         """Delete an unused entry type"""
         return self._call("DELETE", "/entry-types/{key}", {"key": key}, None, {}, None, "none", None, "void")
 
+    def copy_entry_type_here(self, key: str, body: "EntryTypeCopy") -> "EntryType":
+        """Make a copy of a shared entry type at a hub"""
+        return self._call("POST", "/entry-types/{key}:copy-here", {"key": key}, None, {}, body, "json", "application/json", "json")
+
     def set_entry_type_form(self, key: str, body: "EntryForm", *, if_match: str | None = None) -> "EntryType":
         """Set an entry type's form"""
         return self._call("PUT", "/entry-types/{key}/form", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")

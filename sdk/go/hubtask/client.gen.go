@@ -16118,12 +16118,18 @@ type EntryType struct {
 	ColorToken  string `json:"color_token"`
 	Completable bool   `json:"completable"`
 
+	// CopiedFrom The key of the type this one was copied from; absent or null for a type made from scratch.
+	CopiedFrom *string `json:"copied_from,omitempty"`
+
 	// Description What the type is for, in the workspace's default words; empty for none. A portal shows it beside the name.
 	Description *string `json:"description,omitempty"`
 	Estimable   bool    `json:"estimable"`
 
 	// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
 	Form *EntryForm `json:"form,omitempty"`
+
+	// HubId The hub the type is defined at and offered in; absent or null for a type of the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon The name of an icon of the design system's set.
 	Icon string `json:"icon"`
@@ -16174,6 +16180,18 @@ type EntryTypeChange struct {
 	Workflow     *bool                  `json:"workflow,omitempty"`
 }
 
+// EntryTypeCopy defines model for EntryTypeCopy.
+type EntryTypeCopy struct {
+	// HubId The hub the copy belongs to.
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Key The copy's own key, free in the workspace.
+	Key string `json:"key"`
+
+	// Name The copy's name; unset keeps the source's. A system type nobody named has none to keep (`entry_types.name_empty`).
+	Name *string `json:"name,omitempty"`
+}
+
 // EntryTypeCreate defines model for EntryTypeCreate.
 type EntryTypeCreate struct {
 	AllowedChildren *[]string `json:"allowed_children,omitempty"`
@@ -16181,8 +16199,11 @@ type EntryTypeCreate struct {
 	Completable     *bool     `json:"completable,omitempty"`
 	Description     *string   `json:"description,omitempty"`
 	Estimable       *bool     `json:"estimable,omitempty"`
-	Icon            string    `json:"icon"`
-	Key             string    `json:"key"`
+
+	// HubId Defines the type at this hub, offered only inside it; unset is the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Icon  string              `json:"icon"`
+	Key   string              `json:"key"`
 
 	// Level Extensible; /meta/capabilities returns the valid values.
 	Level       ItemType `json:"level"`
@@ -28495,6 +28516,9 @@ type SetEntryTypeFormJSONRequestBody = EntryForm
 // EvaluateEntryFormJSONRequestBody defines body for EvaluateEntryForm for application/json ContentType.
 type EvaluateEntryFormJSONRequestBody = EntryFormDraft
 
+// CopyEntryTypeHereJSONRequestBody defines body for CopyEntryTypeHere for application/json ContentType.
+type CopyEntryTypeHereJSONRequestBody = EntryTypeCopy
+
 // DefineGoalPeriodJSONRequestBody defines body for DefineGoalPeriod for application/json ContentType.
 type DefineGoalPeriodJSONRequestBody = GoalPeriodWrite
 
@@ -34161,14 +34185,14 @@ type ClientInterface interface {
 
 	// ListEntryTypes The workspace's entry types
 	//
-	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
+	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. A type defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub; it is offered only inside that hub. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
 	//
 	// Corresponds with GET /entry-types (the `ListEntryTypes` operationId).
 	ListEntryTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateEntryTypeWithBody Add an entry type
 	//
-	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace; with `hub_id`, the type belongs to that hub and needs STRUCTURE there instead.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -34177,7 +34201,7 @@ type ClientInterface interface {
 
 	// CreateEntryType Add an entry type
 	//
-	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace; with `hub_id`, the type belongs to that hub and needs STRUCTURE there instead.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -34186,14 +34210,14 @@ type ClientInterface interface {
 
 	// DeleteEntryType Delete an unused entry type
 	//
-	// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.
+	// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 	//
 	// Corresponds with DELETE /entry-types/{key} (the `DeleteEntryType` operationId).
 	DeleteEntryType(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ChangeEntryTypeWithBody Change an entry type
 	//
-	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -34202,7 +34226,7 @@ type ClientInterface interface {
 
 	// ChangeEntryTypeWithApplicationMergePatchPlusJSONBody Change an entry type
 	//
-	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 	//
 	// Takes a body of the `application/merge-patch+json` content type.
 	//
@@ -34244,6 +34268,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
 	EvaluateEntryForm(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyEntryTypeHereWithBody Make a copy of a shared entry type at a hub
+	//
+	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /entry-types/{key}:copy-here (the `CopyEntryTypeHere` operationId).
+	CopyEntryTypeHereWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyEntryTypeHere Make a copy of a shared entry type at a hub
+	//
+	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /entry-types/{key}:copy-here (the `CopyEntryTypeHere` operationId).
+	CopyEntryTypeHere(ctx context.Context, key string, body CopyEntryTypeHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UnlinkEntryFile Take a file link off its entry
 	//
@@ -49671,7 +49713,7 @@ func (c *Client) SyncLdapDirectory(ctx context.Context, params *SyncLdapDirector
 
 // ListEntryTypes The workspace's entry types
 //
-// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
+// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. A type defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub; it is offered only inside that hub. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
 //
 // Corresponds with GET /entry-types (the `ListEntryTypes` operationId).
 func (c *Client) ListEntryTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -49688,7 +49730,7 @@ func (c *Client) ListEntryTypes(ctx context.Context, reqEditors ...RequestEditor
 
 // CreateEntryTypeWithBody Add an entry type
 //
-// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace; with `hub_id`, the type belongs to that hub and needs STRUCTURE there instead.
 //
 // Takes any type of body and a specified content type.
 //
@@ -49707,7 +49749,7 @@ func (c *Client) CreateEntryTypeWithBody(ctx context.Context, contentType string
 
 // CreateEntryType Add an entry type
 //
-// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace; with `hub_id`, the type belongs to that hub and needs STRUCTURE there instead.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -49726,7 +49768,7 @@ func (c *Client) CreateEntryType(ctx context.Context, body CreateEntryTypeJSONRe
 
 // DeleteEntryType Delete an unused entry type
 //
-// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.
+// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 //
 // Corresponds with DELETE /entry-types/{key} (the `DeleteEntryType` operationId).
 func (c *Client) DeleteEntryType(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -49743,7 +49785,7 @@ func (c *Client) DeleteEntryType(ctx context.Context, key string, reqEditors ...
 
 // ChangeEntryTypeWithBody Change an entry type
 //
-// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 //
 // Takes any type of body and a specified content type.
 //
@@ -49762,7 +49804,7 @@ func (c *Client) ChangeEntryTypeWithBody(ctx context.Context, key string, params
 
 // ChangeEntryTypeWithApplicationMergePatchPlusJSONBody Change an entry type
 //
-// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 //
 // Takes a body of the `application/merge-patch+json` content type.
 //
@@ -49845,6 +49887,44 @@ func (c *Client) EvaluateEntryFormWithBody(ctx context.Context, key string, cont
 // Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
 func (c *Client) EvaluateEntryForm(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewEvaluateEntryFormRequest(c.Server, key, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyEntryTypeHereWithBody Make a copy of a shared entry type at a hub
+//
+// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /entry-types/{key}:copy-here (the `CopyEntryTypeHere` operationId).
+func (c *Client) CopyEntryTypeHereWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyEntryTypeHereRequestWithBody(c.Server, key, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyEntryTypeHere Make a copy of a shared entry type at a hub
+//
+// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /entry-types/{key}:copy-here (the `CopyEntryTypeHere` operationId).
+func (c *Client) CopyEntryTypeHere(ctx context.Context, key string, body CopyEntryTypeHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyEntryTypeHereRequest(c.Server, key, body)
 	if err != nil {
 		return nil, err
 	}
@@ -78096,6 +78176,53 @@ func NewEvaluateEntryFormRequestWithBody(server string, key string, contentType 
 	return req, nil
 }
 
+// NewCopyEntryTypeHereRequest calls the generic CopyEntryTypeHere builder with application/json body
+func NewCopyEntryTypeHereRequest(server string, key string, body CopyEntryTypeHereJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCopyEntryTypeHereRequestWithBody(server, key, "application/json", bodyReader)
+}
+
+// NewCopyEntryTypeHereRequestWithBody constructs an http.Request for the CopyEntryTypeHere method, with any body, and a specified content type
+func NewCopyEntryTypeHereRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entry-types/%s:copy-here", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewUnlinkEntryFileRequest constructs an http.Request for the UnlinkEntryFile method
 func NewUnlinkEntryFileRequest(server string, linkId openapi_types.UUID) (*http.Request, error) {
 	var err error
@@ -105694,7 +105821,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListEntryTypesWithResponse The workspace's entry types
 	//
-	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
+	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. A type defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub; it is offered only inside that hub. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -105703,7 +105830,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateEntryTypeWithBodyWithResponse Add an entry type
 	//
-	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace; with `hub_id`, the type belongs to that hub and needs STRUCTURE there instead.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -105712,7 +105839,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateEntryTypeWithResponse Add an entry type
 	//
-	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace; with `hub_id`, the type belongs to that hub and needs STRUCTURE there instead.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -105721,7 +105848,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteEntryTypeWithResponse Delete an unused entry type
 	//
-	// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.
+	// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -105730,7 +105857,7 @@ type ClientWithResponsesInterface interface {
 
 	// ChangeEntryTypeWithBodyWithResponse Change an entry type
 	//
-	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -105739,7 +105866,7 @@ type ClientWithResponsesInterface interface {
 
 	// ChangeEntryTypeWithApplicationMergePatchPlusJSONBodyWithResponse Change an entry type
 	//
-	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 	//
 	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -105781,6 +105908,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
 	EvaluateEntryFormWithResponse(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*EvaluateEntryFormResult, error)
+
+	// CopyEntryTypeHereWithBodyWithResponse Make a copy of a shared entry type at a hub
+	//
+	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /entry-types/{key}:copy-here (the `CopyEntryTypeHere` operationId).
+	CopyEntryTypeHereWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyEntryTypeHereResult, error)
+
+	// CopyEntryTypeHereWithResponse Make a copy of a shared entry type at a hub
+	//
+	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /entry-types/{key}:copy-here (the `CopyEntryTypeHere` operationId).
+	CopyEntryTypeHereWithResponse(ctx context.Context, key string, body CopyEntryTypeHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyEntryTypeHereResult, error)
 
 	// UnlinkEntryFileWithResponse Take a file link off its entry
 	//
@@ -128470,6 +128615,54 @@ func (r EvaluateEntryFormResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r EvaluateEntryFormResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CopyEntryTypeHereResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *EntryType
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CopyEntryTypeHereResult) GetJSON201() *EntryType {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CopyEntryTypeHereResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CopyEntryTypeHereResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CopyEntryTypeHereResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CopyEntryTypeHereResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CopyEntryTypeHereResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -159318,7 +159511,7 @@ func (c *ClientWithResponses) SyncLdapDirectoryWithResponse(ctx context.Context,
 
 // ListEntryTypesWithResponse The workspace's entry types
 //
-// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
+// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. A type defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub; it is offered only inside that hub. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -159333,7 +159526,7 @@ func (c *ClientWithResponses) ListEntryTypesWithResponse(ctx context.Context, re
 
 // CreateEntryTypeWithBodyWithResponse Add an entry type
 //
-// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace; with `hub_id`, the type belongs to that hub and needs STRUCTURE there instead.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -159348,7 +159541,7 @@ func (c *ClientWithResponses) CreateEntryTypeWithBodyWithResponse(ctx context.Co
 
 // CreateEntryTypeWithResponse Add an entry type
 //
-// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace; with `hub_id`, the type belongs to that hub and needs STRUCTURE there instead.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -159363,7 +159556,7 @@ func (c *ClientWithResponses) CreateEntryTypeWithResponse(ctx context.Context, b
 
 // DeleteEntryTypeWithResponse Delete an unused entry type
 //
-// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.
+// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -159378,7 +159571,7 @@ func (c *ClientWithResponses) DeleteEntryTypeWithResponse(ctx context.Context, k
 
 // ChangeEntryTypeWithBodyWithResponse Change an entry type
 //
-// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -159393,7 +159586,7 @@ func (c *ClientWithResponses) ChangeEntryTypeWithBodyWithResponse(ctx context.Co
 
 // ChangeEntryTypeWithApplicationMergePatchPlusJSONBodyWithResponse Change an entry type
 //
-// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace, or at the hub for a type defined there.
 //
 // Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -159464,6 +159657,36 @@ func (c *ClientWithResponses) EvaluateEntryFormWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseEvaluateEntryFormResult(rsp)
+}
+
+// CopyEntryTypeHereWithBodyWithResponse Make a copy of a shared entry type at a hub
+//
+// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /entry-types/{key}:copy-here (the `CopyEntryTypeHere` operationId).
+func (c *ClientWithResponses) CopyEntryTypeHereWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyEntryTypeHereResult, error) {
+	rsp, err := c.CopyEntryTypeHereWithBody(ctx, key, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyEntryTypeHereResult(rsp)
+}
+
+// CopyEntryTypeHereWithResponse Make a copy of a shared entry type at a hub
+//
+// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /entry-types/{key}:copy-here (the `CopyEntryTypeHere` operationId).
+func (c *ClientWithResponses) CopyEntryTypeHereWithResponse(ctx context.Context, key string, body CopyEntryTypeHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyEntryTypeHereResult, error) {
+	rsp, err := c.CopyEntryTypeHere(ctx, key, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyEntryTypeHereResult(rsp)
 }
 
 // UnlinkEntryFileWithResponse Take a file link off its entry
@@ -181572,6 +181795,39 @@ func ParseEvaluateEntryFormResult(rsp *http.Response) (*EvaluateEntryFormResult,
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCopyEntryTypeHereResult parses an HTTP response from a CopyEntryTypeHereWithResponse call
+func ParseCopyEntryTypeHereResult(rsp *http.Response) (*CopyEntryTypeHereResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CopyEntryTypeHereResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest EntryType
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

@@ -16112,12 +16112,18 @@ type EntryType struct {
 	ColorToken  string `json:"color_token"`
 	Completable bool   `json:"completable"`
 
+	// CopiedFrom The key of the type this one was copied from; absent or null for a type made from scratch.
+	CopiedFrom *string `json:"copied_from,omitempty"`
+
 	// Description What the type is for, in the workspace's default words; empty for none. A portal shows it beside the name.
 	Description *string `json:"description,omitempty"`
 	Estimable   bool    `json:"estimable"`
 
 	// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
 	Form *EntryForm `json:"form,omitempty"`
+
+	// HubId The hub the type is defined at and offered in; absent or null for a type of the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon The name of an icon of the design system's set.
 	Icon string `json:"icon"`
@@ -16168,6 +16174,18 @@ type EntryTypeChange struct {
 	Workflow     *bool                  `json:"workflow,omitempty"`
 }
 
+// EntryTypeCopy defines model for EntryTypeCopy.
+type EntryTypeCopy struct {
+	// HubId The hub the copy belongs to.
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Key The copy's own key, free in the workspace.
+	Key string `json:"key"`
+
+	// Name The copy's name; unset keeps the source's. A system type nobody named has none to keep (`entry_types.name_empty`).
+	Name *string `json:"name,omitempty"`
+}
+
 // EntryTypeCreate defines model for EntryTypeCreate.
 type EntryTypeCreate struct {
 	AllowedChildren *[]string `json:"allowed_children,omitempty"`
@@ -16175,8 +16193,11 @@ type EntryTypeCreate struct {
 	Completable     *bool     `json:"completable,omitempty"`
 	Description     *string   `json:"description,omitempty"`
 	Estimable       *bool     `json:"estimable,omitempty"`
-	Icon            string    `json:"icon"`
-	Key             string    `json:"key"`
+
+	// HubId Defines the type at this hub, offered only inside it; unset is the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Icon  string              `json:"icon"`
+	Key   string              `json:"key"`
 
 	// Level Extensible; /meta/capabilities returns the valid values.
 	Level       ItemType `json:"level"`
@@ -28489,6 +28510,9 @@ type SetEntryTypeFormJSONRequestBody = EntryForm
 // EvaluateEntryFormJSONRequestBody defines body for EvaluateEntryForm for application/json ContentType.
 type EvaluateEntryFormJSONRequestBody = EntryFormDraft
 
+// CopyEntryTypeHereJSONRequestBody defines body for CopyEntryTypeHere for application/json ContentType.
+type CopyEntryTypeHereJSONRequestBody = EntryTypeCopy
+
 // DefineGoalPeriodJSONRequestBody defines body for DefineGoalPeriod for application/json ContentType.
 type DefineGoalPeriodJSONRequestBody = GoalPeriodWrite
 
@@ -30534,6 +30558,9 @@ type ServerInterface interface {
 	// EvaluateEntryForm Answer a type's form for a draft
 	// (POST /entry-types/{key}/form:evaluate)
 	EvaluateEntryForm(w http.ResponseWriter, r *http.Request, key string)
+	// CopyEntryTypeHere Make a copy of a shared entry type at a hub
+	// (POST /entry-types/{key}:copy-here)
+	CopyEntryTypeHere(w http.ResponseWriter, r *http.Request, key string)
 	// UnlinkEntryFile Take a file link off its entry
 	// (DELETE /file-links/{linkId})
 	UnlinkEntryFile(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID)
@@ -42651,6 +42678,32 @@ func (siw *ServerInterfaceWrapper) EvaluateEntryForm(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EvaluateEntryForm(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CopyEntryTypeHere operation middleware
+func (siw *ServerInterfaceWrapper) CopyEntryTypeHere(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CopyEntryTypeHere(w, r, key)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -59632,6 +59685,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/entry-types", wrapper.CreateEntryType)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/entry-types/{key}", wrapper.DeleteEntryType)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/entry-types/{key}", wrapper.ChangeEntryType)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/entry-types/{key}:copy-here", wrapper.CopyEntryTypeHere)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/entry-types/{key}/form", wrapper.SetEntryTypeForm)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/entry-types/{key}/form:evaluate", wrapper.EvaluateEntryForm)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workflows", wrapper.ListWorkflows)
