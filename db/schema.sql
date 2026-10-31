@@ -2229,6 +2229,25 @@ ALTER TABLE page_label FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON page_label
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON page_label TO hubtask_app;
+-- What waits on a page to be published in a space with drafts (migration 0306, UC-DOC-15).
+CREATE TABLE page_draft (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id     uuid NOT NULL,
+  unpublished boolean NOT NULL DEFAULT false,
+  title       text CHECK (title IS NULL OR char_length(title) BETWEEN 1 AND 200),
+  body        text CHECK (body IS NULL OR octet_length(body) <= 1048576),
+  updated_by  uuid NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id),
+  CHECK (unpublished OR (title IS NOT NULL AND body IS NOT NULL)),
+  CONSTRAINT page_draft_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+ALTER TABLE page_draft ENABLE ROW LEVEL SECURITY;
+ALTER TABLE page_draft FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON page_draft
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_draft TO hubtask_app;
 -- Cleared rather than refused when the picture goes: a replace-restore and an erasure both remove
 -- media before the account row is done with (migration 0199).
 ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey

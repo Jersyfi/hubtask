@@ -503,3 +503,57 @@ func TestAPagesLabelsNarrowASearchInItsWorkspaceAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// UC-DOC-15: a page's draft is read as written, replaced by the next, counted for its space while
+// it waits on a published page, and invisible to the workspace next door (migration 0306).
+func TestAPagesDraftIsReadAsWrittenAndStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hub, root, child := seedSpace(ctx, t)
+	drafts := postgres.NewPageDraftRepository()
+	at := time.Date(2026, 10, 31, 9, 0, 0, 0, time.UTC)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := drafts.Put(ctx, knowledge.Draft{PageID: root, Title: "Handbook", Body: "v2", UpdatedBy: authorA, UpdatedAt: at}); err != nil {
+			return err
+		}
+		if err := drafts.Put(ctx, knowledge.Draft{PageID: root, Title: "Handbook", Body: "v3", UpdatedBy: authorA, UpdatedAt: at}); err != nil {
+			return err
+		}
+		if err := drafts.Put(ctx, knowledge.Draft{PageID: child, Unpublished: true, UpdatedBy: authorA, UpdatedAt: at}); err != nil {
+			return err
+		}
+		if found, ok, err := drafts.Find(ctx, root); err != nil || !ok || found.Body != "v3" || found.Unpublished {
+			t.Errorf("draft %+v, %v, %v", found, ok, err)
+		}
+		if found, ok, err := drafts.Find(ctx, child); err != nil || !ok || !found.Unpublished || found.Body != "" {
+			t.Errorf("mark %+v, %v, %v", found, ok, err)
+		}
+		if pending, err := drafts.Pending(ctx, hub); err != nil || pending != 1 {
+			t.Errorf("pending %d, %v", pending, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, ok, err := drafts.Find(ctx, root); err != nil || ok {
+			t.Errorf("the workspace next door read the draft: %v, %v", ok, err)
+		}
+		if removed, _ := drafts.Delete(ctx, root); removed {
+			t.Error("the workspace next door removed the draft")
+		}
+		if pending, _ := drafts.Pending(ctx, hub); pending != 0 {
+			t.Errorf("the workspace next door counted %d drafts", pending)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if removed, err := drafts.Delete(ctx, root); err != nil || !removed {
+			t.Errorf("delete %v, %v", removed, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

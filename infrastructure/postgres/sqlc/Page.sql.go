@@ -127,6 +127,33 @@ func (q *Queries) CountPageMedia(ctx context.Context, pageID pgtype.UUID) (int32
 	return column_1, err
 }
 
+const countPendingPageDrafts = `-- name: CountPendingPageDrafts :one
+SELECT count(*)::int FROM page_draft d
+JOIN page p ON p.tenant_id = d.tenant_id AND p.id = d.page_id
+WHERE d.tenant_id = current_tenant_id() AND NOT d.unpublished
+  AND p.hub_id = $1 AND p.deleted_at IS NULL
+`
+
+// The drafts of published pages in a hub's space; a trashed page's draft waits for nobody.
+func (q *Queries) CountPendingPageDrafts(ctx context.Context, hubID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countPendingPageDrafts, hubID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const deletePageDraft = `-- name: DeletePageDraft :execrows
+DELETE FROM page_draft WHERE tenant_id = current_tenant_id() AND page_id = $1
+`
+
+func (q *Queries) DeletePageDraft(ctx context.Context, pageID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePageDraft, pageID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deletePagePublicLink = `-- name: DeletePagePublicLink :execrows
 DELETE FROM page_public_link WHERE tenant_id = current_tenant_id() AND page_id = $1
 `
@@ -287,6 +314,32 @@ func (q *Queries) FindPageComment(ctx context.Context, id pgtype.UUID) (FindPage
 		&i.EditedAt,
 		&i.DeletedAt,
 		&i.Version,
+	)
+	return i, err
+}
+
+const findPageDraft = `-- name: FindPageDraft :one
+SELECT unpublished, title, body, updated_by, updated_at FROM page_draft
+WHERE tenant_id = current_tenant_id() AND page_id = $1
+`
+
+type FindPageDraftRow struct {
+	Unpublished bool
+	Title       *string
+	Body        *string
+	UpdatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) FindPageDraft(ctx context.Context, pageID pgtype.UUID) (FindPageDraftRow, error) {
+	row := q.db.QueryRow(ctx, findPageDraft, pageID)
+	var i FindPageDraftRow
+	err := row.Scan(
+		&i.Unpublished,
+		&i.Title,
+		&i.Body,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -1525,6 +1578,36 @@ func (q *Queries) PublishPageArticle(ctx context.Context, arg PublishPageArticle
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const putPageDraft = `-- name: PutPageDraft :exec
+INSERT INTO page_draft (tenant_id, page_id, unpublished, title, body, updated_by, updated_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4,
+        $5, $6)
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  unpublished = EXCLUDED.unpublished, title = EXCLUDED.title, body = EXCLUDED.body,
+  updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
+`
+
+type PutPageDraftParams struct {
+	PageID      pgtype.UUID
+	Unpublished bool
+	Title       *string
+	Body        *string
+	UpdatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) PutPageDraft(ctx context.Context, arg PutPageDraftParams) error {
+	_, err := q.db.Exec(ctx, putPageDraft,
+		arg.PageID,
+		arg.Unpublished,
+		arg.Title,
+		arg.Body,
+		arg.UpdatedBy,
+		arg.UpdatedAt,
+	)
+	return err
 }
 
 const putPagePublicLink = `-- name: PutPagePublicLink :exec

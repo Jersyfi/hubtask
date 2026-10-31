@@ -182,6 +182,16 @@ type Pages interface {
 	CountMedia(ctx context.Context, pageID shared.ID) (int, error)
 }
 
+// Drafts keeps what waits to be published in a space with drafts (UC-DOC-15): one per page.
+type Drafts interface {
+	Find(ctx context.Context, pageID shared.ID) (knowledge.Draft, bool, error)
+	// Put writes the page's draft, replacing the one it had.
+	Put(ctx context.Context, draft knowledge.Draft) error
+	Delete(ctx context.Context, pageID shared.ID) (bool, error)
+	// Pending counts the drafts of published pages in a hub's space, a trashed page's not.
+	Pending(ctx context.Context, hubID shared.ID) (int, error)
+}
+
 // PublicLinks stores a page's public link (UC-DOC-08). It is the only place that knows how a
 // token becomes its hash, for the calendar feed's reason: the pepper is a secret of the adapter
 // (security.md §8), so the port takes the presented token whole.

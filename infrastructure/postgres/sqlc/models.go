@@ -2404,6 +2404,16 @@ type PageComment struct {
 	Version    int32
 }
 
+type PageDraft struct {
+	TenantID    pgtype.UUID
+	PageID      pgtype.UUID
+	Unpublished bool
+	Title       *string
+	Body        *string
+	UpdatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type PageLabel struct {
 	TenantID pgtype.UUID
 	PageID   pgtype.UUID

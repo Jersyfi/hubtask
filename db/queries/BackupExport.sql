@@ -1861,3 +1861,16 @@ FROM (
   WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text)
   ORDER BY s.key_1, s.key_2
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPageDrafts :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (d.page_id)::text AS record_id,
+         d.updated_at AS changed_at,
+         (to_jsonb(d) - 'tenant_id')::jsonb AS payload,
+         d.page_id AS key_1
+  FROM page_draft d
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;

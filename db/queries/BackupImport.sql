@@ -3849,3 +3849,23 @@ SELECT EXISTS (
 
 -- name: ClearPageLabel :execrows
 DELETE FROM page_label;
+
+-- name: ImportPageDraft :execrows
+INSERT INTO page_draft (tenant_id, page_id, unpublished, title, body, updated_by, updated_at)
+SELECT r.tenant_id, r.page_id, r.unpublished, r.title, r.body, r.updated_by, r.updated_at
+FROM jsonb_populate_record(
+  NULL::page_draft,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  unpublished = EXCLUDED.unpublished, title = EXCLUDED.title, body = EXCLUDED.body,
+  updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPageDraft :one
+SELECT EXISTS (
+  SELECT 1 FROM page_draft WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+) AS held;
+
+-- name: ClearPageDraft :execrows
+DELETE FROM page_draft;

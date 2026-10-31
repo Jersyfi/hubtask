@@ -116,6 +116,7 @@ var subjectColumns = map[string][]string{
 	"page_share":       {"account_id", "granted_by"},
 	"personal_space":   {"account_id"},
 	"page_public_link": {"created_by"},
+	"page_draft":       {"updated_by"},
 	// The public forms they made, whose requests are filed as them.
 	"public_form": {"created_by"},
 	// The articles they published to a portal and the ones they rated.

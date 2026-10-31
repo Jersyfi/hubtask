@@ -3721,6 +3721,51 @@ func (q *Queries) ExportPageComments(ctx context.Context, arg ExportPageComments
 	return items, nil
 }
 
+const exportPageDrafts = `-- name: ExportPageDrafts :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (d.page_id)::text AS record_id,
+         d.updated_at AS changed_at,
+         (to_jsonb(d) - 'tenant_id')::jsonb AS payload,
+         d.page_id AS key_1
+  FROM page_draft d
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPageDraftsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPageDraftsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPageDrafts(ctx context.Context, arg ExportPageDraftsParams) ([]ExportPageDraftsRow, error) {
+	rows, err := q.db.Query(ctx, exportPageDrafts, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPageDraftsRow{}
+	for rows.Next() {
+		var i ExportPageDraftsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPageLabel = `-- name: ExportPageLabel :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

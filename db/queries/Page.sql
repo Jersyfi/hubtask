@@ -423,3 +423,25 @@ ON CONFLICT DO NOTHING;
 -- name: CountPageMedia :one
 SELECT count(*)::int FROM page_media
 WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
+
+-- name: FindPageDraft :one
+SELECT unpublished, title, body, updated_by, updated_at FROM page_draft
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
+
+-- name: PutPageDraft :exec
+INSERT INTO page_draft (tenant_id, page_id, unpublished, title, body, updated_by, updated_at)
+VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('unpublished'), sqlc.narg('title'), sqlc.narg('body'),
+        sqlc.arg('updated_by'), sqlc.arg('updated_at'))
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  unpublished = EXCLUDED.unpublished, title = EXCLUDED.title, body = EXCLUDED.body,
+  updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at;
+
+-- name: DeletePageDraft :execrows
+DELETE FROM page_draft WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
+
+-- name: CountPendingPageDrafts :one
+-- The drafts of published pages in a hub's space; a trashed page's draft waits for nobody.
+SELECT count(*)::int FROM page_draft d
+JOIN page p ON p.tenant_id = d.tenant_id AND p.id = d.page_id
+WHERE d.tenant_id = current_tenant_id() AND NOT d.unpublished
+  AND p.hub_id = sqlc.arg('hub_id') AND p.deleted_at IS NULL;

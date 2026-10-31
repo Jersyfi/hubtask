@@ -975,6 +975,18 @@ func (q *Queries) ClearPageComment(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPageDraft = `-- name: ClearPageDraft :execrows
+DELETE FROM page_draft
+`
+
+func (q *Queries) ClearPageDraft(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageDraft)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPageLabel = `-- name: ClearPageLabel :execrows
 DELETE FROM page_label
 `
@@ -2511,6 +2523,19 @@ SELECT EXISTS (SELECT 1 FROM page_comment WHERE id = ($1::jsonb->>'id')::uuid) A
 
 func (q *Queries) HoldsPageComment(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPageComment, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPageDraft = `-- name: HoldsPageDraft :one
+SELECT EXISTS (
+  SELECT 1 FROM page_draft WHERE page_id = ($1::jsonb->>'page_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPageDraft(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPageDraft, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6038,6 +6063,32 @@ type ImportPageCommentParams struct {
 
 func (q *Queries) ImportPageComment(ctx context.Context, arg ImportPageCommentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPageComment, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPageDraft = `-- name: ImportPageDraft :execrows
+INSERT INTO page_draft (tenant_id, page_id, unpublished, title, body, updated_by, updated_at)
+SELECT r.tenant_id, r.page_id, r.unpublished, r.title, r.body, r.updated_by, r.updated_at
+FROM jsonb_populate_record(
+  NULL::page_draft,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  unpublished = EXCLUDED.unpublished, title = EXCLUDED.title, body = EXCLUDED.body,
+  updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
+WHERE $2::boolean
+`
+
+type ImportPageDraftParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPageDraft(ctx context.Context, arg ImportPageDraftParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPageDraft, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

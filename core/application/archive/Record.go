@@ -721,6 +721,14 @@ var entities = []Entity{
 			{Field: "media_id", Table: "media_object"},
 		},
 	},
+	// What waits on a page to be published in a space with drafts (migration 0306).
+	{
+		Name: "page_drafts", Table: "page_draft", Whole: true, Unmarked: true, Later: true, Keys: []string{"page_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "updated_by", Table: "account"},
+		},
+	},
 	// The labels a page carries (migration 0297), after the pages.
 	{
 		Name: "page_labels", Table: "page_label", Whole: true, Later: true, Keys: []string{"page_id", "label"},

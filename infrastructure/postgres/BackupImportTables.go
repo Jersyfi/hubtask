@@ -887,6 +887,17 @@ var importers = map[string]importer{
 			return queries.ClearPublicForm(ctx)
 		},
 	},
+	"page_draft": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportPageDraft(ctx, sqlc.ImportPageDraftParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPageDraft(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPageDraft(ctx)
+		},
+	},
 	"page_public_link": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportPagePublicLink(ctx, sqlc.ImportPagePublicLinkParams{Payload: payload, Overwrite: overwrite})
