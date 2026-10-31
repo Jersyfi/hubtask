@@ -26,6 +26,7 @@ const roadmap: PortfolioRoadmap = {
   ],
 };
 
+// UC-GOL-03 checks 10, 12 and 14: the rows the timeline and the table share.
 test('a lane, its projects and their bars, in that order and depth', () => {
   const rows = roadmapRows(roadmap, 'A hub you cannot see');
   assert.deepEqual(rows.map((row) => [row.level, row.depth]), [

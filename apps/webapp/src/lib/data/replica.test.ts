@@ -620,6 +620,9 @@ test('the portfolios are answered from the copy', async () => {
   assert.equal(one.latest_update, null);
   assert.equal(one.progress, null);
   assert.equal(await storeFor({ path: '/portfolios/none' }, storage), undefined);
+  // The roadmap's bars are each project's plan as the server schedules it: it waits for the
+  // server rather than drawing the copy's guess (UC-GOL-03 check 13).
+  assert.equal(await storeFor({ path: '/portfolios/p-1/roadmap?zone=UTC' }, storage), undefined);
 });
 
 // UC-GOL-01, 02 and 04 offline: the periods, a period's goals and a hub's dashboards are answered

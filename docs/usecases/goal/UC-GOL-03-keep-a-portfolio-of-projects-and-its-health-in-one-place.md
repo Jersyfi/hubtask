@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
+checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, core/application/service/goal/Roadmap_test.go, apps/webapp/src/lib/data/roadmap.test.ts, apps/webapp/src/lib/data/replica.test.ts]
 ---
 
 # Keep a portfolio of projects and its health in one place
@@ -45,8 +45,21 @@ Ana's update "late, at risk" makes the programme at risk.
 9. For a reader who manages costs at a project (`MANAGE_COSTS`, or `MANAGE_MEMBERS`), the portfolio
    read alone shows the project's budget and burn as the time module answers them, and their sum -
    money only while every budget is in one currency; nobody else sees a budget.
+10. The portfolio's roadmap (`GET /portfolios/{id}/roadmap`) draws one lane per hub, each project the
+    reader may read in its hub's lane with the dates the portfolio plans it for and its health; a
+    project or a lane the reader may not read is not shown, and a hub the reader may not read names
+    no lane.
+11. Each project carries a bar per top-level entry with the start and finish its own plan schedules
+    for the reader, marked milestone, done and critical, so the roadmap shows no entry or date the
+    project's *Plan* screen would not.
+12. The roadmap is read only: it needs `READ` at the workspace, moves no bar, and a press on a lane,
+    a project or a bar opens the hub, the project's plan or the entry.
+13. The roadmap is read online: offline it waits for the server rather than drawing a guess from
+    the copy.
+14. The web app draws the roadmap as a timeline and beside it as a table of the same rows, the
+    keyboard and screen-reader path.
 
 ## Where it ends
 
-* No portfolio timeline or workload view.
+* No workload view; a bar is moved on its project's *Plan* screen, not on the roadmap.
 * No scheduled status reports and no intake of proposals into projects.

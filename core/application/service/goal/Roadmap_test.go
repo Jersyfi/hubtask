@@ -9,6 +9,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
 // plans answers each project's plan as ReadPlanSchedule would: Launch an epic with a task under
@@ -30,8 +31,8 @@ func (plans) Invoke(_ context.Context, _ appshared.ActorContext, in usecase.Inpu
 	return usecase.Output{"entries": []usecase.Output{}}, nil
 }
 
-// PLN roadmap (planning.md §2): a lane per hub, a bar per top-level entry, and a reader sees only
-// the projects and the lanes they may read.
+// UC-GOL-03 checks 10 to 12 (planning.md §2): a lane per hub, a bar per top-level entry, a reader
+// sees only the projects and the lanes they may read, and nothing is written.
 func TestARoadmapDrawsALanePerHubAndABarPerTopLevelEntry(t *testing.T) {
 	s, _, _, _ := newSteward(t)
 	s.Schedules = plans{}
@@ -58,5 +59,9 @@ func TestARoadmapDrawsALanePerHubAndABarPerTopLevelEntry(t *testing.T) {
 	asBen := ok(t, ReadPortfolioRoadmap{s}.Descriptor(), ben, usecase.Input{"portfolio_id": id})
 	if lanes := asBen["lanes"].([]usecase.Output); len(lanes) != 1 || lanes[0]["hub_id"] != hubA.String() {
 		t.Fatalf("Ben sees the lanes %v", lanes)
+	}
+	// Read only: the roadmap moves no bar, a bar moves on its project's plan.
+	if d := (ReadPortfolioRoadmap{s}).Descriptor(); !d.ReadOnly || d.Permission != service.PermissionRead {
+		t.Fatalf("the roadmap is %+v, not a read", d)
 	}
 }
