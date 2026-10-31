@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11, P-12]
 state: built
 tasks: []
-checked_by: [core/application/service/privacy/IntakeLines_test.go, core/domain/model/mail/Route_test.go, core/domain/model/mail/Settings_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go, presentation/rest/MailIntakeController_test.go, apps/webapp/e2e/mail.test.mjs]
+checked_by: [core/application/service/privacy/IntakeLines_test.go, core/application/service/privacy/ErasureAddress_test.go, test/integration/requester_test.go, core/domain/model/mail/Route_test.go, core/domain/model/mail/Settings_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go, presentation/rest/MailIntakeController_test.go, apps/webapp/e2e/mail.test.mjs]
 ---
 
 # Receive mail into a place
@@ -55,6 +55,9 @@ operator's receiving domain.
 8. When the sender's address is erased, or its requester record expires, the *From:* line goes from
    the entries and comments filed for them, written in their history as an ordinary edit; a hold
    on the workspace keeps it.
+9. A data subject case naming only the sender's address (UC-PRV-01 check 11) erases its requester
+   record, its mail receipts and what it sent into the jumble - removed in a full deletion, kept
+   without the address otherwise - in this workspace only; a hold on the workspace keeps it all.
 
 ## Where it ends
 

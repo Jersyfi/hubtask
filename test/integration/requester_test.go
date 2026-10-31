@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -175,5 +176,79 @@ func TestTheIntakeLinesOfAnAddressStayInTheirWorkspace(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Third answers 3 (UC-PRV-01 check 11, UC-JUM-12 check 9): an erasure by address takes the
+// requester record, the mail receipts and the intake of that address in this workspace - the
+// entries gone in a full deletion, kept without the address otherwise - and nothing next door.
+func TestAnErasureByAddressTakesTheReceiptsAndTheIntake(t *testing.T) {
+	ctx := context.Background()
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO tenant (id, slug, display_name, default_locale, default_time_zone)
+		VALUES ($1, 'tenant-a', 'A', 'de', 'Europe/Berlin'), ($2, 'tenant-b', 'B', 'en', 'UTC')
+		ON CONFLICT (id) DO NOTHING`, tenantA.String(), tenantB.String()); err != nil {
+		t.Fatalf("seeding the workspaces: %v", err)
+	}
+	item := seedWorkItemForRules(ctx, t, tenantA)
+	store := postgres.RequesterRepository{IDs: freshIDs{t}}
+	entryOf := func(tenant, a shared.ID) shared.ID {
+		if tenant == tenantA {
+			return a
+		}
+		return freshID(t)
+	}
+	for _, full := range []bool{true, false} {
+		address := "erase-" + freshID(t).String()[28:] + "@shop.test"
+		sent := strings.ToUpper(address[:1]) + address[1:]
+		entryA := freshID(t)
+		for _, tenant := range []shared.ID{tenantA, tenantB} {
+			if _, err := admin.Exec(ctx, `INSERT INTO mail_receipt (id, tenant_id, message_id, received_at, sender, subject, outcome, door)
+				VALUES ($1, $2, $3, now(), $4, 's', 'JUMBLE', 'MAIL')`,
+				freshID(t).String(), tenant.String(), "<"+freshID(t).String()+"@shop.test>", sent); err != nil {
+				t.Fatalf("writing a receipt: %v", err)
+			}
+			if _, err := admin.Exec(ctx, `INSERT INTO jumble_entry (id, tenant_id, channel, sender, raw_subject, raw_body)
+				VALUES ($1, $2, 'EMAIL', $3, 's', 'b')`, entryOf(tenant, entryA).String(), tenant.String(), sent); err != nil {
+				t.Fatalf("writing an entry: %v", err)
+			}
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			if err := store.RecordContact(ctx, address, "Kunde", item, time.Now().UTC()); err != nil {
+				return err
+			}
+			if n, err := store.CountAddress(ctx, address); err != nil || n != 3 {
+				t.Errorf("full %v: counted %d of the address, want record, receipt and entry (%v)", full, n, err)
+			}
+			n, err := store.EraseAddress(ctx, address, full)
+			if err != nil || n != 3 {
+				t.Errorf("full %v: erased %d, want 3 (%v)", full, n, err)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		in := func(tenant shared.ID, query string) int {
+			return countIn(ctx, t, query, tenant.String(), address)
+		}
+		const receipts = `SELECT count(*) FROM mail_receipt WHERE tenant_id = $1 AND lower(sender) = $2`
+		const entries = `SELECT count(*) FROM jumble_entry WHERE tenant_id = $1 AND lower(sender) = $2`
+		if n := countIn(ctx, t, `SELECT count(*) FROM requester WHERE address = $1`, address); n != 0 {
+			t.Errorf("full %v: the requester record is still there", full)
+		}
+		if n := in(tenantA, receipts); n != 0 {
+			t.Errorf("full %v: %d receipts of the address stayed", full, n)
+		}
+		if n := in(tenantA, entries); n != 0 {
+			t.Errorf("full %v: %d entries still name the address", full, n)
+		}
+		if in(tenantB, receipts) != 1 || in(tenantB, entries) != 1 {
+			t.Errorf("full %v: the erasure reached another workspace", full)
+		}
+		kept := countIn(ctx, t, `SELECT count(*) FROM jumble_entry WHERE id = $1 AND sender IS NULL AND raw_body = 'b'`, entryA.String())
+		if !full && kept != 1 {
+			t.Errorf("anonymising dropped the entry's text instead of the address")
+		}
 	}
 }
