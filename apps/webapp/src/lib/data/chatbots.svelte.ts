@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The writes of a hub's Matrix bots (UC-INT-18).
+// The writes of a hub's chat bots (UC-INT-18, UC-INT-19).
 
 import type { ChatBot } from '@hubtask/sync-engine';
 
