@@ -34,6 +34,8 @@ type documents struct {
 	updates  []domain.Update
 	ended    bool
 	asked    int
+	// refusing answers every update as a log at its ceiling would (domain.MaxUncompacted).
+	refusing bool
 }
 
 func (d *documents) Open(context.Context, appshared.ActorContext, domain.Ref) (realtimeservice.Opened, error) {
@@ -66,6 +68,9 @@ func (d *documents) Since(_ context.Context, _ appshared.ActorContext, _ domain.
 func (d *documents) Append(_ context.Context, _ appshared.ActorContext, _ domain.Ref, data []byte) (realtimeservice.Appended, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.refusing {
+		return realtimeservice.Appended{}, domain.Head{Seq: domain.MaxUncompacted}.CheckAppend()
+	}
 	seq := int64(len(d.updates)) + 2
 	d.updates = append(d.updates, domain.Update{Seq: seq, Data: data})
 	return realtimeservice.Appended{Seq: seq}, nil
@@ -322,5 +327,44 @@ func TestAwarenessCrossesToAnotherProcess(t *testing.T) {
 		if latest := next(t, there); !bytes.Equal(latest, Awareness([]byte("cursor-2"))) {
 			t.Errorf("the latest cursor did not follow: %v", latest)
 		}
+	}
+}
+
+type backlogSignals struct {
+	mu       sync.Mutex
+	outcomes []string
+}
+
+func (b *backlogSignals) DocumentBacklog(_ context.Context, outcome string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.outcomes = append(b.outcomes, outcome)
+}
+
+// A log at its ceiling refuses the writer's update without ending the connection: the writer is
+// asked for its snapshot at once, every time, and each refusal is counted (A-24).
+func TestARefusedUpdateAsksTheWriterForItsSnapshot(t *testing.T) {
+	docs := &documents{writable: true, refusing: true, updates: []domain.Update{{Seq: 2, Data: []byte("u2")}}}
+	signals := &backlogSignals{}
+	handler := Handler{Documents: docs, Relay: NewRelay(), Signals: signals}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil)
+	}))
+	t.Cleanup(server.Close)
+	writer := dial(t, server)
+	next(t, writer) // the snapshot
+	next(t, writer) // the update after it
+	next(t, writer) // step one
+
+	for range 2 {
+		send(t, writer, SyncUpdate([]byte("typed")))
+		if got := next(t, writer); !bytes.Equal(got, CompactionDue(2)) {
+			t.Fatalf("answered %v, want the request for a snapshot up to 2", got)
+		}
+	}
+	signals.mu.Lock()
+	defer signals.mu.Unlock()
+	if len(signals.outcomes) != 2 || signals.outcomes[0] != "refused" {
+		t.Errorf("counted %v", signals.outcomes)
 	}
 }

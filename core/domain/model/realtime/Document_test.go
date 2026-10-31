@@ -111,3 +111,38 @@ func detail(err error) string {
 	}
 	return err.Error()
 }
+
+// A log no writer compacts is watched past five rounds of compaction and refuses new updates past
+// ten, so it cannot grow without bound; a snapshot is always taken and lifts the refusal.
+func TestALogNobodyCompactsIsBounded(t *testing.T) {
+	cases := []struct {
+		name          string
+		head          Head
+		due, overdue  bool
+		appendRefused bool
+	}{
+		{"fresh", Head{Seq: 10}, false, false, false},
+		{"due", Head{Seq: CompactAfter}, true, false, false},
+		{"past the alarm", Head{Seq: 120 + BacklogAlarm, SnapshotSeq: 120}, true, true, false},
+		{"at the ceiling", Head{Seq: 7 + MaxUncompacted, SnapshotSeq: 7}, true, true, true},
+		{"compacted again", Head{Seq: 7 + MaxUncompacted, SnapshotSeq: MaxUncompacted}, false, false, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if c.head.CompactionDue() != c.due || c.head.Overdue() != c.overdue {
+				t.Errorf("due %v overdue %v, want %v %v", c.head.CompactionDue(), c.head.Overdue(), c.due, c.overdue)
+			}
+			err := c.head.CheckAppend()
+			if (err != nil) != c.appendRefused {
+				t.Fatalf("CheckAppend = %v, want refused %v", err, c.appendRefused)
+			}
+			var coded *shared.Error
+			if err != nil && (!errors.Is(err, shared.ErrConflict) || !errors.As(err, &coded) || coded.DetailCode != "realtime.compaction_overdue") {
+				t.Errorf("refused with %v", err)
+			}
+		})
+	}
+	if c := (Head{Seq: 900, SnapshotSeq: 100}); c.Backlog() != 800 {
+		t.Errorf("backlog %d", c.Backlog())
+	}
+}

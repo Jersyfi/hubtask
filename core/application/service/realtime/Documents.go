@@ -156,9 +156,13 @@ func (d Documents) Since(
 type Appended struct {
 	Seq           int64
 	CompactionDue bool
+	// Overdue is a log asked five rounds over without a snapshot (domain.BacklogAlarm), counted
+	// for the alert that warns before reconnects slow down.
+	Overdue bool
 }
 
-// Append stores one update from a writer.
+// Append stores one update from a writer, unless the log has reached domain.MaxUncompacted
+// without a snapshot: then it is refused (realtime.compaction_overdue) and nothing is stored.
 func (d Documents) Append(
 	ctx context.Context, actor appshared.ActorContext, ref domain.Ref, data []byte,
 ) (Appended, error) {
@@ -170,15 +174,19 @@ func (d Documents) Append(
 	}
 	var out Appended
 	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		seq, err := d.Store.Append(ctx, ref, data, actor.AccountID, d.Clock.Now())
-		if err != nil {
-			return err
-		}
 		head, err := d.Store.Head(ctx, ref)
 		if err != nil {
 			return err
 		}
-		out = Appended{Seq: seq, CompactionDue: head.CompactionDue()}
+		if err := head.CheckAppend(); err != nil {
+			return err
+		}
+		seq, err := d.Store.Append(ctx, ref, data, actor.AccountID, d.Clock.Now())
+		if err != nil {
+			return err
+		}
+		after := domain.Head{Seq: seq, SnapshotSeq: head.SnapshotSeq}
+		out = Appended{Seq: seq, CompactionDue: after.CompactionDue(), Overdue: after.Overdue()}
 		return nil
 	})
 	return out, err

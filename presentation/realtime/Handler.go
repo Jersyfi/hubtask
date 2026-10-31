@@ -77,6 +77,14 @@ type Handler struct {
 	// change then re-asks access at most every accessRecheck instead of catching up each time.
 	DocumentWakeups DocumentWakeups
 	Relay           *Relay
+	// Signals is optional; nil records nothing.
+	Signals Signals
+}
+
+// Signals counts a log nobody compacts (A-24): an update landing past domain.BacklogAlarm
+// ("overdue") and one refused at domain.MaxUncompacted ("refused").
+type Signals interface {
+	DocumentBacklog(ctx context.Context, outcome string)
 }
 
 // Serve opens the document and holds the connection until the client leaves, the process asks it
@@ -281,8 +289,17 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 			return shared.ErrForbidden.WithDetail("realtime.read_only")
 		}
 		appended, err := c.h.Documents.Append(ctx, c.actor, c.ref, message.Payload)
+		if coded := (*shared.Error)(nil); errors.As(err, &coded) && coded.DetailCode == "realtime.compaction_overdue" {
+			// Not the connection's end: the writer's snapshot is its whole state, these words
+			// included, and it lifts the refusal.
+			c.signal(ctx, "refused")
+			return c.write(ctx, CompactionDue(c.last))
+		}
 		if err != nil {
 			return err
+		}
+		if appended.Overdue {
+			c.signal(ctx, "overdue")
 		}
 		c.own[appended.Seq] = true
 		if appended.CompactionDue {
@@ -315,6 +332,12 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 		return err
 	}
 	return nil
+}
+
+func (c *connection) signal(ctx context.Context, outcome string) {
+	if c.h.Signals != nil {
+		c.h.Signals.DocumentBacklog(ctx, outcome)
+	}
 }
 
 // catchUp hands out what was appended since the last update this connection knows of, its own

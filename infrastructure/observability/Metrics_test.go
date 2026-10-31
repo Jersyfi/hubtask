@@ -510,3 +510,15 @@ func TestWithoutARecordPathNoDrillGaugeExists(t *testing.T) {
 		t.Errorf("the gauge exists without a record path:\n%s", body)
 	}
 }
+
+// A-24 reads a log nobody compacts under this name and outcome, never naming the document
+// (rule 10).
+func TestADocumentBacklogIsCountedByOutcome(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+
+	m.DocumentBacklog(context.Background(), "refused")
+
+	if body := scrape(t, m); !strings.Contains(body, `hubtask_realtime_document_backlog_total{outcome="refused"} 1`) {
+		t.Errorf("the refusal was not counted:\n%s", body)
+	}
+}

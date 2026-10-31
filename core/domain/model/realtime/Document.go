@@ -61,6 +61,13 @@ const (
 	// MaxOpenUpdates bounds what one opening reads; a log longer than that past its snapshot is
 	// answered in pages and compaction is asked for.
 	MaxOpenUpdates = 2000
+	// BacklogAlarm is a log that five rounds of asking left uncompacted: a writer that does not
+	// answer 101, or none connected. The server cannot merge on its own (no CRDT in Go,
+	// offline-sync.md SY-F), so it is counted for an alert (A-24) before reconnects slow down.
+	BacklogAlarm = 5 * CompactAfter
+	// MaxUncompacted refuses new updates until a snapshot comes: refusal instead of a log that
+	// grows without bound. A writer's snapshot is its whole state, the refused words included.
+	MaxUncompacted = 10 * CompactAfter
 )
 
 // Update is one CRDT update as the log keeps it: its place in the document's order, the bytes as
@@ -119,7 +126,22 @@ type Head struct {
 
 // CompactionDue reports whether the log has grown far enough past its snapshot that a writer
 // should send a new one.
-func (h Head) CompactionDue() bool { return h.Seq-h.SnapshotSeq >= CompactAfter }
+func (h Head) CompactionDue() bool { return h.Backlog() >= CompactAfter }
+
+// Backlog is how many updates follow the snapshot.
+func (h Head) Backlog() int64 { return h.Seq - h.SnapshotSeq }
+
+// Overdue reports a log asked for a snapshot five rounds over without one (BacklogAlarm).
+func (h Head) Overdue() bool { return h.Backlog() >= BacklogAlarm }
+
+// CheckAppend refuses one more update to a log at MaxUncompacted.
+func (h Head) CheckAppend() error {
+	if h.Backlog() >= MaxUncompacted {
+		return shared.ErrConflict.WithDetail("realtime.compaction_overdue").
+			WithParams(map[string]string{"max": strconv.Itoa(MaxUncompacted)})
+	}
+	return nil
+}
 
 // CheckAwareness bounds one awareness message, which is relayed and never stored.
 func CheckAwareness(data []byte) error {

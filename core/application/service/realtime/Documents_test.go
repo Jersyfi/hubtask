@@ -333,3 +333,31 @@ func TestAPresenceOnlyDocumentIsOpenedButNeverWritten(t *testing.T) {
 		t.Errorf("stored %d updates and %d snapshots, want none", len(store.updates), len(store.snapshots))
 	}
 }
+
+// A log nobody compacts is reported overdue past BacklogAlarm and refuses updates at
+// MaxUncompacted, storing nothing; the writer's snapshot lifts the refusal.
+func TestALogNobodyCompactsRefusesUpdatesUntilASnapshot(t *testing.T) {
+	docs, store, _ := documents(service.PermissionRead, service.PermissionWriteItems)
+	for seq := 1; seq <= domain.MaxUncompacted; seq++ {
+		store.updates = append(store.updates, domain.Update{Seq: int64(seq), Data: []byte{1}})
+	}
+	_, err := docs.Append(t.Context(), reader(), page, []byte{2})
+	if !errors.Is(err, shared.ErrConflict) || len(store.updates) != domain.MaxUncompacted {
+		t.Fatalf("appended past the ceiling: %v, %d updates", err, len(store.updates))
+	}
+	if err := docs.Compact(t.Context(), reader(), page, domain.MaxUncompacted, []byte{9}); err != nil {
+		t.Fatal(err)
+	}
+	appended, err := docs.Append(t.Context(), reader(), page, []byte{2})
+	if err != nil || appended.Seq != domain.MaxUncompacted+1 || appended.CompactionDue || appended.Overdue {
+		t.Fatalf("after the snapshot: %+v %v", appended, err)
+	}
+
+	docs, store, _ = documents(service.PermissionRead, service.PermissionWriteItems)
+	for seq := 1; seq < domain.BacklogAlarm; seq++ {
+		store.updates = append(store.updates, domain.Update{Seq: int64(seq), Data: []byte{1}})
+	}
+	if appended, err := docs.Append(t.Context(), reader(), page, []byte{2}); err != nil || !appended.Overdue || !appended.CompactionDue {
+		t.Fatalf("past the alarm: %+v %v", appended, err)
+	}
+}

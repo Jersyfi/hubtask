@@ -346,3 +346,30 @@ tests:
       - eval_time: 75m
         alertname: HubtaskUploadsHeldForScan
         exp_alerts: []
+
+  # A-24: updates keep landing past the backlog alarm for half an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_realtime_document_backlog_total{outcome="overdue"}'
+        values: '0+5x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskDocumentLogNotCompacted
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-24
+            exp_annotations:
+              summary: "A live document's log is not compacted"
+              description: "Updates keep landing on a live document whose log is far past its snapshot, or are refused at its ceiling. Opening the document gets slower; past the ceiling its writers wait for a snapshot before their words are stored.\n"
+              runbook: RB-A24-document-log-not-compacted.md
+
+  # A-24 stays quiet once a writer compacts: the counter stops within minutes.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_realtime_document_backlog_total{outcome="overdue"}'
+        values: '0+5x10 50x50'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskDocumentLogNotCompacted
+        exp_alerts: []

@@ -3822,6 +3822,7 @@ func run() error {
 				Wakeups:         changeListener,
 				DocumentWakeups: changeListener,
 				Relay:           liveRelay,
+				Signals:         metrics,
 			},
 			Registry: streams,
 		}

@@ -309,3 +309,21 @@ groups:
             until it does. Check the daemon at HUBTASK_CLAMD_ADDRESS; the scan job settles the
             held files by itself once it answers.
           runbook: RB-A23-uploads-held-for-scan.md
+
+      # A-24. A live document's log is not compacted: its writers do not answer the server's
+      # request for a snapshot (offline-sync.md SY-F), so each opening replays a longer log.
+      # Counted past five rounds of asking, before reconnects slow down; at ten rounds the log
+      # refuses new updates until a snapshot comes, which the writers' editors then send.
+      - alert: HubtaskDocumentLogNotCompacted
+        expr: sum(rate(hubtask_realtime_document_backlog_total[15m])) > 0
+        for: 30m
+        labels:
+          severity: ticket
+          alert_id: A-24
+        annotations:
+          summary: "A live document's log is not compacted"
+          description: >
+            Updates keep landing on a live document whose log is far past its snapshot, or are
+            refused at its ceiling. Opening the document gets slower; past the ceiling its writers
+            wait for a snapshot before their words are stored.
+          runbook: RB-A24-document-log-not-compacted.md

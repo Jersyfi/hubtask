@@ -66,6 +66,7 @@ type Metrics struct {
 	mediaReclaimed    metric.Int64Counter
 	figureDrifted     metric.Int64Counter
 	awarenessRelayed  metric.Int64Counter
+	documentBacklog   metric.Int64Counter
 	mediaReclaimFail  metric.Int64Counter
 	notificationsRec  metric.Int64Counter
 	notificationsSent metric.Float64Histogram
@@ -741,6 +742,12 @@ func (m *Metrics) mediaInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("awareness relay counter: %w", err)
 	}
+	if m.documentBacklog, err = meter.Int64Counter(
+		namespace+"_realtime_document_backlog_total",
+		metric.WithDescription("Live document updates landing on a log no writer compacts, by outcome: overdue or refused."),
+	); err != nil {
+		return fmt.Errorf("document backlog counter: %w", err)
+	}
 	if m.mediaReclaimFail, err = meter.Int64Counter(
 		namespace+"_media_reclaim_failed_total",
 		metric.WithDescription("Orphaned media objects whose bytes storage would not release."),
@@ -767,6 +774,13 @@ func (m *Metrics) FigureDrifted(ctx context.Context, count int64) {
 // cursors; `too_large` is a state that stays on its own replica.
 func (m *Metrics) AwarenessRelayed(ctx context.Context, outcome string) {
 	m.awarenessRelayed.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", outcome)))
+}
+
+// DocumentBacklog counts an update on a live document's log past five rounds of compaction
+// (`overdue`) or refused at its ceiling (`refused`): writers that do not answer the server's
+// request for a snapshot (offline-sync.md SY-F, A-24).
+func (m *Metrics) DocumentBacklog(ctx context.Context, outcome string) {
+	m.documentBacklog.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", outcome)))
 }
 
 // MediaReclaimFailed counts the orphans a pass could not reclaim. They stay marked and the next
