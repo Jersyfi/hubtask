@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
+	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -20,7 +21,7 @@ import (
 
 // Catalogue is the one registry of every setting (F-5, P-17): each area's declarations, which live
 // beside the switch they are about, assembled in the order a screen draws the areas - sign-in,
-// legal, localisation, quotas, AI, structure, modules, configuration, agents, pages, plans, time, a person's notifications. A screen, the settings search, the
+// legal, localisation, quotas, AI, structure, modules, configuration, agents, pages, public forms, plans, time, a person's notifications. A screen, the settings search, the
 // configuration file and the parity checks read this; none keeps a list of its own.
 //
 // Assembled here rather than in the domain because the quotas' vocabulary is the quota service's.
@@ -48,6 +49,7 @@ func Catalogue() (domain.Catalogue, error) {
 	definitions = append(definitions, config.AgentApplyDefinition())
 	definitions = append(definitions, agent.RegisteredOnlyDefinition())
 	definitions = append(definitions, knowledge.PublicLinksDefinition())
+	definitions = append(definitions, servicedesk.PublicFormsDefinition())
 	definitions = append(definitions, planning.TimeToleranceDefinition())
 	definitions = append(definitions, timekeeping.PolicyDefinitions()...)
 	definitions = append(definitions, notification.PreferenceDefinitions()...)

@@ -48,6 +48,7 @@ func settingAreas() []settingArea {
 		{read: "ReadAgentPolicy", prefixes: []string{agentPolicyPrefix}, rows: agentPolicyRows, write: agentPolicyOp},
 		{read: "ReadWorkspaceTolerance", prefixes: []string{planningPrefix}, rows: toleranceRows, write: toleranceOp},
 		{read: "ReadPublicLinksPolicy", prefixes: []string{publicLinksKey}, rows: publicLinksRows, write: publicLinksOp},
+		{read: "ReadPublicFormsPolicy", prefixes: []string{publicFormsKey}, rows: publicFormsRows, write: publicFormsOp},
 		{read: "ReadTimePolicy", prefixes: []string{timePrefix}, rows: timePolicyRows, write: timePolicyOp},
 	}
 }
@@ -117,6 +118,25 @@ func publicLinksOp(change domain.BlockChange, _ map[string]any) (operation, erro
 	}
 	on, _ := change.After[settingValueField].(bool)
 	return operation{UseCase: "SetPublicLinksPolicy", Path: change.Path(), Input: usecase.Input{"allowed": on}}, nil
+}
+
+// publicFormsKey is the service desk's switch for a collection's public form (UC-SVC-13).
+const publicFormsKey = "servicedesk.public_forms"
+
+func publicFormsRows(answer map[string]any) map[string]map[string]any {
+	return map[string]map[string]any{publicFormsKey: {
+		settingValueField: answer["allowed"], "source": answer["source"], "locked_by": answer["locked_by"],
+	}}
+}
+
+// publicFormsOp switches public forms; like public links, the switch has no "inherit".
+func publicFormsOp(change domain.BlockChange, _ map[string]any) (operation, error) {
+	if change.Op != domain.OpChange && change.Op != domain.OpAdd {
+		return operation{}, shared.ErrValidation.WithDetail("config.not_removable").
+			WithFields(domain.Refusal("config.not_removable", change.Path(), nil))
+	}
+	on, _ := change.After[settingValueField].(bool)
+	return operation{UseCase: "SetPublicFormsPolicy", Path: change.Path(), Input: usecase.Input{"allowed": on}}, nil
 }
 
 // agentPolicyPrefix is the agents' policy: whether MCP takes registered agents only.
