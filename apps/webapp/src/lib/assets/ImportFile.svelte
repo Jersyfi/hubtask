@@ -166,7 +166,7 @@
       <Select label={t('app.assets.import_name_column')} options={columnOptions} bind:value={nameColumn} />
       <Select label={t('app.assets.import_key_column')} options={columnOptions} bind:value={keyColumn} />
       {#each columns.filter((each) => each !== nameColumn && each !== keyColumn && each !== classColumn) as column (column)}
-        <Select label={t('app.assets.import_column_to', { column })} options={attributeOptions} bind:value={columnTo[column]} />
+        <Select label={t('app.assets.import_column_to', { column })} options={attributeOptions} bind:value={() => columnTo[column] ?? '', (key: string) => (columnTo[column] = key)} />
       {/each}
     </fieldset>
   {/if}

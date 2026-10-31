@@ -171,7 +171,7 @@
       <Input label={t('app.assets.name_label')} bind:value={draftName} maxlength={200} />
       {#if chosen}
         {#each chosen.all_attributes as attribute (attribute.key)}
-          <AttributeField {attribute} bind:value={drafts[attribute.key]} />
+          <AttributeField {attribute} bind:value={() => drafts[attribute.key] ?? '', (typed: string) => (drafts[attribute.key] = typed)} />
         {/each}
       {/if}
     </Stack>

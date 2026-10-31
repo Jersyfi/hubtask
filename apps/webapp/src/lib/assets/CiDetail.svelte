@@ -295,7 +295,7 @@
           />
         {/if}
         {#each (draftClass ? classes.find((each) => each.key === draftClass)?.all_attributes ?? attributes : attributes) as attribute (attribute.key)}
-          <AttributeField {attribute} bind:value={drafts[attribute.key]} groups={groupOptions} accounts={accountOptions} />
+          <AttributeField {attribute} bind:value={() => drafts[attribute.key] ?? '', (typed: string) => (drafts[attribute.key] = typed)} groups={groupOptions} accounts={accountOptions} />
         {/each}
         <div class="buttons">
           <Button tone="secondary" onclick={() => (isEditing = false)}>{t('app.assets.cancel')}</Button>

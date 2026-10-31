@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
 state: built
 tasks: []
-checked_by: [core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/cmdb/FileXlsx_test.go, apps/webapp/src/lib/data/workbook.test.ts]
+checked_by: [core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/cmdb/FileXlsx_test.go, apps/webapp/src/lib/data/workbook.test.ts, apps/webapp/e2e/assetforms.test.mjs]
 ---
 
 # Bring an inventory in from a file

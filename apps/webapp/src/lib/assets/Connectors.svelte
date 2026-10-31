@@ -271,7 +271,7 @@
         <Input label={t('app.assets.connector_base_url')} hint={t('app.assets.connector_base_url_hint')} inputmode="url" bind:value={draft.baseUrl} maxlength={2000} />
       {/if}
       {#each spec?.settings ?? [] as key (key)}
-        <Input label={settingWord(key)} bind:value={draft.settings[key]} maxlength={500} />
+        <Input label={settingWord(key)} bind:value={() => draft?.settings[key] ?? '', (typed: string) => draft && (draft.settings[key] = typed)} maxlength={500} />
       {/each}
       {#each spec?.switches ?? [] as each (each.key)}
         <Switch
