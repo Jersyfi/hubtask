@@ -69,7 +69,8 @@ func Decode(raw []byte) (Message, error) {
 }
 
 // SyncStep1 is the server's state vector. The server keeps none - it never reads an update - so it
-// sends the empty one, and a writer answers with everything it holds, its offline edits included.
+// sends the empty one, sent after the snapshot and the log so a writer answers with the difference
+// to them, its offline edits included (offline-sync.md SY-F).
 func SyncStep1() []byte {
 	return appendBytes(appendUvarint(appendUvarint(nil, messageSync), syncStep1), []byte{0})
 }

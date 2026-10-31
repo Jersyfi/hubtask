@@ -113,3 +113,56 @@ test('a reader sends no update, and a writer answers the server\'s request for a
   assert.equal(decoding.readVarUint(answer), 7);
   writer.destroy();
 });
+
+/** The server's opening of a connection: its snapshot as sync step two, then its empty state vector. */
+function serverOpening(state: Uint8Array): Uint8Array[] {
+  const encoder = encoding.createEncoder();
+  encoding.writeVarUint(encoder, 0);
+  encoding.writeVarUint(encoder, 1);
+  encoding.writeVarUint8Array(encoder, state);
+  return [encoding.toUint8Array(encoder), serverStep1()];
+}
+
+// SY-F's measurement: writers of a long page reconnecting append what the server lacks, not the
+// whole page each - the log grows by the offline words, and a writer with none adds a few bytes.
+test('a reconnecting writer sends only what the server lacks (offline-sync.md SY-F)', async () => {
+  const page = new Y.Doc();
+  const text = page.getText('t');
+  for (let at = 0; at < 2_000; at++) text.insert(text.length, `Paragraph ${at} of a long page, written by many hands. `);
+  const state = Y.encodeStateAsUpdate(page);
+  const writers = 20;
+  const server = new Y.Doc();
+  Y.applyUpdate(server, state);
+  let appended = 0;
+  let largest = 0;
+  for (let writer = 0; writer < writers; writer++) {
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, state);
+    const first = new FakeSocket();
+    const second = new FakeSocket();
+    const opened = [first, second];
+    let retry: (() => void) | undefined;
+    const live = new LiveDocument(doc, { open: () => opened.shift()!, writable: true, schedule: (run) => { retry = run; return () => {}; } });
+    await flush();
+    first.open();
+    first.drop();
+    // Every other writer typed in the tunnel.
+    if (writer % 2 === 0) doc.getText('t').insert(0, `w${writer} `);
+    retry?.();
+    await flush();
+    second.open();
+    for (const message of serverOpening(Y.encodeStateAsUpdate(server))) second.push(message);
+    const sent = updatesIn(second.sent);
+    const bytes = sent.reduce((sum, update) => sum + update.byteLength, 0);
+    appended += bytes;
+    largest = Math.max(largest, bytes);
+    for (const update of sent) Y.applyUpdate(server, update);
+    assert.equal(server.getText('t').toString().includes(writer % 2 === 0 ? `w${writer} ` : 'Paragraph 1999'), true);
+    live.destroy();
+  }
+  // The whole page was about 110 KB; resending it would append writers × that.
+  assert.ok(state.byteLength > 100_000, `the page is ${state.byteLength} bytes`);
+  assert.ok(largest < 200, `the largest reconnect sent ${largest} bytes`);
+  assert.ok(appended < writers * 200, `the log grew by ${appended} bytes for ${writers} reconnects`);
+  for (let writer = 0; writer < writers; writer += 2) assert.match(server.getText('t').toString(), new RegExp(`w${writer} `, 'u'));
+});

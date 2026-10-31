@@ -14,9 +14,10 @@
  * sends an update (`realtime.read_only`), so a read-only document's local changes - there should
  * be none, the editor is not editable - are dropped rather than sent.
  *
- * **It reconnects** with a doubling wait up to thirty seconds, and on every connection sends what
- * it holds: the server keeps no state vector (SY-F), so a reconnect re-sends the writer's state and
- * the log's duplicates are harmless to the CRDT.
+ * **It reconnects** with a doubling wait up to thirty seconds, and answers the server's state
+ * vector with only what the server lacks. The server reads no update, so its vector comes empty
+ * (SY-F); the server's snapshot and log arrive before it, and the vector derived from them stands
+ * in - a writer back from a tunnel sends its offline words, not the whole page again.
  */
 
 import * as decoding from 'lib0/decoding';
@@ -75,6 +76,9 @@ export class LiveDocument {
   #cancelRetry: (() => void) | undefined;
   #destroyed = false;
   #synced = false;
+  /** The server's snapshot and log on this connection, until its state vector arrives. */
+  #held: Uint8Array[] = [];
+  #answered = false;
 
   constructor(doc: Y.Doc, options: LiveDocumentOptions) {
     this.doc = doc;
@@ -121,6 +125,8 @@ export class LiveDocument {
     }
     this.#socket = socket;
     this.#synced = false;
+    this.#held = [];
+    this.#answered = false;
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
       this.#attempt = 0;
@@ -167,6 +173,7 @@ export class LiveDocument {
     const type = decoding.readVarUint(decoder);
     switch (type) {
       case MESSAGE_SYNC: {
+        if (this.#options.writable && !this.#answered && this.#answerStep1(data)) return;
         const encoder = encoding.createEncoder();
         encoding.writeVarUint(encoder, MESSAGE_SYNC);
         const kind = syncProtocol.readSyncMessage(decoder, encoder, this.doc, this);
@@ -197,6 +204,35 @@ export class LiveDocument {
         // A type this client does not speak, as the protocol allows.
         return;
     }
+  }
+
+  /**
+   * Holds what the server hands out before its state vector, and answers that vector with the
+   * difference to it. False leaves the message to the sync protocol.
+   */
+  #answerStep1(data: Uint8Array): boolean {
+    const decoder = decoding.createDecoder(data);
+    decoding.readVarUint(decoder);
+    const kind = decoding.readVarUint(decoder);
+    if (kind !== syncProtocol.messageYjsSyncStep1) {
+      this.#held.push(decoding.readVarUint8Array(decoder));
+      return false;
+    }
+    let vector = decoding.readVarUint8Array(decoder);
+    if (Y.decodeStateVector(vector).size === 0 && this.#held.length > 0) {
+      vector = Y.encodeStateVectorFromUpdate(Y.mergeUpdates(this.#held));
+    }
+    this.#held = [];
+    this.#answered = true;
+    const encoder = encoding.createEncoder();
+    encoding.writeVarUint(encoder, MESSAGE_SYNC);
+    syncProtocol.writeSyncStep2(encoder, this.doc, vector);
+    this.#send(encoding.toUint8Array(encoder));
+    if (!this.#synced) {
+      this.#synced = true;
+      this.#options.onSynced?.();
+    }
+    return true;
   }
 
   #onUpdate = (update: Uint8Array, origin: unknown) => {

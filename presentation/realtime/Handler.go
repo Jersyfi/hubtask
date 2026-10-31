@@ -273,7 +273,8 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 	switch {
 	case message.Type == messageSync && message.Sync == syncStep1:
 		// The client's state vector. The server keeps none to compare it with, and has handed out
-		// the whole log already.
+		// the whole log already; the writer answers the server's empty one with the difference to
+		// that log (SY-F).
 		return nil
 	case message.Type == messageSync && (message.Sync == syncStep2 || message.Sync == syncUpdate):
 		if !c.writable {

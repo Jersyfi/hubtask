@@ -488,10 +488,11 @@ it, order it and decide who may touch it.
   stream's doorbell (migration 0022), so a connection on another process catches up.
 * **The connection** is `GET /api/v1/realtime/documents/{kind}/{documentId}`, a WebSocket in the
   editors' sync and awareness framing. The server sends the newest snapshot as sync step two, every
-  update after it, and - to a writer - an empty state vector, so the writer answers with everything
-  it holds, its offline edits included. Without a CRDT of its own the server cannot compute the
-  difference, so a reconnect re-sends a writer's state; duplicates are harmless to the editors and
-  compaction bounds the log. Two messages are the server's own: `100` a writer's snapshot (the place
+  update after it, and - to a writer - an empty state vector, since it keeps none. The writer
+  derives the server's vector from the snapshot and updates it just received and answers with the
+  difference: its offline edits and its delete set, not its whole state (SY-F). An update appended
+  by another writer meanwhile only lowers that vector, so a writer may send more, never less;
+  duplicates are harmless to the editors and compaction bounds the log. Two messages are the server's own: `100` a writer's snapshot (the place
   it covers, then the state) and `101` the server asking for one, after 500 updates past the last.
 * **Authorisation** is the realtime service's (`core/application/service/realtime`): a document's
   kind names the place it sits at (a `Locator`), and reading needs READ there, writing WRITE_ITEMS,
@@ -554,4 +555,4 @@ it, order it and decide who may touch it.
 | # | Open point | Needed by |
 |---|---|---|
 | SY-E | Awareness across processes - closed: relayed on `hubtask_awareness` (see *Awareness* above) | - |
-| SY-F | A server-side merge of updates (a CRDT library in Go) would answer a writer's state vector with the difference and compact without a writer; none passes review yet | when the log or reconnect traffic is measured to need it |
+| SY-F | Reconnect traffic - closed on the client: the writer answers the server's empty vector with the difference to the state it was just handed (`packages/editor` `LiveDocument`). Measured by `live.test.ts` (*a reconnecting writer sends only what the server lacks*): a page of about 107 KB and 20 writers reconnecting, half with offline words, sent 107,090 bytes per reconnect before and under 200 after, so the log grows by the offline words. Still open: compacting without a writer, which needs a server-side merge (a CRDT library in Go); none passes review yet | a log measured to outgrow the 500-update compaction |
