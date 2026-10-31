@@ -33631,8 +33631,12 @@ components:
         kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE
         another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is
         a number the server computes with the definition's formula; writing one is refused with
-        `validation_failed` and the detail `fields.calculated`.
-      enum: [TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, DURATION, REFERENCE, USER_SET, RICH_TEXT, CALCULATED]
+        `validation_failed` and the detail `fields.calculated`. DATE_TIME is a moment, GROUP one
+        of the workspace's groups, CASCADING_SELECT a choice of one or two levels from options
+        written `Parent` and `Parent/Child`, IP_ADDRESS an IPv4 or IPv6 address, FILE one of the
+        entry's own attachments, LABEL a set of free lower-case words, STATUS one state from the
+        options in their order.
+      enum: [TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, DURATION, REFERENCE, USER_SET, RICH_TEXT, CALCULATED, DATE_TIME, GROUP, CASCADING_SELECT, IP_ADDRESS, FILE, LABEL, STATUS]
 
     CustomFieldDefinitionCreate:
       type: object
@@ -33708,8 +33712,13 @@ components:
             RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY,
             a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE,
             an account identifier for USER, an entry identifier for REFERENCE, an array of
-            strings for MULTI_SELECT and an array of account identifiers for USER_SET. Null clears
-            the key.
+            strings for MULTI_SELECT and an array of account identifiers for USER_SET. DATE_TIME
+            takes an RFC 3339 moment and answers it in UTC to the second; GROUP a group
+            identifier; CASCADING_SELECT and STATUS one of the options; IP_ADDRESS an address
+            without a prefix, answered in its canonical spelling; FILE the media identifier of an
+            attachment the entry carries; LABEL an array of words of letters, digits, `-`, `_`
+            and `.`, at most 40 characters each and 20 together, answered in lower case. Null
+            clears the key.
 
     MediaObject:
       type: object

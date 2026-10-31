@@ -3642,20 +3642,27 @@ func (e CoverInputKind) Valid() bool {
 
 // Defines values for CustomFieldKind.
 const (
-	CustomFieldKindBOOL        CustomFieldKind = "BOOL"
-	CustomFieldKindCALCULATED  CustomFieldKind = "CALCULATED"
-	CustomFieldKindDATE        CustomFieldKind = "DATE"
-	CustomFieldKindDURATION    CustomFieldKind = "DURATION"
-	CustomFieldKindMONEY       CustomFieldKind = "MONEY"
-	CustomFieldKindMULTISELECT CustomFieldKind = "MULTI_SELECT"
-	CustomFieldKindNUMBER      CustomFieldKind = "NUMBER"
-	CustomFieldKindREFERENCE   CustomFieldKind = "REFERENCE"
-	CustomFieldKindRICHTEXT    CustomFieldKind = "RICH_TEXT"
-	CustomFieldKindSELECT      CustomFieldKind = "SELECT"
-	CustomFieldKindTEXT        CustomFieldKind = "TEXT"
-	CustomFieldKindURL         CustomFieldKind = "URL"
-	CustomFieldKindUSER        CustomFieldKind = "USER"
-	CustomFieldKindUSERSET     CustomFieldKind = "USER_SET"
+	CustomFieldKindBOOL            CustomFieldKind = "BOOL"
+	CustomFieldKindCALCULATED      CustomFieldKind = "CALCULATED"
+	CustomFieldKindCASCADINGSELECT CustomFieldKind = "CASCADING_SELECT"
+	CustomFieldKindDATE            CustomFieldKind = "DATE"
+	CustomFieldKindDATETIME        CustomFieldKind = "DATE_TIME"
+	CustomFieldKindDURATION        CustomFieldKind = "DURATION"
+	CustomFieldKindFILE            CustomFieldKind = "FILE"
+	CustomFieldKindGROUP           CustomFieldKind = "GROUP"
+	CustomFieldKindIPADDRESS       CustomFieldKind = "IP_ADDRESS"
+	CustomFieldKindLABEL           CustomFieldKind = "LABEL"
+	CustomFieldKindMONEY           CustomFieldKind = "MONEY"
+	CustomFieldKindMULTISELECT     CustomFieldKind = "MULTI_SELECT"
+	CustomFieldKindNUMBER          CustomFieldKind = "NUMBER"
+	CustomFieldKindREFERENCE       CustomFieldKind = "REFERENCE"
+	CustomFieldKindRICHTEXT        CustomFieldKind = "RICH_TEXT"
+	CustomFieldKindSELECT          CustomFieldKind = "SELECT"
+	CustomFieldKindSTATUS          CustomFieldKind = "STATUS"
+	CustomFieldKindTEXT            CustomFieldKind = "TEXT"
+	CustomFieldKindURL             CustomFieldKind = "URL"
+	CustomFieldKindUSER            CustomFieldKind = "USER"
+	CustomFieldKindUSERSET         CustomFieldKind = "USER_SET"
 )
 
 // Valid indicates whether the value is a known member of the CustomFieldKind enum.
@@ -3665,9 +3672,21 @@ func (e CustomFieldKind) Valid() bool {
 		return true
 	case CustomFieldKindCALCULATED:
 		return true
+	case CustomFieldKindCASCADINGSELECT:
+		return true
 	case CustomFieldKindDATE:
 		return true
+	case CustomFieldKindDATETIME:
+		return true
 	case CustomFieldKindDURATION:
+		return true
+	case CustomFieldKindFILE:
+		return true
+	case CustomFieldKindGROUP:
+		return true
+	case CustomFieldKindIPADDRESS:
+		return true
+	case CustomFieldKindLABEL:
 		return true
 	case CustomFieldKindMONEY:
 		return true
@@ -3680,6 +3699,8 @@ func (e CustomFieldKind) Valid() bool {
 	case CustomFieldKindRICHTEXT:
 		return true
 	case CustomFieldKindSELECT:
+		return true
+	case CustomFieldKindSTATUS:
 		return true
 	case CustomFieldKindTEXT:
 		return true
@@ -14865,7 +14886,7 @@ type CustomFieldDefinition struct {
 	// Key The identifier the value is stored under, unique in its scope and fixed once defined. An identifier rather than a label: it appears in `custom_fields.<key>` filters, and a key that could be renamed would orphan every value stored under it.
 	Key string `json:"key"`
 
-	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
+	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`. DATE_TIME is a moment, GROUP one of the workspace's groups, CASCADING_SELECT a choice of one or two levels from options written `Parent` and `Parent/Child`, IP_ADDRESS an IPv4 or IPv6 address, FILE one of the entry's own attachments, LABEL a set of free lower-case words, STATUS one state from the options in their order.
 	Kind CustomFieldKind `json:"kind"`
 
 	// Options The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind. Values rather than labels: what a person sees is the client's to render.
@@ -14898,7 +14919,7 @@ type CustomFieldDefinitionCreate struct {
 	IsRequired *bool   `json:"is_required,omitempty"`
 	Key        string  `json:"key"`
 
-	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
+	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`. DATE_TIME is a moment, GROUP one of the workspace's groups, CASCADING_SELECT a choice of one or two levels from options written `Parent` and `Parent/Child`, IP_ADDRESS an IPv4 or IPv6 address, FILE one of the entry's own attachments, LABEL a set of free lower-case words, STATUS one state from the options in their order.
 	Kind    CustomFieldKind `json:"kind"`
 	Options *[]string       `json:"options,omitempty"`
 
@@ -14920,7 +14941,7 @@ type CustomFieldDefinitionUpdate struct {
 	Restricted *bool `json:"restricted,omitempty"`
 }
 
-// CustomFieldKind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
+// CustomFieldKind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`. DATE_TIME is a moment, GROUP one of the workspace's groups, CASCADING_SELECT a choice of one or two levels from options written `Parent` and `Parent/Child`, IP_ADDRESS an IPv4 or IPv6 address, FILE one of the entry's own attachments, LABEL a set of free lower-case words, STATUS one state from the options in their order.
 type CustomFieldKind string
 
 // CustomFieldReach defines model for CustomFieldReach.
@@ -14932,7 +14953,7 @@ type CustomFieldReach struct {
 
 // CustomFieldValue One value for one key. `value` is required and may be null, which clears the key - the two are different requests, and a body that left the field out would be neither.
 type CustomFieldValue struct {
-	// Value The value, shaped by the definition's kind: a string for TEXT, SELECT, URL and RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY, a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, an entry identifier for REFERENCE, an array of strings for MULTI_SELECT and an array of account identifiers for USER_SET. Null clears the key.
+	// Value The value, shaped by the definition's kind: a string for TEXT, SELECT, URL and RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY, a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, an entry identifier for REFERENCE, an array of strings for MULTI_SELECT and an array of account identifiers for USER_SET. DATE_TIME takes an RFC 3339 moment and answers it in UTC to the second; GROUP a group identifier; CASCADING_SELECT and STATUS one of the options; IP_ADDRESS an address without a prefix, answered in its canonical spelling; FILE the media identifier of an attachment the entry carries; LABEL an array of words of letters, digits, `-`, `_` and `.`, at most 40 characters each and 20 together, answered in lower case. Null clears the key.
 	Value interface{} `json:"value"`
 }
 

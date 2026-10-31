@@ -4187,7 +4187,7 @@ class CustomFieldDefinition(TypedDict, total=False):
     updated_at: str
     version: Required[int]
 
-CustomFieldKind = Literal["TEXT", "NUMBER", "DATE", "SELECT", "MULTI_SELECT", "BOOL", "USER", "URL", "MONEY", "DURATION", "REFERENCE", "USER_SET", "RICH_TEXT", "CALCULATED"]
+CustomFieldKind = Literal["TEXT", "NUMBER", "DATE", "SELECT", "MULTI_SELECT", "BOOL", "USER", "URL", "MONEY", "DURATION", "REFERENCE", "USER_SET", "RICH_TEXT", "CALCULATED", "DATE_TIME", "GROUP", "CASCADING_SELECT", "IP_ADDRESS", "FILE", "LABEL", "STATUS"]
 
 class CustomFieldDefinitionCreate(TypedDict, total=False):
     collection_id: str | None
