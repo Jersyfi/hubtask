@@ -4584,6 +4584,22 @@ class ItemMembers(TypedDict, total=False):
     item_id: Required[str]
     member_ids: Required[list[str]]
 
+class NotifyAccount(TypedDict, total=False):
+    """The account a notification step tells."""
+    account_id: Required[str]
+
+class NotifyGroup(TypedDict, total=False):
+    """The group whose members a notification step tells."""
+    group_id: Required[str]
+
+class NotifyRole(TypedDict, total=False):
+    """The role whose holders along the entry's path a notification step tells."""
+    role: Required[str]
+
+class NotificationsQueued(TypedDict, total=False):
+    """How many recipients a notification step reached."""
+    recipients: Required[int]
+
 class Assignment(TypedDict, total=False):
     """Who the entry is assigned to."""
     account_id: Required[str]

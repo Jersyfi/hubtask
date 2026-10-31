@@ -3501,6 +3501,21 @@ export class HubtaskClient {
     return this.call("POST", "/items/{itemId}:auto-assign", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey, "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Tell one account about an entry */
+  notifyAccount(itemId: string, body: NonNullable<operations["notifyAccount"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["notifyAccount"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:notify-account", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Tell every member of a group about an entry */
+  notifyGroup(itemId: string, body: NonNullable<operations["notifyGroup"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["notifyGroup"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:notify-group", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Tell the holders of a role along the entry's path */
+  notifyRole(itemId: string, body: NonNullable<operations["notifyRole"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["notifyRole"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:notify-role", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** POST /items/{itemId}:purge */
   purgeWorkItem(itemId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<void> {
     return this.call("POST", "/items/{itemId}:purge", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "void", options.signal);

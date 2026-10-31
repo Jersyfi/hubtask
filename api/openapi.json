@@ -28118,6 +28118,132 @@
         }
       }
     },
+    "/items/{itemId}:notify-account": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "notifyAccount",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "notifiedResponse",
+        "summary": "Tell one account about an entry",
+        "description": "Tells one account that something happened to this entry, through the notification path every other message takes: the recipient's preferences apply (category `SLA`), the mail is written in the recipient's language and carries the entry's title and a link only. An account that may not read the entry is not told, and the answer counts it out rather than refusing. This is what a rule's `NOTIFY_ACCOUNT` step performs; the run supplies the entry.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotifyAccount"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The messages are recorded and queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsQueued"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}:notify-group": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "notifyGroup",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "notifiedResponse",
+        "summary": "Tell every member of a group about an entry",
+        "description": "As notifyAccount, for each member of the group: each member is one recipient, and a member who may not read the entry is not told. This is what a rule's `NOTIFY_GROUP` step performs.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotifyGroup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The messages are recorded and queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsQueued"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}:notify-role": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "notifyRole",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "notifiedResponse",
+        "summary": "Tell the holders of a role along the entry's path",
+        "description": "As notifyAccount, for every account that holds the role on the entry's path - on the workspace, its hub, its collection or the entry itself, directly or through a group, and a private hub judged as everywhere else. This is what a rule's `NOTIFY_ROLE` step performs.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotifyRole"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The messages are recorded and queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsQueued"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items/{itemId}:purge": {
       "parameters": [
         {
@@ -58457,6 +58583,63 @@
               "type": "string",
               "format": "uuid"
             }
+          }
+        }
+      },
+      "NotifyAccount": {
+        "type": "object",
+        "description": "The account a notification step tells.",
+        "required": [
+          "account_id"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The account to tell. One that does not exist is refused."
+          }
+        }
+      },
+      "NotifyGroup": {
+        "type": "object",
+        "description": "The group whose members a notification step tells.",
+        "required": [
+          "group_id"
+        ],
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The group whose members are told, each one recipient. One that does not exist is refused."
+          }
+        }
+      },
+      "NotifyRole": {
+        "type": "object",
+        "description": "The role whose holders along the entry's path a notification step tells.",
+        "required": [
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "A built-in role (OWNER, ADMIN, MEMBER, CONTRIBUTOR, VIEWER, GUEST, AUDITOR) or the key of a custom role of the workspace. One the workspace does not know is refused.\n"
+          }
+        }
+      },
+      "NotificationsQueued": {
+        "type": "object",
+        "description": "How many recipients a notification step reached.",
+        "required": [
+          "recipients"
+        ],
+        "properties": {
+          "recipients": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The recipients a message was recorded for: those who may read the entry. A recipient whose preference switched the category off is counted, with the message recorded as suppressed.\n"
           }
         }
       },

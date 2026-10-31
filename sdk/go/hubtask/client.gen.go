@@ -18796,6 +18796,30 @@ type NotificationPreferenceUpdate struct {
 	IncludeTitle bool `json:"include_title"`
 }
 
+// NotificationsQueued How many recipients a notification step reached.
+type NotificationsQueued struct {
+	// Recipients The recipients a message was recorded for: those who may read the entry. A recipient whose preference switched the category off is counted, with the message recorded as suppressed.
+	Recipients int `json:"recipients"`
+}
+
+// NotifyAccount The account a notification step tells.
+type NotifyAccount struct {
+	// AccountId The account to tell. One that does not exist is refused.
+	AccountId openapi_types.UUID `json:"account_id"`
+}
+
+// NotifyGroup The group whose members a notification step tells.
+type NotifyGroup struct {
+	// GroupId The group whose members are told, each one recipient. One that does not exist is refused.
+	GroupId openapi_types.UUID `json:"group_id"`
+}
+
+// NotifyRole The role whose holders along the entry's path a notification step tells.
+type NotifyRole struct {
+	// Role A built-in role (OWNER, ADMIN, MEMBER, CONTRIBUTOR, VIEWER, GUEST, AUDITOR) or the key of a custom role of the workspace. One the workspace does not know is refused.
+	Role string `json:"role"`
+}
+
 // OauthAuthorization defines model for OauthAuthorization.
 type OauthAuthorization struct {
 	ClientId openapi_types.UUID `json:"client_id"`
@@ -28654,6 +28678,15 @@ type MergeWorkItemsJSONRequestBody MergeWorkItemsJSONBody
 // MoveWorkItemJSONRequestBody defines body for MoveWorkItem for application/json ContentType.
 type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 
+// NotifyAccountJSONRequestBody defines body for NotifyAccount for application/json ContentType.
+type NotifyAccountJSONRequestBody = NotifyAccount
+
+// NotifyGroupJSONRequestBody defines body for NotifyGroup for application/json ContentType.
+type NotifyGroupJSONRequestBody = NotifyGroup
+
+// NotifyRoleJSONRequestBody defines body for NotifyRole for application/json ContentType.
+type NotifyRoleJSONRequestBody = NotifyRole
+
 // ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
 
@@ -35917,6 +35950,60 @@ type ClientInterface interface {
 	//
 	// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 	MoveWorkItem(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, body MoveWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NotifyAccountWithBody Tell one account about an entry
+	//
+	// Tells one account that something happened to this entry, through the notification path every other message takes: the recipient's preferences apply (category `SLA`), the mail is written in the recipient's language and carries the entry's title and a link only. An account that may not read the entry is not told, and the answer counts it out rather than refusing. This is what a rule's `NOTIFY_ACCOUNT` step performs; the run supplies the entry.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}:notify-account (the `NotifyAccount` operationId).
+	NotifyAccountWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NotifyAccount Tell one account about an entry
+	//
+	// Tells one account that something happened to this entry, through the notification path every other message takes: the recipient's preferences apply (category `SLA`), the mail is written in the recipient's language and carries the entry's title and a link only. An account that may not read the entry is not told, and the answer counts it out rather than refusing. This is what a rule's `NOTIFY_ACCOUNT` step performs; the run supplies the entry.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}:notify-account (the `NotifyAccount` operationId).
+	NotifyAccount(ctx context.Context, itemId ItemId, body NotifyAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NotifyGroupWithBody Tell every member of a group about an entry
+	//
+	// As notifyAccount, for each member of the group: each member is one recipient, and a member who may not read the entry is not told. This is what a rule's `NOTIFY_GROUP` step performs.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}:notify-group (the `NotifyGroup` operationId).
+	NotifyGroupWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NotifyGroup Tell every member of a group about an entry
+	//
+	// As notifyAccount, for each member of the group: each member is one recipient, and a member who may not read the entry is not told. This is what a rule's `NOTIFY_GROUP` step performs.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}:notify-group (the `NotifyGroup` operationId).
+	NotifyGroup(ctx context.Context, itemId ItemId, body NotifyGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NotifyRoleWithBody Tell the holders of a role along the entry's path
+	//
+	// As notifyAccount, for every account that holds the role on the entry's path - on the workspace, its hub, its collection or the entry itself, directly or through a group, and a private hub judged as everywhere else. This is what a rule's `NOTIFY_ROLE` step performs.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}:notify-role (the `NotifyRole` operationId).
+	NotifyRoleWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NotifyRole Tell the holders of a role along the entry's path
+	//
+	// As notifyAccount, for every account that holds the role on the entry's path - on the workspace, its hub, its collection or the entry itself, directly or through a group, and a private hub judged as everywhere else. This is what a rule's `NOTIFY_ROLE` step performs.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}:notify-role (the `NotifyRole` operationId).
+	NotifyRole(ctx context.Context, itemId ItemId, body NotifyRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PurgeWorkItem performs a POST /items/{itemId}:purge (the `PurgeWorkItem` operationId) request.
 	//
@@ -53624,6 +53711,120 @@ func (c *Client) MoveWorkItemWithBody(ctx context.Context, itemId ItemId, params
 // Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 func (c *Client) MoveWorkItem(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, body MoveWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewMoveWorkItemRequest(c.Server, itemId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NotifyAccountWithBody Tell one account about an entry
+//
+// Tells one account that something happened to this entry, through the notification path every other message takes: the recipient's preferences apply (category `SLA`), the mail is written in the recipient's language and carries the entry's title and a link only. An account that may not read the entry is not told, and the answer counts it out rather than refusing. This is what a rule's `NOTIFY_ACCOUNT` step performs; the run supplies the entry.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}:notify-account (the `NotifyAccount` operationId).
+func (c *Client) NotifyAccountWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNotifyAccountRequestWithBody(c.Server, itemId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NotifyAccount Tell one account about an entry
+//
+// Tells one account that something happened to this entry, through the notification path every other message takes: the recipient's preferences apply (category `SLA`), the mail is written in the recipient's language and carries the entry's title and a link only. An account that may not read the entry is not told, and the answer counts it out rather than refusing. This is what a rule's `NOTIFY_ACCOUNT` step performs; the run supplies the entry.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}:notify-account (the `NotifyAccount` operationId).
+func (c *Client) NotifyAccount(ctx context.Context, itemId ItemId, body NotifyAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNotifyAccountRequest(c.Server, itemId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NotifyGroupWithBody Tell every member of a group about an entry
+//
+// As notifyAccount, for each member of the group: each member is one recipient, and a member who may not read the entry is not told. This is what a rule's `NOTIFY_GROUP` step performs.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}:notify-group (the `NotifyGroup` operationId).
+func (c *Client) NotifyGroupWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNotifyGroupRequestWithBody(c.Server, itemId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NotifyGroup Tell every member of a group about an entry
+//
+// As notifyAccount, for each member of the group: each member is one recipient, and a member who may not read the entry is not told. This is what a rule's `NOTIFY_GROUP` step performs.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}:notify-group (the `NotifyGroup` operationId).
+func (c *Client) NotifyGroup(ctx context.Context, itemId ItemId, body NotifyGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNotifyGroupRequest(c.Server, itemId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NotifyRoleWithBody Tell the holders of a role along the entry's path
+//
+// As notifyAccount, for every account that holds the role on the entry's path - on the workspace, its hub, its collection or the entry itself, directly or through a group, and a private hub judged as everywhere else. This is what a rule's `NOTIFY_ROLE` step performs.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}:notify-role (the `NotifyRole` operationId).
+func (c *Client) NotifyRoleWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNotifyRoleRequestWithBody(c.Server, itemId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NotifyRole Tell the holders of a role along the entry's path
+//
+// As notifyAccount, for every account that holds the role on the entry's path - on the workspace, its hub, its collection or the entry itself, directly or through a group, and a private hub judged as everywhere else. This is what a rule's `NOTIFY_ROLE` step performs.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}:notify-role (the `NotifyRole` operationId).
+func (c *Client) NotifyRole(ctx context.Context, itemId ItemId, body NotifyRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNotifyRoleRequest(c.Server, itemId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -85556,6 +85757,147 @@ func NewMoveWorkItemRequestWithBody(server string, itemId ItemId, params *MoveWo
 	return req, nil
 }
 
+// NewNotifyAccountRequest calls the generic NotifyAccount builder with application/json body
+func NewNotifyAccountRequest(server string, itemId ItemId, body NotifyAccountJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewNotifyAccountRequestWithBody(server, itemId, "application/json", bodyReader)
+}
+
+// NewNotifyAccountRequestWithBody constructs an http.Request for the NotifyAccount method, with any body, and a specified content type
+func NewNotifyAccountRequestWithBody(server string, itemId ItemId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s:notify-account", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewNotifyGroupRequest calls the generic NotifyGroup builder with application/json body
+func NewNotifyGroupRequest(server string, itemId ItemId, body NotifyGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewNotifyGroupRequestWithBody(server, itemId, "application/json", bodyReader)
+}
+
+// NewNotifyGroupRequestWithBody constructs an http.Request for the NotifyGroup method, with any body, and a specified content type
+func NewNotifyGroupRequestWithBody(server string, itemId ItemId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s:notify-group", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewNotifyRoleRequest calls the generic NotifyRole builder with application/json body
+func NewNotifyRoleRequest(server string, itemId ItemId, body NotifyRoleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewNotifyRoleRequestWithBody(server, itemId, "application/json", bodyReader)
+}
+
+// NewNotifyRoleRequestWithBody constructs an http.Request for the NotifyRole method, with any body, and a specified content type
+func NewNotifyRoleRequestWithBody(server string, itemId ItemId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s:notify-role", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewPurgeWorkItemRequest constructs an http.Request for the PurgeWorkItem method
 func NewPurgeWorkItemRequest(server string, itemId ItemId, params *PurgeWorkItemParams) (*http.Request, error) {
 	var err error
@@ -107363,6 +107705,60 @@ type ClientWithResponsesInterface interface {
 	//
 	// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 	MoveWorkItemWithResponse(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, body MoveWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveWorkItemResult, error)
+
+	// NotifyAccountWithBodyWithResponse Tell one account about an entry
+	//
+	// Tells one account that something happened to this entry, through the notification path every other message takes: the recipient's preferences apply (category `SLA`), the mail is written in the recipient's language and carries the entry's title and a link only. An account that may not read the entry is not told, and the answer counts it out rather than refusing. This is what a rule's `NOTIFY_ACCOUNT` step performs; the run supplies the entry.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:notify-account (the `NotifyAccount` operationId).
+	NotifyAccountWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NotifyAccountResult, error)
+
+	// NotifyAccountWithResponse Tell one account about an entry
+	//
+	// Tells one account that something happened to this entry, through the notification path every other message takes: the recipient's preferences apply (category `SLA`), the mail is written in the recipient's language and carries the entry's title and a link only. An account that may not read the entry is not told, and the answer counts it out rather than refusing. This is what a rule's `NOTIFY_ACCOUNT` step performs; the run supplies the entry.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:notify-account (the `NotifyAccount` operationId).
+	NotifyAccountWithResponse(ctx context.Context, itemId ItemId, body NotifyAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*NotifyAccountResult, error)
+
+	// NotifyGroupWithBodyWithResponse Tell every member of a group about an entry
+	//
+	// As notifyAccount, for each member of the group: each member is one recipient, and a member who may not read the entry is not told. This is what a rule's `NOTIFY_GROUP` step performs.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:notify-group (the `NotifyGroup` operationId).
+	NotifyGroupWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NotifyGroupResult, error)
+
+	// NotifyGroupWithResponse Tell every member of a group about an entry
+	//
+	// As notifyAccount, for each member of the group: each member is one recipient, and a member who may not read the entry is not told. This is what a rule's `NOTIFY_GROUP` step performs.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:notify-group (the `NotifyGroup` operationId).
+	NotifyGroupWithResponse(ctx context.Context, itemId ItemId, body NotifyGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*NotifyGroupResult, error)
+
+	// NotifyRoleWithBodyWithResponse Tell the holders of a role along the entry's path
+	//
+	// As notifyAccount, for every account that holds the role on the entry's path - on the workspace, its hub, its collection or the entry itself, directly or through a group, and a private hub judged as everywhere else. This is what a rule's `NOTIFY_ROLE` step performs.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:notify-role (the `NotifyRole` operationId).
+	NotifyRoleWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NotifyRoleResult, error)
+
+	// NotifyRoleWithResponse Tell the holders of a role along the entry's path
+	//
+	// As notifyAccount, for every account that holds the role on the entry's path - on the workspace, its hub, its collection or the entry itself, directly or through a group, and a private hub judged as everywhere else. This is what a rule's `NOTIFY_ROLE` step performs.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:notify-role (the `NotifyRole` operationId).
+	NotifyRoleWithResponse(ctx context.Context, itemId ItemId, body NotifyRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*NotifyRoleResult, error)
 
 	// PurgeWorkItemWithResponse performs a POST /items/{itemId}:purge (the `PurgeWorkItem` operationId) request.
 	//
@@ -135618,6 +136014,150 @@ func (r MoveWorkItemResult) ContentType() string {
 	return ""
 }
 
+type NotifyAccountResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *NotificationsQueued
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r NotifyAccountResult) GetJSON202() *NotificationsQueued {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r NotifyAccountResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r NotifyAccountResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r NotifyAccountResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NotifyAccountResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r NotifyAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type NotifyGroupResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *NotificationsQueued
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r NotifyGroupResult) GetJSON202() *NotificationsQueued {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r NotifyGroupResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r NotifyGroupResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r NotifyGroupResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NotifyGroupResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r NotifyGroupResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type NotifyRoleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *NotificationsQueued
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r NotifyRoleResult) GetJSON202() *NotificationsQueued {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r NotifyRoleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r NotifyRoleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r NotifyRoleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NotifyRoleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r NotifyRoleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type PurgeWorkItemResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -162146,6 +162686,96 @@ func (c *ClientWithResponses) MoveWorkItemWithResponse(ctx context.Context, item
 	return ParseMoveWorkItemResult(rsp)
 }
 
+// NotifyAccountWithBodyWithResponse Tell one account about an entry
+//
+// Tells one account that something happened to this entry, through the notification path every other message takes: the recipient's preferences apply (category `SLA`), the mail is written in the recipient's language and carries the entry's title and a link only. An account that may not read the entry is not told, and the answer counts it out rather than refusing. This is what a rule's `NOTIFY_ACCOUNT` step performs; the run supplies the entry.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:notify-account (the `NotifyAccount` operationId).
+func (c *ClientWithResponses) NotifyAccountWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NotifyAccountResult, error) {
+	rsp, err := c.NotifyAccountWithBody(ctx, itemId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNotifyAccountResult(rsp)
+}
+
+// NotifyAccountWithResponse Tell one account about an entry
+//
+// Tells one account that something happened to this entry, through the notification path every other message takes: the recipient's preferences apply (category `SLA`), the mail is written in the recipient's language and carries the entry's title and a link only. An account that may not read the entry is not told, and the answer counts it out rather than refusing. This is what a rule's `NOTIFY_ACCOUNT` step performs; the run supplies the entry.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:notify-account (the `NotifyAccount` operationId).
+func (c *ClientWithResponses) NotifyAccountWithResponse(ctx context.Context, itemId ItemId, body NotifyAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*NotifyAccountResult, error) {
+	rsp, err := c.NotifyAccount(ctx, itemId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNotifyAccountResult(rsp)
+}
+
+// NotifyGroupWithBodyWithResponse Tell every member of a group about an entry
+//
+// As notifyAccount, for each member of the group: each member is one recipient, and a member who may not read the entry is not told. This is what a rule's `NOTIFY_GROUP` step performs.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:notify-group (the `NotifyGroup` operationId).
+func (c *ClientWithResponses) NotifyGroupWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NotifyGroupResult, error) {
+	rsp, err := c.NotifyGroupWithBody(ctx, itemId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNotifyGroupResult(rsp)
+}
+
+// NotifyGroupWithResponse Tell every member of a group about an entry
+//
+// As notifyAccount, for each member of the group: each member is one recipient, and a member who may not read the entry is not told. This is what a rule's `NOTIFY_GROUP` step performs.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:notify-group (the `NotifyGroup` operationId).
+func (c *ClientWithResponses) NotifyGroupWithResponse(ctx context.Context, itemId ItemId, body NotifyGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*NotifyGroupResult, error) {
+	rsp, err := c.NotifyGroup(ctx, itemId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNotifyGroupResult(rsp)
+}
+
+// NotifyRoleWithBodyWithResponse Tell the holders of a role along the entry's path
+//
+// As notifyAccount, for every account that holds the role on the entry's path - on the workspace, its hub, its collection or the entry itself, directly or through a group, and a private hub judged as everywhere else. This is what a rule's `NOTIFY_ROLE` step performs.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:notify-role (the `NotifyRole` operationId).
+func (c *ClientWithResponses) NotifyRoleWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NotifyRoleResult, error) {
+	rsp, err := c.NotifyRoleWithBody(ctx, itemId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNotifyRoleResult(rsp)
+}
+
+// NotifyRoleWithResponse Tell the holders of a role along the entry's path
+//
+// As notifyAccount, for every account that holds the role on the entry's path - on the workspace, its hub, its collection or the entry itself, directly or through a group, and a private hub judged as everywhere else. This is what a rule's `NOTIFY_ROLE` step performs.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:notify-role (the `NotifyRole` operationId).
+func (c *ClientWithResponses) NotifyRoleWithResponse(ctx context.Context, itemId ItemId, body NotifyRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*NotifyRoleResult, error) {
+	rsp, err := c.NotifyRole(ctx, itemId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNotifyRoleResult(rsp)
+}
+
 // PurgeWorkItemWithResponse performs a POST /items/{itemId}:purge (the `PurgeWorkItem` operationId) request.
 //
 // Removes an entry in the trash and everything under it for good, before its retention period is up. Irreversible: no restore brings it back, and a backup taken before it does not either - the deletion journal sees to that. Refused for an entry that is not in the trash; delete it first, which is reversible. Refused while a legal hold is in force over it, and the answer says at which level.
@@ -186343,6 +186973,105 @@ func ParseMoveWorkItemResult(rsp *http.Response) (*MoveWorkItemResult, error) {
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseNotifyAccountResult parses an HTTP response from a NotifyAccountWithResponse call
+func ParseNotifyAccountResult(rsp *http.Response) (*NotifyAccountResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NotifyAccountResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest NotificationsQueued
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNotifyGroupResult parses an HTTP response from a NotifyGroupWithResponse call
+func ParseNotifyGroupResult(rsp *http.Response) (*NotifyGroupResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NotifyGroupResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest NotificationsQueued
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNotifyRoleResult parses an HTTP response from a NotifyRoleWithResponse call
+func ParseNotifyRoleResult(rsp *http.Response) (*NotifyRoleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NotifyRoleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest NotificationsQueued
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

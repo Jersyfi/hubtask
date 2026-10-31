@@ -439,6 +439,9 @@ var restDoors = map[string]restDoor{
 	"moveWorkItem":                      {UseCase: "MoveWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "item.version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"namePageVersion":                   {UseCase: "NamePageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"nameWhiteboardVersion":             {UseCase: "NameWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"notifyAccount":                     {UseCase: "NotifyAccount", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"notifyGroup":                       {UseCase: "NotifyGroup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"notifyRole":                        {UseCase: "NotifyRole", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"offerIdentityProvider":             {UseCase: "OfferIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"openDailyNote":                     {UseCase: "OpenDailyNote", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"openPrivateHub":                    {UseCase: "OpenPrivateHub", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3562,6 +3565,24 @@ func (c *RestController) NameWhiteboardVersion(w http.ResponseWriter, r *http.Re
 	var body openapi.NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.PageVersionNamed
 	c.door(w, r, restDoors["nameWhiteboardVersion"], usecase.Input{"whiteboard_id": whiteboardId.String(), "seq": seq}, nil, &body, &answer)
+}
+
+// NotifyAccount answers POST /items/{itemId}:notify-account by the generated mapping.
+func (c *RestController) NotifyAccount(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var body openapi.NotifyAccountJSONRequestBody
+	c.door(w, r, restDoors["notifyAccount"], usecase.Input{"item_id": itemId.String()}, nil, &body, answerBy(notifiedResponse))
+}
+
+// NotifyGroup answers POST /items/{itemId}:notify-group by the generated mapping.
+func (c *RestController) NotifyGroup(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var body openapi.NotifyGroupJSONRequestBody
+	c.door(w, r, restDoors["notifyGroup"], usecase.Input{"item_id": itemId.String()}, nil, &body, answerBy(notifiedResponse))
+}
+
+// NotifyRole answers POST /items/{itemId}:notify-role by the generated mapping.
+func (c *RestController) NotifyRole(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var body openapi.NotifyRoleJSONRequestBody
+	c.door(w, r, restDoors["notifyRole"], usecase.Input{"item_id": itemId.String()}, nil, &body, answerBy(notifiedResponse))
 }
 
 // OfferIdentityProvider answers POST /identity-providers/{providerId}:offer by the generated mapping.

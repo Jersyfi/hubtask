@@ -2783,6 +2783,18 @@ class Client:
         """POST /items/{itemId}:auto-assign"""
         return self._call("POST", "/items/{itemId}:auto-assign", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
+    def notify_account(self, item_id: str, body: "NotifyAccount") -> "NotificationsQueued":
+        """Tell one account about an entry"""
+        return self._call("POST", "/items/{itemId}:notify-account", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def notify_group(self, item_id: str, body: "NotifyGroup") -> "NotificationsQueued":
+        """Tell every member of a group about an entry"""
+        return self._call("POST", "/items/{itemId}:notify-group", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def notify_role(self, item_id: str, body: "NotifyRole") -> "NotificationsQueued":
+        """Tell the holders of a role along the entry's path"""
+        return self._call("POST", "/items/{itemId}:notify-role", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
     def purge_work_item(self, item_id: str, *, idempotency_key: str | None = None) -> None:
         """POST /items/{itemId}:purge"""
         return self._call("POST", "/items/{itemId}:purge", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "void")

@@ -855,6 +855,18 @@ func (pending) UnassignWorkItem(w http.ResponseWriter, r *http.Request, _ openap
 	notAvailable(w, r)
 }
 
+func (pending) NotifyAccount(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) NotifyGroup(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) NotifyRole(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
 func (pending) AutoAssignWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AutoAssignWorkItemParams) {
 	notAvailable(w, r)
 }

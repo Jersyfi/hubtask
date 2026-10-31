@@ -18790,6 +18790,30 @@ type NotificationPreferenceUpdate struct {
 	IncludeTitle bool `json:"include_title"`
 }
 
+// NotificationsQueued How many recipients a notification step reached.
+type NotificationsQueued struct {
+	// Recipients The recipients a message was recorded for: those who may read the entry. A recipient whose preference switched the category off is counted, with the message recorded as suppressed.
+	Recipients int `json:"recipients"`
+}
+
+// NotifyAccount The account a notification step tells.
+type NotifyAccount struct {
+	// AccountId The account to tell. One that does not exist is refused.
+	AccountId openapi_types.UUID `json:"account_id"`
+}
+
+// NotifyGroup The group whose members a notification step tells.
+type NotifyGroup struct {
+	// GroupId The group whose members are told, each one recipient. One that does not exist is refused.
+	GroupId openapi_types.UUID `json:"group_id"`
+}
+
+// NotifyRole The role whose holders along the entry's path a notification step tells.
+type NotifyRole struct {
+	// Role A built-in role (OWNER, ADMIN, MEMBER, CONTRIBUTOR, VIEWER, GUEST, AUDITOR) or the key of a custom role of the workspace. One the workspace does not know is refused.
+	Role string `json:"role"`
+}
+
 // OauthAuthorization defines model for OauthAuthorization.
 type OauthAuthorization struct {
 	ClientId openapi_types.UUID `json:"client_id"`
@@ -28648,6 +28672,15 @@ type MergeWorkItemsJSONRequestBody MergeWorkItemsJSONBody
 // MoveWorkItemJSONRequestBody defines body for MoveWorkItem for application/json ContentType.
 type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 
+// NotifyAccountJSONRequestBody defines body for NotifyAccount for application/json ContentType.
+type NotifyAccountJSONRequestBody = NotifyAccount
+
+// NotifyGroupJSONRequestBody defines body for NotifyGroup for application/json ContentType.
+type NotifyGroupJSONRequestBody = NotifyGroup
+
+// NotifyRoleJSONRequestBody defines body for NotifyRole for application/json ContentType.
+type NotifyRoleJSONRequestBody = NotifyRole
+
 // ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
 
@@ -30966,6 +30999,15 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:move)
 	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params MoveWorkItemParams)
+	// NotifyAccount Tell one account about an entry
+	// (POST /items/{itemId}:notify-account)
+	NotifyAccount(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// NotifyGroup Tell every member of a group about an entry
+	// (POST /items/{itemId}:notify-group)
+	NotifyGroup(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// NotifyRole Tell the holders of a role along the entry's path
+	// (POST /items/{itemId}:notify-role)
+	NotifyRole(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (POST /items/{itemId}:purge)
 	PurgeWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params PurgeWorkItemParams)
@@ -48481,6 +48523,84 @@ func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// NotifyAccount operation middleware
+func (siw *ServerInterfaceWrapper) NotifyAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.NotifyAccount(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// NotifyGroup operation middleware
+func (siw *ServerInterfaceWrapper) NotifyGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.NotifyGroup(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// NotifyRole operation middleware
+func (siw *ServerInterfaceWrapper) NotifyRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.NotifyRole(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PurgeWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) PurgeWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -59595,6 +59715,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:unassign", wrapper.UnassignWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:auto-assign", wrapper.AutoAssignWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:notify-account", wrapper.NotifyAccount)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:notify-group", wrapper.NotifyGroup)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:notify-role", wrapper.NotifyRole)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:purge", wrapper.PurgeWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:restore", wrapper.RestoreWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:archive", wrapper.ArchiveWorkItem)
