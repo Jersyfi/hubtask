@@ -31,8 +31,11 @@ function templatesPath(hubId?: string): string {
 /** What a hub's apply changes besides the workspace's reads: the hub's own document and blocks. */
 function hubTouched(hubId: string): string[] {
   const hub = encodeURIComponent(hubId);
-  return [templatesPath(hubId), `${DOCUMENT}?hub_id=${hub}`, `/tenant/modules?hub_id=${hub}`, `/containers/${hub}`, `/hubs/${hub}/business-calendars`];
+  return [templatesPath(hubId), `${DOCUMENT}?hub_id=${hub}`, `/tenant/modules?hub_id=${hub}`, `/containers/${hub}`, `/hubs/${hub}/business-calendars`, sampleEntriesPath(hubId)];
 }
+
+/** A hub's sample entries, the ones a template brought to try it on (configuration.md §6). */
+export const sampleEntriesPath = (hubId: string) => `/hubs/${encodeURIComponent(hubId)}/sample-entries`;
 
 class Config {
   /** Reads the versions, newest first. **From `untrack`**. */
@@ -98,10 +101,12 @@ class Config {
     take?: readonly string[],
     hubId?: string,
     answers?: Readonly<Record<string, string>>,
+    samples?: boolean,
   ): Promise<ConfigTemplatePlan> {
     return engine.mutate<ConfigTemplatePlan>('POST', `${TEMPLATES}/${encodeURIComponent(key)}:plan`, {
       ...(take ? { take: [...take] } : {}),
       ...(hubId ? { hub_id: hubId } : {}),
+      ...(samples ? { samples: true } : {}),
       ...(answers && Object.keys(answers).length > 0 ? { answers: { ...answers } } : {}),
     });
   }
@@ -110,6 +115,15 @@ class Config {
    * Applies a template's plan by its hash, recording the template's provenance: a hub's plan to
    * that hub's own document.
    */
+  /**
+   * Moves every sample entry of the hub into the trash at once; entries nobody marked stay.
+   */
+  async removeSamples(hubId: string): Promise<{ removed: number }> {
+    return engine.mutate<{ removed: number }>('POST', `${sampleEntriesPath(hubId)}:remove`, undefined, {
+      idempotencyKey: crypto.randomUUID(), invalidates: [sampleEntriesPath(hubId), '/items'],
+    });
+  }
+
   async applyTemplate(plan: ConfigTemplatePlan, acknowledge: boolean): Promise<ConfigApplyResult> {
     const hubId = plan.hub_id ?? undefined;
     return engine.mutate<ConfigApplyResult>('POST', '/config:apply', {

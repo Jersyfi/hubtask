@@ -300,6 +300,7 @@ export type EntrySlaList = components['schemas']['EntrySlaList'];
 export type SlaReport = components['schemas']['SlaReport'];
 export type BusinessCalendar = components['schemas']['BusinessCalendar'];
 export type BusinessCalendarList = components['schemas']['BusinessCalendarList'];
+export type SampleEntryList = components['schemas']['SampleEntryList'];
 export type BusinessCalendarDefine = components['schemas']['BusinessCalendarDefine'];
 export type SlaPolicy = components['schemas']['SlaPolicy'];
 export type SlaPolicyList = components['schemas']['SlaPolicyList'];

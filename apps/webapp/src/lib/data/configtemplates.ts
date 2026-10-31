@@ -52,3 +52,17 @@ export function answersOf(questions: readonly Asked[] | undefined, given: Readon
   }
   return out;
 }
+
+interface WithSamples extends Offered {
+  readonly hub_document?: { readonly [section: string]: unknown } | null;
+}
+
+/**
+ * Whether taking the template offers its sample entries: only to a hub, only where its hub part
+ * brings some, and only on the hub's first take - an upgrade neither adds nor removes them.
+ */
+export function offersSamples(template: WithSamples | undefined, hubId: string | undefined): boolean {
+  if (!template || !hubId || offerOf(template) !== 'TAKE') return false;
+  const samples = template.hub_document?.['samples'];
+  return typeof samples === 'object' && samples !== null && Object.keys(samples).length > 0;
+}

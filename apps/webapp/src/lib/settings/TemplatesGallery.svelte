@@ -14,7 +14,7 @@
   import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState } from '@hubtask/sync-engine';
 
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
-  import { answersOf, byOrigin, offerOf, takenFirst } from '../data/configtemplates.ts';
+  import { answersOf, byOrigin, offerOf, offersSamples, takenFirst } from '../data/configtemplates.ts';
   import { groups as workspaceGroups } from '../data/groups.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -44,6 +44,9 @@
   let chosen = $state<ConfigTemplate>();
   /** The answers to the chosen template's questions, by key. */
   let answers = $state<Record<string, string>>({});
+  /** Whether the hub takes the template's sample entries too, offered on its first take only. */
+  let withSamples = $state(false);
+  const samplesOffered = $derived(offersSamples(chosen, hubId));
   const asksGroup = $derived(chosen?.questions?.some((question) => question.kind === 'GROUP') ?? false);
   $effect(() => {
     if (!asksGroup) return;
@@ -59,6 +62,7 @@
     busy = template.key;
     chosen = template;
     answers = {};
+    withSamples = false;
     acknowledged = false;
     try {
       plan = await config.planTemplate(template.key, undefined, hubId, answersOf(template.questions, answers));
@@ -75,7 +79,7 @@
     if (!chosen) return;
     take = isTaken ? [...take, path] : take.filter((each) => each !== path);
     try {
-      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers));
+      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
@@ -86,7 +90,18 @@
     if (!chosen) return;
     answers = { ...answers, [key]: value };
     try {
-      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers));
+      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples);
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    }
+  }
+
+  /** Taking the samples or not changes the plan, so it is asked again. */
+  async function sampled(on: boolean) {
+    if (!chosen) return;
+    withSamples = on;
+    try {
+      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
@@ -172,6 +187,11 @@
             {/if}
           {/each}
         </div>
+      {/if}
+      {#if samplesOffered}
+        <Checkbox label={t('app.templates.samples')} hint={t('app.templates.samples_hint')} checked={withSamples}
+          data-template-samples
+          onchange={(event: Event) => sampled((event.currentTarget as HTMLInputElement).checked)} />
       {/if}
       {#if plan.from_version}
         <p class="quiet">{t('app.templates.upgrade_about', { from: plan.from_version, to: chosen.version })}</p>

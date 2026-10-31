@@ -135,6 +135,7 @@
     ContainerEditDialog: () => import('../lib/workspace/ContainerEditDialog.svelte'),
     HubCalendars: () => import('../lib/servicedesk/HubCalendars.svelte'),
     TemplatesGallery: () => import('../lib/settings/TemplatesGallery.svelte'),
+    SampleEntries: () => import('../lib/settings/SampleEntries.svelte'),
     CodeHooks: () => import('../lib/code/CodeHooks.svelte'),
     ChatBots: () => import('../lib/chat/ChatBots.svelte'),
   };
@@ -1233,6 +1234,7 @@
         {/snippet}
         {#snippet modulesTab()}
           <LazyView load={settingsParts.ModuleSwitches} props={{ hubId: container.id }} />
+          <LazyView load={settingsParts.SampleEntries} props={{ hubId: container.id }} />
           <LazyView load={settingsParts.TemplatesGallery} props={{ hubId: container.id }} />
         {/snippet}
         {#snippet calendarsTab()}

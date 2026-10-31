@@ -171,6 +171,7 @@ export type {
   SlaReport,
   BusinessCalendar,
   BusinessCalendarList,
+  SampleEntryList,
   BusinessCalendarDefine,
   SlaPolicy,
   SlaPolicyList,

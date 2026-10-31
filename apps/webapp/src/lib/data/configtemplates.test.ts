@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answersOf, byOrigin, offerOf, takenFirst } from './configtemplates.ts';
+import { answersOf, byOrigin, offerOf, offersSamples, takenFirst } from './configtemplates.ts';
 
 test('the gallery draws the four origins in order and leaves an empty one out', () => {
   const groups = byOrigin([
@@ -39,4 +39,13 @@ test('a plan is asked with each answer, a default where none was given, and noth
   const questions = [{ key: 'first_group' }, { key: 'greeting', default: 'Hello' }, { key: 'tone', default: null }];
   assert.deepEqual(answersOf(questions, { first_group: 'g-1', tone: '  ' }), { first_group: 'g-1', greeting: 'Hello' });
   assert.deepEqual(answersOf(undefined, { first_group: 'g-1' }), {});
+});
+
+test('sample entries are offered to a hub taking a template that brings some, never on an upgrade', () => {
+  const desk = { origin: 'HUBTASK' as const, taken_version: null, update_available: false, hub_document: { samples: { vpn: { title: 'VPN' } } } };
+  assert.equal(offersSamples(desk, 'hub'), true);
+  assert.equal(offersSamples(desk, undefined), false, 'the workspace takes no samples');
+  assert.equal(offersSamples({ ...desk, taken_version: 7, update_available: true }, 'hub'), false, 'an upgrade offers none');
+  assert.equal(offersSamples({ ...desk, hub_document: { samples: {} } }, 'hub'), false);
+  assert.equal(offersSamples({ ...desk, hub_document: null }, 'hub'), false);
 });
