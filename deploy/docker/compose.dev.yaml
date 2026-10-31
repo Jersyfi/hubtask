@@ -8,6 +8,8 @@ services:
   postgres:
     # pgvector, for the reason deploy/docker/compose.yaml gives (ADR-0050).
     image: pgvector/pgvector:pg16
+    # As compose.yaml: parallel workers outgrow the default 64 MB /dev/shm.
+    shm_size: 256mb
     environment:
       POSTGRES_USER: hubtask
       POSTGRES_PASSWORD: hubtask-dev
