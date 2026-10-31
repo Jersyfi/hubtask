@@ -11,6 +11,7 @@ import (
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -59,7 +60,9 @@ func TestTheWalkCarriesWorkflowsLinkTypesRolesAndLinks(t *testing.T) {
 
 	records, _ := wholeWalk(t, pull, 5)
 	// The CMDB's catalogue, walked after them, is its own test's.
-	records = slices.DeleteFunc(records, func(r Record) bool { return r.Entity == "cmdb_catalogue" })
+	records = slices.DeleteFunc(records, func(r Record) bool {
+		return r.Entity == "cmdb_catalogue" || r.Entity == "workflow_scheme"
+	})
 
 	got := entities(records)
 	tail := got[len(got)-5:]
@@ -74,6 +77,37 @@ func TestTheWalkCarriesWorkflowsLinkTypesRolesAndLinks(t *testing.T) {
 		if record.Payload[workservice.LinkTargetCollectionKey] == nil {
 			t.Errorf("a link record names no target collection: %+v", record.Payload)
 		}
+	}
+}
+
+func (s *snapshotStore) WorkflowSchemes(context.Context) ([]work.WorkflowScheme, error) {
+	return s.schemes, nil
+}
+
+// A board is drawn offline from the scheme: the walk carries it once, under the workspace's
+// identifier, with the shipped workflow a device holds no row of.
+func TestTheWalkCarriesTheWorkflowSchemeOnce(t *testing.T) {
+	pull, f, store := walking(t)
+	f.auth.workspace = true
+	store.schemes = []work.WorkflowScheme{{ContainerID: collectionA, WorkflowKey: "support"}}
+
+	records, _ := wholeWalk(t, pull, 3)
+
+	var schemes []Record
+	for _, record := range records {
+		if record.Entity == "workflow_scheme" {
+			schemes = append(schemes, record)
+		}
+	}
+	if len(schemes) != 1 || schemes[0].EntityID != tenant || !schemes[0].ContainerID.IsZero() {
+		t.Fatalf("scheme records %+v, want one under the workspace", schemes)
+	}
+	rows := schemes[0].Payload["scheme"].([]usecase.Output)
+	if len(rows) != 1 || rows[0]["workflow"] != "support" || rows[0]["container_id"] != collectionA.String() {
+		t.Errorf("the scheme's rows %v", rows)
+	}
+	if shipped := schemes[0].Payload["shipped"].(usecase.Output); shipped["key"] != work.SystemWorkflowKey {
+		t.Errorf("the shipped workflow %v", shipped)
 	}
 }
 

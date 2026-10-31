@@ -51,6 +51,7 @@ var walkKinds = []string{
 	entityPortfolio,
 	entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun,
 	entityApproval, entityEntrySla, entitySatisfaction, entityCodeLink, entityFileLink,
+	entityWorkflowScheme,
 }
 
 const (
@@ -66,9 +67,12 @@ const (
 	entityEntryType = "entry_type"
 	// entityLinkType, entityWorkflow and entityCustomRole are workspace-wide too: the vocabulary a
 	// device draws links, boards and a form's `actor.roles` with.
-	entityLinkType   = "link_type"
-	entityWorkflow   = "workflow"
-	entityCustomRole = "custom_role"
+	entityLinkType = "link_type"
+	entityWorkflow = "workflow"
+	// entityWorkflowScheme is the workspace's scheme with the shipped workflow, one record under
+	// the workspace's identifier: what a device draws a board's columns by.
+	entityWorkflowScheme = workflowservice.SchemeEntity
+	entityCustomRole     = "custom_role"
 	// entityEntryLink is filed under its source's collection and reaches a reader only when they
 	// may read the target's as well: a link never tells of an entry its reader cannot see.
 	entityEntryLink = "entry_link"
@@ -272,6 +276,10 @@ func (p PullChanges) readKind(
 			rows, err = p.catalogue(ctx, actor, after)
 			return err
 		}
+		if kind == entityWorkflowScheme {
+			rows, err = p.scheme(ctx, actor, after)
+			return err
+		}
 		if timeKind(kind) {
 			rows, err = p.time(ctx, actor, kind, after, batch)
 			return err
@@ -312,6 +320,21 @@ func (p PullChanges) catalogue(ctx context.Context, actor appshared.ActorContext
 	return []walkRow{{
 		entity: entityCICatalogue, entityID: actor.TenantID,
 		payload: cmdbservice.CatalogueOutput(classes, types), key: actor.TenantID.String(),
+	}}, nil
+}
+
+// scheme is the workflow scheme's one workspace record; a resumed walk has delivered it already.
+func (p PullChanges) scheme(ctx context.Context, actor appshared.ActorContext, after string) ([]walkRow, error) {
+	if after != "" {
+		return nil, nil
+	}
+	schemes, err := p.Snapshot.WorkflowSchemes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return []walkRow{{
+		entity: entityWorkflowScheme, entityID: actor.TenantID,
+		payload: workflowservice.SchemeOutput(schemes), key: actor.TenantID.String(),
 	}}, nil
 }
 

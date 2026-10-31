@@ -161,6 +161,8 @@ type Snapshot interface {
 	EntryTypes(ctx context.Context, after shared.ID, batch int) ([]work.EntryType, error)
 	// Workflows pages the workspace's workflow rows (UC-FLW-02).
 	Workflows(ctx context.Context, after shared.ID, batch int) ([]work.Workflow, error)
+	// WorkflowSchemes reads the workspace's whole scheme: which container runs which workflow.
+	WorkflowSchemes(ctx context.Context) ([]work.WorkflowScheme, error)
 	// LinkTypes pages the workspace's own link type rows (UC-PLN-01).
 	LinkTypes(ctx context.Context, after shared.ID, batch int) ([]work.LinkType, error)
 	// EntryLinks pages every link between two live entries, with the collection of each end.

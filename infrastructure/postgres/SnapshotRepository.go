@@ -345,6 +345,11 @@ func (SnapshotRepository) Workflows(ctx context.Context, after shared.ID, batch 
 	return mapRows(rows, workflowFrom)
 }
 
+// WorkflowSchemes reads the workspace's whole scheme.
+func (SnapshotRepository) WorkflowSchemes(ctx context.Context) ([]work.WorkflowScheme, error) {
+	return WorkflowRepository{}.Schemes(ctx)
+}
+
 // LinkTypes pages the workspace's own link type rows.
 func (SnapshotRepository) LinkTypes(ctx context.Context, after shared.ID, batch int) ([]work.LinkType, error) {
 	queries, key, err := snapshotPage(ctx, after)

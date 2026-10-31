@@ -41,6 +41,7 @@ type snapshotStore struct {
 	recurrences []repository.InCollection[work.RecurrenceRule]
 	templates   []work.Template
 	workflows   []work.Workflow
+	schemes     []work.WorkflowScheme
 	linkTypes   []work.LinkType
 	links       []repository.LinkBetween
 	roles       []identityrepo.CustomRoleRow
@@ -273,6 +274,7 @@ func TestTheWalkDeliversEveryKindInOrderAndEndsOnTheDeltaCursor(t *testing.T) {
 		"container", "container", "container", "bucket", "label", "item", "item",
 		"item", "item", // the two set elements, as records of their entry
 		"comment", "reminder", "recurrence_rule", "template",
+		"workflow_scheme", // the workspace's, which every member reads
 	}
 	if got := entities(records); !slices.Equal(got, want) {
 		t.Errorf("the walk delivered %v, want %v", got, want)
@@ -428,6 +430,8 @@ func TestSetElementsTravelAsTheDeltaSpellsThem(t *testing.T) {
 func TestAScopeNarrowsTheWalkToo(t *testing.T) {
 	pull, _, _ := walking(t)
 	records, _ := wholeWalk(t, pull, 100, Scope{ContainerID: collectionB, Depth: DepthSelf})
+	// The workspace's vocabulary travels in every scope; its own tests hold it.
+	records = slices.DeleteFunc(records, func(r Record) bool { return r.Entity == "workflow_scheme" })
 
 	if len(records) != 2 {
 		t.Fatalf("%d records, want the collection and its one entry: %v", len(records), entities(records))
@@ -442,7 +446,7 @@ func TestAScopeNarrowsTheWalkToo(t *testing.T) {
 func TestThePageSizeIsHonouredAcrossKinds(t *testing.T) {
 	pull, _, store := walking(t)
 	records, _ := wholeWalk(t, pull, 5)
-	if len(records) != 13 {
+	if len(records) != 14 {
 		t.Fatalf("%d records, want the whole workspace", len(records))
 	}
 	// Three full pages and a short last one, each filled across kind boundaries.
