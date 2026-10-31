@@ -40,7 +40,8 @@ func (c placesCatalogue) Invoke(ctx context.Context, name string, actor appshare
 		for name := range own {
 			sources[name] = "COLLECTION"
 		}
-		return usecase.Output{"type": "COLLECTION", "structure": map[string]any{"settings": maps.Clone(own), "sources": sources}}, nil
+		return usecase.Output{"type": "COLLECTION", "parent_id": c.w.parentOf(in.String("container_id")),
+			"structure": map[string]any{"settings": maps.Clone(own), "sources": sources}}, nil
 	case "ReadPlanTolerance":
 		if in["tolerance_only"] != true {
 			panic("the document read the plan's standing")

@@ -481,7 +481,8 @@ func applyFields() []usecase.Field {
 		usecase.Field{Name: "plan_hash", Kind: usecase.KindString, Required: true, Description: "The plan's hash, as PlanConfig answered it."},
 		usecase.Field{Name: "base_hash", Kind: usecase.KindString, CallerOnly: true, Description: "The hash of the configuration the plan was made on (If-Match), so a changed document is told from a changed configuration."},
 		usecase.Field{Name: "acknowledge", Kind: usecase.KindBool, Description: "True once the person has seen that the plan hides data or changes permissions; required when it does."},
-		usecase.Field{Name: "template", Kind: usecase.KindString, Description: "The template@version the document came from, recorded as the workspace's provenance - or, with hub_id, as the hub's, for a template with a hub part."},
+		usecase.Field{Name: "template", Kind: usecase.KindString, Description: "The template@version the document came from, recorded as the workspace's provenance - or, with hub_id, as the hub's, for a template with a hub part, and with collection_id as the collection's, for a template with a collection part."},
+		collectionField(),
 		usecase.Field{Name: "step_up_token", Kind: usecase.KindString, CallerOnly: true, Description: "The fresh proof from /auth/step-up, needed where the plan changes the sign-in rule (step_up)."},
 	)
 }
@@ -502,7 +503,7 @@ func (h ProposeConfig) Descriptor() usecase.Descriptor {
 		Audit:       usecase.AuditDeclaration{Action: ProposedAction, TargetType: target, Severity: audit.SeverityInfo, Required: true},
 		Activity:    usecase.ActivityDeclaration{Exempt: "configuration is not an item; the proposal is in the trail."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			hub, err := hubOf(in)
+			in, hub, _, err := h.Desk.scopeOf(ctx, actor, in)
 			if err != nil {
 				return nil, err
 			}
@@ -538,7 +539,7 @@ func (d Desk) propose(ctx context.Context, actor appshared.ActorContext, in usec
 			ID: d.IDs.NewID(), TenantID: actor.TenantID, State: domain.ProposalWaiting, Document: document,
 			Mode: mode, BaseHash: p.Base, PlanHash: p.Hash, Template: in.String("template"),
 			Counts: domain.CountsOf(p.Changes), Flags: p.Flags, ProposedBy: actor.AccountID, CreatedAt: at,
-			HubID: hub,
+			HubID: hub, CollectionID: collectionOf(in),
 		}
 		if err := d.Store.InsertProposal(ctx, proposal); err != nil {
 			return err
@@ -583,7 +584,7 @@ func (h ApplyConfig) Descriptor() usecase.Descriptor {
 		Audit:       usecase.AuditDeclaration{Action: AppliedAction, TargetType: target, Severity: audit.SeverityInfo, Required: true},
 		Activity:    usecase.ActivityDeclaration{Exempt: "configuration is not an item; the version and the trail hold the change."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			hub, err := hubOf(in)
+			in, hub, _, err := h.Desk.scopeOf(ctx, actor, in)
 			if err != nil {
 				return nil, err
 			}
@@ -657,7 +658,7 @@ func (d Desk) apply(ctx context.Context, actor appshared.ActorContext, in usecas
 		if err := d.publishedDrafts(ctx, hub, document); err != nil {
 			return err
 		}
-		template, err := d.provenance(ctx, actor, in.String("template"), hub)
+		template, err := d.provenance(ctx, actor, in.String("template"), hub, collectionOf(in))
 		if err != nil {
 			return err
 		}
@@ -784,7 +785,7 @@ func ProposalOutput(p domain.Proposal) usecase.Output {
 		"added": p.Counts.Added, "changed": p.Counts.Changed, "removed": p.Counts.Removed,
 		"hides_data": p.Flags.HidesData, "changes_permissions": p.Flags.ChangesPermissions,
 		"proposed_by": idOrNil(p.ProposedBy), "decided_by": idOrNil(p.DecidedBy),
-		"created_at": p.CreatedAt, "decided_at": nil, "hub_id": idOrNil(p.HubID),
+		"created_at": p.CreatedAt, "decided_at": nil, "hub_id": idOrNil(p.HubID), "collection_id": idOrNil(p.CollectionID),
 	}
 	if p.Template != "" {
 		out["template"] = p.Template
@@ -913,7 +914,7 @@ func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id share
 		if err := d.publishedDrafts(ctx, proposal.HubID, proposal.Document); err != nil {
 			return err
 		}
-		template, err := d.provenance(ctx, actor, proposal.Template, proposal.HubID)
+		template, err := d.provenance(ctx, actor, proposal.Template, proposal.HubID, proposal.CollectionID)
 		if err != nil {
 			return err
 		}

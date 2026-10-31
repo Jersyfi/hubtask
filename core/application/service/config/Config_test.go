@@ -167,7 +167,7 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 			return nil, shared.ErrNotFound.WithDetail("containers.not_found")
 		}
 		if w.hub == "" || in.String("container_id") != w.hub {
-			return usecase.Output{"type": "COLLECTION"}, nil
+			return usecase.Output{"type": "COLLECTION", "parent_id": w.parentOf(in.String("container_id"))}, nil
 		}
 		sources := map[string]any{}
 		for name := range w.hubStructure {
@@ -818,4 +818,14 @@ func TestTheSchemaIsTakenFromTheOperations(t *testing.T) {
 func isDetail(err error, code string) bool {
 	var e *shared.Error
 	return errors.As(err, &e) && e.DetailCode == code
+}
+
+// parentOf is the hub a collection of the world's containers sits in, or nil.
+func (w *world) parentOf(id string) any {
+	for _, raw := range w.containers {
+		if row, _ := raw.(map[string]any); row["id"] == id {
+			return row["parent_id"]
+		}
+	}
+	return nil
 }

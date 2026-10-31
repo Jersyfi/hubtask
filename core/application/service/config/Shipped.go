@@ -85,11 +85,13 @@ var bundled = sync.OnceValues(func() ([]domain.Template, error) {
 			return nil, err
 		}
 		var file struct {
-			Key       string         `json:"key"`
-			Version   int            `json:"version"`
-			Document  map[string]any `json:"document"`
-			Hub       map[string]any `json:"hub"`
-			Questions []struct {
+			Key      string         `json:"key"`
+			Version  int            `json:"version"`
+			Document map[string]any `json:"document"`
+			Hub      map[string]any `json:"hub"`
+			// Collection is the part a collection takes, its blocks keyed without a handle.
+			Collection map[string]any `json:"collection"`
+			Questions  []struct {
 				Key      string   `json:"key"`
 				Kind     string   `json:"kind"`
 				Required bool     `json:"required"`
@@ -106,6 +108,9 @@ var bundled = sync.OnceValues(func() ([]domain.Template, error) {
 		}
 		if file.Hub != nil {
 			template.Hub = shippedDocument(file.Hub)
+		}
+		if file.Collection != nil {
+			template.Collection = shippedDocument(file.Collection)
 		}
 		for _, q := range file.Questions {
 			template.Questions = append(template.Questions, domain.Question{

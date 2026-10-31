@@ -27,16 +27,17 @@ const (
 )
 
 // taken is the template an apply records as the workspace's provenance - or a hub's, for the
-// template's hub part - if it names one.
+// template's hub part, or a collection's, for its collection part - if it names one.
 type taken struct {
-	label    string
-	template *domain.Template
-	hub      shared.ID
+	label      string
+	template   *domain.Template
+	hub        shared.ID
+	collection shared.ID
 }
 
-// provenance reads `key@version`, refusing a template the workspace does not have, and for a hub
-// one without a hub part.
-func (d Desk) provenance(ctx context.Context, actor appshared.ActorContext, label string, hub shared.ID) (taken, error) {
+// provenance reads `key@version`, refusing a template the workspace does not have, for a hub one
+// without a hub part and for a collection one without a collection part.
+func (d Desk) provenance(ctx context.Context, actor appshared.ActorContext, label string, hub, collection shared.ID) (taken, error) {
 	if label == "" {
 		return taken{}, nil
 	}
@@ -54,10 +55,15 @@ func (d Desk) provenance(ctx context.Context, actor appshared.ActorContext, labe
 			return taken{}, err
 		}
 	}
-	if !hub.IsZero() && !template.ForHubs() {
+	switch {
+	case !collection.IsZero():
+		if !template.ForCollections() {
+			return taken{}, refused("config.template_not_for_collections", "/template", map[string]string{"template": label})
+		}
+	case !hub.IsZero() && !template.ForHubs():
 		return taken{}, refused("config.template_not_for_hubs", "/template", map[string]string{"template": label})
 	}
-	return taken{label: template.Provenance(), template: &template, hub: hub}, nil
+	return taken{label: template.Provenance(), template: &template, hub: hub, collection: collection}, nil
 }
 
 // record keeps the template version taken, with its document then: the base of the next upgrade.
@@ -65,12 +71,15 @@ func (t taken) record(ctx context.Context, d Desk) error {
 	if t.template == nil {
 		return nil
 	}
-	document := t.template.Document
-	if !t.hub.IsZero() {
+	document, place := t.template.Document, t.hub
+	switch {
+	case !t.collection.IsZero():
+		document, place = t.template.Collection, t.collection
+	case !t.hub.IsZero():
 		document = t.template.Hub
 	}
 	return d.Store.PutTemplateUse(ctx, domain.TemplateUse{
-		HubID: t.hub, TemplateKey: t.template.Key, Version: t.template.Version, Document: document, At: d.Clock.Now(),
+		HubID: place, TemplateKey: t.template.Key, Version: t.template.Version, Document: document, At: d.Clock.Now(),
 	})
 }
 
@@ -79,10 +88,13 @@ func TemplateOutput(t domain.Template, taken *domain.TemplateUse) usecase.Output
 	out := usecase.Output{
 		"key": t.Key, "version": t.Version, "name": t.Name, "origin": string(t.Origin),
 		"provenance": t.Provenance(), "document": documentMap(t.Document), "created_at": t.CreatedAt,
-		"taken_version": nil, "update_available": false, "hub_document": nil,
+		"taken_version": nil, "update_available": false, "hub_document": nil, "collection_document": nil,
 	}
 	if t.ForHubs() {
 		out["hub_document"] = documentMap(t.Hub)
+	}
+	if t.ForCollections() {
+		out["collection_document"] = documentMap(t.Collection)
 	}
 	questions := make([]any, 0, len(t.Questions))
 	for _, q := range t.Questions {
@@ -119,20 +131,25 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 			"Every preset is among them as a template of its structure part: Hubtask's by its key (list, " +
 			"tasks, project, flow), the installation's, the workspace's and the reader's own by identifier - and " +
 			"Hubtask's own document templates (itil_service_desk). With hub_id, the templates a hub can take - " +
-			"those with a hub part - with the version that hub took.",
+			"those with a hub part - with the version that hub took; with collection_id, those with a " +
+			"collection part, with the version that collection took.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  scopeRead,
 		ReadOnly:    true,
-		Input:       []usecase.Field{hubField()},
+		Input:       []usecase.Field{hubField(), collectionField()},
 		Audit:       usecase.AuditDeclaration{Action: ReadAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity:    usecase.ActivityDeclaration{Exempt: "a read changes nothing."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			hub, err := hubOf(in)
+			_, hub, collection, err := h.Desk.scopeOf(ctx, actor, in)
 			if err != nil {
 				return nil, err
 			}
 			if err := h.Desk.authorizeAt(ctx, actor, hub, ReadAction, scopeRead, true); err != nil {
 				return nil, err
+			}
+			place := hub
+			if !collection.IsZero() {
+				place = collection
 			}
 			rows := []usecase.Output{}
 			err = h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -140,7 +157,7 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
-				uses, err := h.Desk.Store.TemplateUses(ctx, hub)
+				uses, err := h.Desk.Store.TemplateUses(ctx, place)
 				if err != nil {
 					return err
 				}
@@ -164,7 +181,7 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 					}
 				}
 				for _, key := range order {
-					if !hub.IsZero() && !newest[key].ForHubs() {
+					if !collection.IsZero() && !newest[key].ForCollections() || collection.IsZero() && !hub.IsZero() && !newest[key].ForHubs() {
 						continue
 					}
 					rows = append(rows, TemplateOutput(newest[key], byKey[key]))
@@ -188,7 +205,9 @@ func (h PublishConfigTemplate) Descriptor() usecase.Descriptor {
 			"section's operations would accept - and a template that does not pass is not published. " +
 			"A published version never changes; omitted, the document is the configuration in force " +
 			"(save as template). A hub part - hub_document, or with hub_id that hub's own document in force - " +
-			"makes it a hub template: a hub taking it applies that part to itself.",
+			"makes it a hub template: a hub taking it applies that part to itself. A collection part - " +
+			"collection_document, the collection sections of a hub's document with each block keyed " +
+			"without a handle - makes it a collection template.",
 		SideEffects: "Stores the template version and writes an audit entry.",
 		TokenScope:  scopeApply,
 		Input: []usecase.Field{
@@ -197,6 +216,7 @@ func (h PublishConfigTemplate) Descriptor() usecase.Descriptor {
 			{Name: "document", Kind: usecase.KindObject, Description: "The blocks the template sets up; omitted takes the configuration in force."},
 			{Name: "hub_id", Kind: usecase.KindID, Description: "A hub whose own document in force is the template's hub part, unless hub_document names it."},
 			{Name: "hub_document", Kind: usecase.KindObject, Description: "The hub part: a hub's document - modules, structure, scheme, business_calendars - that a hub taking the template applies to itself."},
+			{Name: "collection_document", Kind: usecase.KindObject, Description: "The collection part: collection sections, each block keyed without a handle, that a collection taking the template applies to itself."},
 		},
 		Audit:    usecase.AuditDeclaration{Action: TemplateAction, TargetType: target, Severity: audit.SeverityInfo, Required: true},
 		Activity: usecase.ActivityDeclaration{Exempt: "a template is configuration, not an item."},
@@ -258,6 +278,10 @@ func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usec
 		if err := checkTemplate(document, hubPart); err != nil {
 			return err
 		}
+		collectionPart, err := d.collectionPart(in)
+		if err != nil {
+			return err
+		}
 		templates, err := d.Store.ListTemplates(ctx)
 		if err != nil {
 			return err
@@ -271,7 +295,7 @@ func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usec
 		at := d.Clock.Now()
 		template := domain.Template{
 			ID: d.IDs.NewID(), TenantID: actor.TenantID, Key: key, Version: version, Name: name,
-			Origin: domain.OriginWorkspace, Document: document, Hub: hubPart, CreatedBy: actor.AccountID, CreatedAt: at,
+			Origin: domain.OriginWorkspace, Document: document, Hub: hubPart, Collection: collectionPart, CreatedBy: actor.AccountID, CreatedAt: at,
 		}
 		if err := d.Store.InsertTemplate(ctx, template); err != nil {
 			return err
@@ -363,12 +387,14 @@ func (h PlanConfigTemplate) Descriptor() usecase.Descriptor {
 			"changed it, the workspace did not) or CONFLICT (both did, differently); conflicts are " +
 			"left unless named in take. Answers the changes, the document to apply and its plan; " +
 			"ApplyConfig with template set applies it and records the provenance. With hub_id, the template's " +
-			"hub part against that hub's own document, once the workspace took the template's own part.",
+			"hub part against that hub's own document, once the workspace took the template's own part; with " +
+			"collection_id, its collection part under that collection's handle, planned as the collection's hub's document.",
 		SideEffects: "None.",
 		TokenScope:  scopePlan,
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			hubField(),
+			collectionField(),
 			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The template."},
 			{Name: "version", Kind: usecase.KindInt, Description: "The version to take or upgrade to; omitted is the newest."},
 			{Name: "take", Kind: usecase.KindList, Description: "Key paths of the upgrade's changes to take; omitted takes every TAKE and leaves every CONFLICT."},
@@ -378,7 +404,7 @@ func (h PlanConfigTemplate) Descriptor() usecase.Descriptor {
 		Audit:    usecase.AuditDeclaration{Action: PlannedAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity: usecase.ActivityDeclaration{Exempt: "a plan changes nothing."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			hub, err := hubOf(in)
+			_, hub, collection, err := h.Desk.scopeOf(ctx, actor, in)
 			if err != nil {
 				return nil, err
 			}
@@ -393,7 +419,7 @@ func (h PlanConfigTemplate) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			return h.Desk.planTemplate(ctx, actor, hub, in.String("key"), in.Int("version"), take, answers, in.Bool("samples"))
+			return h.Desk.planTemplate(ctx, actor, hub, collection, in.String("key"), in.Int("version"), take, answers, in.Bool("samples"))
 		}),
 	}
 }
@@ -437,7 +463,7 @@ func (d Desk) answered(ctx context.Context, actor appshared.ActorContext, t doma
 	return answered, nil
 }
 
-func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hub shared.ID, key string, version int, take []string, answers map[string]string, samples bool) (usecase.Output, error) {
+func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hub, collection shared.ID, key string, version int, take []string, answers map[string]string, samples bool) (usecase.Output, error) {
 	var out usecase.Output
 	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		templates, err := d.Store.ListTemplates(ctx)
@@ -462,8 +488,17 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 		if err != nil {
 			return err
 		}
-		document := chosen.Document
-		if !hub.IsZero() {
+		now, err := d.export(ctx, actor, hub)
+		if err != nil {
+			return err
+		}
+		document, handle := chosen.Document, ""
+		switch {
+		case !collection.IsZero():
+			if document, uses, handle, err = d.collectionTemplate(ctx, *chosen, uses, now, collection); err != nil {
+				return err
+			}
+		case !hub.IsZero():
 			if document, uses, err = d.hubTemplate(ctx, *chosen, uses, hub); err != nil {
 				return err
 			}
@@ -482,10 +517,6 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 		if takenBefore {
 			document = withoutTemplatePages(document)
 		}
-		now, err := d.export(ctx, actor, hub)
-		if err != nil {
-			return err
-		}
 		upgrades := []usecase.Output{}
 		from := 0
 		for _, use := range uses {
@@ -495,9 +526,13 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 			from = use.Version
 			// The base is answered as the new version is, so an answer given again is no change
 			// and the template's own edits around it are TAKEs.
-			base, err := domain.Answer(chosen.Questions, use.Document, answers)
+			took := use.Document
+			if handle != "" {
+				took = keyedUnder(took, handle)
+			}
+			base, err := domain.Answer(chosen.Questions, took, answers)
 			if err != nil {
-				base = use.Document
+				base = took
 			}
 			base = withoutTemplatePages(withoutSamples(base))
 			changes := domain.ThreeWay(base, now.Document, document)
@@ -516,6 +551,7 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 		if !hub.IsZero() {
 			out["hub_id"] = hub.String()
 		}
+		out["collection_id"] = idOrNil(collection)
 		out["from_version"] = nil
 		if from > 0 {
 			out["from_version"] = from
