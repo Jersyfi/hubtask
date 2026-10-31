@@ -2082,6 +2082,7 @@ class SlaPolicy(TypedDict, total=False):
     name: Required[str]
     calendar: Required[str | None]
     entry_types: Required[list[str]]
+    organisations: Required[list[str]]
     priority_field: Required[str | None]
     goals: Required[list["SlaGoal"]]
     position: Required[int]
@@ -2095,6 +2096,7 @@ class SlaPolicyDefine(TypedDict, total=False):
     name: Required[str]
     calendar: str
     entry_types: Required[list[str]]
+    organisations: list[str]
     priority_field: str
     goals: Required[list["SlaGoal"]]
     position: int

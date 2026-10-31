@@ -27838,12 +27838,16 @@ components:
     SlaPolicy:
       type: object
       description: A promise of response and resolution times for entries of some types, on a business calendar.
-      required: [key, name, calendar, entry_types, priority_field, goals, position, enabled, version]
+      required: [key, name, calendar, entry_types, organisations, priority_field, goals, position, enabled, version]
       properties:
         key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
         name: { type: string, maxLength: 120 }
         calendar: { type: [string, "null"], description: "A business calendar's key; null counts around the clock." }
         entry_types: { type: array, items: { type: string } }
+        organisations:
+          type: array
+          items: { type: string }
+          description: The requester organisations' keys whose requests the policy measures; empty measures every requester's.
         priority_field: { type: [string, "null"], description: "The custom field whose option value picks a goal's target." }
         goals: { type: array, items: { $ref: "#/components/schemas/SlaGoal" } }
         position: { type: integer }
@@ -27863,8 +27867,15 @@ components:
         name: { type: string, maxLength: 120 }
         calendar: { type: string, description: "A business calendar's key; absent counts around the clock." }
         entry_types: { type: array, minItems: 1, maxItems: 50, items: { type: string } }
+        organisations:
+          type: array
+          maxItems: 20
+          items: { type: string }
+          description: >
+            The requester organisations' keys whose requests the policy measures; absent or empty
+            measures every requester's. A requester without an account belongs to none.
         priority_field: { type: string }
-        goals: { type: array, minItems: 1, maxItems: 2, items: { $ref: "#/components/schemas/SlaGoal" } }
+        goals: { type: array, minItems: 1, maxItems: 3, items: { $ref: "#/components/schemas/SlaGoal" } }
         position: { type: integer }
         enabled: { type: boolean, description: "True when absent." }
 

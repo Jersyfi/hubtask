@@ -43867,6 +43867,7 @@
           "name",
           "calendar",
           "entry_types",
+          "organisations",
           "priority_field",
           "goals",
           "position",
@@ -43894,6 +43895,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "organisations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The requester organisations' keys whose requests the policy measures; empty measures every requester's."
           },
           "priority_field": {
             "type": [
@@ -43957,13 +43965,21 @@
               "type": "string"
             }
           },
+          "organisations": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string"
+            },
+            "description": "The requester organisations' keys whose requests the policy measures; absent or empty measures every requester's. A requester without an account belongs to none.\n"
+          },
           "priority_field": {
             "type": "string"
           },
           "goals": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 2,
+            "maxItems": 3,
             "items": {
               "$ref": "#/components/schemas/SlaGoal"
             }

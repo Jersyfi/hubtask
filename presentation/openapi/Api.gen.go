@@ -21859,7 +21859,10 @@ type SlaPolicy struct {
 	Goals      []SlaGoal `json:"goals"`
 	Key        string    `json:"key"`
 	Name       string    `json:"name"`
-	Position   int       `json:"position"`
+
+	// Organisations The requester organisations' keys whose requests the policy measures; empty measures every requester's.
+	Organisations []string `json:"organisations"`
+	Position      int      `json:"position"`
 
 	// PriorityField The custom field whose option value picks a goal's target.
 	PriorityField *string `json:"priority_field"`
@@ -21872,10 +21875,13 @@ type SlaPolicyDefine struct {
 	Calendar *string `json:"calendar,omitempty"`
 
 	// Enabled True when absent.
-	Enabled       *bool     `json:"enabled,omitempty"`
-	EntryTypes    []string  `json:"entry_types"`
-	Goals         []SlaGoal `json:"goals"`
-	Name          string    `json:"name"`
+	Enabled    *bool     `json:"enabled,omitempty"`
+	EntryTypes []string  `json:"entry_types"`
+	Goals      []SlaGoal `json:"goals"`
+	Name       string    `json:"name"`
+
+	// Organisations The requester organisations' keys whose requests the policy measures; absent or empty measures every requester's. A requester without an account belongs to none.
+	Organisations *[]string `json:"organisations,omitempty"`
 	Position      *int      `json:"position,omitempty"`
 	PriorityField *string   `json:"priority_field,omitempty"`
 }

@@ -2383,6 +2383,7 @@ var generatedCommands = []door{
 			{Name: "entry_types", Kind: "strings", Help: "", Required: true},
 			{Name: "goals", Kind: "json", Help: "", Required: true},
 			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "organisations", Kind: "strings", Help: "The requester organisations' keys whose requests the policy measures; absent or empty measures …", Required: false},
 			{Name: "position", Kind: "integer", Help: "", Required: false},
 			{Name: "priority_field", Kind: "string", Help: "", Required: false},
 		},
