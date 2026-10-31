@@ -86,6 +86,7 @@ import (
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	knowledgedomain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	realtimedomain "github.com/Jersyfi/hubtask/core/domain/model/realtime"
+	servicedeskdomain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	whiteboarddomain "github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	domainwork "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -1574,6 +1575,12 @@ func run() error {
 		return err
 	}
 	servingSettings := postgres.FromFile(cfg.InstanceFile, instanceFileMode == instancefile.ModeEnforce)
+	// The installation's business calendars, which a workspace without a calendar of the same key
+	// falls back to; a malformed one refuses the start rather than leaving a clock on no calendar.
+	installationCalendars, err := readInstallationCalendars(cfg.InstanceFile)
+	if err != nil {
+		return err
+	}
 
 	instanceWriter := adminservice.InstanceWriter{
 		Settings: servingSettings, Operators: operators,
@@ -1948,7 +1955,8 @@ func run() error {
 	planner := planningservice.Planner{
 		Plans: planningStore, Baselines: planningStore.Baselines(), Sprints: planningStore.Sprints(), Releases: planningStore.Releases(), Settings: postgres.SettingRepository{}, Items: items, Containers: containers,
 		LinkTypes: linkTypeRegistry.Types, Links: entryLinks, References: entryLinks,
-		Calendars: serviceDeskStore.Calendars(), Catalogue: planMoves, Authorizer: authorizer, Reader: authorizer,
+		Calendars: servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+		Catalogue: planMoves, Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Changes: changes, HLC: hybrid,
 		Exceptions: notification.RecordPlanException{
@@ -1960,8 +1968,9 @@ func run() error {
 	// the entries lie.
 	keeper := timeservice.Keeper{
 		Store: postgres.NewTimeRepository(), Resources: postgres.NewTimeResourceRepository(),
-		Roles: authorizer, Calendars: serviceDeskStore.Calendars(),
-		Items: items, Containers: containers, References: entryLinks,
+		Roles:     authorizer,
+		Calendars: servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+		Items:     items, Containers: containers, References: entryLinks,
 		Plans: planningStore, Estimates: planningStore.Sprints(), Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Changes: changes, HLC: hybrid,
@@ -4132,7 +4141,8 @@ func run() error {
 			// The SLA clocks (UC-SVC-02): armed, paused, met and stopped by what happens to the
 			// entry, in the dispatcher's transaction; never on a replay.
 			servicedeskservice.SlaClocks{
-				Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
+				Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+				Policies:     serviceDeskStore.Policies(),
 				HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers,
 				Records: slaRecords, Items: items, IDs: ids,
 				Timers: calendarservice.Clocks{Timers: postgres.NewTimerRepository(), Jobs: jobs, IDs: ids},
@@ -5862,6 +5872,22 @@ func applyPlatformSubscriptions(ctx context.Context, applying applyingInstanceFi
 		"mode", string(applying.mode), "created", outcome.Created, "rotated", outcome.Rotated,
 		"kept", outcome.Kept, "removed", outcome.Removed)
 	return nil
+}
+
+// readInstallationCalendars reads the instance file's `business_calendars`; no file is none.
+func readInstallationCalendars(path string) (map[string]servicedeskdomain.Calendar, error) {
+	if path == "" {
+		return nil, nil
+	}
+	document, found, err := instancefile.Read(path)
+	if err != nil || !found {
+		return nil, err
+	}
+	entries, err := instancefile.BusinessCalendars(document, path)
+	if err != nil {
+		return nil, err
+	}
+	return servicedeskservice.InstallationCalendars(entries, textadapter.Forms{})
 }
 
 // fileNamesPlatformSubscriptions reports whether the instance file names the subscriptions. An

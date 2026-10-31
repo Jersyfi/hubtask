@@ -243,3 +243,30 @@ func TestPresetsAreReadAsTheDocumentsTheAPITakes(t *testing.T) {
 		t.Errorf("a preset without a name answered %v", err)
 	}
 }
+
+// UC-SVC-01 check 6: `business_calendars` is a block the file may hold, read as documents; a block
+// that is no list of objects refuses the file.
+func TestTheFileOffersBusinessCalendars(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instance.json")
+	const document = `{"business_calendars": [{"key": "federal", "name": "Federal", "zone": "Europe/Berlin",
+	  "hours": [{"day": "MONDAY", "from": "08:00", "to": "16:00"}]}]}`
+	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
+		t.Fatalf("writing the fixture: %v", err)
+	}
+	body, found, err := Read(path)
+	if err != nil || !found {
+		t.Fatalf("the file answered %v (found %v)", err, found)
+	}
+	calendars, err := BusinessCalendars(body, path)
+	if err != nil || len(calendars) != 1 || calendars[0]["key"] != "federal" {
+		t.Fatalf("calendars = %v, %v", calendars, err)
+	}
+	if none, err := BusinessCalendars(map[string]any{}, path); err != nil || none != nil {
+		t.Fatalf("a file without the block answered %v, %v", none, err)
+	}
+	for _, malformed := range []any{"federal", []any{"federal"}} {
+		if _, err := BusinessCalendars(map[string]any{"business_calendars": malformed}, path); err == nil {
+			t.Errorf("%v was accepted", malformed)
+		}
+	}
+}

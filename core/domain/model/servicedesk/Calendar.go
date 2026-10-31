@@ -60,22 +60,32 @@ func NewCalendar(in NewCalendarInput) (Calendar, error) {
 	if in.ID.IsZero() || in.TenantID.IsZero() {
 		return Calendar{}, shared.ErrInternal.WithDetail("calendars.identity_incomplete")
 	}
-	key := strings.TrimSpace(in.Key)
+	checked, err := NewInstallationCalendar(in.Key, in.Name, in.Spec, in.Text)
+	if err != nil {
+		return Calendar{}, err
+	}
+	checked.ID, checked.TenantID = in.ID, in.TenantID
+	checked.CreatedAt, checked.UpdatedAt, checked.Version = in.Now, in.Now, 1
+	return checked, nil
+}
+
+// NewInstallationCalendar checks a calendar the instance file offers every workspace
+// (`business_calendars`) as NewCalendar checks a workspace's: it has no identity, because it is no
+// workspace's row, and a workspace calendar of the same key stands in front of it.
+func NewInstallationCalendar(key, name string, spec calendar.Spec, normalizer text.Normalizer) (Calendar, error) {
+	key = strings.TrimSpace(key)
 	if !keyPattern.MatchString(key) {
 		return Calendar{}, invalid("/key", "calendars.key_malformed")
 	}
-	name, err := checkName(in.Name, in.Text, "calendars")
+	checkedName, err := checkName(name, normalizer, "calendars")
 	if err != nil {
 		return Calendar{}, err
 	}
-	cal, err := calendar.New(in.Spec)
+	cal, err := calendar.New(spec)
 	if err != nil {
 		return Calendar{}, err
 	}
-	return Calendar{
-		ID: in.ID, TenantID: in.TenantID, Key: key, Name: name, Calendar: cal,
-		CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
-	}, nil
+	return Calendar{Key: key, Name: checkedName, Calendar: cal}, nil
 }
 
 // Change answers the calendar with a new name and spec, its key kept.

@@ -740,7 +740,10 @@ deadline and a change's effectiveness check.
   under a key (`business_calendar`). A calendar an SLA policy names cannot be deleted. A hub may
   keep its own version of one under the same key (`hub_business_calendar`, `HubID` set): a policy
   naming the key arms the goals of the hub's entries on it, and a workspace calendar a hub keeps
-  its own version of cannot be deleted either.
+  its own version of cannot be deleted either. The installation offers calendars of its own in the
+  instance file (`business_calendars`, no identity and no row): a reader by key - planning,
+  capacity, the SLA clocks - meets the workspace's of a key first and the installation's where the
+  workspace holds none (`WithInstallation`).
 * **`SlaPolicy`** (UC-SVC-02): the entry types it measures, a `FIRST_RESPONSE` and a `RESOLUTION`
   goal - a target in working minutes, narrower per option of a priority field, the workflow
   statuses it stands still in, the share at which it is at risk -, a calendar by key or none

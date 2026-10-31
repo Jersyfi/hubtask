@@ -100,7 +100,7 @@ func Read(path string) (map[string]any, bool, error) {
 
 	for name := range document {
 		if !areas[name] && name != "blocklist_file" && name != "metering" && name != "reserved_short_names" && name != aiModelsKey && name != plansKey && name != presetsKey &&
-			name != platformSubscriptionsKey {
+			name != platformSubscriptionsKey && name != businessCalendarsKey {
 			return nil, false, shared.ErrValidation.
 				WithDetail("config.instance_file_area_unknown").
 				WithParams(map[string]string{"source": path, "area": name})
@@ -296,4 +296,31 @@ func PlatformSubscriptions(document map[string]any, readFile func(string) ([]byt
 		subscriptions = append(subscriptions, PlatformSubscription{TargetURL: target, Secret: value})
 	}
 	return subscriptions, true, nil
+}
+
+// businessCalendarsKey is the installation's business calendars: each in the shape
+// `PUT /calendars/{key}` takes, and the one a workspace falls back to where it holds no calendar of
+// that key. Read at every start in either mode - nothing but the file writes them.
+const businessCalendarsKey = "business_calendars"
+
+// BusinessCalendars reads the file's calendars as documents; whether each is a calendar is the
+// service desk's to check. An absent list is none.
+func BusinessCalendars(document map[string]any, source string) ([]map[string]any, error) {
+	raw, present := document[businessCalendarsKey]
+	if !present {
+		return nil, nil
+	}
+	list, isList := raw.([]any)
+	if !isList {
+		return nil, malformedPlans(source)
+	}
+	calendars := make([]map[string]any, 0, len(list))
+	for _, entry := range list {
+		fields, isObject := entry.(map[string]any)
+		if !isObject {
+			return nil, malformedPlans(source)
+		}
+		calendars = append(calendars, fields)
+	}
+	return calendars, nil
 }
