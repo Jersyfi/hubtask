@@ -14620,9 +14620,12 @@ type ConfigTemplatePlanRequest struct {
 	Answers *map[string]string `json:"answers,omitempty"`
 
 	// HubId A hub taking the template's hub part; omitted is the workspace.
-	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
-	Take    *[]string           `json:"take,omitempty"`
-	Version *int                `json:"version,omitempty"`
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// Samples Takes the template's sample entries into the hub, marked so that one act removes them; omitted takes none. Only when the hub first takes the template: an upgrade neither adds nor removes them.
+	Samples *bool     `json:"samples,omitempty"`
+	Take    *[]string `json:"take,omitempty"`
+	Version *int      `json:"version,omitempty"`
 }
 
 // ConfigTemplatePublish defines model for ConfigTemplatePublish.
@@ -21680,6 +21683,20 @@ type SamlPost struct {
 	SAMLResponse string `json:"SAMLResponse"`
 }
 
+// SampleEntry defines model for SampleEntry.
+type SampleEntry struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	EntryType    *string            `json:"entry_type,omitempty"`
+	ItemId       openapi_types.UUID `json:"item_id"`
+	Key          string             `json:"key"`
+	Title        string             `json:"title"`
+}
+
+// SampleEntryList defines model for SampleEntryList.
+type SampleEntryList struct {
+	Samples []SampleEntry `json:"samples"`
+}
+
 // SatisfactionLinkAnswer defines model for SatisfactionLinkAnswer.
 type SatisfactionLinkAnswer struct {
 	// Score 1 is very dissatisfied, 5 very satisfied.
@@ -26146,6 +26163,16 @@ type CreateReleaseJSONBody struct {
 	ReleaseOn   openapi_types.Date `json:"release_on"`
 }
 
+// AddSampleEntryJSONBody defines parameters for AddSampleEntry.
+type AddSampleEntryJSONBody struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// EntryType The key of a type of the task level; omitted is the level's own.
+	EntryType *string `json:"entry_type,omitempty"`
+	Key       string  `json:"key"`
+	Title     string  `json:"title"`
+}
+
 // ReadServiceMapParams defines parameters for ReadServiceMap.
 type ReadServiceMapParams struct {
 	ServiceId *openapi_types.UUID `form:"service_id,omitempty" json:"service_id,omitempty"`
@@ -28264,6 +28291,9 @@ type CreatePageJSONRequestBody = PageCreate
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
 
+// AddSampleEntryJSONRequestBody defines body for AddSampleEntry for application/json ContentType.
+type AddSampleEntryJSONRequestBody AddSampleEntryJSONBody
+
 // CreateWhiteboardJSONRequestBody defines body for CreateWhiteboard for application/json ContentType.
 type CreateWhiteboardJSONRequestBody = WhiteboardCreate
 
@@ -30357,6 +30387,15 @@ type ServerInterface interface {
 	// CreateRelease Plan a release
 	// (POST /hubs/{hubId}/releases)
 	CreateRelease(w http.ResponseWriter, r *http.Request, hubId HubId)
+	// ListSampleEntries The hub's sample entries
+	// (GET /hubs/{hubId}/sample-entries)
+	ListSampleEntries(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// AddSampleEntry Add a sample entry
+	// (POST /hubs/{hubId}/sample-entries)
+	AddSampleEntry(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// RemoveSampleEntries Remove the hub's sample entries
+	// (POST /hubs/{hubId}/sample-entries:remove)
+	RemoveSampleEntries(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ReadServiceMap A hub's service map
 	// (GET /hubs/{hubId}/service-map)
 	ReadServiceMap(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ReadServiceMapParams)
@@ -43927,6 +43966,84 @@ func (siw *ServerInterfaceWrapper) CreateRelease(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateRelease(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSampleEntries operation middleware
+func (siw *ServerInterfaceWrapper) ListSampleEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSampleEntries(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddSampleEntry operation middleware
+func (siw *ServerInterfaceWrapper) AddSampleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddSampleEntry(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveSampleEntries operation middleware
+func (siw *ServerInterfaceWrapper) RemoveSampleEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveSampleEntries(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -58918,6 +59035,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/pages", wrapper.CreatePage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/page-drafts", wrapper.ReadSpaceDrafts)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/page-drafts", wrapper.SetSpaceDrafts)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/sample-entries", wrapper.ListSampleEntries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/sample-entries", wrapper.AddSampleEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/sample-entries:remove", wrapper.RemoveSampleEntries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/trashed-pages", wrapper.ListTrashedPages)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}", wrapper.TrashPage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}", wrapper.ReadPage)

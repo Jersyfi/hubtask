@@ -1133,6 +1133,27 @@ var generatedCommands = []door{
 			{Name: "to_version", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"state"}},
+	{Group: "config", Verb: "sample-add", OperationID: "addSampleEntry", Method: "POST", Path: "/hubs/{hubId}/sample-entries", Summary: "Add a sample entry",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
+			{Name: "entry_type", Kind: "string", Help: "The key of a type of the task level; omitted is the level's own", Required: false},
+			{Name: "key", Kind: "string", Help: "", Required: true},
+			{Name: "title", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "title"}},
+	{Group: "config", Verb: "samples", OperationID: "listSampleEntries", Method: "GET", Path: "/hubs/{hubId}/sample-entries", Summary: "The hub's sample entries",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "config", Verb: "samples-remove", OperationID: "removeSampleEntries", Method: "POST", Path: "/hubs/{hubId}/sample-entries:remove", Summary: "Remove the hub's sample entries",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"removed"}},
 	{Group: "config", Verb: "version", OperationID: "readConfigVersion", Method: "GET", Path: "/config/versions/{version}", Summary: "One configuration version with its document",
 		PathParams: []doorParam{
 			{Name: "version", Kind: "integer", Help: "", Required: true},

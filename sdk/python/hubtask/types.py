@@ -2761,6 +2761,7 @@ class ConfigTemplatePlanRequest(TypedDict, total=False):
     version: int
     take: list[str]
     answers: dict[str, Any]
+    samples: bool
 
 class ConfigUpgradeChange(TypedDict, total=False):
     path: Required[str]
@@ -5397,6 +5398,16 @@ class PageDraft(TypedDict, total=False):
     body: Required[str]
     updated_by: Required[str]
     updated_at: Required[str]
+
+class SampleEntry(TypedDict, total=False):
+    key: Required[str]
+    item_id: Required[str]
+    title: Required[str]
+    entry_type: str | None
+    collection_id: Required[str]
+
+class SampleEntryList(TypedDict, total=False):
+    samples: Required[list["SampleEntry"]]
 
 class PageSpaceDrafts(TypedDict, total=False):
     drafts: Required[bool]

@@ -30744,6 +30744,150 @@
         }
       }
     },
+    "/hubs/{hubId}/sample-entries": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "listSampleEntries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "config samples",
+        "summary": "The hub's sample entries",
+        "description": "The entries a template brought to the hub to try its way of working on, marked as samples and not yet in the trash, by their key. Needs STRUCTURE or READ_CONFIGURATION on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The sample entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SampleEntryList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "addSampleEntry",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "config sample-add",
+        "summary": "Add a sample entry",
+        "description": "Creates an entry in one of the hub's collections, marked as a sample under its key, as a hub's configuration document does for a template's sample entries. A key the hub already marks is refused (`config.sample_taken`), a collection of another hub too (`config.collection_unknown`). Needs STRUCTURE on the hub and what creating the entry needs.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "collection_id",
+                  "title"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "collection_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "entry_type": {
+                    "type": "string",
+                    "description": "The key of a type of the task level; omitted is the level's own."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SampleEntry"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/sample-entries:remove": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "removeSampleEntries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "config samples-remove",
+        "summary": "Remove the hub's sample entries",
+        "description": "Moves every sample entry of the hub into the trash at once, each as moving it there alone does: restorable until the trash period ends. Entries nobody marked as samples are never touched. Needs STRUCTURE on the hub and WRITE_ITEMS on each entry.\n",
+        "responses": {
+          "200": {
+            "description": "Removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "removed"
+                  ],
+                  "properties": {
+                    "removed": {
+                      "type": "integer",
+                      "description": "How many sample entries moved into the trash."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/hubs/{hubId}/trashed-pages": {
       "parameters": [
         {
@@ -48640,6 +48784,10 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "samples": {
+            "type": "boolean",
+            "description": "Takes the template's sample entries into the hub, marked so that one act removes them; omitted takes none. Only when the hub first takes the template: an upgrade neither adds nor removes them.\n"
           }
         }
       },
@@ -62442,6 +62590,49 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "SampleEntry": {
+        "type": "object",
+        "required": [
+          "key",
+          "item_id",
+          "title",
+          "collection_id"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "entry_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "SampleEntryList": {
+        "type": "object",
+        "required": [
+          "samples"
+        ],
+        "properties": {
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SampleEntry"
+            }
           }
         }
       },

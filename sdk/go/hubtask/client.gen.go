@@ -14626,9 +14626,12 @@ type ConfigTemplatePlanRequest struct {
 	Answers *map[string]string `json:"answers,omitempty"`
 
 	// HubId A hub taking the template's hub part; omitted is the workspace.
-	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
-	Take    *[]string           `json:"take,omitempty"`
-	Version *int                `json:"version,omitempty"`
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// Samples Takes the template's sample entries into the hub, marked so that one act removes them; omitted takes none. Only when the hub first takes the template: an upgrade neither adds nor removes them.
+	Samples *bool     `json:"samples,omitempty"`
+	Take    *[]string `json:"take,omitempty"`
+	Version *int      `json:"version,omitempty"`
 }
 
 // ConfigTemplatePublish defines model for ConfigTemplatePublish.
@@ -21686,6 +21689,20 @@ type SamlPost struct {
 	SAMLResponse string `json:"SAMLResponse"`
 }
 
+// SampleEntry defines model for SampleEntry.
+type SampleEntry struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	EntryType    *string            `json:"entry_type,omitempty"`
+	ItemId       openapi_types.UUID `json:"item_id"`
+	Key          string             `json:"key"`
+	Title        string             `json:"title"`
+}
+
+// SampleEntryList defines model for SampleEntryList.
+type SampleEntryList struct {
+	Samples []SampleEntry `json:"samples"`
+}
+
 // SatisfactionLinkAnswer defines model for SatisfactionLinkAnswer.
 type SatisfactionLinkAnswer struct {
 	// Score 1 is very dissatisfied, 5 very satisfied.
@@ -26152,6 +26169,16 @@ type CreateReleaseJSONBody struct {
 	ReleaseOn   openapi_types.Date `json:"release_on"`
 }
 
+// AddSampleEntryJSONBody defines parameters for AddSampleEntry.
+type AddSampleEntryJSONBody struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// EntryType The key of a type of the task level; omitted is the level's own.
+	EntryType *string `json:"entry_type,omitempty"`
+	Key       string  `json:"key"`
+	Title     string  `json:"title"`
+}
+
 // ReadServiceMapParams defines parameters for ReadServiceMap.
 type ReadServiceMapParams struct {
 	ServiceId *openapi_types.UUID `form:"service_id,omitempty" json:"service_id,omitempty"`
@@ -28269,6 +28296,9 @@ type CreatePageJSONRequestBody = PageCreate
 
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
+
+// AddSampleEntryJSONRequestBody defines body for AddSampleEntry for application/json ContentType.
+type AddSampleEntryJSONRequestBody AddSampleEntryJSONBody
 
 // CreateWhiteboardJSONRequestBody defines body for CreateWhiteboard for application/json ContentType.
 type CreateWhiteboardJSONRequestBody = WhiteboardCreate
@@ -34426,6 +34456,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
 	CreateRelease(ctx context.Context, hubId HubId, body CreateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSampleEntries The hub's sample entries
+	//
+	// The entries a template brought to the hub to try its way of working on, marked as samples and not yet in the trash, by their key. Needs STRUCTURE or READ_CONFIGURATION on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/sample-entries (the `ListSampleEntries` operationId).
+	ListSampleEntries(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddSampleEntryWithBody Add a sample entry
+	//
+	// Creates an entry in one of the hub's collections, marked as a sample under its key, as a hub's configuration document does for a template's sample entries. A key the hub already marks is refused (`config.sample_taken`), a collection of another hub too (`config.collection_unknown`). Needs STRUCTURE on the hub and what creating the entry needs.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/sample-entries (the `AddSampleEntry` operationId).
+	AddSampleEntryWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddSampleEntry Add a sample entry
+	//
+	// Creates an entry in one of the hub's collections, marked as a sample under its key, as a hub's configuration document does for a template's sample entries. A key the hub already marks is refused (`config.sample_taken`), a collection of another hub too (`config.collection_unknown`). Needs STRUCTURE on the hub and what creating the entry needs.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/sample-entries (the `AddSampleEntry` operationId).
+	AddSampleEntry(ctx context.Context, hubId openapi_types.UUID, body AddSampleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveSampleEntries Remove the hub's sample entries
+	//
+	// Moves every sample entry of the hub into the trash at once, each as moving it there alone does: restorable until the trash period ends. Entries nobody marked as samples are never touched. Needs STRUCTURE on the hub and WRITE_ITEMS on each entry.
+	//
+	// Corresponds with POST /hubs/{hubId}/sample-entries:remove (the `RemoveSampleEntries` operationId).
+	RemoveSampleEntries(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadServiceMap A hub's service map
 	//
@@ -50406,6 +50468,78 @@ func (c *Client) CreateReleaseWithBody(ctx context.Context, hubId HubId, content
 // Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
 func (c *Client) CreateRelease(ctx context.Context, hubId HubId, body CreateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateReleaseRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListSampleEntries The hub's sample entries
+//
+// The entries a template brought to the hub to try its way of working on, marked as samples and not yet in the trash, by their key. Needs STRUCTURE or READ_CONFIGURATION on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/sample-entries (the `ListSampleEntries` operationId).
+func (c *Client) ListSampleEntries(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSampleEntriesRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddSampleEntryWithBody Add a sample entry
+//
+// Creates an entry in one of the hub's collections, marked as a sample under its key, as a hub's configuration document does for a template's sample entries. A key the hub already marks is refused (`config.sample_taken`), a collection of another hub too (`config.collection_unknown`). Needs STRUCTURE on the hub and what creating the entry needs.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/sample-entries (the `AddSampleEntry` operationId).
+func (c *Client) AddSampleEntryWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddSampleEntryRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddSampleEntry Add a sample entry
+//
+// Creates an entry in one of the hub's collections, marked as a sample under its key, as a hub's configuration document does for a template's sample entries. A key the hub already marks is refused (`config.sample_taken`), a collection of another hub too (`config.collection_unknown`). Needs STRUCTURE on the hub and what creating the entry needs.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/sample-entries (the `AddSampleEntry` operationId).
+func (c *Client) AddSampleEntry(ctx context.Context, hubId openapi_types.UUID, body AddSampleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddSampleEntryRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveSampleEntries Remove the hub's sample entries
+//
+// Moves every sample entry of the hub into the trash at once, each as moving it there alone does: restorable until the trash period ends. Entries nobody marked as samples are never touched. Needs STRUCTURE on the hub and WRITE_ITEMS on each entry.
+//
+// Corresponds with POST /hubs/{hubId}/sample-entries:remove (the `RemoveSampleEntries` operationId).
+func (c *Client) RemoveSampleEntries(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveSampleEntriesRequest(c.Server, hubId)
 	if err != nil {
 		return nil, err
 	}
@@ -79320,6 +79454,121 @@ func NewCreateReleaseRequestWithBody(server string, hubId HubId, contentType str
 	return req, nil
 }
 
+// NewListSampleEntriesRequest constructs an http.Request for the ListSampleEntries method
+func NewListSampleEntriesRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/sample-entries", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddSampleEntryRequest calls the generic AddSampleEntry builder with application/json body
+func NewAddSampleEntryRequest(server string, hubId openapi_types.UUID, body AddSampleEntryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddSampleEntryRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewAddSampleEntryRequestWithBody constructs an http.Request for the AddSampleEntry method, with any body, and a specified content type
+func NewAddSampleEntryRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/sample-entries", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveSampleEntriesRequest constructs an http.Request for the RemoveSampleEntries method
+func NewRemoveSampleEntriesRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/sample-entries:remove", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewReadServiceMapRequest constructs an http.Request for the ReadServiceMap method
 func NewReadServiceMapRequest(server string, hubId openapi_types.UUID, params *ReadServiceMapParams) (*http.Request, error) {
 	var err error
@@ -104556,6 +104805,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
 	CreateReleaseWithResponse(ctx context.Context, hubId HubId, body CreateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReleaseResult, error)
 
+	// ListSampleEntriesWithResponse The hub's sample entries
+	//
+	// The entries a template brought to the hub to try its way of working on, marked as samples and not yet in the trash, by their key. Needs STRUCTURE or READ_CONFIGURATION on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/sample-entries (the `ListSampleEntries` operationId).
+	ListSampleEntriesWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListSampleEntriesResult, error)
+
+	// AddSampleEntryWithBodyWithResponse Add a sample entry
+	//
+	// Creates an entry in one of the hub's collections, marked as a sample under its key, as a hub's configuration document does for a template's sample entries. A key the hub already marks is refused (`config.sample_taken`), a collection of another hub too (`config.collection_unknown`). Needs STRUCTURE on the hub and what creating the entry needs.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/sample-entries (the `AddSampleEntry` operationId).
+	AddSampleEntryWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddSampleEntryResult, error)
+
+	// AddSampleEntryWithResponse Add a sample entry
+	//
+	// Creates an entry in one of the hub's collections, marked as a sample under its key, as a hub's configuration document does for a template's sample entries. A key the hub already marks is refused (`config.sample_taken`), a collection of another hub too (`config.collection_unknown`). Needs STRUCTURE on the hub and what creating the entry needs.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/sample-entries (the `AddSampleEntry` operationId).
+	AddSampleEntryWithResponse(ctx context.Context, hubId openapi_types.UUID, body AddSampleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*AddSampleEntryResult, error)
+
+	// RemoveSampleEntriesWithResponse Remove the hub's sample entries
+	//
+	// Moves every sample entry of the hub into the trash at once, each as moving it there alone does: restorable until the trash period ends. Entries nobody marked as samples are never touched. Needs STRUCTURE on the hub and WRITE_ITEMS on each entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/sample-entries:remove (the `RemoveSampleEntries` operationId).
+	RemoveSampleEntriesWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveSampleEntriesResult, error)
+
 	// ReadServiceMapWithResponse A hub's service map
 	//
 	// Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
@@ -128520,6 +128805,156 @@ func (r CreateReleaseResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreateReleaseResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListSampleEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SampleEntryList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSampleEntriesResult) GetJSON200() *SampleEntryList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListSampleEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSampleEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSampleEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSampleEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSampleEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddSampleEntryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SampleEntry
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AddSampleEntryResult) GetJSON201() *SampleEntry {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddSampleEntryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddSampleEntryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddSampleEntryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddSampleEntryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddSampleEntryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveSampleEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		// Removed How many sample entries moved into the trash.
+		Removed int `json:"removed"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemoveSampleEntriesResult) GetJSON200() *struct {
+	// Removed How many sample entries moved into the trash.
+	Removed int `json:"removed"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveSampleEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveSampleEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveSampleEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveSampleEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveSampleEntriesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -157552,6 +157987,66 @@ func (c *ClientWithResponses) CreateReleaseWithResponse(ctx context.Context, hub
 	return ParseCreateReleaseResult(rsp)
 }
 
+// ListSampleEntriesWithResponse The hub's sample entries
+//
+// The entries a template brought to the hub to try its way of working on, marked as samples and not yet in the trash, by their key. Needs STRUCTURE or READ_CONFIGURATION on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/sample-entries (the `ListSampleEntries` operationId).
+func (c *ClientWithResponses) ListSampleEntriesWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListSampleEntriesResult, error) {
+	rsp, err := c.ListSampleEntries(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSampleEntriesResult(rsp)
+}
+
+// AddSampleEntryWithBodyWithResponse Add a sample entry
+//
+// Creates an entry in one of the hub's collections, marked as a sample under its key, as a hub's configuration document does for a template's sample entries. A key the hub already marks is refused (`config.sample_taken`), a collection of another hub too (`config.collection_unknown`). Needs STRUCTURE on the hub and what creating the entry needs.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/sample-entries (the `AddSampleEntry` operationId).
+func (c *ClientWithResponses) AddSampleEntryWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddSampleEntryResult, error) {
+	rsp, err := c.AddSampleEntryWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddSampleEntryResult(rsp)
+}
+
+// AddSampleEntryWithResponse Add a sample entry
+//
+// Creates an entry in one of the hub's collections, marked as a sample under its key, as a hub's configuration document does for a template's sample entries. A key the hub already marks is refused (`config.sample_taken`), a collection of another hub too (`config.collection_unknown`). Needs STRUCTURE on the hub and what creating the entry needs.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/sample-entries (the `AddSampleEntry` operationId).
+func (c *ClientWithResponses) AddSampleEntryWithResponse(ctx context.Context, hubId openapi_types.UUID, body AddSampleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*AddSampleEntryResult, error) {
+	rsp, err := c.AddSampleEntry(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddSampleEntryResult(rsp)
+}
+
+// RemoveSampleEntriesWithResponse Remove the hub's sample entries
+//
+// Moves every sample entry of the hub into the trash at once, each as moving it there alone does: restorable until the trash period ends. Entries nobody marked as samples are never touched. Needs STRUCTURE on the hub and WRITE_ITEMS on each entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/sample-entries:remove (the `RemoveSampleEntries` operationId).
+func (c *ClientWithResponses) RemoveSampleEntriesWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveSampleEntriesResult, error) {
+	rsp, err := c.RemoveSampleEntries(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveSampleEntriesResult(rsp)
+}
+
 // ReadServiceMapWithResponse A hub's service map
 //
 // Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
@@ -179794,6 +180289,108 @@ func ParseCreateReleaseResult(rsp *http.Response) (*CreateReleaseResult, error) 
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSampleEntriesResult parses an HTTP response from a ListSampleEntriesWithResponse call
+func ParseListSampleEntriesResult(rsp *http.Response) (*ListSampleEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSampleEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SampleEntryList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddSampleEntryResult parses an HTTP response from a AddSampleEntryWithResponse call
+func ParseAddSampleEntryResult(rsp *http.Response) (*AddSampleEntryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddSampleEntryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SampleEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveSampleEntriesResult parses an HTTP response from a RemoveSampleEntriesWithResponse call
+func ParseRemoveSampleEntriesResult(rsp *http.Response) (*RemoveSampleEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveSampleEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			// Removed How many sample entries moved into the trash.
+			Removed int `json:"removed"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

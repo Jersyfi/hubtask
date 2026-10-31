@@ -3074,3 +3074,15 @@ func (pending) RemoveLdapDirectory(w http.ResponseWriter, r *http.Request, _ ope
 func (pending) SyncLdapDirectory(w http.ResponseWriter, r *http.Request, _ openapi.SyncLdapDirectoryParams) {
 	notAvailable(w, r)
 }
+
+func (pending) ListSampleEntries(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) AddSampleEntry(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveSampleEntries(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}

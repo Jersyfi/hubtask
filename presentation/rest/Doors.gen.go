@@ -23,6 +23,7 @@ var restDoors = map[string]restDoor{
 	"addOperator":           {UseCase: "AddOperator", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addPageComment":        {UseCase: "AddPageComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addReleaseEntries":     {UseCase: "AddReleaseEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addSampleEntry":        {UseCase: "AddSampleEntry", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addSprintEntries":      {UseCase: "AddSprintEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addWhiteboardComment":  {UseCase: "AddWhiteboardComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"affectEntryCi":         {UseCase: "AffectEntryCi", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -393,6 +394,7 @@ var restDoors = map[string]restDoor{
 	"listRoles":                         {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRuleRuns":                      {UseCase: "ListRuleRuns", Status: 200, Query: []string{"cursor", "from", "rule_id", "size", "status", "to", "trigger"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listRules":                         {UseCase: "ListRules", Status: 200, Query: []string{"cursor", "enabled", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listSampleEntries":                 {UseCase: "ListSampleEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSavedViews":                    {UseCase: "ListSavedViews", Status: 200, Query: []string{"container_id", "workspace"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listServiceAccounts":               {UseCase: "ListServiceAccounts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSessions":                      {UseCase: "ListSessions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -565,6 +567,7 @@ var restDoors = map[string]restDoor{
 	"removePlan":                        {UseCase: "RemovePlan", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeRecurrence":                  {UseCase: "RemoveRecurrence", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeReleaseEntries":              {UseCase: "RemoveReleaseEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeSampleEntries":               {UseCase: "RemoveSampleEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeSoftwareAlias":               {UseCase: "RemoveSoftwareAlias", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeSprintEntries":               {UseCase: "RemoveSprintEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"renameContainer":                   {UseCase: "RenameContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
@@ -822,6 +825,13 @@ func (c *RestController) AddReleaseEntries(w http.ResponseWriter, r *http.Reques
 	var body openapi.AddReleaseEntriesJSONRequestBody
 	var answer openapi.Release
 	c.door(w, r, restDoors["addReleaseEntries"], usecase.Input{"release_id": releaseId.String()}, nil, &body, &answer)
+}
+
+// AddSampleEntry answers POST /hubs/{hubId}/sample-entries by the generated mapping.
+func (c *RestController) AddSampleEntry(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var body openapi.AddSampleEntryJSONRequestBody
+	var answer openapi.SampleEntry
+	c.door(w, r, restDoors["addSampleEntry"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
 }
 
 // AddSprintEntries answers POST /sprints/{sprintId}/entries by the generated mapping.
@@ -3232,6 +3242,12 @@ func (c *RestController) ListRules(w http.ResponseWriter, r *http.Request, param
 	c.door(w, r, restDoors["listRules"], usecase.Input{}, params, nil, answerPage(ruleResponse))
 }
 
+// ListSampleEntries answers GET /hubs/{hubId}/sample-entries by the generated mapping.
+func (c *RestController) ListSampleEntries(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var answer openapi.SampleEntryList
+	c.door(w, r, restDoors["listSampleEntries"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
+}
+
 // ListSavedViews answers GET /views by the generated mapping.
 func (c *RestController) ListSavedViews(w http.ResponseWriter, r *http.Request, params openapi.ListSavedViewsParams) {
 	c.door(w, r, restDoors["listSavedViews"], usecase.Input{}, params, nil, answerRows(savedViewResponse))
@@ -4320,6 +4336,11 @@ func (c *RestController) RemoveReleaseEntries(w http.ResponseWriter, r *http.Req
 	var body openapi.RemoveReleaseEntriesJSONRequestBody
 	var answer openapi.Release
 	c.door(w, r, restDoors["removeReleaseEntries"], usecase.Input{"release_id": releaseId.String()}, nil, &body, &answer)
+}
+
+// RemoveSampleEntries answers POST /hubs/{hubId}/sample-entries:remove by the generated mapping.
+func (c *RestController) RemoveSampleEntries(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	c.door(w, r, restDoors["removeSampleEntries"], usecase.Input{"hub_id": hubId.String()}, nil, nil, nil)
 }
 
 // RemoveSoftwareAlias answers DELETE /software-aliases/{aliasId} by the generated mapping.

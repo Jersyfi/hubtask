@@ -3803,6 +3803,21 @@ export class HubtaskClient {
     return this.call("PUT", "/hubs/{hubId}/page-drafts", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The hub's sample entries */
+  listSampleEntries(hubId: string, options: CallOptions = {}): Promise<operations["listSampleEntries"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/sample-entries", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a sample entry */
+  addSampleEntry(hubId: string, body: NonNullable<operations["addSampleEntry"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addSampleEntry"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/sample-entries", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove the hub's sample entries */
+  removeSampleEntries(hubId: string, options: CallOptions = {}): Promise<operations["removeSampleEntries"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/sample-entries:remove", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** A hub's trashed pages */
   listTrashedPages(hubId: string, options: CallOptions = {}): Promise<operations["listTrashedPages"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/trashed-pages", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

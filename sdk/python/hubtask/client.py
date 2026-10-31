@@ -3023,6 +3023,18 @@ class Client:
         """Switch a space to drafts or back"""
         return self._call("PUT", "/hubs/{hubId}/page-drafts", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_sample_entries(self, hub_id: str) -> "SampleEntryList":
+        """The hub's sample entries"""
+        return self._call("GET", "/hubs/{hubId}/sample-entries", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def add_sample_entry(self, hub_id: str, body: dict[str, Any]) -> "SampleEntry":
+        """Add a sample entry"""
+        return self._call("POST", "/hubs/{hubId}/sample-entries", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_sample_entries(self, hub_id: str) -> dict[str, Any]:
+        """Remove the hub's sample entries"""
+        return self._call("POST", "/hubs/{hubId}/sample-entries:remove", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
     def list_trashed_pages(self, hub_id: str) -> "PageList":
         """A hub's trashed pages"""
         return self._call("GET", "/hubs/{hubId}/trashed-pages", {"hubId": hub_id}, None, {}, None, "none", None, "json")
