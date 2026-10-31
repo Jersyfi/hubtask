@@ -293,7 +293,8 @@ func seed(ctx context.Context, container *tcpostgres.PostgresContainer, tenants,
 	// The planner needs statistics over the new rows. A ramp against a table PostgreSQL believes
 	// is empty measures the wrong plan rather than the hardware. VACUUM as well, as autovacuum
 	// does to a table after a bulk insert: otherwise it does so in the middle of the measurement.
-	return psql(ctx, container, "VACUUM (ANALYZE) tenant, account, membership, container, work_item")
+	// Without parallel workers, whose shared memory outgrows a container's default 64 MB /dev/shm.
+	return psql(ctx, container, "VACUUM (ANALYZE, PARALLEL 0) tenant, account, membership, container, work_item")
 }
 
 // copyPart is how many rows one COPY statement loads.
