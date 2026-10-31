@@ -10599,6 +10599,8 @@
   "app.import.kind_JIRA_hint": "Die JSON-Antwort der Vorgangssuche mit aufgeklappten Namen, Schema und Änderungsprotokoll — oder ein ZIP solcher Antworten mit den Anhängen unter attachments/<Anhang-ID>/. Jedes Projekt wird eine Sammlung mit seinen Vorgangstypen, Status, Feldern, Verlauf, Kommentaren, Verknüpfungen und Anhängen.",
   "app.import.kind_CONFLUENCE": "Confluence",
   "app.import.kind_CONFLUENCE_hint": "Der HTML-Export eines Bereichs als ZIP: in den Bereichseinstellungen Bereich exportieren, dann HTML wählen. Seine Seiten werden die Seiten dieses Hubs in ihrem Baum; Anhänge und Bilder werden gezählt, nicht übernommen.",
+  "app.import.kind_MARKDOWN": "Markdown-Dateien",
+  "app.import.kind_MARKDOWN_hint": "Ein ZIP mit Markdown-Dateien, wie eine Notiz-App oder ein Notizordner sie exportiert. Jede Datei wird eine Seite dieses Hubs, ihre Ordner der Baum; Links zwischen den Dateien und Bilder im ZIP kommen mit.",
   "app.nav.approvals": "Wartet auf mein Ja",
   "app.approvals.mine_title": "Wartet auf mein Ja",
   "app.approvals.mine_subtitle": "Freigaben, deren aktuelle Stufe dich zählt, die älteste zuerst.",

@@ -24,11 +24,11 @@ export type { ImportKind, ImportRequest, ImportRun };
 
 /** The kinds, in the order they are offered. Every value of the contract's enum, and nothing else. */
 export const IMPORT_KINDS = [
-  'CSV', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE',
+  'CSV', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE', 'MARKDOWN',
 ] as const satisfies readonly ImportKind[];
 
 /** The kinds that land pages in the hub: offered on a hub only, never into a collection. */
-const LANDS_PAGES: ReadonlySet<ImportKind> = new Set<ImportKind>(['CONFLUENCE']);
+const LANDS_PAGES: ReadonlySet<ImportKind> = new Set<ImportKind>(['CONFLUENCE', 'MARKDOWN']);
 
 /** The kinds offered where the import starts: on a hub every one, in a collection those that land entries. */
 export function kindsFor(intoCollection: boolean): readonly ImportKind[] {
@@ -53,14 +53,14 @@ export type CsvField = (typeof CSV_FIELDS)[number];
 export function contentTypeFor(kind: ImportKind, fileName = ''): string {
   if (kind === 'CSV') return 'text/csv';
   // A wiki's export is a ZIP, and so is an issue tracker's answer with its attachments.
-  if (kind === 'CONFLUENCE' || fileName.toLowerCase().endsWith('.zip')) return 'application/zip';
+  if (LANDS_PAGES.has(kind) || fileName.toLowerCase().endsWith('.zip')) return 'application/zip';
   return 'application/json';
 }
 
 /** What the file dialog offers first for a kind. A hint to the platform, never a check. */
 export function acceptFor(kind: ImportKind): string {
   if (kind === 'CSV') return '.csv,text/csv';
-  if (kind === 'CONFLUENCE') return '.zip,application/zip';
+  if (LANDS_PAGES.has(kind)) return '.zip,application/zip';
   if (kind === 'JIRA') return '.json,.zip,application/json,application/zip';
   return '.json,application/json';
 }
