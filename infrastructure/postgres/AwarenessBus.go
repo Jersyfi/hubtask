@@ -28,6 +28,15 @@ const awarenessTimeout = 2 * time.Second
 type AwarenessBus struct {
 	Work     persistence.UnitOfWork
 	Listener *ChangeListener
+	// Signals counts each publication's outcome; nil counts nothing.
+	Signals AwarenessSignals
+}
+
+// AwarenessSignals is where a publication's outcome is counted (`sent`, `too_large`, `failed`).
+// Awareness is best effort, so a lost one is never the connection's error; the counter is how an
+// operator learns that co-editing across replicas degraded.
+type AwarenessSignals interface {
+	AwarenessRelayed(ctx context.Context, outcome string)
 }
 
 // Publish sends the message to the document's connections on the other processes; one too large
@@ -36,15 +45,28 @@ func (b AwarenessBus) Publish(ctx context.Context, tenantID shared.ID, kind stri
 	payload := b.Listener.origin + "/" + tenantID.String() + "/" + kind + "/" + documentID.String() + "|" +
 		base64.StdEncoding.EncodeToString(message)
 	if len(payload) > maxAwarenessPayload {
+		b.count(ctx, "too_large")
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, awarenessTimeout)
 	defer cancel()
-	return b.Work.Within(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {
+	err := b.Work.Within(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {
 		tx, err := FromContext(ctx)
 		if err != nil {
 			return err
 		}
 		return sqlc.New(tx).NotifyAwareness(ctx, payload)
 	})
+	if err != nil {
+		b.count(ctx, "failed")
+		return err
+	}
+	b.count(ctx, "sent")
+	return nil
+}
+
+func (b AwarenessBus) count(ctx context.Context, outcome string) {
+	if b.Signals != nil {
+		b.Signals.AwarenessRelayed(ctx, outcome)
+	}
 }

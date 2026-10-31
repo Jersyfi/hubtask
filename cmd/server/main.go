@@ -377,7 +377,7 @@ func run() error {
 	// with the observer on the way in, so no use case can run without its metric and its span
 	// (gate RT-12), and REST, MCP and automation then execute the same handlers (arc42 §4).
 	unitOfWork := postgres.NewUnitOfWork(pool)
-	liveRelay.Bus = postgres.AwarenessBus{Work: unitOfWork, Listener: changeListener}
+	liveRelay.Bus = postgres.AwarenessBus{Work: unitOfWork, Listener: changeListener, Signals: metrics}
 	// Readiness compares the database's migrations with the ones this build embeds (deployment.md
 	// §5): behind is not ready. The start only says so in the log - a failing startup probe would
 	// restart a pod that is merely waiting for its migration.

@@ -65,6 +65,7 @@ type Metrics struct {
 	retentionRead     metric.Int64Counter
 	mediaReclaimed    metric.Int64Counter
 	figureDrifted     metric.Int64Counter
+	awarenessRelayed  metric.Int64Counter
 	mediaReclaimFail  metric.Int64Counter
 	notificationsRec  metric.Int64Counter
 	notificationsSent metric.Float64Histogram
@@ -726,6 +727,12 @@ func (m *Metrics) mediaInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("figure drift counter: %w", err)
 	}
+	if m.awarenessRelayed, err = meter.Int64Counter(
+		namespace+"_realtime_awareness_relayed_total",
+		metric.WithDescription("Live document awareness handed to the other replicas, by outcome: sent, too_large or failed."),
+	); err != nil {
+		return fmt.Errorf("awareness relay counter: %w", err)
+	}
 	if m.mediaReclaimFail, err = meter.Int64Counter(
 		namespace+"_media_reclaim_failed_total",
 		metric.WithDescription("Orphaned media objects whose bytes storage would not release."),
@@ -745,6 +752,13 @@ func (m *Metrics) MediaReclaimed(ctx context.Context, count int64) {
 // moved no collection's number of changes (migration 0292): a figure was answered wrong until then.
 func (m *Metrics) FigureDrifted(ctx context.Context, count int64) {
 	m.figureDrifted.Add(ctx, count)
+}
+
+// AwarenessRelayed counts one awareness message handed to the other replicas (offline-sync.md
+// §13). `failed` above zero is co-editors on different replicas who no longer see each other's
+// cursors; `too_large` is a state that stays on its own replica.
+func (m *Metrics) AwarenessRelayed(ctx context.Context, outcome string) {
+	m.awarenessRelayed.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", outcome)))
 }
 
 // MediaReclaimFailed counts the orphans a pass could not reclaim. They stay marked and the next
