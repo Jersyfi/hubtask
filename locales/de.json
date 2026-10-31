@@ -2432,6 +2432,8 @@
   "app.entry_types.behaviour_schedulable": "Hat Termine",
   "app.entry_types.behaviour_schedulable_hint": "Ein Fälligkeitsdatum, Erinnerungen und eine Wiederholung.",
   "app.entry_types.behaviour_workflow": "Durchläuft einen Ablauf",
+  "app.entry_types.allowed_children": "Darunter erlaubt",
+  "app.entry_types.allowed_children_hint": "Die Typen, die direkt unter diesem liegen dürfen – beim Anlegen, Verschieben und Kopieren. Ist keiner gewählt, ist jeder Typ erlaubt.",
   "app.entry_types.behaviour_estimable": "Kann geschätzt werden",
   "app.entry_types.save": "Speichern",
   "app.entry_types.saved": "„{name}“ ist gespeichert.",

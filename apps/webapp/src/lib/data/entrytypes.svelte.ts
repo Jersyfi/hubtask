@@ -22,6 +22,7 @@ import { roles } from './roles.svelte.ts';
 export {
   TYPE_ICONS,
   TYPE_LEVELS,
+  childTypes,
   droppedBy,
   entryTypesOffered,
   iconOf,

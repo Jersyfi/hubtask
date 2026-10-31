@@ -15,7 +15,7 @@
   import { untrack } from 'svelte';
   import { labelTokens } from '@hubtask/design-system';
   import {
-    Banner, Button, Dialog, Icon, IconButton, Inline, Input, LabelChip, PageHeader, Select, Spinner, Stack, Switch,
+    Banner, Button, CheckboxGroup, Dialog, Icon, IconButton, Inline, Input, LabelChip, PageHeader, Select, Spinner, Stack, Switch,
   } from '@hubtask/design-system/components';
   import type { EntryType } from '@hubtask/sync-engine';
 
@@ -23,7 +23,7 @@
   import { hasForm } from '../lib/data/entryforms.ts';
   import EntryFormEditor from '../lib/entries/EntryFormEditor.svelte';
   import {
-    TYPE_ICONS, TYPE_LEVELS, entryTypes, iconOf, keyFrom, levelTypes, reorder,
+    TYPE_ICONS, TYPE_LEVELS, childTypes, entryTypes, iconOf, keyFrom, levelTypes, reorder,
   } from '../lib/data/entrytypes.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -88,6 +88,8 @@
     record: boolean;
     schedulable: boolean;
     estimable: boolean;
+    /** The keys of the level below that may sit underneath; none allows every one (check 9). */
+    allowed: string[];
   }
 
   let editing = $state<EntryType | undefined>(undefined);
@@ -101,6 +103,7 @@
     draft = {
       level, name: '', key: '', isKeyTouched: false, icon: 'tag',
       color: labelTokens[0], completable: true, workflow: false, record: false, schedulable: true, estimable: false,
+      allowed: [],
     };
     editorRefusal = undefined;
     isEditorOpen = true;
@@ -111,7 +114,7 @@
     draft = {
       level: type.level, name: type.name ?? '', key: type.key, isKeyTouched: true, icon: type.icon,
       color: type.color_token, completable: type.completable, workflow: type.workflow, record: type.record,
-      schedulable: type.schedulable, estimable: type.estimable,
+      schedulable: type.schedulable, estimable: type.estimable, allowed: [...type.allowed_children],
     };
     editorRefusal = undefined;
     isEditorOpen = true;
@@ -142,12 +145,14 @@
           ...(Object.fromEntries(
             Object.entries(behaviours).filter(([name, on]) => before[name as keyof typeof behaviours] !== on),
           ) as Partial<typeof behaviours>),
+          ...(sameKeys(d.allowed, before.allowed_children) ? {} : { allowed_children: d.allowed }),
         };
         if (Object.keys(change).length > 0) await entryTypes.change(before, change);
       } else {
         const position = levelTypes(entryTypes.all, d.level).filter((each) => !each.system).length + 1;
         await entryTypes.create({
           key: d.key, level: d.level as EntryType['level'], name: d.name.trim(), icon: d.icon, color_token: d.color, position, ...behaviours,
+          allowed_children: d.allowed,
         });
       }
       isEditorOpen = false;
@@ -158,6 +163,12 @@
       isSaving = false;
     }
   }
+
+  const sameKeys = (a: readonly string[], b: readonly string[]) =>
+    a.length === b.length && a.every((key) => b.includes(key));
+  const childOptions = $derived(
+    draft ? childTypes(entryTypes.all, draft.level, draft.allowed).map((type) => ({ value: type.key, label: nameOf(type) })) : [],
+  );
 
   const iconOptions = TYPE_ICONS.map((icon) => ({ value: icon, label: icon }));
   const colourOptions = labelTokens.map((token) => ({ value: token, label: t(`app.colour.${token}`) }));
@@ -320,6 +331,15 @@
       <Switch label={t('app.entry_types.behaviour_schedulable')} hint={t('app.entry_types.behaviour_schedulable_hint')} bind:checked={draft.schedulable} />
       <Switch label={t('app.entry_types.behaviour_workflow')} bind:checked={draft.workflow} />
       <Switch label={t('app.entry_types.behaviour_estimable')} bind:checked={draft.estimable} />
+      {#if childOptions.length > 0}
+        <CheckboxGroup
+          label={t('app.entry_types.allowed_children')}
+          hint={t('app.entry_types.allowed_children_hint')}
+          options={childOptions}
+          selected={draft.allowed}
+          onChange={(next) => { if (draft) draft.allowed = [...next]; }}
+        />
+      {/if}
       {#if editorRefusal}<p class="refusal" role="alert">{editorRefusal}</p>{/if}
     </Stack>
     {#snippet actions()}

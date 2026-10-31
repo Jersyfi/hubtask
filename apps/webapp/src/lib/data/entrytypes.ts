@@ -73,6 +73,18 @@ export function iconOf(type: Pick<EntryType, 'icon'>): IconName {
 /** The levels a type sits on, in the order the administration lists them. */
 export const TYPE_LEVELS = ['TASK', 'WORK_PACKAGE', 'ACTIVITY'] as const;
 
+/**
+ * The types that may be named as allowed underneath a type of the level (UC-FLW-01 check 9): those
+ * of the level below that are not archived, the level's own first; none below an activity. A key
+ * still listed but archived stays, so saving does not drop it unseen.
+ */
+export function childTypes(types: readonly EntryType[], level: string, listed: readonly string[] = []): readonly EntryType[] {
+  const at = TYPE_LEVELS.indexOf(level as (typeof TYPE_LEVELS)[number]);
+  const below = at < 0 ? undefined : TYPE_LEVELS[at + 1];
+  if (!below) return [];
+  return levelTypes(types, below).filter((type) => !type.archived || listed.includes(type.key));
+}
+
 /** The icons the administration offers a type, from the design system's set. */
 export const TYPE_ICONS: readonly IconName[] = [
   'tag', 'task', 'work-package', 'activity', 'square-check', 'star', 'flag', 'zap', 'lightbulb',

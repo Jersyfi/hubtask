@@ -12,7 +12,7 @@ import type { Capabilities, EntryType } from '@hubtask/sync-engine';
 
 import { ICON_NAMES } from '@hubtask/design-system/icons';
 
-import { TYPE_ICONS, droppedBy, entryTypesOffered, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typeNameOf, typeOrder, typesShown } from './entrytypes.ts';
+import { TYPE_ICONS, childTypes, droppedBy, entryTypesOffered, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typeNameOf, typeOrder, typesShown } from './entrytypes.ts';
 
 const base = {
   completable: true, workflow: false, record: false, schedulable: true, estimable: false,
@@ -102,4 +102,16 @@ test('a change of type that would drop values names them, and a completion is ne
   assert.equal(droppedBy({ detailCode: 'entry_types.not_offered', fieldErrors: [] }), undefined);
   assert.equal(droppedBy(refusal([])), undefined);
   assert.equal(droppedBy(undefined), undefined);
+});
+
+test('a type names its allowed children among the level below, none below an activity', () => {
+  const withArchivedChild: EntryType[] = [
+    ...types,
+    { ...base, key: 'work_package', level: 'WORK_PACKAGE', system: true, name: null, icon: 'work-package', color_token: 'slate', position: 0, version: 0 },
+    { ...base, key: 'gone', level: 'WORK_PACKAGE', system: false, name: 'Gone', icon: 'tag', color_token: 'red', position: 1, archived: true },
+  ];
+  assert.deepEqual(childTypes(withArchivedChild, 'TASK').map((type) => type.key), ['work_package', 'subtask']);
+  assert.deepEqual(childTypes(withArchivedChild, 'TASK', ['gone']).map((type) => type.key), ['work_package', 'subtask', 'gone']);
+  assert.deepEqual(childTypes(withArchivedChild, 'ACTIVITY'), []);
+  assert.deepEqual(childTypes(withArchivedChild, 'HUB'), []);
 });

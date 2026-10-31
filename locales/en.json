@@ -2433,6 +2433,8 @@
   "app.entry_types.behaviour_schedulable": "Has dates",
   "app.entry_types.behaviour_schedulable_hint": "A due date, reminders and a repeat.",
   "app.entry_types.behaviour_workflow": "Moves through a workflow",
+  "app.entry_types.allowed_children": "Allowed underneath",
+  "app.entry_types.allowed_children_hint": "The types that may sit directly under this one, on create, move and copy. None ticked allows every type.",
   "app.entry_types.behaviour_estimable": "Can be estimated",
   "app.entry_types.save": "Save",
   "app.entry_types.saved": "“{name}” is saved.",
