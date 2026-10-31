@@ -74,6 +74,9 @@ type CreateBackupScheduleCommand struct {
 	TrialRestore bool
 	Retention    domain.Retention
 	NotifyOn     []domain.Notification
+	// Disabled stores the rule switched off: it owes nothing and wakes no poller until it is
+	// switched on. The zero value is a schedule that runs, which is what creating one means.
+	Disabled bool
 }
 
 // Execute writes the schedule and decides when it first runs.
@@ -114,14 +117,20 @@ func (h CreateBackupSchedule) Execute(
 	if err != nil {
 		return domain.Schedule{}, err
 	}
+	schedule.Enabled = !cmd.Disabled
 
 	// The rule is expanded once, here, rather than on every read: what is stored is the moment,
 	// and a poller that re-derived it would pay a library call for every schedule that is not due.
 	// It is also the first place a rule this installation cannot read is refused - as a field
 	// error on the rule rather than as a job that fails at three in the morning.
+	// A disabled schedule's rule is still read, so a rule that could never run is refused now and
+	// not on the day somebody switches it on; it owes nothing, so no moment is stored.
 	nextRunAt, err := h.Scheduling.nextOccurrence(schedule, now)
 	if err != nil {
 		return domain.Schedule{}, err
+	}
+	if !schedule.Enabled {
+		nextRunAt = time.Time{}
 	}
 	schedule.NextRunAt = nextRunAt
 
@@ -213,6 +222,7 @@ func (s Scheduling) record(
 			audit.Change{Field: "rrule", Classification: audit.Open, To: schedule.RRULE},
 			audit.Change{Field: "timezone", Classification: audit.Open, To: schedule.TimeZone},
 			audit.Change{Field: "mode", Classification: audit.Open, To: schedule.Mode.String()},
+			audit.Change{Field: "enabled", Classification: audit.Open, To: boolText(schedule.Enabled)},
 		),
 	})
 }
@@ -284,6 +294,11 @@ func (h CreateBackupSchedule) Descriptor() usecase.Descriptor {
 				Name: "notify_on", Kind: usecase.KindList,
 				Description: "FAILURE, SUCCESS, FIRST_SUCCESS_AFTER_FAILURE. FAILURE unless said otherwise.",
 			},
+			{
+				Name: "enabled", Kind: usecase.KindBool,
+				Description: "Whether the schedule runs. On unless said otherwise; off stores the " +
+					"rule, checked, and owes nothing until it is switched on.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ScheduleChangedAction, TargetType: scheduleType,
@@ -311,6 +326,7 @@ func (h CreateBackupSchedule) invoke(
 		// And the trial, for B-4's reason: an archive nobody ever read back is a hope.
 		TrialRestore: !in.Present("trial_restore") || in.Bool("trial_restore"),
 		Retention:    domain.DefaultRetention(),
+		Disabled:     in.Present("enabled") && !in.Bool("enabled"),
 	}
 	if zone := in.OptionalString("timezone"); zone != nil && *zone != "" {
 		cmd.TimeZone = *zone

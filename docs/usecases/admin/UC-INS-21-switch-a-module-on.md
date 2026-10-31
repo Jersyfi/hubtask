@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10, P-17]
 state: built
 tasks: []
-checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/sync/InitialSyncGoals_test.go, core/application/service/admin/InstanceModules_test.go, cmd/hubctl/Module_test.go, apps/webapp/src/lib/data/modules.test.ts, apps/webapp/src/lib/navigation.test.ts]
+checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/sync/InitialSyncGoals_test.go, core/application/service/admin/InstanceModules_test.go, presentation/rest/DoorBody_test.go, cmd/hubctl/Module_test.go, apps/webapp/src/lib/data/modules.test.ts, apps/webapp/src/lib/navigation.test.ts]
 ---
 
 # Switch a module on for the workspace, a hub, or a plan
@@ -46,6 +46,9 @@ administrator sees the lock and who set it.
 7. Without any plan, and in single mode, every module is available.
 8. Switching a module on or off is in the trail with who did it.
 9. A backup and a workspace export contain the data of modules that are off.
+10. The installation decides a module, on or off and locked or not, for every workspace that
+    decides none itself, through `PUT /admin/settings` as through the instance file; the save
+    stores it, answers it and names it in the installation's journal.
 
 ## Where it ends
 

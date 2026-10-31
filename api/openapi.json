@@ -14460,9 +14460,6 @@
             "id": "scope_id"
           }
         },
-        "x-hubtask-rest-drop": [
-          "enabled"
-        ],
         "x-hubtask-rest-answer": "backupScheduleResponse",
         "summary": "Create a backup schedule",
         "description": "RRULE-based (RFC 5545), with generational retention and a `min_keep` floor.",
@@ -18601,9 +18598,6 @@
         ],
         "operationId": "writeInstanceSettings",
         "x-hubtask-rest": "generated",
-        "x-hubtask-rest-drop": [
-          "module"
-        ],
         "x-hubtask-rest-answer": "instanceSettingsResponse",
         "summary": "Replace the installation's level",
         "description": "A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say \"unset this one\", and being able to say it is the whole point of a level that distinguishes a decision from a default.\nA locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.\nOne journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.\nA save presents the version it read in `If-Match`. One made on values somebody else saved since is refused with `409 version_conflict`, and nothing of it is stored: two operators on the same screen is the ordinary case, and the second save must not quietly replace the first. Without `If-Match` the save is compared with the level as the server reads it. While a file enforces the level, the refusal is the file's, whatever `If-Match` says.\n",

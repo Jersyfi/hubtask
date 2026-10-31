@@ -5,6 +5,7 @@ package admin
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -71,5 +72,35 @@ func TestTheModuleAreaRoundTrips(t *testing.T) {
 	var refusal *shared.Error
 	if !errors.As(err, &refusal) || refusal.DetailCode != "admin.plan_under_installation_lock" {
 		t.Fatalf("a plan under the installation's module lock: %v", err)
+	}
+}
+
+// UC-INS-21 check 10: `module` on `PUT /admin/settings` is an input the write declares, so the
+// generated door hands it on; it is stored, answered and named in the journal.
+func TestTheInstanceWriteDecidesModules(t *testing.T) {
+	writer, settings, journal := newInstanceWriter(newRegister(operatorID))
+	registry, err := usecase.NewRegistry(nil, WriteInstanceSettings{Writer: writer}.Descriptor())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := registry.Invoke(t.Context(), WriteInstanceSettingsName, operator(), usecase.Input{
+		"module": map[string]any{"planning": map[string]any{"value": true, "locked": true}},
+	})
+	if err != nil {
+		t.Fatalf("writing: %v", err)
+	}
+	if settings.level.Modules[module.Planning] != (module.Decision{On: true, Locked: true}) {
+		t.Fatalf("stored modules = %+v", settings.level.Modules)
+	}
+	area, _ := out["module"].(usecase.Output)
+	if planning, _ := area["planning"].(usecase.Output); planning["value"] != true || planning["locked"] != true {
+		t.Fatalf("answered planning = %+v", area["planning"])
+	}
+	if len(journal.entries) != 1 {
+		t.Fatalf("%d journal entries", len(journal.entries))
+	}
+	switches, _ := journal.entries[0].Details["switches"].([]any)
+	if !slices.Contains(switches, any("module.planning")) {
+		t.Fatalf("the journal names %v, not the module", switches)
 	}
 }

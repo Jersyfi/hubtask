@@ -394,3 +394,54 @@ func TestTheScheduleDescriptorIsComplete(t *testing.T) {
 		}
 	}
 }
+
+// A schedule created with `enabled: false` is stored off: its rule is checked, it owes no run and
+// wakes no poller, and the answer says so.
+func TestAScheduleCreatedDisabledOwesNothing(t *testing.T) {
+	h := newHarness()
+	enabledTarget(t, h)
+	schedules, queued := newSchedules(), &jobs{}
+	scheduling := h.scheduling(schedules, queued, &expander{moments: []time.Time{now.Add(time.Hour)}})
+
+	out, err := (CreateBackupSchedule{Scheduling: scheduling}).invoke(context.Background(), caller(),
+		map[string]any{
+			"target_id": targetID.String(),
+			"rrule":     "FREQ=DAILY;BYHOUR=3;BYMINUTE=0",
+			"enabled":   false,
+		})
+	if err != nil {
+		t.Fatalf("invoking: %v", err)
+	}
+	switch {
+	case out["enabled"] != false:
+		t.Fatalf("enabled %v", out["enabled"])
+	case schedules.stored[scheduleID].Enabled:
+		t.Fatal("the stored schedule is on")
+	case !schedules.nextRun[scheduleID].IsZero():
+		t.Fatalf("a disabled schedule owes a run at %v", schedules.nextRun[scheduleID])
+	case len(queued.requests) != 0:
+		t.Fatalf("a disabled schedule woke the poller %d times", len(queued.requests))
+	}
+
+	// Left out, the schedule runs.
+	if _, err := (CreateBackupSchedule{Scheduling: scheduling}).invoke(context.Background(), caller(),
+		map[string]any{"target_id": targetID.String(), "rrule": "FREQ=DAILY"}); err != nil {
+		t.Fatalf("invoking: %v", err)
+	}
+	if !schedules.stored[scheduleID].Enabled || len(queued.requests) != 1 {
+		t.Fatal("a schedule created without `enabled` does not run")
+	}
+}
+
+// A disabled schedule's rule is read all the same: one that could never run is refused now.
+func TestADisabledScheduleWithAnUnreadableRuleIsRefused(t *testing.T) {
+	h := newHarness()
+	enabledTarget(t, h)
+	cmd := scheduleCommand()
+	cmd.Disabled = true
+	_, err := (CreateBackupSchedule{Scheduling: h.scheduling(newSchedules(), &jobs{},
+		&expander{failure: recurrence.ErrRuleUnreadable})}).Execute(context.Background(), caller(), cmd)
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("an unreadable rule answered %v", err)
+	}
+}

@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -269,6 +270,13 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 		if aiValueOf(before.Ai, name) != aiValueOf(after.Ai, name) ||
 			before.Ai.Locks[name] != after.Ai.Locks[name] {
 			moved = append(moved, "ai."+string(name))
+		}
+	}
+	for _, key := range module.Keys() {
+		earlier, earlierSet := before.Modules[key]
+		later, laterSet := after.Modules[key]
+		if earlier != later || earlierSet != laterSet {
+			moved = append(moved, "module."+key.Name())
 		}
 	}
 	if before.BlocklistFile != after.BlocklistFile {
@@ -558,6 +566,12 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 					"workspace's own model must declare - each `{value, locked}`. A lock holds a " +
 					"workspace out of a source and never in one: no AI is always its own choice, " +
 					"and no value here switches processing on.",
+			},
+			{
+				Name: "module", Kind: usecase.KindObject,
+				Description: "The modules by name, each `{value, locked}`: on or off for every " +
+					"workspace that switches none itself, and locked there. A module nothing " +
+					"decides is off; switching off hides and never deletes.",
 			},
 			{
 				Name: "blocklist_file", Kind: usecase.KindString,
