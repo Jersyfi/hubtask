@@ -1960,6 +1960,17 @@ func run() error {
 		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
 		EntryTypes: entryTypes, Fields: customFields, Gate: entryGate, Desk: serviceDesk, Accounts: accounts,
 	}
+	// A collection's public form (UC-SVC-13): requests raised without signing in, filed as the
+	// link's maker; the proof of work is signed under its own purpose label.
+	publicForms := servicedeskservice.PublicForms{
+		Portal:   requestPortal,
+		Links:    postgres.NewPublicFormRepository(security.NewPublicFormHasher(cfg.SecretKey)),
+		Settings: postgres.SettingRepository{}, Entropy: clockadapter.CryptoRandom{},
+		Accounts: accounts, Modules: modules, Permits: authorizer,
+		Requesters: postgres.RequesterRepository{IDs: ids},
+		Signer:     security.NewPublicFormChallengeSigner(cfg.SecretKey),
+		Spent:      servicedeskservice.NewSpentChallenges(),
+	}
 	// Approvals (UC-SVC-08 to 10): a step waiting for people's yes; the decision takes the step
 	// through TakeStep in the registry. A level's people are told by mail and reminded by its
 	// durable timers, which the timer pass below hands to ApprovalElapsed.
@@ -2234,6 +2245,11 @@ func run() error {
 		}.Descriptor(),
 		servicedeskservice.ListRequestCatalogue{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.RaiseRequest{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.ReadPublicFormsPolicy{Forms: publicForms}.Descriptor(),
+		servicedeskservice.SetPublicFormsPolicy{Forms: publicForms}.Descriptor(),
+		servicedeskservice.CreatePublicForm{Forms: publicForms}.Descriptor(),
+		servicedeskservice.ReadPublicForm{Forms: publicForms}.Descriptor(),
+		servicedeskservice.DeletePublicForm{Forms: publicForms}.Descriptor(),
 		servicedeskservice.ListMyRequests{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.ListRequesterOrganisations{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DefineRequesterOrganisation{Desk: serviceDesk}.Descriptor(),
@@ -3618,6 +3634,11 @@ func run() error {
 		// system holds, and every question it asks is asked inwards of the controller.
 		// A page's public link: not a catalogue entry, for the feed's reason.
 		controller.Feeds = &rest.FeedDoor{BaseURL: cfg.BaseURL, Pages: knowledgeservice.ReadPublicPage{Space: pageSpace}}
+		// A collection's public form, the page link's way (UC-SVC-13).
+		controller.Feeds.Forms = rest.PublicFormService{
+			Opener:    servicedeskservice.OpenPublicForm{Forms: publicForms},
+			Submitter: servicedeskservice.SubmitPublicForm{Forms: publicForms},
+		}
 		controller.Feeds.Calendar = work.ReadCalendarFeed{
 			Feeds: calendarFeeds, Accounts: accounts,
 			Export: work.ExportView{
@@ -4045,30 +4066,39 @@ func run() error {
 										Level: "feed",
 										Bucket: rest.FeedBucket(
 											cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
-										Next: rest.Localised{
-											Locale: cfg.Locale,
-											// The catalogues present decide what a header lands
-											// on; the renderer is the matcher.
-											Negotiator: renderer,
-											Next: rest.Authenticated{
-												Routes:        apiRoutes,
-												Authenticator: authenticate,
-												Locale:        cfg.Locale,
-												Next: rest.Limited{
-													// The workspace's own per-token ceiling,
-													// engaging only where one is configured.
-													Limiter: limiter, Signals: metrics,
-													Level:  "token",
-													Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
+										// A public form's submissions, per client address
+										// (UC-SVC-13): the sign-in's budget, beside the proof of
+										// work each one carries.
+										Next: rest.Limited{
+											Limiter: limiter, Signals: metrics,
+											Level: "public_form",
+											Bucket: rest.PublicFormBucket(
+												cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
+											Next: rest.Localised{
+												Locale: cfg.Locale,
+												// The catalogues present decide what a header lands
+												// on; the renderer is the matcher.
+												Negotiator: renderer,
+												Next: rest.Authenticated{
+													Routes:        apiRoutes,
+													Authenticator: authenticate,
+													Locale:        cfg.Locale,
 													Next: rest.Limited{
+														// The workspace's own per-token ceiling,
+														// engaging only where one is configured.
 														Limiter: limiter, Signals: metrics,
-														Level: "tenant",
-														Bucket: rest.TenantBucket(
-															cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-														Next: rest.Idempotent{
-															Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-															Routes: apiRoutes,
-															Next:   apiRoutes,
+														Level:  "token",
+														Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
+														Next: rest.Limited{
+															Limiter: limiter, Signals: metrics,
+															Level: "tenant",
+															Bucket: rest.TenantBucket(
+																cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+															Next: rest.Idempotent{
+																Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+																Routes: apiRoutes,
+																Next:   apiRoutes,
+															},
 														},
 													},
 												},

@@ -31887,6 +31887,220 @@
         }
       }
     },
+    "/collections/{collectionId}/public-form": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PublicFormCollectionId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "readPublicForm",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request public-form",
+        "summary": "A collection's public form",
+        "description": "Who made the collection's public form and when - never its token -, or `public_forms.link_not_found` when it has none. Needs MANAGE_MEMBERS at the collection.\n",
+        "responses": {
+          "200": {
+            "description": "The form's link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicForm"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "createPublicForm",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request public-form make",
+        "summary": "Make a collection's public form",
+        "description": "Makes the collection's public form and answers its token - once; only a hash of it is kept. Whoever holds the link raises a request of a type whose form names the PUBLIC channel and leaves it open, without signing in. A new link replaces the previous one, which stops answering. Refused with `public_forms.off` unless the workspace allows public forms. A request is filed as the person who made the link, on the visitor's behalf: once they may no longer create entries in the collection, the form answers nothing. Needs MANAGE_MEMBERS at the collection; an agent never makes one.\n",
+        "responses": {
+          "201": {
+            "description": "Made",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicFormMinted"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "deletePublicForm",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request public-form rm",
+        "summary": "Take a collection's public form away",
+        "description": "The link answers nothing from then on. Needs MANAGE_MEMBERS at the collection.",
+        "responses": {
+          "204": {
+            "description": "Taken away"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/public-forms:policy": {
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "readPublicFormsPolicy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request public-forms-policy",
+        "summary": "Whether collections may take requests through a public form",
+        "description": "Whether the workspace lets a collection take requests through a public form without signing in, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.\n",
+        "responses": {
+          "200": {
+            "description": "The policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicLinksPolicy"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "setPublicFormsPolicy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request public-forms-policy set",
+        "summary": "Allow public forms, or not",
+        "description": "Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public form stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "allowed"
+                ],
+                "properties": {
+                  "allowed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicLinksPolicy"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/public/forms/{token}": {
+      "parameters": [
+        {
+          "name": "token",
+          "in": "path",
+          "required": true,
+          "description": "The form's token, which is the whole credential: this route carries no bearer authentication. It names the workspace inside itself because the lookup needs one before it can happen.\n",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "getPublicForm",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Feeds",
+        "security": [],
+        "summary": "A public form opened by its link",
+        "description": "The kinds of request the form takes - each type whose form names the PUBLIC channel and leaves it open, with its form as that channel shows it - and a fresh challenge a submission answers. An unknown token, a replaced or removed link, a workspace that no longer allows public forms, a collection gone or archived, the service desk switched off at its hub, and a link whose maker may no longer create entries there all answer the same 404.\n",
+        "responses": {
+          "200": {
+            "description": "The form",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicFormView"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "submitPublicForm",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Feeds",
+        "security": [],
+        "summary": "Send a request through a public form",
+        "description": "Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + \":\" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicFormSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Received"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/public/pages/{token}": {
       "parameters": [
         {
@@ -32880,6 +33094,16 @@
         "name": "itemId",
         "in": "path",
         "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "PublicFormCollectionId": {
+        "name": "collectionId",
+        "in": "path",
+        "required": true,
+        "description": "The collection whose public form it is.",
         "schema": {
           "type": "string",
           "format": "uuid"
@@ -44832,6 +45056,131 @@
                 }
               }
             }
+          }
+        }
+      },
+      "PublicForm": {
+        "type": "object",
+        "required": [
+          "collection_id",
+          "created_by",
+          "created_at"
+        ],
+        "properties": {
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Whom a request is filed as."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PublicFormMinted": {
+        "description": "A collection's public form with its token, answered once.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PublicForm"
+          },
+          {
+            "type": "object",
+            "required": [
+              "token"
+            ],
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "The credential; the address is /api/v1/public/forms/{token}."
+              }
+            }
+          }
+        ]
+      },
+      "PublicFormView": {
+        "description": "What a public form shows, and the challenge a submission answers.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RequestCatalogue"
+          },
+          {
+            "type": "object",
+            "required": [
+              "challenge"
+            ],
+            "properties": {
+              "challenge": {
+                "type": "object",
+                "required": [
+                  "value",
+                  "bits",
+                  "expires_at"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "string"
+                  },
+                  "bits": {
+                    "type": "integer",
+                    "description": "The zero bits the answer's hash starts with."
+                  },
+                  "expires_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PublicFormSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entry_type",
+          "title",
+          "challenge",
+          "solution"
+        ],
+        "properties": {
+          "entry_type": {
+            "type": "string",
+            "description": "A kind of request the form takes."
+          },
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "custom_fields": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The form's answers by field key."
+          },
+          "requester_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "requester_email": {
+            "type": "string",
+            "maxLength": 320,
+            "description": "Where the team's answer goes; required with a name."
+          },
+          "challenge": {
+            "type": "string",
+            "description": "The challenge the form handed out."
+          },
+          "solution": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "The decimal number that answers it."
           }
         }
       },

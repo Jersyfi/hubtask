@@ -2155,6 +2155,33 @@ ApprovalDelegation = TypedDict("ApprovalDelegation", {
 class RequestCatalogue(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
+class PublicForm(TypedDict, total=False):
+    collection_id: Required[str]
+    created_by: Required[str]
+    created_at: Required[str]
+
+class PublicFormMinted(TypedDict, total=False):
+    """A collection's public form with its token, answered once."""
+    collection_id: Required[str]
+    created_by: Required[str]
+    created_at: Required[str]
+    token: Required[str]
+
+class PublicFormView(TypedDict, total=False):
+    """What a public form shows, and the challenge a submission answers."""
+    data: Required[list[dict[str, Any]]]
+    challenge: Required[dict[str, Any]]
+
+class PublicFormSubmission(TypedDict, total=False):
+    entry_type: Required[str]
+    title: Required[str]
+    notes: str
+    custom_fields: dict[str, Any]
+    requester_name: str
+    requester_email: str
+    challenge: Required[str]
+    solution: Required[str]
+
 class PortalRequest(TypedDict, total=False):
     """A request as the person who raised it reads it - never the team's fields."""
     id: Required[str]

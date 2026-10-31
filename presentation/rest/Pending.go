@@ -2757,6 +2757,26 @@ func (pending) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { no
 
 func (pending) GetPublicPage(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
 
+func (pending) ReadPublicForm(w http.ResponseWriter, r *http.Request, _ openapi.PublicFormCollectionId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreatePublicForm(w http.ResponseWriter, r *http.Request, _ openapi.PublicFormCollectionId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePublicForm(w http.ResponseWriter, r *http.Request, _ openapi.PublicFormCollectionId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPublicFormsPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SetPublicFormsPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetPublicForm(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) SubmitPublicForm(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
 func (pending) PublishPageToPortal(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
 	notAvailable(w, r)
 }

@@ -3953,6 +3953,43 @@ export class HubtaskClient {
     return this.call("PUT", "/pages:public-links", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** A collection's public form */
+  readPublicForm(collectionId: string, options: CallOptions = {}): Promise<operations["readPublicForm"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/collections/{collectionId}/public-form", { "collectionId": collectionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Make a collection's public form */
+  createPublicForm(collectionId: string, options: CallOptions = {}): Promise<operations["createPublicForm"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/collections/{collectionId}/public-form", { "collectionId": collectionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Take a collection's public form away */
+  deletePublicForm(collectionId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/collections/{collectionId}/public-form", { "collectionId": collectionId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Whether collections may take requests through a public form */
+  readPublicFormsPolicy(options: CallOptions = {}): Promise<operations["readPublicFormsPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/public-forms:policy", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Allow public forms, or not */
+  setPublicFormsPolicy(body: NonNullable<operations["setPublicFormsPolicy"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setPublicFormsPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/public-forms:policy", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A public form opened by its link
+   * Public: sent without a bearer where the client holds none. */
+  getPublicForm(token: string, options: CallOptions = {}): Promise<operations["getPublicForm"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/public/forms/{token}", { "token": token }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Send a request through a public form
+   * Public: sent without a bearer where the client holds none. */
+  submitPublicForm(token: string, body: NonNullable<operations["submitPublicForm"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/public/forms/{token}", { "token": token }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  }
+
   /** A page opened by its public link
    * Public: sent without a bearer where the client holds none. */
   getPublicPage(token: string, options: CallOptions = {}): Promise<Response> {

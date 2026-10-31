@@ -20634,6 +20634,76 @@ type ProvisionedTenant struct {
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
 type ProvisionedTenantStatus string
 
+// PublicForm defines model for PublicForm.
+type PublicForm struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	CreatedAt    time.Time          `json:"created_at"`
+
+	// CreatedBy Whom a request is filed as.
+	CreatedBy openapi_types.UUID `json:"created_by"`
+}
+
+// PublicFormMinted A collection's public form with its token, answered once.
+type PublicFormMinted struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	CreatedAt    time.Time          `json:"created_at"`
+
+	// CreatedBy Whom a request is filed as.
+	CreatedBy openapi_types.UUID `json:"created_by"`
+
+	// Token The credential; the address is /api/v1/public/forms/{token}.
+	Token string `json:"token"`
+}
+
+// PublicFormSubmission defines model for PublicFormSubmission.
+type PublicFormSubmission struct {
+	// Challenge The challenge the form handed out.
+	Challenge string `json:"challenge"`
+
+	// CustomFields The form's answers by field key.
+	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
+
+	// EntryType A kind of request the form takes.
+	EntryType string  `json:"entry_type"`
+	Notes     *string `json:"notes,omitempty"`
+
+	// RequesterEmail Where the team's answer goes; required with a name.
+	RequesterEmail *string `json:"requester_email,omitempty"`
+	RequesterName  *string `json:"requester_name,omitempty"`
+
+	// Solution The decimal number that answers it.
+	Solution string `json:"solution"`
+	Title    string `json:"title"`
+}
+
+// PublicFormView What a public form shows, and the challenge a submission answers.
+type PublicFormView struct {
+	Challenge struct {
+		// Bits The zero bits the answer's hash starts with.
+		Bits      int       `json:"bits"`
+		ExpiresAt time.Time `json:"expires_at"`
+		Value     string    `json:"value"`
+	} `json:"challenge"`
+	Data []struct {
+		// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
+		Form EntryForm `json:"form"`
+		Icon string    `json:"icon"`
+		Key  string    `json:"key"`
+
+		// Name Empty on a system type nobody named.
+		Name string `json:"name"`
+
+		// Questions The custom fields the form asks, in its order, with what an answer must be.
+		Questions []struct {
+			Key  string `json:"key"`
+			Kind string `json:"kind"`
+
+			// Options The values a choice offers; empty otherwise.
+			Options []string `json:"options"`
+		} `json:"questions"`
+	} `json:"data"`
+}
+
 // PublicLinksPolicy defines model for PublicLinksPolicy.
 type PublicLinksPolicy struct {
 	Allowed bool `json:"allowed"`
@@ -24711,6 +24781,9 @@ type PresetId = openapi_types.UUID
 // ProviderId defines model for ProviderId.
 type ProviderId = openapi_types.UUID
 
+// PublicFormCollectionId defines model for PublicFormCollectionId.
+type PublicFormCollectionId = openapi_types.UUID
+
 // ReleaseId defines model for ReleaseId.
 type ReleaseId = openapi_types.UUID
 
@@ -26890,6 +26963,11 @@ type OpenPrivateHubParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// SetPublicFormsPolicyJSONBody defines parameters for SetPublicFormsPolicy.
+type SetPublicFormsPolicyJSONBody struct {
+	Allowed bool `json:"allowed"`
+}
+
 // ResolveReferencesJSONBody defines parameters for ResolveReferences.
 type ResolveReferencesJSONBody struct {
 	References []Reference `json:"references"`
@@ -28371,6 +28449,12 @@ type ExtendDataSubjectRequestJSONRequestBody = DataSubjectRequestExtension
 
 // OpenPrivateHubJSONRequestBody defines body for OpenPrivateHub for application/json ContentType.
 type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
+
+// SetPublicFormsPolicyJSONRequestBody defines body for SetPublicFormsPolicy for application/json ContentType.
+type SetPublicFormsPolicyJSONRequestBody SetPublicFormsPolicyJSONBody
+
+// SubmitPublicFormJSONRequestBody defines body for SubmitPublicForm for application/json ContentType.
+type SubmitPublicFormJSONRequestBody = PublicFormSubmission
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
@@ -32754,6 +32838,27 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
 	ImportPlan(ctx context.Context, collectionId SprintCollectionId, body ImportPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeletePublicForm Take a collection's public form away
+	//
+	// The link answers nothing from then on. Needs MANAGE_MEMBERS at the collection.
+	//
+	// Corresponds with DELETE /collections/{collectionId}/public-form (the `DeletePublicForm` operationId).
+	DeletePublicForm(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPublicForm A collection's public form
+	//
+	// Who made the collection's public form and when - never its token -, or `public_forms.link_not_found` when it has none. Needs MANAGE_MEMBERS at the collection.
+	//
+	// Corresponds with GET /collections/{collectionId}/public-form (the `ReadPublicForm` operationId).
+	ReadPublicForm(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePublicForm Make a collection's public form
+	//
+	// Makes the collection's public form and answers its token - once; only a hash of it is kept. Whoever holds the link raises a request of a type whose form names the PUBLIC channel and leaves it open, without signing in. A new link replaces the previous one, which stops answering. Refused with `public_forms.off` unless the workspace allows public forms. A request is filed as the person who made the link, on the visitor's behalf: once they may no longer create entries in the collection, the form answers nothing. Needs MANAGE_MEMBERS at the collection; an agent never makes one.
+	//
+	// Corresponds with POST /collections/{collectionId}/public-form (the `CreatePublicForm` operationId).
+	CreatePublicForm(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadSprintBacklog The backlog to plan a sprint from
 	//
@@ -37222,6 +37327,56 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
 	OpenPrivateHub(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPublicFormsPolicy Whether collections may take requests through a public form
+	//
+	// Whether the workspace lets a collection take requests through a public form without signing in, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /public-forms:policy (the `ReadPublicFormsPolicy` operationId).
+	ReadPublicFormsPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPublicFormsPolicyWithBody Allow public forms, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public form stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /public-forms:policy (the `SetPublicFormsPolicy` operationId).
+	SetPublicFormsPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPublicFormsPolicy Allow public forms, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public form stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /public-forms:policy (the `SetPublicFormsPolicy` operationId).
+	SetPublicFormsPolicy(ctx context.Context, body SetPublicFormsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPublicForm A public form opened by its link
+	//
+	// The kinds of request the form takes - each type whose form names the PUBLIC channel and leaves it open, with its form as that channel shows it - and a fresh challenge a submission answers. An unknown token, a replaced or removed link, a workspace that no longer allows public forms, a collection gone or archived, the service desk switched off at its hub, and a link whose maker may no longer create entries there all answer the same 404.
+	//
+	// Corresponds with GET /public/forms/{token} (the `GetPublicForm` operationId).
+	GetPublicForm(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SubmitPublicFormWithBody Send a request through a public form
+	//
+	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /public/forms/{token} (the `SubmitPublicForm` operationId).
+	SubmitPublicFormWithBody(ctx context.Context, token string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SubmitPublicForm Send a request through a public form
+	//
+	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /public/forms/{token} (the `SubmitPublicForm` operationId).
+	SubmitPublicForm(ctx context.Context, token string, body SubmitPublicFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetPublicPage A page opened by its public link
 	//
@@ -46726,6 +46881,57 @@ func (c *Client) ImportPlanWithBody(ctx context.Context, collectionId SprintColl
 // Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
 func (c *Client) ImportPlan(ctx context.Context, collectionId SprintCollectionId, body ImportPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewImportPlanRequest(c.Server, collectionId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeletePublicForm Take a collection's public form away
+//
+// The link answers nothing from then on. Needs MANAGE_MEMBERS at the collection.
+//
+// Corresponds with DELETE /collections/{collectionId}/public-form (the `DeletePublicForm` operationId).
+func (c *Client) DeletePublicForm(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePublicFormRequest(c.Server, collectionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPublicForm A collection's public form
+//
+// Who made the collection's public form and when - never its token -, or `public_forms.link_not_found` when it has none. Needs MANAGE_MEMBERS at the collection.
+//
+// Corresponds with GET /collections/{collectionId}/public-form (the `ReadPublicForm` operationId).
+func (c *Client) ReadPublicForm(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPublicFormRequest(c.Server, collectionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePublicForm Make a collection's public form
+//
+// Makes the collection's public form and answers its token - once; only a hash of it is kept. Whoever holds the link raises a request of a type whose form names the PUBLIC channel and leaves it open, without signing in. A new link replaces the previous one, which stops answering. Refused with `public_forms.off` unless the workspace allows public forms. A request is filed as the person who made the link, on the visitor's behalf: once they may no longer create entries in the collection, the form answers nothing. Needs MANAGE_MEMBERS at the collection; an agent never makes one.
+//
+// Corresponds with POST /collections/{collectionId}/public-form (the `CreatePublicForm` operationId).
+func (c *Client) CreatePublicForm(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePublicFormRequest(c.Server, collectionId)
 	if err != nil {
 		return nil, err
 	}
@@ -56564,6 +56770,116 @@ func (c *Client) OpenPrivateHubWithBody(ctx context.Context, hubId HubId, params
 // Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
 func (c *Client) OpenPrivateHub(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewOpenPrivateHubRequest(c.Server, hubId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPublicFormsPolicy Whether collections may take requests through a public form
+//
+// Whether the workspace lets a collection take requests through a public form without signing in, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /public-forms:policy (the `ReadPublicFormsPolicy` operationId).
+func (c *Client) ReadPublicFormsPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPublicFormsPolicyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPublicFormsPolicyWithBody Allow public forms, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public form stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /public-forms:policy (the `SetPublicFormsPolicy` operationId).
+func (c *Client) SetPublicFormsPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPublicFormsPolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPublicFormsPolicy Allow public forms, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public form stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /public-forms:policy (the `SetPublicFormsPolicy` operationId).
+func (c *Client) SetPublicFormsPolicy(ctx context.Context, body SetPublicFormsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPublicFormsPolicyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetPublicForm A public form opened by its link
+//
+// The kinds of request the form takes - each type whose form names the PUBLIC channel and leaves it open, with its form as that channel shows it - and a fresh challenge a submission answers. An unknown token, a replaced or removed link, a workspace that no longer allows public forms, a collection gone or archived, the service desk switched off at its hub, and a link whose maker may no longer create entries there all answer the same 404.
+//
+// Corresponds with GET /public/forms/{token} (the `GetPublicForm` operationId).
+func (c *Client) GetPublicForm(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPublicFormRequest(c.Server, token)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SubmitPublicFormWithBody Send a request through a public form
+//
+// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /public/forms/{token} (the `SubmitPublicForm` operationId).
+func (c *Client) SubmitPublicFormWithBody(ctx context.Context, token string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSubmitPublicFormRequestWithBody(c.Server, token, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SubmitPublicForm Send a request through a public form
+//
+// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /public/forms/{token} (the `SubmitPublicForm` operationId).
+func (c *Client) SubmitPublicForm(ctx context.Context, token string, body SubmitPublicFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSubmitPublicFormRequest(c.Server, token, body)
 	if err != nil {
 		return nil, err
 	}
@@ -72190,6 +72506,108 @@ func NewImportPlanRequestWithBody(server string, collectionId SprintCollectionId
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeletePublicFormRequest constructs an http.Request for the DeletePublicForm method
+func NewDeletePublicFormRequest(server string, collectionId PublicFormCollectionId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "collectionId", collectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/collections/%s/public-form", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadPublicFormRequest constructs an http.Request for the ReadPublicForm method
+func NewReadPublicFormRequest(server string, collectionId PublicFormCollectionId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "collectionId", collectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/collections/%s/public-form", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePublicFormRequest constructs an http.Request for the CreatePublicForm method
+func NewCreatePublicFormRequest(server string, collectionId PublicFormCollectionId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "collectionId", collectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/collections/%s/public-form", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -90407,6 +90825,154 @@ func NewOpenPrivateHubRequestWithBody(server string, hubId HubId, params *OpenPr
 	return req, nil
 }
 
+// NewReadPublicFormsPolicyRequest constructs an http.Request for the ReadPublicFormsPolicy method
+func NewReadPublicFormsPolicyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/public-forms:policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetPublicFormsPolicyRequest calls the generic SetPublicFormsPolicy builder with application/json body
+func NewSetPublicFormsPolicyRequest(server string, body SetPublicFormsPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPublicFormsPolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetPublicFormsPolicyRequestWithBody constructs an http.Request for the SetPublicFormsPolicy method, with any body, and a specified content type
+func NewSetPublicFormsPolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/public-forms:policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetPublicFormRequest constructs an http.Request for the GetPublicForm method
+func NewGetPublicFormRequest(server string, token string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/public/forms/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSubmitPublicFormRequest calls the generic SubmitPublicForm builder with application/json body
+func NewSubmitPublicFormRequest(server string, token string, body SubmitPublicFormJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSubmitPublicFormRequestWithBody(server, token, "application/json", bodyReader)
+}
+
+// NewSubmitPublicFormRequestWithBody constructs an http.Request for the SubmitPublicForm method, with any body, and a specified content type
+func NewSubmitPublicFormRequestWithBody(server string, token string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/public/forms/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetPublicPageRequest constructs an http.Request for the GetPublicPage method
 func NewGetPublicPageRequest(server string, token string) (*http.Request, error) {
 	var err error
@@ -101841,6 +102407,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /collections/{collectionId}/plan:import (the `ImportPlan` operationId).
 	ImportPlanWithResponse(ctx context.Context, collectionId SprintCollectionId, body ImportPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportPlanResult, error)
 
+	// DeletePublicFormWithResponse Take a collection's public form away
+	//
+	// The link answers nothing from then on. Needs MANAGE_MEMBERS at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /collections/{collectionId}/public-form (the `DeletePublicForm` operationId).
+	DeletePublicFormWithResponse(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*DeletePublicFormResult, error)
+
+	// ReadPublicFormWithResponse A collection's public form
+	//
+	// Who made the collection's public form and when - never its token -, or `public_forms.link_not_found` when it has none. Needs MANAGE_MEMBERS at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /collections/{collectionId}/public-form (the `ReadPublicForm` operationId).
+	ReadPublicFormWithResponse(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*ReadPublicFormResult, error)
+
+	// CreatePublicFormWithResponse Make a collection's public form
+	//
+	// Makes the collection's public form and answers its token - once; only a hash of it is kept. Whoever holds the link raises a request of a type whose form names the PUBLIC channel and leaves it open, without signing in. A new link replaces the previous one, which stops answering. Refused with `public_forms.off` unless the workspace allows public forms. A request is filed as the person who made the link, on the visitor's behalf: once they may no longer create entries in the collection, the form answers nothing. Needs MANAGE_MEMBERS at the collection; an agent never makes one.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /collections/{collectionId}/public-form (the `CreatePublicForm` operationId).
+	CreatePublicFormWithResponse(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*CreatePublicFormResult, error)
+
 	// ReadSprintBacklogWithResponse The backlog to plan a sprint from
 	//
 	// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
@@ -106794,6 +107387,60 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
 	OpenPrivateHubWithResponse(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenPrivateHubResult, error)
+
+	// ReadPublicFormsPolicyWithResponse Whether collections may take requests through a public form
+	//
+	// Whether the workspace lets a collection take requests through a public form without signing in, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /public-forms:policy (the `ReadPublicFormsPolicy` operationId).
+	ReadPublicFormsPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadPublicFormsPolicyResult, error)
+
+	// SetPublicFormsPolicyWithBodyWithResponse Allow public forms, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public form stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /public-forms:policy (the `SetPublicFormsPolicy` operationId).
+	SetPublicFormsPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPublicFormsPolicyResult, error)
+
+	// SetPublicFormsPolicyWithResponse Allow public forms, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public form stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /public-forms:policy (the `SetPublicFormsPolicy` operationId).
+	SetPublicFormsPolicyWithResponse(ctx context.Context, body SetPublicFormsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPublicFormsPolicyResult, error)
+
+	// GetPublicFormWithResponse A public form opened by its link
+	//
+	// The kinds of request the form takes - each type whose form names the PUBLIC channel and leaves it open, with its form as that channel shows it - and a fresh challenge a submission answers. An unknown token, a replaced or removed link, a workspace that no longer allows public forms, a collection gone or archived, the service desk switched off at its hub, and a link whose maker may no longer create entries there all answer the same 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /public/forms/{token} (the `GetPublicForm` operationId).
+	GetPublicFormWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetPublicFormResult, error)
+
+	// SubmitPublicFormWithBodyWithResponse Send a request through a public form
+	//
+	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /public/forms/{token} (the `SubmitPublicForm` operationId).
+	SubmitPublicFormWithBodyWithResponse(ctx context.Context, token string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SubmitPublicFormResult, error)
+
+	// SubmitPublicFormWithResponse Send a request through a public form
+	//
+	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /public/forms/{token} (the `SubmitPublicForm` operationId).
+	SubmitPublicFormWithResponse(ctx context.Context, token string, body SubmitPublicFormJSONRequestBody, reqEditors ...RequestEditorFn) (*SubmitPublicFormResult, error)
 
 	// GetPublicPageWithResponse A page opened by its public link
 	//
@@ -121049,6 +121696,143 @@ func (r ImportPlanResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ImportPlanResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeletePublicFormResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeletePublicFormResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePublicFormResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePublicFormResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePublicFormResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePublicFormResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPublicFormResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PublicForm
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPublicFormResult) GetJSON200() *PublicForm {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPublicFormResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPublicFormResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPublicFormResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPublicFormResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPublicFormResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePublicFormResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PublicFormMinted
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePublicFormResult) GetJSON201() *PublicFormMinted {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreatePublicFormResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePublicFormResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePublicFormResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePublicFormResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePublicFormResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -139247,6 +140031,191 @@ func (r OpenPrivateHubResult) ContentType() string {
 	return ""
 }
 
+type ReadPublicFormsPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PublicLinksPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPublicFormsPolicyResult) GetJSON200() *PublicLinksPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPublicFormsPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPublicFormsPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPublicFormsPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPublicFormsPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPublicFormsPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetPublicFormsPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PublicLinksPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetPublicFormsPolicyResult) GetJSON200() *PublicLinksPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetPublicFormsPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPublicFormsPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPublicFormsPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPublicFormsPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPublicFormsPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetPublicFormResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PublicFormView
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetPublicFormResult) GetJSON200() *PublicFormView {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetPublicFormResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetPublicFormResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPublicFormResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPublicFormResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetPublicFormResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SubmitPublicFormResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SubmitPublicFormResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SubmitPublicFormResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SubmitPublicFormResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SubmitPublicFormResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SubmitPublicFormResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetPublicPageResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -153017,6 +153986,51 @@ func (c *ClientWithResponses) ImportPlanWithResponse(ctx context.Context, collec
 	return ParseImportPlanResult(rsp)
 }
 
+// DeletePublicFormWithResponse Take a collection's public form away
+//
+// The link answers nothing from then on. Needs MANAGE_MEMBERS at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /collections/{collectionId}/public-form (the `DeletePublicForm` operationId).
+func (c *ClientWithResponses) DeletePublicFormWithResponse(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*DeletePublicFormResult, error) {
+	rsp, err := c.DeletePublicForm(ctx, collectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePublicFormResult(rsp)
+}
+
+// ReadPublicFormWithResponse A collection's public form
+//
+// Who made the collection's public form and when - never its token -, or `public_forms.link_not_found` when it has none. Needs MANAGE_MEMBERS at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /collections/{collectionId}/public-form (the `ReadPublicForm` operationId).
+func (c *ClientWithResponses) ReadPublicFormWithResponse(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*ReadPublicFormResult, error) {
+	rsp, err := c.ReadPublicForm(ctx, collectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPublicFormResult(rsp)
+}
+
+// CreatePublicFormWithResponse Make a collection's public form
+//
+// Makes the collection's public form and answers its token - once; only a hash of it is kept. Whoever holds the link raises a request of a type whose form names the PUBLIC channel and leaves it open, without signing in. A new link replaces the previous one, which stops answering. Refused with `public_forms.off` unless the workspace allows public forms. A request is filed as the person who made the link, on the visitor's behalf: once they may no longer create entries in the collection, the form answers nothing. Needs MANAGE_MEMBERS at the collection; an agent never makes one.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /collections/{collectionId}/public-form (the `CreatePublicForm` operationId).
+func (c *ClientWithResponses) CreatePublicFormWithResponse(ctx context.Context, collectionId PublicFormCollectionId, reqEditors ...RequestEditorFn) (*CreatePublicFormResult, error) {
+	rsp, err := c.CreatePublicForm(ctx, collectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePublicFormResult(rsp)
+}
+
 // ReadSprintBacklogWithResponse The backlog to plan a sprint from
 //
 // The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
@@ -161191,6 +162205,96 @@ func (c *ClientWithResponses) OpenPrivateHubWithResponse(ctx context.Context, hu
 		return nil, err
 	}
 	return ParseOpenPrivateHubResult(rsp)
+}
+
+// ReadPublicFormsPolicyWithResponse Whether collections may take requests through a public form
+//
+// Whether the workspace lets a collection take requests through a public form without signing in, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /public-forms:policy (the `ReadPublicFormsPolicy` operationId).
+func (c *ClientWithResponses) ReadPublicFormsPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadPublicFormsPolicyResult, error) {
+	rsp, err := c.ReadPublicFormsPolicy(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPublicFormsPolicyResult(rsp)
+}
+
+// SetPublicFormsPolicyWithBodyWithResponse Allow public forms, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public form stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /public-forms:policy (the `SetPublicFormsPolicy` operationId).
+func (c *ClientWithResponses) SetPublicFormsPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPublicFormsPolicyResult, error) {
+	rsp, err := c.SetPublicFormsPolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPublicFormsPolicyResult(rsp)
+}
+
+// SetPublicFormsPolicyWithResponse Allow public forms, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every public form stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /public-forms:policy (the `SetPublicFormsPolicy` operationId).
+func (c *ClientWithResponses) SetPublicFormsPolicyWithResponse(ctx context.Context, body SetPublicFormsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPublicFormsPolicyResult, error) {
+	rsp, err := c.SetPublicFormsPolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPublicFormsPolicyResult(rsp)
+}
+
+// GetPublicFormWithResponse A public form opened by its link
+//
+// The kinds of request the form takes - each type whose form names the PUBLIC channel and leaves it open, with its form as that channel shows it - and a fresh challenge a submission answers. An unknown token, a replaced or removed link, a workspace that no longer allows public forms, a collection gone or archived, the service desk switched off at its hub, and a link whose maker may no longer create entries there all answer the same 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /public/forms/{token} (the `GetPublicForm` operationId).
+func (c *ClientWithResponses) GetPublicFormWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetPublicFormResult, error) {
+	rsp, err := c.GetPublicForm(ctx, token, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPublicFormResult(rsp)
+}
+
+// SubmitPublicFormWithBodyWithResponse Send a request through a public form
+//
+// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /public/forms/{token} (the `SubmitPublicForm` operationId).
+func (c *ClientWithResponses) SubmitPublicFormWithBodyWithResponse(ctx context.Context, token string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SubmitPublicFormResult, error) {
+	rsp, err := c.SubmitPublicFormWithBody(ctx, token, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSubmitPublicFormResult(rsp)
+}
+
+// SubmitPublicFormWithResponse Send a request through a public form
+//
+// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /public/forms/{token} (the `SubmitPublicForm` operationId).
+func (c *ClientWithResponses) SubmitPublicFormWithResponse(ctx context.Context, token string, body SubmitPublicFormJSONRequestBody, reqEditors ...RequestEditorFn) (*SubmitPublicFormResult, error) {
+	rsp, err := c.SubmitPublicForm(ctx, token, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSubmitPublicFormResult(rsp)
 }
 
 // GetPublicPageWithResponse A page opened by its public link
@@ -173284,6 +174388,101 @@ func ParseImportPlanResult(rsp *http.Response) (*ImportPlanResult, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeletePublicFormResult parses an HTTP response from a DeletePublicFormWithResponse call
+func ParseDeletePublicFormResult(rsp *http.Response) (*DeletePublicFormResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePublicFormResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPublicFormResult parses an HTTP response from a ReadPublicFormWithResponse call
+func ParseReadPublicFormResult(rsp *http.Response) (*ReadPublicFormResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPublicFormResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicForm
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePublicFormResult parses an HTTP response from a CreatePublicFormWithResponse call
+func ParseCreatePublicFormResult(rsp *http.Response) (*CreatePublicFormResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePublicFormResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PublicFormMinted
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -186306,6 +187505,134 @@ func ParseOpenPrivateHubResult(rsp *http.Response) (*OpenPrivateHubResult, error
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPublicFormsPolicyResult parses an HTTP response from a ReadPublicFormsPolicyWithResponse call
+func ParseReadPublicFormsPolicyResult(rsp *http.Response) (*ReadPublicFormsPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPublicFormsPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicLinksPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetPublicFormsPolicyResult parses an HTTP response from a SetPublicFormsPolicyWithResponse call
+func ParseSetPublicFormsPolicyResult(rsp *http.Response) (*SetPublicFormsPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPublicFormsPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicLinksPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPublicFormResult parses an HTTP response from a GetPublicFormWithResponse call
+func ParseGetPublicFormResult(rsp *http.Response) (*GetPublicFormResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPublicFormResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicFormView
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSubmitPublicFormResult parses an HTTP response from a SubmitPublicFormWithResponse call
+func ParseSubmitPublicFormResult(rsp *http.Response) (*SubmitPublicFormResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SubmitPublicFormResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 202:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

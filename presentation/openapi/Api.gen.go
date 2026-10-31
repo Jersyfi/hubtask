@@ -20628,6 +20628,76 @@ type ProvisionedTenant struct {
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
 type ProvisionedTenantStatus string
 
+// PublicForm defines model for PublicForm.
+type PublicForm struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	CreatedAt    time.Time          `json:"created_at"`
+
+	// CreatedBy Whom a request is filed as.
+	CreatedBy openapi_types.UUID `json:"created_by"`
+}
+
+// PublicFormMinted A collection's public form with its token, answered once.
+type PublicFormMinted struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	CreatedAt    time.Time          `json:"created_at"`
+
+	// CreatedBy Whom a request is filed as.
+	CreatedBy openapi_types.UUID `json:"created_by"`
+
+	// Token The credential; the address is /api/v1/public/forms/{token}.
+	Token string `json:"token"`
+}
+
+// PublicFormSubmission defines model for PublicFormSubmission.
+type PublicFormSubmission struct {
+	// Challenge The challenge the form handed out.
+	Challenge string `json:"challenge"`
+
+	// CustomFields The form's answers by field key.
+	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
+
+	// EntryType A kind of request the form takes.
+	EntryType string  `json:"entry_type"`
+	Notes     *string `json:"notes,omitempty"`
+
+	// RequesterEmail Where the team's answer goes; required with a name.
+	RequesterEmail *string `json:"requester_email,omitempty"`
+	RequesterName  *string `json:"requester_name,omitempty"`
+
+	// Solution The decimal number that answers it.
+	Solution string `json:"solution"`
+	Title    string `json:"title"`
+}
+
+// PublicFormView What a public form shows, and the challenge a submission answers.
+type PublicFormView struct {
+	Challenge struct {
+		// Bits The zero bits the answer's hash starts with.
+		Bits      int       `json:"bits"`
+		ExpiresAt time.Time `json:"expires_at"`
+		Value     string    `json:"value"`
+	} `json:"challenge"`
+	Data []struct {
+		// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
+		Form EntryForm `json:"form"`
+		Icon string    `json:"icon"`
+		Key  string    `json:"key"`
+
+		// Name Empty on a system type nobody named.
+		Name string `json:"name"`
+
+		// Questions The custom fields the form asks, in its order, with what an answer must be.
+		Questions []struct {
+			Key  string `json:"key"`
+			Kind string `json:"kind"`
+
+			// Options The values a choice offers; empty otherwise.
+			Options []string `json:"options"`
+		} `json:"questions"`
+	} `json:"data"`
+}
+
 // PublicLinksPolicy defines model for PublicLinksPolicy.
 type PublicLinksPolicy struct {
 	Allowed bool `json:"allowed"`
@@ -24705,6 +24775,9 @@ type PresetId = openapi_types.UUID
 // ProviderId defines model for ProviderId.
 type ProviderId = openapi_types.UUID
 
+// PublicFormCollectionId defines model for PublicFormCollectionId.
+type PublicFormCollectionId = openapi_types.UUID
+
 // ReleaseId defines model for ReleaseId.
 type ReleaseId = openapi_types.UUID
 
@@ -26884,6 +26957,11 @@ type OpenPrivateHubParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// SetPublicFormsPolicyJSONBody defines parameters for SetPublicFormsPolicy.
+type SetPublicFormsPolicyJSONBody struct {
+	Allowed bool `json:"allowed"`
+}
+
 // ResolveReferencesJSONBody defines parameters for ResolveReferences.
 type ResolveReferencesJSONBody struct {
 	References []Reference `json:"references"`
@@ -28366,6 +28444,12 @@ type ExtendDataSubjectRequestJSONRequestBody = DataSubjectRequestExtension
 // OpenPrivateHubJSONRequestBody defines body for OpenPrivateHub for application/json ContentType.
 type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
 
+// SetPublicFormsPolicyJSONRequestBody defines body for SetPublicFormsPolicy for application/json ContentType.
+type SetPublicFormsPolicyJSONRequestBody SetPublicFormsPolicyJSONBody
+
+// SubmitPublicFormJSONRequestBody defines body for SubmitPublicForm for application/json ContentType.
+type SubmitPublicFormJSONRequestBody = PublicFormSubmission
+
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
 
@@ -29751,6 +29835,15 @@ type ServerInterface interface {
 	// ImportPlan Bring a plan in from a project file
 	// (POST /collections/{collectionId}/plan:import)
 	ImportPlan(w http.ResponseWriter, r *http.Request, collectionId SprintCollectionId)
+	// DeletePublicForm Take a collection's public form away
+	// (DELETE /collections/{collectionId}/public-form)
+	DeletePublicForm(w http.ResponseWriter, r *http.Request, collectionId PublicFormCollectionId)
+	// ReadPublicForm A collection's public form
+	// (GET /collections/{collectionId}/public-form)
+	ReadPublicForm(w http.ResponseWriter, r *http.Request, collectionId PublicFormCollectionId)
+	// CreatePublicForm Make a collection's public form
+	// (POST /collections/{collectionId}/public-form)
+	CreatePublicForm(w http.ResponseWriter, r *http.Request, collectionId PublicFormCollectionId)
 	// ReadSprintBacklog The backlog to plan a sprint from
 	// (GET /collections/{collectionId}/sprint-backlog)
 	ReadSprintBacklog(w http.ResponseWriter, r *http.Request, collectionId SprintCollectionId)
@@ -30873,6 +30966,18 @@ type ServerInterface interface {
 	// OpenPrivateHub Open a private hub through the emergency access
 	// (POST /private-hubs/{hubId}/accesses)
 	OpenPrivateHub(w http.ResponseWriter, r *http.Request, hubId HubId, params OpenPrivateHubParams)
+	// ReadPublicFormsPolicy Whether collections may take requests through a public form
+	// (GET /public-forms:policy)
+	ReadPublicFormsPolicy(w http.ResponseWriter, r *http.Request)
+	// SetPublicFormsPolicy Allow public forms, or not
+	// (PUT /public-forms:policy)
+	SetPublicFormsPolicy(w http.ResponseWriter, r *http.Request)
+	// GetPublicForm A public form opened by its link
+	// (GET /public/forms/{token})
+	GetPublicForm(w http.ResponseWriter, r *http.Request, token string)
+	// SubmitPublicForm Send a request through a public form
+	// (POST /public/forms/{token})
+	SubmitPublicForm(w http.ResponseWriter, r *http.Request, token string)
 	// GetPublicPage A page opened by its public link
 	// (GET /public/pages/{token})
 	GetPublicPage(w http.ResponseWriter, r *http.Request, token string)
@@ -38864,6 +38969,84 @@ func (siw *ServerInterfaceWrapper) ImportPlan(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ImportPlan(w, r, collectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePublicForm operation middleware
+func (siw *ServerInterfaceWrapper) DeletePublicForm(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collectionId" -------------
+	var collectionId PublicFormCollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionId", r.PathValue("collectionId"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePublicForm(w, r, collectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPublicForm operation middleware
+func (siw *ServerInterfaceWrapper) ReadPublicForm(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collectionId" -------------
+	var collectionId PublicFormCollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionId", r.PathValue("collectionId"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPublicForm(w, r, collectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePublicForm operation middleware
+func (siw *ServerInterfaceWrapper) CreatePublicForm(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collectionId" -------------
+	var collectionId PublicFormCollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionId", r.PathValue("collectionId"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePublicForm(w, r, collectionId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -52437,6 +52620,86 @@ func (siw *ServerInterfaceWrapper) OpenPrivateHub(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ReadPublicFormsPolicy operation middleware
+func (siw *ServerInterfaceWrapper) ReadPublicFormsPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPublicFormsPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetPublicFormsPolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetPublicFormsPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPublicFormsPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicForm operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicForm(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicForm(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SubmitPublicForm operation middleware
+func (siw *ServerInterfaceWrapper) SubmitPublicForm(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubmitPublicForm(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetPublicPage operation middleware
 func (siw *ServerInterfaceWrapper) GetPublicPage(w http.ResponseWriter, r *http.Request) {
 
@@ -58378,6 +58641,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/articles/{collectionId}", wrapper.UnpublishPageFromPortal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:public-links", wrapper.ReadPublicLinksPolicy)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/pages:public-links", wrapper.SetPublicLinksPolicy)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/collections/{collectionId}/public-form", wrapper.DeletePublicForm)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/collections/{collectionId}/public-form", wrapper.ReadPublicForm)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/collections/{collectionId}/public-form", wrapper.CreatePublicForm)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public-forms:policy", wrapper.ReadPublicFormsPolicy)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/public-forms:policy", wrapper.SetPublicFormsPolicy)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/forms/{token}", wrapper.GetPublicForm)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/public/forms/{token}", wrapper.SubmitPublicForm)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/pages/{token}", wrapper.GetPublicPage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:shared", wrapper.ListSharedPages)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:personal", wrapper.ReadPersonalSpace)

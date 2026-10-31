@@ -3143,6 +3143,34 @@ class Client:
         """Allow public links to pages, or not"""
         return self._call("PUT", "/pages:public-links", {}, None, {}, body, "json", "application/json", "json")
 
+    def read_public_form(self, collection_id: str) -> "PublicForm":
+        """A collection's public form"""
+        return self._call("GET", "/collections/{collectionId}/public-form", {"collectionId": collection_id}, None, {}, None, "none", None, "json")
+
+    def create_public_form(self, collection_id: str) -> "PublicFormMinted":
+        """Make a collection's public form"""
+        return self._call("POST", "/collections/{collectionId}/public-form", {"collectionId": collection_id}, None, {}, None, "none", None, "json")
+
+    def delete_public_form(self, collection_id: str) -> None:
+        """Take a collection's public form away"""
+        return self._call("DELETE", "/collections/{collectionId}/public-form", {"collectionId": collection_id}, None, {}, None, "none", None, "void")
+
+    def read_public_forms_policy(self) -> "PublicLinksPolicy":
+        """Whether collections may take requests through a public form"""
+        return self._call("GET", "/public-forms:policy", {}, None, {}, None, "none", None, "json")
+
+    def set_public_forms_policy(self, body: dict[str, Any]) -> "PublicLinksPolicy":
+        """Allow public forms, or not"""
+        return self._call("PUT", "/public-forms:policy", {}, None, {}, body, "json", "application/json", "json")
+
+    def get_public_form(self, token: str) -> "PublicFormView":
+        """A public form opened by its link"""
+        return self._call("GET", "/public/forms/{token}", {"token": token}, None, {}, None, "none", None, "json")
+
+    def submit_public_form(self, token: str, body: "PublicFormSubmission") -> None:
+        """Send a request through a public form"""
+        return self._call("POST", "/public/forms/{token}", {"token": token}, None, {}, body, "json", "application/json", "void")
+
     def get_public_page(self, token: str) -> bytes:
         """A page opened by its public link"""
         return self._call("GET", "/public/pages/{token}", {"token": token}, None, {}, None, "none", None, "raw")

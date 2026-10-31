@@ -275,6 +275,19 @@ func AuthBucket(perMinute, burst int) func(*http.Request) Bucket {
 	}
 }
 
+// PublicFormBucket counts a public form's submissions per client address (UC-SVC-13), and applies
+// to nothing else. A submission is anonymous and files an entry, so it is held to the sign-in's
+// budget beside the proof of work it carries: the work makes each request cost the sender, this
+// bounds how many one address sends however fast it pays.
+func PublicFormBucket(perMinute, burst int) func(*http.Request) Bucket {
+	return func(r *http.Request) Bucket {
+		if r.Method != http.MethodPost || !strings.HasPrefix(r.URL.Path, APIBasePath+"/public/forms/") {
+			return Bucket{}
+		}
+		return Bucket{Key: ClientAddress(r), Limit: perMinute, Burst: burst}
+	}
+}
+
 // isAuthRoute matches the public credential routes by their literal paths. A string operation on
 // paths this layer owns, feedTokenInPath's reasoning.
 //

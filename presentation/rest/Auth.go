@@ -115,6 +115,10 @@ var PublicRoutes = map[string]bool{
 	// A page's public link, on the same trust model: the token is the whole authorisation, and
 	// the route validates it itself (UC-DOC-08).
 	http.MethodGet + " " + APIBasePath + "/public/pages/{token}": true,
+	// A collection's public form, the same again (UC-SVC-13): the submission is counted per
+	// client address and carries its proof of work (PublicFormBucket).
+	http.MethodGet + " " + APIBasePath + "/public/forms/{token}":  true,
+	http.MethodPost + " " + APIBasePath + "/public/forms/{token}": true,
 	// The inbound webhook carries its credential in the URL for the same reasons, and it
 	// authenticates the *rule* rather than a person: there is no account behind the token, so
 	// there is nothing for this middleware to resolve. The route validates it itself, and what

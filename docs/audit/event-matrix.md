@@ -865,6 +865,21 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `private_hubs.read` | ListPrivateHubs | `tenant` | INFO | When refused |
 
+## Public_form
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `public_form.created` | CreatePublicForm | `public_form` | INFO | Every time |
+| `public_form.deleted` | DeletePublicForm | `public_form` | INFO | Every time |
+| `public_form.read` | ReadPublicForm | `public_form` | INFO | When refused |
+
+## Public_forms
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `public_forms.policy_read` | ReadPublicFormsPolicy | `public_forms` | INFO | When refused |
+| `public_forms.policy_set` | SetPublicFormsPolicy | `public_forms` | INFO | Every time |
+
 ## Quota
 
 | Action | Use case | Target | Severity | Recorded |

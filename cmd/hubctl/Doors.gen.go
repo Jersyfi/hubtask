@@ -2287,6 +2287,28 @@ var generatedCommands = []door{
 			{Name: "size", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "status"}},
+	{Group: "request", Verb: "public-form", OperationID: "readPublicForm", Method: "GET", Path: "/collections/{collectionId}/public-form", Summary: "A collection's public form",
+		PathParams: []doorParam{
+			{Name: "collectionId", Kind: "uuid", Help: "The collection whose public form it is", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"collection_id", "created_at", "created_by"}},
+	{Group: "request", Verb: "public-form make", OperationID: "createPublicForm", Method: "POST", Path: "/collections/{collectionId}/public-form", Summary: "Make a collection's public form",
+		PathParams: []doorParam{
+			{Name: "collectionId", Kind: "uuid", Help: "The collection whose public form it is", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "request", Verb: "public-form rm", OperationID: "deletePublicForm", Method: "DELETE", Path: "/collections/{collectionId}/public-form", Summary: "Take a collection's public form away",
+		PathParams: []doorParam{
+			{Name: "collectionId", Kind: "uuid", Help: "The collection whose public form it is", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "request", Verb: "public-forms-policy", OperationID: "readPublicFormsPolicy", Method: "GET", Path: "/public-forms:policy", Summary: "Whether collections may take requests through a public form",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"allowed", "locked_by", "source"}},
+	{Group: "request", Verb: "public-forms-policy set", OperationID: "setPublicFormsPolicy", Method: "PUT", Path: "/public-forms:policy", Summary: "Allow public forms, or not",
+		Body: []doorParam{
+			{Name: "allowed", Kind: "boolean", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"allowed", "locked_by", "source"}},
 	{Group: "request", Verb: "raise", OperationID: "raiseRequest", Method: "POST", Path: "/requests", Summary: "Raise a request",
 		Body: []doorParam{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},

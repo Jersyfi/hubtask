@@ -29,6 +29,8 @@ type FeedDoor struct {
 	Data CalendarFeedReader
 	// Pages serves a page's public link (UC-DOC-08).
 	Pages PublicPageReader
+	// Forms serves a collection's public form (UC-SVC-13).
+	Forms PublicFormDoor
 	// BaseURL is the installation's public address the links back are composed from (feedURL).
 	BaseURL string
 }
