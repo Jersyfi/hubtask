@@ -63,6 +63,11 @@ export const ROUTES: readonly Route[] = [
   // The reader's own file store connections, and the page Microsoft sends the browser back to
   // after the sign-in (UC-INT-17).
   { name: 'filestores', pattern: '/profile/files', area: 'profile' },
+  // The reader's own rules (UC-AUT-01 check 10): theirs, not the workspace's, so kept beside their
+  // other settings and reached without the administration. `new` before `:id`, as the editor's.
+  { name: 'own-rules', pattern: '/profile/rules', area: 'profile' },
+  { name: 'own-rule-new', pattern: '/profile/rules/new', area: 'profile' },
+  { name: 'own-rule', pattern: '/profile/rules/:id', area: 'profile' },
   // ADR-0032's administration area. Every route added under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,

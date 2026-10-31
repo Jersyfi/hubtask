@@ -366,12 +366,20 @@
   {:else if route.name === 'machines'}
     <LazyView load={views.MachinesView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'rules'}
-    <LazyView load={views.RulesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+    <LazyView load={views.RulesView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'rule-new'}
     <LazyView load={views.RuleEditorView} props={{ id: 'new', workflow: route.query['workflow'], step: route.query['step'], onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'rule'}
     {#key route.params.id}
       <LazyView load={views.RuleEditorView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'own-rules'}
+    <LazyView load={views.RulesView} props={{ isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'own-rule-new'}
+    <LazyView load={views.RuleEditorView} props={{ id: 'new', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'own-rule'}
+    {#key route.params.id}
+      <LazyView load={views.RuleEditorView} props={{ id: route.params.id ?? '', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'runs'}
     <LazyView load={views.RunsView} />

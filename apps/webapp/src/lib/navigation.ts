@@ -426,6 +426,7 @@ export const SETTINGS: readonly SectionGroup[] = [
       { id: 'tokens', icon: 'key', code: 'app.tokens.title', path: '/profile/tokens', routes: ['tokens'] },
       { id: 'calendars', icon: 'calendar', code: 'app.you.row_calendars', titleCode: 'app.pushes.title', path: '/profile/calendars', routes: ['calendars'] },
       { id: 'files', icon: 'paperclip', code: 'app.you.row_files', titleCode: 'app.filestores.title', path: '/profile/files', routes: ['filestores'] },
+      { id: 'rules', icon: 'automation', code: 'app.you.row_rules', titleCode: 'app.rules.mine_title', path: '/profile/rules', routes: ['own-rules', 'own-rule', 'own-rule-new'] },
     ],
   },
 ];

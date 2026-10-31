@@ -45,7 +45,9 @@ migration 0312), starts on an `EVENT` only, fires on an entry only when its owne
 that moment (`MatchRules.Readers`), and is managed and seen by its owner alone, signed in as
 themselves, without the `AUTOMATION` permission - anybody else is answered not found. It is not a
 section of the configuration document, and an erasure takes it with the person (UC-AUT-01 checks
-10 and 11).
+10 and 11). The web app keeps them under *Your settings → Rules* (`/profile/rules`), which a member
+reaches without the administration, and as the *Mine* tab of the administration's rules; the
+editor's *Only for me* scope fixes the scope, `run_as` and an event trigger together.
 
 ### 1.1 Triggers
 

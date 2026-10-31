@@ -136,7 +136,7 @@ test('every route resolves to one of the four areas, and the profile ones are na
       `${route.name} is in ${area}`,
     );
   }
-  // Your settings is a section since ADR-0065 decision 3, so the area is its ten screens rather
+  // Your settings is a section since ADR-0065 decision 3, so the area is its screens rather
   // than the two it began with. Every one of them is about the reader themselves, which is what
   // `profile` means and why the mobile shell ships them all.
   const profile = ROUTES.filter((route) => route.area === 'profile').map((route) => route.name).sort();
@@ -147,6 +147,9 @@ test('every route resolves to one of the four areas, and the profile ones are na
     'filestores',
     'grants',
     'notifications',
+    'own-rule',
+    'own-rule-new',
+    'own-rules',
     'profile',
     'security',
     'sessions',
