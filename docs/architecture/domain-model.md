@@ -96,7 +96,8 @@ condition in the **type's environment**, where `entry` and `entry.custom_fields`
 `expression.unknown_name` when it is written. One gate holds every write - `EntryGate.Forms`
 (`FormGate`), asked inside each writing use case's transaction with the entry as it would be
 written (`CreateWorkItem`, `UpdateWorkItem`, `SetCustomField`, `SetDueDate`), so REST, MCP, a
-rule, a device's push and mail meet the same refusal. The rule it applies is that **a write may not
+rule, a device's push and mail meet the same refusal; an import into an existing collection asks it
+for each entry before anything lands (`HoldImported`, backup-restore.md §9). The rule it applies is that **a write may not
 move an entry further from its form** (`CheckFormWrite`): a creation needs every required field and
 every validation; an edit may not change a field that was read-only or hidden as the entry stood,
 clear a required one, or make a validation fail that held - an entry created before its form is not

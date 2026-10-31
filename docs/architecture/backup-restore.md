@@ -546,6 +546,15 @@ Rules:
   read where it landed. Its job is `import.into_collection`, a kind of its own, so that a process of
   a release without it never claims one; a collection that left the hub before the job ran fails
   the run with `imports.not_in_hub`.
+* **Into a collection, each entry is held to its type's form** before the archive is written
+  (UC-IMP-04 check 8): through the `IMPORT` channel, as the importing person, by
+  `FormGate.HoldImported`. A refused entry is taken out whole - with the work under it
+  (`imports.row_parent_refused`) and every record naming it, an attachment's object only it used
+  included - and reported by its row: `imports.row_form_refused` with the form's keys it left
+  short, or `imports.row_channel_closed`. No default or preset is filled in: what the source left
+  empty stays empty. A type the import brings has an empty form, and an import that creates its
+  collections is not held at all - holding another tool's history to rules it never knew would
+  refuse what the source accepted. A form that cannot be asked retries the job.
 * **A different file whose collection meets a name the hub already holds** is refused with
   `imports.collection_exists` and lands nothing; the applier answers a unique index as a conflict
   (`containers.name_taken`, `backup.row_conflicts`), and a row naming what neither the archive nor
@@ -553,7 +562,7 @@ Rules:
 * **A ZIP is bounded by what it yields, not what it declares**: 256 MiB a member and 1 GiB in all,
   beyond which it is `imports.archive_unreadable`; attachments travel into the in-memory archive by
   digest and the applier stores them as a restore does, one object per content.
-* The run (`import_run`) carries the report and the refused row numbers; the file is deleted when
+* The run (`import_run`) carries the report and the refused rows, with their codes and form keys; the file is deleted when
   the job ends; the `sync_epoch` advances as after a `MERGE` restore, the rows landing without
   change log entries.
 

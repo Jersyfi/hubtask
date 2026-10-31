@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-12, P-18]
 state: built
 tasks: []
-checked_by: [infrastructure/importer/IssueTracker_test.go, test/integration/import_tracker_test.go, core/application/service/importer/Import_test.go, apps/webapp/src/lib/data/imports.test.ts]
+checked_by: [infrastructure/importer/IssueTracker_test.go, test/integration/import_tracker_test.go, core/application/service/importer/Import_test.go, core/application/service/importer/Hold_test.go, core/application/service/work/FormGate_test.go, infrastructure/importer/Csv_test.go, apps/webapp/src/lib/data/imports.test.ts]
 ---
 
 # Move over from an issue tracker with its configuration, history and attachments
@@ -50,6 +50,11 @@ move.
    `imports.archive_unreadable`.
 7. Into a collection, the entries land there and its own workflow stays: the statuses are not
    carried, the completion is.
+8. Into a collection, each entry is held to the form of its type as the workspace holds it: one
+   the form refuses lands with nothing that hangs on it, and the run lists it by its row with
+   `imports.row_form_refused` and the fields it left short (`imports.row_channel_closed` where the
+   form takes nothing from an import), the work under it with `imports.row_parent_refused`; the
+   rest lands.
 
 ## Where it ends
 
@@ -60,5 +65,6 @@ move.
   collection's roles are Hubtask's. Without the workflow answer every status is reachable from
   every other; with it, and with sprints and boards, UC-IMP-07 goes on.
 * The tracker's add-on fields have no place and are counted.
-* An import writes through the archive, not through each type's form: a type's required field
-  does not refuse an imported entry (the suite plan's S-06 gap).
+* Only an import into an existing collection is held to forms: an import that creates its
+  collections brings its types with an empty form, and a type the import brings is not held to
+  the system type's. No form default fills what the source left empty.
