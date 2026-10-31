@@ -760,7 +760,13 @@ func run() error {
 	}
 	// What counts in a collection, counted on its read (UC-WRK-29).
 	milestones := postgres.NewMilestoneRepository()
-	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles}
+	// Kept between reads while the collection is unchanged (migration 0292), recounted by
+	// figure.recount.
+	keptFigures := postgres.NewKeptFigureRepository()
+	figures := work.FigureReader{
+		Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles,
+		Kept: keptFigures, Jobs: jobs,
+	}
 	// What a collection offers its entries, for every item writer and reader: the refusal of what it
 	// hides and the mark on every read are one answer (domain-model.md §2).
 	entryTypes := postgres.NewEntryTypeRepository()
@@ -4672,8 +4678,15 @@ func run() error {
 		queueport.KindOutboxDispatch:        dispatcher,
 		queueport.KindRetentionSweep:        retention,
 		queueport.KindMediaReconcile:        mediaReconciliation,
-		queueport.KindInvitationEmail:       invitationMessage,
-		queueport.KindPasswordResetEmail:    passwordResetMessage,
+		queueport.KindFigureRecount: worker.FigureRecount{
+			Recount: work.RecountFigures{
+				Kept: keptFigures, Figures: figures.Figures, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{}, Signals: metrics,
+			},
+			Interval: 10 * time.Minute, Continuation: cfg.Queue.OutboxMinInterval,
+		},
+		queueport.KindInvitationEmail:    invitationMessage,
+		queueport.KindPasswordResetEmail: passwordResetMessage,
 		queueport.KindPasswordResetRequest: worker.PasswordResetRequest{
 			Record: identity.RecordResetRequest{Writer: passwordWriter, Notifier: jobs},
 		},

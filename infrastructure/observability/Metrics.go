@@ -64,6 +64,7 @@ type Metrics struct {
 	retentionRun      metric.Float64Histogram
 	retentionRead     metric.Int64Counter
 	mediaReclaimed    metric.Int64Counter
+	figureDrifted     metric.Int64Counter
 	mediaReclaimFail  metric.Int64Counter
 	notificationsRec  metric.Int64Counter
 	notificationsSent metric.Float64Histogram
@@ -719,6 +720,12 @@ func (m *Metrics) mediaInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("media reclamation counter: %w", err)
 	}
+	if m.figureDrifted, err = meter.Int64Counter(
+		namespace+"_figure_drift_total",
+		metric.WithDescription("Kept collection figures a recount found wrong and replaced."),
+	); err != nil {
+		return fmt.Errorf("figure drift counter: %w", err)
+	}
 	if m.mediaReclaimFail, err = meter.Int64Counter(
 		namespace+"_media_reclaim_failed_total",
 		metric.WithDescription("Orphaned media objects whose bytes storage would not release."),
@@ -732,6 +739,12 @@ func (m *Metrics) mediaInstruments(meter metric.Meter) error {
 // RetentionDeleted is.
 func (m *Metrics) MediaReclaimed(ctx context.Context, count int64) {
 	m.mediaReclaimed.Add(ctx, count)
+}
+
+// FigureDrifted counts the kept figures a recount replaced. Anything above zero is a write that
+// moved no collection's number of changes (migration 0292): a figure was answered wrong until then.
+func (m *Metrics) FigureDrifted(ctx context.Context, count int64) {
+	m.figureDrifted.Add(ctx, count)
 }
 
 // MediaReclaimFailed counts the orphans a pass could not reclaim. They stay marked and the next
