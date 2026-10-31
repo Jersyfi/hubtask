@@ -633,6 +633,21 @@ class Items {
     });
   }
 
+  /** Takes the entry into another that asks the same: linked as its duplicate and archived (UC-SVC-03 check 5). */
+  async merge(id: string, intoId: string): Promise<{ merged_id: string; into_id: string; link_id: string }> {
+    return engine.mutate('POST', `/items/${id}:merge`, { into_id: intoId }, {
+      invalidates: [...touchesOf(id), ...touchesOf(intoId), ENTRY_LISTS],
+    });
+  }
+
+  /** A part of the entry split off into an entry of its own, for the same requester (UC-SVC-03 check 6). */
+  async split(id: string, body: { title: string; notes?: string; link_type?: string }, idempotencyKey: string): Promise<DuplicateResult> {
+    return engine.mutate<DuplicateResult>('POST', `/items/${id}:split`, body, {
+      idempotencyKey,
+      invalidates: [...touchesOf(id), ENTRY_LISTS],
+    });
+  }
+
   async removeMember(id: string, accountId: string): Promise<ItemMembers> {
     return engine.mutate<ItemMembers>(
       'DELETE',

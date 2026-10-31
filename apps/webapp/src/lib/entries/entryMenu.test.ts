@@ -38,14 +38,14 @@ function context(overrides: Partial<EntryMenuContext> & { type?: string } = {}):
 const WRITER = [
   'select', 'open', 'complete', 'dates', 'person', 'labels',
   'up', 'down', 'top', 'bottom', 'inside', 'out', 'elsewhere',
-  'duplicate', 'copy-link', 'archive', 'trash',
+  'duplicate', 'split', 'merge', 'copy-link', 'archive', 'trash',
 ];
 
 test('OWNER and ADMIN: every action, Share among them', () => {
   assert.deepEqual(idsOf(entryMenu(context({ mayShare: true }), t)), [
     'select', 'open', 'complete', 'dates', 'person', 'labels',
     'up', 'down', 'top', 'bottom', 'inside', 'out', 'elsewhere',
-    'duplicate', 'share', 'copy-link', 'archive', 'trash',
+    'duplicate', 'split', 'merge', 'share', 'copy-link', 'archive', 'trash',
   ]);
 });
 
@@ -74,6 +74,11 @@ test('an entry archived in its own right: listed, off with the reason, except th
   const on = items.filter((item) => item.disabledReason === undefined).map((item) => item.id);
   assert.deepEqual(on, ['select', 'open', 'duplicate', 'copy-link', 'unarchive', 'trash']);
   assert.ok(items.filter((item) => item.disabledReason).every((item) => item.disabledReason === 'app.entries.archived'));
+});
+
+test('a writer who may not create merges and is offered no split (UC-SVC-03 checks 5 and 6)', () => {
+  const ids = idsOf(entryMenu(context({ mayCreate: false }), t));
+  assert.ok(ids.includes('merge') && !ids.includes('split') && !ids.includes('duplicate'));
 });
 
 test('a read-only area lists only what does not write, with no reason on the row', () => {

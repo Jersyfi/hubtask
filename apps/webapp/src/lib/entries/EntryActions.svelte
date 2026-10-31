@@ -17,6 +17,7 @@
 
   import DuePanel from './DuePanel.svelte';
   import DuplicateDialog from './DuplicateDialog.svelte';
+  import MergeSplitDialog from './MergeSplitDialog.svelte';
   import LabelsPanel from './LabelsPanel.svelte';
   import MoveDialog from './MoveDialog.svelte';
   import type { EntryLevel } from './entryMenu.ts';
@@ -57,6 +58,7 @@
   let moving = $state<WorkItem | undefined>(undefined);
   let isMoving = $state(false);
   let duplicating = $state<WorkItem | undefined>(undefined);
+  let mergingOrSplitting = $state<{ kind: 'merge' | 'split'; item: WorkItem } | undefined>(undefined);
 
   /** Where an entry sits, for the people panels: its collection and that collection's hub. */
   const pathOf = (item: WorkItem) => ({
@@ -177,6 +179,10 @@
           return;
         case 'duplicate':
           duplicating = item;
+          return;
+        case 'merge':
+        case 'split':
+          mergingOrSplitting = { kind: choice, item };
           return;
         case 'copy-link':
           await navigator.clipboard.writeText(`${location.origin}/items/${item.id}`);
@@ -347,6 +353,15 @@
   onclose={() => (duplicating = undefined)}
   onopened={(itemId) => {
     duplicating = undefined;
+    onnavigate?.(`/items/${itemId}`);
+  }}
+/>
+
+<MergeSplitDialog
+  task={mergingOrSplitting}
+  onclose={() => (mergingOrSplitting = undefined)}
+  onopened={(itemId) => {
+    mergingOrSplitting = undefined;
     onnavigate?.(`/items/${itemId}`);
   }}
 />

@@ -190,9 +190,16 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
   });
 
   if (mayDuplicate) items.push({ ...duplicate, hasSeparatorBefore: true });
+  // A request split in two or taken into another (UC-SVC-03 checks 5 and 6); a simple list's
+  // entries are not requests anybody merges.
+  if (!isSimple) {
+    if (mayDuplicate) items.push({ id: 'split', label: t('app.entry_menu.split'), disabledReason: archived });
+    items.push({ id: 'merge', label: t('app.entry_menu.merge'), disabledReason: archived, hasSeparatorBefore: !mayDuplicate });
+  }
   const sharing = context.mayShare ? [{ id: 'share', label: t('app.people.share') }] : people();
-  sharing.forEach((each) => items.push({ ...each, hasSeparatorBefore: !mayDuplicate }));
-  items.push({ ...copyLink, hasSeparatorBefore: !mayDuplicate && sharing.length === 0 });
+  const grouped = mayDuplicate || !isSimple;
+  sharing.forEach((each) => items.push({ ...each, hasSeparatorBefore: !grouped }));
+  items.push({ ...copyLink, hasSeparatorBefore: !grouped && sharing.length === 0 });
 
   items.push({
     id: context.archival === 'archived' ? 'unarchive' : 'archive',
