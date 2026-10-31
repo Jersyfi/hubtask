@@ -28,5 +28,5 @@ type Store interface {
 	FindLink(ctx context.Context, itemID, hookID shared.ID, kind forge.LinkKind, repository, ref string) (forge.Link, error)
 	PutLink(ctx context.Context, link forge.Link) error
 	// ListLinks answers an entry's links, the latest first, at most max.
-	ListLinks(ctx context.Context, itemID shared.ID, max int) ([]forge.Link, error)
+	ListLinks(ctx context.Context, itemID shared.ID, limit int) ([]forge.Link, error)
 }

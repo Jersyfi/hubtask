@@ -181,7 +181,7 @@ func (CodeForgeRepository) PutLink(ctx context.Context, l forge.Link) error {
 	return nil
 }
 
-func (CodeForgeRepository) ListLinks(ctx context.Context, itemID shared.ID, max int) ([]forge.Link, error) {
+func (CodeForgeRepository) ListLinks(ctx context.Context, itemID shared.ID, limit int) ([]forge.Link, error) {
 	q, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -190,7 +190,7 @@ func (CodeForgeRepository) ListLinks(ctx context.Context, itemID shared.ID, max 
 	if err != nil {
 		return nil, err
 	}
-	rows, err := q.ListCodeLinks(ctx, sqlc.ListCodeLinksParams{ItemID: item, MaxRows: int32(max)})
+	rows, err := q.ListCodeLinks(ctx, sqlc.ListCodeLinksParams{ItemID: item, MaxRows: int32(limit)})
 	if err != nil {
 		return nil, forgeFailed("listing links", err)
 	}

@@ -115,7 +115,7 @@ func (PlanningSprints) Find(ctx context.Context, id shared.ID) (planning.Sprint,
 }
 
 // List returns a collection's sprints, the latest first.
-func (PlanningSprints) List(ctx context.Context, collectionID shared.ID, state planning.SprintState, max int) ([]planning.Sprint, error) {
+func (PlanningSprints) List(ctx context.Context, collectionID shared.ID, state planning.SprintState, limit int) ([]planning.Sprint, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (PlanningSprints) List(ctx context.Context, collectionID shared.ID, state p
 		return nil, err
 	}
 	//nolint:gosec // G115: a bound the use case clamps
-	rows, err := queries.ListSprints(ctx, sqlc.ListSprintsParams{CollectionID: key, State: string(state), Max: int32(max)})
+	rows, err := queries.ListSprints(ctx, sqlc.ListSprintsParams{CollectionID: key, State: string(state), Max: int32(limit)})
 	if err != nil {
 		return nil, planningError(err, "listing sprints")
 	}
@@ -161,7 +161,7 @@ func (PlanningSprints) Delete(ctx context.Context, id shared.ID) error {
 }
 
 // Entries returns a sprint's memberships.
-func (PlanningSprints) Entries(ctx context.Context, sprintID shared.ID, max int) ([]repository.SprintMember, error) {
+func (PlanningSprints) Entries(ctx context.Context, sprintID shared.ID, limit int) ([]repository.SprintMember, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func (PlanningSprints) Entries(ctx context.Context, sprintID shared.ID, max int)
 		return nil, err
 	}
 	//nolint:gosec // G115: a bound the use case clamps
-	rows, err := queries.ListSprintEntries(ctx, sqlc.ListSprintEntriesParams{SprintID: key, Max: int32(max)})
+	rows, err := queries.ListSprintEntries(ctx, sqlc.ListSprintEntriesParams{SprintID: key, Max: int32(limit)})
 	if err != nil {
 		return nil, planningError(err, "reading a sprint's entries")
 	}

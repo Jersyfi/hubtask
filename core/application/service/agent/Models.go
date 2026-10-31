@@ -75,10 +75,10 @@ func (d Desk) allowed(ctx context.Context, actor appshared.ActorContext, m domai
 		return shared.ErrForbidden.WithDetail("ai.source_not_allowed").
 			WithParams(map[string]string{"source": string(m.Source)})
 	}
-	if min := domain.Region(answer.String("min_jurisdiction")); min != "" && !m.Region.AtLeast(min) {
+	if least := domain.Region(answer.String("min_jurisdiction")); least != "" && !m.Region.AtLeast(least) {
 		return shared.ErrValidation.WithDetail("agent_models.region_below_minimum").
 			WithFields(shared.FieldError{Path: "/region", Code: "agent_models.region_below_minimum",
-				Params: map[string]string{"minimum": string(min)}})
+				Params: map[string]string{"minimum": string(least)}})
 	}
 	if m.Source == domain.SourceOffered {
 		offered, _ := answer["offered"].([]usecase.Output)

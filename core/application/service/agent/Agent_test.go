@@ -234,10 +234,10 @@ func (s *store) InsertRun(_ context.Context, r domain.Run) error {
 	s.runs = append([]domain.Run{r}, s.runs...)
 	return nil
 }
-func (s *store) ListRuns(_ context.Context, agent shared.ID, max int) ([]domain.Run, error) {
+func (s *store) ListRuns(_ context.Context, agent shared.ID, limit int) ([]domain.Run, error) {
 	out := []domain.Run{}
 	for _, r := range s.runs {
-		if r.AgentID == agent && len(out) < max {
+		if r.AgentID == agent && len(out) < limit {
 			out = append(out, r)
 		}
 	}
@@ -267,10 +267,10 @@ func (s *store) FindJob(_ context.Context, id shared.ID) (domain.Job, error) {
 	}
 	return domain.Job{}, notFound()
 }
-func (s *store) ListJobs(_ context.Context, agent shared.ID, max int) ([]domain.Job, error) {
+func (s *store) ListJobs(_ context.Context, agent shared.ID, limit int) ([]domain.Job, error) {
 	out := []domain.Job{}
 	for _, j := range s.jobs {
-		if j.AgentID == agent && len(out) < max {
+		if j.AgentID == agent && len(out) < limit {
 			out = append(out, j)
 		}
 	}

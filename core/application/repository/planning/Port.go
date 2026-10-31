@@ -45,7 +45,7 @@ type EntrySchedule struct {
 type Plans interface {
 	// Entries returns the plan's entries - a collection's, or a hub's collections' - that are
 	// neither trashed nor archived, at most max.
-	Entries(ctx context.Context, planID shared.ID, max int) ([]PlanEntry, error)
+	Entries(ctx context.Context, planID shared.ID, limit int) ([]PlanEntry, error)
 	// Schedules returns the stored modes of the entries among the identifiers.
 	Schedules(ctx context.Context, entryIDs []shared.ID) (map[shared.ID]EntrySchedule, error)
 	// SetSchedule writes an entry's mode and milestone mark.
@@ -60,7 +60,7 @@ type Baselines interface {
 	Count(ctx context.Context, planID shared.ID) (int, error)
 	// Take writes the baseline and copies the plan's entries' dates into it at this moment, at
 	// most max; it answers how many it copied.
-	Take(ctx context.Context, baseline planning.Baseline, max int) (int, error)
+	Take(ctx context.Context, baseline planning.Baseline, limit int) (int, error)
 	// List returns a plan's baselines without their entries, the newest first.
 	List(ctx context.Context, planID shared.ID) ([]planning.Baseline, error)
 	// Find returns a baseline with its entries, or ErrNotFound.
@@ -93,11 +93,11 @@ type Sprints interface {
 	// Find returns a sprint, or ErrNotFound.
 	Find(ctx context.Context, id shared.ID) (planning.Sprint, error)
 	// List returns a collection's sprints, the latest first, of one state or all, at most max.
-	List(ctx context.Context, collectionID shared.ID, state planning.SprintState, max int) ([]planning.Sprint, error)
+	List(ctx context.Context, collectionID shared.ID, state planning.SprintState, limit int) ([]planning.Sprint, error)
 	// Delete removes a sprint and its memberships, or reports ErrNotFound.
 	Delete(ctx context.Context, id shared.ID) error
 	// Entries returns a sprint's memberships, open and past, at most max.
-	Entries(ctx context.Context, sprintID shared.ID, max int) ([]SprintMember, error)
+	Entries(ctx context.Context, sprintID shared.ID, limit int) ([]SprintMember, error)
 	// OpenMemberships answers the open sprint each of the entries is in.
 	OpenMemberships(ctx context.Context, entryIDs []shared.ID) ([]OpenMembership, error)
 	// Add puts an entry into a sprint at a moment, committed when the sprint runs already.
@@ -142,11 +142,11 @@ type Releases interface {
 	// Find returns a release, or ErrNotFound.
 	Find(ctx context.Context, id shared.ID) (planning.Release, error)
 	// List returns a hub's releases, the latest day first, of one state or all, at most max.
-	List(ctx context.Context, hubID shared.ID, state planning.ReleaseState, max int) ([]planning.Release, error)
+	List(ctx context.Context, hubID shared.ID, state planning.ReleaseState, limit int) ([]planning.Release, error)
 	// Delete removes a release and its entries' membership, or reports ErrNotFound.
 	Delete(ctx context.Context, id shared.ID) error
 	// Entries returns a release's entries that are not trashed, at most max.
-	Entries(ctx context.Context, releaseID shared.ID, max int) ([]ReleaseMember, error)
+	Entries(ctx context.Context, releaseID shared.ID, limit int) ([]ReleaseMember, error)
 	// Count is how many entries a release holds.
 	Count(ctx context.Context, releaseID shared.ID) (int, error)
 	// Of answers the release each of the entries is in.

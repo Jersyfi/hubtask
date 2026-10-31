@@ -240,8 +240,8 @@ func TestADryRunSaysNothingChanged(t *testing.T) {
 	if code != exitOK || !strings.Contains(errOut, "nothing changed") {
 		t.Errorf("exit %d: %s", code, errOut)
 	}
-	real := serveJSON(t, http.StatusOK, `{"features_resting":[],"exceptions_kept":[],"limits_exceeded":[]}`)
-	if _, _, errOut := invokeAgainst(t, real, signedIn(real), "",
+	served := serveJSON(t, http.StatusOK, `{"features_resting":[],"exceptions_kept":[],"limits_exceeded":[]}`)
+	if _, _, errOut := invokeAgainst(t, served, signedIn(served), "",
 		"admin", "tenant", "move-plan", roleGrantID, "--plan", "family"); strings.Contains(errOut, "nothing changed") {
 		t.Errorf("a real move said %q", errOut)
 	}

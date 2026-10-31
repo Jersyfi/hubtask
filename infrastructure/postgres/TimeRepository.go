@@ -243,7 +243,7 @@ func filterOf(f repository.Filter) (filterValues, error) {
 }
 
 // Records answers the filter's records with their entry's place.
-func (TimeRepository) Records(ctx context.Context, f repository.Filter, max int) ([]repository.Placed, error) {
+func (TimeRepository) Records(ctx context.Context, f repository.Filter, limit int) ([]repository.Placed, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -255,7 +255,7 @@ func (TimeRepository) Records(ctx context.Context, f repository.Filter, max int)
 	//nolint:gosec // G115: max is bounded by the use case
 	rows, err := queries.ListTimeRecords(ctx, sqlc.ListTimeRecordsParams{
 		FromDay: dayDate(f.From), ToDay: dayDate(f.To), AccountID: v.account, EntryID: v.entry,
-		CollectionID: v.collection, HubID: v.hub, Billable: f.Billable, Max: int32(max),
+		CollectionID: v.collection, HubID: v.hub, Billable: f.Billable, Max: int32(limit),
 	})
 	if err != nil {
 		return nil, timeError(err, "reading time records")
@@ -281,7 +281,7 @@ func (TimeRepository) Records(ctx context.Context, f repository.Filter, max int)
 }
 
 // Lines answers the filter's records summed.
-func (TimeRepository) Lines(ctx context.Context, f repository.Filter, max int) ([]domain.Line, error) {
+func (TimeRepository) Lines(ctx context.Context, f repository.Filter, limit int) ([]domain.Line, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -293,7 +293,7 @@ func (TimeRepository) Lines(ctx context.Context, f repository.Filter, max int) (
 	//nolint:gosec // G115: max is bounded by the use case
 	rows, err := queries.SumTimeLines(ctx, sqlc.SumTimeLinesParams{
 		FromDay: dayDate(f.From), ToDay: dayDate(f.To), AccountID: v.account, CollectionID: v.collection,
-		HubID: v.hub, Billable: f.Billable, Max: int32(max),
+		HubID: v.hub, Billable: f.Billable, Max: int32(limit),
 	})
 	if err != nil {
 		return nil, timeError(err, "summing time records")
@@ -491,7 +491,7 @@ func (TimeRepository) Sheet(ctx context.Context, account shared.ID, week domain.
 
 // Sheets answers weeks in a state.
 func (TimeRepository) Sheets(
-	ctx context.Context, account shared.ID, state domain.SheetState, from, to domain.Day, max int,
+	ctx context.Context, account shared.ID, state domain.SheetState, from, to domain.Day, limit int,
 ) ([]domain.Timesheet, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -503,7 +503,7 @@ func (TimeRepository) Sheets(
 	}
 	//nolint:gosec // G115: max is bounded by the use case
 	rows, err := queries.ListTimesheets(ctx, sqlc.ListTimesheetsParams{
-		State: string(state), AccountID: key, FromDay: dayDate(from), ToDay: dayDate(to), Max: int32(max),
+		State: string(state), AccountID: key, FromDay: dayDate(from), ToDay: dayDate(to), Max: int32(limit),
 	})
 	if err != nil {
 		return nil, timeError(err, "reading weeks")

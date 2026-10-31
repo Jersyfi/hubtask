@@ -103,7 +103,7 @@ func (PlanningReleases) Find(ctx context.Context, id shared.ID) (planning.Releas
 }
 
 // List returns a hub's releases, the latest day first.
-func (PlanningReleases) List(ctx context.Context, hubID shared.ID, state planning.ReleaseState, max int) ([]planning.Release, error) {
+func (PlanningReleases) List(ctx context.Context, hubID shared.ID, state planning.ReleaseState, limit int) ([]planning.Release, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func (PlanningReleases) List(ctx context.Context, hubID shared.ID, state plannin
 		return nil, err
 	}
 	//nolint:gosec // G115: a bound the use case clamps
-	rows, err := queries.ListReleases(ctx, sqlc.ListReleasesParams{HubID: key, State: string(state), Max: int32(max)})
+	rows, err := queries.ListReleases(ctx, sqlc.ListReleasesParams{HubID: key, State: string(state), Max: int32(limit)})
 	if err != nil {
 		return nil, planningError(err, "listing releases")
 	}
@@ -149,7 +149,7 @@ func (PlanningReleases) Delete(ctx context.Context, id shared.ID) error {
 }
 
 // Entries returns a release's entries.
-func (PlanningReleases) Entries(ctx context.Context, releaseID shared.ID, max int) ([]repository.ReleaseMember, error) {
+func (PlanningReleases) Entries(ctx context.Context, releaseID shared.ID, limit int) ([]repository.ReleaseMember, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -159,7 +159,7 @@ func (PlanningReleases) Entries(ctx context.Context, releaseID shared.ID, max in
 		return nil, err
 	}
 	//nolint:gosec // G115: a bound the use case clamps
-	rows, err := queries.ListReleaseEntries(ctx, sqlc.ListReleaseEntriesParams{ReleaseID: key, Max: int32(max)})
+	rows, err := queries.ListReleaseEntries(ctx, sqlc.ListReleaseEntriesParams{ReleaseID: key, Max: int32(limit)})
 	if err != nil {
 		return nil, planningError(err, "reading a release's entries")
 	}

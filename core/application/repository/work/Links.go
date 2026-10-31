@@ -42,9 +42,9 @@ type EntryLinks interface {
 	// Delete removes a link, or reports ErrNotFound.
 	Delete(ctx context.Context, id shared.ID) error
 	// Of returns an entry's links from both ends, at most max.
-	Of(ctx context.Context, entryID shared.ID, max int) ([]work.EntryLink, error)
+	Of(ctx context.Context, entryID shared.ID, limit int) ([]work.EntryLink, error)
 	// Touching returns the links with an end among the entries, at most max.
-	Touching(ctx context.Context, entryIDs []shared.ID, max int) ([]work.EntryLink, error)
+	Touching(ctx context.Context, entryIDs []shared.ID, limit int) ([]work.EntryLink, error)
 	// CountFrom counts the links of a type an entry starts.
 	CountFrom(ctx context.Context, sourceID shared.ID, linkType string) (int, error)
 	// PathExists reports whether `to` is reachable from `from` over the forward types' links read
@@ -100,5 +100,5 @@ type References interface {
 	// Containers returns the summaries of the hubs and collections among the identifiers.
 	Containers(ctx context.Context, ids []shared.ID) ([]ContainerSummary, error)
 	// Backlinks returns the texts that point at the object, at most max.
-	Backlinks(ctx context.Context, target reference.Reference, max int) ([]Backlink, error)
+	Backlinks(ctx context.Context, target reference.Reference, limit int) ([]Backlink, error)
 }

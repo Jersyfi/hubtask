@@ -75,7 +75,7 @@ func (r Run) Accuracy() int {
 }
 
 // PassedAt reports a run that reached the minimum: at least one case, and the share of them.
-func (r Run) PassedAt(min int) bool { return r.Cases > 0 && r.Passed*100 >= min*r.Cases }
+func (r Run) PassedAt(least int) bool { return r.Cases > 0 && r.Passed*100 >= least*r.Cases }
 
 // Matches reports whether an answer meets a case's expectation: every expected key answered with
 // the same value, a list compared as a set. A key the case does not name is not judged.

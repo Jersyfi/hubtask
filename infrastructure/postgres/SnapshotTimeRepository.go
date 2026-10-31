@@ -73,8 +73,8 @@ func (SnapshotRepository) OwnTimesheets(ctx context.Context, account, after shar
 }
 
 // OwnCapacities reads one person's capacities.
-func (SnapshotRepository) OwnCapacities(ctx context.Context, account shared.ID, max int) ([]domain.Capacity, error) {
-	return TimeResourceRepository{}.Capacities(ctx, []shared.ID{account}, max)
+func (SnapshotRepository) OwnCapacities(ctx context.Context, account shared.ID, limit int) ([]domain.Capacity, error) {
+	return TimeResourceRepository{}.Capacities(ctx, []shared.ID{account}, limit)
 }
 
 // TimeAbsences pages the workspace's absences.
@@ -95,8 +95,8 @@ func (SnapshotRepository) TimeAbsences(ctx context.Context, after shared.ID, bat
 }
 
 // TimeCostRates reads the workspace's cost rates.
-func (SnapshotRepository) TimeCostRates(ctx context.Context, max int) ([]domain.CostRate, error) {
-	return TimeResourceRepository{}.Rates(ctx, max)
+func (SnapshotRepository) TimeCostRates(ctx context.Context, limit int) ([]domain.CostRate, error) {
+	return TimeResourceRepository{}.Rates(ctx, limit)
 }
 
 // TimeBudgets pages the hubs' and collections' budgets by their plan.

@@ -199,9 +199,9 @@ type Snapshot interface {
 	// person alone; TimeAbsences pages the shared calendar; TimeCostRates and TimeBudgets read what
 	// MANAGE_COSTS reads (UC-TIM-06 … 08).
 	OwnTimesheets(ctx context.Context, account, after shared.ID, batch int) ([]timekeeping.Timesheet, error)
-	OwnCapacities(ctx context.Context, account shared.ID, max int) ([]timekeeping.Capacity, error)
+	OwnCapacities(ctx context.Context, account shared.ID, limit int) ([]timekeeping.Capacity, error)
 	TimeAbsences(ctx context.Context, after shared.ID, batch int) ([]timekeeping.Absence, error)
-	TimeCostRates(ctx context.Context, max int) ([]timekeeping.CostRate, error)
+	TimeCostRates(ctx context.Context, limit int) ([]timekeeping.CostRate, error)
 	TimeBudgets(ctx context.Context, after shared.ID, batch int) ([]timekeeping.Budget, error)
 	// Releases pages the workspace's releases; ReleaseEntries every live entry's release, by the
 	// entry (M2).

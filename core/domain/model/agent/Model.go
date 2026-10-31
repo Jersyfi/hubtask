@@ -44,7 +44,7 @@ func (r Region) rank() int {
 }
 
 // AtLeast reports a region no weaker than the minimum.
-func (r Region) AtLeast(min Region) bool { return r.rank() >= min.rank() }
+func (r Region) AtLeast(least Region) bool { return r.rank() >= least.rank() }
 
 // Model is a model the workspace registered for its agents (G9): the source it is reached
 // through, its name there, where it is hosted, how long the provider keeps what it is sent, and

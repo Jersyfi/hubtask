@@ -231,13 +231,13 @@ func conflictOrGone(affected int64, code string, expected int) error {
 }
 
 // Periods answers the periods, the latest first.
-func (GoalRepository) Periods(ctx context.Context, max int) ([]domain.Period, error) {
+func (GoalRepository) Periods(ctx context.Context, limit int) ([]domain.Period, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
-	rows, err := queries.ListGoalPeriods(ctx, int32(max))
+	rows, err := queries.ListGoalPeriods(ctx, int32(limit))
 	if err != nil {
 		return nil, goalError(err, "reading periods")
 	}
@@ -510,7 +510,7 @@ func (GoalRepository) LinkedEntries(ctx context.Context, goals []shared.ID) (map
 }
 
 // GoalsOfEntry answers the goals an entry is linked to.
-func (GoalRepository) GoalsOfEntry(ctx context.Context, entry shared.ID, max int) ([]shared.ID, error) {
+func (GoalRepository) GoalsOfEntry(ctx context.Context, entry shared.ID, limit int) ([]shared.ID, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -520,7 +520,7 @@ func (GoalRepository) GoalsOfEntry(ctx context.Context, entry shared.ID, max int
 		return nil, err
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
-	rows, err := queries.ListGoalsOfEntry(ctx, sqlc.ListGoalsOfEntryParams{EntryID: key, Max: int32(max)})
+	rows, err := queries.ListGoalsOfEntry(ctx, sqlc.ListGoalsOfEntryParams{EntryID: key, Max: int32(limit)})
 	if err != nil {
 		return nil, goalError(err, "reading an entry's goals")
 	}
@@ -594,7 +594,7 @@ func (GoalRepository) AddCheckIn(ctx context.Context, c domain.CheckIn) error {
 }
 
 // CheckIns answers a goal's check-ins, the latest first.
-func (GoalRepository) CheckIns(ctx context.Context, goal shared.ID, max int) ([]domain.CheckIn, error) {
+func (GoalRepository) CheckIns(ctx context.Context, goal shared.ID, limit int) ([]domain.CheckIn, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -604,7 +604,7 @@ func (GoalRepository) CheckIns(ctx context.Context, goal shared.ID, max int) ([]
 		return nil, err
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
-	rows, err := queries.ListGoalCheckIns(ctx, sqlc.ListGoalCheckInsParams{GoalID: key, Max: int32(max)})
+	rows, err := queries.ListGoalCheckIns(ctx, sqlc.ListGoalCheckInsParams{GoalID: key, Max: int32(limit)})
 	if err != nil {
 		return nil, goalError(err, "reading check-ins")
 	}
@@ -669,13 +669,13 @@ func withItems(ctx context.Context, queries *sqlc.Queries, portfolios []domain.P
 }
 
 // Portfolios answers the portfolios with their projects, by name.
-func (GoalRepository) Portfolios(ctx context.Context, max int) ([]domain.Portfolio, error) {
+func (GoalRepository) Portfolios(ctx context.Context, limit int) ([]domain.Portfolio, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
-	rows, err := queries.ListPortfolios(ctx, int32(max))
+	rows, err := queries.ListPortfolios(ctx, int32(limit))
 	if err != nil {
 		return nil, goalError(err, "reading portfolios")
 	}
@@ -828,7 +828,7 @@ func (GoalRepository) AddStatusUpdate(ctx context.Context, u domain.StatusUpdate
 }
 
 // StatusUpdates answers a portfolio's updates, the latest first.
-func (GoalRepository) StatusUpdates(ctx context.Context, portfolio shared.ID, max int) ([]domain.StatusUpdate, error) {
+func (GoalRepository) StatusUpdates(ctx context.Context, portfolio shared.ID, limit int) ([]domain.StatusUpdate, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -838,7 +838,7 @@ func (GoalRepository) StatusUpdates(ctx context.Context, portfolio shared.ID, ma
 		return nil, err
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
-	rows, err := queries.ListPortfolioUpdates(ctx, sqlc.ListPortfolioUpdatesParams{PortfolioID: key, Max: int32(max)})
+	rows, err := queries.ListPortfolioUpdates(ctx, sqlc.ListPortfolioUpdatesParams{PortfolioID: key, Max: int32(limit)})
 	if err != nil {
 		return nil, goalError(err, "reading status updates")
 	}
@@ -876,13 +876,13 @@ func dashboardOf(r sqlc.ListDashboardsRow) (domain.Dashboard, error) {
 }
 
 // Dashboards answers the workspace's dashboards by name; the use case keeps the readable ones.
-func (GoalRepository) Dashboards(ctx context.Context, max int) ([]domain.Dashboard, error) {
+func (GoalRepository) Dashboards(ctx context.Context, limit int) ([]domain.Dashboard, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
-	rows, err := queries.ListDashboards(ctx, int32(max))
+	rows, err := queries.ListDashboards(ctx, int32(limit))
 	if err != nil {
 		return nil, goalError(err, "reading dashboards")
 	}

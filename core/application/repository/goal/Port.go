@@ -26,7 +26,7 @@ type GoalFilter struct {
 // Store keeps the module's rows. A write held to a version answers a version conflict when the
 // row moved on, and not found when it is gone.
 type Store interface {
-	Periods(ctx context.Context, max int) ([]domain.Period, error)
+	Periods(ctx context.Context, limit int) ([]domain.Period, error)
 	Period(ctx context.Context, id shared.ID) (domain.Period, error)
 	InsertPeriod(ctx context.Context, p domain.Period, by shared.ID, at time.Time) error
 	UpdatePeriod(ctx context.Context, p domain.Period, expected int, at time.Time) error
@@ -42,14 +42,14 @@ type Store interface {
 
 	// LinkedEntries answers the entries linked to each goal.
 	LinkedEntries(ctx context.Context, goals []shared.ID) (map[shared.ID][]shared.ID, error)
-	GoalsOfEntry(ctx context.Context, entry shared.ID, max int) ([]shared.ID, error)
+	GoalsOfEntry(ctx context.Context, entry shared.ID, limit int) ([]shared.ID, error)
 	LinkEntries(ctx context.Context, goal shared.ID, entries []shared.ID, by shared.ID, at time.Time) error
 	UnlinkEntry(ctx context.Context, goal, entry shared.ID) (bool, error)
 
 	AddCheckIn(ctx context.Context, c domain.CheckIn) error
-	CheckIns(ctx context.Context, goal shared.ID, max int) ([]domain.CheckIn, error)
+	CheckIns(ctx context.Context, goal shared.ID, limit int) ([]domain.CheckIn, error)
 
-	Portfolios(ctx context.Context, max int) ([]domain.Portfolio, error)
+	Portfolios(ctx context.Context, limit int) ([]domain.Portfolio, error)
 	Portfolio(ctx context.Context, id shared.ID) (domain.Portfolio, error)
 	InsertPortfolio(ctx context.Context, p domain.Portfolio, by shared.ID, at time.Time) error
 	// UpdatePortfolio writes the portfolio and replaces its projects.
@@ -57,9 +57,9 @@ type Store interface {
 	// DeletePortfolio removes a portfolio and its updates and hands its portfolios to its parent.
 	DeletePortfolio(ctx context.Context, p domain.Portfolio, expected int) error
 	AddStatusUpdate(ctx context.Context, u domain.StatusUpdate) error
-	StatusUpdates(ctx context.Context, portfolio shared.ID, max int) ([]domain.StatusUpdate, error)
+	StatusUpdates(ctx context.Context, portfolio shared.ID, limit int) ([]domain.StatusUpdate, error)
 
-	Dashboards(ctx context.Context, max int) ([]domain.Dashboard, error)
+	Dashboards(ctx context.Context, limit int) ([]domain.Dashboard, error)
 	Dashboard(ctx context.Context, id shared.ID) (domain.Dashboard, error)
 	InsertDashboard(ctx context.Context, d domain.Dashboard, at time.Time) error
 	UpdateDashboard(ctx context.Context, d domain.Dashboard, expected int, by shared.ID, at time.Time) error

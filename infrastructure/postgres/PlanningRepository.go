@@ -35,7 +35,7 @@ func planningError(err error, what string) error {
 }
 
 // Entries returns the plan's entries.
-func (r PlanningRepository) Entries(ctx context.Context, planID shared.ID, max int) ([]repository.PlanEntry, error) {
+func (r PlanningRepository) Entries(ctx context.Context, planID shared.ID, limit int) ([]repository.PlanEntry, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func (r PlanningRepository) Entries(ctx context.Context, planID shared.ID, max i
 		return nil, err
 	}
 	//nolint:gosec // G115: a bound the use case clamps
-	rows, err := queries.ListPlanEntries(ctx, sqlc.ListPlanEntriesParams{PlanID: key, Max: int32(max)})
+	rows, err := queries.ListPlanEntries(ctx, sqlc.ListPlanEntriesParams{PlanID: key, Max: int32(limit)})
 	if err != nil {
 		return nil, planningError(err, "reading a plan's entries")
 	}
@@ -177,7 +177,7 @@ func (PlanningBaselines) Count(ctx context.Context, planID shared.ID) (int, erro
 }
 
 // Take writes the baseline and copies the plan into it.
-func (PlanningBaselines) Take(ctx context.Context, baseline planning.Baseline, max int) (int, error) {
+func (PlanningBaselines) Take(ctx context.Context, baseline planning.Baseline, limit int) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return 0, err
@@ -200,7 +200,7 @@ func (PlanningBaselines) Take(ctx context.Context, baseline planning.Baseline, m
 		return 0, planningError(err, "writing a baseline")
 	}
 	//nolint:gosec // G115: a bound the use case clamps
-	copied, err := queries.CopyPlanIntoBaseline(ctx, sqlc.CopyPlanIntoBaselineParams{BaselineID: id, PlanID: plan, Max: int32(max)})
+	copied, err := queries.CopyPlanIntoBaseline(ctx, sqlc.CopyPlanIntoBaselineParams{BaselineID: id, PlanID: plan, Max: int32(limit)})
 	if err != nil {
 		return 0, planningError(err, "copying a plan into its baseline")
 	}

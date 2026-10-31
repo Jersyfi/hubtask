@@ -275,7 +275,7 @@ func (r EntryLinkRepository) Delete(ctx context.Context, id shared.ID) error {
 }
 
 // Of returns an entry's links from both ends.
-func (r EntryLinkRepository) Of(ctx context.Context, entryID shared.ID, max int) ([]work.EntryLink, error) {
+func (r EntryLinkRepository) Of(ctx context.Context, entryID shared.ID, limit int) ([]work.EntryLink, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -285,7 +285,7 @@ func (r EntryLinkRepository) Of(ctx context.Context, entryID shared.ID, max int)
 		return nil, err
 	}
 	//nolint:gosec // G115: a bound the use case clamps
-	rows, err := queries.ListEntryLinksOf(ctx, sqlc.ListEntryLinksOfParams{EntryID: key, Max: int32(max)})
+	rows, err := queries.ListEntryLinksOf(ctx, sqlc.ListEntryLinksOfParams{EntryID: key, Max: int32(limit)})
 	if err != nil {
 		return nil, linkReadError(err, "listing an entry's links")
 	}
@@ -301,7 +301,7 @@ func (r EntryLinkRepository) Of(ctx context.Context, entryID shared.ID, max int)
 }
 
 // Touching returns the links with an end among the entries.
-func (r EntryLinkRepository) Touching(ctx context.Context, entryIDs []shared.ID, max int) ([]work.EntryLink, error) {
+func (r EntryLinkRepository) Touching(ctx context.Context, entryIDs []shared.ID, limit int) ([]work.EntryLink, error) {
 	if len(entryIDs) == 0 {
 		return []work.EntryLink{}, nil
 	}
@@ -314,7 +314,7 @@ func (r EntryLinkRepository) Touching(ctx context.Context, entryIDs []shared.ID,
 		return nil, err
 	}
 	//nolint:gosec // G115: a bound the use case clamps
-	rows, err := queries.ListEntryLinksTouching(ctx, sqlc.ListEntryLinksTouchingParams{EntryIds: keys, Max: int32(max)})
+	rows, err := queries.ListEntryLinksTouching(ctx, sqlc.ListEntryLinksTouchingParams{EntryIds: keys, Max: int32(limit)})
 	if err != nil {
 		return nil, linkReadError(err, "listing the links among entries")
 	}
@@ -455,7 +455,7 @@ func (r EntryLinkRepository) Containers(ctx context.Context, ids []shared.ID) ([
 }
 
 // Backlinks returns the texts that point at the object.
-func (r EntryLinkRepository) Backlinks(ctx context.Context, target reference.Reference, max int) ([]repository.Backlink, error) {
+func (r EntryLinkRepository) Backlinks(ctx context.Context, target reference.Reference, limit int) ([]repository.Backlink, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -466,7 +466,7 @@ func (r EntryLinkRepository) Backlinks(ctx context.Context, target reference.Ref
 	}
 	rows, err := queries.ListBacklinkReferences(ctx, sqlc.ListBacklinkReferencesParams{
 		//nolint:gosec // G115: a bound the use case clamps
-		TargetKind: string(target.Kind), TargetID: key, Max: int32(max),
+		TargetKind: string(target.Kind), TargetID: key, Max: int32(limit),
 	})
 	if err != nil {
 		return nil, linkReadError(err, "reading the backlinks")

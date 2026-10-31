@@ -48,10 +48,10 @@ type Store interface {
 	DeleteRecord(ctx context.Context, id shared.ID, expected int) error
 	FindRecord(ctx context.Context, id shared.ID) (domain.Record, error)
 	// Records answers the filter's records, the earliest day first, at most max.
-	Records(ctx context.Context, f Filter, max int) ([]Placed, error)
+	Records(ctx context.Context, f Filter, limit int) ([]Placed, error)
 	// Lines answers the filter's records summed per person, entry, kind, day and billable flag, at
 	// most max.
-	Lines(ctx context.Context, f Filter, max int) ([]domain.Line, error)
+	Lines(ctx context.Context, f Filter, limit int) ([]domain.Line, error)
 	// MinutesOn answers everybody's recorded minutes on each entry.
 	MinutesOn(ctx context.Context, entries []shared.ID) (map[shared.ID]int, error)
 	// WeekMinutes answers a person's minutes in a range of days.
@@ -68,7 +68,7 @@ type Store interface {
 	Sheet(ctx context.Context, account shared.ID, week domain.Day) (domain.Timesheet, bool, error)
 	// Sheets answers the weeks in a state (every state for ""), of one person or everybody, from a
 	// first Monday to a last, at most max.
-	Sheets(ctx context.Context, account shared.ID, state domain.SheetState, from, to domain.Day, max int) ([]domain.Timesheet, error)
+	Sheets(ctx context.Context, account shared.ID, state domain.SheetState, from, to domain.Day, limit int) ([]domain.Timesheet, error)
 	// PutSheet writes a week: a new row when expected is 0, else held to the version read.
 	PutSheet(ctx context.Context, id shared.ID, s domain.Timesheet, expected int, at time.Time) error
 
@@ -82,7 +82,7 @@ type Store interface {
 // hubs and collections (migration 0247), inside the caller's transaction.
 type Resources interface {
 	// Capacities answers the capacities of the people named, or of everybody for none, at most max.
-	Capacities(ctx context.Context, accounts []shared.ID, max int) ([]domain.Capacity, error)
+	Capacities(ctx context.Context, accounts []shared.ID, limit int) ([]domain.Capacity, error)
 	// PutCapacity writes a person's capacity from its day on; id is used for a new one.
 	PutCapacity(ctx context.Context, id shared.ID, c domain.Capacity, by shared.ID, at time.Time) error
 	// RemoveCapacity removes the capacity a person has from a day, and reports whether one was.
@@ -90,7 +90,7 @@ type Resources interface {
 
 	// Absences answers the absences sharing a day with a range, of one person or everybody, at
 	// most max.
-	Absences(ctx context.Context, account shared.ID, from, to domain.Day, max int) ([]domain.Absence, error)
+	Absences(ctx context.Context, account shared.ID, from, to domain.Day, limit int) ([]domain.Absence, error)
 	FindAbsence(ctx context.Context, id shared.ID) (domain.Absence, error)
 	// PutAbsence writes an absence: a new row when expected is 0, else held to the version read.
 	PutAbsence(ctx context.Context, a domain.Absence, expected int, by shared.ID, at time.Time) error
@@ -98,7 +98,7 @@ type Resources interface {
 	RemoveAbsence(ctx context.Context, id shared.ID, expected int) error
 
 	// Rates answers the workspace's cost rates, at most max.
-	Rates(ctx context.Context, max int) ([]domain.CostRate, error)
+	Rates(ctx context.Context, limit int) ([]domain.CostRate, error)
 	FindRate(ctx context.Context, id shared.ID) (domain.CostRate, error)
 	// PutRate writes a rate: a new row when expected is 0, else held to the version read.
 	PutRate(ctx context.Context, r domain.CostRate, expected int, by shared.ID, at time.Time) error
@@ -106,7 +106,7 @@ type Resources interface {
 	RemoveRate(ctx context.Context, id shared.ID, expected int) error
 
 	// BillingRates answers the billing rates of the plans named, at most max.
-	BillingRates(ctx context.Context, plans []shared.ID, max int) ([]domain.BillingRate, error)
+	BillingRates(ctx context.Context, plans []shared.ID, limit int) ([]domain.BillingRate, error)
 	FindBillingRate(ctx context.Context, id shared.ID) (domain.BillingRate, error)
 	// PutBillingRate writes a billing rate: a new row when expected is 0, else held to the version read.
 	PutBillingRate(ctx context.Context, r domain.BillingRate, expected int, by shared.ID, at time.Time) error

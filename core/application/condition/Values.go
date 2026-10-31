@@ -29,7 +29,7 @@ type Sets interface {
 // Links is the read `item.links` needs: an entry's links from both ends (UC-PLN-01 check 8). The
 // link store fits.
 type Links interface {
-	Of(ctx context.Context, entryID shared.ID, max int) ([]work.EntryLink, error)
+	Of(ctx context.Context, entryID shared.ID, limit int) ([]work.EntryLink, error)
 }
 
 // maxLinksInDocument bounds what one condition is handed, as the CEL adapter bounds a list.

@@ -32,7 +32,7 @@ func versionConflict(code string, expected int) error {
 }
 
 // Capacities answers the capacities of the people named, or of everybody.
-func (TimeResourceRepository) Capacities(ctx context.Context, accounts []shared.ID, max int) ([]domain.Capacity, error) {
+func (TimeResourceRepository) Capacities(ctx context.Context, accounts []shared.ID, limit int) ([]domain.Capacity, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func (TimeResourceRepository) Capacities(ctx context.Context, accounts []shared.
 		keys = append(keys, key)
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
-	rows, err := queries.ListTimeCapacities(ctx, sqlc.ListTimeCapacitiesParams{AccountIds: keys, Max: int32(max)})
+	rows, err := queries.ListTimeCapacities(ctx, sqlc.ListTimeCapacitiesParams{AccountIds: keys, Max: int32(limit)})
 	if err != nil {
 		return nil, timeError(err, "reading capacities")
 	}
@@ -129,7 +129,7 @@ func absenceFrom(idValue, accountValue pgtype.UUID, from, to pgtype.Date, kind s
 }
 
 // Absences answers the absences sharing a day with a range.
-func (TimeResourceRepository) Absences(ctx context.Context, account shared.ID, from, to domain.Day, max int) ([]domain.Absence, error) {
+func (TimeResourceRepository) Absences(ctx context.Context, account shared.ID, from, to domain.Day, limit int) ([]domain.Absence, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (TimeResourceRepository) Absences(ctx context.Context, account shared.ID, f
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
 	rows, err := queries.ListTimeAbsences(ctx, sqlc.ListTimeAbsencesParams{
-		FromDay: dayDate(from), ToDay: dayDate(to), AccountID: who, Max: int32(max),
+		FromDay: dayDate(from), ToDay: dayDate(to), AccountID: who, Max: int32(limit),
 	})
 	if err != nil {
 		return nil, timeError(err, "reading absences")
@@ -261,13 +261,13 @@ func rateFrom(idValue, accountValue pgtype.UUID, role *string, hour int64, curre
 }
 
 // Rates answers the workspace's cost rates.
-func (TimeResourceRepository) Rates(ctx context.Context, max int) ([]domain.CostRate, error) {
+func (TimeResourceRepository) Rates(ctx context.Context, limit int) ([]domain.CostRate, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
-	rows, err := queries.ListTimeCostRates(ctx, int32(max))
+	rows, err := queries.ListTimeCostRates(ctx, int32(limit))
 	if err != nil {
 		return nil, timeError(err, "reading cost rates")
 	}
@@ -477,7 +477,7 @@ func billingRateFrom(idValue, planValue pgtype.UUID, hour int64, currency string
 }
 
 // BillingRates answers the billing rates of the plans named.
-func (TimeResourceRepository) BillingRates(ctx context.Context, plans []shared.ID, max int) ([]domain.BillingRate, error) {
+func (TimeResourceRepository) BillingRates(ctx context.Context, plans []shared.ID, limit int) ([]domain.BillingRate, error) {
 	if len(plans) == 0 {
 		return nil, nil
 	}
@@ -494,7 +494,7 @@ func (TimeResourceRepository) BillingRates(ctx context.Context, plans []shared.I
 		keys = append(keys, key)
 	}
 	//nolint:gosec // G115: max is a bound the use case sets
-	rows, err := queries.ListTimeBillingRates(ctx, sqlc.ListTimeBillingRatesParams{Plans: keys, Max: int32(max)})
+	rows, err := queries.ListTimeBillingRates(ctx, sqlc.ListTimeBillingRatesParams{Plans: keys, Max: int32(limit)})
 	if err != nil {
 		return nil, timeError(err, "reading billing rates")
 	}
