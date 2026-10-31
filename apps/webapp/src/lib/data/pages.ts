@@ -7,7 +7,7 @@
  * the small sums the screen needs. Pure, so the shapes have tests without a browser.
  */
 
-import type { Page } from '@hubtask/sync-engine';
+import type { Page, PageSubpage } from '@hubtask/sync-engine';
 
 export type Translate = (code: string, params?: Record<string, string>) => string;
 
@@ -121,6 +121,33 @@ export function shippedTemplate(key: ShippedTemplate, t: Translate): { title: st
     lines.push(key === 'meeting' && section === 'actions' ? '- [ ] ' : key === 'howto' && section === 'steps' ? '1. ' : '- ', '');
   }
   return { title: t(`app.pages.template.${key}.title`), body: lines.join('\n').trimEnd() + '\n' };
+}
+
+/**
+ * Hubtask's space templates (UC-DOC-05 check 6): a first page with pages under it, written at once
+ * in the reader's words - each subpage one of the shipped page templates.
+ */
+export const SHIPPED_SPACES = ['team', 'project', 'knowledge'] as const;
+export type ShippedSpace = (typeof SHIPPED_SPACES)[number];
+
+const SPACE_PAGES: Readonly<Record<ShippedSpace, readonly ShippedTemplate[]>> = {
+  team: ['meeting', 'decision', 'retro'],
+  project: ['brief', 'meeting', 'decision', 'retro'],
+  knowledge: ['howto', 'decision'],
+};
+
+/** A shipped space template as the body of one write: the first page and its subpages. */
+export function shippedSpace(key: ShippedSpace, t: Translate): { title: string; body: string; subpages: PageSubpage[] } {
+  return {
+    title: t(`app.pages.space.${key}.title`),
+    body: `${t(`app.pages.space.${key}.lead`)}\n\n::children\n`,
+    subpages: SPACE_PAGES[key].map((page) => shippedTemplate(page, t)),
+  };
+}
+
+/** Whether a page has pages under it among the rows read - a template offering its subpages. */
+export function hasSubpages(rows: readonly Pick<Page, 'parent_id'>[], id: string): boolean {
+  return rows.some((row) => row.parent_id === id);
 }
 
 /** How long a verification runs from today, the choices the screen offers (UC-DOC-12). */

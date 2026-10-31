@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Page } from '@hubtask/sync-engine';
 
-import { SHIPPED_TEMPLATES, ancestorsOf, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
+import { SHIPPED_SPACES, SHIPPED_TEMPLATES, ancestorsOf, hasSubpages, shippedSpace, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
 
 const page = (id: string, parent: string | null, position: string, title = id): Page => ({
   id, hub_id: 'hub', parent_id: parent, title, icon: null, position, template: false, content_language: null, owner_id: null,
@@ -43,6 +43,21 @@ test('Hubtask\'s templates are written in the reader\'s words (UC-DOC-05 check 4
     assert.ok(body.includes('## «app.pages.template.'), key);
   }
   assert.ok(shippedTemplate('meeting', words).body.includes('- [ ]'));
+});
+
+test("Hubtask's space templates write several pages at once in the reader's words (UC-DOC-05 check 6)", () => {
+  const words = (key: string) => `«${key}»`;
+  for (const key of SHIPPED_SPACES) {
+    const space = shippedSpace(key, words);
+    assert.equal(space.title, `«app.pages.space.${key}.title»`);
+    assert.ok((space.subpages ?? []).length >= 2, key);
+    for (const sub of space.subpages ?? []) assert.ok(sub.title.startsWith('«app.pages.') && sub.body?.length, key);
+  }
+});
+
+test("a space's own template offers its subpages only when it has any (UC-DOC-05 check 5)", () => {
+  assert.equal(hasSubpages(rows, 'a'), true);
+  assert.equal(hasSubpages(rows, 'b'), false);
 });
 
 test('a verification runs whole days from now; a caret colour is the same for a person everywhere', () => {

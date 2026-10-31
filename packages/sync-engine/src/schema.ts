@@ -251,6 +251,7 @@ export type Page = components['schemas']['Page'];
 export type PageRead = components['schemas']['PageRead'];
 export type PageList = components['schemas']['PageList'];
 export type PageCreate = components['schemas']['PageCreate'];
+export type PageSubpage = components['schemas']['PageSubpage'];
 export type PageChange = components['schemas']['PageChange'];
 export type PageMove = components['schemas']['PageMove'];
 export type PageVerify = components['schemas']['PageVerify'];

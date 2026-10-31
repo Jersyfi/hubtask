@@ -27,9 +27,9 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    CHANGED_WITHIN, EXPORT_TYPES, SHIPPED_TEMPLATES, VERIFY_DAYS, ancestorsOf, changedFrom, spaceLabelsPath, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
+    CHANGED_WITHIN, EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, hasSubpages, shippedSpace, VERIFY_DAYS, ancestorsOf, changedFrom, spaceLabelsPath, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
     pagesPath, shippedTemplate, subtreeOf, templatesPath, trashedPagesPath, verifiedUntil, versionPath, versionsPath, visibleRows,
-    type ChangedWithin, type ShippedTemplate,
+    type ChangedWithin, type ShippedSpace, type ShippedTemplate,
   } from '../lib/data/pages.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
@@ -135,24 +135,32 @@
   let draftTitle = $state('');
   let draftParent = $state<string | undefined>(undefined);
   let draftTemplate = $state('');
+  let draftWithSubpages = $state(true);
+  const draftOwnTemplate = $derived(draftTemplate.startsWith('own:') ? draftTemplate.slice(4) : undefined);
+  const draftOffersSubpages = $derived(draftOwnTemplate !== undefined && hasSubpages(rows, draftOwnTemplate));
 
   function startCreate(parent?: string) {
     draftTitle = '';
     draftParent = parent;
     draftTemplate = '';
+    draftWithSubpages = true;
     isCreating = true;
   }
 
   async function create() {
     const title = draftTitle.trim();
-    const shipped = draftTemplate.startsWith('shipped:') ? shippedTemplate(draftTemplate.slice(8) as ShippedTemplate, t) : undefined;
-    const own = draftTemplate.startsWith('own:') ? draftTemplate.slice(4) : undefined;
+    const space = draftTemplate.startsWith('space:') ? shippedSpace(draftTemplate.slice(6) as ShippedSpace, t) : undefined;
+    const shipped = draftTemplate.startsWith('shipped:') ? shippedTemplate(draftTemplate.slice(8) as ShippedTemplate, t) : space;
+    const own = draftOwnTemplate;
+    const subpages = space?.subpages;
     const made = await act(() =>
       pages.create(hubId, {
         title: title || shipped?.title || t('app.pages.untitled'),
         ...(draftParent ? { parent_id: draftParent } : {}),
         ...(shipped ? { body: shipped.body } : {}),
+        ...(subpages ? { subpages } : {}),
         ...(own ? { template_id: own } : {}),
+        ...(own && draftOffersSubpages && draftWithSubpages ? { with_subpages: true } : {}),
       }),
     );
     if (!made) return;
@@ -421,6 +429,9 @@
     { value: '', label: t('app.pages.template_none') },
     ...templateRows.map((row) => ({ value: `own:${row.id}`, label: row.title })),
     ...SHIPPED_TEMPLATES.map((key) => ({ value: `shipped:${key}`, label: t(`app.pages.template.${key}.title`) })),
+  ]);
+  const templateGroups = $derived([
+    { label: t('app.pages.start_space'), options: SHIPPED_SPACES.map((key) => ({ value: `space:${key}`, label: t(`app.pages.space.${key}.title`) })) },
   ]);
 
   let showsTrash = $state(false);
@@ -749,7 +760,10 @@
   <Dialog bind:isOpen={isCreating} title={draftParent ? t('app.pages.new_child') : t('app.pages.new')} dismissLabel={t('app.pages.cancel')}>
     <Stack gap="150">
       <Input label={t('app.pages.page_title')} bind:value={draftTitle} />
-      <Select label={t('app.pages.start_from')} options={templateOptions} bind:value={draftTemplate} />
+      <Select label={t('app.pages.start_from')} options={templateOptions} groups={templateGroups} bind:value={draftTemplate} />
+      {#if draftOffersSubpages}
+        <Switch label={t('app.pages.with_subpages')} bind:checked={draftWithSubpages} />
+      {/if}
     </Stack>
     {#snippet actions()}
       <Button tone="subtle" onclick={() => (isCreating = false)}>{t('app.pages.cancel')}</Button>

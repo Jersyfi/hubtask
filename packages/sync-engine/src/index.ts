@@ -123,6 +123,7 @@ export type {
   PageRead,
   PageList,
   PageCreate,
+  PageSubpage,
   PageChange,
   PageMove,
   PageVerify,
