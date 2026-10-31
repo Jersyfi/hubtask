@@ -6303,13 +6303,16 @@ func (e MailboxAuth) Valid() bool {
 
 // Defines values for MailboxProtocol.
 const (
-	MailboxProtocolIMAP MailboxProtocol = "IMAP"
-	MailboxProtocolJMAP MailboxProtocol = "JMAP"
+	MailboxProtocolGRAPH MailboxProtocol = "GRAPH"
+	MailboxProtocolIMAP  MailboxProtocol = "IMAP"
+	MailboxProtocolJMAP  MailboxProtocol = "JMAP"
 )
 
 // Valid indicates whether the value is a known member of the MailboxProtocol enum.
 func (e MailboxProtocol) Valid() bool {
 	switch e {
+	case MailboxProtocolGRAPH:
+		return true
 	case MailboxProtocolIMAP:
 		return true
 	case MailboxProtocolJMAP:
@@ -18261,19 +18264,21 @@ type Mailbox struct {
 	Id      openapi_types.UUID `json:"id"`
 
 	// OauthProvider google, microsoft or custom, for OAUTH.
-	OauthProvider *string         `json:"oauth_provider,omitempty"`
-	PlusAddresses *bool           `json:"plus_addresses,omitempty"`
-	Port          *int            `json:"port,omitempty"`
-	Preset        *string         `json:"preset,omitempty"`
-	Protocol      MailboxProtocol `json:"protocol"`
-	SessionUrl    *string         `json:"session_url,omitempty"`
-	Username      string          `json:"username"`
+	OauthProvider *string `json:"oauth_provider,omitempty"`
+	PlusAddresses *bool   `json:"plus_addresses,omitempty"`
+	Port          *int    `json:"port,omitempty"`
+	Preset        *string `json:"preset,omitempty"`
+
+	// Protocol GRAPH reads a Microsoft 365 or Outlook.com mailbox through Microsoft Graph, connected only through the provider's sign-in; it names no host and no session URL.
+	Protocol   MailboxProtocol `json:"protocol"`
+	SessionUrl *string         `json:"session_url,omitempty"`
+	Username   string          `json:"username"`
 }
 
 // MailboxAuth How it signs in.
 type MailboxAuth string
 
-// MailboxProtocol defines model for Mailbox.Protocol.
+// MailboxProtocol GRAPH reads a Microsoft 365 or Outlook.com mailbox through Microsoft Graph, connected only through the provider's sign-in; it names no host and no session URL.
 type MailboxProtocol string
 
 // MailboxAuthorization defines model for MailboxAuthorization.
@@ -18307,7 +18312,7 @@ type MailboxAuthorizationRequest struct {
 	Host *string `json:"host,omitempty"`
 	Port *int    `json:"port,omitempty"`
 
-	// Provider google, microsoft, or custom for any other provider.
+	// Provider google, microsoft, microsoft_graph, or custom for any other provider.
 	Provider string `json:"provider"`
 
 	// Scopes custom: the scopes that grant IMAP access and a refresh token.
@@ -18356,7 +18361,7 @@ type MailboxOAuthProvider struct {
 	// Installation The operator configured an app for this provider; connecting is one button.
 	Installation bool `json:"installation"`
 
-	// Key google, microsoft.
+	// Key google, microsoft (IMAP), microsoft_graph (Microsoft Graph, for a Microsoft 365 tenant whose administrator switched IMAP off).
 	Key string `json:"key"`
 }
 

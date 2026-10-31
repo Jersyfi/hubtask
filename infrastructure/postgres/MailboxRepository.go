@@ -101,10 +101,11 @@ func (MailboxRepository) Insert(ctx context.Context, box domain.Mailbox, sealed 
 		params.OauthTokenUrl, params.OauthScopes = &client.TokenURL, client.Scopes
 		params.OauthClientID, params.OauthInstallation = &client.ClientID, client.Installation
 	}
-	if box.Protocol == domain.ProtocolIMAP {
+	switch box.Protocol {
+	case domain.ProtocolIMAP:
 		port := int32(box.Port) //nolint:gosec // validated to 1-65535 by NewMailbox
 		params.Host, params.Port = &box.Host, &port
-	} else {
+	case domain.ProtocolJMAP:
 		params.SessionUrl = &box.SessionURL
 	}
 	err = queries.InsertMailbox(ctx, params)

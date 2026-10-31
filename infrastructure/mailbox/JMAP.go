@@ -280,16 +280,23 @@ func unreadable(err error) error {
 
 // Readers chooses the reader by the mailbox's protocol.
 type Readers struct {
-	IMAP port.Reader
-	JMAP port.Reader
+	IMAP  port.Reader
+	JMAP  port.Reader
+	Graph port.Reader
 }
 
 var _ port.Reader = Readers{}
 
 // Open opens the mailbox with the reader its protocol needs.
 func (r Readers) Open(ctx context.Context, connection port.Connection) (port.Session, error) {
-	if connection.Mailbox.Protocol == "JMAP" {
+	switch connection.Mailbox.Protocol {
+	case "JMAP":
 		return r.JMAP.Open(ctx, connection)
+	case "GRAPH":
+		if r.Graph == nil {
+			return nil, shared.ErrInternal.WithDetail("mail.mailbox_unwired")
+		}
+		return r.Graph.Open(ctx, connection)
 	}
 	return r.IMAP.Open(ctx, connection)
 }

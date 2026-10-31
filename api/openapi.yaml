@@ -32966,7 +32966,11 @@ components:
       type: object
       required: [key, installation, hint]
       properties:
-        key: { type: string, description: "google, microsoft." }
+        key:
+          type: string
+          description: >
+            google, microsoft (IMAP), microsoft_graph (Microsoft Graph, for a Microsoft 365 tenant
+            whose administrator switched IMAP off).
         installation:
           type: boolean
           description: The operator configured an app for this provider; connecting is one button.
@@ -32976,7 +32980,7 @@ components:
       type: object
       required: [provider]
       properties:
-        provider: { type: string, description: "google, microsoft, or custom for any other provider." }
+        provider: { type: string, description: "google, microsoft, microsoft_graph, or custom for any other provider." }
         address:
           type: string
           description: The mailbox's address, a hint for the provider; kept where the provider names none.
@@ -33044,7 +33048,12 @@ components:
       required: [id, protocol, address, username, folder, done_folder, enabled, auth, failing, created_at]
       properties:
         id: { type: string, format: uuid }
-        protocol: { type: string, enum: [IMAP, JMAP] }
+        protocol:
+          type: string
+          enum: [IMAP, JMAP, GRAPH]
+          description: >
+            GRAPH reads a Microsoft 365 or Outlook.com mailbox through Microsoft Graph, connected
+            only through the provider's sign-in; it names no host and no session URL.
         address: { type: string }
         host: { type: string }
         port: { type: integer }

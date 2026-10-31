@@ -53814,7 +53814,7 @@
         "properties": {
           "key": {
             "type": "string",
-            "description": "google, microsoft."
+            "description": "google, microsoft (IMAP), microsoft_graph (Microsoft Graph, for a Microsoft 365 tenant whose administrator switched IMAP off).\n"
           },
           "installation": {
             "type": "boolean",
@@ -53834,7 +53834,7 @@
         "properties": {
           "provider": {
             "type": "string",
-            "description": "google, microsoft, or custom for any other provider."
+            "description": "google, microsoft, microsoft_graph, or custom for any other provider."
           },
           "address": {
             "type": "string",
@@ -54014,8 +54014,10 @@
             "type": "string",
             "enum": [
               "IMAP",
-              "JMAP"
-            ]
+              "JMAP",
+              "GRAPH"
+            ],
+            "description": "GRAPH reads a Microsoft 365 or Outlook.com mailbox through Microsoft Graph, connected only through the provider's sign-in; it names no host and no session URL.\n"
           },
           "address": {
             "type": "string"

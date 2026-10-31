@@ -2427,7 +2427,8 @@ CREATE INDEX mail_receipt_recent_idx ON mail_receipt (tenant_id, received_at DES
 CREATE TABLE mailbox (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  protocol      text NOT NULL CHECK (protocol IN ('IMAP', 'JMAP')),
+  -- GRAPH (migration 0305): Microsoft Graph, neither a host nor a session URL.
+  protocol      text NOT NULL CONSTRAINT mailbox_protocol_check CHECK (protocol IN ('IMAP', 'JMAP', 'GRAPH')),
   address       text NOT NULL,
   host          text,
   port          integer CHECK (port IS NULL OR port BETWEEN 1 AND 65535),

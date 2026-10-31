@@ -246,7 +246,7 @@
             <div class="box-head">
               <strong>{box.address}</strong>
               <span class="quiet small">
-                {box.protocol} · {box.host ?? box.session_url}{#if box.auth === 'OAUTH'} · {t('app.mail.via_oauth', { provider: t(`app.mail.oauth_provider.${box.oauth_provider ?? 'custom'}`) })}{/if}
+                {box.protocol}{#if box.host ?? box.session_url} · {box.host ?? box.session_url}{/if}{#if box.auth === 'OAUTH'} · {t('app.mail.via_oauth', { provider: t(`app.mail.oauth_provider.${box.oauth_provider ?? 'custom'}`) })}{/if}
               </span>
             </div>
             <p class="small" class:danger={box.failure} data-mailbox-state>

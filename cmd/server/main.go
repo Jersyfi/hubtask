@@ -869,12 +869,13 @@ func run() error {
 		// A sender without an account, filed on an account's behalf (REQUESTER, accepted.md B).
 		Requesters: postgres.RequesterRepository{IDs: ids},
 	}
-	// Connected mailboxes (ADR-0094): IMAP spoken in-house through the egress guard, JMAP through
-	// the guarded HTTP client; the secret sealed under the installation's key.
+	// Connected mailboxes (ADR-0094): IMAP spoken in-house through the egress guard, JMAP and
+	// Microsoft Graph through the guarded HTTP client; the secret sealed under the installation's key.
 	mailBoxes := mailservice.Boxes{
 		Writer: mailWriter, Mailboxes: postgres.NewMailboxRepository(),
 		Reader: mailboxadapter.Readers{
 			IMAP: mailboxadapter.IMAP{Guard: outboundGuard}, JMAP: mailboxadapter.JMAP{Client: outboundClient},
+			Graph: mailboxadapter.Graph{Client: outboundClient},
 		},
 		Encryptor: encryptor, Jobs: jobs, IDs: ids,
 		// A mailbox connected through its provider's sign-in: the token endpoint through the guarded

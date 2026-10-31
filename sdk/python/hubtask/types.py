@@ -3858,7 +3858,7 @@ class MailboxConnection(TypedDict, total=False):
 
 class Mailbox(TypedDict, total=False):
     id: Required[str]
-    protocol: Required[Literal["IMAP", "JMAP"]]
+    protocol: Required[Literal["IMAP", "JMAP", "GRAPH"]]
     address: Required[str]
     host: str
     port: int

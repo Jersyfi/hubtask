@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11, P-12]
 state: built
 tasks: []
-checked_by: [core/application/service/mail/Settings_test.go, core/application/service/mail/Mailboxes_test.go, core/domain/model/mail/Settings_test.go, core/domain/model/mail/Mailbox_test.go, infrastructure/mailbox/IMAP_test.go, infrastructure/mailbox/JMAP_test.go, infrastructure/mailbox/OAuth_test.go, core/application/service/mail/OAuth_test.go, core/domain/model/mail/OAuth_test.go, test/integration/mail_intake_test.go, apps/webapp/e2e/mail.test.mjs]
+checked_by: [core/application/service/mail/Settings_test.go, core/application/service/mail/Mailboxes_test.go, core/domain/model/mail/Settings_test.go, core/domain/model/mail/Mailbox_test.go, infrastructure/mailbox/IMAP_test.go, infrastructure/mailbox/JMAP_test.go, infrastructure/mailbox/Graph_test.go, infrastructure/mailbox/OAuth_test.go, core/application/service/mail/OAuth_test.go, core/domain/model/mail/OAuth_test.go, test/integration/mail_intake_test.go, apps/webapp/e2e/mail.test.mjs]
 ---
 
 # Set up the mail intake
@@ -60,6 +60,11 @@ says *In the jumble · Sender not allowed*.
    the page and connects the mailbox after one sign-in with the token; a refusal, an answer later
    than ten minutes, a used or someone else's state connect nothing and say why. The refresh token
    is sealed, and a grant the provider withdraws shows on the mailbox.
+9. *Connect with Microsoft 365 (Graph)* connects a Microsoft 365 or Outlook.com mailbox whose
+   organisation switched IMAP off: the same sign-in through the operator's Microsoft app, asking
+   for Graph's mail scope, and a mailbox read as `GRAPH` with no server named - the inbox oldest
+   first since connecting, each filed message marked read and moved to *Hubtask*, which is made
+   the first time; a token Graph refuses is said as a refused sign-in.
 
 ## Where it ends
 
