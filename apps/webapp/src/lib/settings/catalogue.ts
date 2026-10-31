@@ -105,7 +105,7 @@ export function screenOf(definition: SettingDefinition, level: Level, place?: Pl
  * Whether a setting is one a person sets by name. A value of kind `STRUCTURE` outside the
  * structure area is a part of another control (the rotation's start) and has no row of its own.
  */
-const isNamed = (definition: SettingDefinition): boolean =>
+export const isNamed = (definition: Pick<SettingDefinition, 'key' | 'kind'>): boolean =>
   definition.kind !== 'STRUCTURE' || areaOf(definition.key) === 'structure';
 
 /**

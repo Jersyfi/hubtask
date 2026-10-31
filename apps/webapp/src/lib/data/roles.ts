@@ -12,7 +12,9 @@
  * every one of them.
  */
 
-import type { AccessExplanation, CustomRole, PermissionEntry, RoleCatalogue } from '@hubtask/sync-engine';
+import type { AccessExplanation, CustomRole, PermissionEntry, RoleCatalogue, SettingDefinition } from '@hubtask/sync-engine';
+
+import { isNamed } from '../settings/catalogue.ts';
 
 export type PermissionKind = 'BASE' | 'FIELD' | 'STEP';
 
@@ -222,12 +224,13 @@ export interface SettingWriterRow {
  * - where it is given.
  */
 export function settingWritersOf(
-  settings: readonly { key: string; writers?: readonly { level: string; permission: string }[] }[],
+  settings: readonly { key: string; kind?: string; writers?: readonly { level: string; permission: string }[] }[],
   catalogue: RoleCatalogue,
   only?: readonly string[],
 ): SettingWriterRow[] {
   const rows: SettingWriterRow[] = [];
   for (const setting of settings) {
+    if (!isNamed({ key: setting.key, kind: (setting.kind ?? '') as SettingDefinition['kind'] })) continue;
     for (const writer of setting.writers ?? []) {
       const level = WORKSPACE_LEVELS.find((each) => each === writer.level);
       if (!level) continue;

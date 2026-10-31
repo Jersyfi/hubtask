@@ -150,3 +150,13 @@ test('a setting is answered with the roles that carry its writer, at the workspa
     [['service_lead'], ['service_lead'], []],
   );
 });
+
+// A part of another control (the rotation's start) is written with that control, and has no row
+// and no name of its own - as the palette leaves it out.
+test('a part of another control is not a setting of its own in who may change which setting', () => {
+  const settings = [
+    { key: 'sign_in.rotation_from', kind: 'STRUCTURE', writers: [{ level: 'WORKSPACE', permission: 'MANAGE_MEMBERS' }] },
+    { key: 'structure.views', kind: 'STRUCTURE', writers: [{ level: 'WORKSPACE', permission: 'STRUCTURE' }] },
+  ];
+  assert.deepEqual(settingWritersOf(settings, CATALOGUE).map((row) => row.key), ['structure.views']);
+});
