@@ -85,7 +85,10 @@ func (d door) usage() string {
 }
 
 func (d door) run(ctx context.Context, cli *CLI, args []string) error {
-	args = withFormerNames(d.Group+" "+d.Verb, args)
+	args, former := withFormerNames(d.Group+" "+d.Verb, args)
+	for _, a := range former {
+		fmt.Fprintln(cli.Err, formerNameNote(a, d.PathParams))
+	}
 	positional := make([]string, 0, len(d.PathParams))
 	for _, p := range d.PathParams {
 		if len(args) == 0 || strings.HasPrefix(args[0], "-") || strings.TrimSpace(args[0]) == "" {

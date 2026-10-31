@@ -78,3 +78,32 @@ func TestEveryFormerFlagNameNamesAFlagOfItsCommand(t *testing.T) {
 		}
 	}
 }
+
+// A former name works and says on standard error what to write instead, so the script's owner
+// learns of the rename (a cron mails standard error) while the command still succeeds and its
+// standard output stays the answer alone.
+func TestAFormerFlagNameNamesTodaysFlagOnStandardError(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"data":[],"page":{"next_cursor":null}}`)
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "token", "ls", "--account", aliasID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(errOut, "--account is now --account-id") {
+		t.Errorf("standard error %q names no rename", errOut)
+	}
+	if strings.Contains(out, "--account") {
+		t.Errorf("standard output %q carries the note", out)
+	}
+
+	stub = serveJSON(t, http.StatusOK, `{"data":[],"page":{"next_cursor":null}}`)
+	_, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "backup", "ls", "--target", aliasID)
+	if !strings.Contains(errOut, "--target is now the argument <") {
+		t.Errorf("standard error %q names no positional argument", errOut)
+	}
+
+	stub = serveJSON(t, http.StatusOK, `{"data":[],"page":{"next_cursor":null}}`)
+	_, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "token", "ls", "--account-id", aliasID)
+	if strings.Contains(errOut, "is now") {
+		t.Errorf("today's name drew a note: %q", errOut)
+	}
+}

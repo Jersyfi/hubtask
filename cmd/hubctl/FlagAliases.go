@@ -7,7 +7,8 @@ import "strings"
 
 // flagAlias is a flag's former name, from before its command was generated and took the
 // contract's member names: an existing script keeps working (accepted.md, third answers 7).
-// Accepted, never advertised - the help names the contract's flag only.
+// Accepted but not advertised: the help names the contract's flag only, and a use says on
+// standard error what to write instead.
 type flagAlias struct {
 	Old, New string
 	// Value, where set, makes the old switch stand for --New=Value (`--off` is `--enabled=false`).
@@ -70,17 +71,21 @@ var flagAliases = map[string][]flagAlias{
 }
 
 // withFormerNames rewrites a command's arguments from former flag names to today's, before
-// anything is parsed.
-func withFormerNames(command string, args []string) []string {
+// anything is parsed, and returns the former names it met.
+func withFormerNames(command string, args []string) ([]string, []flagAlias) {
 	aliases := flagAliases[command]
 	if len(aliases) == 0 {
-		return args
+		return args, nil
 	}
 	out := make([]string, 0, len(args))
 	moved := map[int]string{}
+	var used []flagAlias
 	for i := 0; i < len(args); i++ {
 		name, value, hasValue := splitFlag(args[i])
 		alias, found := formerName(aliases, name)
+		if found {
+			used = append(used, alias)
+		}
 		if found && alias.Words != nil {
 			if !hasValue && i+1 < len(args) && alias.Words[args[i+1]] != "" {
 				i++
@@ -111,7 +116,7 @@ func withFormerNames(command string, args []string) []string {
 		}
 	}
 	if len(moved) == 0 {
-		return out
+		return out, used
 	}
 	leading := 0
 	for leading < len(out) && !strings.HasPrefix(out[leading], "-") {
@@ -124,7 +129,20 @@ func withFormerNames(command string, args []string) []string {
 				append([]string{value}, positional[min(at, len(positional)):]...)...)
 		}
 	}
-	return append(positional, out[leading:]...)
+	return append(positional, out[leading:]...), used
+}
+
+// formerNameNote is the line a former name draws on standard error; pathParams name the
+// command's path arguments in order.
+func formerNameNote(a flagAlias, pathParams []doorParam) string {
+	switch {
+	case a.Position >= 0 && a.Position < len(pathParams):
+		return "hubctl: --" + a.Old + " is now the argument <" + flagName(pathParams[a.Position].Name) + ">; the former name keeps working"
+	case a.Value != "":
+		return "hubctl: --" + a.Old + " is now --" + a.New + "=" + a.Value + "; the former name keeps working"
+	default:
+		return "hubctl: --" + a.Old + " is now --" + a.New + "; the former name keeps working"
+	}
 }
 
 // splitFlag reads `--name`, `-name` or `--name=value`; anything else is no flag.
