@@ -148,3 +148,10 @@ The decisions round raised ten further questions; the owner accepted every propo
 - Several hours of load on the workstation is too much. First a sensible plan is worked out for
   testing as well as possible, with how long it really takes (measured by short probes), in
   `test/load/PLAN.md`; it is shown to the owner before the long runs start.
+
+## The owner's word for the remaining runs — 2026-10-31
+
+For the rest of the coverage runs and every step after them: stick to the plan; do not
+hallucinate; never invent or fake information. A worker reports only what it checked in the code
+or measured, says plainly what it did not run or could not verify, and records a gap as open
+rather than closed when it is not proven by a test or a measurement.
