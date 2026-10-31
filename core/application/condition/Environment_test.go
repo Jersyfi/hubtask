@@ -127,3 +127,19 @@ func TestTheSetsTravelOnlyWhenTheyWereRead(t *testing.T) {
 		t.Errorf("members came back %v, want an empty list", withSets["members"])
 	}
 }
+
+// A rule that closes a resolved incident asks for its status (templates.md §1): the entry's type
+// and status read as the contract answers them, the status absent where no workflow runs.
+func TestTheDocumentNamesTheTypeAndTheStatus(t *testing.T) {
+	document := condition.ItemDocument(work.WorkItem{Type: work.ItemTask, EntryType: "incident", Status: "resolved"})
+	if document["entry_type"] != "incident" || document["status"] != "resolved" {
+		t.Errorf("type %v, status %v", document["entry_type"], document["status"])
+	}
+	plain := condition.ItemDocument(work.WorkItem{Type: work.ItemTask})
+	if plain["entry_type"] != work.SystemEntryTypeKey(work.ItemTask) {
+		t.Errorf("a system-typed entry reads as %v", plain["entry_type"])
+	}
+	if _, present := plain["status"]; present {
+		t.Error("an entry no workflow runs for has a status")
+	}
+}
