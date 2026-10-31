@@ -7952,6 +7952,8 @@
   "voice.invocation_invalid": "Ein Aufrufname hat mindestens zwei Wörter und höchstens 50 Zeichen, beginnt mit einem Buchstaben und enthält nur Buchstaben und Leerzeichen. Nicht erlaubt sind „Alexa“, „Echo“, „Skill“, „App“, Startwörter wie „öffne“ oder „sage“, Verbindungswörter wie „dass“, „mit“ oder „für“ und ein Artikel als zweites Wort.",
   "app.entries.ticket_key": "Schlüssel {key} kopieren",
   "app.entries.ticket_key_copied": "{key} kopiert.",
+  "app.entries.presence.here": "{name} hat das offen",
+  "app.entries.presence.replying": "{name} schreibt gerade eine Antwort",
   "app.retention.kind.MAIL_RECEIPT": "Protokoll des Mail-Eingangs",
   "app.retention.kind.DOCUMENT_HISTORY": "Verlauf von Live-Dokumenten",
   "app.retention.kind.AGENT_LEDGER": "Protokoll der Agenten",

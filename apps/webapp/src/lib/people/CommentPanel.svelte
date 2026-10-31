@@ -36,6 +36,7 @@
   import ReferenceChip from '../entries/ReferenceChip.svelte';
   import { inserted, referencesIn, resolved } from '../data/links.svelte.ts';
   import DeskTools from '../servicedesk/DeskTools.svelte';
+  import EntryPresence from '../entries/EntryPresence.svelte';
 
   /**
    * `mayComment`: whether the reader may add to this thread, from their role on the entry - a
@@ -207,6 +208,7 @@
      (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
      row, not a dead one (design-system.md §11.8). -->
   <Stack gap="200">
+    <EntryPresence itemId={item.id} replying={draft.trim() !== ''} />
     {#if failure}
       <p class="failure" role="alert">{failure.message}</p>
     {/if}
