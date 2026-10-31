@@ -4,8 +4,10 @@
 package work
 
 import (
+	"context"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -101,6 +103,70 @@ func TestAReferenceNamesAnEntryTheWriterCanSee(t *testing.T) {
 			}
 			if written.CustomFields["blocked_by"] != target.String() {
 				t.Errorf("the stored value is %#v", written.CustomFields["blocked_by"])
+			}
+		})
+	}
+}
+
+type fieldGroups struct{ known map[shared.ID]bool }
+
+func (g fieldGroups) Find(_ context.Context, id shared.ID) (identity.Group, error) {
+	if !g.known[id] {
+		return identity.Group{}, shared.ErrNotFound
+	}
+	return identity.Group{ID: id, TenantID: tenantID}, nil
+}
+
+type fieldAttachments struct{ carried map[shared.ID][]shared.ID }
+
+func (a fieldAttachments) MediaIDs(_ context.Context, itemID shared.ID) ([]shared.ID, error) {
+	return a.carried[itemID], nil
+}
+
+// UC-WRK-12 check 4: a GROUP names a group of the workspace and a FILE an attachment the entry
+// itself carries; anything else is refused with the kind's code, never stored.
+func TestAGroupAndAFileNameWhatTheWorkspaceAndTheEntryHold(t *testing.T) {
+	group := shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+	media := shared.MustParseID("0192f000-0000-7000-8000-0000000000c2")
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000c3")
+	cases := []struct {
+		name   string
+		kind   domain.CustomFieldKind
+		value  shared.ID
+		wired  bool
+		detail string
+	}{
+		{"the workspace's group", domain.CustomFieldGroup, group, true, ""},
+		{"a group nobody holds", domain.CustomFieldGroup, elsewhere, true, "fields.value_not_a_group"},
+		{"a group with nothing to ask", domain.CustomFieldGroup, group, false, "fields.value_not_a_group"},
+		{"the entry's attachment", domain.CustomFieldFile, media, true, ""},
+		{"another entry's attachment", domain.CustomFieldFile, elsewhere, true, "fields.value_not_an_attachment"},
+		{"a file with nothing to ask", domain.CustomFieldFile, media, false, "fields.value_not_an_attachment"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newValueHarness(t)
+			h.withItem(domain.ItemTask)
+			h.withDefinition(t, collectionID, "owner", c.kind)
+			if c.wired {
+				h.set.Groups = fieldGroups{known: map[shared.ID]bool{group: true}}
+				h.set.Attachments = fieldAttachments{carried: map[shared.ID][]shared.ID{filledItem: {media}}}
+			}
+
+			written, err := h.set.Execute(t.Context(), actor(), SetCustomFieldCommand{
+				ItemID: filledItem, Key: "owner", Value: c.value.String(),
+			})
+			if c.detail != "" {
+				if detail := shared.AsError(err).DetailCode; detail != c.detail {
+					t.Fatalf("detail %q, want %s", detail, c.detail)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("refused: %v", err)
+			}
+			if written.CustomFields["owner"] != c.value.String() {
+				t.Errorf("the stored value is %#v", written.CustomFields["owner"])
 			}
 		})
 	}

@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -75,6 +77,21 @@ type SetCustomField struct {
 	// Compiler recomputes the entry's CALCULATED fields after each write of a value; without it
 	// they are left as they are.
 	Compiler expression.Compiler
+	// Groups answers whether a GROUP value names a group of the workspace, and Attachments
+	// whether a FILE value names one the entry carries. Without them neither kind is written:
+	// a value nothing checked is one nobody could trust.
+	Groups      FieldGroups
+	Attachments FieldAttachments
+}
+
+// FieldGroups is the one question a GROUP value asks of the workspace's groups.
+type FieldGroups interface {
+	Find(ctx context.Context, groupID shared.ID) (identity.Group, error)
+}
+
+// FieldAttachments is the one question a FILE value asks of the entry's attachments.
+type FieldAttachments interface {
+	MediaIDs(ctx context.Context, itemID shared.ID) ([]shared.ID, error)
 }
 
 // SetCustomFieldCommand is the input, typed.
@@ -277,7 +294,46 @@ func (h SetCustomField) judge(
 			return none, nil, err
 		}
 	}
+	if err := h.ensureTargetHeld(ctx, item, definition, value); err != nil {
+		return none, nil, err
+	}
 	return definition, value, nil
+}
+
+// ensureTargetHeld refuses a GROUP that is not the workspace's and a FILE the entry does not carry.
+// A missing group, another workspace's and a lookup with nothing to ask are one answer, so the
+// field cannot be used to discover which identifiers exist (T-04).
+func (h SetCustomField) ensureTargetHeld(
+	ctx context.Context, item domain.WorkItem, definition domain.CustomFieldDefinition, value any,
+) error {
+	refused := func(code string) error {
+		return shared.ErrValidation.WithDetail(code).
+			WithParams(map[string]string{"key": definition.Key}).
+			WithFields(shared.FieldError{Path: "/value", Code: code})
+	}
+	if group, named := definition.GroupOf(value); named {
+		if h.Groups == nil {
+			return refused("fields.value_not_a_group")
+		}
+		found, err := h.Groups.Find(ctx, group)
+		if errors.Is(err, shared.ErrNotFound) || (err == nil && found.TenantID != item.TenantID) {
+			return refused("fields.value_not_a_group")
+		}
+		return err
+	}
+	if media, named := definition.AttachmentOf(value); named {
+		if h.Attachments == nil {
+			return refused("fields.value_not_an_attachment")
+		}
+		carried, err := h.Attachments.MediaIDs(ctx, item.ID)
+		if err != nil {
+			return err
+		}
+		if !slices.Contains(carried, media) {
+			return refused("fields.value_not_an_attachment")
+		}
+	}
+	return nil
 }
 
 // ensureEntryReachable refuses a REFERENCE to an entry the writer cannot see. A missing entry, a

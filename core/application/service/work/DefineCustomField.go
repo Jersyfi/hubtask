@@ -353,7 +353,8 @@ func (h DefineCustomField) Descriptor() usecase.Descriptor {
 			{
 				Name: "kind", Kind: usecase.KindString, Required: true,
 				Description: "TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, " +
-					"DURATION, REFERENCE, USER_SET or RICH_TEXT. Fixed " +
+					"DURATION, REFERENCE, USER_SET, RICH_TEXT, CALCULATED, DATE_TIME, GROUP, " +
+					"CASCADING_SELECT, IP_ADDRESS, FILE, LABEL or STATUS. Fixed " +
 					"once defined: a kind that changed would reinterpret every value already " +
 					"stored under the key.",
 			},
@@ -365,8 +366,9 @@ func (h DefineCustomField) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "options", Kind: usecase.KindList,
-				Description: "The values a SELECT or a MULTI_SELECT may hold. Required for those " +
-					"two and refused for every other kind.",
+				Description: "The values a SELECT, MULTI_SELECT, CASCADING_SELECT or STATUS may " +
+					"hold. Required for those four and refused for every other kind; a " +
+					"CASCADING_SELECT's are written Parent and Parent/Child.",
 			},
 			{
 				Name: "currency", Kind: usecase.KindString,

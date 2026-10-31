@@ -1115,6 +1115,7 @@ func run() error {
 		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms, Compiler: celexpression.New(),
+		Groups: groups, Attachments: mediaObjects,
 	}
 
 	// The three changes to an existing view share one dependency set (work.SavedViewWriter): the

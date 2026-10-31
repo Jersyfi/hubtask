@@ -22,7 +22,7 @@ func fieldGroup() group {
 		commands: []command{
 			{
 				name: "define",
-				usage: "--key <key> --kind TEXT|NUMBER|DATE|SELECT|MULTI_SELECT|BOOL|USER|URL" +
+				usage: "--key <key> --kind <kind>" +
 					" [--collection <id>] [--applies-to <types>] [--options <values>] [--required]",
 				summary: "define a custom field",
 				run:     fieldDefine,
@@ -41,10 +41,10 @@ func fieldDefine(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "field", "define",
 		"--key <key> --kind <kind> [--collection <id>] [--applies-to <types>] [--options <values>] [--currency <code>] [--formula <expression>] [--required] [--restricted] [--read-restricted]")
 	key := flags.String("key", "", "the identifier the value is stored under; fixed once defined")
-	kind := flags.String("kind", "", "what a value looks like: TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, DURATION, REFERENCE, USER_SET or RICH_TEXT")
+	kind := flags.String("kind", "", "what a value looks like: TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, DURATION, REFERENCE, USER_SET, RICH_TEXT, CALCULATED, DATE_TIME, GROUP, CASCADING_SELECT, IP_ADDRESS, FILE, LABEL or STATUS")
 	collection := flags.String("collection", "", "the collection the definition belongs to; unset defines it workspace-wide")
 	appliesTo := flags.String("applies-to", "", "comma-separated item types that carry the field; unset means TASK alone")
-	options := flags.String("options", "", "comma-separated values a SELECT or MULTI_SELECT permits")
+	options := flags.String("options", "", "comma-separated values a SELECT, MULTI_SELECT, CASCADING_SELECT or STATUS permits")
 	currency := flags.String("currency", "", "the ISO 4217 code of a MONEY field's amounts")
 	formula := flags.String("formula", "", "a CALCULATED field's expression over entry.custom_fields")
 	required := flags.Bool("required", false, "whether the field has to hold a value")
