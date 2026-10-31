@@ -602,8 +602,8 @@
   $effect(() => untrack(() => (writable ? entryTypes.open() : undefined)));
   const kindsIn = (collectionId: string) => {
     if (!typesShown(manifest.value)) return [];
-    const settings = collections.find((each) => each.id === collectionId)?.settings;
-    return offeredTypes(entryTypes.all, 'TASK', entryTypesOffered(settings, 'TASK'));
+    const collection = collections.find((each) => each.id === collectionId);
+    return offeredTypes(entryTypes.all, 'TASK', entryTypesOffered(collection?.settings, 'TASK'), board.hub_id);
   };
   let entryCollection = $state<string>('');
   const kinds = $derived(entryCollection ? kindsIn(entryCollection) : []);

@@ -13,8 +13,8 @@ import type { Capabilities, EntryType } from '@hubtask/sync-engine';
 import { ICON_NAMES } from '@hubtask/design-system/icons';
 
 import {
-  TYPE_ICONS, childTypes, droppedBy, entryTypesOffered, iconOf, keyFrom, languagesLeft, levelTypes, offeredTypes, reorder, rowMarkOf,
-  sameTranslations, translationRowsOf, translationsOf, typeNameOf, typeOrder, typesShown,
+  TYPE_ICONS, childTypes, copyKeyFor, droppedBy, entryTypesOffered, iconOf, keyFrom, languagesLeft, levelTypes, offeredTypes, reorder, rowMarkOf,
+  sameTranslations, typesAtHub, translationRowsOf, translationsOf, typeNameOf, typeOrder, typesShown,
 } from './entrytypes.ts';
 
 const base = {
@@ -134,4 +134,21 @@ test('a type\'s texts per language are written as the contract holds them', () =
   assert.ok(sameTranslations(undefined, {}));
   assert.ok(!sameTranslations({ de: { name: 'Störung' } }, { de: { name: 'Fehler' } }));
   assert.deepEqual(languagesLeft(['en', 'de', 'fr'], rows), ['en']);
+});
+
+test('a hub\u2019s own type is offered only inside that hub (UC-FLW-01 check 10)', () => {
+  const withHubs: EntryType[] = [
+    ...types,
+    { ...base, key: 'incident', level: 'TASK', system: false, name: 'Incident', icon: 'bug', color_token: 'red', position: 3, hub_id: 'hub-a', copied_from: 'bug' },
+    { ...base, key: 'lead', level: 'TASK', system: false, name: 'Lead', icon: 'star', color_token: 'blue', position: 4, hub_id: 'hub-b' },
+  ];
+  assert.deepEqual(offeredTypes(withHubs, 'TASK', undefined, 'hub-a').map((type) => type.key), ['task', 'bug', 'feature', 'incident']);
+  assert.deepEqual(offeredTypes(withHubs, 'TASK', undefined, 'hub-b').map((type) => type.key), ['task', 'bug', 'feature', 'lead']);
+  assert.deepEqual(offeredTypes(withHubs, 'TASK').map((type) => type.key), ['task', 'bug', 'feature']);
+
+  const atHub = typesAtHub(withHubs, 'hub-a');
+  assert.deepEqual(atHub.shared.map((type) => type.key), ['feature', 'task', 'bug', 'old', 'subtask']);
+  assert.deepEqual(atHub.own.map((type) => type.key), ['incident']);
+  assert.equal(copyKeyFor(withHubs, 'bug'), 'bug_copy');
+  assert.equal(copyKeyFor([...withHubs, { ...base, key: 'bug_copy', level: 'TASK', system: false, name: 'x', icon: 'tag', color_token: 'red', position: 0 }], 'bug'), 'bug_copy_2');
 });

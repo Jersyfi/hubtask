@@ -33,14 +33,41 @@ export const systemKeyOf = (level: string): string => level.toLowerCase();
  * none is left offers every type - the server's rule (`EntryTypes.ChooseAmong`), so the first one
  * here is the one an entry sent without a type gets.
  */
-export function offeredTypes(types: readonly EntryType[], level: string, offered?: readonly string[]): readonly EntryType[] {
+export function offeredTypes(
+  types: readonly EntryType[], level: string, offered?: readonly string[], hub?: string | null,
+): readonly EntryType[] {
   const inUse = types
-    .filter((type) => type.level === level && !type.archived)
+    .filter((type) => type.level === level && !type.archived && usableIn(type, hub))
     .sort((a, b) => Number(b.system) - Number(a.system) || a.position - b.position || a.key.localeCompare(b.key));
   if (!offered || offered.length === 0) return inUse;
   const narrowed = offered.flatMap((key) => inUse.filter((type) => type.key === key));
   if (narrowed.length === 0) return inUse;
   return [...narrowed].sort((a, b) => Number(b.system) - Number(a.system));
+}
+
+/**
+ * Whether an entry inside the hub may take the type (UC-FLW-01 check 10): a type of the whole
+ * workspace everywhere, a hub's own only inside it - the server's `EntryTypes.Within`. Without a
+ * hub, only the workspace's.
+ */
+export function usableIn(type: Pick<EntryType, 'hub_id'>, hub?: string | null): boolean {
+  return !type.hub_id || type.hub_id === hub;
+}
+
+/** A hub's settings: the types shared with it, read-only there, and its own. */
+export function typesAtHub(types: readonly EntryType[], hub: string): { readonly shared: readonly EntryType[]; readonly own: readonly EntryType[] } {
+  return { shared: types.filter((type) => !type.hub_id), own: types.filter((type) => type.hub_id === hub) };
+}
+
+/** A key free in the workspace for a copy of the type: `<key>_copy`, then `_2`, `_3`, … */
+export function copyKeyFor(types: readonly EntryType[], key: string): string {
+  const taken = new Set(types.map((type) => type.key));
+  const stem = `${key}_copy`.slice(0, 44);
+  if (!taken.has(stem)) return stem;
+  for (let n = 2; ; n++) {
+    const candidate = `${stem}_${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
 }
 
 /** The type keys a collection's settings offer on a level, or none where it offers every type. */

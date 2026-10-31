@@ -23,6 +23,7 @@ export {
   TYPE_ICONS,
   TYPE_LEVELS,
   childTypes,
+  copyKeyFor,
   droppedBy,
   entryTypesOffered,
   iconOf,
@@ -35,6 +36,7 @@ export {
   typeOf,
   typeNameOf,
   typeOrder,
+  typesAtHub,
   typesShown,
 } from './entrytypes.ts';
 
@@ -63,6 +65,17 @@ class EntryTypes {
   /** Adds a type of the workspace's own (UC-FLW-01 check 1). */
   create(body: EntryTypeCreate): Promise<EntryType> {
     return engine.mutate<EntryType>('POST', PATH, body, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [PATH, CONFIG_CHECK],
+    });
+  }
+
+  /**
+   * Makes a hub's own copy of a type shared with it, under a key of its own (UC-FLW-01 check 10):
+   * a shared type is read-only at the hub.
+   */
+  copyHere(source: string, hubId: string, key: string, name?: string): Promise<EntryType> {
+    return engine.mutate<EntryType>('POST', `${PATH}/${encodeURIComponent(source)}:copy-here`, { hub_id: hubId, key, ...(name ? { name } : {}) }, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: [PATH, CONFIG_CHECK],
     });

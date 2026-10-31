@@ -216,7 +216,7 @@
   const doorTypes = $derived(door?.types && door.types.length > 0 && (!door.collectionId || door.collectionId === current) ? door.types : undefined);
   const entryType = $derived(chosenType ?? doorTypes?.[0] ?? topLevelOf(settings, rootTypes()));
   /** The entry types the level offers, where the workflows module is on (UC-FLW-01 checks 3, 8). */
-  const kinds = $derived(typesShown(manifest.value) && entryType ? offeredTypes(entryTypes.all, entryType, entryTypesOffered(settings, entryType)) : []);
+  const kinds = $derived(typesShown(manifest.value) && entryType ? offeredTypes(entryTypes.all, entryType, entryTypesOffered(settings, entryType), hubHere) : []);
   const kind = $derived(kinds.find((each) => each.key === chosenKind) ?? kinds[0]);
   const kindName = (each: (typeof kinds)[number]) => each.name ?? offerLevelName(each.level);
   /** The target type's form, where it has one: unfolded under the line (UC-FLW-01 check 2). */

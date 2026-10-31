@@ -1259,6 +1259,7 @@
             tab: section || 'general',
             container,
             mayShapeWorkspace,
+            mayShapeHere: mayShape,
             hrefOf: (each: string) => `${settingsPath}/${each}`,
             onsection: (each: string) => onnavigate(`${settingsPath}/${each}`),
             before: [{ id: 'general', label: t('app.settings.section_general'), body: generalTab }],

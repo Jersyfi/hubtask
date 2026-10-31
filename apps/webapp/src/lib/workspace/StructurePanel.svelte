@@ -28,7 +28,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { entryTypes, offeredTypes as typesOfLevel, typesShown } from '../data/entrytypes.svelte.ts';
+  import { copyKeyFor, entryTypes, offeredTypes as typesOfLevel, typesAtHub, typesShown } from '../data/entrytypes.svelte.ts';
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { levelWords } from '../data/levels.ts';
   import { presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
@@ -74,6 +74,8 @@
     container: Container;
     /** Whether the reader may change the workspace's shape: *Save as preset* then offers the workspace. */
     mayShapeWorkspace?: boolean;
+    /** Whether the reader holds STRUCTURE here: a hub's *Make a copy here* is offered only then. */
+    mayShapeHere?: boolean;
     /** The sections before the structure (its general fields) and after it, in the list's order. */
     before?: readonly StructureTab[];
     tabs?: readonly StructureTab[];
@@ -84,7 +86,7 @@
     onsection: (section: string) => void;
   }
 
-  const { isOpen, container, mayShapeWorkspace = false, before = [], tabs = [], tab = 'structure', hrefOf, onsection }: Props = $props();
+  const { isOpen, container, mayShapeWorkspace = false, mayShapeHere = false, before = [], tabs = [], tab = 'structure', hrefOf, onsection }: Props = $props();
 
   /** On a phone the sections are one row that scrolls: the open one is always brought into it. */
   let sectionList = $state<HTMLElement | null>(null);
@@ -255,11 +257,28 @@
 
   /** A level's types in use, as the entry types setting offers them for ticking. */
   const typeOptionsOf = (type: string) =>
-    typesOfLevel(entryTypes.all, type).map((each) => ({ value: each.key, label: each.name ?? levelName(type), disabledReason: lockReason('entry_types') }));
+    typesOfLevel(entryTypes.all, type, undefined, fileHub).map((each) => ({ value: each.key, label: each.name ?? levelName(type), disabledReason: lockReason('entry_types') }));
+
+  /** The key of the type being copied here, while the copy is on its way. */
+  let copying = $state<string | undefined>(undefined);
+
+  /** A shared type made the hub's own (UC-FLW-01 check 10), named as its source and keyed freely. */
+  async function copyHere(type: { key: string; level: string; name?: string | null }) {
+    if (copying !== undefined) return;
+    copying = type.key;
+    failure = undefined;
+    try {
+      await entryTypes.copyHere(type.key, container.id, copyKeyFor(entryTypes.all, type.key), type.name ?? levelName(type.level));
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    } finally {
+      copying = undefined;
+    }
+  }
 
   function chooseEntryTypes(type: string, selected: readonly string[]) {
     if (!draft) return;
-    const inUse = typesOfLevel(entryTypes.all, type).map((each) => each.key);
+    const inUse = typesOfLevel(entryTypes.all, type, undefined, fileHub).map((each) => each.key);
     draft = setValue(draft, 'entry_types', chooseEntryTypesOf(values.entry_types, type, inUse, selected));
   }
 
@@ -640,10 +659,33 @@
                 <CheckboxGroup
                   label={t('app.structure.entry_types_of', { level: levelName(type) })}
                   options={typeOptionsOf(type)}
-                  selected={typesOfLevel(entryTypes.all, type, values.entry_types?.[type]).map((each) => each.key)}
+                  selected={typesOfLevel(entryTypes.all, type, values.entry_types?.[type], fileHub).map((each) => each.key)}
                   onChange={(selected) => chooseEntryTypes(type, selected)}
                 />
               {/each}
+              {#if isHub}
+                {@const atHub = typesAtHub(entryTypes.all, container.id)}
+                <div class="hub-types">
+                  <p class="hint">{t('app.structure.hub_types_hint')}</p>
+                  <ul>
+                    {#each atHub.shared.filter((each) => !each.archived) as type (type.key)}
+                      <li>
+                        <span>{type.name ?? levelName(type.level)}</span>
+                        <span class="source">{t('app.structure.hub_types_shared')}</span>
+                        {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === type.key} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyHere(type)}>
+                          {t('app.structure.hub_types_copy')}
+                        </Button>{/if}
+                      </li>
+                    {/each}
+                    {#each atHub.own as type (type.key)}
+                      <li>
+                        <span>{type.name ?? levelName(type.level)}</span>
+                        <span class="source">{type.copied_from ? t('app.structure.hub_types_copied', { from: type.copied_from }) : t('app.structure.hub_types_own')}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+              {/if}
             {/if}
           </section>
         {/each}
@@ -726,6 +768,9 @@
   .save-as { align-self: flex-start; }
   .hint { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .failure { margin: 0; color: var(--text-danger); }
+  .hub-types ul { list-style: none; margin: var(--sp-100) 0 0; padding: 0; display: grid; gap: var(--sp-100); }
+  .hub-types li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); }
+  .hub-types .source { color: var(--text-secondary); font-size: var(--fs-100); margin-inline-end: auto; }
 
   /* The sections at the start and the open one beside them, as the administration draws its
      areas. On a phone they are tabs above the section: one line that scrolls sideways, the open

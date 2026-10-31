@@ -381,7 +381,7 @@
   // the one it has kept even when archived. A row only where there is a choice.
   const typeChoices = $derived.by(() => {
     if (!item || !itemType) return [];
-    const offered = offeredTypes(entryTypes.all, item.type as string);
+    const offered = offeredTypes(entryTypes.all, item.type as string, undefined, containers.find(item.collection_id)?.parent_id);
     return offered.some((each) => each.key === itemType.key) ? offered : [itemType, ...offered];
   });
   const entryTypeName = (type: { name?: string | null; level: string }) => type.name ?? t('app.entry_types.level', { level: type.level });
