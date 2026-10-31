@@ -40,8 +40,14 @@ designer role's in the hub is 60.00. An hour of Ana's on 2 November and two on 3
 7. REST, MCP and hubctl read and write rates, budgets and the burn alike.
 8. The web app shows the rates under *How we work*, and a plan's budget with its burn on the plan's
    actuals.
+9. A hub or a collection may carry billing rates - what an hour of its billable time is charged to
+   its client - from a day to a day or on, never two of one plan on a day, read and written only
+   with `MANAGE_COSTS` (or `MANAGE_MEMBERS`) at the plan and never with their amount in the audit
+   trail; an export with costs bills each record by its collection's rate, else its hub's, with a
+   billable value of 0 where the record is not billable.
 
 ## Where it ends
 
-* No invoices, no exchange rates, no forecast of the end cost.
+* No invoices, no exchange rates, no forecast of the end cost; a billing rate prices what is billed,
+  never what an hour cost.
 * A budget is a plan's; there is no portfolio budget across hubs.
