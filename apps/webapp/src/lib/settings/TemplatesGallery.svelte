@@ -10,11 +10,12 @@
   // workspace took the template (templates.md §1).
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Checkbox, Dialog, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState } from '@hubtask/sync-engine';
 
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
-  import { byOrigin, offerOf, takenFirst } from '../data/configtemplates.ts';
+  import { answersOf, byOrigin, offerOf, takenFirst } from '../data/configtemplates.ts';
+  import { groups as workspaceGroups } from '../data/groups.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -41,6 +42,13 @@
     template.origin === 'HUBTASK' ? t(`app.structure.preset.${template.key.toUpperCase()}`) : template.name;
 
   let chosen = $state<ConfigTemplate>();
+  /** The answers to the chosen template's questions, by key. */
+  let answers = $state<Record<string, string>>({});
+  const asksGroup = $derived(chosen?.questions?.some((question) => question.kind === 'GROUP') ?? false);
+  $effect(() => {
+    if (!asksGroup) return;
+    return untrack(() => workspaceGroups.open());
+  });
   let plan = $state<ConfigTemplatePlan>();
   let take = $state<string[]>([]);
   let isOpen = $state(false);
@@ -50,9 +58,10 @@
   async function open(template: ConfigTemplate) {
     busy = template.key;
     chosen = template;
+    answers = {};
     acknowledged = false;
     try {
-      plan = await config.planTemplate(template.key, undefined, hubId);
+      plan = await config.planTemplate(template.key, undefined, hubId, answersOf(template.questions, answers));
       take = takenFirst(plan.upgrade);
       isOpen = true;
     } catch (error) {
@@ -66,7 +75,18 @@
     if (!chosen) return;
     take = isTaken ? [...take, path] : take.filter((each) => each !== path);
     try {
-      plan = await config.planTemplate(chosen.key, take, hubId);
+      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers));
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    }
+  }
+
+  /** An answer changes what the template brings, so the plan is asked again. */
+  async function answer(key: string, value: string) {
+    if (!chosen) return;
+    answers = { ...answers, [key]: value };
+    try {
+      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers));
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
@@ -131,6 +151,28 @@
 {#if plan && chosen}
   <Dialog bind:isOpen title={t('app.templates.plan_title', { name: nameOf(chosen), version: chosen.version })} dismissLabel={t('app.changes.cancel')}>
     <Stack gap="150">
+      {#if chosen.questions && chosen.questions.length > 0}
+        <div class="questions" data-template-questions>
+          <p class="quiet">{t('app.templates.questions_about')}</p>
+          {#each chosen.questions as question (question.key)}
+            {@const label = t(`app.templates.question.${question.key}`)}
+            {#if question.kind === 'TEXT'}
+              <Input {label} value={answers[question.key] ?? question.default ?? ''} data-question={question.key}
+                onchange={(event: Event) => answer(question.key, (event.currentTarget as HTMLInputElement).value)} />
+            {:else}
+              <Select {label} value={answers[question.key] ?? question.default ?? ''} data-question={question.key}
+                hint={question.required ? undefined : t('app.templates.question_optional')}
+                options={[
+                  { value: '', label: t('app.templates.question_open') },
+                  ...(question.kind === 'GROUP'
+                    ? workspaceGroups.all.map((group) => ({ value: group.id, label: group.name }))
+                    : question.options.map((option) => ({ value: option, label: option }))),
+                ]}
+                onchange={(event: Event) => answer(question.key, (event.currentTarget as HTMLSelectElement).value)} />
+            {/if}
+          {/each}
+        </div>
+      {/if}
       {#if plan.from_version}
         <p class="quiet">{t('app.templates.upgrade_about', { from: plan.from_version, to: chosen.version })}</p>
         {#if plan.upgrade.length === 0}
@@ -209,5 +251,6 @@
   .name { font-weight: var(--fw-medium); }
   .note { color: var(--text-subtle); font-size: var(--fs-075); }
   .update { color: var(--text-brand); font-size: var(--fs-075); }
+  .questions { display: grid; gap: var(--sp-100); }
   .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
 </style>

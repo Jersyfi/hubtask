@@ -90,12 +90,19 @@ class Config {
 
   /**
    * Plans taking a template, or upgrading to its newer version: `take` names the upgrade's changes
-   * to take, omitted taking every one the workspace did not change itself. Writes nothing.
+   * to take, omitted taking every one the workspace did not change itself; `answers` answer the
+   * template's questions. Writes nothing.
    */
-  async planTemplate(key: string, take?: readonly string[], hubId?: string): Promise<ConfigTemplatePlan> {
+  async planTemplate(
+    key: string,
+    take?: readonly string[],
+    hubId?: string,
+    answers?: Readonly<Record<string, string>>,
+  ): Promise<ConfigTemplatePlan> {
     return engine.mutate<ConfigTemplatePlan>('POST', `${TEMPLATES}/${encodeURIComponent(key)}:plan`, {
       ...(take ? { take: [...take] } : {}),
       ...(hubId ? { hub_id: hubId } : {}),
+      ...(answers && Object.keys(answers).length > 0 ? { answers: { ...answers } } : {}),
     });
   }
 

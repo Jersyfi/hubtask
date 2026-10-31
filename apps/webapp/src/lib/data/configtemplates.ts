@@ -34,3 +34,21 @@ export function offerOf(template: Offered): 'TAKE' | 'UPDATE' | 'IN_USE' {
 export function takenFirst(upgrade: readonly { readonly path: string; readonly state: 'TAKE' | 'CONFLICT' }[]): string[] {
   return upgrade.filter((change) => change.state === 'TAKE').map((change) => change.path);
 }
+
+interface Asked {
+  readonly key: string;
+  readonly default?: string | null;
+}
+
+/**
+ * The answers a plan is asked with: each question's own answer, its default where the person left
+ * it, and nothing for one left open with no default - the server then leaves out what needs it.
+ */
+export function answersOf(questions: readonly Asked[] | undefined, given: Readonly<Record<string, string>>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const question of questions ?? []) {
+    const value = (given[question.key] ?? '').trim() || (question.default ?? '');
+    if (value) out[question.key] = value;
+  }
+  return out;
+}

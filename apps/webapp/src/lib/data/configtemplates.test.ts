@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { byOrigin, offerOf, takenFirst } from './configtemplates.ts';
+import { answersOf, byOrigin, offerOf, takenFirst } from './configtemplates.ts';
 
 test('the gallery draws the four origins in order and leaves an empty one out', () => {
   const groups = byOrigin([
@@ -33,4 +33,10 @@ test('an upgrade takes what only the template changed and leaves every conflict'
     ]),
     ['types.incident', 'structure.views'],
   );
+});
+
+test('a plan is asked with each answer, a default where none was given, and nothing for an open question', () => {
+  const questions = [{ key: 'first_group' }, { key: 'greeting', default: 'Hello' }, { key: 'tone', default: null }];
+  assert.deepEqual(answersOf(questions, { first_group: 'g-1', tone: '  ' }), { first_group: 'g-1', greeting: 'Hello' });
+  assert.deepEqual(answersOf(undefined, { first_group: 'g-1' }), {});
 });
