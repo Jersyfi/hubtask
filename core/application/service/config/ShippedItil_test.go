@@ -41,7 +41,7 @@ func itilTemplate(t *testing.T) domain.Template {
 // every block one the use cases that apply it accept, and every section one the document has.
 func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	template := itilTemplate(t)
-	if template.Origin != domain.OriginHubtask || template.Version != 7 || !reservedKey(template.Key) {
+	if template.Origin != domain.OriginHubtask || template.Version != 8 || !reservedKey(template.Key) {
 		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
 	}
 	// Its hub part (configuration.md §6): the hub's switches and which of the template's workflows

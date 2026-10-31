@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 7,
+  "version": 8,
   "questions": [
     {
       "key": "first_group",
@@ -1014,6 +1014,20 @@
             }
           }
         ]
+      }
+    },
+    "samples": {
+      "printer_offline": {
+        "title": "The printer on the second floor is offline",
+        "entry_type": "incident"
+      },
+      "vpn_drops": {
+        "title": "The VPN drops every few minutes",
+        "entry_type": "incident"
+      },
+      "mail_delayed": {
+        "title": "Mail to customers arrives an hour late",
+        "entry_type": "incident"
       }
     }
   }
