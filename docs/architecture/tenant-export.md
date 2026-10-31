@@ -249,6 +249,7 @@ re-mints identities must rewrite exactly these).
 | 126 | `file_links` | `file_link` | `id` | `item_id`→work_items, `added_by`→accounts (an entry's file or folder in a file store by its address, migration 0276; the file itself stays in its store) |
 | 127 | `requester_organisations` | `requester_organisation` | `id` | none (a portal's organisation: its key, name, mail domains and whether its members see each other's requests, migration 0287) |
 | 133 | `public_forms` | `public_form` | `collection_id` | `collection_id`→containers, `created_by`→accounts (a collection's public form, UC-SVC-13; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
+| 134 | `entry_olas` | `entry_ola` | `id` | `item_id`→work_items (what became of each goal of an assignee group's OLA on an entry, migration 0303; the group is named, not referenced, and the clock is a timer, not archived) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

@@ -213,6 +213,35 @@ func (q *Queries) FindBusinessCalendar(ctx context.Context, key string) (Busines
 	return i, err
 }
 
+const findEntryOla = `-- name: FindEntryOla :one
+SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
+       at_risk_at, met_at, breached_at, updated_at, version
+FROM entry_ola WHERE id = $1
+`
+
+func (q *Queries) FindEntryOla(ctx context.Context, id pgtype.UUID) (EntryOla, error) {
+	row := q.db.QueryRow(ctx, findEntryOla, id)
+	var i EntryOla
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ItemID,
+		&i.PolicyKey,
+		&i.GroupID,
+		&i.Goal,
+		&i.TargetSeconds,
+		&i.Standing,
+		&i.ArmedAt,
+		&i.DueAt,
+		&i.AtRiskAt,
+		&i.MetAt,
+		&i.BreachedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const findHubCalendar = `-- name: FindHubCalendar :one
 SELECT id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version
 FROM hub_business_calendar WHERE hub_id = $1 AND key = $2
@@ -341,7 +370,7 @@ func (q *Queries) FindSatisfactionRating(ctx context.Context, itemID pgtype.UUID
 
 const findSlaPolicy = `-- name: FindSlaPolicy :one
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version, organisations
+       created_at, updated_at, version, organisations, assignee_group_id
 FROM sla_policy WHERE key = $1
 `
 
@@ -363,6 +392,7 @@ func (q *Queries) FindSlaPolicy(ctx context.Context, key string) (SlaPolicy, err
 		&i.UpdatedAt,
 		&i.Version,
 		&i.Organisations,
+		&i.AssigneeGroupID,
 	)
 	return i, err
 }
@@ -560,27 +590,29 @@ func (q *Queries) InsertRequesterOrganisation(ctx context.Context, arg InsertReq
 const insertSlaPolicy = `-- name: InsertSlaPolicy :exec
 INSERT INTO sla_policy (
   id, tenant_id, key, name, calendar_key, entry_types, organisations, priority_field, goals, position,
-  enabled, created_at, updated_at, version
+  enabled, created_at, updated_at, version, assignee_group_id
 ) VALUES (
   $1, $2, $3, $4, $5,
   $6::text[], $7::text[], $8,
-  $9, $10, $11, $12, $12, 1
+  $9, $10, $11, $12, $12, 1,
+  $13
 )
 `
 
 type InsertSlaPolicyParams struct {
-	ID            pgtype.UUID
-	TenantID      pgtype.UUID
-	Key           string
-	Name          string
-	CalendarKey   *string
-	EntryTypes    []string
-	Organisations []string
-	PriorityField string
-	Goals         []byte
-	Position      int32
-	Enabled       bool
-	Now           pgtype.Timestamptz
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Key             string
+	Name            string
+	CalendarKey     *string
+	EntryTypes      []string
+	Organisations   []string
+	PriorityField   string
+	Goals           []byte
+	Position        int32
+	Enabled         bool
+	Now             pgtype.Timestamptz
+	AssigneeGroupID pgtype.UUID
 }
 
 func (q *Queries) InsertSlaPolicy(ctx context.Context, arg InsertSlaPolicyParams) error {
@@ -597,6 +629,7 @@ func (q *Queries) InsertSlaPolicy(ctx context.Context, arg InsertSlaPolicyParams
 		arg.Position,
 		arg.Enabled,
 		arg.Now,
+		arg.AssigneeGroupID,
 	)
 	return err
 }
@@ -701,6 +734,48 @@ func (q *Queries) ListBusinessCalendars(ctx context.Context) ([]BusinessCalendar
 			&i.Name,
 			&i.Spec,
 			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEntryOla = `-- name: ListEntryOla :many
+SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
+       at_risk_at, met_at, breached_at, updated_at, version
+FROM entry_ola WHERE item_id = $1 ORDER BY policy_key, goal
+`
+
+func (q *Queries) ListEntryOla(ctx context.Context, itemID pgtype.UUID) ([]EntryOla, error) {
+	rows, err := q.db.Query(ctx, listEntryOla, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []EntryOla{}
+	for rows.Next() {
+		var i EntryOla
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.PolicyKey,
+			&i.GroupID,
+			&i.Goal,
+			&i.TargetSeconds,
+			&i.Standing,
+			&i.ArmedAt,
+			&i.DueAt,
+			&i.AtRiskAt,
+			&i.MetAt,
+			&i.BreachedAt,
 			&i.UpdatedAt,
 			&i.Version,
 		); err != nil {
@@ -906,7 +981,7 @@ func (q *Queries) ListRequesterOrganisations(ctx context.Context, max int32) ([]
 
 const listSlaPolicies = `-- name: ListSlaPolicies :many
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version, organisations
+       created_at, updated_at, version, organisations, assignee_group_id
 FROM sla_policy ORDER BY position, key
 `
 
@@ -934,6 +1009,7 @@ func (q *Queries) ListSlaPolicies(ctx context.Context) ([]SlaPolicy, error) {
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Organisations,
+			&i.AssigneeGroupID,
 		); err != nil {
 			return nil, err
 		}
@@ -998,6 +1074,52 @@ func (q *Queries) PutPublicForm(ctx context.Context, arg PutPublicFormParams) er
 		arg.At,
 	)
 	return err
+}
+
+const reportEntryOla = `-- name: ReportEntryOla :many
+SELECT policy_key, goal, standing, count(*)::bigint AS entries
+FROM entry_ola
+WHERE armed_at >= $1 AND armed_at < $2
+GROUP BY policy_key, goal, standing
+ORDER BY policy_key, goal, standing
+`
+
+type ReportEntryOlaParams struct {
+	From pgtype.Timestamptz
+	To   pgtype.Timestamptz
+}
+
+type ReportEntryOlaRow struct {
+	PolicyKey string
+	Goal      string
+	Standing  string
+	Entries   int64
+}
+
+// How the OLA goals armed in a period stand, per policy and goal, beside ReportEntrySla.
+func (q *Queries) ReportEntryOla(ctx context.Context, arg ReportEntryOlaParams) ([]ReportEntryOlaRow, error) {
+	rows, err := q.db.Query(ctx, reportEntryOla, arg.From, arg.To)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReportEntryOlaRow{}
+	for rows.Next() {
+		var i ReportEntryOlaRow
+		if err := rows.Scan(
+			&i.PolicyKey,
+			&i.Goal,
+			&i.Standing,
+			&i.Entries,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const reportEntrySla = `-- name: ReportEntrySla :many
@@ -1320,8 +1442,9 @@ UPDATE sla_policy SET
   entry_types = $3::text[], organisations = $4::text[],
   priority_field = $5,
   goals = $6, position = $7, enabled = $8,
-  updated_at = $9, version = version + 1
-WHERE key = $10 AND version = $11
+  assignee_group_id = $9,
+  updated_at = $10, version = version + 1
+WHERE key = $11 AND version = $12
 `
 
 type UpdateSlaPolicyParams struct {
@@ -1333,6 +1456,7 @@ type UpdateSlaPolicyParams struct {
 	Goals           []byte
 	Position        int32
 	Enabled         bool
+	AssigneeGroupID pgtype.UUID
 	Now             pgtype.Timestamptz
 	Key             string
 	ExpectedVersion int32
@@ -1348,6 +1472,7 @@ func (q *Queries) UpdateSlaPolicy(ctx context.Context, arg UpdateSlaPolicyParams
 		arg.Goals,
 		arg.Position,
 		arg.Enabled,
+		arg.AssigneeGroupID,
 		arg.Now,
 		arg.Key,
 		arg.ExpectedVersion,
@@ -1356,6 +1481,60 @@ func (q *Queries) UpdateSlaPolicy(ctx context.Context, arg UpdateSlaPolicyParams
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const upsertEntryOla = `-- name: UpsertEntryOla :exec
+INSERT INTO entry_ola (
+  id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
+  at_risk_at, met_at, breached_at, updated_at, version
+) VALUES (
+  $1, $2, $3, $4, $5,
+  $6, $7, $8, $9, $10,
+  $11, $12, $13, $14, 1
+)
+ON CONFLICT (tenant_id, item_id, policy_key, goal) DO UPDATE SET
+  group_id = EXCLUDED.group_id, target_seconds = EXCLUDED.target_seconds,
+  standing = EXCLUDED.standing, armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at,
+  at_risk_at = EXCLUDED.at_risk_at, met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at,
+  updated_at = EXCLUDED.updated_at, version = entry_ola.version + 1
+`
+
+type UpsertEntryOlaParams struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	ItemID        pgtype.UUID
+	PolicyKey     string
+	GroupID       pgtype.UUID
+	Goal          string
+	TargetSeconds int64
+	Standing      string
+	ArmedAt       pgtype.Timestamptz
+	DueAt         pgtype.Timestamptz
+	AtRiskAt      pgtype.Timestamptz
+	MetAt         pgtype.Timestamptz
+	BreachedAt    pgtype.Timestamptz
+	Now           pgtype.Timestamptz
+}
+
+// One goal of one OLA on an entry (migration 0303), written whole like an SLA goal's.
+func (q *Queries) UpsertEntryOla(ctx context.Context, arg UpsertEntryOlaParams) error {
+	_, err := q.db.Exec(ctx, upsertEntryOla,
+		arg.ID,
+		arg.TenantID,
+		arg.ItemID,
+		arg.PolicyKey,
+		arg.GroupID,
+		arg.Goal,
+		arg.TargetSeconds,
+		arg.Standing,
+		arg.ArmedAt,
+		arg.DueAt,
+		arg.AtRiskAt,
+		arg.MetAt,
+		arg.BreachedAt,
+		arg.Now,
+	)
+	return err
 }
 
 const upsertEntrySla = `-- name: UpsertEntrySla :exec

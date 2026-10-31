@@ -20,12 +20,15 @@ const (
 	PurposeApproval Purpose = "APPROVAL"
 	// PurposePageReview counts down to the end of a page's verification (UC-DOC-12 check 4).
 	PurposePageReview Purpose = "PAGE_REVIEW"
+	// PurposeOLA counts down a team's goal on an entry; its subject is the goal's record, since
+	// one entry carries the goals of several groups (UC-SVC-02 check 10).
+	PurposeOLA Purpose = "OLA"
 )
 
 // Valid answers whether the purpose is one of the set.
 func (p Purpose) Valid() bool {
 	switch p {
-	case PurposeSLA, PurposeApproval, PurposePageReview:
+	case PurposeSLA, PurposeApproval, PurposePageReview, PurposeOLA:
 		return true
 	}
 	return false

@@ -841,6 +841,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"entry_ola": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportEntryOlas(ctx, sqlc.ExportEntryOlasParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportEntryOlasRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"entry_sla": {
 		delta: false,
 		keys:  1,

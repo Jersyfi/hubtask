@@ -219,3 +219,46 @@ func TestANextResponseIsArmedAgainOnlyOnceMet(t *testing.T) {
 		}
 	}
 }
+
+// UC-SVC-02 check 10: a policy naming an assignee group is the group's OLA - never the requester's
+// promise, every one covering the type measured beside it, and without a next response or
+// organisations, which are the requester's.
+func TestAnOlaIsMeasuredBesideTheRequestersPromise(t *testing.T) {
+	network := shared.MustParseID("0192f000-0000-7000-8000-0000000005b1")
+	in := policyInput()
+	in.Key, in.AssigneeGroup, in.Position = "network_team", network, -5
+	ola, err := NewSLAPolicy(in)
+	if err != nil || !ola.IsOLA() || ola.AssigneeGroup != network {
+		t.Fatalf("an OLA was refused or lost its group: %+v %v", ola, err)
+	}
+	in.Key = "another_team"
+	other, _ := NewSLAPolicy(in)
+	sla, _ := NewSLAPolicy(policyInput())
+	sla.Position = 3
+	if chosen, ok := Choose([]SLAPolicy{ola, sla, other}, "incident", ""); !ok || chosen.Key != "incidents" {
+		t.Errorf("the requester's promise is %q, want incidents", chosen.Key)
+	}
+	if chosen, ok := Choose([]SLAPolicy{ola}, "incident", ""); ok {
+		t.Errorf("an OLA alone measured the requester's promise: %q", chosen.Key)
+	}
+	olas := OLAsFor([]SLAPolicy{ola, sla, other}, "incident")
+	if len(olas) != 2 || olas[0].Key != "another_team" || olas[1].Key != "network_team" {
+		t.Errorf("the OLAs are %+v", olas)
+	}
+	if got := OLAsFor([]SLAPolicy{ola}, "task"); len(got) != 0 {
+		t.Errorf("an OLA measured a type it does not cover")
+	}
+	for name, edit := range map[string]func(*NewSLAPolicyInput){
+		"sla_policies.ola_goal_unsupported": func(in *NewSLAPolicyInput) {
+			in.Goals = append(in.Goals, SLAGoal{Kind: GoalNextResponse, Minutes: 30})
+		},
+		"sla_policies.ola_organisations": func(in *NewSLAPolicyInput) { in.Organisations = []string{"acme"} },
+	} {
+		in := policyInput()
+		in.AssigneeGroup = network
+		edit(&in)
+		if _, err := NewSLAPolicy(in); shared.AsError(err).DetailCode != name {
+			t.Errorf("want %s, got %v", name, err)
+		}
+	}
+}

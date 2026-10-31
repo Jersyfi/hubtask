@@ -2086,13 +2086,14 @@ class SlaGoal(TypedDict, total=False):
     warn_percent: int
 
 class SlaPolicy(TypedDict, total=False):
-    """A promise of response and resolution times for entries of some types, on a business calendar."""
+    """A promise of response and resolution times for entries of some types, on a business calendar - the requester's, or an assignee group's internal one (an OLA)."""
     key: Required[str]
     name: Required[str]
     calendar: Required[str | None]
     entry_types: Required[list[str]]
     organisations: Required[list[str]]
     priority_field: Required[str | None]
+    assignee_group: Required[str | None]
     goals: Required[list["SlaGoal"]]
     position: Required[int]
     enabled: Required[bool]
@@ -2107,13 +2108,16 @@ class SlaPolicyDefine(TypedDict, total=False):
     entry_types: Required[list[str]]
     organisations: list[str]
     priority_field: str
+    assignee_group: str
     goals: Required[list["SlaGoal"]]
     position: int
     enabled: bool
 
 class EntrySlaGoal(TypedDict, total=False):
     goal: Required[Literal["FIRST_RESPONSE", "NEXT_RESPONSE", "RESOLUTION"]]
+    kind: Required[Literal["SLA", "OLA"]]
     policy_key: Required[str]
+    assignee_group: Required[str | None]
     standing: Required[Literal["RUNNING", "PAUSED", "MET", "BREACHED"]]
     target_seconds: Required[int]
     armed_at: Required[str]

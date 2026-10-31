@@ -25,11 +25,12 @@ DELETE FROM business_calendar WHERE key = sqlc.arg('key');
 -- name: InsertSlaPolicy :exec
 INSERT INTO sla_policy (
   id, tenant_id, key, name, calendar_key, entry_types, organisations, priority_field, goals, position,
-  enabled, created_at, updated_at, version
+  enabled, created_at, updated_at, version, assignee_group_id
 ) VALUES (
   sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('key'), sqlc.arg('name'), sqlc.narg('calendar_key'),
   sqlc.arg('entry_types')::text[], sqlc.arg('organisations')::text[], sqlc.arg('priority_field'),
-  sqlc.arg('goals'), sqlc.arg('position'), sqlc.arg('enabled'), sqlc.arg('now'), sqlc.arg('now'), 1
+  sqlc.arg('goals'), sqlc.arg('position'), sqlc.arg('enabled'), sqlc.arg('now'), sqlc.arg('now'), 1,
+  sqlc.narg('assignee_group_id')
 );
 
 -- name: UpdateSlaPolicy :execrows
@@ -38,17 +39,18 @@ UPDATE sla_policy SET
   entry_types = sqlc.arg('entry_types')::text[], organisations = sqlc.arg('organisations')::text[],
   priority_field = sqlc.arg('priority_field'),
   goals = sqlc.arg('goals'), position = sqlc.arg('position'), enabled = sqlc.arg('enabled'),
+  assignee_group_id = sqlc.narg('assignee_group_id'),
   updated_at = sqlc.arg('now'), version = version + 1
 WHERE key = sqlc.arg('key') AND version = sqlc.arg('expected_version');
 
 -- name: FindSlaPolicy :one
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version, organisations
+       created_at, updated_at, version, organisations, assignee_group_id
 FROM sla_policy WHERE key = sqlc.arg('key');
 
 -- name: ListSlaPolicies :many
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version, organisations
+       created_at, updated_at, version, organisations, assignee_group_id
 FROM sla_policy ORDER BY position, key;
 
 -- name: DeleteSlaPolicy :execrows
@@ -74,6 +76,40 @@ ON CONFLICT (tenant_id, item_id, goal) DO UPDATE SET
 SELECT id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at,
        at_risk_at, met_at, breached_at, updated_at, version
 FROM entry_sla WHERE item_id = sqlc.arg('item_id') ORDER BY goal;
+
+-- One goal of one OLA on an entry (migration 0303), written whole like an SLA goal's.
+-- name: UpsertEntryOla :exec
+INSERT INTO entry_ola (
+  id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
+  at_risk_at, met_at, breached_at, updated_at, version
+) VALUES (
+  sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('item_id'), sqlc.arg('policy_key'), sqlc.arg('group_id'),
+  sqlc.arg('goal'), sqlc.arg('target_seconds'), sqlc.arg('standing'), sqlc.arg('armed_at'), sqlc.narg('due_at'),
+  sqlc.narg('at_risk_at'), sqlc.narg('met_at'), sqlc.narg('breached_at'), sqlc.arg('now'), 1
+)
+ON CONFLICT (tenant_id, item_id, policy_key, goal) DO UPDATE SET
+  group_id = EXCLUDED.group_id, target_seconds = EXCLUDED.target_seconds,
+  standing = EXCLUDED.standing, armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at,
+  at_risk_at = EXCLUDED.at_risk_at, met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at,
+  updated_at = EXCLUDED.updated_at, version = entry_ola.version + 1;
+
+-- name: ListEntryOla :many
+SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
+       at_risk_at, met_at, breached_at, updated_at, version
+FROM entry_ola WHERE item_id = sqlc.arg('item_id') ORDER BY policy_key, goal;
+
+-- name: FindEntryOla :one
+SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
+       at_risk_at, met_at, breached_at, updated_at, version
+FROM entry_ola WHERE id = sqlc.arg('id');
+
+-- How the OLA goals armed in a period stand, per policy and goal, beside ReportEntrySla.
+-- name: ReportEntryOla :many
+SELECT policy_key, goal, standing, count(*)::bigint AS entries
+FROM entry_ola
+WHERE armed_at >= sqlc.arg('from') AND armed_at < sqlc.arg('to')
+GROUP BY policy_key, goal, standing
+ORDER BY policy_key, goal, standing;
 
 -- How the goals armed in a period stand, per policy and goal: met, breached, running, paused.
 -- name: ReportEntrySla :many

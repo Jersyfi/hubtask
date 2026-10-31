@@ -1240,6 +1240,14 @@ var entities = []Entity{
 		Unique:     []UniqueField{{Field: "goal", Rule: UniqueSkip, Within: []string{"item_id"}}},
 		References: []Reference{{Field: "item_id", Table: "work_item"}},
 	},
+	// An entry's OLA goals (migration 0303); the group is named, not referenced: a policy whose
+	// group is gone measures nobody, and its records stay.
+	{
+		Name: "entry_olas", Table: "entry_ola", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		Duplicable: true,
+		Unique:     []UniqueField{{Field: "goal", Rule: UniqueSkip, Within: []string{"item_id"}}},
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
 	// A hub's forge hooks and an entry's code links (migration 0275). The hook's secret is not a
 	// column: it is derived from the installation key and the salt, so a restore on another
 	// installation answers its forge only once the secret is drawn again.

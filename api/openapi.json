@@ -44563,7 +44563,7 @@
       },
       "SlaPolicy": {
         "type": "object",
-        "description": "A promise of response and resolution times for entries of some types, on a business calendar.",
+        "description": "A promise of response and resolution times for entries of some types, on a business calendar - the requester's, or an assignee group's internal one (an OLA).",
         "required": [
           "key",
           "name",
@@ -44571,6 +44571,7 @@
           "entry_types",
           "organisations",
           "priority_field",
+          "assignee_group",
           "goals",
           "position",
           "enabled",
@@ -44611,6 +44612,14 @@
               "null"
             ],
             "description": "The custom field whose option value picks a goal's target."
+          },
+          "assignee_group": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The group whose internal promise (an OLA) the policy is, measured while an entry is on one of its members beside the requester's; null for the requester's promise."
           },
           "goals": {
             "type": "array",
@@ -44678,6 +44687,11 @@
           "priority_field": {
             "type": "string"
           },
+          "assignee_group": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Makes the policy an OLA: the group's internal promise, armed while an entry is on one of its members and measured beside the requester's. An OLA promises a first response and a resolution only, and names no organisations.\n"
+          },
           "goals": {
             "type": "array",
             "minItems": 1,
@@ -44699,7 +44713,9 @@
         "type": "object",
         "required": [
           "goal",
+          "kind",
           "policy_key",
+          "assignee_group",
           "standing",
           "target_seconds",
           "armed_at",
@@ -44717,8 +44733,24 @@
               "RESOLUTION"
             ]
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SLA",
+              "OLA"
+            ],
+            "description": "SLA is the requester's promise; OLA an assignee group's internal one."
+          },
           "policy_key": {
             "type": "string"
+          },
+          "assignee_group": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The group of an OLA's goal; null for the requester's promise."
           },
           "standing": {
             "type": "string",
@@ -45533,12 +45565,20 @@
             "items": {
               "type": "object",
               "required": [
+                "kind",
                 "policy_key",
                 "goal",
                 "standing",
                 "entries"
               ],
               "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "SLA",
+                    "OLA"
+                  ]
+                },
                 "policy_key": {
                   "type": "string"
                 },

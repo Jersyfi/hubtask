@@ -58,8 +58,19 @@ type Records interface {
 	Save(ctx context.Context, record servicedesk.EntrySLA, now time.Time) error
 	// OfItem answers the entry's records, by goal.
 	OfItem(ctx context.Context, itemID shared.ID) ([]servicedesk.EntrySLA, error)
-	// Report counts the goals armed in [from, to) per policy, goal and standing.
+	// Report counts the goals armed in [from, to) per policy, goal and standing, the OLAs' beside
+	// the requester's.
 	Report(ctx context.Context, from, to time.Time) ([]servicedesk.ReportRow, error)
+}
+
+// OLARecords stores the goals of the OLAs on an entry (UC-SVC-02 check 10): one per entry, policy
+// and goal, apart from Records - an entry carries one requester's promise and any number of teams'.
+type OLARecords interface {
+	SaveOLA(ctx context.Context, record servicedesk.EntrySLA, now time.Time) error
+	// OLAsOf answers the entry's OLA records, by policy and goal.
+	OLAsOf(ctx context.Context, itemID shared.ID) ([]servicedesk.EntrySLA, error)
+	// FindOLA answers one record, the subject of its timers; shared.ErrNotFound when it is gone.
+	FindOLA(ctx context.Context, id shared.ID) (servicedesk.EntrySLA, error)
 }
 
 // ReplyTemplates stores the workspace's canned replies.

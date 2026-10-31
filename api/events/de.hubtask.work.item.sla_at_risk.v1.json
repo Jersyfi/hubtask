@@ -127,14 +127,20 @@
         },
         "policy_key": {
           "type": "string",
-          "description": "The key of the SLA policy the entry is measured against."
+          "description": "The key of the SLA policy the entry is measured against, or of the OLA when assignee_group_id is present."
         },
         "goal": {
           "type": "string",
           "enum": [
             "FIRST_RESPONSE",
+            "NEXT_RESPONSE",
             "RESOLUTION"
           ]
+        },
+        "assignee_group_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The assignee group whose OLA the goal belongs to; absent for the requester's promise."
         },
         "target_seconds": {
           "type": "integer",

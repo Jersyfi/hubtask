@@ -1504,7 +1504,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON work_item_announcement, work_item_flow, 
 CREATE TABLE durable_timer (
   id               uuid PRIMARY KEY,
   tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK', 'PAGE_REVIEW')),
+  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK', 'PAGE_REVIEW', 'OLA')),
   subject_id       uuid NOT NULL,
   name             text NOT NULL CHECK (name ~ '^[a-z][a-z0-9_]{0,49}$'),
   calendar         jsonb NOT NULL,   -- the calendar it was armed on
@@ -5632,6 +5632,8 @@ CREATE TABLE sla_policy (
   version        integer NOT NULL DEFAULT 1,
   -- the requester organisations measured; empty measures every requester's (0294)
   organisations  text[] NOT NULL DEFAULT '{}' CHECK (cardinality(organisations) <= 20),
+  -- the group whose internal promise (an OLA) the policy is; NULL is the requester's (0303)
+  assignee_group_id uuid,
   UNIQUE (tenant_id, id),
   -- the calendar is held by key in the use cases: the workspace's or the installation's (0291)
   CONSTRAINT sla_policy_key_uq UNIQUE (tenant_id, key)
@@ -5672,6 +5674,37 @@ ALTER TABLE entry_sla FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON entry_sla
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_sla TO hubtask_app;
+
+-- The goals of the assignee groups' OLAs on an entry, one per entry, policy and goal (0303).
+CREATE TABLE entry_ola (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id        uuid NOT NULL,
+  policy_key     text NOT NULL,
+  group_id       uuid NOT NULL,
+  goal           text NOT NULL CHECK (goal IN ('FIRST_RESPONSE', 'RESOLUTION')),
+  target_seconds bigint NOT NULL CHECK (target_seconds > 0),
+  standing       text NOT NULL CHECK (standing IN ('RUNNING', 'PAUSED', 'MET', 'BREACHED')),
+  armed_at       timestamptz NOT NULL,
+  due_at         timestamptz,
+  at_risk_at     timestamptz,
+  met_at         timestamptz,
+  breached_at    timestamptz,
+  updated_at     timestamptz NOT NULL,
+  version        integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT entry_ola_goal_uq UNIQUE (tenant_id, item_id, policy_key, goal),
+  CONSTRAINT entry_ola_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CHECK ((standing = 'MET') = (met_at IS NOT NULL)),
+  CHECK (standing <> 'BREACHED' OR breached_at IS NOT NULL)
+);
+CREATE INDEX entry_ola_standing_idx ON entry_ola (tenant_id, policy_key, standing);
+ALTER TABLE entry_ola ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_ola FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON entry_ola
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON entry_ola TO hubtask_app;
 
 
 -- Canned replies (migration 0242, M5).

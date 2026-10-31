@@ -2757,9 +2757,9 @@ SELECT EXISTS (SELECT 1 FROM hub_business_calendar WHERE id = (sqlc.arg('payload
 DELETE FROM hub_business_calendar;
 
 -- name: ImportSlaPolicy :execrows
-INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version, organisations)
+INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version, organisations, assignee_group_id)
 SELECT r.id, r.tenant_id, r.key, r.name, r.calendar_key, r.entry_types, r.priority_field, r.goals, r.position, r.enabled, r.created_at, r.updated_at, r.version,
-       coalesce(r.organisations, '{}')
+       coalesce(r.organisations, '{}'), r.assignee_group_id
 FROM jsonb_populate_record(
   NULL::sla_policy,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2768,7 +2768,7 @@ ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name, calendar_key = EXCLUDED.calendar_key, entry_types = EXCLUDED.entry_types,
   priority_field = EXCLUDED.priority_field, goals = EXCLUDED.goals, position = EXCLUDED.position,
   enabled = EXCLUDED.enabled, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version,
-  organisations = EXCLUDED.organisations
+  organisations = EXCLUDED.organisations, assignee_group_id = EXCLUDED.assignee_group_id
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsSlaPolicy :one
@@ -2796,6 +2796,26 @@ SELECT EXISTS (SELECT 1 FROM entry_sla WHERE id = (sqlc.arg('payload')::jsonb->>
 
 -- name: ClearEntrySla :execrows
 DELETE FROM entry_sla;
+
+-- name: ImportEntryOla :execrows
+INSERT INTO entry_ola (id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at, at_risk_at, met_at, breached_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.policy_key, r.group_id, r.goal, r.target_seconds, r.standing, r.armed_at, r.due_at, r.at_risk_at, r.met_at, r.breached_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::entry_ola,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  group_id = EXCLUDED.group_id, target_seconds = EXCLUDED.target_seconds, standing = EXCLUDED.standing,
+  armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at, at_risk_at = EXCLUDED.at_risk_at,
+  met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at, updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsEntryOla :one
+SELECT EXISTS (SELECT 1 FROM entry_ola WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearEntryOla :execrows
+DELETE FROM entry_ola;
 
 -- name: ImportReplyTemplate :execrows
 INSERT INTO reply_template (id, tenant_id, key, name, body, created_at, updated_at, version)

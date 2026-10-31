@@ -700,6 +700,17 @@ var importers = map[string]importer{
 			return queries.ClearSatisfactionRating(ctx)
 		},
 	},
+	"entry_ola": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportEntryOla(ctx, sqlc.ImportEntryOlaParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsEntryOla(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearEntryOla(ctx)
+		},
+	},
 	"entry_sla": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportEntrySla(ctx, sqlc.ImportEntrySlaParams{Payload: payload, Overwrite: overwrite})

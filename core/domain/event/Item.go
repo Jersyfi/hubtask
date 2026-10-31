@@ -717,6 +717,8 @@ type SLAMoment struct {
 	Goal         string
 	TargetSecs   int64
 	DueAt        *time.Time
+	// AssigneeGroup is the group of an OLA's goal, and zero for the requester's promise.
+	AssigneeGroup shared.ID
 }
 
 // NewItemSLAAtRisk announces that a goal passed its warning share unmet.
@@ -740,6 +742,9 @@ func newSLAMoment(id shared.ID, eventType Type, tenant shared.ID, moment SLAMome
 	}
 	if moment.DueAt != nil {
 		payload["due_at"] = moment.DueAt.UTC()
+	}
+	if !moment.AssigneeGroup.IsZero() {
+		payload["assignee_group_id"] = moment.AssigneeGroup.String()
 	}
 	return NewEnvelope(id, eventType, tenant, ItemSubject(moment.ItemID), Actor{Kind: shared.ActorSystem},
 		occurredAt, cause, payload)

@@ -1653,6 +1653,24 @@ type EntryLink struct {
 	LagDays        int32
 }
 
+type EntryOla struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	ItemID        pgtype.UUID
+	PolicyKey     string
+	GroupID       pgtype.UUID
+	Goal          string
+	TargetSeconds int64
+	Standing      string
+	ArmedAt       pgtype.Timestamptz
+	DueAt         pgtype.Timestamptz
+	AtRiskAt      pgtype.Timestamptz
+	MetAt         pgtype.Timestamptz
+	BreachedAt    pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
 type EntryReference struct {
 	TenantID   pgtype.UUID
 	SourceKind string
@@ -2925,20 +2943,21 @@ type SettingValue struct {
 }
 
 type SlaPolicy struct {
-	ID            pgtype.UUID
-	TenantID      pgtype.UUID
-	Key           string
-	Name          string
-	CalendarKey   *string
-	EntryTypes    []string
-	PriorityField string
-	Goals         []byte
-	Position      int32
-	Enabled       bool
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Version       int32
-	Organisations []string
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Key             string
+	Name            string
+	CalendarKey     *string
+	EntryTypes      []string
+	PriorityField   string
+	Goals           []byte
+	Position        int32
+	Enabled         bool
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	Organisations   []string
+	AssigneeGroupID pgtype.UUID
 }
 
 type Sprint struct {

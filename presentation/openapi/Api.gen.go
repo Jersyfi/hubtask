@@ -4474,6 +4474,24 @@ func (e EntrySlaGoalGoal) Valid() bool {
 	}
 }
 
+// Defines values for EntrySlaGoalKind.
+const (
+	EntrySlaGoalKindOLA EntrySlaGoalKind = "OLA"
+	EntrySlaGoalKindSLA EntrySlaGoalKind = "SLA"
+)
+
+// Valid indicates whether the value is a known member of the EntrySlaGoalKind enum.
+func (e EntrySlaGoalKind) Valid() bool {
+	switch e {
+	case EntrySlaGoalKindOLA:
+		return true
+	case EntrySlaGoalKindSLA:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EntrySlaGoalStanding.
 const (
 	EntrySlaGoalStandingBREACHED EntrySlaGoalStanding = "BREACHED"
@@ -8635,6 +8653,24 @@ func (e SlaReportDataGoal) Valid() bool {
 	case SlaReportDataGoalNEXTRESPONSE:
 		return true
 	case SlaReportDataGoalRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SlaReportDataKind.
+const (
+	SlaReportDataKindOLA SlaReportDataKind = "OLA"
+	SlaReportDataKindSLA SlaReportDataKind = "SLA"
+)
+
+// Valid indicates whether the value is a known member of the SlaReportDataKind enum.
+func (e SlaReportDataKind) Valid() bool {
+	switch e {
+	case SlaReportDataKindOLA:
+		return true
+	case SlaReportDataKindSLA:
 		return true
 	default:
 		return false
@@ -15921,13 +15957,19 @@ type EntrySchedulingMode string
 
 // EntrySlaGoal defines model for EntrySlaGoal.
 type EntrySlaGoal struct {
-	ArmedAt    time.Time  `json:"armed_at"`
-	AtRiskAt   *time.Time `json:"at_risk_at"`
-	BreachedAt *time.Time `json:"breached_at"`
+	ArmedAt time.Time `json:"armed_at"`
+
+	// AssigneeGroup The group of an OLA's goal; null for the requester's promise.
+	AssigneeGroup *openapi_types.UUID `json:"assignee_group"`
+	AtRiskAt      *time.Time          `json:"at_risk_at"`
+	BreachedAt    *time.Time          `json:"breached_at"`
 
 	// DueAt When the goal falls due; null while its clock stands still or once it ended.
-	DueAt         *time.Time           `json:"due_at"`
-	Goal          EntrySlaGoalGoal     `json:"goal"`
+	DueAt *time.Time       `json:"due_at"`
+	Goal  EntrySlaGoalGoal `json:"goal"`
+
+	// Kind SLA is the requester's promise; OLA an assignee group's internal one.
+	Kind          EntrySlaGoalKind     `json:"kind"`
 	MetAt         *time.Time           `json:"met_at"`
 	PolicyKey     string               `json:"policy_key"`
 	Standing      EntrySlaGoalStanding `json:"standing"`
@@ -15936,6 +15978,9 @@ type EntrySlaGoal struct {
 
 // EntrySlaGoalGoal defines model for EntrySlaGoal.Goal.
 type EntrySlaGoalGoal string
+
+// EntrySlaGoalKind SLA is the requester's promise; OLA an assignee group's internal one.
+type EntrySlaGoalKind string
 
 // EntrySlaGoalStanding defines model for EntrySlaGoal.Standing.
 type EntrySlaGoalStanding string
@@ -22140,8 +22185,11 @@ type SlaGoal struct {
 // SlaGoalKind FIRST_RESPONSE is met by a public comment of somebody other than the requester, or by the completion; NEXT_RESPONSE starts with each comment of the requester once the first response is met and is met by the next public comment of somebody else or the completion; RESOLUTION by the completion.
 type SlaGoalKind string
 
-// SlaPolicy A promise of response and resolution times for entries of some types, on a business calendar.
+// SlaPolicy A promise of response and resolution times for entries of some types, on a business calendar - the requester's, or an assignee group's internal one (an OLA).
 type SlaPolicy struct {
+	// AssigneeGroup The group whose internal promise (an OLA) the policy is, measured while an entry is on one of its members beside the requester's; null for the requester's promise.
+	AssigneeGroup *openapi_types.UUID `json:"assignee_group"`
+
 	// Calendar A business calendar's key; null counts around the clock.
 	Calendar   *string   `json:"calendar"`
 	Enabled    bool      `json:"enabled"`
@@ -22161,6 +22209,9 @@ type SlaPolicy struct {
 
 // SlaPolicyDefine defines model for SlaPolicyDefine.
 type SlaPolicyDefine struct {
+	// AssigneeGroup Makes the policy an OLA: the group's internal promise, armed while an entry is on one of its members and measured beside the requester's. An OLA promises a first response and a resolution only, and names no organisations.
+	AssigneeGroup *openapi_types.UUID `json:"assignee_group,omitempty"`
+
 	// Calendar A business calendar's key; absent counts around the clock.
 	Calendar *string `json:"calendar,omitempty"`
 
@@ -22186,6 +22237,7 @@ type SlaReport struct {
 	Data []struct {
 		Entries   int                   `json:"entries"`
 		Goal      SlaReportDataGoal     `json:"goal"`
+		Kind      SlaReportDataKind     `json:"kind"`
 		PolicyKey string                `json:"policy_key"`
 		Standing  SlaReportDataStanding `json:"standing"`
 	} `json:"data"`
@@ -22193,6 +22245,9 @@ type SlaReport struct {
 
 // SlaReportDataGoal defines model for SlaReport.Data.Goal.
 type SlaReportDataGoal string
+
+// SlaReportDataKind defines model for SlaReport.Data.Kind.
+type SlaReportDataKind string
 
 // SlaReportDataStanding defines model for SlaReport.Data.Standing.
 type SlaReportDataStanding string

@@ -125,6 +125,9 @@ type SLAPolicy struct {
 	// PriorityField is the custom field whose option value picks a goal's target; empty takes the
 	// goals' own.
 	PriorityField string
+	// AssigneeGroup, where set, makes the policy an OLA: the group's internal promise, armed while
+	// the entry is on one of its members and measured beside the requester's (UC-SVC-02 check 10).
+	AssigneeGroup shared.ID
 	Goals         []SLAGoal
 	Position      int
 	Enabled       bool
@@ -141,6 +144,7 @@ type NewSLAPolicyInput struct {
 	EntryTypes    []string
 	Organisations []string
 	PriorityField string
+	AssigneeGroup shared.ID
 	Goals         []SLAGoal
 	Position      int
 	Enabled       bool
@@ -184,11 +188,18 @@ func NewSLAPolicy(in NewSLAPolicyInput) (SLAPolicy, error) {
 	if len(in.Goals) == 0 {
 		return SLAPolicy{}, invalid("/goals", "sla_policies.goals_required")
 	}
+	if !in.AssigneeGroup.IsZero() && len(organisations) > 0 {
+		// A team's promise is the team's, whoever asked.
+		return SLAPolicy{}, invalid("/organisations", "sla_policies.ola_organisations")
+	}
 	goals := make([]SLAGoal, 0, len(in.Goals))
 	for i, goal := range in.Goals {
 		checked, err := checkGoal(goal, "/goals/"+strconv.Itoa(i))
 		if err != nil {
 			return SLAPolicy{}, err
+		}
+		if !in.AssigneeGroup.IsZero() && checked.Kind.WaitsForRequester() {
+			return SLAPolicy{}, invalid("/goals/"+strconv.Itoa(i)+"/kind", "sla_policies.ola_goal_unsupported")
 		}
 		if slices.ContainsFunc(goals, func(g SLAGoal) bool { return g.Kind == checked.Kind }) {
 			return SLAPolicy{}, invalid("/goals/"+strconv.Itoa(i)+"/kind", "sla_policies.goal_twice")
@@ -200,7 +211,8 @@ func NewSLAPolicy(in NewSLAPolicyInput) (SLAPolicy, error) {
 	})
 	return SLAPolicy{
 		ID: in.ID, TenantID: in.TenantID, Key: key, Name: name, CalendarKey: calendarKey,
-		EntryTypes: types, Organisations: organisations, PriorityField: priorityField, Goals: goals, Position: in.Position,
+		EntryTypes: types, Organisations: organisations, PriorityField: priorityField, AssigneeGroup: in.AssigneeGroup,
+		Goals: goals, Position: in.Position,
 		Enabled: in.Enabled, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil
 }
@@ -268,6 +280,9 @@ func (p SLAPolicy) Change(in NewSLAPolicyInput) (SLAPolicy, error) {
 	return changed, nil
 }
 
+// IsOLA reports whether the policy is a team's internal promise rather than the requester's.
+func (p SLAPolicy) IsOLA() bool { return !p.AssigneeGroup.IsZero() }
+
 // Covers reports whether the policy measures entries of the type raised by a requester of the
 // organisation (its key, empty for none).
 func (p SLAPolicy) Covers(entryType, organisation string) bool {
@@ -300,11 +315,24 @@ func Choose(policies []SLAPolicy, entryType, organisation string) (SLAPolicy, bo
 		return cmp.Or(cmp.Compare(a.Position, b.Position), cmp.Compare(a.Key, b.Key))
 	})
 	for _, policy := range ordered {
-		if policy.Covers(entryType, organisation) {
+		if !policy.IsOLA() && policy.Covers(entryType, organisation) {
 			return policy, true
 		}
 	}
 	return SLAPolicy{}, false
+}
+
+// OLAsFor answers every enabled OLA that measures an entry of the type, by key: each group's
+// promise runs beside the requester's and beside the other groups' (UC-SVC-02 check 10).
+func OLAsFor(policies []SLAPolicy, entryType string) []SLAPolicy {
+	var out []SLAPolicy
+	for _, policy := range policies {
+		if policy.IsOLA() && policy.Covers(entryType, "") {
+			out = append(out, policy)
+		}
+	}
+	slices.SortFunc(out, func(a, b SLAPolicy) int { return cmp.Compare(a.Key, b.Key) })
+	return out
 }
 
 // Standing is where a goal of one entry stands, as a handler and a report read it.
@@ -333,11 +361,13 @@ func StandingOf(timer calendar.Timer) Standing {
 // EntrySLA is what became of one goal on one entry: the record a report reads and the archive
 // carries, beside the timer that is its clock.
 type EntrySLA struct {
-	ID         shared.ID
-	TenantID   shared.ID
-	ItemID     shared.ID
-	Goal       GoalKind
-	PolicyKey  string
+	ID        shared.ID
+	TenantID  shared.ID
+	ItemID    shared.ID
+	Goal      GoalKind
+	PolicyKey string
+	// Group is the assignee group of an OLA's record, and zero for the requester's promise.
+	Group      shared.ID
 	Target     time.Duration
 	Standing   Standing
 	ArmedAt    time.Time
@@ -382,6 +412,8 @@ func (r EntrySLA) Rearm(target time.Duration, now time.Time) (EntrySLA, bool) {
 
 // ReportRow counts the goals of one policy and kind in one standing.
 type ReportRow struct {
+	// OLA is whether the policy is a team's promise; the requester's are reported beside them.
+	OLA       bool
 	PolicyKey string
 	Goal      GoalKind
 	Standing  Standing

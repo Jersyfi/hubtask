@@ -687,6 +687,18 @@ func (q *Queries) ClearEntryLink(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearEntryOla = `-- name: ClearEntryOla :execrows
+DELETE FROM entry_ola
+`
+
+func (q *Queries) ClearEntryOla(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearEntryOla)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearEntrySchedule = `-- name: ClearEntrySchedule :execrows
 DELETE FROM entry_schedule
 `
@@ -2220,6 +2232,17 @@ SELECT EXISTS (SELECT 1 FROM entry_link WHERE id = ($1::jsonb->>'id')::uuid) AS 
 
 func (q *Queries) HoldsEntryLink(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsEntryLink, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsEntryOla = `-- name: HoldsEntryOla :one
+SELECT EXISTS (SELECT 1 FROM entry_ola WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsEntryOla(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsEntryOla, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -5143,6 +5166,34 @@ func (q *Queries) ImportEntryLink(ctx context.Context, arg ImportEntryLinkParams
 	return result.RowsAffected(), nil
 }
 
+const importEntryOla = `-- name: ImportEntryOla :execrows
+INSERT INTO entry_ola (id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at, at_risk_at, met_at, breached_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.policy_key, r.group_id, r.goal, r.target_seconds, r.standing, r.armed_at, r.due_at, r.at_risk_at, r.met_at, r.breached_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::entry_ola,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  group_id = EXCLUDED.group_id, target_seconds = EXCLUDED.target_seconds, standing = EXCLUDED.standing,
+  armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at, at_risk_at = EXCLUDED.at_risk_at,
+  met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at, updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportEntryOlaParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportEntryOla(ctx context.Context, arg ImportEntryOlaParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importEntryOla, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importEntrySchedule = `-- name: ImportEntrySchedule :execrows
 INSERT INTO entry_schedule (tenant_id, entry_id, mode, milestone, updated_at, version)
 SELECT r.tenant_id, r.entry_id, r.mode, r.milestone, r.updated_at, r.version
@@ -6990,9 +7041,9 @@ func (q *Queries) ImportSettingValue(ctx context.Context, arg ImportSettingValue
 }
 
 const importSlaPolicy = `-- name: ImportSlaPolicy :execrows
-INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version, organisations)
+INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version, organisations, assignee_group_id)
 SELECT r.id, r.tenant_id, r.key, r.name, r.calendar_key, r.entry_types, r.priority_field, r.goals, r.position, r.enabled, r.created_at, r.updated_at, r.version,
-       coalesce(r.organisations, '{}')
+       coalesce(r.organisations, '{}'), r.assignee_group_id
 FROM jsonb_populate_record(
   NULL::sla_policy,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -7001,7 +7052,7 @@ ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name, calendar_key = EXCLUDED.calendar_key, entry_types = EXCLUDED.entry_types,
   priority_field = EXCLUDED.priority_field, goals = EXCLUDED.goals, position = EXCLUDED.position,
   enabled = EXCLUDED.enabled, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version,
-  organisations = EXCLUDED.organisations
+  organisations = EXCLUDED.organisations, assignee_group_id = EXCLUDED.assignee_group_id
 WHERE $2::boolean
 `
 

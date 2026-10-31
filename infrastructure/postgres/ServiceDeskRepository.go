@@ -6,8 +6,10 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
@@ -231,7 +233,12 @@ func (ServiceDeskPolicies) Insert(ctx context.Context, policy servicedesk.SLAPol
 	if err != nil {
 		return shared.ErrInternal.WithDetail("sla_policies.unwritable").WithCause(err)
 	}
+	group, err := optionalUUID(policy.AssigneeGroup)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertSlaPolicy(ctx, sqlc.InsertSlaPolicyParams{
+		AssigneeGroupID: group,
 		ID: id, TenantID: tenant, Key: policy.Key, Name: policy.Name, CalendarKey: optionalKey(policy.CalendarKey),
 		EntryTypes: policy.EntryTypes, Organisations: keysOrEmpty(policy.Organisations), PriorityField: policy.PriorityField,
 		Goals: goals, Position: int32(policy.Position), //nolint:gosec // a position is small
@@ -251,7 +258,12 @@ func (ServiceDeskPolicies) Update(ctx context.Context, policy servicedesk.SLAPol
 	if err != nil {
 		return shared.ErrInternal.WithDetail("sla_policies.unwritable").WithCause(err)
 	}
+	group, err := optionalUUID(policy.AssigneeGroup)
+	if err != nil {
+		return err
+	}
 	affected, err := queries.UpdateSlaPolicy(ctx, sqlc.UpdateSlaPolicyParams{
+		AssigneeGroupID: group,
 		Name: policy.Name, CalendarKey: optionalKey(policy.CalendarKey), EntryTypes: policy.EntryTypes,
 		Organisations: keysOrEmpty(policy.Organisations), PriorityField: policy.PriorityField, Goals: goals,
 		Position: int32(policy.Position), //nolint:gosec // a position is small
@@ -295,6 +307,9 @@ func policyFrom(row sqlc.SlaPolicy) (servicedesk.SLAPolicy, error) {
 	}
 	if row.CalendarKey != nil {
 		policy.CalendarKey = *row.CalendarKey
+	}
+	if policy.AssigneeGroup, err = optionalID(row.AssigneeGroupID); err != nil {
+		return servicedesk.SLAPolicy{}, err
 	}
 	return policy, nil
 }
@@ -434,12 +449,108 @@ func (ServiceDeskRecords) Report(ctx context.Context, from, to time.Time) ([]ser
 	if err != nil {
 		return nil, queryFailed("reporting SLA records", err)
 	}
-	out := make([]servicedesk.ReportRow, 0, len(rows))
+	olas, err := queries.ReportEntryOla(ctx, sqlc.ReportEntryOlaParams{
+		From: pgtype.Timestamptz{Time: from, Valid: true}, To: pgtype.Timestamptz{Time: to, Valid: true},
+	})
+	if err != nil {
+		return nil, queryFailed("reporting OLA records", err)
+	}
+	out := make([]servicedesk.ReportRow, 0, len(rows)+len(olas))
 	for _, row := range rows {
 		out = append(out, servicedesk.ReportRow{
 			PolicyKey: row.PolicyKey, Goal: servicedesk.GoalKind(row.Goal),
 			Standing: servicedesk.Standing(row.Standing), Entries: int(row.Entries),
 		})
 	}
+	for _, row := range olas {
+		out = append(out, servicedesk.ReportRow{
+			OLA: true, PolicyKey: row.PolicyKey, Goal: servicedesk.GoalKind(row.Goal),
+			Standing: servicedesk.Standing(row.Standing), Entries: int(row.Entries),
+		})
+	}
 	return out, nil
+}
+
+// SaveOLA writes one goal of one OLA on an entry whole, keyed by entry, policy and goal.
+func (ServiceDeskRecords) SaveOLA(ctx context.Context, record servicedesk.EntrySLA, now time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	ids := make([]pgtype.UUID, 0, 4)
+	for _, id := range []shared.ID{record.ID, record.TenantID, record.ItemID, record.Group} {
+		value, err := uuidOf(id)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, value)
+	}
+	if err := queries.UpsertEntryOla(ctx, sqlc.UpsertEntryOlaParams{
+		ID: ids[0], TenantID: ids[1], ItemID: ids[2], GroupID: ids[3], PolicyKey: record.PolicyKey,
+		Goal: string(record.Goal), TargetSeconds: int64(record.Target / time.Second), Standing: string(record.Standing),
+		ArmedAt: timestampOf(record.ArmedAt), DueAt: timestampOrNull(record.DueAt),
+		AtRiskAt: timestampOrNull(record.AtRiskAt), MetAt: timestampOrNull(record.MetAt),
+		BreachedAt: timestampOrNull(record.BreachedAt), Now: timestampOf(now),
+	}); err != nil {
+		return queryFailed("writing an entry's OLA record", err)
+	}
+	return nil
+}
+
+// OLAsOf answers the entry's OLA records, by policy and goal.
+func (ServiceDeskRecords) OLAsOf(ctx context.Context, itemID shared.ID) ([]servicedesk.EntrySLA, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	item, err := uuidOf(itemID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListEntryOla(ctx, item)
+	if err != nil {
+		return nil, queryFailed("reading an entry's OLA records", err)
+	}
+	out := make([]servicedesk.EntrySLA, 0, len(rows))
+	for _, row := range rows {
+		record, err := olaFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, record)
+	}
+	return out, nil
+}
+
+// FindOLA answers one OLA record; shared.ErrNotFound when it is gone with its entry.
+func (ServiceDeskRecords) FindOLA(ctx context.Context, id shared.ID) (servicedesk.EntrySLA, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return servicedesk.EntrySLA{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return servicedesk.EntrySLA{}, err
+	}
+	row, err := queries.FindEntryOla(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return servicedesk.EntrySLA{}, shared.ErrNotFound.WithDetail("sla_policies.ola_record_not_found")
+	}
+	if err != nil {
+		return servicedesk.EntrySLA{}, queryFailed("reading an OLA record", err)
+	}
+	return olaFrom(row)
+}
+
+func olaFrom(row sqlc.EntryOla) (servicedesk.EntrySLA, error) {
+	record, err := recordFrom(sqlc.EntrySla{
+		ID: row.ID, TenantID: row.TenantID, ItemID: row.ItemID, Goal: row.Goal, PolicyKey: row.PolicyKey,
+		TargetSeconds: row.TargetSeconds, Standing: row.Standing, ArmedAt: row.ArmedAt, DueAt: row.DueAt,
+		AtRiskAt: row.AtRiskAt, MetAt: row.MetAt, BreachedAt: row.BreachedAt, Version: row.Version,
+	})
+	if err != nil {
+		return servicedesk.EntrySLA{}, err
+	}
+	record.Group, err = idFrom(row.GroupID)
+	return record, err
 }
