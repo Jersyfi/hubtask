@@ -386,7 +386,7 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // as* read. The declarations grow towards every use case; the bound only falls, so a new use case
 // declares one or names why it cannot. The 169 left ask none of the catalogue at their place: the
 // installation's (admin, sealing, legal holds), a person's own (sign-in, sessions, tokens, devices,
-// consent, their AI position), an open read of the workspace's vocabulary, one decided per entry
+// consent, their AI position, their own settings), an open read of the workspace's vocabulary, one decided per entry
 // (exports, bulk changes, AI acts on an entry), or one asking only under a condition (a shared view,
 // a service account's token). The time module's eighteen are a person's own time - their records,
 // timer and week - or ask APPROVE_TIME only of other people's time (UC-TIM-01 ... 05); its seven
@@ -400,7 +400,7 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // feed written into their own calendar, listed, connected and taken off (UC-INT-16). The six of a
 // file store connection are a person's own sign-in to their own files (UC-INT-17). Planning the
 // installation's level is the installation's, as reading it is (accepted.md D).
-const undeclaredPermissionsAtMost = 197
+const undeclaredPermissionsAtMost = 198
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

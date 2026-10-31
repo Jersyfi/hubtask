@@ -2480,6 +2480,7 @@ func run() error {
 			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
 			Access: postgres.NewMembershipRepository(),
 		}.Descriptor(),
+		identity.ReadOwnSettings{Accounts: accounts, UnitOfWork: unitOfWork, Resolver: signInPolicyResolver}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateManagedAccount{
 			Managed: postgres.NewAccountRepository(), Authorizer: authorizer,
