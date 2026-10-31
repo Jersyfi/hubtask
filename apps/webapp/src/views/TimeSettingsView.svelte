@@ -69,9 +69,10 @@
     untrack(() => { draft.lockedThrough = read.locked_through ?? ''; draft.visibility = read.visibility; });
   });
   const isPolicyChanged = $derived(policy !== undefined && ((policy.locked_through ?? '') !== draft.lockedThrough || policy.visibility !== draft.visibility));
+  // A press with nothing changed writes nothing (UC-WRK-32 check 3: the save is never unavailable for it).
   function savePolicy() {
     const read = policy;
-    if (!read) return;
+    if (!read || !isPolicyChanged) return;
     void act(() => time.setPolicy(read, { locked_through: draft.lockedThrough || null, visibility: draft.visibility === 'AGGREGATED' ? 'AGGREGATED' : 'FULL' }), t('app.time_settings.policy_saved'));
   }
 
@@ -158,7 +159,7 @@
           { value: 'FULL', label: t('app.time_settings.visibility_FULL'), hint: t('app.time_settings.visibility_FULL_hint') },
           { value: 'AGGREGATED', label: t('app.time_settings.visibility_AGGREGATED'), hint: t('app.time_settings.visibility_AGGREGATED_hint') },
         ]} />
-        <Inline justify="end"><Button disabledReason={isPolicyChanged ? undefined : t('app.time_settings.unchanged')} onclick={savePolicy}>{t('app.time_settings.save')}</Button></Inline>
+        <Inline justify="end"><Button onclick={savePolicy}>{t('app.time_settings.save')}</Button></Inline>
       {:else}
         <p>{policy.locked_through ? t('app.time_settings.locked_until', { day: policy.locked_through }) : t('app.time_settings.nothing_locked')}</p>
         <p>{t(`app.time_settings.visibility_${policy.visibility}`)}</p>

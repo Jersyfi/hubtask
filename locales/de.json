@@ -10409,7 +10409,6 @@
   "app.time_settings.visibility_AGGREGATED": "Nur Summen für ein Team",
   "app.time_settings.visibility_AGGREGATED_hint": "Auswertungen nennen niemanden und lassen Gruppen mit weniger als drei Personen aus; eine Woche ist nur lesbar, solange sie auf eine Entscheidung wartet.",
   "app.time_settings.save": "Speichern",
-  "app.time_settings.unchanged": "Noch nichts geändert.",
   "app.time_settings.policy_saved": "Zeitrichtlinie gespeichert.",
   "app.time_settings.kinds": "Tätigkeiten",
   "app.time_settings.no_kinds": "Noch keine Tätigkeit.",
