@@ -81,6 +81,54 @@ type EntryType struct {
 	UpdatedAt  time.Time
 	// Version is zero for a system type without a row.
 	Version int
+	// HubID is the hub the type is defined at and offered in; zero is the whole workspace.
+	HubID shared.ID
+	// CopiedFrom is the key of the type this one was copied from; empty for one made from scratch.
+	CopiedFrom string
+}
+
+// UsableIn reports whether an entry inside the hub may carry the type.
+func (t EntryType) UsableIn(hub shared.ID) bool { return t.HubID.IsZero() || t.HubID == hub }
+
+// EntryTypeCopy is what making a copy of a type at a hub takes.
+type EntryTypeCopy struct {
+	ID       shared.ID
+	TenantID shared.ID
+	HubID    shared.ID
+	Key      string
+	// Name is the copy's own name; nil keeps the source's.
+	Name *string
+	Now  time.Time
+	Text text.Normalizer
+}
+
+// CopyAt makes a hub's own type from t: everything of it but its identity and its key, with the
+// key it came from (configuration model §2, "shared means referenced, never overridden").
+func (t EntryType) CopyAt(in EntryTypeCopy) (EntryType, error) {
+	if in.HubID.IsZero() {
+		return EntryType{}, entryTypeInvalid("/hub_id", "entry_types.hub_required")
+	}
+	tenantID := in.TenantID
+	if tenantID.IsZero() {
+		tenantID = t.TenantID
+	}
+	name := t.Name
+	if in.Name != nil {
+		name = *in.Name
+	}
+	copied, err := NewEntryType(NewEntryTypeInput{
+		ID: in.ID, TenantID: tenantID, Key: in.Key, Level: t.Level, Name: name,
+		Description: t.Description, Translations: t.Translations, Icon: t.Icon,
+		ColorToken: t.ColorToken, Behaviours: t.Behaviours,
+		AllowedChildren: slices.Clone(t.AllowedChildren), Position: t.Position, HubID: in.HubID,
+		Now: in.Now, Text: in.Text,
+	})
+	if err != nil {
+		return EntryType{}, err
+	}
+	copied.Form = t.Form
+	copied.CopiedFrom = t.Key
+	return copied, nil
 }
 
 // SystemEntryTypeKey is the key of a level's system type: the level in lower case.
@@ -139,8 +187,10 @@ type NewEntryTypeInput struct {
 	Behaviours      EntryBehaviours
 	AllowedChildren []string
 	Position        int
-	Now             time.Time
-	Text            text.Normalizer
+	// HubID defines the type at a hub; zero is the whole workspace.
+	HubID shared.ID
+	Now   time.Time
+	Text  text.Normalizer
 }
 
 // NewEntryType builds a workspace's own type and checks its invariants. A key already taken is the
@@ -161,7 +211,7 @@ func NewEntryType(in NewEntryTypeInput) (EntryType, error) {
 	}
 	t := EntryType{
 		ID: in.ID, TenantID: in.TenantID, Key: key, Level: in.Level,
-		Position: in.Position, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
+		Position: in.Position, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1, HubID: in.HubID,
 	}
 	return t.with(EntryTypeChange{
 		Name: &in.Name, Icon: &in.Icon, ColorToken: &in.ColorToken, Behaviours: &in.Behaviours,
@@ -412,6 +462,18 @@ func findEntryType(types []EntryType, key string) (EntryType, bool) {
 
 // Find answers the type of a key.
 func (r EntryTypes) Find(key string) (EntryType, bool) { return findEntryType(r, key) }
+
+// Within is the registry an entry inside the hub chooses from: the workspace's types and the
+// hub's own, never another hub's. A zero hub is the workspace's types alone.
+func (r EntryTypes) Within(hub shared.ID) EntryTypes {
+	within := make(EntryTypes, 0, len(r))
+	for _, t := range r {
+		if t.UsableIn(hub) {
+			within = append(within, t)
+		}
+	}
+	return within
+}
 
 // Of answers an entry's type: its own key, or its level's system type for none.
 func (r EntryTypes) Of(level ItemType, key string) EntryType {
