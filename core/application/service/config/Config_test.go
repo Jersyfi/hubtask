@@ -54,7 +54,7 @@ type world struct {
 	hubStructure map[string]any
 	// unreached is a hub GetContainer answers as not found: one the reader does not reach.
 	unreached string
-	scheme       []any
+	scheme    []any
 	// hubCalendars, nil withholding the section, are the hub's own calendars by key.
 	hubCalendars map[string]map[string]any
 	// fields, nil withholding the section, are the workspace's custom fields, and fieldReach what
