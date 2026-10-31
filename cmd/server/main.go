@@ -3706,6 +3706,7 @@ func run() error {
 					Store: postgres.NewRealtimeRepository(), Kinds: map[realtimedomain.Kind]realtimeservice.Locator{
 						knowledgedomain.DocumentKind:  knowledgeservice.Locator{Space: pageSpace},
 						whiteboarddomain.DocumentKind: whiteboardservice.Locator{Studio: boardStudio},
+						domainwork.PresenceKind:       work.PresenceLocator{Items: items, Containers: containers},
 					},
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},

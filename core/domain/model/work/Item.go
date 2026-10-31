@@ -576,6 +576,10 @@ func contentLanguage(raw string) (string, error) {
 }
 
 // IsArchived reports whether the item is archived: kept, and read-only (I-W4).
+// PresenceKind is the live document kind an entry registers (realtime.Kind): awareness alone -
+// who has it open, who is writing a reply - so two people do not answer the same request twice.
+const PresenceKind = "entry"
+
 func (i WorkItem) IsArchived() bool { return i.ArchivedAt != nil }
 
 // IsTrashed reports whether the item is in the trash - a deletion waiting out its retention

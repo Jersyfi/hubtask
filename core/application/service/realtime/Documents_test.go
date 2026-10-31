@@ -278,3 +278,58 @@ func TestTheWriterIsToldWhenCompactionIsDue(t *testing.T) {
 		t.Error("the writer was not asked for a snapshot after the bound")
 	}
 }
+
+// presenceLocator places an entry's presence: read as the entry, never written.
+type presenceLocator struct{ on access.ItemSubject }
+
+func (l presenceLocator) Locate(context.Context, appshared.ActorContext, shared.ID) (Place, error) {
+	return Place{
+		Path: []identity.Scope{identity.TenantScope()}, Read: service.PermissionRead,
+		PresenceOnly: true, On: l.on,
+	}, nil
+}
+
+// recordingGate keeps the requests it was asked, to see what they name.
+type recordingGate struct {
+	gate
+	requests []access.Request
+}
+
+func (g *recordingGate) Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error {
+	g.requests = append(g.requests, request)
+	return g.gate.Authorize(ctx, actor, request)
+}
+
+func TestAPresenceOnlyDocumentIsOpenedButNeverWritten(t *testing.T) {
+	entry := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000a004")
+	subject := access.ItemSubject{Does: service.ItemRead, ID: entry}
+	store := &memory{}
+	g := &recordingGate{gate: gate{held: map[service.Permission]bool{
+		service.PermissionRead: true, service.PermissionWriteItems: true,
+	}}}
+	docs := Documents{
+		Store: store, Kinds: map[domain.Kind]Locator{"entry": presenceLocator{on: subject}},
+		Authorizer: g, UnitOfWork: passthrough{}, Clock: fixedClock{},
+	}
+	ref := domain.Ref{Kind: "entry", ID: entry}
+
+	opened, err := docs.Open(t.Context(), reader(), ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opened.Writable {
+		t.Error("a presence-only document was offered for writing")
+	}
+	if len(g.requests) != 1 || g.requests[0].On != subject {
+		t.Errorf("the opening asked %+v, want one request naming the entry", g.requests)
+	}
+	if _, err := docs.Append(t.Context(), reader(), ref, []byte{1}); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("an update to a presence-only document answered %v, want forbidden", err)
+	}
+	if err := docs.Compact(t.Context(), reader(), ref, 1, []byte{1}); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("a snapshot of a presence-only document answered %v, want forbidden", err)
+	}
+	if len(store.updates) != 0 || len(store.snapshots) != 0 {
+		t.Errorf("stored %d updates and %d snapshots, want none", len(store.updates), len(store.snapshots))
+	}
+}

@@ -47,6 +47,12 @@ type Place struct {
 	Path  []identity.Scope
 	Read  service.Permission
 	Write service.Permission
+	// On names the entry a document belongs to, so a role reading only its own entries is
+	// judged on it as on the entry (an entry's presence).
+	On access.ItemSubject
+	// PresenceOnly is a document that carries awareness alone - who is here, who is replying -
+	// and never an update or a snapshot: nothing of it is stored.
+	PresenceOnly bool
 }
 
 // Locator is a kind's answer to "where does this document sit". It runs inside a read-only
@@ -89,7 +95,7 @@ func (d Documents) Open(ctx context.Context, actor appshared.ActorContext, ref d
 	if err != nil {
 		return Opened{}, err
 	}
-	if err := d.Authorizer.Authorize(ctx, actor, d.request(ref, place.Path, place.Read, DocumentReadAction, documentsRead)); err != nil {
+	if err := d.Authorizer.Authorize(ctx, actor, d.request(ref, place, place.Read, DocumentReadAction, documentsRead)); err != nil {
 		return Opened{}, err
 	}
 	writable, err := d.mayWrite(ctx, actor, ref, place)
@@ -130,7 +136,7 @@ func (d Documents) Since(
 	if err != nil {
 		return nil, err
 	}
-	may, err := d.Authorizer.Permits(ctx, actor, d.request(ref, place.Path, place.Read, DocumentReadAction, documentsRead))
+	may, err := d.Authorizer.Permits(ctx, actor, d.request(ref, place, place.Read, DocumentReadAction, documentsRead))
 	if err != nil {
 		return nil, err
 	}
@@ -215,14 +221,17 @@ func (d Documents) authorizeWrite(ctx context.Context, actor appshared.ActorCont
 	if err != nil {
 		return err
 	}
-	return d.Authorizer.Authorize(ctx, actor, d.request(ref, place.Path, place.Write, DocumentWriteAction, documentsWrite))
+	if place.PresenceOnly {
+		return shared.ErrForbidden.WithDetail("realtime.read_only")
+	}
+	return d.Authorizer.Authorize(ctx, actor, d.request(ref, place, place.Write, DocumentWriteAction, documentsWrite))
 }
 
 func (d Documents) mayWrite(ctx context.Context, actor appshared.ActorContext, ref domain.Ref, place Place) (bool, error) {
-	if actor.RequireScope(documentsWrite) != nil {
+	if place.PresenceOnly || actor.RequireScope(documentsWrite) != nil {
 		return false, nil
 	}
-	return d.Authorizer.Permits(ctx, actor, d.request(ref, place.Path, place.Write, DocumentWriteAction, documentsWrite))
+	return d.Authorizer.Permits(ctx, actor, d.request(ref, place, place.Write, DocumentWriteAction, documentsWrite))
 }
 
 // locate asks the document's kind where it sits. An unknown kind is not found: a client cannot
@@ -242,10 +251,10 @@ func (d Documents) locate(ctx context.Context, actor appshared.ActorContext, ref
 }
 
 func (d Documents) request(
-	ref domain.Ref, path []identity.Scope, permission service.Permission, action audit.Action, scope string,
+	ref domain.Ref, place Place, permission service.Permission, action audit.Action, scope string,
 ) access.Request {
 	return access.Request{
-		Permission: permission, Path: path, Action: action, TokenScope: scope,
-		TargetType: documentTarget, TargetID: ref.ID,
+		Permission: permission, Path: place.Path, Action: action, TokenScope: scope,
+		TargetType: documentTarget, TargetID: ref.ID, On: place.On,
 	}
 }
