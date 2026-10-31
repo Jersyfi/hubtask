@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-18]
 state: built
 tasks: [S-09]
-checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/e2e/changes.test.mjs, core/application/service/config/RoleGroups_test.go, core/application/service/config/Questions_test.go, core/application/service/config/Samples_test.go, test/integration/sample_entry_repository_test.go, core/application/service/config/Drafts_test.go, core/application/service/config/ServiceDesk_test.go, test/integration/config_draft_repository_test.go, apps/webapp/src/lib/data/configdrafts.test.ts, core/application/service/config/TemplatePages_test.go, test/integration/template_page_repository_test.go]
+checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/e2e/changes.test.mjs, core/application/service/config/RoleGroups_test.go, core/application/service/config/Questions_test.go, core/application/service/config/Samples_test.go, test/integration/sample_entry_repository_test.go, core/application/service/config/Drafts_test.go, core/application/service/config/ServiceDesk_test.go, test/integration/config_draft_repository_test.go, apps/webapp/src/lib/data/configdrafts.test.ts, core/application/service/config/TemplatePages_test.go, test/integration/template_page_repository_test.go, core/application/service/config/CollectionTemplates_test.go, test/integration/config_hub_template_test.go, apps/webapp/src/lib/data/configtemplates.test.ts]
 ---
 
 # Change our configuration as one document, seen before it applies
@@ -109,6 +109,12 @@ the two versions and rolls the hub's workflow back.
     document lists them by key with their title and never their text while they are out of the
     trash, and neither a second take nor an upgrade of the template writes, rewrites or trashes
     one.
+15. A collection taking a template with a collection part (the collection's settings, *Templates*)
+    gets its queues, rules, fields and structure settings under its own handle, written at that
+    collection; the collection's gallery shows the version it took and offers a newer one as an
+    upgrade compared with what the collection has now, an agent's proposal for it keeps the
+    collection, and a collection of another hub, a hub named as a collection or a template without
+    a collection part is refused.
 
 ## Where it ends
 

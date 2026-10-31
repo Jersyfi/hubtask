@@ -166,6 +166,20 @@ organisation still decides itself (`standards.md` §3) - and a knowledge base wi
 Scopes: a **hub template** (most templates), a **collection template**, and a **workspace starter**
 (several hubs, asked once at the first start — UC-WRK-30 check 5's starter set, grown).
 
+A **collection part** (`collection_document`, migration 0310) holds the collection sections of a
+hub's document (§1: `collection_structure`, `collection_tolerance`, `collection_views`,
+`collection_rules`, `collection_fields`) with each block keyed without a handle, so one part sets up
+any collection; a section of another kind or a key with a handle is refused at publish
+(`config.section_not_for_collections`, `config.key_invalid`), and the part is linted as an empty
+collection would take it. `PlanConfigTemplate` with `collection_id` puts the collection's handle in
+front of every key and plans the part as the collection's hub's document - `hub_id`, where given,
+must be that hub (`config.collection_not_in_hub`); a template without a collection part is
+`config.template_not_for_collections`, and one with a workspace part needs the workspace's take
+first. `ApplyConfig` and `ProposeConfig` carry `collection_id` too - a proposal keeps it
+(`config_proposal.collection_id`) - and the part taken is that collection's base, a
+`config_hub_template_use` row under the collection's identifier beside its hub's. A collection's
+settings show its gallery under *Templates*, beside the entry templates.
+
 ## 7. Four origins, as presets have today
 
 | Origin | Who keeps it | Offered to |

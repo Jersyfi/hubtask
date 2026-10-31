@@ -400,8 +400,11 @@ the preset's version); a workspace template may not take one of those keys
 (`config.template_workspace_first`; one without a hub part is `config.template_not_for_hubs`), and
 the part taken is that hub's base (`config_hub_template_use`). The ITIL template's hub part says
 which of its workflows each of its types follows in the hub, and brings the desk's queues (*Mine*,
-*Unassigned*, *About to breach*, *Unhappy*) and macros as the hub's views and rules. The five tables are in the workspace
-archive (tenant-export.md §6).
+*Unassigned*, *About to breach*, *Unhappy*) and macros as the hub's views and rules. A **collection
+template** carries a collection part (`config_template.collection_document`, migration 0310): the
+collection sections keyed without a handle, which a collection takes with `collection_id` under its
+own handle, recorded as that collection's base in `config_hub_template_use` (`configuration.md` §6).
+The five tables are in the workspace archive (tenant-export.md §6).
 A plan also says what it **reaches** beyond the configuration, in counts: the entries a workflow's
 new shape moves (its publish preview, `PreviewWorkflowPublish`, given the shape the plan sets - a
 status entries are in that the shape removes is refused at the plan, as the publish would refuse
