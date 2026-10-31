@@ -30,6 +30,25 @@ func (q *Queries) DeleteTimeAbsence(ctx context.Context, arg DeleteTimeAbsencePa
 	return result.RowsAffected(), nil
 }
 
+const deleteTimeBillingRate = `-- name: DeleteTimeBillingRate :execrows
+DELETE FROM time_cost_rate
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid AND plan_id IS NOT NULL
+  AND version = $2::int
+`
+
+type DeleteTimeBillingRateParams struct {
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+func (q *Queries) DeleteTimeBillingRate(ctx context.Context, arg DeleteTimeBillingRateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTimeBillingRate, arg.ID, arg.ExpectedVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteTimeBudget = `-- name: DeleteTimeBudget :execrows
 DELETE FROM time_budget
 WHERE tenant_id = current_tenant_id() AND plan_id = $1::uuid
@@ -70,7 +89,7 @@ func (q *Queries) DeleteTimeCapacity(ctx context.Context, arg DeleteTimeCapacity
 
 const deleteTimeCostRate = `-- name: DeleteTimeCostRate :execrows
 DELETE FROM time_cost_rate
-WHERE tenant_id = current_tenant_id() AND id = $1::uuid
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid AND plan_id IS NULL
   AND version = $2::int
 `
 
@@ -118,6 +137,37 @@ func (q *Queries) FindTimeAbsence(ctx context.Context, id pgtype.UUID) (FindTime
 	return i, err
 }
 
+const findTimeBillingRate = `-- name: FindTimeBillingRate :one
+SELECT id, plan_id, hour_minor, currency, from_day, to_day, version
+FROM time_cost_rate
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid AND plan_id IS NOT NULL
+`
+
+type FindTimeBillingRateRow struct {
+	ID        pgtype.UUID
+	PlanID    pgtype.UUID
+	HourMinor int64
+	Currency  string
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	Version   int32
+}
+
+func (q *Queries) FindTimeBillingRate(ctx context.Context, id pgtype.UUID) (FindTimeBillingRateRow, error) {
+	row := q.db.QueryRow(ctx, findTimeBillingRate, id)
+	var i FindTimeBillingRateRow
+	err := row.Scan(
+		&i.ID,
+		&i.PlanID,
+		&i.HourMinor,
+		&i.Currency,
+		&i.FromDay,
+		&i.ToDay,
+		&i.Version,
+	)
+	return i, err
+}
+
 const findTimeBudget = `-- name: FindTimeBudget :one
 SELECT id, plan_id, minutes, amount_minor, currency, version
 FROM time_budget
@@ -150,7 +200,7 @@ func (q *Queries) FindTimeBudget(ctx context.Context, planID pgtype.UUID) (FindT
 const findTimeCostRate = `-- name: FindTimeCostRate :one
 SELECT id, account_id, role, hour_minor, currency, from_day, to_day, version
 FROM time_cost_rate
-WHERE tenant_id = current_tenant_id() AND id = $1::uuid
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid AND plan_id IS NULL
 `
 
 type FindTimeCostRateRow struct {
@@ -208,6 +258,37 @@ func (q *Queries) InsertTimeAbsence(ctx context.Context, arg InsertTimeAbsencePa
 		arg.Half,
 		arg.At,
 		arg.CreatedBy,
+	)
+	return err
+}
+
+const insertTimeBillingRate = `-- name: InsertTimeBillingRate :exec
+INSERT INTO time_cost_rate (id, tenant_id, plan_id, hour_minor, currency, from_day, to_day, updated_at, updated_by, version)
+VALUES ($1, current_tenant_id(), $2, $3, $4,
+  $5, $6, $7, $8, 1)
+`
+
+type InsertTimeBillingRateParams struct {
+	ID        pgtype.UUID
+	PlanID    pgtype.UUID
+	HourMinor int64
+	Currency  string
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	At        pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+}
+
+func (q *Queries) InsertTimeBillingRate(ctx context.Context, arg InsertTimeBillingRateParams) error {
+	_, err := q.db.Exec(ctx, insertTimeBillingRate,
+		arg.ID,
+		arg.PlanID,
+		arg.HourMinor,
+		arg.Currency,
+		arg.FromDay,
+		arg.ToDay,
+		arg.At,
+		arg.UpdatedBy,
 	)
 	return err
 }
@@ -336,6 +417,60 @@ func (q *Queries) ListTimeAbsences(ctx context.Context, arg ListTimeAbsencesPara
 	return items, nil
 }
 
+const listTimeBillingRates = `-- name: ListTimeBillingRates :many
+
+SELECT id, plan_id, hour_minor, currency, from_day, to_day, version
+FROM time_cost_rate
+WHERE tenant_id = current_tenant_id() AND plan_id = ANY($1::uuid[])
+ORDER BY plan_id, from_day
+LIMIT $2::int
+`
+
+type ListTimeBillingRatesParams struct {
+	Plans []pgtype.UUID
+	Max   int32
+}
+
+type ListTimeBillingRatesRow struct {
+	ID        pgtype.UUID
+	PlanID    pgtype.UUID
+	HourMinor int64
+	Currency  string
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	Version   int32
+}
+
+// A billing rate is a row of time_cost_rate whose subject is a hub or a collection (migration
+// 0290); the statements above never touch one, these touch nothing else.
+func (q *Queries) ListTimeBillingRates(ctx context.Context, arg ListTimeBillingRatesParams) ([]ListTimeBillingRatesRow, error) {
+	rows, err := q.db.Query(ctx, listTimeBillingRates, arg.Plans, arg.Max)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTimeBillingRatesRow{}
+	for rows.Next() {
+		var i ListTimeBillingRatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlanID,
+			&i.HourMinor,
+			&i.Currency,
+			&i.FromDay,
+			&i.ToDay,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTimeCapacities = `-- name: ListTimeCapacities :many
 
 SELECT id, account_id, from_day, week_minutes, version
@@ -390,7 +525,7 @@ func (q *Queries) ListTimeCapacities(ctx context.Context, arg ListTimeCapacities
 const listTimeCostRates = `-- name: ListTimeCostRates :many
 SELECT id, account_id, role, hour_minor, currency, from_day, to_day, version
 FROM time_cost_rate
-WHERE tenant_id = current_tenant_id()
+WHERE tenant_id = current_tenant_id() AND plan_id IS NULL
 ORDER BY account_id NULLS LAST, role, from_day
 LIMIT $1::int
 `
@@ -469,6 +604,43 @@ func (q *Queries) UpdateTimeAbsence(ctx context.Context, arg UpdateTimeAbsencePa
 	return result.RowsAffected(), nil
 }
 
+const updateTimeBillingRate = `-- name: UpdateTimeBillingRate :execrows
+UPDATE time_cost_rate SET
+  hour_minor = $1, currency = $2, from_day = $3,
+  to_day = $4, updated_at = $5, updated_by = $6,
+  version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $7::uuid AND plan_id IS NOT NULL
+  AND version = $8::int
+`
+
+type UpdateTimeBillingRateParams struct {
+	HourMinor       int64
+	Currency        string
+	FromDay         pgtype.Date
+	ToDay           pgtype.Date
+	At              pgtype.Timestamptz
+	UpdatedBy       pgtype.UUID
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+func (q *Queries) UpdateTimeBillingRate(ctx context.Context, arg UpdateTimeBillingRateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateTimeBillingRate,
+		arg.HourMinor,
+		arg.Currency,
+		arg.FromDay,
+		arg.ToDay,
+		arg.At,
+		arg.UpdatedBy,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateTimeBudget = `-- name: UpdateTimeBudget :execrows
 UPDATE time_budget SET
   minutes = $1, amount_minor = $2, currency = $3,
@@ -508,7 +680,7 @@ UPDATE time_cost_rate SET
   hour_minor = $1, currency = $2, from_day = $3,
   to_day = $4, updated_at = $5, updated_by = $6,
   version = version + 1
-WHERE tenant_id = current_tenant_id() AND id = $7::uuid
+WHERE tenant_id = current_tenant_id() AND id = $7::uuid AND plan_id IS NULL
   AND version = $8::int
 `
 

@@ -1019,6 +1019,8 @@ var entities = []Entity{
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{
 			{Field: "account_id", Table: "account", Clearable: true},
+			// a billing rate's hub or collection (migration 0290): it goes with its plan
+			{Field: "plan_id", Table: "container"},
 			{Field: "updated_by", Table: "account", Clearable: true},
 		},
 	},

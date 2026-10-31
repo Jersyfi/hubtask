@@ -5935,10 +5935,16 @@ CREATE TABLE time_cost_rate (
   updated_at timestamptz NOT NULL,
   updated_by uuid,
   version    integer NOT NULL DEFAULT 1,
-  CHECK ((account_id IS NULL) <> (role IS NULL)),
-  CHECK (to_day IS NULL OR to_day >= from_day)
+  -- a billing rate's hub or collection (migration 0290): the subject is a person, a role or a plan
+  plan_id    uuid,
+  CONSTRAINT time_cost_rate_subject_check CHECK (num_nonnulls(account_id, role, plan_id) = 1),
+  CHECK (to_day IS NULL OR to_day >= from_day),
+  CONSTRAINT time_cost_rate_plan_fkey
+    FOREIGN KEY (tenant_id, plan_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX time_cost_rate_subject_idx ON time_cost_rate (tenant_id, account_id, role, from_day);
+CREATE INDEX time_cost_rate_plan_idx ON time_cost_rate (tenant_id, plan_id, from_day)
+  WHERE plan_id IS NOT NULL;
 ALTER TABLE time_cost_rate ENABLE ROW LEVEL SECURITY;
 ALTER TABLE time_cost_rate FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON time_cost_rate

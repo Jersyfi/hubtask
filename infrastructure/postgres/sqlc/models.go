@@ -3066,6 +3066,7 @@ type TimeCostRate struct {
 	UpdatedAt pgtype.Timestamptz
 	UpdatedBy pgtype.UUID
 	Version   int32
+	PlanID    pgtype.UUID
 }
 
 type TimePolicy struct {

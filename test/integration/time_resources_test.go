@@ -90,6 +90,67 @@ func TestTimeResourcesStayInTheirWorkspace(t *testing.T) {
 	}
 }
 
+// A billing rate is a row of its plan, never among the cost rates, and stays in its workspace
+// (migration 0290, UC-TIM-08 check 9).
+func TestBillingRatesStayWithTheirPlan(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewTimeResourceRepository()
+	hub, collection, _ := seedPlan(ctx, t, tenantA)
+	now := time.Date(2026, 11, 3, 17, 0, 0, 0, time.UTC)
+	day, _ := timekeeping.ParseDay("2026-11-02")
+	end := day + 30
+	rate := timekeeping.BillingRate{ID: freshID(t), PlanID: collection, HourMinor: 12000, Currency: "EUR", From: day, To: &end}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := store.PutBillingRate(ctx, rate, 0, authorA, now); err != nil {
+			return err
+		}
+		rate.HourMinor = 13000
+		return store.PutBillingRate(ctx, rate, 1, authorA, now)
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		rates, err := store.BillingRates(ctx, []shared.ID{hub, collection}, 10)
+		if err != nil || len(rates) != 1 || rates[0].HourMinor != 13000 || rates[0].Version != 2 || rates[0].To == nil {
+			t.Errorf("billing rates = %+v %v", rates, err)
+		}
+		costs, err := store.Rates(ctx, 1000)
+		for _, c := range costs {
+			if c.ID == rate.ID {
+				t.Errorf("a billing rate is listed among the cost rates: %+v", c)
+			}
+		}
+		if _, err := store.FindRate(ctx, rate.ID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("a billing rate is found as a cost rate: %v", err)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if r, err := store.BillingRates(ctx, []shared.ID{collection}, 10); err != nil || len(r) != 0 {
+			t.Errorf("the other workspace reads the billing rates: %v %v", r, err)
+		}
+		if _, err := store.FindBillingRate(ctx, rate.ID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the other workspace finds the billing rate: %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return store.RemoveBillingRate(ctx, rate.ID, 2)
+	}); !errors.Is(err, shared.ErrVersionConflict) {
+		t.Errorf("the other workspace removed the billing rate: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return store.RemoveBillingRate(ctx, rate.ID, 2)
+	}); err != nil {
+		t.Errorf("remove the billing rate: %v", err)
+	}
+}
+
 // The walk's weeks, capacities, absences, rates and budgets stay in their workspace, a week and a
 // capacity with their person (offline-sync.md §3.1).
 func TestTheTimeResourcesWalkStaysInItsWorkspace(t *testing.T) {

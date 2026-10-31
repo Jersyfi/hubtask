@@ -58,14 +58,14 @@ WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
 -- name: ListTimeCostRates :many
 SELECT id, account_id, role, hour_minor, currency, from_day, to_day, version
 FROM time_cost_rate
-WHERE tenant_id = current_tenant_id()
+WHERE tenant_id = current_tenant_id() AND plan_id IS NULL
 ORDER BY account_id NULLS LAST, role, from_day
 LIMIT sqlc.arg('max')::int;
 
 -- name: FindTimeCostRate :one
 SELECT id, account_id, role, hour_minor, currency, from_day, to_day, version
 FROM time_cost_rate
-WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND plan_id IS NULL;
 
 -- name: InsertTimeCostRate :exec
 INSERT INTO time_cost_rate (id, tenant_id, account_id, role, hour_minor, currency, from_day, to_day, updated_at, updated_by, version)
@@ -78,12 +78,45 @@ UPDATE time_cost_rate SET
   hour_minor = sqlc.arg('hour_minor'), currency = sqlc.arg('currency'), from_day = sqlc.arg('from_day'),
   to_day = sqlc.narg('to_day'), updated_at = sqlc.arg('at'), updated_by = sqlc.narg('updated_by'),
   version = version + 1
-WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND plan_id IS NULL
   AND version = sqlc.arg('expected_version')::int;
 
 -- name: DeleteTimeCostRate :execrows
 DELETE FROM time_cost_rate
-WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND plan_id IS NULL
+  AND version = sqlc.arg('expected_version')::int;
+
+-- A billing rate is a row of time_cost_rate whose subject is a hub or a collection (migration
+-- 0290); the statements above never touch one, these touch nothing else.
+
+-- name: ListTimeBillingRates :many
+SELECT id, plan_id, hour_minor, currency, from_day, to_day, version
+FROM time_cost_rate
+WHERE tenant_id = current_tenant_id() AND plan_id = ANY(sqlc.arg('plans')::uuid[])
+ORDER BY plan_id, from_day
+LIMIT sqlc.arg('max')::int;
+
+-- name: FindTimeBillingRate :one
+SELECT id, plan_id, hour_minor, currency, from_day, to_day, version
+FROM time_cost_rate
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND plan_id IS NOT NULL;
+
+-- name: InsertTimeBillingRate :exec
+INSERT INTO time_cost_rate (id, tenant_id, plan_id, hour_minor, currency, from_day, to_day, updated_at, updated_by, version)
+VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('plan_id'), sqlc.arg('hour_minor'), sqlc.arg('currency'),
+  sqlc.arg('from_day'), sqlc.narg('to_day'), sqlc.arg('at'), sqlc.narg('updated_by'), 1);
+
+-- name: UpdateTimeBillingRate :execrows
+UPDATE time_cost_rate SET
+  hour_minor = sqlc.arg('hour_minor'), currency = sqlc.arg('currency'), from_day = sqlc.arg('from_day'),
+  to_day = sqlc.narg('to_day'), updated_at = sqlc.arg('at'), updated_by = sqlc.narg('updated_by'),
+  version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND plan_id IS NOT NULL
+  AND version = sqlc.arg('expected_version')::int;
+
+-- name: DeleteTimeBillingRate :execrows
+DELETE FROM time_cost_rate
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND plan_id IS NOT NULL
   AND version = sqlc.arg('expected_version')::int;
 
 -- name: FindTimeBudget :one

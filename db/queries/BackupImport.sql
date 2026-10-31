@@ -3053,8 +3053,8 @@ SELECT EXISTS (SELECT 1 FROM time_absence WHERE id = (sqlc.arg('payload')::jsonb
 DELETE FROM time_absence;
 
 -- name: ImportTimeCostRate :execrows
-INSERT INTO time_cost_rate (id, tenant_id, account_id, role, hour_minor, currency, from_day, to_day, updated_at, updated_by, version)
-SELECT r.id, r.tenant_id, r.account_id, r.role, r.hour_minor, r.currency, r.from_day, r.to_day, r.updated_at, r.updated_by, r.version
+INSERT INTO time_cost_rate (id, tenant_id, account_id, role, plan_id, hour_minor, currency, from_day, to_day, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.account_id, r.role, r.plan_id, r.hour_minor, r.currency, r.from_day, r.to_day, r.updated_at, r.updated_by, r.version
 FROM jsonb_populate_record(
   NULL::time_cost_rate,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())

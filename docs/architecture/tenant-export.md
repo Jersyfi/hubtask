@@ -200,7 +200,7 @@ re-mints identities must rewrite exactly these).
 | 80 | `time_policies` | `time_policy` | `id` | `updated_by`→accounts (the workspace's locked period and visibility of other people's time; not duplicated) |
 | 81 | `time_capacities` | `time_capacity` | `id` | `account_id`→accounts, `updated_by`→accounts (a person's minutes per weekday from a day on, migration 0247) |
 | 82 | `time_absences` | `time_absence` | `id` | `account_id`→accounts, `created_by`→accounts (a span a person is away, by a kind and never a reason) |
-| 83 | `time_cost_rates` | `time_cost_rate` | `id` | `account_id`→accounts, cleared when withheld, `updated_by`→accounts (an hour's cost of a person or a role, with its validity) |
+| 83 | `time_cost_rates` | `time_cost_rate` | `id` | `account_id`→accounts, cleared when withheld, `plan_id`→containers, `updated_by`→accounts (an hour's cost of a person or a role, or a hub's or collection's billing rate, with its validity) |
 | 84 | `time_budgets` | `time_budget` | `id` | `plan_id`→containers, `updated_by`→accounts (a hub's or collection's budget in minutes and money; not duplicated) |
 | 85 | `goal_periods` | `goal_period` | `id` | `created_by`, `closed_by`→accounts (a cycle goals are set for, closed with grades; migration 0248) |
 | 86 | `goals` | `goal` | `id` | `period_id`→goal_periods, `hub_id`→containers, `owner_id`, `created_by`, `updated_by`→accounts (an objective with its key results; `parent_id` names another goal of the file) |

@@ -458,3 +458,135 @@ func (TimeResourceRepository) RemoveBudget(ctx context.Context, plan shared.ID, 
 	}
 	return nil
 }
+
+func billingRateFrom(idValue, planValue pgtype.UUID, hour int64, currency string, from, to pgtype.Date, version int32) (domain.BillingRate, error) {
+	id, err := idFrom(idValue)
+	if err != nil {
+		return domain.BillingRate{}, err
+	}
+	plan, err := idFrom(planValue)
+	if err != nil {
+		return domain.BillingRate{}, err
+	}
+	r := domain.BillingRate{ID: id, PlanID: plan, HourMinor: hour, Currency: currency, From: dateDay(from), Version: int(version)}
+	if to.Valid {
+		d := dateDay(to)
+		r.To = &d
+	}
+	return r, nil
+}
+
+// BillingRates answers the billing rates of the plans named.
+func (TimeResourceRepository) BillingRates(ctx context.Context, plans []shared.ID, max int) ([]domain.BillingRate, error) {
+	if len(plans) == 0 {
+		return nil, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]pgtype.UUID, 0, len(plans))
+	for _, plan := range plans {
+		key, err := uuidOf(plan)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	//nolint:gosec // G115: max is a bound the use case sets
+	rows, err := queries.ListTimeBillingRates(ctx, sqlc.ListTimeBillingRatesParams{Plans: keys, Max: int32(max)})
+	if err != nil {
+		return nil, timeError(err, "reading billing rates")
+	}
+	out := make([]domain.BillingRate, 0, len(rows))
+	for _, r := range rows {
+		rate, err := billingRateFrom(r.ID, r.PlanID, r.HourMinor, r.Currency, r.FromDay, r.ToDay, r.Version)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, rate)
+	}
+	return out, nil
+}
+
+// FindBillingRate answers one billing rate.
+func (TimeResourceRepository) FindBillingRate(ctx context.Context, id shared.ID) (domain.BillingRate, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.BillingRate{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return domain.BillingRate{}, err
+	}
+	r, err := queries.FindTimeBillingRate(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.BillingRate{}, shared.ErrNotFound.WithDetail("time.billing_rate_not_found")
+	}
+	if err != nil {
+		return domain.BillingRate{}, timeError(err, "reading a billing rate")
+	}
+	return billingRateFrom(r.ID, r.PlanID, r.HourMinor, r.Currency, r.FromDay, r.ToDay, r.Version)
+}
+
+// PutBillingRate writes a billing rate.
+func (TimeResourceRepository) PutBillingRate(ctx context.Context, r domain.BillingRate, expected int, by shared.ID, at time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(r.ID)
+	if err != nil {
+		return err
+	}
+	who, err := optionalUUID(by)
+	if err != nil {
+		return err
+	}
+	if expected == 0 {
+		plan, err := uuidOf(r.PlanID)
+		if err != nil {
+			return err
+		}
+		if err := queries.InsertTimeBillingRate(ctx, sqlc.InsertTimeBillingRateParams{
+			ID: key, PlanID: plan, HourMinor: r.HourMinor, Currency: r.Currency,
+			FromDay: dayDate(r.From), ToDay: optionalDayDate(r.To), At: timestampOf(at), UpdatedBy: who,
+		}); err != nil {
+			return timeError(err, "writing a billing rate")
+		}
+		return nil
+	}
+	//nolint:gosec // G115: a version is bounded by the row
+	affected, err := queries.UpdateTimeBillingRate(ctx, sqlc.UpdateTimeBillingRateParams{
+		ID: key, HourMinor: r.HourMinor, Currency: r.Currency, FromDay: dayDate(r.From), ToDay: optionalDayDate(r.To),
+		At: timestampOf(at), UpdatedBy: who, ExpectedVersion: int32(expected),
+	})
+	if err != nil {
+		return timeError(err, "writing a billing rate")
+	}
+	if affected == 0 {
+		return versionConflict("time.billing_rate_version_conflict", expected)
+	}
+	return nil
+}
+
+// RemoveBillingRate removes a billing rate held to the version read.
+func (TimeResourceRepository) RemoveBillingRate(ctx context.Context, id shared.ID, expected int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	//nolint:gosec // G115: a version is bounded by the row
+	affected, err := queries.DeleteTimeBillingRate(ctx, sqlc.DeleteTimeBillingRateParams{ID: key, ExpectedVersion: int32(expected)})
+	if err != nil {
+		return timeError(err, "removing a billing rate")
+	}
+	if affected == 0 {
+		return versionConflict("time.billing_rate_version_conflict", expected)
+	}
+	return nil
+}
