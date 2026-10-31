@@ -346,7 +346,7 @@ func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
 				t.Errorf("publish %v, %v", added, err)
 			}
 		}
-		hits, err := articles.Search(ctx, collection, "budget", 10)
+		hits, err := articles.Search(ctx, collection, "budget", nil, 10)
 		if err != nil || len(hits) != 1 || hits[0].PageID != root {
 			t.Errorf("search %+v, %v", hits, err)
 		}
@@ -363,7 +363,7 @@ func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
 		if err != nil || len(of) != 1 || of[0].Views != 1 || of[0].Helpful != 0 || of[0].Unhelpful != 1 {
 			t.Errorf("of %+v, %v", of, err)
 		}
-		if top, _ := articles.Search(ctx, collection, "", 10); len(top) != 2 || top[0].PageID != child {
+		if top, _ := articles.Search(ctx, collection, "", nil, 10); len(top) != 2 || top[0].PageID != child {
 			t.Errorf("the most read does not come first: %+v", top)
 		}
 		return nil
@@ -371,7 +371,7 @@ func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		if hits, _ := articles.Search(ctx, collection, "", 10); len(hits) != 0 {
+		if hits, _ := articles.Search(ctx, collection, "", nil, 10); len(hits) != 0 {
 			t.Error("the workspace next door found the articles")
 		}
 		if held, _ := articles.Published(ctx, root, collection); held {
@@ -379,6 +379,110 @@ func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
 		}
 		if removed, _ := articles.Unpublish(ctx, root, collection); removed {
 			t.Error("the workspace next door unpublished the article")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A page written in another language is linked to its source under one tag each, offered and
+// found in the reader's language - the exact tag, then the language alone, then the source - and
+// the workspace next door neither reads nor changes the link (migration 0314, UC-DOC-13 check 4).
+func TestAnArticlesLanguageVariantIsOfferedInItsWorkspaceAlone(t *testing.T) {
+	ctx := context.Background()
+	hub, root, _ := seedSpace(ctx, t)
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	pages, articles, variants := postgres.NewPageRepository(), postgres.NewPageArticleRepository(), postgres.PageLanguageVariantRepository{}
+	german, austrian := freshID(t), freshID(t)
+	at := time.Date(2026, 10, 31, 9, 0, 0, 0, time.UTC)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, page := range []knowledge.Page{
+			{ID: german, HubID: hub, Title: "Haushalt", Body: "Unser Haushaltsplan", ContentLanguage: "de",
+				OrderKey: "a1", CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1},
+			{ID: austrian, HubID: hub, Title: "Budget (AT)", Body: "Unser Budgetplan in Wien", ContentLanguage: "de-AT",
+				OrderKey: "a2", CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1},
+		} {
+			if err := pages.Insert(ctx, page); err != nil {
+				return err
+			}
+		}
+		for _, link := range []knowledge.LanguageLink{
+			{PageID: german, SourceID: root, Language: "de"},
+			{PageID: austrian, SourceID: root, Language: "de-AT"},
+		} {
+			if err := variants.Link(ctx, link); err != nil {
+				return err
+			}
+		}
+		_, err := articles.Publish(ctx, knowledge.Article{PageID: root, CollectionID: collection, PublishedBy: authorA, PublishedAt: at})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return variants.Link(ctx, knowledge.LanguageLink{PageID: austrian, SourceID: root, Language: "DE"})
+	}); detailOf(err) != "pages.variant_language_taken" {
+		t.Fatalf("a second page under one tag answered %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		source, tag, err := variants.SourceOf(ctx, austrian)
+		if err != nil || source != root || tag != "de-AT" {
+			t.Errorf("SourceOf %v %q %v", source, tag, err)
+		}
+		if listed, err := variants.VariantsOf(ctx, root); err != nil || len(listed) != 2 || listed[0].PageID != german {
+			t.Errorf("VariantsOf %+v %v", listed, err)
+		}
+		for _, tc := range []struct {
+			languages []string
+			text      string
+			title     string
+			language  string
+		}{
+			{[]string{"de-at", "de"}, "", "Budget (AT)", "de-AT"},
+			{[]string{"de-ch", "de"}, "Haushaltsplan", "Haushalt", "de"},
+			{[]string{"fr"}, "budget", "Handbook", ""},
+			{nil, "", "Handbook", ""},
+		} {
+			hits, err := articles.Search(ctx, collection, tc.text, tc.languages, 10)
+			if err != nil || len(hits) != 1 || hits[0].PageID != root || hits[0].Title != tc.title || hits[0].ContentLanguage != tc.language {
+				t.Errorf("search in %v for %q: %+v %v", tc.languages, tc.text, hits, err)
+			}
+		}
+		if hits, _ := articles.Search(ctx, collection, "Haushaltsplan", []string{"fr"}, 10); len(hits) != 0 {
+			t.Errorf("a variant's words found the article in another language: %+v", hits)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if source, _, _ := variants.SourceOf(ctx, austrian); !source.IsZero() {
+			t.Error("the workspace next door read the link")
+		}
+		if listed, _ := variants.VariantsOf(ctx, root); len(listed) != 0 {
+			t.Error("the workspace next door listed the variants")
+		}
+		if removed, _ := variants.Unlink(ctx, german); removed {
+			t.Error("the workspace next door unlinked the variant")
+		}
+		if err := variants.Link(ctx, knowledge.LanguageLink{PageID: german, SourceID: root, Language: "fr"}); err == nil {
+			t.Error("the workspace next door linked the page")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if removed, err := variants.Unlink(ctx, german); err != nil || !removed {
+			t.Errorf("Unlink %v %v", removed, err)
+		}
+		if removed, _ := variants.Unlink(ctx, german); removed {
+			t.Error("a page of its own was unlinked again")
+		}
+		hits, err := articles.Search(ctx, collection, "", []string{"de-ch", "de"}, 10)
+		if err != nil || len(hits) != 1 || hits[0].Title != "Handbook" {
+			t.Errorf("an unlinked variant was offered: %+v %v", hits, err)
 		}
 		return nil
 	}); err != nil {
