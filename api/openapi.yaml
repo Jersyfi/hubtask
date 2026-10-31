@@ -14850,6 +14850,11 @@ paths:
     post:
       tags: [oauth]
       operationId: exchangeOauthCode
+      x-hubtask-rest: generated
+      x-hubtask-rest-form: exchangeOauthForm
+      x-hubtask-rest-status: "201"
+      x-hubtask-rest-request: [tenant_header]
+      x-hubtask-rest-answer: sessionTokensResponse
       security: []
       summary: Exchange the code for the pair
       description: >

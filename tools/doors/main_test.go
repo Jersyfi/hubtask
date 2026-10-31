@@ -244,6 +244,9 @@ func TestACacheAndAWholeAnswerAreDeclaredMarks(t *testing.T) {
 		"x-hubtask-rest-list: whole\n      x-hubtask-rest-answer: thingResponse": false,
 		"x-hubtask-rest-null-to: { read_only: clear_read_only }":                 false,
 		"x-hubtask-rest-null-to: { colour: clear_colour }":                       true,
+		"x-hubtask-rest-form: changeThingForm":                                   true,
+		"x-hubtask-rest-status: \"201\"":                                         true,
+		"x-hubtask-rest-status: \"200\"":                                         false,
 	} {
 		marked := strings.Replace(contract, `      x-hubtask-cli: "thing set"`, `      x-hubtask-cli: "thing set"
       x-hubtask-rest: generated
@@ -254,6 +257,33 @@ func TestACacheAndAWholeAnswerAreDeclaredMarks(t *testing.T) {
 		}
 		if !fails && strings.Contains(mark, "cache") && !doors[0].NoStore {
 			t.Errorf("%s: the door is %+v", mark, doors[0])
+		}
+	}
+}
+
+// A form-encoded body the contract declares is handed to the controller's own method before the
+// JSON body is decoded; the mark names an unexported method, and no form is no mark.
+func TestAFormIsHandedToTheNamedMethod(t *testing.T) {
+	server := []byte("package openapi\ntype ChangeThingApplicationMergePatchPlusJSONRequestBody = ThingChange\ntype ServerInterface interface {\n\tChangeThing(w http.ResponseWriter, r *http.Request, thingId string)\n}\n")
+	withForm := strings.Replace(contract, `          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/ThingChange" }`, `          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/ThingChange" }
+          application/x-www-form-urlencoded:
+            schema: { $ref: "#/components/schemas/ThingChange" }`, 1)
+	for mark, fails := range map[string]bool{"changeThingForm": false, "ChangeThingForm": true} {
+		marked := strings.Replace(withForm, `      x-hubtask-cli: "thing set"`, `      x-hubtask-cli: "thing set"
+      x-hubtask-rest: generated
+      x-hubtask-rest-form: `+mark, 1)
+		doors, err := restTable([]byte(marked), server)
+		if (err != nil) != fails {
+			t.Fatalf("%s: %v", mark, err)
+		}
+		if fails {
+			continue
+		}
+		source, err := renderREST(doors)
+		if err != nil || !strings.Contains(string(source), "if formEncoded(r) {\n\t\tc.changeThingForm(w, r)") {
+			t.Errorf("%v: %s", err, source)
 		}
 	}
 }

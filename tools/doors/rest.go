@@ -89,6 +89,9 @@ type RESTDoor struct {
 	// (`x-hubtask-rest-null-to`): a default sent as null is the use case's `clear_…` flag, and
 	// an absent one leaves it.
 	NullTo map[string]string
+	// Form is the controller's method a form-encoded body is handed to (`x-hubtask-rest-form`):
+	// RFC 6749's own token request, answered in that standard's shape beside this API's JSON.
+	Form string
 	// Words are boolean members the use case reads as their word, `true` or `false`
 	// (`x-hubtask-rest-words`): a preference that has a third state, cleared.
 	Words []string
@@ -140,6 +143,8 @@ type restOperation struct {
 	Drop        []string                     `yaml:"x-hubtask-rest-drop"`
 	NullAs      map[string]any               `yaml:"x-hubtask-rest-null-as"`
 	NullTo      map[string]string            `yaml:"x-hubtask-rest-null-to"`
+	Form        string                       `yaml:"x-hubtask-rest-form"`
+	Status      string                       `yaml:"x-hubtask-rest-status"`
 	Words       []string                     `yaml:"x-hubtask-rest-words"`
 	UTC         []string                     `yaml:"x-hubtask-rest-utc"`
 	Expand      map[string]string            `yaml:"x-hubtask-rest-expand"`
@@ -386,6 +391,12 @@ func restDoor(
 			}
 		}
 		door.NullTo = op.NullTo
+		if op.Form != "" {
+			if _, declared := op.RequestBody.Content["application/x-www-form-urlencoded"]; !declared || !token.IsIdentifier(op.Form) || token.IsExported(op.Form) {
+				return door, fmt.Errorf("x-hubtask-rest-form names %s, which is no controller method for a form the body declares", op.Form)
+			}
+			door.Form = op.Form
+		}
 		for _, name := range op.Words {
 			held := false
 			for _, content := range op.RequestBody.Content {
@@ -417,7 +428,15 @@ func restDoor(
 	}
 	door.Expand = op.Expand
 
-	for _, status := range []string{"200", "201", "202", "204"} {
+	statuses := []string{"200", "201", "202", "204"}
+	if op.Status != "" {
+		// The door's own answer where the contract declares another beside it - the form's.
+		if _, ok := op.Responses[op.Status]; !ok {
+			return door, fmt.Errorf("x-hubtask-rest-status names %s, which the contract does not answer", op.Status)
+		}
+		statuses = []string{op.Status}
+	}
+	for _, status := range statuses {
 		response, ok := op.Responses[status]
 		if !ok {
 			continue
@@ -698,6 +717,9 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 		params := "nil"
 		if d.ParamsArg != "" {
 			params = d.ParamsArg
+		}
+		if d.Form != "" {
+			fmt.Fprintf(&b, "\tif formEncoded(r) {\n\t\tc.%s(w, r)\n\t\treturn\n\t}\n", d.Form)
 		}
 		body, answer := "nil", "nil"
 		if d.BodyType != "" {

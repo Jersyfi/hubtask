@@ -67,7 +67,10 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    CMDB, the receiving domain, the voice assistant (`IntakeDoor`).
    `x-hubtask-rest-drop: [member]` accepts and drops a body member the contract
    declares and the use case does not, as its hand-written door did, until the owner decides it
-   (a schedule's `enabled`). `x-hubtask-rest-cache:
+   (a schedule's `enabled`). `x-hubtask-rest-form: <method>` hands a form-encoded body the
+   contract declares to the controller's own method before the JSON body is decoded (RFC 6749's
+   token request, answered in that standard's shape), and `x-hubtask-rest-status` names the
+   generated door's answer where the contract declares the form's beside it. `x-hubtask-rest-cache:
    no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be
    stored. `x-hubtask-cli` names
    the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`; a hand-written

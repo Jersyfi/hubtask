@@ -21757,6 +21757,13 @@
           "oauth"
         ],
         "operationId": "exchangeOauthCode",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-form": "exchangeOauthForm",
+        "x-hubtask-rest-status": "201",
+        "x-hubtask-rest-request": [
+          "tenant_header"
+        ],
+        "x-hubtask-rest-answer": "sessionTokensResponse",
         "security": [],
         "summary": "Exchange the code for the pair",
         "description": "The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.\nThe answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.\nRFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.\n",

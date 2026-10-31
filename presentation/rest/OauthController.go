@@ -33,44 +33,6 @@ func oauthClientSecretResponse(out usecase.Output) openapi.OauthClientSecret {
 	}
 }
 
-// ExchangeOauthCode answers POST /oauth/token. Written out for SignIn's reason: the route is
-// public, and the body is the whole of what authenticates.
-func (c *RestController) ExchangeOauthCode(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	// The standard form of RFC 6749 beside this API's JSON: what an OAuth client that is not
-	// Hubtask's own speaks - Alexa's account linking among them (ADR-0093).
-	if mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mediaType == "application/x-www-form-urlencoded" {
-		c.exchangeOauthForm(w, r)
-		return
-	}
-
-	var body openapi.OauthTokenRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), exchangeOauthCodeUseCase, actorOf(r), usecase.Input{
-		"grant_type":    string(body.GrantType),
-		"code":          body.Code,
-		"redirect_uri":  body.RedirectUri,
-		"client_id":     body.ClientId.String(),
-		"code_verifier": optionalStringField(body.CodeVerifier),
-		"client_secret": optionalStringField(body.ClientSecret),
-		"tenant_header": r.Header.Get(TenantHeader),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
-
 func oauthClientResponse(row usecase.Output) openapi.OauthClient {
 	confidential, _ := row["confidential"].(bool)
 	return openapi.OauthClient{
@@ -82,11 +44,21 @@ func oauthClientResponse(row usecase.Output) openapi.OauthClient {
 	}
 }
 
+// formEncoded says whether a request's body is a form rather than this API's JSON.
+func formEncoded(r *http.Request) bool {
+	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	return mediaType == "application/x-www-form-urlencoded"
+}
+
 // exchangeOauthForm is the token endpoint in RFC 6749's own form: a form-encoded body, the
 // client's credentials in Basic or in the body, `authorization_code` and `refresh_token` grants,
 // and the standard answer - `access_token`, `token_type`, `expires_in`, `refresh_token` - or the
 // standard error. The same use cases answer as for the JSON form; only the shape differs.
 func (c *RestController) exchangeOauthForm(w http.ResponseWriter, r *http.Request) {
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, correlation.RequestIDFrom(r.Context()))
+		return
+	}
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeOauthError(w, http.StatusBadRequest, "invalid_request")

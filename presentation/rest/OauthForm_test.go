@@ -78,3 +78,24 @@ func TestTheStandardFormRefreshesAndRefusesInItsOwnWords(t *testing.T) {
 		t.Errorf("a bad code answered %d %s", refused.Code, refused.Body)
 	}
 }
+
+// This API's own JSON form is the generated door: the pair answered 201 with the workspace header
+// the use case resolves the client by.
+func TestTheJSONFormExchangesACodeByTheGeneratedDoor(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"access_token": "hbt_at", "refresh_token": "hbt_rt"}}
+	controller := NewRestController()
+	controller.UseCases = registry
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, APIBasePath+"/oauth/token",
+		strings.NewReader(`{"grant_type":"authorization_code","code":"hbt_oac_x","redirect_uri":"https://app.example/cb",`+
+			`"client_id":"01936f2a-7c1e-7000-8000-00000000d001","code_verifier":"v"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set(TenantHeader, "acme")
+	response := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(response, request)
+	if response.Code != http.StatusCreated || registry.name != exchangeOauthCodeUseCase {
+		t.Fatalf("status %d, asked %s: %s", response.Code, registry.name, response.Body)
+	}
+	if registry.in["tenant_header"] != "acme" || registry.in["code_verifier"] != "v" {
+		t.Errorf("asked with %+v", registry.in)
+	}
+}

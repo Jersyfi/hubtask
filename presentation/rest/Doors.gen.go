@@ -226,6 +226,7 @@ var restDoors = map[string]restDoor{
 	"endViewAs":                         {UseCase: "EndViewAs", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"enrollTotp":                        {UseCase: "EnrollTotp", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "secret"},
 	"evaluateEntryForm":                 {UseCase: "EvaluateEntryForm", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"exchangeOauthCode":                 {UseCase: "ExchangeOauthCode", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}},
 	"explainAccess":                     {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"explainConfig":                     {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportAuditTrail":                  {UseCase: "ExportAuditTrail", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), UTC: []string{"from", "to"}},
@@ -2116,6 +2117,16 @@ func (c *RestController) EvaluateEntryForm(w http.ResponseWriter, r *http.Reques
 	var body openapi.EvaluateEntryFormJSONRequestBody
 	var answer openapi.EntryFormState
 	c.door(w, r, restDoors["evaluateEntryForm"], usecase.Input{"entry_type": key}, nil, &body, &answer)
+}
+
+// ExchangeOauthCode answers POST /oauth/token by the generated mapping.
+func (c *RestController) ExchangeOauthCode(w http.ResponseWriter, r *http.Request) {
+	if formEncoded(r) {
+		c.exchangeOauthForm(w, r)
+		return
+	}
+	var body openapi.ExchangeOauthCodeJSONRequestBody
+	c.door(w, r, restDoors["exchangeOauthCode"], usecase.Input{}, nil, &body, answerBy(sessionTokensResponse))
 }
 
 // ExplainAccess answers GET /access/explain by the generated mapping.

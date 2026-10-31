@@ -86,7 +86,11 @@ func TestEveryGeneratedBodyMemberIsADeclaredInput(t *testing.T) {
 				continue
 			}
 			fields := declared[door.UseCase]
-			for _, content := range op.RequestBody.Content {
+			for media, content := range op.RequestBody.Content {
+				if media == "application/x-www-form-urlencoded" {
+					// A form is the controller's own method's (x-hubtask-rest-form), not the door's.
+					continue
+				}
 				body := map[string]bodySchema{}
 				members(content.Schema, body)
 				for name, member := range body {
