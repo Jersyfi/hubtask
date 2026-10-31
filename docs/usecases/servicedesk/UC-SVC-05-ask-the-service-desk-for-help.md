@@ -36,5 +36,5 @@ Mehmet holds the requester role on the collection *IT help*. The portal shows hi
 ## Where it ends
 
 * The requests of a whole organisation are UC-SVC-11; approvals from the portal are UC-SVC-09.
-* A desk's uploaded logo and its articles per language are not part of it: the desk is drawn by its collection's own icon and colour token, and an article is written in one language.
+* A desk's articles, in each language they are written in, are UC-DOC-13.
 
