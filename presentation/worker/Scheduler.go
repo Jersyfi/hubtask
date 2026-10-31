@@ -499,8 +499,7 @@ func (s Scheduler) ensureAuditPartitions(ctx context.Context) {
 	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
 
-	now := s.Clock.Now().UTC()
-	for _, month := range []time.Time{now, now.AddDate(0, 1, 0)} {
+	for _, month := range thisMonthAndNext(s.Clock.Now()) {
 		name, err := s.AuditPartitions.Ensure(dutyCtx, month)
 		if err != nil {
 			if ctx.Err() == nil {
@@ -517,6 +516,14 @@ func (s Scheduler) ensureAuditPartitions(ctx context.Context) {
 	}
 }
 
+// thisMonthAndNext counts from the first of the month: AddDate on the 31st overflows a short month,
+// so 31 October plus one month would be December and November never ensured ahead.
+func thisMonthAndNext(now time.Time) []time.Time {
+	now = now.UTC()
+	first := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	return []time.Time{first, first.AddDate(0, 1, 0)}
+}
+
 // ensureStreamPartitions is the audit duty for the three partitioned streams:
 // activity_entry, outbox_event and rule_run get this month and next kept existing, policies and
 // grants repaired - ensureAuditPartitions' reasoning verbatim, over ensure_stream_partition.
@@ -527,9 +534,9 @@ func (s Scheduler) ensureStreamPartitions(ctx context.Context) {
 	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
 
-	now := s.Clock.Now().UTC()
+	months := thisMonthAndNext(s.Clock.Now())
 	for _, table := range streams.Tables() {
-		for _, month := range []time.Time{now, now.AddDate(0, 1, 0)} {
+		for _, month := range months {
 			name, err := s.StreamPartitions.Ensure(dutyCtx, table, month)
 			if err != nil {
 				if ctx.Err() == nil {

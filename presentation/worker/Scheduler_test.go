@@ -334,6 +334,29 @@ func TestTheLeaderEnsuresThisMonthAndTheNext(t *testing.T) {
 	}
 }
 
+// On the 31st, a month added to the day overflows: 31 October plus a month is 1 December, and
+// November would never be ensured ahead of its first entry.
+func TestTheNextMonthOfTheLastDayIsTheCalendarsNext(t *testing.T) {
+	lastDay := time.Date(2026, time.October, 31, 12, 0, 0, 0, time.UTC)
+	audit := &auditPartitions{}
+	stream := &streamPartitions{}
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.AuditPartitions = audit
+	leader.StreamPartitions = stream
+	leader.Clock = clock.Fixed(lastDay)
+
+	leader.tick(t.Context(), false, lastDay)
+
+	if len(audit.asked) != 2 || audit.asked[1].Format("2006-01") != "2026-11" {
+		t.Errorf("the audit duty asked for %v, want October and November", audit.asked)
+	}
+	for _, table := range streams.Tables() {
+		if months := stream.asked[table]; len(months) != 2 || months[1].Format("2006-01") != "2026-11" {
+			t.Errorf("%s was asked for %v, want October and November", table, months)
+		}
+	}
+}
+
 // A standby does nothing, including this: a partition duty run by every replica would be a DDL
 // statement per replica per tick.
 func TestAStandbyEnsuresNoPartitions(t *testing.T) {
