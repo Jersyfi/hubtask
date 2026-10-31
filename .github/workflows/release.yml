@@ -161,3 +161,48 @@ jobs:
             release-record.json
             release-record.json.sigstore.json
             csaf.tar.gz
+
+  integrations:
+    # The n8n node and the Zapier app, generated from the contract at this tag (UC-INT-11 check 4).
+    # Each step runs only when the owner's account secret is set, so a fork's tag publishes nothing.
+    name: Publish the n8n node and the Zapier app
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+      id-token: write                # npm provenance
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      ZAPIER_DEPLOY_KEY: ${{ secrets.ZAPIER_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - run: make tools-node
+      - run: echo "$PWD/.tools" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - name: Version the packages as the tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for dir in packages/n8n-nodes-hubtask packages/zapier-app; do
+            (cd "$dir" && npm pkg set version="$version")
+          done
+      - run: pnpm --filter @hubtask/api-client --filter @hubtask/n8n-nodes-hubtask --filter @hubtask/zapier-app build
+      - run: pnpm --filter @hubtask/n8n-nodes-hubtask --filter @hubtask/zapier-app typecheck
+      - name: Publish the n8n node to npm
+        if: env.NPM_TOKEN != ''
+        working-directory: packages/n8n-nodes-hubtask/dist
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+      - name: Push the Zapier app
+        if: env.ZAPIER_DEPLOY_KEY != ''
+        working-directory: packages/zapier-app/dist
+        run: |
+          npm install --no-save --ignore-scripts
+          version="$(node -p "require('./package.json').zapier.convertedByCLIVersion")"
+          npx --yes "zapier-platform-cli@${version}" push

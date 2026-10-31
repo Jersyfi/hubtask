@@ -24,5 +24,8 @@ format; `pnpm test` proves every operation and every event type of the contract 
 **Licence.** Apache-2.0 — the `LICENSE` file beside this README, copied into `dist/` with the
 manifest, and the header every file carries, like the whole repository ([ADR-0080](../../docs/adr/ADR-0080-hubtask-is-apache-2-0.md)).
 
-**Not published.** Publication to the community node registry is an account and a review the
-owner runs; until then the package is `private`.
+**Publishing.** The *Release* workflow's `integrations` job publishes `dist/` to npm as
+`n8n-nodes-hubtask`, at the release's version and with provenance, when the repository holds the
+`NPM_TOKEN` secret of the owner's npm account; n8n lists community nodes from npm by the
+`n8n-community-node-package` keyword. A verified listing inside n8n is a review the owner applies
+for. The workspace's own manifest stays `private`: only `dist/` is a package.

@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { CHOICES, CREATES, SEARCHES, loadApp, triggerDescription, triggerKey, words, writeApp } from './generate.mjs';
+import { CHOICES, CREATES, SEARCHES, loadApp, publishedManifest, triggerDescription, triggerKey, words, writeApp } from './generate.mjs';
 import { appProblems, selftest } from './schema.mjs';
 
 const require = createRequire(import.meta.url);
@@ -175,4 +175,14 @@ test('the connection test holds the installation address to an https origin befo
     await assert.rejects(app.authentication.test(untouched, { ...bundle(), authData: { base_url: wrong } }), /installation address/);
     assert.equal(untouched.calls.length, 0, `${wrong} was sent`);
   }
+});
+
+test('the pushed manifest names its source and pins the platform', () => {
+  const manifest = publishedManifest('1.2.3');
+  assert.equal(manifest.private, undefined);
+  assert.equal(manifest.version, '1.2.3');
+  assert.equal(manifest.license, 'Apache-2.0');
+  assert.equal(manifest.dependencies['zapier-platform-core'], manifest.zapier.convertedByCLIVersion);
+  assert.match(manifest.repository.url, /github\.com\/Jersyfi\/hubtask/);
+  assert.equal(manifest.repository.directory, 'packages/zapier-app');
 });

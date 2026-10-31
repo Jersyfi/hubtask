@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import test from 'node:test';
 
-import { describeNode, generate, readDocument, words } from './generate.mjs';
+import { describeNode, generate, publishedManifest, readDocument, words } from './generate.mjs';
 import { describeProblems, selftest } from './schema.mjs';
 
 const require = createRequire(import.meta.url);
@@ -94,4 +94,15 @@ test('a document with a nameless operation is refused rather than rendered', () 
   delete broken.paths['/items'].post.operationId;
   const description = describeNode(readDocument(broken));
   assert.ok(describeProblems(description).length > 0);
+});
+
+test('the published manifest is one the registry accepts and lists', () => {
+  const manifest = publishedManifest();
+  assert.equal(manifest.private, undefined, 'npm refuses to publish a private package');
+  assert.match(manifest.name, /^n8n-nodes-/);
+  assert.ok(manifest.keywords.includes('n8n-community-node-package'));
+  assert.equal(manifest.license, 'Apache-2.0');
+  assert.ok(manifest.files.includes('LICENSE') && manifest.files.includes('README.md'));
+  assert.match(manifest.repository.url, /github\.com\/Jersyfi\/hubtask/);
+  assert.equal(manifest.repository.directory, 'packages/n8n-nodes-hubtask');
 });

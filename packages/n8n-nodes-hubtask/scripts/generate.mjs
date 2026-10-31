@@ -260,7 +260,7 @@ export function describeCredential() {
 
 /* ── Writing ───────────────────────────────────────────────────────────────────────────── */
 
-/** The manifest of the package as it would be published; `private` until the owner does. */
+/** The manifest of the package the release publishes to npm, where n8n's registry lists it. */
 export function publishedManifest() {
   const own = require('../package.json');
   return {
@@ -268,9 +268,10 @@ export function publishedManifest() {
     // workspace's own name carries the `@hubtask` scope every member here has.
     name: 'n8n-nodes-hubtask',
     version: own.version,
-    private: true,
     description: 'The n8n community node for Hubtask, generated from the OpenAPI contract',
     license: own.license,
+    homepage: 'https://hubtask.eu',
+    repository: { type: 'git', url: 'git+https://github.com/Jersyfi/hubtask.git', directory: 'packages/n8n-nodes-hubtask' },
     keywords: ['n8n-community-node-package'],
     main: 'index.js',
     files: ['nodes', 'credentials', 'index.js', 'README.md', 'LICENSE'],
