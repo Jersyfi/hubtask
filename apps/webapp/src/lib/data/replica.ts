@@ -434,7 +434,7 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   match = /^\/items\/([^/]+)\/sla$/.exec(pathname);
   if (match?.[1]) {
     const itemId = match[1];
-    const goals = ['FIRST_RESPONSE', 'RESOLUTION'];
+    const goals = ['FIRST_RESPONSE', 'NEXT_RESPONSE', 'RESOLUTION'];
     const rows = (await documents(storage, 'entry_slas'))
       .filter((row) => row.item_id === itemId)
       .map(({ id: _id, item_id: _item, ...row }) => row)

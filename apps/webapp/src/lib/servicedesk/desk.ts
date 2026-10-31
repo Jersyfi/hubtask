@@ -46,7 +46,7 @@ export const byPriorityText = (goal: Pick<SlaGoal, 'by_priority'> | undefined) =
 
 export interface ReportRow {
   readonly policy: string;
-  readonly goal: 'FIRST_RESPONSE' | 'RESOLUTION';
+  readonly goal: 'FIRST_RESPONSE' | 'NEXT_RESPONSE' | 'RESOLUTION';
   readonly met: number;
   readonly breached: number;
   readonly running: number;

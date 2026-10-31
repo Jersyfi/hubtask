@@ -15,7 +15,7 @@
     Badge, Button, Checkbox, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
   } from '@hubtask/design-system/components';
   import type {
-    BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaPolicy, SlaPolicyList, SlaReport,
+    BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaGoal, SlaPolicy, SlaPolicyList, SlaReport,
   } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -84,16 +84,17 @@
   }
 
   // A policy: its types, calendar, priority field and the two goals.
-  const emptyPolicy = () => ({ key: '', name: '', calendar: '', types: '', priority: '', first: '480', firstBy: '', resolution: '2400', resolutionBy: '', pauses: '', warn: '80', enabled: true, position: '0' });
+  const emptyPolicy = () => ({ key: '', name: '', calendar: '', types: '', priority: '', first: '480', firstBy: '', next: '', nextBy: '', resolution: '2400', resolutionBy: '', pauses: '', warn: '80', enabled: true, position: '0' });
   let policy = $state(emptyPolicy());
   const words = (text: string) => text.split(',').map((each) => each.trim()).filter((each) => each !== '');
 
   function editPolicy(row: SlaPolicy) {
     const first = row.goals.find((goal) => goal.kind === 'FIRST_RESPONSE');
+    const next = row.goals.find((goal) => goal.kind === 'NEXT_RESPONSE');
     const resolution = row.goals.find((goal) => goal.kind === 'RESOLUTION');
     policy = {
       key: row.key, name: row.name, calendar: row.calendar ?? '', types: row.entry_types.join(', '), priority: row.priority_field ?? '',
-      first: String(first?.minutes ?? ''), firstBy: byPriorityText(first), resolution: String(resolution?.minutes ?? ''),
+      first: String(first?.minutes ?? ''), firstBy: byPriorityText(first), next: String(next?.minutes ?? ''), nextBy: byPriorityText(next), resolution: String(resolution?.minutes ?? ''),
       resolutionBy: byPriorityText(resolution), pauses: (resolution?.pause_statuses ?? first?.pause_statuses ?? []).join(', '),
       warn: String(resolution?.warn_percent ?? first?.warn_percent ?? 80), enabled: row.enabled, position: String(row.position),
     };
@@ -102,16 +103,18 @@
   async function savePolicy(event: SubmitEvent) {
     event.preventDefault();
     const firstBy = byPriorityOf(policy.firstBy);
+    const nextBy = byPriorityOf(policy.nextBy);
     const resolutionBy = byPriorityOf(policy.resolutionBy);
-    if (!firstBy || !resolutionBy) {
+    if (!firstBy || !nextBy || !resolutionBy) {
       refusal = t('app.desk.by_priority_malformed');
       return;
     }
-    const goal = (kind: 'FIRST_RESPONSE' | 'RESOLUTION', minutes: string, by: Record<string, number>) => ({
+    const goal = (kind: SlaGoal['kind'], minutes: string, by: Record<string, number>) => ({
       kind, minutes: Number(minutes), by_priority: by, pause_statuses: words(policy.pauses), warn_percent: Number(policy.warn),
     });
     const goals = [
       ...(policy.first.trim() ? [goal('FIRST_RESPONSE', policy.first, firstBy)] : []),
+      ...(policy.next.trim() ? [goal('NEXT_RESPONSE', policy.next, nextBy)] : []),
       ...(policy.resolution.trim() ? [goal('RESOLUTION', policy.resolution, resolutionBy)] : []),
     ];
     const key = policy.key || keyFrom(policy.name);
@@ -244,6 +247,10 @@
               <div class="fields">
                 <Input label={t('app.desk.first_response')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.first} />
                 <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.firstBy} />
+              </div>
+              <div class="fields">
+                <Input label={t('app.desk.next_response')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.next} />
+                <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.nextBy} />
               </div>
               <div class="fields">
                 <Input label={t('app.desk.resolution')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.resolution} />
