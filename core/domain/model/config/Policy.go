@@ -36,7 +36,7 @@ func AgentApplyDefinition() setting.Definition {
 		Lockable: true, May: setting.MayTighten, Default: string(AgentApplyApproval),
 		Writers: map[setting.Level]string{
 			setting.LevelInstance: "admin:instance", setting.LevelPlan: "admin:instance",
-			setting.LevelWorkspace: "CONFIGURE",
+			setting.LevelWorkspace: "STRUCTURE",
 		},
 		Tightens: func(inForce, proposed any) bool {
 			return strictness(proposed) >= strictness(inForce)

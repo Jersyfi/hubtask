@@ -1658,7 +1658,7 @@
         },
         {
           "level": "WORKSPACE",
-          "permission": "CONFIGURE"
+          "permission": "STRUCTURE"
         }
       ]
     },
