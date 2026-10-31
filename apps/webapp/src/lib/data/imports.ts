@@ -55,11 +55,9 @@ export function contentTypeFor(kind: ImportKind, fileName = ''): string {
   const name = fileName.toLowerCase();
   // One document on its own is sent as what it is; a ZIP of them as a ZIP.
   if (kind === 'HTML' && (name.endsWith('.html') || name.endsWith('.htm'))) return 'text/html';
-  if (kind === 'DOCX' && name.endsWith('.docx')) {
-    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  }
-  // A wiki's export is a ZIP, and so is an issue tracker's answer with its attachments.
-  if (LANDS_PAGES.has(kind) || fileName.toLowerCase().endsWith('.zip')) return 'application/zip';
+  // A wiki's export is a ZIP, and so is an issue tracker's answer with its attachments. An Office
+  // document is one too, to the server's sniff, which refuses a sharper claim over it.
+  if (LANDS_PAGES.has(kind) || name.endsWith('.zip')) return 'application/zip';
   return 'application/json';
 }
 

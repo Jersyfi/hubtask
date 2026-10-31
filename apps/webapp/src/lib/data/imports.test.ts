@@ -17,7 +17,9 @@ test('the nine kinds are offered, CSV as text, a ZIP as a ZIP and the rest as JS
   assert.match(acceptFor('MARKDOWN'), /zip/);
   assert.equal(contentTypeFor('HTML', 'notes.zip'), 'application/zip');
   assert.equal(contentTypeFor('HTML', 'Page.HTML'), 'text/html');
-  assert.match(contentTypeFor('DOCX', 'plan.docx'), /wordprocessingml/);
+  // An Office document is a ZIP to the server's sniff, and a sharper claim over it is refused as
+  // media.type_mismatch: the claim is the ZIP the bytes are.
+  assert.equal(contentTypeFor('DOCX', 'plan.docx'), 'application/zip');
   assert.match(acceptFor('DOCX'), /\.docx/);
   assert.match(acceptFor('CSV'), /csv/);
   assert.match(acceptFor('GOOGLE_TASKS'), /json/);
