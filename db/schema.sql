@@ -1128,7 +1128,7 @@ CREATE TABLE entry_type (
   updated_at       timestamptz NOT NULL,
   version          integer NOT NULL DEFAULT 1,
   -- The hub it is defined at and offered in; null is the whole workspace. A copy names the key it
-  -- was copied from (0317, UC-FLW-01 check 11).
+  -- was copied from (0317, UC-FLW-01 check 10).
   hub_id           uuid,
   copied_from      text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
   UNIQUE (tenant_id, id),

@@ -13,7 +13,7 @@ import (
 
 // chooseEntryType answers the type key a new entry of the level is written with, and the level's
 // profile narrowed by that type's behaviours (UC-FLW-01 check 3), among the types the
-// collection offers on the level (nil: every one) and the entry's hub may use (check 11): another
+// collection offers on the level (nil: every one) and the entry's hub may use (check 10): another
 // hub's own type is unknown here. Without a registry every entry is its level's system type and
 // the profile is unchanged.
 func chooseEntryType(
@@ -76,7 +76,7 @@ func (g EntryGate) admitsUnder(ctx context.Context, parent *domain.WorkItem, ent
 func hubOf(collection domain.Container) shared.ID { return collection.ParentID }
 
 // keepsHubTypes refuses moving an entry and its subtree out of a hub while one of them carries a
-// type defined at that hub (UC-FLW-01 check 11): outside the hub nothing may use it, and changing
+// type defined at that hub (UC-FLW-01 check 10): outside the hub nothing may use it, and changing
 // it silently would drop what the type's form holds. The entries' types are changed first.
 func keepsHubTypes(
 	ctx context.Context, types repository.EntryTypes, item domain.WorkItem, from, to shared.ID,

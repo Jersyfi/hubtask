@@ -56,7 +56,7 @@ func hubFixture() fixture {
 	return f
 }
 
-// UC-FLW-01 check 11: a hub's own type is shaped with STRUCTURE on that hub, belongs to it, and is
+// UC-FLW-01 check 10: a hub's own type is shaped with STRUCTURE on that hub, belongs to it, and is
 // listed only to a caller who may read the hub; the hub must be one of the workspace's living hubs.
 func TestAHubDefinesItsOwnType(t *testing.T) {
 	ctx := context.Background()
@@ -121,7 +121,7 @@ func TestAHubDefinesItsOwnType(t *testing.T) {
 	}
 }
 
-// UC-FLW-01 check 11: a shared type is copied to a hub under a key of its own, naming its source;
+// UC-FLW-01 check 10: a shared type is copied to a hub under a key of its own, naming its source;
 // the source is untouched, and another hub's type cannot be copied.
 func TestMakeACopyHere(t *testing.T) {
 	ctx := context.Background()

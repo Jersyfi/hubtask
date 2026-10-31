@@ -16,7 +16,7 @@ var (
 	otherHub = shared.MustParseID("0192f000-0000-7000-8000-0000000000a8")
 )
 
-// UC-FLW-01 check 11: an entry inside a hub may carry the hub's own type; an entry in another hub
+// UC-FLW-01 check 10: an entry inside a hub may carry the hub's own type; an entry in another hub
 // cannot choose it - it is unknown there - and an entry carrying it does not leave the hub.
 func TestAHubsOwnTypeStaysInsideItsHub(t *testing.T) {
 	ctx := context.Background()

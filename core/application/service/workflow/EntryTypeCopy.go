@@ -28,7 +28,7 @@ type CopyEntryTypeHereCommand struct {
 	Name *string
 }
 
-// CopyEntryTypeHere makes a hub's own copy of a type shared with it (UC-FLW-01 check 11): a
+// CopyEntryTypeHere makes a hub's own copy of a type shared with it (UC-FLW-01 check 10): a
 // shared type is read-only at the hub, and a hub that needs it different copies it.
 type CopyEntryTypeHere struct{ Registry Registry }
 

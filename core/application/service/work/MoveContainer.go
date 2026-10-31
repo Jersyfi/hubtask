@@ -47,7 +47,7 @@ type MoveContainer struct {
 	// the placement alone.
 	Structure StructureResolver
 	// EntryTypes refuses a move out of a hub while an entry of the collection carries a type
-	// defined at that hub (UC-FLW-01 check 11). Nil asks nothing.
+	// defined at that hub (UC-FLW-01 check 10). Nil asks nothing.
 	EntryTypes repository.EntryTypes
 }
 

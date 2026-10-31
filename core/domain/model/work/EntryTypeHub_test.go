@@ -17,7 +17,7 @@ var (
 	copyID     = shared.MustParseID("0192f000-0000-7000-8000-0000000000e2")
 )
 
-// UC-FLW-01 check 11: a hub's own type is offered only inside that hub; a workspace's type
+// UC-FLW-01 check 10: a hub's own type is offered only inside that hub; a workspace's type
 // everywhere.
 func TestAHubsTypeIsOfferedOnlyInsideTheHub(t *testing.T) {
 	common := newEntryType(t, bugType)

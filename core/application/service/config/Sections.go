@@ -148,7 +148,7 @@ func sections() []section {
 			attributes: []string{
 				"level", "name", "icon", "color_token", "completable", "workflow", "record", "schedulable",
 				"estimable", "allowed_children", "position", "archived", "form", "description", "translations",
-				// A hub's own type (UC-FLW-01 check 11) names its hub, set when it is made.
+				// A hub's own type (UC-FLW-01 check 10) names its hub, set when it is made.
 				"hub_id",
 			},
 			fixed:  []string{"level", "hub_id"},

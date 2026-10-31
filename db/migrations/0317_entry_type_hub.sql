@@ -1,4 +1,4 @@
--- An entry type defined at a hub (configuration model §1, §2; UC-FLW-01 check 11): a hub's own
+-- An entry type defined at a hub (configuration model §1, §2; UC-FLW-01 check 10): a hub's own
 -- type is offered only inside that hub, and a copy of a shared type records the key it was made
 -- from. Keys stay unique in the workspace, so an entry's type still names one row
 -- (`work_item_entry_type_fkey`) and a copy takes a key of its own.

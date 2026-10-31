@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A hub's own type against the real boundary (UC-FLW-01 check 11, gate SG-3): it is stored with
+// A hub's own type against the real boundary (UC-FLW-01 check 10, gate SG-3): it is stored with
 // its hub and the key it was copied from, an entry of the hub carrying it is found under the
 // entry and in the collection, the workspace next door reads none of it, and the hub takes its
 // types with it when it goes.
