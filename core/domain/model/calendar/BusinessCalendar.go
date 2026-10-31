@@ -3,7 +3,7 @@
 
 // Package calendar is business time (F-10): a calendar of working hours, holidays and a time
 // zone, the arithmetic that counts working time on it, and the durable timer that runs on it -
-// the clock under an SLA, an approval's deadline and a change's effectiveness check
+// the clock under an SLA, an approval's deadline and a page's review
 // (domain-model.md, business calendars and timers).
 package calendar
 
