@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // configuration/ui.md A5, UC-CFG-01 check 10: the check reads the configuration in force, the
@@ -47,5 +48,33 @@ func TestTheConfigurationCheckFindsWhatPeopleWouldMeet(t *testing.T) {
 	f.world.scheme = []any{map[string]any{"container_id": supportHub, "entry_type": "incident", "workflow": "service"}}
 	if out := invoke(t, CheckConfig{f.desk}.Descriptor(), person, usecase.Input{"hub_id": supportHub}); len(out["findings"].([]usecase.Output)) != 0 {
 		t.Errorf("a sound configuration found %v", out["findings"])
+	}
+}
+
+// UC-CFG-01 check 10: the check knows every door an entry arrives through, so a required field
+// each of them hides is found before an entry of the type stalls in its first column.
+func TestTheConfigurationCheckKnowsEveryChannel(t *testing.T) {
+	f := newFixture()
+	f.world.fields = map[string]map[string]any{"severity": {
+		"id": "0190a8f0-0000-7000-8000-0000000000c1", "key": "severity", "kind": "TEXT", "options": []any{},
+		"is_required": true, "applies_to": []any{"TASK"},
+	}}
+	var rules []any
+	for _, channel := range workmodel.FormChannels() {
+		rules = append(rules, map[string]any{"channel": string(channel), "closed": false,
+			"hidden": []any{"custom_fields.severity"}, "presets": map[string]any{}})
+	}
+	f.world.types["incident"] = map[string]any{"key": "incident", "level": "TASK", "name": "Incident",
+		"form": map[string]any{"sections": []any{}, "fields": []any{}, "validations": []any{}, "channels": rules}}
+
+	out := invoke(t, CheckConfig{f.desk}.Descriptor(), person, usecase.Input{})
+	findings := out["findings"].([]usecase.Output)
+	if len(findings) != 1 || findings[0]["code"] != "config.check.required_unfillable" || findings[0]["path"] != "types.incident" {
+		t.Fatalf("findings %v, want the severity field nobody can fill", findings)
+	}
+
+	rules[0].(map[string]any)["hidden"] = []any{}
+	if out := invoke(t, CheckConfig{f.desk}.Descriptor(), person, usecase.Input{}); len(out["findings"].([]usecase.Output)) != 0 {
+		t.Errorf("a field one channel shows found %v", out["findings"])
 	}
 }

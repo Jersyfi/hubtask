@@ -74,7 +74,10 @@ the two versions and rolls the hub's workflow back.
     would strand: a workflow no step somebody may take completes (`config.check.done_unreachable`),
     a status no such step leads to, a step only roles that do not exist may take, a rule answering
     every change of an entry by changing it again, a hub's scheme naming a workflow the workspace
-    does not hold - each with its severity, errors first, and the key path of the block to change;
+    does not hold, a required field every channel of a type's form hides with no preset and no
+    default (`config.check.required_unfillable`), two fields of one kind offering the same choices
+    (`config.check.fields_same_meaning`), one tolerance locked alike in several of a hub's
+    collections while the hub leaves it open (`config.check.lock_could_move_up`) - each with its severity, errors first, and the key path of the block to change;
     a sound configuration answers no finding. *Administration → Overview* lists them, each opening
     its block's page.
 

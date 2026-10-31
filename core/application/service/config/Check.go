@@ -12,6 +12,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
@@ -30,7 +31,9 @@ func (h CheckConfig) Descriptor() usecase.Descriptor {
 		Summary: "Checks the configuration in force before people meet it: a workflow whose " +
 			"entries can never be completed, a status no step leads to, a step only roles that do " +
 			"not exist may take, a rule that answers its own change, a hub's scheme naming a " +
-			"workflow the workspace does not hold. Each finding names a severity, a message code, " +
+			"workflow the workspace does not hold, a required field every channel hides, two fields " +
+			"of one kind offering the same choices, one tolerance locked alike in several " +
+			"collections the hub could lock once. Each finding names a severity, a message code, " +
 			"the key path of the block to change and its parameters.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  scopeRead,
@@ -55,6 +58,9 @@ func (d Desk) checkInForce(ctx context.Context, actor appshared.ActorContext, hu
 	in := domain.Checked{}
 	for _, role := range identity.Roles() {
 		in.BuiltInRoles = append(in.BuiltInRoles, string(role))
+	}
+	for _, channel := range workmodel.FormChannels() {
+		in.Channels = append(in.Channels, string(channel))
 	}
 	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		workspace, err := d.export(ctx, actor, "")

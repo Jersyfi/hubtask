@@ -18,6 +18,14 @@ func step(key string, from []any, to string, who map[string]any) any {
 	return out
 }
 
+func formOf(fields []any, channels ...any) map[string]any {
+	return map[string]any{"fields": fields, "channels": channels}
+}
+
+func channelRule(channel string, hidden []any, presets map[string]any) any {
+	return map[string]any{"channel": channel, "hidden": hidden, "presets": presets}
+}
+
 func workflowOf(steps ...any) Block {
 	return Block{"shape": map[string]any{
 		"initial":  "new",
@@ -86,6 +94,59 @@ func TestTheConfigurationCheck(t *testing.T) {
 				Hub:       Document{"scheme": {"incident": Block{"workflow": "gone"}, "task": Block{"workflow": "flow"}}},
 			},
 			want: []Finding{{Severity: SeverityError, Code: "config.check.scheme_workflow_unknown", Path: "scheme.incident", Params: map[string]string{"workflow": "gone"}}},
+		},
+		{
+			name: "a required field every channel hides with nothing to start it from",
+			in: Checked{Channels: []string{"APP", "MCP"}, Workspace: Document{
+				"fields": {
+					"severity": Block{"kind": "SELECT", "is_required": true, "applies_to": []any{"TASK"}},
+					"impact":   Block{"kind": "TEXT", "is_required": true, "applies_to": []any{"TASK"}},
+					"cause":    Block{"kind": "TEXT", "is_required": true, "applies_to": []any{"TASK"}},
+				},
+				"types": {
+					"incident": Block{"level": "TASK", "form": formOf(
+						[]any{map[string]any{"key": "custom_fields.cause", "default": "unknown"}},
+						channelRule("APP", []any{"custom_fields.severity", "custom_fields.impact", "custom_fields.cause"}, nil),
+						channelRule("MCP", []any{"custom_fields.severity", "custom_fields.impact", "custom_fields.cause"}, map[string]any{"custom_fields.impact": "low"}))},
+					"change": Block{"level": "TASK", "form": formOf(nil, channelRule("APP", []any{"custom_fields.severity"}, nil))},
+					"story":  Block{"level": "WORK_PACKAGE", "form": formOf(nil,
+						channelRule("APP", []any{"custom_fields.severity"}, nil), channelRule("MCP", []any{"custom_fields.severity"}, nil))},
+				},
+			}},
+			want: []Finding{{Severity: SeverityError, Code: "config.check.required_unfillable", Path: "types.incident",
+				Params: map[string]string{"field": "severity"}}},
+		},
+		{
+			name: "two fields of one kind offering the same choices",
+			in: Checked{Workspace: Document{"fields": {
+				"prio":     Block{"kind": "SELECT", "options": []any{"High", "Low"}},
+				"priority": Block{"kind": "SELECT", "options": []any{"low", "high "}},
+				"urgency":  Block{"kind": "MULTI_SELECT", "options": []any{"high", "low"}},
+				"notes":    Block{"kind": "TEXT", "options": []any{}},
+				"remarks":  Block{"kind": "TEXT", "options": []any{}},
+			}}},
+			want: []Finding{{Severity: SeverityWarning, Code: "config.check.fields_same_meaning", Path: "fields.prio",
+				Params: map[string]string{"field": "prio", "other": "priority"}}},
+		},
+		{
+			name: "collections each locking the same tolerance the hub leaves open",
+			in: Checked{Workspace: Document{}, Hub: Document{"collection_tolerance": {
+				"network.time_tolerance_days": Block{"value": float64(3), "lock": true},
+				"servers.time_tolerance_days": Block{"value": float64(3), "lock": true},
+				"desk.time_tolerance_days":    Block{"value": float64(5), "lock": true},
+				"office.time_tolerance_days":  Block{"value": float64(3)},
+			}}},
+			want: []Finding{{Severity: SeverityWarning, Code: "config.check.lock_could_move_up", Path: "tolerance.time_tolerance_days",
+				Params: map[string]string{"value": "3", "collections": "2"}}},
+		},
+		{
+			name: "no lock moves up past the hub's own",
+			in: Checked{Workspace: Document{}, Hub: Document{
+				"tolerance": {"time_tolerance_days": Block{"value": float64(2), "lock": true}},
+				"collection_tolerance": {
+					"network.time_tolerance_days": Block{"value": float64(3), "lock": true},
+					"servers.time_tolerance_days": Block{"value": float64(3), "lock": true},
+				}}},
 		},
 	}
 	for _, tc := range cases {
