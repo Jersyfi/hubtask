@@ -27,7 +27,7 @@ func TestAFormLinkTokenReadsBackAndMasks(t *testing.T) {
 		t.Fatalf("the token printed itself: %s", printed)
 	}
 	for name, raw := range map[string]string{
-		"a page link": strings.Replace(token.Secret(), FormLinkTokenPrefix, PageLinkTokenPrefix, 1),
+		"a page link":  strings.Replace(token.Secret(), FormLinkTokenPrefix, PageLinkTokenPrefix, 1),
 		"short":        token.Secret()[:len(token.Secret())-1],
 		"no tenant":    FormLinkTokenPrefix + "_" + strings.Repeat("a", 43),
 		"bad alphabet": token.Secret()[:len(token.Secret())-1] + "+",

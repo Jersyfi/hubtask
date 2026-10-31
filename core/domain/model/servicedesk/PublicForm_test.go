@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -38,8 +39,8 @@ func solve(t *testing.T, value string, need int) string {
 }
 
 func detail(err error) string {
-	coded, ok := err.(*shared.Error)
-	if !ok {
+	var coded *shared.Error
+	if !errors.As(err, &coded) {
 		return ""
 	}
 	return coded.DetailCode
