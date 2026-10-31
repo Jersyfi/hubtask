@@ -32,6 +32,8 @@ func roleGroupsSection() section {
 func roleGroupRows(answer map[string]any) []any {
 	grants, _ := answer["grants"].([]any)
 	byRole := map[string]map[string]any{}
+	// The grant behind each group, by role; the row carries the same map.
+	grantIDs := map[string]map[string]any{}
 	var order []string
 	for _, raw := range grants {
 		grant, _ := raw.(map[string]any)
@@ -39,20 +41,19 @@ func roleGroupRows(answer map[string]any) []any {
 		if role == "" || group == "" || text(grant["scope_type"]) != "TENANT" {
 			continue
 		}
-		row, seen := byRole[role]
-		if !seen {
-			row = map[string]any{"role": role, "grant_ids": map[string]any{}}
-			byRole[role] = row
+		if _, seen := byRole[role]; !seen {
+			grantIDs[role] = map[string]any{}
+			byRole[role] = map[string]any{"role": role, "grant_ids": grantIDs[role]}
 			order = append(order, role)
 		}
-		row["grant_ids"].(map[string]any)[group] = text(grant["id"])
+		grantIDs[role][group] = text(grant["id"])
 	}
 	slices.Sort(order)
 	rows := make([]any, 0, len(order))
 	for _, role := range order {
 		row := byRole[role]
-		held := make([]string, 0, len(row["grant_ids"].(map[string]any)))
-		for group := range row["grant_ids"].(map[string]any) {
+		held := make([]string, 0, len(grantIDs[role]))
+		for group := range grantIDs[role] {
 			held = append(held, group)
 		}
 		slices.Sort(held)
