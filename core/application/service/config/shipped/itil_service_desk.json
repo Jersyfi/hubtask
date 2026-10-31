@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 4,
+  "version": 5,
   "document": {
     "modules": {
       "workflows": {
@@ -860,6 +860,97 @@
             "kind": "TAKE_STEP",
             "params": {
               "to_status": "closed"
+            }
+          }
+        ]
+      },
+      "sla_at_risk": {
+        "name": "Tell the assignee an SLA goal is at risk",
+        "enabled": true,
+        "trigger": {
+          "kind": "EVENT",
+          "event_type": "de.hubtask.work.item.sla_at_risk.v1"
+        },
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "ADD_COMMENT",
+            "params": {
+              "body": "An SLA goal of this request is at risk.",
+              "internal": true
+            }
+          }
+        ]
+      },
+      "sla_breached": {
+        "name": "Escalate a breached SLA goal",
+        "enabled": true,
+        "trigger": {
+          "kind": "EVENT",
+          "event_type": "de.hubtask.work.item.sla_breached.v1"
+        },
+        "conditions": [
+          {
+            "expr": "item.entry_type == 'incident'"
+          }
+        ],
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "ADD_COMMENT",
+            "params": {
+              "body": "An SLA goal of this request was missed; its priority is raised by one.",
+              "internal": true
+            }
+          },
+          {
+            "kind": "BRANCH",
+            "params": {
+              "condition": "item.custom_fields.priority == 'P2'",
+              "then": [
+                {
+                  "kind": "SET_CUSTOM_FIELD",
+                  "params": {
+                    "key": "priority",
+                    "value": "P1"
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "BRANCH",
+                  "params": {
+                    "condition": "item.custom_fields.priority == 'P3'",
+                    "then": [
+                      {
+                        "kind": "SET_CUSTOM_FIELD",
+                        "params": {
+                          "key": "priority",
+                          "value": "P2"
+                        }
+                      }
+                    ],
+                    "else": [
+                      {
+                        "kind": "BRANCH",
+                        "params": {
+                          "condition": "item.custom_fields.priority == 'P4'",
+                          "then": [
+                            {
+                              "kind": "SET_CUSTOM_FIELD",
+                              "params": {
+                                "key": "priority",
+                                "value": "P3"
+                              }
+                            }
+                          ],
+                          "else": []
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
             }
           }
         ]

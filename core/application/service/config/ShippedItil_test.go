@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/servicedesk"
 	"github.com/Jersyfi/hubtask/core/application/service/workflow"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	automationmodel "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	desk "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
@@ -40,7 +41,7 @@ func itilTemplate(t *testing.T) domain.Template {
 // every block one the use cases that apply it accept, and every section one the document has.
 func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	template := itilTemplate(t)
-	if template.Origin != domain.OriginHubtask || template.Version != 4 || !reservedKey(template.Key) {
+	if template.Origin != domain.OriginHubtask || template.Version != 5 || !reservedKey(template.Key) {
 		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
 	}
 	// Its hub part (templates.md §1): the hub's switches and which of the template's workflows
@@ -100,13 +101,28 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	}); err != nil {
 		t.Errorf("the closing rule: %v", err)
 	}
+	// Its escalation (templates.md §1): an SLA goal at risk tells the assignee by an internal
+	// comment, a breached one also raises an incident's priority by one step.
+	escalation := map[string]string{"sla_at_risk": "de.hubtask.work.item.sla_at_risk.v1", "sla_breached": "de.hubtask.work.item.sla_breached.v1"}
 	for key, block := range template.Hub[sectionRules] {
 		if key == "close_resolved" {
 			continue
 		}
 		trigger, _ := block["trigger"].(map[string]any)
-		if enabled, _ := block["enabled"].(bool); !enabled || trigger["kind"] != "MANUAL" {
-			t.Errorf("the macro %s is not a manual rule switched on: %v", key, block)
+		kept := automationmodel.Trigger{Kind: automationmodel.TriggerManual}
+		if eventType, escalates := escalation[key]; escalates {
+			if trigger["kind"] != "EVENT" || trigger["event_type"] != eventType {
+				t.Errorf("the escalation %s is not on %s: %v", key, eventType, trigger)
+			}
+			kept = automationmodel.Trigger{Kind: automationmodel.TriggerEvent, EventType: event.Type(eventType)}
+			if !strings.Contains(domain.Canonical(block["actions"]), `"internal":true`) {
+				t.Errorf("the escalation %s tells nobody by an internal comment: %v", key, block)
+			}
+		} else if trigger["kind"] != "MANUAL" {
+			t.Errorf("the macro %s is not a manual rule: %v", key, block)
+		}
+		if enabled, _ := block["enabled"].(bool); !enabled {
+			t.Errorf("the rule %s is not switched on: %v", key, block)
 		}
 		var actions []automationmodel.Action
 		for _, raw := range block["actions"].([]any) {
@@ -114,13 +130,20 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 			params, _ := action["params"].(map[string]any)
 			actions = append(actions, automationmodel.Action{Kind: text(action["kind"]), Params: params})
 		}
+		var conditions []automationmodel.Condition
+		for _, raw := range asList(block["conditions"]) {
+			conditions = append(conditions, automationmodel.Condition{Expr: text(raw.(map[string]any)["expr"])})
+		}
 		if _, err := automationmodel.NewRule(automationmodel.NewRuleInput{
 			ID: id, TenantID: tenant, Key: key, Name: text(block["name"]), Scope: automationmodel.Scope{Type: automationmodel.ScopeHub, ID: lintHub},
-			RunAs: id, Trigger: automationmodel.Trigger{Kind: automationmodel.TriggerManual}, Actions: actions,
+			RunAs: id, Trigger: kept, Conditions: conditions, Actions: actions,
 			OnError: automationmodel.OnError(text(block["on_error"])), CreatedBy: id, Now: now, Text: textport.Composing{},
 		}); err != nil {
-			t.Errorf("the macro %s: %v", key, err)
+			t.Errorf("the rule %s: %v", key, err)
 		}
+	}
+	if !strings.Contains(domain.Canonical(template.Hub[sectionRules]["sla_breached"]), `"value":"P1"`) {
+		t.Error("a breached P2 is not raised to P1")
 	}
 	known := map[string]bool{sectionSettings: true}
 	for _, s := range sections() {
@@ -190,4 +213,9 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 			t.Errorf("reply %s: %v", key, err)
 		}
 	}
+}
+
+func asList(v any) []any {
+	list, _ := v.([]any)
+	return list
 }
