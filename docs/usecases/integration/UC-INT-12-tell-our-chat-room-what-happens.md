@@ -5,9 +5,9 @@ context: integration
 actors: [PE-admin, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/integration/DeliveryFormat_test.go, core/application/service/integration/ChatChannel_test.go, infrastructure/webhook/ChatMessage_test.go, cmd/hubctl/Webhook_test.go, apps/webapp/src/lib/data/webhooks.test.ts, test/integration/webhook_chat_test.go]
+checked_by: [core/domain/model/integration/DeliveryFormat_test.go, core/application/service/integration/ChatChannel_test.go, infrastructure/webhook/ChatMessage_test.go, cmd/hubctl/Webhook_test.go, apps/webapp/src/lib/data/webhooks.test.ts, test/integration/webhook_chat_test.go, apps/webapp/e2e/chatroom.test.mjs]
 ---
 
 # Tell our team's chat room what happens
@@ -56,7 +56,3 @@ incoming webhook address, which nobody can read back afterwards.
   the others through an incoming webhook address.
 * One language per room; a person's own chat channel is
   [UC-NOT-06](../notification/UC-NOT-06-be-told-somewhere-other-than-mail.md).
-
-## Today
-
-* Check 1: the screen is built; no engine walk (`apps/webapp/e2e`) proves subscribing a room on it.
