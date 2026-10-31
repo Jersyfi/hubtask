@@ -1,4 +1,4 @@
--- A notification category for the team's public answer on a portal request (UC-SVC-05 check 9):
+-- A notification category for the team's public answer on a portal request (UC-SVC-05 check 6):
 -- the closed set of `notification.category` and `notification_preference.category` takes
 -- REQUEST_REPLY.
 --

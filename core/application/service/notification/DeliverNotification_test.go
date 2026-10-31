@@ -623,7 +623,7 @@ func (w workspaceSlugged) Find(context.Context) (identity.Workspace, error) {
 	return workspace, nil
 }
 
-// UC-SVC-05 check 9: a requester's reply notice reads as a comment and links into the portal,
+// UC-SVC-05 check 6: a requester's reply notice reads as a comment and links into the portal,
 // never to the entry's screen, which is the team's.
 func TestARequestReplyLinksIntoThePortal(t *testing.T) {
 	fixture := delivery(t, domain.CategoryRequestReply, true)

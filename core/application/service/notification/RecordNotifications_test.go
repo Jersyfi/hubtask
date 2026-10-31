@@ -331,7 +331,7 @@ func (b requesterBook) Requester(_ context.Context, actor appshared.ActorContext
 	return b[actor.AccountID], nil
 }
 
-// UC-SVC-05 check 9: the team's public answer on a request is told to the requester who raised
+// UC-SVC-05 check 6: the team's public answer on a request is told to the requester who raised
 // it in the portal, under their own category; an internal note, their own words and an entry
 // raised by a team member tell them nothing.
 func TestAPublicReplyOnARequestTellsItsRequester(t *testing.T) {
