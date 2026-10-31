@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answersOf, askable, deflectionText, deskHead, goalTone } from './portal.ts';
+import { answersOf, askable, deflectionText, deskHead, deskLogoOf, goalTone } from './portal.ts';
 
 const questions = [
   { key: 'room', kind: 'SELECT', options: ['floor_1', 'floor_2'] },
@@ -53,4 +53,13 @@ test('the head is the desk the portal is for', () => {
   assert.deepEqual(deskHead({ name: 'HR', description: '', icon: '', color_token: '' }, words),
     { title: 'HR', subtitle: 'Tell the team what you need.' });
   assert.deepEqual(deskHead(undefined, words), { title: 'Ask for help', subtitle: 'Tell the team what you need.' });
+});
+
+// UC-SVC-05 check 9: a desk with a logo of its own is drawn by it; one without, by its icon.
+test('a desk is drawn by its own logo where it has one', () => {
+  const desk = { name: 'IT help', description: '', icon: 'printer', color_token: 'blue' };
+  assert.equal(deskLogoOf({ ...desk, logo_media_id: '01936f2a-7c1e-7000-8000-00000000e101' }), '01936f2a-7c1e-7000-8000-00000000e101');
+  assert.equal(deskLogoOf({ ...desk, logo_media_id: null }), undefined);
+  assert.equal(deskLogoOf(desk), undefined);
+  assert.equal(deskLogoOf(undefined), undefined);
 });

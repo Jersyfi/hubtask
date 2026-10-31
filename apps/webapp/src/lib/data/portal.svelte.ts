@@ -7,7 +7,7 @@
  * invalidates the same set the screens read.
  */
 
-import type { ArticleRating, PortalRequest, PortalRequestDetail, RequestSatisfaction } from '@hubtask/sync-engine';
+import type { ArticleRating, DeskLogo, PortalRequest, PortalRequestDetail, RequestSatisfaction } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 
@@ -49,6 +49,19 @@ class Portal {
     const body = comment.trim() === '' ? { score } : { score, comment: comment.trim() };
     return engine.mutate<RequestSatisfaction>('PUT', `${myRequestPath(request.id)}/satisfaction`, body, {
       invalidates: [myRequestPath(request.id)],
+    });
+  }
+
+  /** The desk's own logo (UC-SVC-05 check 9), from a picture already uploaded as `DESK_LOGO`. */
+  setLogo(collectionId: string, mediaId: string): Promise<DeskLogo> {
+    return engine.mutate<DeskLogo>('PUT', `/containers/${collectionId}/desk-logo`, { media_id: mediaId }, {
+      invalidates: [cataloguePath(collectionId)],
+    });
+  }
+
+  removeLogo(collectionId: string): Promise<DeskLogo> {
+    return engine.mutate<DeskLogo>('DELETE', `/containers/${collectionId}/desk-logo`, undefined, {
+      invalidates: [cataloguePath(collectionId)],
     });
   }
 

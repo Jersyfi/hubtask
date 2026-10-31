@@ -112,6 +112,13 @@ export interface Desk {
   readonly description: string;
   readonly icon: string;
   readonly color_token: string;
+  /** The desk's own logo (check 9); null or absent draws the icon and the colour. */
+  readonly logo_media_id?: string | null;
+}
+
+/** The logo the desk is drawn by, or undefined for its icon and colour (UC-SVC-05 check 9). */
+export function deskLogoOf(desk: Desk | undefined): string | undefined {
+  return desk?.logo_media_id || undefined;
 }
 
 /**

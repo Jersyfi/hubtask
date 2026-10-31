@@ -28,10 +28,12 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import ArticleSuggestions from '../lib/portal/ArticleSuggestions.svelte';
   import Question from '../lib/portal/Question.svelte';
-  import { answersOf, askable, deflectionText, deskHead } from '../lib/portal/portal.ts';
+  import { answersOf, askable, deflectionText, deskHead, deskLogoOf } from '../lib/portal/portal.ts';
+  import { media } from '../lib/data/media.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import ApprovalCard from '../lib/servicedesk/ApprovalCard.svelte';
   import PublicFormPanel from '../lib/servicedesk/PublicFormPanel.svelte';
+  import DeskLogoPanel from '../lib/servicedesk/DeskLogoPanel.svelte';
   import { offersOrganisation } from '../lib/servicedesk/organisations.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
 
@@ -39,6 +41,9 @@
 
   const catalogue = untrack(() => resource<RequestCatalogue>(cataloguePath(collectionId)));
   const desk = $derived(catalogue.state.status === 'ready' ? catalogue.state.data.desk : undefined);
+  // The desk's own logo, drawn from the download target the server answers (check 9); until it
+  // arrives, or where the reader may not have it, the icon and the colour stand.
+  const logoUrl = $derived(media.coverUrl(deskLogoOf(desk), Date.now()));
   const head = $derived(deskHead(desk, { title: t('app.portal.title'), intro: t('app.portal.intro') }));
   $effect(() => page.entitle(head.title));
   const mine = untrack(() => resource<PortalRequestPage>(myRequestsPath(collectionId)));
@@ -109,7 +114,10 @@
   }
 </script>
 
-{#snippet deskMark()}<ContainerMark look={{ type: 'COLLECTION', icon: desk?.icon || null, color_token: desk?.color_token || null }} size="md" />{/snippet}
+{#snippet deskMark()}
+  {#if logoUrl}<img class="logo" src={logoUrl} alt={t('app.desk_logo.alt', { name: desk?.name ?? '' })} />
+  {:else}<ContainerMark look={{ type: 'COLLECTION', icon: desk?.icon || null, color_token: desk?.color_token || null }} size="md" />{/if}
+{/snippet}
 
 <Stack gap="300">
   <PageHeader title={head.title} subtitle={head.subtitle} isTitleInBar={viewport.isCompact}
@@ -162,6 +170,7 @@
   <!-- Asked only of somebody who manages the workspace's members: a requester's portal would
        otherwise ask, and be refused, at every opening. -->
   {#if holdsHere('MANAGE_MEMBERS') === true}<PublicFormPanel {collectionId} />{/if}
+  {#if holdsHere('STRUCTURE') === true && desk}<DeskLogoPanel {collectionId} hasLogo={deskLogoOf(desk) !== undefined} />{/if}
 
   <section aria-labelledby="portal-mine">
     <Stack gap="100">
@@ -194,6 +203,7 @@
 </Stack>
 
 <style>
+  .logo { inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); object-fit: contain; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }

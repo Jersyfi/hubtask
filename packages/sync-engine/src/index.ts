@@ -160,6 +160,7 @@ export type {
   Article,
   ArticleRating,
   RequestCatalogue,
+  DeskLogo,
   PublicForm,
   PublicFormMinted,
   PublicFormView,
