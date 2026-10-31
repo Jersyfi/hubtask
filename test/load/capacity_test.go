@@ -169,6 +169,42 @@ func TestCapacityAtScale(t *testing.T) {
 	finding.PeakResident, finding.MemoryObserved = peak.read()
 	finding.MemoryLimit = memoryLimitBytes
 	writeEvidence(t, fmt.Sprintf("capacity-%d.json", items), finding)
+	writeEvidence(t, fmt.Sprintf("errors-%d.json", items), collectErrors(t, stack))
+}
+
+// collectErrors is every warning and error the server and PostgreSQL logged during the run, one
+// row per message (accepted.md, "The owner's word on the performance tests"). Failed requests are
+// in the finding's server errors and statuses.
+func collectErrors(t *testing.T, stack *stack) []harness.LogError {
+	t.Helper()
+	var found []harness.LogError
+	if file, err := os.Open(stack.serverLog); err == nil {
+		rows, err := harness.ServerErrors(file)
+		_ = file.Close()
+		if err != nil {
+			t.Errorf("reading the server's log: %v", err)
+		}
+		found = append(found, rows...)
+	}
+	if stack.database != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		logs, err := stack.database.Logs(ctx)
+		if err != nil {
+			t.Errorf("reading PostgreSQL's log: %v", err)
+			return found
+		}
+		defer func() { _ = logs.Close() }()
+		rows, err := harness.PostgresErrors(logs)
+		if err != nil {
+			t.Errorf("reading PostgreSQL's log: %v", err)
+		}
+		found = append(found, rows...)
+	}
+	for _, row := range found {
+		t.Logf("%s %s ×%d: %s", row.Source, row.Level, row.Count, row.Message)
+	}
+	return found
 }
 
 // measurePath holds one path for one tenant and reads what the window recorded.

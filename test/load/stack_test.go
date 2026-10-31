@@ -92,6 +92,11 @@ type stack struct {
 	tenants []tenant
 	// serverPID is the process, so a run can look at what it is costing.
 	serverPID int
+	// serverLog is the server's own output, and database the container whose log is read at the
+	// end: the run's errors are collected from both (accepted.md, "The owner's word on the
+	// performance tests").
+	serverLog string
+	database  *tcpostgres.PostgresContainer
 }
 
 type tenant struct {
@@ -161,12 +166,12 @@ func startStack(tenants, items int) (*stack, error) {
 		return nil, fmt.Errorf("minting: %w", err)
 	}
 
-	url, pid, err := startServer(ctx, appDSN)
+	url, pid, serverLog, err := startServer(ctx, appDSN)
 	if err != nil {
 		return nil, err
 	}
 
-	return &stack{baseURL: url, tenants: minted, serverPID: pid}, nil
+	return &stack{baseURL: url, tenants: minted, serverPID: pid, serverLog: serverLog, database: container}, nil
 }
 
 func postgresImage() string {
@@ -415,10 +420,10 @@ func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, te
 // startServer builds and runs the real binary rather than wiring the adapters by hand. RT-6 asks
 // whether the process holds - its memory, its garbage collector, its pool - and a stack assembled
 // in a test is a different process from the one that is deployed.
-func startServer(ctx context.Context, dsn string) (string, int, error) {
+func startServer(ctx context.Context, dsn string) (string, int, string, error) {
 	home, err := os.MkdirTemp("", "hubtask-load")
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 	teardown = append(teardown, func() { _ = os.RemoveAll(home) })
 
@@ -426,16 +431,16 @@ func startServer(ctx context.Context, dsn string) (string, int, error) {
 	build := exec.CommandContext(ctx, "go", "build", "-trimpath", "-o", binary, "./cmd/server")
 	build.Dir = repositoryRoot()
 	if out, err := build.CombinedOutput(); err != nil {
-		return "", 0, fmt.Errorf("building the server: %w: %s", err, out)
+		return "", 0, "", fmt.Errorf("building the server: %w: %s", err, out)
 	}
 
 	httpPort, err := freePort(ctx)
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 	opsPort, err := freePort(ctx)
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 
 	// Started with its own context rather than the caller's: the stack outlives the function that
@@ -483,11 +488,26 @@ func startServer(ctx context.Context, dsn string) (string, int, error) {
 		"HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS=true",
 		"HUBTASK_HTTP_ALLOWED_HOSTS=127.0.0.1",
 	)
-	server.Stdout = os.Stderr
-	server.Stderr = os.Stderr
+	// Kept beside the evidence, where one is named, so the run's errors outlive the process.
+	logDir := os.Getenv(envEvidence)
+	if logDir == "" {
+		logDir = home
+	} else if err := os.MkdirAll(logDir, 0o750); err != nil {
+		stop()
+		return "", 0, "", err
+	}
+	serverLog := filepath.Join(logDir, "server.log")
+	logFile, err := os.Create(serverLog)
+	if err != nil {
+		stop()
+		return "", 0, "", err
+	}
+	teardown = append(teardown, func() { _ = logFile.Close() })
+	server.Stdout = io.MultiWriter(os.Stderr, logFile)
+	server.Stderr = server.Stdout
 	if err := server.Start(); err != nil {
 		stop()
-		return "", 0, fmt.Errorf("starting the server: %w", err)
+		return "", 0, "", fmt.Errorf("starting the server: %w", err)
 	}
 	teardown = append(teardown, func() {
 		stop()
@@ -496,9 +516,9 @@ func startServer(ctx context.Context, dsn string) (string, int, error) {
 
 	url := "http://127.0.0.1:" + strconv.Itoa(httpPort)
 	if err := waitReady(ctx, "http://127.0.0.1:"+strconv.Itoa(opsPort)+"/readyz"); err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
-	return url, server.Process.Pid, nil
+	return url, server.Process.Pid, serverLog, nil
 }
 
 // memoryLimitBytes is the ceiling the run holds the process to. 768 MiB is the chart's own limit
