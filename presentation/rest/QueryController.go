@@ -4,71 +4,10 @@
 package rest
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"net/http"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
-
-// decodeQuery reads the body twice from the same bytes: once into the generated type, so that an
-// unknown field is refused and the scalars are typed, and once untyped, so that the parts of the
-// request that are a grammar rather than a field list reach the use case as the documents they are.
-//
-// The two passes cannot disagree, because the typed one has already established that this is an
-// object whose keys are known.
-func decodeQuery(r *http.Request, into *openapi.ItemQuery) (map[string]any, error) {
-	raw, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, shared.ErrMalformedRequest.WithDetail("request.body_unreadable").WithCause(err)
-	}
-	if err := decodeFrom(bytes.NewReader(raw), into); err != nil {
-		return nil, err
-	}
-
-	var document map[string]any
-	if err := json.Unmarshal(raw, &document); err != nil {
-		return nil, shared.ErrMalformedRequest.WithDetail("request.body_malformed").WithCause(err)
-	}
-	return document, nil
-}
-
-// queryInput maps the request onto the catalogue's input.
-//
-// The filter, the sort and the grouping travel as they arrived. The grammar that reads them lives
-// in the domain (core/domain/model/view), so this layer neither validates nor reshapes them - a
-// second reading here would be a second place for the grammar to be wrong, and the MCP and
-// automation channels would not go through it (ADR-0005, ADR-0026).
-func queryInput(body openapi.ItemQuery, document map[string]any, asked expansions) usecase.Input {
-	in := usecase.Input{
-		"scope_container_id": optionalUUIDField(body.Scope.ContainerId),
-		"scope_item_id":      optionalUUIDField(body.Scope.ItemId),
-		"include_archived":   optionalBoolField(body.IncludeArchived),
-		"include_trashed":    optionalBoolField(body.IncludeTrashed),
-		"expand_labels":      asked.labels,
-		"expand_counts":      asked.counts,
-	}
-	if body.Scope.IncludeDescendants != nil {
-		in["include_descendants"] = *body.Scope.IncludeDescendants
-	}
-	if body.Page != nil {
-		in["cursor"] = optionalStringField(body.Page.Cursor)
-		in["size"] = optionalIntField(body.Page.Size)
-	}
-	if body.Count != nil {
-		in["count"] = string(*body.Count)
-	}
-
-	for _, part := range []string{"filter", "sort", "group_by"} {
-		if value, present := document[part]; present && value != nil {
-			in[part] = value
-		}
-	}
-	return in
-}
 
 // queryResponse maps the catalogue's answer onto the contract's shape.
 //

@@ -118,7 +118,7 @@ func TestEveryGeneratedBodyMemberIsADeclaredInput(t *testing.T) {
 							for path := range inputs {
 								deeper = deeper || strings.HasPrefix(path, inner+".")
 							}
-							if _, named := inputs[inner]; !named && !deeper {
+							if _, named := inputs[inner]; !named && !deeper && !slices.Contains(door.Dropped, name+"."+inner) {
 								t.Errorf("%s: %s.%s reaches %s under no name", op.OperationID, name, inner, door.UseCase)
 							}
 						}
@@ -126,6 +126,13 @@ func TestEveryGeneratedBodyMemberIsADeclaredInput(t *testing.T) {
 							if !fields[input] {
 								t.Errorf("%s: %s.%s reaches %s as %q, which it does not declare", op.OperationID, name, inner, door.UseCase, input)
 							}
+						}
+						continue
+					}
+					if slices.Contains(door.WriterMembers, name) {
+						// The writer's: the file's format and zone, which no use case reads.
+						if fields[name] {
+							t.Errorf("%s: %s is the writer's, but %s reads it", op.OperationID, name, door.UseCase)
 						}
 						continue
 					}

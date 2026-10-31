@@ -231,8 +231,11 @@ var restDoors = map[string]restDoor{
 	"explainConfig":                     {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportAuditTrail":                  {UseCase: "ExportAuditTrail", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), UTC: []string{"from", "to"}},
 	"exportConfig":                      {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"exportItems":                       {UseCase: "ExportItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Flatten: map[string]map[string]string{"query": {"filter": "filter", "include_archived": "include_archived", "include_trashed": "include_trashed", "scope.container_id": "scope_container_id", "scope.include_descendants": "include_descendants", "scope.item_id": "scope_item_id", "sort": "sort"}}, Writer: (*RestController).exportItemsWriter, WriterMembers: []string{"format", "time_zone"}, Dropped: []string{"query.page", "query.count", "query.group_by", "query.expand"}},
 	"exportPage":                        {UseCase: "ExportPage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportTenant":                      {UseCase: "ExportTenant", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"exportTimeRecords":                 {UseCase: "ExportTimeRecords", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Writer: (*RestController).timeRecordsWriter, WriterMembers: []string(nil)},
+	"exportView":                        {UseCase: "ExportView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Writer: (*RestController).exportViewWriter, WriterMembers: []string{"format", "time_zone"}},
 	"exportWhiteboard":                  {UseCase: "ExportWhiteboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"extendDataSubjectRequest":          {UseCase: "ExtendDataSubjectRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"findDuplicatesByTitle":             {UseCase: "FindDuplicatesByTitle", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), NoStore: true},
@@ -2155,6 +2158,13 @@ func (c *RestController) ExportConfig(w http.ResponseWriter, r *http.Request, pa
 	c.door(w, r, restDoors["exportConfig"], usecase.Input{}, params, nil, &answer)
 }
 
+// ExportItems answers POST /items:export by the generated mapping.
+func (c *RestController) ExportItems(w http.ResponseWriter, r *http.Request, params openapi.ExportItemsParams) {
+	var body openapi.ExportItemsJSONRequestBody
+	var answer openapi.ItemExportDocument
+	c.door(w, r, restDoors["exportItems"], usecase.Input{}, params, &body, &answer)
+}
+
 // ExportPage answers POST /pages/{pageId}:export by the generated mapping.
 func (c *RestController) ExportPage(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
 	var body openapi.ExportPageJSONRequestBody
@@ -2166,6 +2176,20 @@ func (c *RestController) ExportPage(w http.ResponseWriter, r *http.Request, page
 func (c *RestController) ExportTenant(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId) {
 	var body openapi.ExportTenantJSONRequestBody
 	c.door(w, r, restDoors["exportTenant"], usecase.Input{"tenant_id": tenantId.String()}, nil, &body, answerBy(acceptedJob))
+}
+
+// ExportTimeRecords answers POST /time-records:export by the generated mapping.
+func (c *RestController) ExportTimeRecords(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ExportTimeRecordsJSONRequestBody
+	var answer openapi.TimeExport
+	c.door(w, r, restDoors["exportTimeRecords"], usecase.Input{}, nil, &body, &answer)
+}
+
+// ExportView answers POST /views/{viewId}:export by the generated mapping.
+func (c *RestController) ExportView(w http.ResponseWriter, r *http.Request, viewId openapi.ViewId, params openapi.ExportViewParams) {
+	var body openapi.ExportViewJSONRequestBody
+	var answer openapi.ViewExportDocument
+	c.door(w, r, restDoors["exportView"], usecase.Input{"view_id": viewId.String()}, params, &body, &answer)
 }
 
 // ExportWhiteboard answers POST /whiteboards/{whiteboardId}:export by the generated mapping.

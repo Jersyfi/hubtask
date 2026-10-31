@@ -318,3 +318,13 @@ func TestAQueryExportAsJSONSaysWhenItWasTruncated(t *testing.T) {
 		t.Error("an export without a view names one")
 	}
 }
+
+// A format this adapter does not write is refused before the rows are read, so no export is
+// audited that never left.
+func TestAnUnknownFormatIsRefusedBeforeAnythingIsRead(t *testing.T) {
+	cat := &catalogue{out: exportedRows()}
+	recorder := postExport(t, cat, `{"format":"PDF"}`)
+	if recorder.Code != http.StatusUnprocessableEntity || cat.invoked {
+		t.Errorf("status %d, invoked %t: %s", recorder.Code, cat.invoked, recorder.Body)
+	}
+}

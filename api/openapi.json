@@ -4409,6 +4409,10 @@
           "time"
         ],
         "operationId": "exportTimeRecords",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-writer": {
+          "by": "timeRecordsWriter"
+        },
         "x-hubtask-cli": "time export",
         "summary": "Hand time records to accounting",
         "description": "At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.\n",
@@ -10731,6 +10735,14 @@
           "views"
         ],
         "operationId": "exportView",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-writer": {
+          "by": "exportViewWriter",
+          "members": [
+            "format",
+            "time_zone"
+          ]
+        },
         "description": "The view's result, rendered whole, in one of three formats. A read with no side effect, and a POST for the reason POST /search is one: what a view selects is the caller's content, and a query string travels through access logs, proxies and browser history.\nThe view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides.\nSynchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. An export stays one synchronous answer rather than a job a caller has to poll, and the cap is what keeps it one - a truncation a caller is told about is honest, and a silent one is not.\nICS renders the same document the calendar feed serves, from the same renderer: an entry with no due date is not a calendar entry and does not appear.\n",
         "parameters": [
           {
@@ -26816,6 +26828,31 @@
           "items"
         ],
         "operationId": "exportItems",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-writer": {
+          "by": "exportItemsWriter",
+          "members": [
+            "format",
+            "time_zone"
+          ]
+        },
+        "x-hubtask-rest-flatten": {
+          "query": {
+            "filter": "filter",
+            "sort": "sort",
+            "include_archived": "include_archived",
+            "include_trashed": "include_trashed",
+            "scope.container_id": "scope_container_id",
+            "scope.item_id": "scope_item_id",
+            "scope.include_descendants": "include_descendants"
+          }
+        },
+        "x-hubtask-rest-drop": [
+          "query.page",
+          "query.count",
+          "query.group_by",
+          "query.expand"
+        ],
         "summary": "The result of a query, as a file",
         "description": "A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.\nThe query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.\n",
         "parameters": [

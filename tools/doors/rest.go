@@ -92,6 +92,11 @@ type RESTDoor struct {
 	// Form is the controller's method a form-encoded body is handed to (`x-hubtask-rest-form`):
 	// RFC 6749's own token request, answered in that standard's shape beside this API's JSON.
 	Form string
+	// Writer is the controller's method that chooses how the output is written
+	// (`x-hubtask-rest-writer: { by, members }`): a file in the media type asked for, by
+	// `Accept` or by the body's members it names, which stay out of the input.
+	Writer        string
+	WriterMembers []string
 	// Words are boolean members the use case reads as their word, `true` or `false`
 	// (`x-hubtask-rest-words`): a preference that has a third state, cleared.
 	Words []string
@@ -145,6 +150,10 @@ type restOperation struct {
 	NullTo      map[string]string            `yaml:"x-hubtask-rest-null-to"`
 	Form        string                       `yaml:"x-hubtask-rest-form"`
 	Status      string                       `yaml:"x-hubtask-rest-status"`
+	Writer      *struct {
+		By      string   `yaml:"by"`
+		Members []string `yaml:"members"`
+	} `yaml:"x-hubtask-rest-writer"`
 	Words       []string                     `yaml:"x-hubtask-rest-words"`
 	UTC         []string                     `yaml:"x-hubtask-rest-utc"`
 	Expand      map[string]string            `yaml:"x-hubtask-rest-expand"`
@@ -372,7 +381,9 @@ func restDoor(
 		for _, name := range op.Drop {
 			held := false
 			for _, content := range op.RequestBody.Content {
-				_, held = doc.composed(content.Schema).Properties[name]
+				// A nested member by its dotted path: a part of an embedded document the use case
+				// does not read (an export's query's page).
+				_, held = doc.nested(content.Schema, name)
 			}
 			if !held {
 				return door, fmt.Errorf("x-hubtask-rest-drop names %s, which the body does not hold", name)
@@ -399,6 +410,18 @@ func restDoor(
 			}
 		}
 		door.NullTo = op.NullTo
+		if op.Writer != nil {
+			for _, name := range op.Writer.Members {
+				held := false
+				for _, content := range op.RequestBody.Content {
+					_, held = doc.composed(content.Schema).Properties[name]
+				}
+				if !held {
+					return door, fmt.Errorf("x-hubtask-rest-writer hands on %s, which the body does not hold", name)
+				}
+			}
+			door.WriterMembers = op.Writer.Members
+		}
 		if op.Form != "" {
 			if _, declared := op.RequestBody.Content["application/x-www-form-urlencoded"]; !declared || !token.IsIdentifier(op.Form) || token.IsExported(op.Form) {
 				return door, fmt.Errorf("x-hubtask-rest-form names %s, which is no controller method for a form the body declares", op.Form)
@@ -431,6 +454,12 @@ func restDoor(
 		}
 	}
 	door.UTC = op.UTC
+	if op.Writer != nil {
+		if !token.IsIdentifier(op.Writer.By) || token.IsExported(op.Writer.By) {
+			return door, fmt.Errorf("x-hubtask-rest-writer needs by naming the controller's method")
+		}
+		door.Writer = op.Writer.By
+	}
 	if len(op.Expand) > 0 && !slicesContains(door.Query, "expand") {
 		held := false
 		if op.RequestBody != nil {
@@ -679,6 +708,9 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 				pairs = append(pairs, fmt.Sprintf("%q: %s", key, value))
 			}
 			extra += ", NullAs: map[string]any{" + strings.Join(pairs, ", ") + "}"
+		}
+		if d.Writer != "" {
+			extra += fmt.Sprintf(", Writer: (*RestController).%s, WriterMembers: %#v", d.Writer, d.WriterMembers)
 		}
 		if len(d.NullTo) > 0 {
 			extra += ", NullTo: " + stringMap(d.NullTo)

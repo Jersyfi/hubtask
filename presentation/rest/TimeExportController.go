@@ -14,44 +14,28 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// ExportTimeRecords hands time records to accounting (UC-TIM-05): the use case selects and caps
-// the rows; whether they leave as JSON or as a CSV file is this adapter's, by the Accept header,
-// because a wire format is an adapter's business.
-func (c *RestController) ExportTimeRecords(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	var body openapi.ExportTimeRecordsJSONRequestBody
-	if err := decodeFrom(r.Body, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
+// timeRecordsWriter hands time records to accounting (UC-TIM-05) as JSON, a CSV file or a sheet,
+// by the Accept header (`x-hubtask-rest-writer`): the use case selects and caps the rows, and a
+// wire format is an adapter's business.
+func (c *RestController) timeRecordsWriter(r *http.Request, _ map[string]any) (outputWriter, error) {
+	switch {
+	case acceptsXlsx(r):
+		return writeTimeXlsx, nil
+	case acceptsCSV(r):
+		return writeTimeCSV, nil
 	}
-	values, err := members(body)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{}
-	for name, value := range values {
-		if value != nil {
-			in[name] = value
-		}
-	}
-	out, ok := c.read(w, r, "ExportTimeRecords", in)
-	if !ok {
-		return
-	}
-	if acceptsXlsx(r) {
-		writeTimeXlsx(w, r, out)
-		return
-	}
-	if !acceptsCSV(r) {
+	return func(w http.ResponseWriter, r *http.Request, out usecase.Output) {
 		var answer openapi.TimeExport
 		if err := remarshal(out, &answer); err != nil {
-			WriteProblem(w, err, requestID)
+			WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
 			return
 		}
 		writeJSON(w, r, http.StatusOK, answer)
-		return
-	}
+	}, nil
+}
+
+// writeTimeCSV answers the columns and rows as a CSV file.
+func writeTimeCSV(w http.ResponseWriter, r *http.Request, out usecase.Output) {
 	columns, _ := out["columns"].([]string)
 	rows, _ := out["rows"].([]usecase.Output)
 	if truncated, _ := out["truncated"].(bool); truncated {

@@ -4,10 +4,7 @@
 package rest
 
 import (
-	"bytes"
 	"encoding/csv"
-	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -16,7 +13,6 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/calendar"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -24,8 +20,6 @@ import (
 // The view export. The use case selects the rows and caps them; which file they become is
 // decided here, because a wire format is an adapter's business - and the ICS rendering is the same
 // package the calendar feed serves from, which is why the export rides that task.
-
-const exportViewUseCase = "ExportView"
 
 // exportTruncatedHeader tells a caller that the file is the first max_export_rows of a longer
 // answer. A header rather than a body field, because two of the three formats have no body field
@@ -41,137 +35,89 @@ var exportColumns = []string{
 	"assignee_id", "bucket_id", "order_key", "created_at", "updated_at",
 }
 
-// ExportView answers POST /views/{viewId}:export.
-func (c *RestController) ExportView(
-	w http.ResponseWriter, r *http.Request, viewID openapi.ViewId,
-	_ openapi.ExportViewParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.ViewExport
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	zone, err := exportZone(r, body.TimeZone)
+// exportViewWriter writes a view's export in the format the body names (`x-hubtask-rest-writer`),
+// chosen before the use case runs: a format or a zone it cannot write is refused before anything
+// is read or audited.
+func (c *RestController) exportViewWriter(r *http.Request, sent map[string]any) (outputWriter, error) {
+	format, zone, err := exportChoice(r, sent)
 	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
+		return nil, err
 	}
-
-	out, err := c.UseCases.Invoke(r.Context(), exportViewUseCase, actorOf(r),
-		usecase.Input{"view_id": viewID.String()})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	rows, _ := out["rows"].([]usecase.Output)
-	if truncated, _ := out["truncated"].(bool); truncated {
-		w.Header().Set(exportTruncatedHeader, "true")
-	}
-
-	switch body.Format {
-	case openapi.ViewExportFormatJSON:
-		writeJSON(w, r, http.StatusOK, openapi.ViewExportDocument{
-			ViewId:      uuidValue(out.String("view_id")),
-			GeneratedAt: timeValue(out["generated_at"]),
-			Count:       out.Int("count"),
-			Truncated:   out["truncated"] == true,
-			Rows:        workItemResponses(rows),
-		})
-	case openapi.ViewExportFormatCSV:
-		writeCSV(w, r, rows, zone)
-	case openapi.ViewExportFormatICS:
-		writeCalendar(w, r, calendar.Calendar{
-			Name:        out.String("view_name"),
-			GeneratedAt: timeValue(out["generated_at"]),
-			Events:      c.eventsOf(rows, zone),
-		})
-	default:
-		WriteProblem(w, exportFormatUnknown(string(body.Format)), requestID)
-	}
+	return func(w http.ResponseWriter, r *http.Request, out usecase.Output) {
+		rows := exportRows(w, out)
+		switch format {
+		case string(openapi.ViewExportFormatJSON):
+			writeJSON(w, r, http.StatusOK, openapi.ViewExportDocument{
+				ViewId:      uuidValue(out.String("view_id")),
+				GeneratedAt: timeValue(out["generated_at"]),
+				Count:       out.Int("count"),
+				Truncated:   out["truncated"] == true,
+				Rows:        workItemResponses(rows),
+			})
+		case string(openapi.ViewExportFormatCSV):
+			writeCSV(w, r, rows, zone)
+		default:
+			writeCalendar(w, r, calendar.Calendar{
+				Name:        out.String("view_name"),
+				GeneratedAt: timeValue(out["generated_at"]),
+				Events:      c.eventsOf(rows, zone),
+			})
+		}
+	}, nil
 }
 
-const exportItemsUseCase = "ExportItems"
-
-// ExportItems answers POST /items:export: a query's result as a file, without a saved view. The
-// query is read the way POST /items:query reads it (queryInput), so the grammar has one reader;
-// the rendering is the view export's.
-func (c *RestController) ExportItems(
-	w http.ResponseWriter, r *http.Request, _ openapi.ExportItemsParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	raw, err := io.ReadAll(r.Body)
+// exportItemsWriter writes a query's result as a file without a saved view, as the view's
+// export writes it.
+func (c *RestController) exportItemsWriter(r *http.Request, sent map[string]any) (outputWriter, error) {
+	format, zone, err := exportChoice(r, sent)
 	if err != nil {
-		WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.body_unreadable").WithCause(err), requestID)
-		return
+		return nil, err
 	}
-	var body openapi.ItemExport
-	if err := decodeFrom(bytes.NewReader(raw), &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	// The second, untyped reading: the filter and the sort are a grammar the domain reads, and
-	// they reach the use case as the documents they are (decodeQuery).
-	var document struct {
-		Query map[string]any `json:"query"`
-	}
-	if err := json.Unmarshal(raw, &document); err != nil {
-		WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.body_malformed").WithCause(err), requestID)
-		return
-	}
+	return func(w http.ResponseWriter, r *http.Request, out usecase.Output) {
+		rows := exportRows(w, out)
+		switch format {
+		case string(openapi.ItemExportFormatJSON):
+			writeJSON(w, r, http.StatusOK, openapi.ItemExportDocument{
+				GeneratedAt: timeValue(out["generated_at"]),
+				Count:       out.Int("count"),
+				Truncated:   out["truncated"] == true,
+				Rows:        workItemResponses(rows),
+			})
+		case string(openapi.ItemExportFormatCSV):
+			writeCSV(w, r, rows, zone)
+		default:
+			writeCalendar(w, r, calendar.Calendar{
+				GeneratedAt: timeValue(out["generated_at"]),
+				Events:      c.eventsOf(rows, zone),
+			})
+		}
+	}, nil
+}
 
-	zone, err := exportZone(r, body.TimeZone)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
+// exportChoice reads the format and the zone an export is written in, and refuses either where it
+// is none this adapter writes.
+func exportChoice(r *http.Request, sent map[string]any) (string, *time.Location, error) {
+	format, _ := sent["format"].(string)
+	switch format {
+	case "JSON", "CSV", "ICS":
+	default:
+		return "", nil, exportFormatUnknown(format)
 	}
+	var named *string
+	if text, ok := sent["time_zone"].(string); ok {
+		named = &text
+	}
+	zone, err := exportZone(r, named)
+	return format, zone, err
+}
 
-	in := queryInput(body.Query, document.Query, expansions{})
-	// What a walk decides for itself: every page, and rows rather than groups.
-	for _, part := range []string{"cursor", "size", "count", "group_by", "expand_labels", "expand_counts"} {
-		delete(in, part)
-	}
-	out, err := c.UseCases.Invoke(r.Context(), exportItemsUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
+// exportRows reads the rows and says on the answer whether they are the first of a longer one.
+func exportRows(w http.ResponseWriter, out usecase.Output) []usecase.Output {
 	rows, _ := out["rows"].([]usecase.Output)
 	if truncated, _ := out["truncated"].(bool); truncated {
 		w.Header().Set(exportTruncatedHeader, "true")
 	}
-
-	switch body.Format {
-	case openapi.ItemExportFormatJSON:
-		writeJSON(w, r, http.StatusOK, openapi.ItemExportDocument{
-			GeneratedAt: timeValue(out["generated_at"]),
-			Count:       out.Int("count"),
-			Truncated:   out["truncated"] == true,
-			Rows:        workItemResponses(rows),
-		})
-	case openapi.ItemExportFormatCSV:
-		writeCSV(w, r, rows, zone)
-	case openapi.ItemExportFormatICS:
-		writeCalendar(w, r, calendar.Calendar{
-			GeneratedAt: timeValue(out["generated_at"]),
-			Events:      c.eventsOf(rows, zone),
-		})
-	default:
-		WriteProblem(w, exportFormatUnknown(string(body.Format)), requestID)
-	}
+	return rows
 }
 
 func workItemResponses(rows []usecase.Output) []openapi.WorkItem {

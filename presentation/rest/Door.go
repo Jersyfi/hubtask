@@ -94,7 +94,15 @@ type restDoor struct {
 	Dropped []string
 	// NoStore marks the answer no-store: a read sent as a POST, made of the caller's words.
 	NoStore bool
+	// Writer chooses how the output is written - a file in the media type asked for - before
+	// the use case runs, from the request and the body members WriterMembers keeps out of the
+	// input; a format or a zone it cannot write is refused before anything is read.
+	Writer        func(*RestController, *http.Request, map[string]any) (outputWriter, error)
+	WriterMembers []string
 }
+
+// outputWriter writes a use case's output as the answer, in a shape of the writer's own.
+type outputWriter func(w http.ResponseWriter, r *http.Request, out usecase.Output)
 
 // input is the name the use case reads a query parameter by.
 func (d restDoor) input(query string) string {
@@ -131,6 +139,7 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 			}
 		}
 	}
+	toWriter := map[string]any{}
 	if body != nil {
 		raw, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -153,6 +162,10 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 			}
 			for name, value := range sent {
 				if slices.Contains(d.ReadOnly, name) || slices.Contains(d.Dropped, name) {
+					continue
+				}
+				if slices.Contains(d.WriterMembers, name) {
+					toWriter[name] = value
 					continue
 				}
 				if name == "expand" && d.Expand != nil {
@@ -220,8 +233,22 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		}
 	}
 
+	var write outputWriter
+	if d.Writer != nil {
+		chosen, err := d.Writer(c, r, toWriter)
+		if err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		write = chosen
+	}
+
 	out, ok := c.read(w, r, d.UseCase, in)
 	if !ok {
+		return
+	}
+	if write != nil {
+		write(w, r, out)
 		return
 	}
 	if d.AlternateWhen != "" && out[d.AlternateWhen] == true {

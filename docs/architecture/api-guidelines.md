@@ -72,7 +72,13 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    (a schedule's `enabled`). `x-hubtask-rest-form: <method>` hands a form-encoded body the
    contract declares to the controller's own method before the JSON body is decoded (RFC 6749's
    token request, answered in that standard's shape), and `x-hubtask-rest-status` names the
-   generated door's answer where the contract declares the form's beside it. `x-hubtask-rest-cache:
+   generated door's answer where the contract declares the form's beside it.
+   `x-hubtask-rest-writer: { by: <method>, members: [member] }` writes the output as a file in
+   the media type asked for - by `Accept`, or by the body's members it names (`format`,
+   `time_zone`), which stay out of the input - and is chosen before the use case runs, so a
+   format or a zone it cannot write is refused before anything is read or audited (the exports).
+   `x-hubtask-rest-drop` may name a nested member by its dotted path (an export's `query.page`,
+   which a walk decides for itself). `x-hubtask-rest-cache:
    no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be
    stored. `x-hubtask-cli` names
    the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`; a hand-written

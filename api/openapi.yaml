@@ -2410,6 +2410,8 @@ paths:
     post:
       tags: [time]
       operationId: exportTimeRecords
+      x-hubtask-rest: generated
+      x-hubtask-rest-writer: { by: timeRecordsWriter }
       x-hubtask-cli: "time export"
       summary: Hand time records to accounting
       description: >
@@ -6071,6 +6073,8 @@ paths:
     post:
       tags: [views]
       operationId: exportView
+      x-hubtask-rest: generated
+      x-hubtask-rest-writer: { by: exportViewWriter, members: [format, time_zone] }
       description: >
         The view's result, rendered whole, in one of three formats. A read with no side effect, and
         a POST for the reason POST /search is one: what a view selects is the caller's content, and
@@ -18308,6 +18312,10 @@ paths:
     post:
       tags: [items]
       operationId: exportItems
+      x-hubtask-rest: generated
+      x-hubtask-rest-writer: { by: exportItemsWriter, members: [format, time_zone] }
+      x-hubtask-rest-flatten: { query: { filter: filter, sort: sort, include_archived: include_archived, include_trashed: include_trashed, scope.container_id: scope_container_id, scope.item_id: scope_item_id, scope.include_descendants: include_descendants } }
+      x-hubtask-rest-drop: [query.page, query.count, query.group_by, query.expand]
       summary: The result of a query, as a file
       description: >
         A collection as it is filtered, rendered whole without saving a view first: the same
