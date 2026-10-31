@@ -4939,7 +4939,7 @@ class RestoreRun(TypedDict, total=False):
     finished_at: str | None
     error_code: str | None
 
-ImportKind = Literal["CSV", "TRELLO", "GOOGLE_TASKS", "MICROSOFT_TODO", "JIRA", "CONFLUENCE", "MARKDOWN"]
+ImportKind = Literal["CSV", "TRELLO", "GOOGLE_TASKS", "MICROSOFT_TODO", "JIRA", "CONFLUENCE", "MARKDOWN", "HTML", "DOCX"]
 
 class ImportRequest(TypedDict, total=False):
     media_id: Required[str]

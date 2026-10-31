@@ -35522,7 +35522,7 @@ components:
 
     ImportKind:
       type: string
-      enum: [CSV, TRELLO, GOOGLE_TASKS, MICROSOFT_TODO, JIRA, CONFLUENCE, MARKDOWN]
+      enum: [CSV, TRELLO, GOOGLE_TASKS, MICROSOFT_TODO, JIRA, CONFLUENCE, MARKDOWN, HTML, DOCX]
       description: >
         The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is
         a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the
@@ -35533,8 +35533,10 @@ components:
         attachments. `CONFLUENCE` is a space's HTML export as a ZIP: its pages become the hub's
         pages in their tree. `MARKDOWN` is a ZIP of Markdown files: each file a page, its
         folders the tree, links between the files page references and pictures in the ZIP the
-        pages' files. `CONFLUENCE` and `MARKDOWN` land in the hub and take no `collection_id`. A
-        kind this build does not serve is refused by name.
+        pages' files. `HTML` is one HTML file or a ZIP of them, a notes app's HTML export
+        included, and `DOCX` one word-processor document or a ZIP of them; each becomes pages as
+        `MARKDOWN` does. `CONFLUENCE`, `MARKDOWN`, `HTML` and `DOCX` land in the hub and take no
+        `collection_id`. A kind this build does not serve is refused by name.
 
     ImportRequest:
       type: object

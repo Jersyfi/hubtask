@@ -5114,7 +5114,9 @@ func (e IdentityProviderProvisioning) Valid() bool {
 const (
 	ImportKindCONFLUENCE    ImportKind = "CONFLUENCE"
 	ImportKindCSV           ImportKind = "CSV"
+	ImportKindDOCX          ImportKind = "DOCX"
 	ImportKindGOOGLETASKS   ImportKind = "GOOGLE_TASKS"
+	ImportKindHTML          ImportKind = "HTML"
 	ImportKindJIRA          ImportKind = "JIRA"
 	ImportKindMARKDOWN      ImportKind = "MARKDOWN"
 	ImportKindMICROSOFTTODO ImportKind = "MICROSOFT_TODO"
@@ -5128,7 +5130,11 @@ func (e ImportKind) Valid() bool {
 		return true
 	case ImportKindCSV:
 		return true
+	case ImportKindDOCX:
+		return true
 	case ImportKindGOOGLETASKS:
+		return true
+	case ImportKindHTML:
 		return true
 	case ImportKindJIRA:
 		return true
@@ -16632,7 +16638,7 @@ type IdentityProviderPreset struct {
 // An address the provider did not vouch for is admitted by none of the three.
 type IdentityProviderProvisioning string
 
-// ImportKind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. `JIRA` is the issue search's JSON answer with its names, schema and change log expanded, or a ZIP of such answers with the attachments under `attachments/<attachment id>/`: each project becomes a collection with its issue types, statuses, custom fields, history, comments, links and attachments. `CONFLUENCE` is a space's HTML export as a ZIP: its pages become the hub's pages in their tree. `MARKDOWN` is a ZIP of Markdown files: each file a page, its folders the tree, links between the files page references and pictures in the ZIP the pages' files. `CONFLUENCE` and `MARKDOWN` land in the hub and take no `collection_id`. A kind this build does not serve is refused by name.
+// ImportKind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. `JIRA` is the issue search's JSON answer with its names, schema and change log expanded, or a ZIP of such answers with the attachments under `attachments/<attachment id>/`: each project becomes a collection with its issue types, statuses, custom fields, history, comments, links and attachments. `CONFLUENCE` is a space's HTML export as a ZIP: its pages become the hub's pages in their tree. `MARKDOWN` is a ZIP of Markdown files: each file a page, its folders the tree, links between the files page references and pictures in the ZIP the pages' files. `HTML` is one HTML file or a ZIP of them, a notes app's HTML export included, and `DOCX` one word-processor document or a ZIP of them; each becomes pages as `MARKDOWN` does. `CONFLUENCE`, `MARKDOWN`, `HTML` and `DOCX` land in the hub and take no `collection_id`. A kind this build does not serve is refused by name.
 type ImportKind string
 
 // ImportRequest defines model for ImportRequest.
@@ -16643,7 +16649,7 @@ type ImportRequest struct {
 	// HubId The hub the imported collections land under.
 	HubId openapi_types.UUID `json:"hub_id"`
 
-	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. `JIRA` is the issue search's JSON answer with its names, schema and change log expanded, or a ZIP of such answers with the attachments under `attachments/<attachment id>/`: each project becomes a collection with its issue types, statuses, custom fields, history, comments, links and attachments. `CONFLUENCE` is a space's HTML export as a ZIP: its pages become the hub's pages in their tree. `MARKDOWN` is a ZIP of Markdown files: each file a page, its folders the tree, links between the files page references and pictures in the ZIP the pages' files. `CONFLUENCE` and `MARKDOWN` land in the hub and take no `collection_id`. A kind this build does not serve is refused by name.
+	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. `JIRA` is the issue search's JSON answer with its names, schema and change log expanded, or a ZIP of such answers with the attachments under `attachments/<attachment id>/`: each project becomes a collection with its issue types, statuses, custom fields, history, comments, links and attachments. `CONFLUENCE` is a space's HTML export as a ZIP: its pages become the hub's pages in their tree. `MARKDOWN` is a ZIP of Markdown files: each file a page, its folders the tree, links between the files page references and pictures in the ZIP the pages' files. `HTML` is one HTML file or a ZIP of them, a notes app's HTML export included, and `DOCX` one word-processor document or a ZIP of them; each becomes pages as `MARKDOWN` does. `CONFLUENCE`, `MARKDOWN`, `HTML` and `DOCX` land in the hub and take no `collection_id`. A kind this build does not serve is refused by name.
 	Kind ImportKind `json:"kind"`
 
 	// Mapping For `CSV` only: which column carries which field, by header name, where the header does not already say - `title`, `notes`, `due`, `completed`, `labels`, `bucket`, `parent`. A column not mapped and not named like a field is ignored.
@@ -16663,7 +16669,7 @@ type ImportRun struct {
 	HubId        openapi_types.UUID  `json:"hub_id"`
 	Id           openapi_types.UUID  `json:"id"`
 
-	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. `JIRA` is the issue search's JSON answer with its names, schema and change log expanded, or a ZIP of such answers with the attachments under `attachments/<attachment id>/`: each project becomes a collection with its issue types, statuses, custom fields, history, comments, links and attachments. `CONFLUENCE` is a space's HTML export as a ZIP: its pages become the hub's pages in their tree. `MARKDOWN` is a ZIP of Markdown files: each file a page, its folders the tree, links between the files page references and pictures in the ZIP the pages' files. `CONFLUENCE` and `MARKDOWN` land in the hub and take no `collection_id`. A kind this build does not serve is refused by name.
+	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. `JIRA` is the issue search's JSON answer with its names, schema and change log expanded, or a ZIP of such answers with the attachments under `attachments/<attachment id>/`: each project becomes a collection with its issue types, statuses, custom fields, history, comments, links and attachments. `CONFLUENCE` is a space's HTML export as a ZIP: its pages become the hub's pages in their tree. `MARKDOWN` is a ZIP of Markdown files: each file a page, its folders the tree, links between the files page references and pictures in the ZIP the pages' files. `HTML` is one HTML file or a ZIP of them, a notes app's HTML export included, and `DOCX` one word-processor document or a ZIP of them; each becomes pages as `MARKDOWN` does. `CONFLUENCE`, `MARKDOWN`, `HTML` and `DOCX` land in the hub and take no `collection_id`. A kind this build does not serve is refused by name.
 	Kind    ImportKind          `json:"kind"`
 	MediaId *openapi_types.UUID `json:"media_id,omitempty"`
 
