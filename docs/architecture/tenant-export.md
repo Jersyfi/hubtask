@@ -243,6 +243,8 @@ re-mints identities must rewrite exactly these).
 | 123 | `release_entries` | `release_entry` | `release_id`, `entry_id` | `release_id`→releases, `entry_id`→work_items (an entry in a release; one release per entry) |
 | 124 | `code_hooks` | `code_hook` | `id` | `hub_id`→containers, `run_as`→accounts (a forge's hook into a hub, migration 0275; its secret is derived from the installation key and the salt and is no column, so a restore on another installation draws it again) |
 | 125 | `code_links` | `code_link` | `id` | `item_id`→work_items, `hub_id`→containers, `hook_id`→code_hooks (an entry's commit, branch or pull request as its forge last told it) |
+| 130 | `requesters` | `requester` | `id` | — (a requester without an account, migration 0283) |
+| 131 | `requester_contacts` | `requester_contact` | `requester_id/item_id` | `requester_id`→requesters, `item_id`→work_items (an entry a requester wrote on) |
 | 126 | `file_links` | `file_link` | `id` | `item_id`→work_items, `added_by`→accounts (an entry's file or folder in a file store by its address, migration 0276; the file itself stays in its store) |
 | 127 | `requester_organisations` | `requester_organisation` | `id` | none (a portal's organisation: its key, name, mail domains and whether its members see each other's requests, migration 0287) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
