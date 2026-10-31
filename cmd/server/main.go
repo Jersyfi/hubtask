@@ -1872,7 +1872,8 @@ func run() error {
 	// every block it changes goes through the use case every other door reaches.
 	configCatalogue := &deferredCatalogue{}
 	configDesk := configservice.Desk{
-		Catalogue: configCatalogue, Store: postgres.NewConfigRepository(), Settings: postgres.SettingRepository{},
+		Catalogue: configCatalogue, Store: postgres.NewConfigRepository(), Samples: postgres.SampleEntryRepository{},
+		Settings:   postgres.SettingRepository{},
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 	// The workspace's type registry (UC-FLW-01), shared by its four use cases.
@@ -2482,6 +2483,9 @@ func run() error {
 		configservice.PlanConfigTemplate{Desk: configDesk}.Descriptor(),
 		configservice.ReadConfigSandbox{Desk: configDesk}.Descriptor(),
 		configservice.WriteConfigSandbox{Desk: configDesk}.Descriptor(),
+		configservice.ListSampleEntries{Desk: configDesk}.Descriptor(),
+		configservice.AddSampleEntry{Desk: configDesk}.Descriptor(),
+		configservice.RemoveSampleEntries{Desk: configDesk}.Descriptor(),
 		workflowservice.ListEntryTypes{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.CreateEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.ChangeEntryType{Registry: entryTypeRegistry}.Descriptor(),

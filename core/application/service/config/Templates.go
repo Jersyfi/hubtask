@@ -312,7 +312,9 @@ func (d Desk) hubPart(ctx context.Context, actor appshared.ActorContext, in usec
 	if part == nil {
 		part = domain.Document{}
 	}
-	lint := d.planOf(current{Document: lintBase(), Hub: lintHub}, withoutRemovals(part), domain.ModeMerge)
+	// The samples name a collection the empty hub has none of: their shape is checked alone.
+	lint := d.planOf(current{Document: lintBase(), Hub: lintHub}, withoutRemovals(withoutSamples(part)), domain.ModeMerge)
+	lint.Refusals = append(lint.Refusals, sampleRefusals(part[sectionSamples])...)
 	if len(lint.Refusals) > 0 {
 		for i := range lint.Refusals {
 			lint.Refusals[i].Path = "/hub_document/" + strings.TrimPrefix(lint.Refusals[i].Path, "/")
@@ -369,6 +371,7 @@ func (h PlanConfigTemplate) Descriptor() usecase.Descriptor {
 			{Name: "version", Kind: usecase.KindInt, Description: "The version to take or upgrade to; omitted is the newest."},
 			{Name: "take", Kind: usecase.KindList, Description: "Key paths of the upgrade's changes to take; omitted takes every TAKE and leaves every CONFLICT."},
 			{Name: "answers", Kind: usecase.KindObject, Description: "The template's questions answered, by key: an answer takes the place of its mark, an open question its default; a block naming an open question with no default is left out."},
+			{Name: "samples", Kind: usecase.KindBool, Description: "True takes the template's sample entries into the hub, marked; only when the hub first takes the template, since an upgrade neither adds nor removes them."},
 		},
 		Audit:    usecase.AuditDeclaration{Action: PlannedAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity: usecase.ActivityDeclaration{Exempt: "a plan changes nothing."},
@@ -388,7 +391,7 @@ func (h PlanConfigTemplate) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			return h.Desk.planTemplate(ctx, actor, hub, in.String("key"), in.Int("version"), take, answers)
+			return h.Desk.planTemplate(ctx, actor, hub, in.String("key"), in.Int("version"), take, answers, in.Bool("samples"))
 		}),
 	}
 }
@@ -432,7 +435,7 @@ func (d Desk) answered(ctx context.Context, actor appshared.ActorContext, t doma
 	return answered, nil
 }
 
-func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hub shared.ID, key string, version int, take []string, answers map[string]string) (usecase.Output, error) {
+func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hub shared.ID, key string, version int, take []string, answers map[string]string, samples bool) (usecase.Output, error) {
 	var out usecase.Output
 	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		templates, err := d.Store.ListTemplates(ctx)
@@ -466,6 +469,11 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 		if document, err = d.answered(ctx, actor, *chosen, document, answers); err != nil {
 			return err
 		}
+		// The samples are offered once, to a hub taking the template: an upgrade that compared
+		// them would trash the entries a person had started to try the flow on.
+		if !samples || slices.ContainsFunc(uses, func(u domain.TemplateUse) bool { return u.TemplateKey == key }) {
+			document = withoutSamples(document)
+		}
 		now, err := d.export(ctx, actor, hub)
 		if err != nil {
 			return err
@@ -483,6 +491,7 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 			if err != nil {
 				base = use.Document
 			}
+			base = withoutSamples(base)
 			changes := domain.ThreeWay(base, now.Document, document)
 			for _, change := range changes {
 				upgrades = append(upgrades, usecase.Output{

@@ -334,6 +334,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `config.read` | ListConfigVersions | `configuration` | INFO | When refused |
 | `config.read` | ReadConfigSandbox | `configuration` | INFO | When refused |
 | `config.read` | ReadConfigVersion | `configuration` | INFO | When refused |
+| `config.sample_added` | AddSampleEntry | `configuration` | INFO | Every time |
+| `config.samples_removed` | RemoveSampleEntries | `configuration` | NOTICE | Every time |
 | `config.sandbox_written` | WriteConfigSandbox | `configuration` | INFO | Every time |
 | `config.template_published` | PublishConfigTemplate | `configuration` | INFO | Every time |
 
@@ -725,6 +727,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | GetSignInRules | `` |  | When refused |
 | `` | InspectInvitation | `` |  | When refused |
 | `` | ListRoles | `` |  | When refused |
+| `` | ListSampleEntries | `` |  | When refused |
 | `` | LocateOidcFlow | `` |  | When refused |
 | `` | ReadConfigSchema | `` |  | When refused |
 | `` | ReadSettingsCatalogue | `` |  | When refused |

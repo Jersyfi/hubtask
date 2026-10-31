@@ -68,8 +68,10 @@ type Authorizer interface {
 
 // Desk is what every configuration use case shares.
 type Desk struct {
-	Catalogue  Catalogue
-	Store      configrepo.Store
+	Catalogue Catalogue
+	Store     configrepo.Store
+	// Samples marks a template's sample entries (configuration.md §6).
+	Samples    configrepo.Samples
 	Settings   settingrepo.Settings
 	Authorizer Authorizer
 	Audit      audit.Sink

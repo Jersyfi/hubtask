@@ -103,6 +103,10 @@ func (d Desk) attributeSchema(s section, attribute string) map[string]any {
 		return map[string]any{"type": "boolean", "const": true,
 			"description": "The space keeps its writers' changes in drafts until they are published; a removed block makes it a live document."}
 	}
+	if s.name == sectionSamples && attribute == "collection" {
+		return map[string]any{"type": "string", "description": "The handle of the hub's collection the sample " +
+			"entry is created in; omitted is the hub's first. Set when the block is created; fixed afterwards."}
+	}
 	if s.name == sectionRoleGroups {
 		return map[string]any{"type": "array", "items": map[string]any{"type": "string", "format": "uuid"},
 			"description": "The groups holding the custom role at the whole workspace."}
