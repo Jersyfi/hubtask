@@ -21888,6 +21888,41 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /public/satisfaction/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: >
+          The link's token from the resolution mail, which is the whole credential: this route
+          carries no bearer authentication and signs nobody in. It names the workspace inside
+          itself because the lookup needs one before it can happen.
+        schema: { type: string }
+    post:
+      tags: [servicedesk]
+      operationId: answerSatisfactionLink
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Feeds
+      security: []
+      summary: Say how satisfied you were, by the link of a resolution mail
+      description: >
+        The satisfaction question for a requester without an account: the score of the request
+        the mail was about, from 1 to 5, replacing an earlier one. A link answers once
+        (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`); a request
+        reopened since is refused with `satisfaction.request_open`. An unknown token, a link
+        replaced by a later resolution mail and a request gone answer the same 404. Words for the
+        team go by answering the mail. Counted per client address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SatisfactionLinkAnswer" }
+      responses:
+        "204":
+          description: Recorded
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /public/pages/{token}:
     parameters:
       - name: token
@@ -28533,6 +28568,13 @@ components:
         requester_email: { type: string, maxLength: 320, description: "Where the team's answer goes; required with a name." }
         challenge: { type: string, description: "The challenge the form handed out." }
         solution: { type: string, maxLength: 20, description: "The decimal number that answers it." }
+
+    SatisfactionLinkAnswer:
+      type: object
+      additionalProperties: false
+      required: [score]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5, description: "1 is very dissatisfied, 5 very satisfied." }
 
     PortalRequest:
       type: object

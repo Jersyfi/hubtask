@@ -1972,6 +1972,9 @@ func run() error {
 		Signer:     security.NewPublicFormChallengeSigner(cfg.SecretKey),
 		Spent:      servicedeskservice.NewSpentChallenges(),
 	}
+	// The satisfaction question by mail for a requester without an account (UC-SVC-07 check 6):
+	// links mailed on resolution, answered without signing in.
+	satisfactionLinks := postgres.NewSatisfactionLinkRepository(security.NewSatisfactionLinkHasher(cfg.SecretKey))
 	// Approvals (UC-SVC-08 to 10): a step waiting for people's yes; the decision takes the step
 	// through TakeStep in the registry. A level's people are told by mail and reminded by its
 	// durable timers, which the timer pass below hands to ApprovalElapsed.
@@ -3640,6 +3643,11 @@ func run() error {
 			Opener:    servicedeskservice.OpenPublicForm{Forms: publicForms},
 			Submitter: servicedeskservice.SubmitPublicForm{Forms: publicForms},
 		}
+		// A resolution mail's satisfaction link, the same way (UC-SVC-07 check 6).
+		controller.Feeds.Satisfaction = servicedeskservice.AnswerSatisfactionLink{
+			Links: satisfactionLinks, Items: items, Ratings: serviceDesk.Ratings, Audit: auditSink,
+			IDs: ids, Clock: clockadapter.System{}, UnitOfWork: unitOfWork,
+		}
 		controller.Feeds.Calendar = work.ReadCalendarFeed{
 			Feeds: calendarFeeds, Accounts: accounts,
 			Export: work.ExportView{
@@ -4237,6 +4245,9 @@ func run() error {
 			// A public reply mailed to the requesters an entry was filed for by mail (UC-SVC-12):
 			// one job per comment, the mail sent outside the dispatcher's transaction.
 			servicedeskservice.RequesterReplies{Requesters: postgres.RequesterRepository{IDs: ids}, Jobs: jobs},
+			// The satisfaction question of a resolved entry filed for requesters by mail
+			// (UC-SVC-07 check 6): one job per completion.
+			servicedeskservice.SatisfactionQuestions{Requesters: postgres.RequesterRepository{IDs: ids}, Jobs: jobs},
 			// The check a deletion seeds (ADR-0060): one job per workspace, never the check itself
 			// inside the dispatcher's transaction.
 			automationservice.CheckOnDeletion{Jobs: jobs},
@@ -4870,6 +4881,14 @@ func run() error {
 			Requesters: postgres.RequesterRepository{IDs: ids}, Keys: mailIntake, Accounts: accounts,
 			Replies: mailservice.Replies{Writer: mailWriter}, Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			FallbackLocale: cfg.Locale.DefaultLocale, Mail: mailSender, Renderer: renderer, Background: backgroundWork,
+		}},
+		// A resolved entry's satisfaction question mailed to its requesters by mail (UC-SVC-07).
+		queueport.KindRequesterSatisfaction: worker.SatisfactionQuestion{Questions: servicedeskservice.SendSatisfactionQuestion{
+			Items: items, Requesters: postgres.RequesterRepository{IDs: ids}, Keys: mailIntake, Links: satisfactionLinks,
+			Address: workspaceAddress(cfg), Replies: mailservice.Replies{Writer: mailWriter},
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
+			Entropy: clockadapter.CryptoRandom{}, Clock: clockadapter.System{}, Mail: mailSender, Renderer: renderer,
+			Background: backgroundWork,
 		}},
 		// A calendar push's run every quarter hour (UC-INT-16).
 		queueport.KindCalendarPush: worker.CalendarPush{Pushes: calendarPushes},

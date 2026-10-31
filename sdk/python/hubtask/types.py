@@ -2186,6 +2186,9 @@ class PublicFormSubmission(TypedDict, total=False):
     challenge: Required[str]
     solution: Required[str]
 
+class SatisfactionLinkAnswer(TypedDict, total=False):
+    score: Required[int]
+
 class PortalRequest(TypedDict, total=False):
     """A request as the person who raised it reads it - never the team's fields."""
     id: Required[str]

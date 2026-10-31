@@ -3171,6 +3171,10 @@ class Client:
         """Send a request through a public form"""
         return self._call("POST", "/public/forms/{token}", {"token": token}, None, {}, body, "json", "application/json", "void")
 
+    def answer_satisfaction_link(self, token: str, body: "SatisfactionLinkAnswer") -> None:
+        """Say how satisfied you were, by the link of a resolution mail"""
+        return self._call("POST", "/public/satisfaction/{token}", {"token": token}, None, {}, body, "json", "application/json", "void")
+
     def get_public_page(self, token: str) -> bytes:
         """A page opened by its public link"""
         return self._call("GET", "/public/pages/{token}", {"token": token}, None, {}, None, "none", None, "raw")

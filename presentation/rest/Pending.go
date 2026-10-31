@@ -2777,6 +2777,10 @@ func (pending) GetPublicForm(w http.ResponseWriter, r *http.Request, _ string) {
 
 func (pending) SubmitPublicForm(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
 
+func (pending) AnswerSatisfactionLink(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
 func (pending) PublishPageToPortal(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
 	notAvailable(w, r)
 }

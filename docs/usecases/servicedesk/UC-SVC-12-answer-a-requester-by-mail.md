@@ -45,6 +45,6 @@ team.
 
 * Requesters with an account follow their requests in the portal and are told of a reply by a
   notification linking there (UC-SVC-05 check 6), not by this mail.
-* The satisfaction question is asked in the portal (UC-SVC-07); asking a requester without an
-  account by mail needs a link that answers without signing in, which is not built.
+* The satisfaction question of a resolved request is mailed with links that answer without
+  signing in (UC-SVC-07 check 6), not by this reply mail.
 * Attachments of a reply are not mailed; the mail carries the words.

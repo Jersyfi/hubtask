@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Satisfaction_test.go, core/application/service/servicedesk/Satisfaction_test.go, infrastructure/postgres/query/Satisfaction_test.go, test/integration/service_desk_rating_test.go]
+checked_by: [core/domain/model/servicedesk/Satisfaction_test.go, core/domain/model/servicedesk/SatisfactionLink_test.go, core/domain/model/integration/SatisfactionLinkToken_test.go, core/application/service/servicedesk/SatisfactionLinks_test.go, presentation/rest/SatisfactionLinkController_test.go, core/application/service/servicedesk/Satisfaction_test.go, infrastructure/postgres/query/Satisfaction_test.go, test/integration/service_desk_rating_test.go]
 ---
 
 # Learn whether the requester was satisfied
@@ -27,8 +27,9 @@ Mehmet's VPN request is resolved. In the portal he gives it 2 of 5 and writes "T
 3. The requester reads their own score with the request in the portal (`satisfaction`, null while they gave none).
 4. A queue's satisfaction is its view's aggregation `AVG` over `satisfaction`, read with the view's filter and the reader's permissions; a query or a view filters by `satisfaction` - `LTE 2` keeps the unhappy ones, `IS_NULL` the unrated.
 5. A rating stays in its workspace: the workspace next door neither reads it nor rates the request, and it is in the workspace's archive.
+6. A requester without an account, for whom the request was filed by mail or a public form, is asked by mail once it is resolved: one mail per address with five links of its own, one per score, in the workspace's language and with the ticket key in the subject; a completion delivered twice asks once, and a request reopened or trashed before the mail goes asks nobody. A link opens the web app's rating page, which asks once more before it records the score without signing anybody in; it answers once (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`), a request reopened since is refused with `satisfaction.request_open`, and a link replaced by a later resolution mail, another workspace's and an unknown one rate nothing (`satisfaction.link_not_found`). The answers are counted per client address, and the link goes with the requester's record.
 
 ## Where it ends
 
-* The question is asked where the requester follows the request - the portal; asking it by mail is the mail channel's for requesters (S-18, with the owner's safeguards for requesters without an account).
+* The question is asked where the requester follows the request - the portal for a requester with an account, the mail for one without (check 6). A requester without an account adds words by answering the mail (UC-SVC-12 check 4), not on the rating page.
 * One question on one scale; a survey with several questions is not built.

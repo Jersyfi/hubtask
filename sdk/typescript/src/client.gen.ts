@@ -3990,6 +3990,12 @@ export class HubtaskClient {
     return this.call("POST", "/public/forms/{token}", { "token": token }, undefined, {  }, body, "json", "application/json", "void", options.signal);
   }
 
+  /** Say how satisfied you were, by the link of a resolution mail
+   * Public: sent without a bearer where the client holds none. */
+  answerSatisfactionLink(token: string, body: NonNullable<operations["answerSatisfactionLink"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/public/satisfaction/{token}", { "token": token }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  }
+
   /** A page opened by its public link
    * Public: sent without a bearer where the client holds none. */
   getPublicPage(token: string, options: CallOptions = {}): Promise<Response> {

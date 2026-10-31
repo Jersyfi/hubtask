@@ -911,6 +911,15 @@ func (c *RestController) AnswerAlexa(w http.ResponseWriter, r *http.Request) {
 	c.Intake.AnswerAlexa(w, r)
 }
 
+// AnswerSatisfactionLink answers POST /public/satisfaction/{token} by the adapter in Feeds, which holds the connection.
+func (c *RestController) AnswerSatisfactionLink(w http.ResponseWriter, r *http.Request, token string) {
+	if c.Feeds == nil {
+		c.pending.AnswerSatisfactionLink(w, r, token)
+		return
+	}
+	c.Feeds.AnswerSatisfactionLink(w, r, token)
+}
+
 // ApplyConfig answers POST /config:apply by the generated mapping.
 func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, params openapi.ApplyConfigParams) {
 	var body openapi.ApplyConfigJSONRequestBody

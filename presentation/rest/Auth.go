@@ -119,6 +119,9 @@ var PublicRoutes = map[string]bool{
 	// client address and carries its proof of work (PublicFormBucket).
 	http.MethodGet + " " + APIBasePath + "/public/forms/{token}":  true,
 	http.MethodPost + " " + APIBasePath + "/public/forms/{token}": true,
+	// A resolution mail's satisfaction link, the same again (UC-SVC-07 check 6): it signs nobody
+	// in and is counted per client address (PublicFormBucket).
+	http.MethodPost + " " + APIBasePath + "/public/satisfaction/{token}": true,
 	// The inbound webhook carries its credential in the URL for the same reasons, and it
 	// authenticates the *rule* rather than a person: there is no account behind the token, so
 	// there is nothing for this middleware to resolve. The route validates it itself, and what

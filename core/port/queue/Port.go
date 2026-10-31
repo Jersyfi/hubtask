@@ -525,6 +525,11 @@ const (
 	// KindRequesterReply mails one public reply to the requesters an entry was filed for by mail
 	// (UC-SVC-12), deduplicated by the comment's identifier.
 	KindRequesterReply Kind = "servicedesk.requester_reply"
+
+	// KindRequesterSatisfaction mails the satisfaction question with its links to the requesters
+	// a resolved entry was filed for by mail (UC-SVC-07 check 6), deduplicated by the completion's
+	// event.
+	KindRequesterSatisfaction Kind = "servicedesk.requester_satisfaction"
 )
 
 func (k Kind) String() string { return string(k) }

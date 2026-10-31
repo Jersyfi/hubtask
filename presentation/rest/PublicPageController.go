@@ -31,6 +31,8 @@ type FeedDoor struct {
 	Pages PublicPageReader
 	// Forms serves a collection's public form (UC-SVC-13).
 	Forms PublicFormDoor
+	// Satisfaction answers a resolution mail's satisfaction link (UC-SVC-07 check 6).
+	Satisfaction SatisfactionLinkDoor
 	// BaseURL is the installation's public address the links back are composed from (feedURL).
 	BaseURL string
 }

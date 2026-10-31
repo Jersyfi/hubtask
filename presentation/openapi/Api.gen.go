@@ -21620,6 +21620,12 @@ type SamlPost struct {
 	SAMLResponse string `json:"SAMLResponse"`
 }
 
+// SatisfactionLinkAnswer defines model for SatisfactionLinkAnswer.
+type SatisfactionLinkAnswer struct {
+	// Score 1 is very dissatisfied, 5 very satisfied.
+	Score int `json:"score"`
+}
+
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
 type SavedView struct {
 	CreatedAt *time.Time             `json:"created_at,omitempty"`
@@ -28505,6 +28511,9 @@ type SetPublicFormsPolicyJSONRequestBody SetPublicFormsPolicyJSONBody
 // SubmitPublicFormJSONRequestBody defines body for SubmitPublicForm for application/json ContentType.
 type SubmitPublicFormJSONRequestBody = PublicFormSubmission
 
+// AnswerSatisfactionLinkJSONRequestBody defines body for AnswerSatisfactionLink for application/json ContentType.
+type AnswerSatisfactionLinkJSONRequestBody = SatisfactionLinkAnswer
+
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
 
@@ -31036,6 +31045,9 @@ type ServerInterface interface {
 	// GetPublicPage A page opened by its public link
 	// (GET /public/pages/{token})
 	GetPublicPage(w http.ResponseWriter, r *http.Request, token string)
+	// AnswerSatisfactionLink Say how satisfied you were, by the link of a resolution mail
+	// (POST /public/satisfaction/{token})
+	AnswerSatisfactionLink(w http.ResponseWriter, r *http.Request, token string)
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
@@ -52781,6 +52793,32 @@ func (siw *ServerInterfaceWrapper) GetPublicPage(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// AnswerSatisfactionLink operation middleware
+func (siw *ServerInterfaceWrapper) AnswerSatisfactionLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AnswerSatisfactionLink(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadQuotas operation middleware
 func (siw *ServerInterfaceWrapper) ReadQuotas(w http.ResponseWriter, r *http.Request) {
 
@@ -58703,6 +58741,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/public-forms:policy", wrapper.SetPublicFormsPolicy)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/forms/{token}", wrapper.GetPublicForm)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/public/forms/{token}", wrapper.SubmitPublicForm)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/public/satisfaction/{token}", wrapper.AnswerSatisfactionLink)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/pages/{token}", wrapper.GetPublicPage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:shared", wrapper.ListSharedPages)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:personal", wrapper.ReadPersonalSpace)

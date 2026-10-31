@@ -21626,6 +21626,12 @@ type SamlPost struct {
 	SAMLResponse string `json:"SAMLResponse"`
 }
 
+// SatisfactionLinkAnswer defines model for SatisfactionLinkAnswer.
+type SatisfactionLinkAnswer struct {
+	// Score 1 is very dissatisfied, 5 very satisfied.
+	Score int `json:"score"`
+}
+
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
 type SavedView struct {
 	CreatedAt *time.Time             `json:"created_at,omitempty"`
@@ -28510,6 +28516,9 @@ type SetPublicFormsPolicyJSONRequestBody SetPublicFormsPolicyJSONBody
 
 // SubmitPublicFormJSONRequestBody defines body for SubmitPublicForm for application/json ContentType.
 type SubmitPublicFormJSONRequestBody = PublicFormSubmission
+
+// AnswerSatisfactionLinkJSONRequestBody defines body for AnswerSatisfactionLink for application/json ContentType.
+type AnswerSatisfactionLinkJSONRequestBody = SatisfactionLinkAnswer
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
@@ -37439,6 +37448,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
 	GetPublicPage(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AnswerSatisfactionLinkWithBody Say how satisfied you were, by the link of a resolution mail
+	//
+	// The satisfaction question for a requester without an account: the score of the request the mail was about, from 1 to 5, replacing an earlier one. A link answers once (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`); a request reopened since is refused with `satisfaction.request_open`. An unknown token, a link replaced by a later resolution mail and a request gone answer the same 404. Words for the team go by answering the mail. Counted per client address.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
+	AnswerSatisfactionLinkWithBody(ctx context.Context, token string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AnswerSatisfactionLink Say how satisfied you were, by the link of a resolution mail
+	//
+	// The satisfaction question for a requester without an account: the score of the request the mail was about, from 1 to 5, replacing an earlier one. A link answers once (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`); a request reopened since is refused with `satisfaction.request_open`. An unknown token, a link replaced by a later resolution mail and a request gone answer the same 404. Words for the team go by answering the mail. Counted per client address.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
+	AnswerSatisfactionLink(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadQuotas The workspace's quota standing
 	//
@@ -56952,6 +56979,44 @@ func (c *Client) SubmitPublicForm(ctx context.Context, token string, body Submit
 // Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
 func (c *Client) GetPublicPage(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetPublicPageRequest(c.Server, token)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AnswerSatisfactionLinkWithBody Say how satisfied you were, by the link of a resolution mail
+//
+// The satisfaction question for a requester without an account: the score of the request the mail was about, from 1 to 5, replacing an earlier one. A link answers once (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`); a request reopened since is refused with `satisfaction.request_open`. An unknown token, a link replaced by a later resolution mail and a request gone answer the same 404. Words for the team go by answering the mail. Counted per client address.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
+func (c *Client) AnswerSatisfactionLinkWithBody(ctx context.Context, token string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnswerSatisfactionLinkRequestWithBody(c.Server, token, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AnswerSatisfactionLink Say how satisfied you were, by the link of a resolution mail
+//
+// The satisfaction question for a requester without an account: the score of the request the mail was about, from 1 to 5, replacing an earlier one. A link answers once (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`); a request reopened since is refused with `satisfaction.request_open`. An unknown token, a link replaced by a later resolution mail and a request gone answer the same 404. Words for the team go by answering the mail. Counted per client address.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
+func (c *Client) AnswerSatisfactionLink(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnswerSatisfactionLinkRequest(c.Server, token, body)
 	if err != nil {
 		return nil, err
 	}
@@ -91062,6 +91127,53 @@ func NewGetPublicPageRequest(server string, token string) (*http.Request, error)
 	return req, nil
 }
 
+// NewAnswerSatisfactionLinkRequest calls the generic AnswerSatisfactionLink builder with application/json body
+func NewAnswerSatisfactionLinkRequest(server string, token string, body AnswerSatisfactionLinkJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAnswerSatisfactionLinkRequestWithBody(server, token, "application/json", bodyReader)
+}
+
+// NewAnswerSatisfactionLinkRequestWithBody constructs an http.Request for the AnswerSatisfactionLink method, with any body, and a specified content type
+func NewAnswerSatisfactionLinkRequestWithBody(server string, token string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/public/satisfaction/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReadQuotasRequest constructs an http.Request for the ReadQuotas method
 func NewReadQuotasRequest(server string) (*http.Request, error) {
 	var err error
@@ -107505,6 +107617,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
 	GetPublicPageWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetPublicPageResult, error)
+
+	// AnswerSatisfactionLinkWithBodyWithResponse Say how satisfied you were, by the link of a resolution mail
+	//
+	// The satisfaction question for a requester without an account: the score of the request the mail was about, from 1 to 5, replacing an earlier one. A link answers once (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`); a request reopened since is refused with `satisfaction.request_open`. An unknown token, a link replaced by a later resolution mail and a request gone answer the same 404. Words for the team go by answering the mail. Counted per client address.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
+	AnswerSatisfactionLinkWithBodyWithResponse(ctx context.Context, token string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AnswerSatisfactionLinkResult, error)
+
+	// AnswerSatisfactionLinkWithResponse Say how satisfied you were, by the link of a resolution mail
+	//
+	// The satisfaction question for a requester without an account: the score of the request the mail was about, from 1 to 5, replacing an earlier one. A link answers once (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`); a request reopened since is refused with `satisfaction.request_open`. An unknown token, a link replaced by a later resolution mail and a request gone answer the same 404. Words for the team go by answering the mail. Counted per client address.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
+	AnswerSatisfactionLinkWithResponse(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*AnswerSatisfactionLinkResult, error)
 
 	// ReadQuotasWithResponse The workspace's quota standing
 	//
@@ -140312,6 +140442,47 @@ func (r GetPublicPageResult) ContentType() string {
 	return ""
 }
 
+type AnswerSatisfactionLinkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AnswerSatisfactionLinkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AnswerSatisfactionLinkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AnswerSatisfactionLinkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AnswerSatisfactionLinkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AnswerSatisfactionLinkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadQuotasResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -162365,6 +162536,36 @@ func (c *ClientWithResponses) GetPublicPageWithResponse(ctx context.Context, tok
 		return nil, err
 	}
 	return ParseGetPublicPageResult(rsp)
+}
+
+// AnswerSatisfactionLinkWithBodyWithResponse Say how satisfied you were, by the link of a resolution mail
+//
+// The satisfaction question for a requester without an account: the score of the request the mail was about, from 1 to 5, replacing an earlier one. A link answers once (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`); a request reopened since is refused with `satisfaction.request_open`. An unknown token, a link replaced by a later resolution mail and a request gone answer the same 404. Words for the team go by answering the mail. Counted per client address.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
+func (c *ClientWithResponses) AnswerSatisfactionLinkWithBodyWithResponse(ctx context.Context, token string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AnswerSatisfactionLinkResult, error) {
+	rsp, err := c.AnswerSatisfactionLinkWithBody(ctx, token, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnswerSatisfactionLinkResult(rsp)
+}
+
+// AnswerSatisfactionLinkWithResponse Say how satisfied you were, by the link of a resolution mail
+//
+// The satisfaction question for a requester without an account: the score of the request the mail was about, from 1 to 5, replacing an earlier one. A link answers once (`satisfaction.link_used`) and for 30 days (`satisfaction.link_expired`); a request reopened since is refused with `satisfaction.request_open`. An unknown token, a link replaced by a later resolution mail and a request gone answer the same 404. Words for the team go by answering the mail. Counted per client address.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
+func (c *ClientWithResponses) AnswerSatisfactionLinkWithResponse(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*AnswerSatisfactionLinkResult, error) {
+	rsp, err := c.AnswerSatisfactionLink(ctx, token, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnswerSatisfactionLinkResult(rsp)
 }
 
 // ReadQuotasWithResponse The workspace's quota standing
@@ -187715,6 +187916,35 @@ func ParseGetPublicPageResult(rsp *http.Response) (*GetPublicPageResult, error) 
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAnswerSatisfactionLinkResult parses an HTTP response from a AnswerSatisfactionLinkWithResponse call
+func ParseAnswerSatisfactionLinkResult(rsp *http.Response) (*AnswerSatisfactionLinkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AnswerSatisfactionLinkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
