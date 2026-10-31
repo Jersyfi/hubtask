@@ -296,3 +296,40 @@ test('chromium: 768 px — the board scrolls inside itself and does not widen th
   // cannot claim to have exercised (`fixture.mjs`).
   assert.deepEqual(unstubbed(), []);
 });
+
+// UC-WRK-17 check 12: the filter as a line - typed, it becomes the conditions and the order the
+// query sends; built from the controls, the line says them back.
+test('chromium: 1280 px — the filter as a line is read into the conditions and the order, and written back', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close, unstubbed } = await openCollection(browser, 1280);
+  t.after(close);
+  const sent = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.endsWith('/items:query')) sent.push(request.postDataJSON());
+  });
+
+  await page.getByRole('toolbar', { name: 'What is shown of the entries' }).getByRole('button', { name: 'Filter' }).click();
+  const panel = page.getByRole('group', { name: 'Which entries to show' });
+  await panel.waitFor({ state: 'visible', timeout: 5_000 });
+  const line = page.getByRole('textbox', { name: 'As a line' });
+  await line.fill("title ~ 'milk' ORDER BY title DESC");
+  await line.press('Enter');
+  await panel.getByRole('button', { name: 'Remove this condition' }).waitFor({ timeout: 5_000 });
+
+  const last = sent.at(-1);
+  assert.deepEqual(last?.filter, { op: 'CONTAINS', field: 'title', value: 'milk' }, `the query sent ${JSON.stringify(last)}`);
+  assert.deepEqual(last?.sort?.[0], { field: 'title', dir: 'DESC' });
+  // The line is drawn as a condition the builder can change, not kept aside.
+  assert.equal(await panel.getByRole('button', { name: 'Remove this condition' }).count(), 1, 'the line became no condition row');
+  // …and the controls write the line back as the query they send.
+  assert.equal(await line.inputValue(), "title CONTAINS 'milk' ORDER BY title DESC");
+
+  // A line that cannot be read says where and changes nothing.
+  await line.fill("title ~ 'milk");
+  await line.press('Enter');
+  await page.getByText('The line cannot be read from character 9 on.').waitFor({ timeout: 5_000 });
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});

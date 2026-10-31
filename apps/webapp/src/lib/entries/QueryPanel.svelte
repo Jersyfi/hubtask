@@ -20,7 +20,7 @@
   // catalogue has never heard of still renders, as `humanise` makes of it, because the grammar can
   // grow without this client.
 
-  import { QueryBuilder, Select, type QueryCondition } from '@hubtask/design-system/components';
+  import { Input, QueryBuilder, Select, type QueryCondition } from '@hubtask/design-system/components';
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import type { ItemsQuery } from '../data/items.svelte.ts';
@@ -30,6 +30,7 @@
   import type { FilterField } from '../data/query.ts';
   import {
     conditionsOf,
+    fieldNamed,
     filterOf,
     filterableFields,
     offeredByProfile,
@@ -41,6 +42,7 @@
     takesValue,
   } from '../data/query.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { readLine, writeLine } from '../data/queryline.ts';
   import { entryTypes, typeOrder, typesShown } from '../data/entrytypes.svelte.ts';
 
   interface Props {
@@ -146,13 +148,42 @@
    */
   function publish() {
     const built = filterOf(manifest.value, conditions, custom);
+    const filter = kept && built ? { op: 'AND' as const, nodes: [kept, built] } : (kept ?? built);
+    const sort = sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir, custom);
     onquery({
-      filter: kept && built ? { op: 'AND', nodes: [kept, built] } : (kept ?? built),
-      sort: sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir, custom),
+      filter,
+      sort,
       group: layout === 'KANBAN' ? groupOf(manifest.value, groupField, custom) : undefined,
     });
+    // The text mode shows what the controls ask, so the two never disagree (UC-WRK-17 check 12).
+    line = writeLine(filter, sort ?? []) ?? '';
+    lineError = undefined;
     // The filter's count is its conditions; the order says itself on the *Sort* button.
     oncount?.(conditions.length + (kept ? 1 : 0));
+  }
+
+  /** The query as one line, written from the controls and read back into them. */
+  let line = $state('');
+  let lineError = $state<string | undefined>(undefined);
+
+  /**
+   * Reads the typed line into the controls: conditions where they can draw it, kept whole where
+   * they cannot (an `OR`, a `NOT`), and its first order term; a line that cannot be read says the
+   * character it stops at and changes nothing.
+   */
+  function takeLine() {
+    const read = readLine(line, (field) => fieldNamed(manifest.value, field, custom)?.kind);
+    if (!read.ok) {
+      lineError = t('app.query.line_malformed', { at: read.at });
+      return;
+    }
+    const drawn = conditionsOf(read.filter);
+    const sendable = drawn?.every((each) => isSendable(manifest.value, each, custom)) ? drawn : undefined;
+    conditions = sendable ?? [];
+    kept = sendable ? undefined : read.filter;
+    sortField = read.sort[0]?.field ?? '';
+    sortDir = read.sort[0]?.dir ?? 'ASC';
+    publish();
   }
 
   function clear() {
@@ -206,6 +237,18 @@
     removeLabel={t('app.query.remove')}
     emptyLabel={t('app.query.none_filterable')}
     onchange={publish}
+  />
+
+  <Input
+    label={t('app.query.line')}
+    size="sm"
+    bind:value={line}
+    hint={t('app.query.line_hint')}
+    error={lineError}
+    spellcheck={false}
+    autocomplete="off"
+    onchange={takeLine}
+    onkeydown={(event: KeyboardEvent) => { if (event.key === 'Enter') takeLine(); }}
   />
 
   <div class="ordering">
