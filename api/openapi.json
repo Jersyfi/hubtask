@@ -21978,6 +21978,14 @@
           "oauth"
         ],
         "operationId": "listOauthGrants",
+        "x-hubtask-cli": "oauth grant ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "client_name",
+          "scopes",
+          "created_at",
+          "last_used_at"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "oauthGrantResponse",
         "summary": "The apps the caller has allowed, and what",
@@ -22013,8 +22021,9 @@
           "oauth"
         ],
         "operationId": "revokeOauthGrant",
+        "x-hubtask-cli": "oauth grant revoke",
         "x-hubtask-rest": "generated",
-        "summary": "Withdraw what an app was allowed",
+        "summary": "Withdraw what an app was allowed; every session it leashed refuses on its next request",
         "description": "Immediate: every session the grant leashed refuses on its next request, the way a revoked session's pair does. Somebody else's grant is not found rather than forbidden; revoking twice is not an error.\n",
         "responses": {
           "204": {

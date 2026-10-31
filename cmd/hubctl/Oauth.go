@@ -65,12 +65,6 @@ func oauthGroup() group {
 				summary: "exchange the code for the pair, as the app would",
 				run:     oauthExchange,
 			},
-			{
-				name:    "grant",
-				usage:   "ls|revoke …",
-				summary: "what this account allowed, and withdrawing it",
-				run:     oauthGrant,
-			},
 		},
 	}
 }
@@ -334,69 +328,6 @@ func oauthExchange(ctx context.Context, cli *CLI, args []string) error {
 	printf(cli.Err,
 		"that pair is the app's credential and is shown once; revoking the grant refuses it "+
 			"on its next request\n")
-	return nil
-}
-
-func oauthGrant(ctx context.Context, cli *CLI, args []string) error {
-	if len(args) == 0 {
-		return usagef("oauth grant needs a command: ls, revoke")
-	}
-	switch args[0] {
-	case "ls":
-		return oauthGrantList(ctx, cli, args[1:])
-	case "revoke":
-		return oauthGrantRevoke(ctx, cli, args[1:])
-	default:
-		return usagef("oauth grant has no command %q: ls, revoke", args[0])
-	}
-}
-
-func oauthGrantList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "oauth grant", "ls", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var grants []openapi.OauthGrant
-	if err := client.Get(ctx, oauthGrantsPath, nil, &grants); err != nil {
-		return err
-	}
-	rows := make([][]string, 0, len(grants))
-	for _, grant := range grants {
-		rows = append(rows, []string{
-			grant.Id.String(), grant.ClientName, strings.Join(grant.Scopes, " "),
-			shortTime(&grant.CreatedAt), shortTime(grant.LastUsedAt),
-		})
-	}
-	return cli.Emit(grants, Table{
-		Columns: []string{"id", "app", "allowed", "since", "last used"},
-		Rows:    rows,
-	})
-}
-
-func oauthGrantRevoke(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "oauth grant revoke <id>"
-	grantID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "oauth grant", "revoke", "<id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(ctx, oauthGrantsPath+"/"+grantID.String(), ""); err != nil {
-		return err
-	}
-	printf(cli.Err, "withdrawn; every session the grant leashed refuses on its next request\n")
 	return nil
 }
 

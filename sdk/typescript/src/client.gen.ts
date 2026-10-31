@@ -2780,7 +2780,7 @@ export class HubtaskClient {
     return this.call("GET", "/oauth/grants", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Withdraw what an app was allowed */
+  /** Withdraw what an app was allowed; every session it leashed refuses on its next request */
   revokeOauthGrant(grantId: string, options: CallOptions = {}): Promise<void> {
     return this.call("DELETE", "/oauth/grants/{grantId}", { "grantId": grantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }

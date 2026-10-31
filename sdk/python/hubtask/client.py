@@ -2208,7 +2208,7 @@ class Client:
         return self._call("GET", "/oauth/grants", {}, None, {}, None, "none", None, "json")
 
     def revoke_oauth_grant(self, grant_id: str) -> None:
-        """Withdraw what an app was allowed"""
+        """Withdraw what an app was allowed; every session it leashed refuses on its next request"""
         return self._call("DELETE", "/oauth/grants/{grantId}", {"grantId": grant_id}, None, {}, None, "none", None, "void")
 
     def list_data_subject_requests(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:

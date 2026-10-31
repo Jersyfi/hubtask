@@ -139,8 +139,7 @@ var handWritten = map[string]string{
 	"ai arrival-proposals":       "one member of the offering document, shown or set",
 	"ai budget":                  "shows or sets the budget: two operations",
 	"oauth client":               "to move: a group of its own (add, ls, rm)",
-	"oauth grant":                "to move: a group of its own (ls, revoke)",
-	"backup target":              "to move: a group of its own (add, ls, test, rm)",
+	"backup target":              "add takes the config and credentials as k=v pairs, test fails the command for a failed probe",
 	"backup schedule":            "to move: a group of its own (ls, set, rm)",
 	"admin tenant":               "to move: a group of its own; open-password and replace-holds prompt",
 	"admin plan":                 "to move: a group of its own (ls, show, create, set, clear, rm)",
@@ -152,7 +151,7 @@ var handWritten = map[string]string{
 	"admin operator":             "to move: a group of its own (ls, add, rm)",
 	"admin provider":             "to move: a group of its own (ls, add, rm)",
 	"admin ai":                   "shows or sets the installation's AI: several operations",
-	"admin target":               "to move: a group of its own (ls, add, test, rm)",
+	"admin target":               "add takes the target as backup target add does, test fails the command for a failed probe",
 	"admin encryption":           "to move: a group of its own (show, reseal)",
 }
 

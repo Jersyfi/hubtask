@@ -1342,6 +1342,13 @@ var generatedCommands = []door{
 			{Name: "switch", Kind: "string", Help: "OFF, the default, or INHERIT to leave the module to the level above", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id", "module", "on", "people"}},
+	{Group: "oauth", Verb: "grant ls", OperationID: "listOauthGrants", Method: "GET", Path: "/oauth/grants", Summary: "The apps the caller has allowed, and what",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "client_name", "scopes", "created_at", "last_used_at"}},
+	{Group: "oauth", Verb: "grant revoke", OperationID: "revokeOauthGrant", Method: "DELETE", Path: "/oauth/grants/{grantId}", Summary: "Withdraw what an app was allowed; every session it leashed refuses on its next request",
+		PathParams: []doorParam{
+			{Name: "grantId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "organisation", Verb: "define", OperationID: "defineRequesterOrganisation", Method: "PUT", Path: "/requester-organisations/{organisationKey}", Summary: "Add or replace an organisation",
 		PathParams: []doorParam{
 			{Name: "organisationKey", Kind: "string", Help: "", Required: true},

@@ -35608,7 +35608,7 @@ type ClientInterface interface {
 	// Corresponds with GET /oauth/grants (the `ListOauthGrants` operationId).
 	ListOauthGrants(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RevokeOauthGrant Withdraw what an app was allowed
+	// RevokeOauthGrant Withdraw what an app was allowed; every session it leashed refuses on its next request
 	//
 	// Immediate: every session the grant leashed refuses on its next request, the way a revoked session's pair does. Somebody else's grant is not found rather than forbidden; revoking twice is not an error.
 	//
@@ -53484,7 +53484,7 @@ func (c *Client) ListOauthGrants(ctx context.Context, reqEditors ...RequestEdito
 	return c.Client.Do(req)
 }
 
-// RevokeOauthGrant Withdraw what an app was allowed
+// RevokeOauthGrant Withdraw what an app was allowed; every session it leashed refuses on its next request
 //
 // Immediate: every session the grant leashed refuses on its next request, the way a revoked session's pair does. Somebody else's grant is not found rather than forbidden; revoking twice is not an error.
 //
@@ -103801,7 +103801,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /oauth/grants (the `ListOauthGrants` operationId).
 	ListOauthGrantsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOauthGrantsResult, error)
 
-	// RevokeOauthGrantWithResponse Withdraw what an app was allowed
+	// RevokeOauthGrantWithResponse Withdraw what an app was allowed; every session it leashed refuses on its next request
 	//
 	// Immediate: every session the grant leashed refuses on its next request, the way a revoked session's pair does. Somebody else's grant is not found rather than forbidden; revoking twice is not an error.
 	//
@@ -156549,7 +156549,7 @@ func (c *ClientWithResponses) ListOauthGrantsWithResponse(ctx context.Context, r
 	return ParseListOauthGrantsResult(rsp)
 }
 
-// RevokeOauthGrantWithResponse Withdraw what an app was allowed
+// RevokeOauthGrantWithResponse Withdraw what an app was allowed; every session it leashed refuses on its next request
 //
 // Immediate: every session the grant leashed refuses on its next request, the way a revoked session's pair does. Somebody else's grant is not found rather than forbidden; revoking twice is not an error.
 //

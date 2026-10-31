@@ -30157,7 +30157,7 @@ type ServerInterface interface {
 	// ListOauthGrants The apps the caller has allowed, and what
 	// (GET /oauth/grants)
 	ListOauthGrants(w http.ResponseWriter, r *http.Request)
-	// RevokeOauthGrant Withdraw what an app was allowed
+	// RevokeOauthGrant Withdraw what an app was allowed; every session it leashed refuses on its next request
 	// (DELETE /oauth/grants/{grantId})
 	RevokeOauthGrant(w http.ResponseWriter, r *http.Request, grantId OauthGrantId)
 	// ExchangeOauthCode Exchange the code for the pair
