@@ -40,7 +40,7 @@ func itilTemplate(t *testing.T) domain.Template {
 // every block one the use cases that apply it accept, and every section one the document has.
 func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	template := itilTemplate(t)
-	if template.Origin != domain.OriginHubtask || template.Version != 3 || !reservedKey(template.Key) {
+	if template.Origin != domain.OriginHubtask || template.Version != 4 || !reservedKey(template.Key) {
 		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
 	}
 	// Its hub part (templates.md §1): the hub's switches and which of the template's workflows
@@ -86,7 +86,24 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	if len(template.Hub[sectionRules]) == 0 {
 		t.Error("the desk brings no macro")
 	}
+	// Its one timed rule (templates.md §1): a resolved incident is closed a week after it was done,
+	// asked again when it is due, so one reopened or closed by hand is left alone.
+	closing := template.Hub[sectionRules]["close_resolved"]
+	if trigger, _ := closing["trigger"].(map[string]any); trigger["kind"] != "RELATIVE_DATE" || trigger["anchor"] != "COMPLETED_AT" {
+		t.Errorf("the closing rule is %v", closing)
+	} else if _, err := automationmodel.NewRule(automationmodel.NewRuleInput{
+		ID: id, TenantID: tenant, Key: "close_resolved", Name: text(closing["name"]), Scope: automationmodel.Scope{Type: automationmodel.ScopeHub, ID: lintHub},
+		RunAs: id, Trigger: automationmodel.Trigger{Kind: automationmodel.TriggerRelativeDate, Anchor: automationmodel.AnchorCompletedAt, Offset: text(trigger["offset"])},
+		Conditions: []automationmodel.Condition{{Expr: "item.entry_type == 'incident' && item.status == 'resolved'"}},
+		Actions:    []automationmodel.Action{{Kind: "TAKE_STEP", Params: map[string]any{"to_status": "closed"}}},
+		OnError:    automationmodel.OnErrorStop, CreatedBy: id, Now: now, Text: textport.Composing{},
+	}); err != nil {
+		t.Errorf("the closing rule: %v", err)
+	}
 	for key, block := range template.Hub[sectionRules] {
+		if key == "close_resolved" {
+			continue
+		}
 		trigger, _ := block["trigger"].(map[string]any)
 		if enabled, _ := block["enabled"].(bool); !enabled || trigger["kind"] != "MANUAL" {
 			t.Errorf("the macro %s is not a manual rule switched on: %v", key, block)

@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 3,
+  "version": 4,
   "document": {
     "modules": {
       "workflows": {
@@ -837,6 +837,29 @@
             "kind": "TAKE_STEP",
             "params": {
               "to_status": "waiting"
+            }
+          }
+        ]
+      },
+      "close_resolved": {
+        "name": "Close resolved incidents after a week",
+        "enabled": true,
+        "trigger": {
+          "kind": "RELATIVE_DATE",
+          "anchor": "COMPLETED_AT",
+          "offset": "P7D"
+        },
+        "conditions": [
+          {
+            "expr": "item.entry_type == 'incident' && item.status == 'resolved'"
+          }
+        ],
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "TAKE_STEP",
+            "params": {
+              "to_status": "closed"
             }
           }
         ]
