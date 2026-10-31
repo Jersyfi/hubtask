@@ -942,7 +942,7 @@ export type WorkType = components['schemas']['WorkType'];
 export type WorkTypeList = components['schemas']['WorkTypeList'];
 export type TimePolicy = components['schemas']['TimePolicy'];
 export type EstimatesVsActuals = components['schemas']['EstimatesVsActuals'];
-/** Capacity, absences, the workload, cost rates and a plan's budget with its burn (M7). */
+/** Capacity, absences, the workload, cost rates, a plan's billing rates and its budget with its burn (M7). */
 export type Capacity = components['schemas']['Capacity'];
 export type CapacityList = components['schemas']['CapacityList'];
 export type Absence = components['schemas']['Absence'];
@@ -950,6 +950,8 @@ export type AbsenceList = components['schemas']['AbsenceList'];
 export type Workload = components['schemas']['Workload'];
 export type CostRate = components['schemas']['CostRate'];
 export type CostRateList = components['schemas']['CostRateList'];
+export type BillingRate = components['schemas']['BillingRate'];
+export type BillingRateList = components['schemas']['BillingRateList'];
 export type BudgetBurn = components['schemas']['BudgetBurn'];
 
 /** Goal periods, goals with key results and check-ins, portfolios and dashboards (M8). */

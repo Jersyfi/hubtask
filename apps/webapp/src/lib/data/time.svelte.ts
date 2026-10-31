@@ -4,7 +4,7 @@
 /**
  * The time module's paths and writes (UC-TIM-01 … 08), so that every write invalidates the same
  * reads: the timer, the week it lands in, the approval queue, the kinds of work, the policy, a
- * person's capacity, the absences, the cost rates and a plan's budget.
+ * person's capacity, the absences, the cost rates, a plan's billing rates and its budget.
  * The reads are subscriptions at the call site.
  *
  * **Offline**, the timer is started, stopped and discarded from the queue with the device's moments
@@ -14,7 +14,7 @@
  */
 
 import type {
-  Absence, BudgetBurn, Capacity, CostRate, TimeExport, TimePolicy, TimeRecord, TimeTimer, Timesheet, TransportDocument, WorkType,
+  Absence, BillingRate, BudgetBurn, Capacity, CostRate, TimeExport, TimePolicy, TimeRecord, TimeTimer, Timesheet, TransportDocument, WorkType,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -35,6 +35,8 @@ export const queuePath = (from: string, to: string) => `/timesheets?from=${from}
 export const actualsPath = (planId: string) => `/plans/${planId}/actuals`;
 /** A hub's or a collection's workload from a Monday for some weeks. */
 export const workloadPath = (planId: string, from: string, weeks: number) => `/plans/${planId}/workload?from=${from}&weeks=${weeks}`;
+/** A hub's or a collection's billing rates: what an hour of its billable time is charged. */
+export const billingRatesPath = (planId: string) => `/plans/${planId}/billing-rates`;
 /** A hub's or a collection's budget and its burn. */
 export const budgetPath = (planId: string) => `/plans/${planId}/budget`;
 /** The caller's capacities. */
@@ -187,6 +189,21 @@ class Time {
 
   async removeRate(rate: CostRate): Promise<void> {
     await engine.mutate<void>('DELETE', `${RATES}/${rate.id}`, undefined, { ifMatch: etagFor(rate.version), invalidates: [RATES] });
+  }
+
+  addBillingRate(planId: string, fields: { hour_minor: number; currency: string; from: string; to?: string }): Promise<BillingRate> {
+    const path = billingRatesPath(planId);
+    return engine.mutate<BillingRate>('POST', path, fields, { idempotencyKey: crypto.randomUUID(), invalidates: [path] });
+  }
+
+  changeBillingRate(rate: BillingRate, fields: { hour_minor: number; currency: string; from: string; to?: string }): Promise<BillingRate> {
+    const path = billingRatesPath(rate.plan_id);
+    return engine.mutate<BillingRate>('PATCH', `${path}/${rate.id}`, fields, { ifMatch: etagFor(rate.version), invalidates: [path] });
+  }
+
+  async removeBillingRate(rate: BillingRate): Promise<void> {
+    const path = billingRatesPath(rate.plan_id);
+    await engine.mutate<void>('DELETE', `${path}/${rate.id}`, undefined, { ifMatch: etagFor(rate.version), invalidates: [path] });
   }
 
   setBudget(planId: string, burn: BudgetBurn, fields: { minutes: number; amount_minor: number; currency: string }): Promise<BudgetBurn> {

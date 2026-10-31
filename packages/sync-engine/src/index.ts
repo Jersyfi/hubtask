@@ -238,6 +238,8 @@ export type {
   Workload,
   CostRate,
   CostRateList,
+  BillingRate,
+  BillingRateList,
   BudgetBurn,
   GoalPeriod,
   GoalPeriodList,
