@@ -139,3 +139,12 @@ The decisions round raised ten further questions; the owner accepted every propo
 10. The retention sweeps of kinds with a default period (`DOCUMENT_HISTORY`, `PAGE_VERSION`,
     `AGENT_*`, `REQUESTER`, …) read the workspace's TENANT-scope rule, as `WHITEBOARD_HISTORY` does,
     keeping each kind's lower bound.
+
+## The owner's word on the performance tests — 2026-10-31
+
+- Every error seen during the performance runs — server log entries at warn or error,
+  PostgreSQL log errors, failed requests, browser console errors — is collected, deduplicated and
+  afterwards fixed.
+- Several hours of load on the workstation is too much. First a sensible plan is worked out for
+  testing as well as possible, with how long it really takes (measured by short probes), in
+  `test/load/PLAN.md`; it is shown to the owner before the long runs start.
