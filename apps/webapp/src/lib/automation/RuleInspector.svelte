@@ -310,6 +310,7 @@
         options={[
           { value: 'DUE_DATE', label: t('app.flow.anchor_due_date') },
           { value: 'CREATED_AT', label: t('app.flow.anchor_created_at') },
+          { value: 'COMPLETED_AT', label: t('app.flow.anchor_completed_at') },
         ]}
         onchange={(event: Event) => {
           const anchor = value(event);
