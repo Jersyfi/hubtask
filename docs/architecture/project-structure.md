@@ -34,7 +34,9 @@ hubtask/
 │   └── shared/                # concurrency/SafeGo.go (the only place `go` is allowed),
 │                              # correlation/, secret/ (the masking type)
 ├── presentation/              # inbound adapters: rest, mcp, stream, calendar, intake,
-│                              # worker (the job loops, §4), webui (§7), openapi (generated)
+│                              # worker (the job loops, §4), webui (§7), openapi (generated),
+│                              # realtime (live documents over a WebSocket), odata (a data
+│                              # feed for reporting tools), voice (a voice assistant's protocol)
 ├── infrastructure/            # outbound adapters, one package per port or concern; postgres/
 │                              # holds the transaction wrapper (Tenant.go), outbox, queue, the
 │                              # query DSL compiler and sqlc/ (generated); oidc/ is the only
@@ -53,7 +55,9 @@ hubtask/
 │   └── website/               # hubtask.eu; static, never embedded
 ├── packages/                  # design-system (tokens/tokens.json, CSS, components, workbench),
 │                              # api-client (generated only), sync-engine (the client's data
-│                              # seam, the only caller of fetch), n8n-nodes-hubtask and
+│                              # seam, the only caller of fetch), editor (a page's block
+│                              # editor over a live document), whiteboard (a board's scene),
+│                              # expression (CEL conditions offline), n8n-nodes-hubtask and
 │                              # zapier-app (generated, §2.2)
 ├── sdk/                       # go/, python/, typescript/ — generated client SDKs (§2.2)
 ├── locales/                   # en.json (the source), the translations, Embed.go

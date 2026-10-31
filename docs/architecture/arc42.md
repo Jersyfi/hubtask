@@ -230,6 +230,14 @@ graph LR
   AUTOM[Automation] -->|Events| WORK
   AUTOM --> INTEG[Integration]
   NOTIF[Notification] --> SCHED
+  FLOW[Workflow] & PLAN[Planning] & TIME[Timekeeping] & DESK[Service desk] & CMDB[CMDB] --> WORK
+  KNOW[Knowledge] & BOARD[Whiteboard] & GOAL[Goals & Portfolio] & CAL[Calendars] --> WORK
+  DESK --> CAL
+  DESK & CMDB --> CONN[Connectors]
+  CFG[Configuration] --> FLOW & AUTOM & VIEW & PLAN
+  AGENT[Agents] --> CFG & SUGG
+  RT[Realtime] --> KNOW & BOARD
+  FLOW & DESK & GOAL & PLAN & KNOW & BOARD & AGENT & CFG --> IAM
 ```
 
 | Context | Aggregates / key terms | Note |
@@ -243,7 +251,7 @@ graph LR
 | **Lifecycle** | Trash, archive, retention rules, legal holds, the deletion journal | [data-retention.md](./data-retention.md) |
 | **Automation** | `AutomationRule`, `Run`, scheduled triggers, outbound calls | Separately deployable |
 | **Integration** | `WebhookSubscription`, `CalendarFeed`, inbound tokens, AI provider settings | |
-| **Notification** | `Notification`, `NotificationPreference`, channel ports | Email is the only channel that sends; webhook and push are named channels not yet built |
+| **Notification** | `Notification`, `NotificationPreference`, channel ports | Email is the only channel that sends; webhook and push are named channels not yet built (an outbound webhook of an event is Integration's) |
 | **Audit & Activity** | `ActivityEntry`, the audit trail | Append-only; the activity entry is the item history |
 | **Media** | `MediaObject` | Covers and attachments, presigned upload (§8.4) |
 | **Search** | Full text, optionally vector | |
@@ -252,6 +260,19 @@ graph LR
 | **Privacy** | Data subject requests, consent | [data-protection.md](./data-protection.md) |
 | **Sync** | Devices, mutations, the change log | [offline-sync.md](./offline-sync.md) |
 | **Suggestions** | `Suggestion` | AI proposals; nothing changes until a person accepts ([ai-first.md](./ai-first.md)) |
+| **Workflow** | an entry type's statuses in categories, steps with who may take them, the scheme per hub, forms per channel | A workflow is published as a draft first; its preview says what it moves (UC-FLW-*) |
+| **Configuration** | `Revision`, `Proposal`, `Sandbox`, `Template`, `Finding` | One document per workspace and hub: plan, apply, versions, rollback, templates, the check ([configuration.md](./configuration.md)) |
+| **Knowledge** | `Page`, `Article`, `Comment`, `Share`, `File` | Pages in a hub's space, versions, review dates, references (UC-DOC-*) |
+| **Whiteboard** | `Board`, `Element`, `Scene`, `Comment` | A live document beside its saved projection (UC-CNV-*) |
+| **Realtime** | `Ref`, `Update`, `Snapshot`, `Head` | Live documents of pages and boards: the server relays and keeps the updates, clients merge ([offline-sync.md](./offline-sync.md) §13) |
+| **Planning** | `Baseline`, `Variance`, `Estimate`, `Release`, sprints, dependencies, the time tolerance | Scheduling with lags, critical path, baselines; the roadmap is read from Goals' portfolio (UC-PLN-*) |
+| **Timekeeping** | time records, `CostRate`, `BillingRate`, `Budget`, `Burn` | Approved records are kept, a person erased is pseudonymised (UC-TIM-*) |
+| **Goals & Portfolio** | `Goal`, `KeyResult`, `Dashboard`, `Widget`, `Digest` | Goals, a portfolio's health and roadmap, dashboards and their mailed digests (UC-GOL-*) |
+| **Service desk** | `Calendar` (business hours), SLA policies, `Approval`, `Organisation`, the portal, replies, satisfaction | Requests from people without an account, SLA clocks (UC-SVC-*) |
+| **CMDB** | configuration items (`Asset`), relations, `Affected`, change windows, `Disposal` | CIs are switched off, never deleted (UC-AST-*) |
+| **Calendars** | `BusinessCalendar`, `Span`, `Timer` | Working time shared by SLAs, planning and rules; an installation's calendar is the fallback |
+| **Connectors** | file links, forge hooks, mailboxes, inventory connectors | Each outbound call through `GuardedClient` (rule 6) |
+| **Agents** | `Agent`, `Policy`, `Budget`, `Run`, `Action`, provenance marks | Registered agents with a policy per act class; the ledger is kept 13 months (UC-AGT-*) |
 
 Imports and jobs are supporting packages (`importer`, `job`), not contexts of their own.
 
