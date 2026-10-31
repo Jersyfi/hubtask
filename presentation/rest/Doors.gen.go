@@ -53,6 +53,7 @@ var restDoors = map[string]restDoor{
 	"authorizeOauthClient":  {UseCase: "AuthorizeOauthClient", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"autoAssignWorkItem":    {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"browseFileStore":       {UseCase: "BrowseFileStore", Status: 200, Query: []string{"folder"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"bulkUpdateWorkItems":   {UseCase: "BulkUpdateWorkItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Writer: (*RestController).bulkWriter, WriterMembers: []string(nil)},
 	"cancelInstanceIdentityProviderWithdrawal": {UseCase: "CancelInstanceIdentityProviderWithdrawal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"cancelJob":                         {UseCase: "CancelJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"cancelTenantDeletion":              {UseCase: "CancelTenantDeletion", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -995,6 +996,12 @@ func (c *RestController) AutoAssignWorkItem(w http.ResponseWriter, r *http.Reque
 func (c *RestController) BrowseFileStore(w http.ResponseWriter, r *http.Request, connectionId openapi_types.UUID, params openapi.BrowseFileStoreParams) {
 	var answer openapi.FileStoreFolder
 	c.door(w, r, restDoors["browseFileStore"], usecase.Input{"connection_id": connectionId.String()}, params, nil, &answer)
+}
+
+// BulkUpdateWorkItems answers POST /items:bulk by the generated mapping.
+func (c *RestController) BulkUpdateWorkItems(w http.ResponseWriter, r *http.Request, params openapi.BulkUpdateWorkItemsParams) {
+	var body openapi.BulkUpdateWorkItemsJSONRequestBody
+	c.door(w, r, restDoors["bulkUpdateWorkItems"], usecase.Input{}, params, &body, nil)
 }
 
 // CancelInstanceIdentityProviderWithdrawal answers POST /admin/identity-providers/{providerId}:cancel-withdrawal by the generated mapping.

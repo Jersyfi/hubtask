@@ -27640,6 +27640,10 @@
           "items"
         ],
         "operationId": "bulkUpdateWorkItems",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-writer": {
+          "by": "bulkWriter"
+        },
         "description": "Up to 500 operations, each of them one of the operations this API offers on an entry\nsingly, applied in the order they are sent. The answer is HTTP 200 with a result per\noperation, and the status of each operation is in that result: a bulk that half succeeded\nis not a failed request, and a client reads what happened per operation rather than from\none status covering 500 of them.\n\nAn operation applies exactly as it would on its own - its own permission check, its own\nevent, its own entry in the item's history and its own per-field records for offline\nclients. One event covering 500 entries would break a merge in a way nothing downstream\nrecovers from, and one history entry for a bulk hides what the history exists to show.\n\n`atomic: true` makes it all or nothing: the first refusal rolls the whole bulk back and\nevery result reports what happened, the refusal in its place and the rest as not applied.\nWithout it, the operations that succeeded stay applied and the ones that failed carry their\nproblem.\n",
         "parameters": [
           {

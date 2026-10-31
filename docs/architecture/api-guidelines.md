@@ -76,7 +76,8 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    `x-hubtask-rest-writer: { by: <method>, members: [member] }` writes the output as a file in
    the media type asked for - by `Accept`, or by the body's members it names (`format`,
    `time_zone`), which stay out of the input - and is chosen before the use case runs, so a
-   format or a zone it cannot write is refused before anything is read or audited (the exports).
+   format or a zone it cannot write is refused before anything is read or audited (the exports);
+   a bulk's writer renders each refusal inside it with the request's own id.
    `x-hubtask-rest-drop` may name a nested member by its dotted path (an export's `query.page`,
    which a walk decides for itself). `x-hubtask-rest-cache:
    no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be

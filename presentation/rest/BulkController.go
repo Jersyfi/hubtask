@@ -17,71 +17,22 @@ import (
 // whichever channel the call came through (ADR-0005). What this file owns is the one thing that is
 // genuinely HTTP - the status each operation would have answered on its own.
 
-const bulkUpdateWorkItemsUseCase = "BulkUpdateWorkItems"
-
-// BulkUpdateWorkItems answers POST /items:bulk.
-//
-// HTTP 200 whenever the bulk was carried out, whatever happened inside it: a bulk that half
-// succeeded is not a failed request, and a client reads what happened per operation rather than
-// from one status covering five hundred of them (api-guidelines.md §5).
-func (c *RestController) BulkUpdateWorkItems(
-	w http.ResponseWriter, r *http.Request, _ openapi.BulkUpdateWorkItemsParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.BulkUpdateWorkItemsJSONBody
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{"operations": bulkOperationsInput(body.Operations)}
-	if body.Atomic != nil {
-		in["atomic"] = *body.Atomic
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), bulkUpdateWorkItemsUseCase, actorOf(r), in)
-	if err != nil {
-		// The bulk itself could not be carried out - too many operations, an operation that is not
-		// an object at all. An operation that merely failed never comes back this way.
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	writeJSON(w, r, http.StatusOK, struct {
-		Results []bulkResult `json:"results"`
-		Applied int          `json:"applied"`
-		Failed  int          `json:"failed"`
-	}{
-		Results: bulkResultsResponse(out, requestID),
-		Applied: out.Int("applied"),
-		Failed:  out.Int("failed"),
-	})
-}
-
-// bulkOperationsInput passes the operations on as the catalogue's untyped list.
-//
-// The payloads travel as they arrived: what a field means is the operation's own declaration, and
-// an adapter that filtered them would be a second place deciding what an operation accepts.
-func bulkOperationsInput(operations []openapi.BulkOperation) []any {
-	sent := make([]any, 0, len(operations))
-
-	for _, operation := range operations {
-		entry := map[string]any{"op": string(operation.Op)}
-		if operation.ItemId != nil {
-			entry["item_id"] = operation.ItemId.String()
-		}
-		if operation.Payload != nil {
-			entry["payload"] = map[string]any(*operation.Payload)
-		}
-		sent = append(sent, entry)
-	}
-	return sent
+// bulkWriter writes a bulk's answer (`x-hubtask-rest-writer`): HTTP 200 whenever the bulk was
+// carried out, whatever happened inside it - a bulk that half succeeded is not a failed request,
+// and a client reads what happened per operation rather than from one status covering five
+// hundred of them (api-guidelines.md §5). Each refusal inside it carries the request's own id.
+func (c *RestController) bulkWriter(_ *http.Request, _ map[string]any) (outputWriter, error) {
+	return func(w http.ResponseWriter, r *http.Request, out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, struct {
+			Results []bulkResult `json:"results"`
+			Applied int          `json:"applied"`
+			Failed  int          `json:"failed"`
+		}{
+			Results: bulkResultsResponse(out, correlation.RequestIDFrom(r.Context())),
+			Applied: out.Int("applied"),
+			Failed:  out.Int("failed"),
+		})
+	}, nil
 }
 
 // bulkResult is the contract's BulkResult, with this package's problem in it rather than the

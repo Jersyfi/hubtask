@@ -18879,6 +18879,8 @@ paths:
     post:
       tags: [items]
       operationId: bulkUpdateWorkItems
+      x-hubtask-rest: generated
+      x-hubtask-rest-writer: { by: bulkWriter }
       description: |
         Up to 500 operations, each of them one of the operations this API offers on an entry
         singly, applied in the order they are sent. The answer is HTTP 200 with a result per
