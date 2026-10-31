@@ -180,7 +180,7 @@ this list with its row.
 | S-24 coverage | SLA: an OLA (a policy scoped to an assignee group, measured beside the requester's) and a condition on the requester's organisation in a policy are not built; UC-SVC-02 *Where it ends* names OLAs as the next release's (products.md M5 names SLAs/OLAs) | S-24 (a later coverage worker) |
 | S-24 coverage | Forms: no `PUBLIC` channel (anonymous, per-address rate limit, proof-of-work, off by default) and no scan port for uploads (a no-op adapter and a clamd adapter, a file held back until scanned) | S-24 (a later coverage worker) |
 | S-24 coverage | Matrix: no widget definition for a room and no portal tile (UC-INT-18 answers links and captures tasks only) | S-24 (a later coverage worker) |
-| S-24 coverage | Wiki import: HTML files, DOCX (archive/zip and encoding/xml, no new dependency) and a notes app's own export are not converters; MARKDOWN covers a notes app's Markdown export (UC-IMP-05 check 6). The editor's table and details blocks need new npm packages (the owner's) | S-24 (a later coverage worker) |
+| S-24 coverage | Wiki import: the editor's table and details blocks need new npm packages (the owner's); HTML and DOCX are converters now (UC-IMP-05 check 7), and a notes app's export is read as its Markdown or HTML export | S-24 (a later coverage worker) |
 
 ## State
 

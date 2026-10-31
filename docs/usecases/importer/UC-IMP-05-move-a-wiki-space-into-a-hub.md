@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-12]
 state: built
 tasks: []
-checked_by: [infrastructure/importer/Wiki_test.go, infrastructure/importer/Markdown_test.go, core/domain/model/importer/Import_test.go, test/integration/import_tracker_test.go, core/application/service/importer/Import_test.go, apps/webapp/src/lib/data/imports.test.ts]
+checked_by: [infrastructure/importer/Wiki_test.go, infrastructure/importer/Markdown_test.go, infrastructure/importer/HtmlFiles_test.go, infrastructure/importer/Docx_test.go, core/domain/model/importer/Import_test.go, test/integration/import_tracker_test.go, core/application/service/importer/Import_test.go, apps/webapp/src/lib/data/imports.test.ts]
 ---
 
 # Move a wiki space into a hub's pages
@@ -44,9 +44,17 @@ page reference that follows the page wherever it moves.
    in a folder without one under the nearest folder that has one; a link to another file of the
    ZIP a page reference, a picture in the ZIP the page's file. It lands in the hub as a wiki does
    (check 4), and an archive without a Markdown file is refused with `imports.file_not_kind`.
+7. One HTML file or a ZIP of them (`HTML`), a notes app's HTML export included, and one DOCX
+   document or a ZIP of them (`DOCX`) become pages as Markdown files do (check 6): an HTML
+   file titled by its `<title>`, its heading repeating the title dropped; a document titled by its
+   properties, else a paragraph styled as the title, else its name, with its headings (by their
+   style's name), paragraphs, lists, tables, emphasis, outside links and pictures. A picture from
+   outside the export is left out; a file of neither kind is refused with `imports.file_not_kind`.
 
 ## Where it ends
 
 * An attachment's earlier versions are not carried, only the one the export holds.
 * The HTML export carries no history and no comments: each page starts with one version.
-* Confluence's XML export is UC-IMP-06; a notes app's own (non-Markdown) export, HTML files and DOCX files are other converters.
+* Confluence's XML export is UC-IMP-06. A notes app's export is read as its Markdown or HTML
+  export (checks 6 and 7); a format of its own is not read.
+* A document's comments, tracked deletions, fields and text boxes' layout are not carried.
