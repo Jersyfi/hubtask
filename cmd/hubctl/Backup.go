@@ -36,6 +36,13 @@ func backupGroup() group {
 				waits:   true,
 			},
 			{
+				name:    "download",
+				usage:   "--out <file> [--wait <d>]",
+				summary: "download the whole workspace as one archive (the owner, once a day)",
+				run:     backupDownload,
+				waits:   true,
+			},
+			{
 				name:    "verify",
 				usage:   "<id> [--follow] [--wait <d>]",
 				summary: "check an archive's checksums and that it decrypts",

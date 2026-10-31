@@ -50,6 +50,7 @@ var handWritten = map[string]string{
 	"job show":                         "follows the job with --wait",
 	"backup run":                       "follows the job with --wait",
 	"backup verify":                    "follows the job and fails the command for a damaged archive",
+	"backup download":                  "streams the archive to a file and keeps it only when whole",
 	"restore inspect":                  "follows the job with --wait",
 	"restore run":                      "follows the job with --wait and asks for the passphrase",
 	"events poll":                      "continues by --since, the cursor of the trigger feed",
