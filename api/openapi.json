@@ -46691,9 +46691,10 @@
               "SYNC",
               "IMPORT",
               "MAIL",
-              "PORTAL"
+              "PORTAL",
+              "PUBLIC"
             ],
-            "description": "The door; APP is the REST API the web app and hubctl share, PORTAL the requester portal's request catalogue."
+            "description": "The door; APP is the REST API the web app and hubctl share, PORTAL the requester portal's request catalogue, PUBLIC a public form opened without signing in - closed unless a form names it and leaves it open."
           },
           "closed": {
             "type": "boolean",

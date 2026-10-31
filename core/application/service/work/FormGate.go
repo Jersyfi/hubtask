@@ -86,7 +86,8 @@ func (g FormGate) open(
 		return nil, nil
 	}
 	entryType, err := g.typeOf(ctx, item)
-	if err != nil || entryType.Form.IsEmpty() {
+	// A type without a form asks nothing - except on PUBLIC, which such a form closes.
+	if err != nil || (entryType.Form.IsEmpty() && FormChannelOf(actor) != domain.ChannelPublic) {
 		return nil, err
 	}
 	keys := entryType.Form.CustomKeys()

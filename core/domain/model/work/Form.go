@@ -32,10 +32,13 @@ const (
 	// ChannelPortal is the requester portal's catalogue (UC-SVC-05): a type the portal offers is
 	// one whose form leaves this door open.
 	ChannelPortal FormChannel = "PORTAL"
+	// ChannelPublic is a public form, opened without signing in (UC-SVC-13). It is closed unless a
+	// type's form names it and leaves it open: an anonymous stranger reaches no type by default.
+	ChannelPublic FormChannel = "PUBLIC"
 )
 
 var formChannels = [...]FormChannel{
-	ChannelApp, ChannelMCP, ChannelRule, ChannelSync, ChannelImport, ChannelMail, ChannelPortal,
+	ChannelApp, ChannelMCP, ChannelRule, ChannelSync, ChannelImport, ChannelMail, ChannelPortal, ChannelPublic,
 }
 
 // FormChannels answers every channel, in a fixed order.
@@ -140,14 +143,15 @@ func (f Form) Field(key string) (FormField, bool) {
 	return FormField{}, false
 }
 
-// Channel answers the narrowing of a channel; a channel without one narrows nothing.
+// Channel answers the narrowing of a channel; a channel without one narrows nothing, except
+// PUBLIC, which a form without one closes.
 func (f Form) Channel(channel FormChannel) FormChannelRule {
 	for _, rule := range f.Channels {
 		if rule.Channel == channel {
 			return rule
 		}
 	}
-	return FormChannelRule{Channel: channel}
+	return FormChannelRule{Channel: channel, Closed: channel == ChannelPublic}
 }
 
 // CustomKeys answers the custom field keys the form names, in its order.

@@ -211,3 +211,26 @@ func TestAStepIsHeldToWhatTheFormAsksOfIt(t *testing.T) {
 		})
 	}
 }
+
+// PUBLIC is closed unless the form names it and leaves it open (UC-SVC-13 check 2): every other
+// channel without a rule narrows nothing.
+func TestThePublicChannelIsClosedUnlessTheFormOpensIt(t *testing.T) {
+	answer := func(string) (bool, error) { return false, nil }
+	unnamed := work.Form{Fields: []work.FormField{{Key: "notes"}}}
+	for _, channel := range work.FormChannels() {
+		state, err := unnamed.State(channel, answer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if state.Closed != (channel == work.ChannelPublic) {
+			t.Fatalf("%s without a rule: closed %v", channel, state.Closed)
+		}
+	}
+	if !(work.Form{}).Channel(work.ChannelPublic).Closed {
+		t.Fatal("an empty form opened PUBLIC")
+	}
+	opened := work.Form{Channels: []work.FormChannelRule{{Channel: work.ChannelPublic}}}
+	if state, _ := opened.State(work.ChannelPublic, answer); state.Closed {
+		t.Fatal("a form naming PUBLIC open was closed")
+	}
+}

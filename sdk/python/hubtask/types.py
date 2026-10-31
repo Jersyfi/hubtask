@@ -2447,7 +2447,7 @@ class EntryFormField(TypedDict, total=False):
     help: str
 
 class EntryFormChannel(TypedDict, total=False):
-    channel: Required[Literal["APP", "MCP", "RULE", "SYNC", "IMPORT", "MAIL", "PORTAL"]]
+    channel: Required[Literal["APP", "MCP", "RULE", "SYNC", "IMPORT", "MAIL", "PORTAL", "PUBLIC"]]
     closed: bool
     hidden: list[str]
     presets: dict[str, Any]

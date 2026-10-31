@@ -261,3 +261,31 @@ func TestAnImportedEntryIsHeldToTheFormOfATypeTheWorkspaceHolds(t *testing.T) {
 		t.Errorf("an unwired gate holds nothing: %v", err)
 	}
 }
+
+// UC-SVC-13 check 2: a type whose form never names PUBLIC - an empty one included - takes no
+// entry through it, and one that opens it does.
+func TestATypeTakesNothingPublicUnlessItsFormOpensIt(t *testing.T) {
+	ctx := context.Background()
+	public := itemActor()
+	public.Channel = string(domain.ChannelPublic)
+	for name, form := range map[string]domain.Form{
+		"empty":   {},
+		"unnamed": {Fields: []domain.FormField{{Key: "title"}}},
+		"closed":  {Channels: []domain.FormChannelRule{{Channel: domain.ChannelPublic, Closed: true}}},
+	} {
+		h := newItemHarness()
+		h.handler.Gate.Forms = FormGate{Types: formedTypes(form), Compiler: &answers{}}
+		_, _, err := h.handler.Execute(ctx, public, taskCommand())
+		formRefusal(t, err, "forms.channel_closed")
+		if _, _, err := h.handler.Execute(ctx, itemActor(), taskCommand()); err != nil {
+			t.Fatalf("%s: the app's door was refused: %v", name, err)
+		}
+	}
+	h := newItemHarness()
+	h.handler.Gate.Forms = FormGate{Types: formedTypes(domain.Form{
+		Channels: []domain.FormChannelRule{{Channel: domain.ChannelPublic}},
+	}), Compiler: &answers{}}
+	if _, _, err := h.handler.Execute(ctx, public, taskCommand()); err != nil {
+		t.Fatalf("a type opening PUBLIC was refused: %v", err)
+	}
+}
