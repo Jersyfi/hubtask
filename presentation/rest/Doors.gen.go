@@ -598,6 +598,7 @@ var restDoors = map[string]restDoor{
 	"savePreset":                        {UseCase: "SavePreset", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"saveVoiceSettings":                 {UseCase: "SaveVoiceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ReadOnly: []string{"installation_skill"}},
 	"saveWorkflowDraft":                 {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"searchItems":                       {UseCase: "SearchItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, Flatten: map[string]map[string]string{"page": {"cursor": "cursor", "size": "size"}}},
 	"searchPages":                       {UseCase: "SearchPages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"sendWebhook":                       {UseCase: "SendWebhook", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setAgentHalt":                      {UseCase: "SetAgentHalt", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4475,6 +4476,12 @@ func (c *RestController) SaveWorkflowDraft(w http.ResponseWriter, r *http.Reques
 	var body openapi.SaveWorkflowDraftJSONRequestBody
 	var answer openapi.Workflow
 	c.door(w, r, restDoors["saveWorkflowDraft"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
+// SearchItems answers POST /search by the generated mapping.
+func (c *RestController) SearchItems(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SearchItemsJSONRequestBody
+	c.door(w, r, restDoors["searchItems"], usecase.Input{}, nil, &body, answerPage(workItemResponse))
 }
 
 // SearchPages answers POST /pages:search by the generated mapping.

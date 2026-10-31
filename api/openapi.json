@@ -26911,6 +26911,14 @@
           "items"
         ],
         "operationId": "searchItems",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-flatten": {
+          "page": {
+            "cursor": "cursor",
+            "size": "size"
+          }
+        },
+        "x-hubtask-rest-answer": "workItemResponse",
         "summary": "Full-text search over the entries a caller may see",
         "description": "Finds entries by the words in their titles and notes, best match first. A `POST` for the\nreason the query is one - the request is a document rather than a set of parameters - and\nit reads: nothing is written, and the same request may be repeated.\n\nTwo languages are in play and they are different questions. An entry is indexed under the\nlanguage it was written in (`content_language`), so a German entry is found by an inflected\nGerman word and an English one by a stemmed English word. The *query* is read under the\ncaller's language, which is this request's `language` or the caller's locale. An entry that\nstates no language is matched word by word and is found by any caller. Which languages this\ninstallation can index at all is answered by `GET /meta/capabilities` under\n`text_languages`; a language it has no configuration for searches word by word rather than\nfailing.\n\nA script without word boundaries - Japanese, Chinese, Korean, Thai - additionally matches on\nsubstrings, because a run of such characters is one token and no word search can find part\nof it.\n\nUnanchored unless a container is named, and this is the one read of the API that is: it\nanswers what the caller may see rather than refusing what they may not, so a page can be\nshorter than the size asked for. Walk on until `has_more` is false rather than stopping at\nthe first short page. Naming a hub is the exception - a client that named a hub it cannot\nread is told so.\n\nA `POST` and no `GET`. What somebody is looking for is their content, and a query string\ntravels through access logs, proxies and browser history; the same words in a body do\nnot. What is searched is entries - tasks, work packages and activities - which is what\n`searchItems` says.\n",
         "requestBody": {

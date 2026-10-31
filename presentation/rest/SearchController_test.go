@@ -52,7 +52,7 @@ func TestASearchReachesTheUseCaseWithEveryPartOfTheRequest(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", response.Code, response.Body)
 	}
-	if registry.name != searchItemsUseCase {
+	if registry.name != "SearchItems" {
 		t.Fatalf("the handler ran %q", registry.name)
 	}
 
@@ -148,10 +148,10 @@ func TestASearchWithoutWordsIsLeftToTheUseCase(t *testing.T) {
 	if response := search(t, registry, `{}`); response.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", response.Code, response.Body)
 	}
-	if registry.name != searchItemsUseCase {
+	if registry.name != "SearchItems" {
 		t.Fatalf("the handler ran %q", registry.name)
 	}
-	if registry.in["q"] != "" {
+	if registry.in.String("q") != "" {
 		t.Errorf("the words arrived as %v, want the empty request the domain refuses", registry.in["q"])
 	}
 }

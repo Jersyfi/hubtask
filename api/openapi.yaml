@@ -18360,6 +18360,9 @@ paths:
     post:
       tags: [items]
       operationId: searchItems
+      x-hubtask-rest: generated
+      x-hubtask-rest-flatten: { page: { cursor: cursor, size: size } }
+      x-hubtask-rest-answer: workItemResponse
       summary: Full-text search over the entries a caller may see
       description: |
         Finds entries by the words in their titles and notes, best match first. A `POST` for the
