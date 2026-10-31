@@ -296,6 +296,21 @@ export const PERMISSIONS = {
 };
 export const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 /**
+ * The permission catalogue as `GET /roles` answers it (`RoleCatalogue`): every permission the
+ * owner holds, with the shipped roles of `PERMISSIONS` that hold it, and no role of the workspace's
+ * own.
+ */
+const SHIPPED_ROLES = Object.entries(PERMISSIONS).filter(([role]) => role !== 'BELOW');
+export const ROLE_CATALOGUE = {
+  catalogue: PERMISSIONS.OWNER.map((permission) => ({
+    permission, kind: 'BASE', group: 'workspace',
+    shipped: SHIPPED_ROLES.filter(([, held]) => held.includes(permission)).map(([role]) => role),
+  })),
+  shipped: SHIPPED_ROLES.map(([role, permissions]) => ({ role, permissions })),
+  custom: [],
+  grants: [],
+};
+/**
  * What the server answers a workspace owner may grant at any scope (`grantable_roles`): every role.
  * A walk as an administrator answers `ADMIN_GRANTS`, which leaves out OWNER.
  */
@@ -960,7 +975,6 @@ export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
   const path = url.pathname;
-  if (path.endsWith('/api/v1/settings/catalogue') && request.method() === 'GET') return route.fulfill({ json: SETTINGS_CATALOGUE });
   const day = todayRoute(route, request, url, path);
   if (day) return day;
   const shaped = structureRoute(route, request, url, path);
@@ -1279,15 +1293,25 @@ export function fallback(route, request, path) {
   if (/^\/items\/[^/]+\/(code-links|file-links|provenance)$/u.test(read) && request.method() === 'GET') {
     return route.fulfill({ json: { data: [] } });
   }
-  // No workflow binds the entries and no link type is defined beyond none, so an entry offers no
-  // step (`EntrySteps`, `WorkflowList`, `LinkTypeList`).
+  // No workflow binds the entries and no link type or entry type is defined beyond none, so an
+  // entry offers no step (`EntrySteps`, `WorkflowList`, `LinkTypeList`, `EntryTypeList`).
   if (/^\/items\/[^/]+\/steps$/u.test(read) && request.method() === 'GET') {
     return route.fulfill({ json: { workflow: null, status: null, steps: [] } });
   }
   if (read === '/workflows' && request.method() === 'GET') return route.fulfill({ json: { data: [], scheme: [] } });
   if (read === '/link-types' && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
+  if (read === '/entry-types' && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
   // No calendar is pushed to; the installation has no provider's app (`CalendarPushList`).
   if (read === '/integrations/calendar-pushes' && request.method() === 'GET') return route.fulfill({ json: { data: [], providers: [] } });
+  // Pages open by a public link as the installation's default allows; no day locked, time seen in
+  // full; no kind of work defined (`PublicLinksPolicy`, `TimePolicy`, `WorkTypeList`).
+  if (read === '/pages:public-links' && request.method() === 'GET') return route.fulfill({ json: { allowed: true, source: 'DEFAULT' } });
+  if (read === '/time-policy' && request.method() === 'GET') return route.fulfill({ json: { locked_through: null, visibility: 'FULL', version: 1 } });
+  // No entry of the ones asked about is linked to another (`EntryLinkList`): the timeline draws no arrow.
+  if (read === '/links:query' && request.method() === 'POST') return route.fulfill({ json: { data: [] } });
+  if (read === '/settings/catalogue' && request.method() === 'GET') return route.fulfill({ json: SETTINGS_CATALOGUE });
+  if (read === '/roles' && request.method() === 'GET') return route.fulfill({ json: ROLE_CATALOGUE });
+  if (read === '/time-work-types' && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
 
