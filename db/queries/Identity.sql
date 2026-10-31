@@ -95,6 +95,41 @@ SELECT DISTINCT account_id FROM (
     AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
 ) AS holders;
 
+-- name: RoleHoldersAlongPath :many
+-- Who holds one role anywhere on this path, for a rule's NOTIFY_ROLE step (UC-AUT-09): a
+-- built-in role by the membership's enum, a custom one by its key, each directly or through a
+-- group. Candidates only - whether the role counts where the entry is (a private hub on the path)
+-- is the authoriser's answer, asked of each one after.
+SELECT DISTINCT account_id FROM (
+  SELECT m.account_id
+  FROM membership m
+  WHERE m.account_id IS NOT NULL
+    AND m.role::text = sqlc.arg('role')::text
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM membership m
+  JOIN account_group_member g ON g.group_id = m.group_id
+  WHERE m.group_id IS NOT NULL
+    AND m.role::text = sqlc.arg('role')::text
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+  UNION
+  SELECT c.account_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE c.account_id IS NOT NULL
+    AND r.key = sqlc.arg('role')::text
+    AND (c.scope_type = 'TENANT' OR c.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  JOIN account_group_member g ON g.group_id = c.group_id
+  WHERE c.group_id IS NOT NULL
+    AND r.key = sqlc.arg('role')::text
+    AND (c.scope_type = 'TENANT' OR c.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+) AS holders;
+
 -- name: HubsOf :many
 -- The hub each named container or entry sits under, for the authoriser (domain-model.md §3.2).
 --

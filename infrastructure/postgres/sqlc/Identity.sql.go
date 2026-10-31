@@ -1566,6 +1566,67 @@ func (q *Queries) RevokeMembership(ctx context.Context, id pgtype.UUID) (int64, 
 	return result.RowsAffected(), nil
 }
 
+const roleHoldersAlongPath = `-- name: RoleHoldersAlongPath :many
+SELECT DISTINCT account_id FROM (
+  SELECT m.account_id
+  FROM membership m
+  WHERE m.account_id IS NOT NULL
+    AND m.role::text = $1::text
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY($2::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM membership m
+  JOIN account_group_member g ON g.group_id = m.group_id
+  WHERE m.group_id IS NOT NULL
+    AND m.role::text = $1::text
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY($2::uuid[]))
+  UNION
+  SELECT c.account_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE c.account_id IS NOT NULL
+    AND r.key = $1::text
+    AND (c.scope_type = 'TENANT' OR c.scope_id = ANY($2::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  JOIN account_group_member g ON g.group_id = c.group_id
+  WHERE c.group_id IS NOT NULL
+    AND r.key = $1::text
+    AND (c.scope_type = 'TENANT' OR c.scope_id = ANY($2::uuid[]))
+) AS holders
+`
+
+type RoleHoldersAlongPathParams struct {
+	Role     string
+	ScopeIds []pgtype.UUID
+}
+
+// Who holds one role anywhere on this path, for a rule's NOTIFY_ROLE step (UC-AUT-09): a
+// built-in role by the membership's enum, a custom one by its key, each directly or through a
+// group. Candidates only - whether the role counts where the entry is (a private hub on the path)
+// is the authoriser's answer, asked of each one after.
+func (q *Queries) RoleHoldersAlongPath(ctx context.Context, arg RoleHoldersAlongPathParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, roleHoldersAlongPath, arg.Role, arg.ScopeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rolesHeldAnywhere = `-- name: RolesHeldAnywhere :many
 SELECT DISTINCT m.role
 FROM membership m

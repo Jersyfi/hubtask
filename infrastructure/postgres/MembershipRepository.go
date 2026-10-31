@@ -214,6 +214,44 @@ func (r MembershipRepository) Administrators(
 	return administrators, nil
 }
 
+// RoleHolders answers the accounts that hold the role - built-in or custom, by its key - anywhere
+// on the path, directly or through a group (UC-AUT-09). Candidates: whether the role counts where
+// the path ends is the authoriser's question.
+func (r MembershipRepository) RoleHolders(
+	ctx context.Context, path []identity.Scope, role string,
+) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	scopeIDs := make([]pgtype.UUID, 0, len(path))
+	for _, scope := range path {
+		if scope.ID.IsZero() {
+			continue
+		}
+		id, err := uuidOf(scope.ID)
+		if err != nil {
+			return nil, err
+		}
+		scopeIDs = append(scopeIDs, id)
+	}
+	rows, err := queries.RoleHoldersAlongPath(ctx, sqlc.RoleHoldersAlongPathParams{Role: role, ScopeIds: scopeIDs})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading a role's holders: %w", err))
+	}
+	holders := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		holders = append(holders, id)
+	}
+	return holders, nil
+}
+
 // HubsOpenedFor answers, of the named hubs, those the account holds a running emergency access to.
 func (r MembershipRepository) HubsOpenedFor(
 	ctx context.Context, accountID shared.ID, hubIDs []shared.ID, now time.Time,
