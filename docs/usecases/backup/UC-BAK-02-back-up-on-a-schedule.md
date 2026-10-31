@@ -58,7 +58,5 @@ See [backup-restore.md](../../architecture/backup-restore.md) §5–6.
 
 ## Today
 
-* Check 1: a schedule may be created switched off (`enabled: false` on `POST /backup-schedules`):
-  its rule is checked, it owes no run and wakes no poller until it is switched on.
 * Check 7: not met — expiry removes archives with log lines only; no trail entry is written.
 * Check 8: not met in part — `hubctl` cannot create a schedule, and the web form sets the rule, the zone and the floor only, not the full-backup days, the generation plan or the trial restore.
