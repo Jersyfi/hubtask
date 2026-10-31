@@ -40,7 +40,7 @@ func TestThePlansAreListed(t *testing.T) {
 func TestAPlanIsCreatedWithTheFeaturesItLeavesOut(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, familyPlan)
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "plan", "create",
-		"--name", "family", "--display-name", "Family", "--leave-out", "webhooks")
+		"--name", "family", "--display-name", "Family", "--left-out", "WEBHOOKS")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -102,7 +102,7 @@ func TestAWorkspaceIsMovedFromTheTerminal(t *testing.T) {
 	if !strings.HasSuffix(stub.request.URL.Path, ":move-plan") || !strings.Contains(stub.body, `"expected_version":4`) {
 		t.Errorf("called %s with %s", stub.request.URL.Path, stub.body)
 	}
-	if !strings.Contains(out, "family") || !strings.Contains(out, "items 4210/1000") {
+	if !strings.Contains(out, "family") || !strings.Contains(out, `"used":4210`) {
 		t.Errorf("printed %q", out)
 	}
 }
@@ -121,7 +121,7 @@ func TestAMovesDryRunFromTheTerminal(t *testing.T) {
 	if !strings.Contains(stub.body, `"dry_run":true`) {
 		t.Errorf("sent %s", stub.body)
 	}
-	if !strings.Contains(out, "accounts 6/2") || !strings.Contains(out, "nothing changed") {
+	if !strings.Contains(out, `"used":6`) || !strings.Contains(errOut, "nothing changed") {
 		t.Errorf("printed %q", out)
 	}
 }

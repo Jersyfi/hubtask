@@ -6167,6 +6167,7 @@ paths:
     post:
       tags: [jumble]
       operationId: submitJumbleEntry
+      x-hubtask-cli: "jumble submit"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: jumbleEntryResponse
       summary: Put something in the jumble
@@ -8705,6 +8706,8 @@ paths:
     get:
       tags: [backup]
       operationId: listBackupSchedules
+      x-hubtask-cli: "backup schedule ls"
+      x-hubtask-cli-columns: [id, rrule, timezone, mode, enabled, trial_restore, next_run_at]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: backupScheduleResponse
       summary: The schedules the workspace has
@@ -8728,6 +8731,7 @@ paths:
     post:
       tags: [backup]
       operationId: createBackupSchedule
+      x-hubtask-cli: "backup schedule add"
       x-hubtask-rest: generated
       x-hubtask-rest-flatten: { scope: { kind: scope, id: scope_id } }
       x-hubtask-rest-drop: [enabled]
@@ -8753,6 +8757,7 @@ paths:
     patch:
       tags: [backup]
       operationId: updateBackupSchedule
+      x-hubtask-cli: "backup schedule set"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: backupScheduleResponse
       parameters:
@@ -8786,6 +8791,7 @@ paths:
     delete:
       tags: [backup]
       operationId: deleteBackupSchedule
+      x-hubtask-cli: "backup schedule rm"
       x-hubtask-rest: generated
       summary: Remove a schedule
       description: >
@@ -11589,6 +11595,8 @@ paths:
     get:
       tags: [admin]
       operationId: listTenants
+      x-hubtask-cli: "admin tenant ls"
+      x-hubtask-cli-columns: [id, slug, display_name, status, plan, external_reference, purge_after, purge_started_at, legal_hold]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: adminTenantResponse
       summary: The installation's workspaces
@@ -11650,6 +11658,7 @@ paths:
     get:
       tags: [admin]
       operationId: readTenant
+      x-hubtask-cli: "admin tenant show"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: adminTenantResponse
       summary: One workspace
@@ -11704,6 +11713,8 @@ paths:
     post:
       tags: [admin]
       operationId: queryTenants
+      x-hubtask-cli: "admin tenant find"
+      x-hubtask-cli-columns: [id, slug, display_name, status, plan, external_reference, purge_after, purge_started_at, legal_hold]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: adminTenantResponse
       summary: Find workspaces
@@ -11733,6 +11744,7 @@ paths:
     post:
       tags: [admin]
       operationId: suspendTenant
+      x-hubtask-cli: "admin tenant suspend"
       x-hubtask-rest: generated
       summary: Suspend a workspace
       description: >
@@ -11754,6 +11766,7 @@ paths:
     post:
       tags: [admin]
       operationId: resumeTenant
+      x-hubtask-cli: "admin tenant resume"
       x-hubtask-rest: generated
       summary: Reactivate a workspace
       description: >
@@ -11771,6 +11784,7 @@ paths:
     post:
       tags: [admin]
       operationId: cancelTenantDeletion
+      x-hubtask-cli: "admin tenant cancel-deletion"
       x-hubtask-rest: generated
       summary: Call off a workspace's pending deletion
       description: >
@@ -11794,6 +11808,7 @@ paths:
     post:
       tags: [admin]
       operationId: requestTenantDeletion
+      x-hubtask-cli: "admin tenant delete"
       x-hubtask-rest: generated
       summary: Request a workspace's deletion
       description: >
@@ -11832,6 +11847,7 @@ paths:
     post:
       tags: [admin]
       operationId: openTenantPassword
+      x-hubtask-cli: "admin tenant open-password"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: adminTenantResponse
       summary: Open the password for one workspace
@@ -11873,6 +11889,7 @@ paths:
     post:
       tags: [admin]
       operationId: closeTenantPassword
+      x-hubtask-cli: "admin tenant close-password"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: adminTenantResponse
       summary: Close an operator's opening of the password early
@@ -12199,6 +12216,8 @@ paths:
     get:
       tags: [admin]
       operationId: listPlans
+      x-hubtask-cli: "admin plan ls"
+      x-hubtask-cli-columns: [name, display_name, workspaces, left_out, version]
       x-hubtask-rest: generated
       x-hubtask-rest-list: data
       x-hubtask-rest-answer: planResponse
@@ -12226,6 +12245,7 @@ paths:
     post:
       tags: [admin]
       operationId: createPlan
+      x-hubtask-cli: "admin plan create"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: planResponse
       summary: Create a plan
@@ -12264,6 +12284,7 @@ paths:
     get:
       tags: [admin]
       operationId: readPlan
+      x-hubtask-cli: "admin plan show"
       x-hubtask-rest: generated
       x-hubtask-rest-path: {planName: name}
       x-hubtask-rest-answer: planResponse
@@ -12312,6 +12333,7 @@ paths:
     delete:
       tags: [admin]
       operationId: removePlan
+      x-hubtask-cli: "admin plan rm"
       x-hubtask-rest: generated
       x-hubtask-rest-path: {planName: name}
       summary: Remove a plan
@@ -12328,6 +12350,8 @@ paths:
     get:
       tags: [admin]
       operationId: listInstallationPresets
+      x-hubtask-cli: "admin presets ls"
+      x-hubtask-cli-columns: [id, name, is_default, locks, version]
       x-hubtask-rest: generated
       x-hubtask-rest-list: data
       x-hubtask-rest-answer: installationPresetResponse
@@ -12356,6 +12380,7 @@ paths:
     post:
       tags: [admin]
       operationId: createInstallationPreset
+      x-hubtask-cli: "admin presets create"
       x-hubtask-rest: generated
       summary: Create a preset of the installation
       description: >
@@ -12388,6 +12413,7 @@ paths:
     patch:
       tags: [admin]
       operationId: changeInstallationPreset
+      x-hubtask-cli: "admin presets set"
       x-hubtask-rest: generated
       summary: Change a preset of the installation
       description: >
@@ -12421,6 +12447,7 @@ paths:
     delete:
       tags: [admin]
       operationId: withdrawInstallationPreset
+      x-hubtask-cli: "admin presets rm"
       x-hubtask-rest: generated
       summary: Withdraw a preset of the installation
       description: >
@@ -12441,6 +12468,7 @@ paths:
     post:
       tags: [admin]
       operationId: moveTenantPlan
+      x-hubtask-cli: "admin tenant move-plan"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: tenantPlanMovedResponse
       summary: Put a workspace on another plan
@@ -12473,6 +12501,8 @@ paths:
     get:
       tags: [admin]
       operationId: listOperators
+      x-hubtask-cli: "admin operator ls"
+      x-hubtask-cli-columns: [account_id, kind, display_name, email, workspace_slug]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: operatorResponse
       summary: Who operates this installation
@@ -12529,6 +12559,7 @@ paths:
     delete:
       tags: [admin]
       operationId: removeOperator
+      x-hubtask-cli: "admin operator rm"
       x-hubtask-rest: generated
       summary: Take an account out of the register
       description: >
@@ -12617,6 +12648,8 @@ paths:
     get:
       tags: [admin]
       operationId: listPlatformEvents
+      x-hubtask-cli: "admin events"
+      x-hubtask-cli-columns: [id, type, time, data]
       x-hubtask-rest: generated
       x-hubtask-rest-query: {size: limit}
       summary: The installation's events, read forward
@@ -12655,6 +12688,8 @@ paths:
     get:
       tags: [admin]
       operationId: listPlatformSubscriptions
+      x-hubtask-cli: "admin subscription ls"
+      x-hubtask-cli-columns: [id, target_url, state, dead_letters, last_error, version]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: asWritten
       summary: The installation's subscriptions for a purchase platform
@@ -12713,6 +12748,7 @@ paths:
     get:
       tags: [admin]
       operationId: readPlatformSubscription
+      x-hubtask-cli: "admin subscription show"
       x-hubtask-rest: generated
       summary: One subscription of the installation
       description: Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
@@ -12727,6 +12763,7 @@ paths:
     patch:
       tags: [admin]
       operationId: updatePlatformSubscription
+      x-hubtask-cli: "admin subscription set"
       x-hubtask-rest: generated
       summary: Change a subscription's target, or pause and resume it
       description: >
@@ -12752,6 +12789,7 @@ paths:
     delete:
       tags: [admin]
       operationId: deletePlatformSubscription
+      x-hubtask-cli: "admin subscription rm"
       x-hubtask-rest: generated
       summary: Unsubscribe
       description: >
@@ -12792,6 +12830,8 @@ paths:
     get:
       tags: [admin]
       operationId: listPlatformDeliveries
+      x-hubtask-cli: "admin subscription deliveries"
+      x-hubtask-cli-columns: [id, event_type, attempt, status, response_status, error_code, next_attempt_at]
       x-hubtask-rest: generated
       x-hubtask-rest-query: {size: limit}
       summary: What was sent to the subscription, and what became of it
@@ -12823,6 +12863,7 @@ paths:
     post:
       tags: [admin]
       operationId: redeliverPlatformSubscription
+      x-hubtask-cli: "admin subscription redeliver"
       x-hubtask-rest: generated
       summary: Send the subscription's dead letters again
       description: >
@@ -12980,6 +13021,7 @@ paths:
     get:
       tags: [admin]
       operationId: listInstanceIdentityProviders
+      x-hubtask-cli: "admin provider ls"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: identityProvidersResponse
       summary: The providers this installation offers every workspace
@@ -13001,6 +13043,7 @@ paths:
     post:
       tags: [admin]
       operationId: createInstanceIdentityProvider
+      x-hubtask-cli: "admin provider add"
       x-hubtask-rest: generated
       x-hubtask-rest-use-case: ConfigureInstanceIdentityProvider
       x-hubtask-rest-answer: identityProviderResponse
@@ -13034,6 +13077,7 @@ paths:
     put:
       tags: [admin]
       operationId: configureInstanceIdentityProvider
+      x-hubtask-cli: "admin provider set"
       x-hubtask-rest: generated
       x-hubtask-rest-path: {providerId: id}
       x-hubtask-rest-answer: identityProviderResponse
@@ -13066,6 +13110,7 @@ paths:
     delete:
       tags: [admin]
       operationId: removeInstanceIdentityProvider
+      x-hubtask-cli: "admin provider rm"
       x-hubtask-rest: generated
       x-hubtask-rest-path: { providerId: id }
       parameters:
@@ -13093,6 +13138,7 @@ paths:
     post:
       tags: [admin]
       operationId: withdrawInstanceIdentityProvider
+      x-hubtask-cli: "admin provider withdraw"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: identityProviderResponse
       x-hubtask-rest-path: { providerId: id }
@@ -13135,6 +13181,7 @@ paths:
     post:
       tags: [admin]
       operationId: cancelInstanceIdentityProviderWithdrawal
+      x-hubtask-cli: "admin provider cancel-withdrawal"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: identityProviderResponse
       x-hubtask-rest-path: { providerId: id }
@@ -13159,6 +13206,7 @@ paths:
     get:
       tags: [admin]
       operationId: readEncryptionStatus
+      x-hubtask-cli: "admin encryption show"
       x-hubtask-rest: generated
       summary: The keyring, and what still names each key
       description: >
@@ -13185,6 +13233,7 @@ paths:
     post:
       tags: [admin]
       operationId: resealSecrets
+      x-hubtask-cli: "admin encryption reseal"
       x-hubtask-rest: generated
       summary: Re-seal what older keys still hold
       description: >
@@ -14417,6 +14466,9 @@ paths:
     get:
       tags: [suggestions]
       operationId: listSuggestions
+      x-hubtask-cli: "suggestion ls"
+      x-hubtask-cli-columns: [id, target_type, kind, status, source, model, prompt_id, prompt_version, produced_at]
+      x-hubtask-cli-rows: items
       x-hubtask-rest: generated
       x-hubtask-rest-query: {size: page_size}
       x-hubtask-rest-answer: suggestionPageResponse
@@ -14779,6 +14831,7 @@ paths:
     get:
       tags: [oauth]
       operationId: listOauthClients
+      x-hubtask-cli: "oauth client ls"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: oauthClientResponse
       summary: The workspace's registered third-party apps
@@ -14837,6 +14890,7 @@ paths:
     get:
       tags: [oauth]
       operationId: readOauthClient
+      x-hubtask-cli: "oauth client show"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: oauthClientSummaryResponse
       summary: What an app is called, for the person being asked to allow it
@@ -14864,6 +14918,7 @@ paths:
     delete:
       tags: [oauth]
       operationId: deleteOauthClient
+      x-hubtask-cli: "oauth client rm"
       x-hubtask-rest: generated
       summary: Remove a third-party app
       description: >
@@ -15393,6 +15448,7 @@ paths:
     post:
       tags: [identity]
       operationId: grantMembership
+      x-hubtask-cli: "people grant"
       x-hubtask-rest: generated
       x-hubtask-rest-location: /memberships/{id}
       x-hubtask-rest-answer: membershipResponse

@@ -29,7 +29,7 @@ func TestTheSuggestionListingShowsProvenanceAndNotThePayload(t *testing.T) {
 		`{"items":[`+oneSuggestion+`],"has_more":false,"next_cursor":null}`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"suggestion", "ls", "--target", itemID)
+		"suggestion", "ls", "--target-id", itemID, "--target-type", "ITEM")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -37,7 +37,7 @@ func TestTheSuggestionListingShowsProvenanceAndNotThePayload(t *testing.T) {
 		t.Errorf("target_id %q", got)
 	}
 	if got := stub.request.URL.Query().Get("target_type"); got != "ITEM" {
-		t.Errorf("target_type %q, want the default", got)
+		t.Errorf("target_type %q", got)
 	}
 	for _, want := range []string{"gpt-4o-mini", "suggest-fields", "v1", "PROPOSED"} {
 		if !strings.Contains(out, want) {
@@ -54,7 +54,7 @@ func TestTheWholeSuggestionIsAvailableAsJSON(t *testing.T) {
 		`{"items":[`+oneSuggestion+`],"has_more":false,"next_cursor":null}`)
 
 	code, out, _ := invokeAgainst(t, stub, signedIn(stub), "",
-		"--json", "suggestion", "ls", "--target", itemID)
+		"--json", "suggestion", "ls", "--target-id", itemID, "--target-type", "ITEM")
 	if code != exitOK {
 		t.Fatalf("exit %d", code)
 	}

@@ -25,7 +25,7 @@ func TestTheInstallationsEventsAreReadForward(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if stub.request.URL.Path != APIPath+adminEventsPath ||
+	if stub.request.URL.Path != APIPath+"/admin/events" ||
 		stub.request.URL.Query().Get("cursor") != "c1" || stub.request.URL.Query().Get("size") != "20" {
 		t.Errorf("the read called %s", stub.request.URL)
 	}
@@ -34,7 +34,7 @@ func TestTheInstallationsEventsAreReadForward(t *testing.T) {
 			t.Errorf("%s is missing from %q", expected, out)
 		}
 	}
-	if !strings.Contains(errOut, "continue with --cursor c2") || strings.Contains(out, "c2") {
+	if !strings.Contains(errOut, "--cursor c2") || strings.Contains(out, "c2") {
 		t.Errorf("the cursor went to %q / %q", errOut, out)
 	}
 }

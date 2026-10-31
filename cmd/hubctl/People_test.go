@@ -96,13 +96,13 @@ func TestARefusedGrantLeavesTheInvitationAndSaysSo(t *testing.T) {
 	}
 }
 
-// Half a placement is named here rather than sent.
+// A grant names the account, the role and the scope by flags; a missing one is refused before the call.
 func TestAPlacementNeedsItsScopeAndOnlyThat(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, grantedJSON)
 	for name, args := range map[string][]string{
-		"a hub without its id":     {"people", "grant", invitedID, "--role", "MEMBER", "--scope", "HUB"},
-		"the workspace with an id": {"people", "grant", invitedID, "--role", "MEMBER", "--scope-id", peopleHubID},
-		"no role":                  {"people", "grant", invitedID},
+		"the account as a word": {"people", "grant", invitedID, "--role", "MEMBER", "--scope-type", "TENANT"},
+		"no scope":              {"people", "grant", "--account-id", invitedID, "--role", "MEMBER"},
+		"no role":               {"people", "grant", "--account-id", invitedID, "--scope-type", "TENANT"},
 	} {
 		if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", args...); code != exitUsage {
 			t.Errorf("%s: exit %d, want %d", name, code, exitUsage)
@@ -117,7 +117,7 @@ func TestAnOwnerGrantIsSentAgainWithAFreshProof(t *testing.T) {
 	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
 
 	code, _, errOut := invokeAgainst(t, stub, map[string]string{envProfile: profile}, "hunter2\n",
-		"people", "grant", invitedID, "--role", "OWNER")
+		"people", "grant", "--account-id", invitedID, "--role", "OWNER", "--scope-type", "TENANT")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}

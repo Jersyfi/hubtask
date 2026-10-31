@@ -33,7 +33,6 @@ import (
 const (
 	adminSettingsPath  = "/admin/settings"
 	adminOperatorsPath = "/admin/operators"
-	adminProvidersPath = "/admin/identity-providers"
 	elevatePath        = "/auth/sessions:elevate"
 )
 
@@ -305,23 +304,6 @@ func printedValue(value any) string {
 	return fmt.Sprintf("%v", value)
 }
 
-func adminOperator(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, add, rm"
-	if len(args) == 0 {
-		return usagef("admin operator needs a command: %s", verbs)
-	}
-	switch args[0] {
-	case "ls":
-		return adminOperatorList(ctx, cli, args[1:])
-	case "add":
-		return adminOperatorAdd(ctx, cli, args[1:])
-	case "rm":
-		return adminOperatorRemove(ctx, cli, args[1:])
-	default:
-		return usagef("admin operator has no command %q: %s", args[0], verbs)
-	}
-}
-
 func adminOperatorList(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "admin operator", "ls", "")
 	if err := parseCommand(flags, args); err != nil {
@@ -442,172 +424,6 @@ func serviceAccountNamed(ctx context.Context, client *Client, name string) (uuid
 		return matches[0].Id, nil
 	}
 	return uuid.UUID{}, usagef("%d service accounts are called %q - name one by --account <id> from `hubctl service-account ls`", len(matches), name)
-}
-
-func adminOperatorRemove(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin operator", "rm", "<account>")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	rest := flags.Args()
-	if len(rest) == 0 {
-		return usagef("admin operator rm needs an account - `admin operator ls` prints them")
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(ctx, adminOperatorsPath+"/"+rest[0], ""); err != nil {
-		return err
-	}
-	return adminOperatorList(ctx, cli, nil)
-}
-
-func adminProvider(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, add, rm"
-	if len(args) == 0 {
-		return usagef("admin provider needs a command: %s", verbs)
-	}
-	switch args[0] {
-	case "ls":
-		return adminProviderList(ctx, cli, args[1:])
-	case "add":
-		return adminProviderAdd(ctx, cli, args[1:])
-	case "rm":
-		return adminProviderRemove(ctx, cli, args[1:])
-	default:
-		return usagef("admin provider has no command %q: %s", args[0], verbs)
-	}
-}
-
-func adminProviderList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin provider", "ls", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var providers []openapi.IdentityProvider
-	if err := client.Get(ctx, adminProvidersPath, nil, &providers); err != nil {
-		return err
-	}
-	rows := make([][]string, 0, len(providers))
-	for _, provider := range providers {
-		admits := strings.Join(provider.AllowedDirectories, ", ")
-		if admits == "" {
-			admits = strings.Join(provider.AllowedEmailDomains, ", ")
-		}
-		// What the installation's lock on the ways in does to the row (identity.md §18): on in every
-		// workspace, or each workspace's own switch.
-		lock := ""
-		if provider.InstallationLock != nil {
-			lock = string(*provider.InstallationLock)
-		}
-		rows = append(rows, []string{
-			provider.Id.String(), provider.DisplayName, string(provider.Provisioning), admits, lock,
-		})
-	}
-	return cli.Emit(providers, Table{
-		Columns: []string{"id", "name", "admits", "listed", "lock"}, Rows: rows,
-	})
-}
-
-// adminProviderAdd offers every workspace a way in.
-//
-// `--directory` is repeatable and is what `DOMAINS` reads for a provider that names organisations —
-// a Microsoft tenant id, a Google Workspace domain. `--domain` is the other list, for an issuer
-// with no such claim (ADR-0071 §2).
-func adminProviderAdd(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin provider", "add", "--issuer <url> --client-id <id>")
-	issuer := flags.String("issuer", "", "the provider's issuer address")
-	clientID := flags.String("client-id", "", "this installation's registration with the provider")
-	secret := flags.String("client-secret", "", "sealed on the way in and never answered again")
-	name := flags.String("name", "", "the name on the button; the issuer's host where empty")
-	kind := flags.String("kind", "", "GENERIC, GOOGLE or MICROSOFT; read from the issuer where empty")
-	admits := flags.String("admits", "", "INVITED_ONLY, DOMAINS or ANY")
-	directories := flags.String("directory", "",
-		"the organisations this provider admits, comma separated: Microsoft tenant ids, Google Workspace domains")
-	domains := flags.String("domain", "",
-		"the email domains it admits, for an issuer that names no organisation")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if *issuer == "" || *clientID == "" || *secret == "" {
-		return usagef("admin provider add needs --issuer, --client-id and --client-secret")
-	}
-
-	body := openapi.IdentityProviderConfiguration{
-		Issuer:              *issuer,
-		ClientId:            *clientID,
-		ClientSecret:        secret,
-		AllowedDirectories:  commaList(*directories),
-		AllowedEmailDomains: commaList(*domains),
-	}
-	if *name != "" {
-		body.DisplayName = name
-	}
-	if *kind != "" {
-		chosen := openapi.IdentityProviderKind(*kind)
-		body.Kind = &chosen
-	}
-	if *admits != "" {
-		mode := openapi.IdentityProviderProvisioning(*admits)
-		body.Provisioning = &mode
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	// A way in offered to every workspace asks for a fresh proof (ADR-0071's addendum, E2): the
-	// request goes once, and again with the proof if that is what it was refused for.
-	var added openapi.IdentityProvider
-	if err := cli.proveAgain(ctx, client, func(stepUp string) error {
-		return client.PostWithHeader(ctx, adminProvidersPath, body, stepUpProof(stepUp), &added)
-	}); err != nil {
-		return err
-	}
-	return adminProviderList(ctx, cli, nil)
-}
-
-func adminProviderRemove(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin provider", "rm", "<id>")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	rest := flags.Args()
-	if len(rest) == 0 {
-		return usagef("admin provider rm needs a provider - `admin provider ls` prints them")
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := cli.proveAgain(ctx, client, func(stepUp string) error {
-		return client.DeleteWithHeader(ctx, adminProvidersPath+"/"+rest[0], stepUpProof(stepUp))
-	}); err != nil {
-		return err
-	}
-	return adminProviderList(ctx, cli, nil)
-}
-
-// commaList reads a repeatable flag written the way a terminal writes one.
-func commaList(raw string) *[]string {
-	if strings.TrimSpace(raw) == "" {
-		return nil
-	}
-	parts := strings.Split(raw, ",")
-	list := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if trimmed := strings.TrimSpace(part); trimmed != "" {
-			list = append(list, trimmed)
-		}
-	}
-	return &list
 }
 
 // adminSettingsMetering sets or clears the installation's metering switch, which offers the use for

@@ -29,12 +29,6 @@ func backupGroup() group {
 				run:     backupTarget,
 			},
 			{
-				name:    "schedule",
-				usage:   "ls|set|rm …",
-				summary: "what runs on its own, and when it next will",
-				run:     backupSchedule,
-			},
-			{
 				name:    "run",
 				usage:   "--target <id> [--mode FULL|INCREMENTAL] [--no-media] [--no-audit] [--follow] [--wait <d>]",
 				summary: "start a backup now",
@@ -462,4 +456,25 @@ func byteSize(size *int) string {
 		value /= 1024
 	}
 	return strconv.Itoa(*size) + " B"
+}
+
+// backupTargetRemove takes a place archives go out of the configuration. The server refuses while
+// a schedule still names it, and names the schedules - so the CLI passes the refusal on rather
+// than checking first and racing with whoever writes a schedule in between.
+func backupTargetRemove(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "backup target rm <id>"
+	targetID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "backup target", "rm", "<id>")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	return client.Delete(ctx, backupTargetsPath+"/"+targetID.String(), "")
 }

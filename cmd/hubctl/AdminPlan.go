@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -20,100 +19,6 @@ import (
 // `quotas.items`, `sign_in.min_length` - so a key copied out of one table goes into the other.
 
 const adminPlansPath = "/admin/plans"
-
-func adminPlan(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, show, create, set, clear, rm"
-	if len(args) == 0 {
-		return usagef("admin plan needs a command: %s", verbs)
-	}
-	switch args[0] {
-	case "ls":
-		return adminPlanList(ctx, cli, args[1:])
-	case "show":
-		return adminPlanShow(ctx, cli, args[1:])
-	case "create":
-		return adminPlanCreate(ctx, cli, args[1:])
-	case "set":
-		return adminPlanSet(ctx, cli, args[1:], true)
-	case "clear":
-		return adminPlanSet(ctx, cli, args[1:], false)
-	case "rm":
-		return adminPlanRemove(ctx, cli, args[1:])
-	default:
-		return usagef("admin plan has no command %q: %s", args[0], verbs)
-	}
-}
-
-func adminPlanList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin plan", "ls", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var listed struct {
-		Data []openapi.Plan `json:"data"`
-	}
-	if err := client.Get(ctx, adminPlansPath, nil, &listed); err != nil {
-		return err
-	}
-	rows := make([][]string, 0, len(listed.Data))
-	for _, held := range listed.Data {
-		rows = append(rows, []string{
-			held.Name, held.DisplayName, strconv.Itoa(held.Workspaces), strconv.Itoa(held.Version),
-			leftOutOf(held.LeftOut),
-		})
-	}
-	return cli.Emit(listed.Data, Table{
-		Columns: []string{"name", "display name", "workspaces", "version", "left out"}, Rows: rows,
-	})
-}
-
-func adminPlanShow(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin plan", "show", "<name>")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if flags.NArg() != 1 {
-		return usagef("admin plan show needs the plan's short name")
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var held openapi.Plan
-	if err := client.Get(ctx, planPath(flags.Arg(0)), nil, &held); err != nil {
-		return err
-	}
-	return cli.Emit(held, planTable(held))
-}
-
-func adminPlanCreate(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin plan", "create",
-		"--name <short name> --display-name <name> [--leave-out AUTOMATION_RULES,WEBHOOKS,OWN_SIGN_IN_PROVIDERS]")
-	name := flags.String("name", "", "the short name a platform maps its products to; it never changes")
-	display := flags.String("display-name", "", "what the operator calls the plan")
-	leaveOut := flags.String("leave-out", "", "the features the plan leaves out, comma-separated")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if *name == "" || *display == "" {
-		return usagef("a plan needs --name and --display-name")
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var created openapi.Plan
-	if err := client.Post(ctx, adminPlansPath, openapi.PlanCreate{
-		Name: *name, DisplayName: *display, LeftOut: featuresFrom(*leaveOut),
-	}, &created); err != nil {
-		return err
-	}
-	return cli.Emit(created, planTable(created))
-}
 
 // adminPlanSet changes one key of a plan, or clears it, and with --display-name or --leave-out
 // changes those. It reads the plan and sends it back whole, with the version it read: a `PUT`
@@ -208,89 +113,6 @@ func planAreaOf(change *openapi.PlanChange, area string) **map[string]openapi.In
 		return &change.Module
 	}
 	return nil
-}
-
-func adminPlanRemove(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin plan", "rm", "<name>")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if flags.NArg() != 1 {
-		return usagef("admin plan rm needs the plan's short name")
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(ctx, planPath(flags.Arg(0)), ""); err != nil {
-		return err
-	}
-	printf(cli.Err, "plan %s removed; its name stays taken\n", flags.Arg(0))
-	return nil
-}
-
-// adminTenantMovePlan puts a workspace on a plan, or on none with --plan "".
-func adminTenantMovePlan(ctx context.Context, cli *CLI, args []string) error {
-	usage := "admin tenant move-plan <id> --plan <short name> [--expected-version <n>] [--dry-run]"
-	tenantID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "admin tenant", "move-plan", "<id> --plan <short name>")
-	target := flags.String("plan", "", "the plan's short name; empty for none")
-	expected := flags.Int("expected-version", 0, "the workspace's version as last read")
-	dryRun := flags.Bool("dry-run", false, "answer what the move would change, and change nothing")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	move := openapi.TenantPlanMove{}
-	if *target != "" {
-		move.Plan = target
-	}
-	if *expected > 0 {
-		move.ExpectedVersion = expected
-	}
-	if *dryRun {
-		move.DryRun = dryRun
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var moved openapi.TenantPlanMoved
-	if err := client.Post(ctx, adminTenantsPath+"/"+tenantID.String()+":move-plan", move, &moved); err != nil {
-		return err
-	}
-	plan := "no plan"
-	if moved.Tenant.Plan != nil {
-		plan = *moved.Tenant.Plan
-	}
-	table := Table{
-		Columns: []string{"workspace", "plan", "features resting", "exceptions kept", "limits exceeded"},
-		Rows: [][]string{{
-			moved.Tenant.Slug, plan, leftOutOf(&moved.FeaturesResting), strings.Join(moved.ExceptionsKept, ","),
-			exceededOf(moved.LimitsExceeded),
-		}},
-	}
-	// The answer has the move's shape either way; the table says which it was, since a reader of
-	// the output alone could not tell a dry run from a move.
-	if *dryRun {
-		table.Columns = append(table.Columns, "dry run")
-		table.Rows[0] = append(table.Rows[0], "nothing changed")
-	}
-	return cli.Emit(moved, table)
-}
-
-// exceededOf says each limit the workspace is now over as "quota used/limit".
-func exceededOf(exceeded *[]openapi.LimitExceeded) string {
-	if exceeded == nil {
-		return ""
-	}
-	said := make([]string, 0, len(*exceeded))
-	for _, over := range *exceeded {
-		said = append(said, fmt.Sprintf("%s %d/%d", over.Quota, over.Used, over.Limit))
-	}
-	return strings.Join(said, ",")
 }
 
 func planPath(name string) string { return adminPlansPath + "/" + url.PathEscape(name) }

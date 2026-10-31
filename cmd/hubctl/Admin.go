@@ -5,9 +5,7 @@ package main
 
 import (
 	"context"
-	"flag"
 	"strconv"
-	"strings"
 	"time"
 
 	openapitypes "github.com/oapi-codegen/runtime/types"
@@ -29,47 +27,90 @@ import (
 // and `hubctl login` is not - which is worth knowing before the first refusal says so.
 
 const (
-	adminTenantsPath    = "/admin/tenants"
-	adminEncryptionPath = "/admin/encryption"
+	adminTenantsPath = "/admin/tenants"
 )
 
 func adminGroup() group {
 	return group{
 		name:    "admin",
 		summary: "the control plane of an installation that runs more than one workspace",
+		// The rest of each noun's verbs - `tenant ls`, `plan show`, `encryption reseal` - are
+		// generated from the contract (Door.go); these do more than their operation.
 		commands: []command{
 			{
-				name:    "tenant",
-				usage:   "ls|show|find|create|set-reference|suspend|resume|delete|cancel-deletion|move-plan|export|open-password|close-password|replace-holds|reapply-erasures …",
-				summary: "the workspaces, and their lifecycle",
-				run:     adminTenant,
+				name:    "tenant create",
+				usage:   "--slug <name> --name <display name> --owner-email <address> [flags]",
+				summary: "provision a workspace and hand over the owner's way in, shown once",
+				run:     adminTenantCreate,
+			},
+			{
+				name:    "tenant set-reference",
+				usage:   "<id> (--reference <ref> | --clear) [--expected-version <n>]",
+				summary: "set or clear the platform's reference on a workspace",
+				run:     adminTenantSetReference,
+			},
+			{
+				name:    "tenant export",
+				usage:   "<id> --target <id> [--follow] [--wait <d>]",
+				summary: "write the workspace whole to a configured target",
+				run:     adminTenantExport,
 				// The export waits on a job, and `--timeout` bounds one call rather than one
 				// piece of work.
 				waits: true,
 			},
 			{
-				name:    "plan",
-				usage:   "ls|show|create|set|clear|rm …",
-				summary: "the plans a provider puts workspaces on",
-				run:     adminPlan,
+				name:    "tenant replace-holds",
+				usage:   "<id> --recovery-point <time> (--from-cluster <dsn> | --from-archive <path> --target <id> | --from <file>)",
+				summary: "put back the legal holds a recovery to an earlier point lost",
+				run:     adminTenantReplaceHolds,
+				waits:   true,
 			},
 			{
-				name:    "presets",
-				usage:   "ls|create|set|rm …",
-				summary: "the presets every workspace is offered, the default and what it locks",
-				run:     adminPresets,
+				name:    "tenant reapply-erasures",
+				usage:   "<id> --recovery-point <time> (--from-cluster <dsn> | --from <file>)",
+				summary: "apply again the erasures a recovery to an earlier point undid",
+				run:     adminTenantReapplyErasures,
+				waits:   true,
 			},
 			{
-				name:    "events",
-				usage:   "[--cursor <cursor>] [--size <n>]",
-				summary: "the installation's events, read forward: what a purchase platform learns",
-				run:     adminEvents,
+				name:    "plan set",
+				usage:   "<name> [<area>.<key> [value]] [--locked] [--display-name <name>] [--leave-out <features>]",
+				summary: "set one key of a plan, at the version read",
+				run:     func(ctx context.Context, cli *CLI, args []string) error { return adminPlanSet(ctx, cli, args, true) },
 			},
 			{
-				name:    "subscription",
-				usage:   "ls|show|add|pause|resume|rm|rotate-secret|deliveries|redeliver …",
-				summary: "the addresses the installation's events are pushed to, for a purchase platform",
-				run:     adminSubscription,
+				name:    "plan clear",
+				usage:   "<name> <area>.<key>",
+				summary: "clear one key of a plan, at the version read",
+				run:     func(ctx context.Context, cli *CLI, args []string) error { return adminPlanSet(ctx, cli, args, false) },
+			},
+			{
+				name:    "subscription add",
+				usage:   "--target <url>",
+				summary: "push the installation's events to an address; its secret is shown once",
+				run:     adminSubscriptionAdd,
+			},
+			{
+				name:    "subscription rotate-secret",
+				usage:   "<id>",
+				summary: "mint the subscription's next secret, shown once",
+				run:     adminSubscriptionRotate,
+			},
+			{
+				name:    "subscription pause",
+				usage:   "<id>",
+				summary: "stop pushing to the subscription, keeping what waits",
+				run: func(ctx context.Context, cli *CLI, args []string) error {
+					return adminSubscriptionState(ctx, cli, args, "pause", openapi.PlatformSubscriptionUpdateStatePAUSED)
+				},
+			},
+			{
+				name:    "subscription resume",
+				usage:   "<id>",
+				summary: "push to the subscription again",
+				run: func(ctx context.Context, cli *CLI, args []string) error {
+					return adminSubscriptionState(ctx, cli, args, "resume", openapi.PlatformSubscriptionUpdateStateACTIVE)
+				},
 			},
 			{
 				name:    "usage",
@@ -84,16 +125,10 @@ func adminGroup() group {
 				run:     adminSettings,
 			},
 			{
-				name:    "operator",
-				usage:   "ls|add|rm …",
-				summary: "who may run this installation",
-				run:     adminOperator,
-			},
-			{
-				name:    "provider",
-				usage:   "ls|add|rm …",
-				summary: "the ways in this installation offers every workspace",
-				run:     adminProvider,
+				name:    "operator add",
+				usage:   "(--workspace <slug> --email <address> | --service-account <name> | --account <id>)",
+				summary: "let an account run this installation",
+				run:     adminOperatorAdd,
 			},
 			{
 				name:    "elevate",
@@ -113,73 +148,8 @@ func adminGroup() group {
 				summary: "the installation's own backup targets, where a workspace without one is exported to",
 				run:     adminTarget,
 			},
-			{
-				name:    "encryption",
-				usage:   "show|reseal",
-				summary: "the master keyring's census, and the re-seal that lets a key retire",
-				run:     adminEncryption,
-			},
 		},
 	}
-}
-
-// adminTenant is a noun under a noun, and dispatches its own verb - `backup target`'s reasoning.
-func adminTenant(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, show, find, create, set-reference, suspend, resume, delete, cancel-deletion, move-plan, export, open-password, close-password, replace-holds, reapply-erasures"
-	if len(args) == 0 {
-		return usagef("admin tenant needs a command: %s", verbs)
-	}
-	switch args[0] {
-	case "ls":
-		return adminTenantList(ctx, cli, args[1:])
-	case "show":
-		return adminTenantShow(ctx, cli, args[1:])
-	case "find":
-		return adminTenantFind(ctx, cli, args[1:])
-	case "create":
-		return adminTenantCreate(ctx, cli, args[1:])
-	case "set-reference":
-		return adminTenantSetReference(ctx, cli, args[1:])
-	case "suspend":
-		return adminTenantFlip(ctx, cli, args[1:], "suspend")
-	case "resume":
-		return adminTenantFlip(ctx, cli, args[1:], "resume")
-	case "delete":
-		return adminTenantDelete(ctx, cli, args[1:])
-	case "cancel-deletion":
-		return adminTenantFlip(ctx, cli, args[1:], "cancel-deletion")
-	case "move-plan":
-		return adminTenantMovePlan(ctx, cli, args[1:])
-	case "export":
-		return adminTenantExport(ctx, cli, args[1:])
-	case "open-password":
-		return adminTenantOpenPassword(ctx, cli, args[1:])
-	case "close-password":
-		return adminTenantClosePassword(ctx, cli, args[1:])
-	case "replace-holds":
-		return adminTenantReplaceHolds(ctx, cli, args[1:])
-	case "reapply-erasures":
-		return adminTenantReapplyErasures(ctx, cli, args[1:])
-	default:
-		return usagef("admin tenant has no command %q: %s", args[0], verbs)
-	}
-}
-
-func adminTenantList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin tenant", "ls", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var tenants []openapi.AdminTenant
-	if err := client.Get(ctx, adminTenantsPath, nil, &tenants); err != nil {
-		return err
-	}
-	return cli.Emit(tenants, tenantTable(tenants))
 }
 
 // adminTenantCreate provisions a workspace and hands over the owner's way in.
@@ -240,163 +210,6 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 		"that redemption token is the owner's whole way in and is shown once: hand it to them, "+
 			"and provision again if it is lost\n")
 	return nil
-}
-
-// adminTenantFlip is suspend and resume, which are one write each and differ only in which.
-func adminTenantFlip(ctx context.Context, cli *CLI, args []string, verb string) error {
-	usage := "admin tenant " + verb + " <id>"
-	tenantID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "admin tenant", verb, "<id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Post(ctx, adminTenantsPath+"/"+tenantID.String()+":"+verb, nil, nil); err != nil {
-		return err
-	}
-	printf(cli.Err, "workspace %s: %s\n", tenantID, map[string]string{
-		"suspend": "suspended", "resume": "active again",
-		// Back where the request found it - active or suspended - which `ls` shows.
-		"cancel-deletion": "deletion called off",
-	}[verb])
-	return nil
-}
-
-// adminTenantDelete asks for the most irreversible thing this API does, and behaves like it: the
-// workspace's display name typed exactly, and a fresh step-up on top of it.
-//
-// The name is not read off the workspace and offered back - the point of typing it is that
-// somebody typed it. The proof is the shared mechanism, in the header this act takes it in.
-func adminTenantDelete(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "admin tenant delete <id> --confirm <display name>"
-	tenantID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "admin tenant", "delete", "<id> --confirm <display name>")
-	confirm := flags.String("confirm", "", "the workspace's display name, typed exactly")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	if *confirm == "" {
-		return usagef("ending a workspace needs --confirm with its display name, typed exactly")
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var scheduled openapi.TenantDeletionScheduled
-	err = cli.proveAgain(ctx, client, func(stepUp string) error {
-		return client.PostWithHeader(ctx, adminTenantsPath+"/"+tenantID.String()+":delete",
-			openapi.TenantDeletionRequest{Confirmation: *confirm}, stepUpProof(stepUp), &scheduled)
-	})
-	if err != nil {
-		return err
-	}
-
-	// The grace is the whole answer: the data is still there, the export still works, and the
-	// moment it stops being true is the one number worth printing.
-	return cli.Emit(scheduled, Table{
-		Columns: []string{"workspace", "purged after"},
-		Rows: [][]string{{
-			scheduled.TenantId.String(),
-			scheduled.PurgeAfter.Local().Format("2006-01-02 15:04"),
-		}},
-	})
-}
-
-// adminTenantOpenPassword opens the password for one workspace for a while (ADR-0078 §3): the lever
-// for a provider that is switched on but broken. Who asked and why are not optional - the workspace's
-// administrators read both - and the proof is the shared mechanism, in the header the act takes it in.
-func adminTenantOpenPassword(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "admin tenant open-password <id> --requester <who asked> --reason <why> [--hours <n>]"
-	tenantID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "admin tenant", "open-password",
-		"<id> --requester <who asked> --reason <why> [--hours <n>]")
-	requester := flags.String("requester", "", "who asked for it - a ticket reference rather than a name")
-	reason := flags.String("reason", "", "why: what is wrong with the provider")
-	hours := flags.Int("hours", 0, "how long it stands, from now: 1 to 168 (a day when not given)")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	if *requester == "" || *reason == "" {
-		return usagef("opening the password needs --requester and --reason: the workspace's administrators read both")
-	}
-	request := openapi.PasswordOpeningRequest{Requester: *requester, Reason: *reason}
-	// The default day is the server's, and only where no --hours was given: a --hours 0 is sent as
-	// typed, so the server refuses it rather than this client turning it into a day.
-	flags.Visit(func(given *flag.Flag) {
-		if given.Name == "hours" {
-			request.Hours = hours
-		}
-	})
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var tenant openapi.AdminTenant
-	err = cli.proveAgain(ctx, client, func(stepUp string) error {
-		return client.PostWithHeader(ctx, adminTenantsPath+"/"+tenantID.String()+":open-password",
-			request, stepUpProof(stepUp), &tenant)
-	})
-	if err != nil {
-		return err
-	}
-	if cli.JSON {
-		return cli.Emit(tenant, Table{})
-	}
-	cli.emitTable(openingTable(tenant))
-	printf(cli.Err, "the workspace's administrators are told; it closes on its own at the time above, "+
-		"or with admin tenant close-password\n")
-	return nil
-}
-
-// adminTenantClosePassword ends an opening before its time. No step-up: it narrows the way in.
-func adminTenantClosePassword(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "admin tenant close-password <id>"
-	tenantID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "admin tenant", "close-password", "<id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var tenant openapi.AdminTenant
-	if err := client.Post(ctx, adminTenantsPath+"/"+tenantID.String()+":close-password", nil, &tenant); err != nil {
-		return err
-	}
-	if cli.JSON {
-		return cli.Emit(tenant, Table{})
-	}
-	printf(cli.Err, "the password of workspace %s follows its own settings again\n", tenantID)
-	return nil
-}
-
-// openingTable is the opening as it stands: until when, who asked, why.
-func openingTable(tenant openapi.AdminTenant) Table {
-	row := []string{tenant.Id.String(), "-", "-", "-"}
-	if opening := tenant.PasswordOpening; opening != nil {
-		row = []string{tenant.Id.String(), shortTime(&opening.Until), opening.Requester, opening.Reason}
-	}
-	return Table{Columns: []string{"workspace", "open until", "requester", "reason"}, Rows: [][]string{row}}
 }
 
 // adminTenantExport writes the workspace whole to a configured target, and follows the job.
@@ -508,83 +321,4 @@ func acceptedTable(accepted openapi.JobRef) Table {
 	}
 }
 
-// adminEncryption is the rotation's two verbs (ADR-0045, security.md §8.1): the census that says
-// whether a key may leave the ring, and the request that moves what an older key still holds.
-func adminEncryption(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "show, reseal"
-	if len(args) == 0 {
-		return usagef("admin encryption needs a command: %s", verbs)
-	}
-	switch args[0] {
-	case "show":
-		return adminEncryptionShow(ctx, cli, args[1:])
-	case "reseal":
-		return adminEncryptionReseal(ctx, cli, args[1:])
-	default:
-		return usagef("admin encryption has no command %q: %s", args[0], verbs)
-	}
-}
-
-func adminEncryptionShow(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin encryption", "show", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var status openapi.EncryptionStatus
-	if err := client.Get(ctx, adminEncryptionPath, nil, &status); err != nil {
-		return err
-	}
-	return cli.Emit(status, encryptionTable(status))
-}
-
-// adminEncryptionReseal asks for the rounds and says where to watch them: the census, not a job -
-// there is one job per workspace, and what the operator is waiting for is a count, not a run.
-func adminEncryptionReseal(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin encryption", "reseal", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var accepted openapi.ResealAccepted
-	if err := client.Post(ctx, adminEncryptionPath+":reseal", nil, &accepted); err != nil {
-		return err
-	}
-	printf(cli.Err, "re-sealing queued for %d workspace(s) under key %s; "+
-		"watch `hubctl admin encryption show` until every other key counts zero\n",
-		accepted.QueuedTenants, accepted.ActiveKeyId)
-	return cli.Emit(accepted, Table{
-		Columns: []string{"active key", "queued workspaces"},
-		Rows:    [][]string{{accepted.ActiveKeyId, itoa(accepted.QueuedTenants)}},
-	})
-}
-
-func encryptionTable(status openapi.EncryptionStatus) Table {
-	rows := make([][]string, 0, len(status.Keys))
-	for _, key := range status.Keys {
-		state := "predecessor"
-		switch {
-		case key.Active:
-			state = "active"
-		case !key.InRing:
-			state = "NOT IN RING"
-		}
-		kinds := make([]string, 0, len(key.Stores))
-		for _, store := range key.Stores {
-			kinds = append(kinds, string(store.Store)+"="+itoa64(store.SealedValues))
-		}
-		rows = append(rows, []string{key.KeyId, state, itoa64(key.SealedValues), strings.Join(kinds, " ")})
-	}
-	return Table{Columns: []string{"key", "state", "sealed values", "by kind"}, Rows: rows}
-}
-
-func itoa(value int) string     { return itoa64(int64(value)) }
 func itoa64(value int64) string { return strconv.FormatInt(value, 10) }

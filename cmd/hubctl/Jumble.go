@@ -35,12 +35,6 @@ func jumbleGroup() group {
 				run:     jumbleShow,
 			},
 			{
-				name:    "submit",
-				usage:   "[--subject <s>] [--body <b>] [--channel API|QUICK_CAPTURE] [--attachment <id>…]",
-				summary: "put something in the jumble over a near channel",
-				run:     jumbleSubmit,
-			},
-			{
 				name:    "intake",
 				usage:   "rotate-token",
 				summary: "mint the address the jumble accepts deliveries on - shown once",
@@ -63,51 +57,6 @@ func jumbleShow(ctx context.Context, cli *CLI, args []string) error {
 	}
 	var entry openapi.JumbleEntry
 	if err := client.Get(ctx, jumblePath+"/"+entryID.String(), nil, &entry); err != nil {
-		return err
-	}
-	return cli.Emit(entry, jumbleTable([]openapi.JumbleEntry{entry}))
-}
-
-func jumbleSubmit(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "jumble", "submit",
-		"[--subject <s>] [--body <b>] [--channel <c>] [--attachment <id>…]")
-	subject := flags.String("subject", "", "the short half")
-	body := flags.String("body", "", "the long half")
-	channel := flags.String("channel", "", "API or QUICK_CAPTURE; the far channels authenticate their own way")
-	var attachments stringList
-	flags.Var(&attachments, "attachment", "a sealed media object to carry; repeat for several")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if *subject == "" && *body == "" && len(attachments) == 0 {
-		return usagef("jumble submit needs a subject, a body, or an attachment")
-	}
-
-	submit := openapi.JumbleEntrySubmit{}
-	if *subject != "" {
-		submit.RawSubject = subject
-	}
-	if *body != "" {
-		submit.RawBody = body
-	}
-	if *channel != "" {
-		kind := openapi.JumbleEntrySubmitChannel(*channel)
-		submit.Channel = &kind
-	}
-	if len(attachments) > 0 {
-		ids, err := cli.parseIDs("--attachment", joinList(attachments))
-		if err != nil {
-			return err
-		}
-		submit.Attachments = &ids
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var entry openapi.JumbleEntry
-	if err := client.Post(ctx, jumblePath, submit, &entry); err != nil {
 		return err
 	}
 	return cli.Emit(entry, jumbleTable([]openapi.JumbleEntry{entry}))
@@ -157,17 +106,4 @@ func jumbleTable(entries []openapi.JumbleEntry) Table {
 		Columns: []string{"id", "channel", "from", "subject", "status", "files", "became"},
 		Rows:    rows,
 	}
-}
-
-// joinList is the comma-separated form parseIDs takes. The flag is repeatable and the helper is
-// not, so the two meet here rather than in a second parser.
-func joinList(values []string) string {
-	joined := ""
-	for index, value := range values {
-		if index > 0 {
-			joined += ","
-		}
-		joined += value
-	}
-	return joined
 }

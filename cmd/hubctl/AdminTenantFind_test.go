@@ -16,7 +16,7 @@ const oneWorkspace = `{"id": "0192f000-0000-7000-8000-0000000000e1", "slug": "ma
 // The reference travels in the body, never in the query string, which access logs keep.
 func TestAWorkspaceIsFoundByItsReference(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, `{"data": [`+oneWorkspace+`], "page": {"next_cursor": "c2", "has_more": true}}`)
-	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "tenant", "find", "--reference", "cus_8f2a91")
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "tenant", "find", "--external-reference", "cus_8f2a91")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}

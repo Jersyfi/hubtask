@@ -10881,6 +10881,7 @@
           "jumble"
         ],
         "operationId": "submitJumbleEntry",
+        "x-hubtask-cli": "jumble submit",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "jumbleEntryResponse",
         "summary": "Put something in the jumble",
@@ -14346,6 +14347,16 @@
           "backup"
         ],
         "operationId": "listBackupSchedules",
+        "x-hubtask-cli": "backup schedule ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "rrule",
+          "timezone",
+          "mode",
+          "enabled",
+          "trial_restore",
+          "next_run_at"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "backupScheduleResponse",
         "summary": "The schedules the workspace has",
@@ -14374,6 +14385,7 @@
           "backup"
         ],
         "operationId": "createBackupSchedule",
+        "x-hubtask-cli": "backup schedule add",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-flatten": {
           "scope": {
@@ -14431,6 +14443,7 @@
           "backup"
         ],
         "operationId": "updateBackupSchedule",
+        "x-hubtask-cli": "backup schedule set",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "backupScheduleResponse",
         "parameters": [
@@ -14471,6 +14484,7 @@
           "backup"
         ],
         "operationId": "deleteBackupSchedule",
+        "x-hubtask-cli": "backup schedule rm",
         "x-hubtask-rest": "generated",
         "summary": "Remove a schedule",
         "description": "The schedule stops existing and nothing else changes: the archives it produced stay at the target, and the runs it started stay in the log. Removing one that is not there is not an error. Auditable.\nSwitching a schedule off is usually the right operation and this one is not - `PATCH` with `enabled: false` keeps the rule for the night somebody wants it back.\n",
@@ -17798,6 +17812,18 @@
           "admin"
         ],
         "operationId": "listTenants",
+        "x-hubtask-cli": "admin tenant ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "slug",
+          "display_name",
+          "status",
+          "plan",
+          "external_reference",
+          "purge_after",
+          "purge_started_at",
+          "legal_hold"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "The installation's workspaces",
@@ -17875,6 +17901,7 @@
           "admin"
         ],
         "operationId": "readTenant",
+        "x-hubtask-cli": "admin tenant show",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "One workspace",
@@ -17956,6 +17983,18 @@
           "admin"
         ],
         "operationId": "queryTenants",
+        "x-hubtask-cli": "admin tenant find",
+        "x-hubtask-cli-columns": [
+          "id",
+          "slug",
+          "display_name",
+          "status",
+          "plan",
+          "external_reference",
+          "purge_after",
+          "purge_started_at",
+          "legal_hold"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "Find workspaces",
@@ -17998,6 +18037,7 @@
           "admin"
         ],
         "operationId": "suspendTenant",
+        "x-hubtask-cli": "admin tenant suspend",
         "x-hubtask-rest": "generated",
         "summary": "Suspend a workspace",
         "description": "Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
@@ -18022,6 +18062,7 @@
           "admin"
         ],
         "operationId": "resumeTenant",
+        "x-hubtask-cli": "admin tenant resume",
         "x-hubtask-rest": "generated",
         "summary": "Reactivate a workspace",
         "description": "One write. The next request of the tenant's people works again. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
@@ -18046,6 +18087,7 @@
           "admin"
         ],
         "operationId": "cancelTenantDeletion",
+        "x-hubtask-cli": "admin tenant cancel-deletion",
         "x-hubtask-rest": "generated",
         "summary": "Call off a workspace's pending deletion",
         "description": "Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.\n",
@@ -18073,6 +18115,7 @@
           "admin"
         ],
         "operationId": "requestTenantDeletion",
+        "x-hubtask-cli": "admin tenant delete",
         "x-hubtask-rest": "generated",
         "summary": "Request a workspace's deletion",
         "description": "The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
@@ -18117,6 +18160,7 @@
           "admin"
         ],
         "operationId": "openTenantPassword",
+        "x-hubtask-cli": "admin tenant open-password",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "Open the password for one workspace",
@@ -18159,6 +18203,7 @@
           "admin"
         ],
         "operationId": "closeTenantPassword",
+        "x-hubtask-cli": "admin tenant close-password",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "Close an operator's opening of the password early",
@@ -18576,6 +18621,14 @@
           "admin"
         ],
         "operationId": "listPlans",
+        "x-hubtask-cli": "admin plan ls",
+        "x-hubtask-cli-columns": [
+          "name",
+          "display_name",
+          "workspaces",
+          "left_out",
+          "version"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-list": "data",
         "x-hubtask-rest-answer": "planResponse",
@@ -18613,6 +18666,7 @@
           "admin"
         ],
         "operationId": "createPlan",
+        "x-hubtask-cli": "admin plan create",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "planResponse",
         "summary": "Create a plan",
@@ -18673,6 +18727,7 @@
           "admin"
         ],
         "operationId": "readPlan",
+        "x-hubtask-cli": "admin plan show",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-path": {
           "planName": "name"
@@ -18757,6 +18812,7 @@
           "admin"
         ],
         "operationId": "removePlan",
+        "x-hubtask-cli": "admin plan rm",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-path": {
           "planName": "name"
@@ -18779,6 +18835,14 @@
           "admin"
         ],
         "operationId": "listInstallationPresets",
+        "x-hubtask-cli": "admin presets ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "name",
+          "is_default",
+          "locks",
+          "version"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-list": "data",
         "x-hubtask-rest-answer": "installationPresetResponse",
@@ -18817,6 +18881,7 @@
           "admin"
         ],
         "operationId": "createInstallationPreset",
+        "x-hubtask-cli": "admin presets create",
         "x-hubtask-rest": "generated",
         "summary": "Create a preset of the installation",
         "description": "A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).\n",
@@ -18865,6 +18930,7 @@
           "admin"
         ],
         "operationId": "changeInstallationPreset",
+        "x-hubtask-cli": "admin presets set",
         "x-hubtask-rest": "generated",
         "summary": "Change a preset of the installation",
         "description": "Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.\n",
@@ -18911,6 +18977,7 @@
           "admin"
         ],
         "operationId": "withdrawInstallationPreset",
+        "x-hubtask-cli": "admin presets rm",
         "x-hubtask-rest": "generated",
         "summary": "Withdraw a preset of the installation",
         "description": "It is offered to no workspace any more; hubs and collections made from it keep their settings. The default is refused with `presets.installation_default` until another preset is the default or none is.\n",
@@ -18940,6 +19007,7 @@
           "admin"
         ],
         "operationId": "moveTenantPlan",
+        "x-hubtask-cli": "admin tenant move-plan",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "tenantPlanMovedResponse",
         "summary": "Put a workspace on another plan",
@@ -18982,6 +19050,14 @@
           "admin"
         ],
         "operationId": "listOperators",
+        "x-hubtask-cli": "admin operator ls",
+        "x-hubtask-cli-columns": [
+          "account_id",
+          "kind",
+          "display_name",
+          "email",
+          "workspace_slug"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "operatorResponse",
         "summary": "Who operates this installation",
@@ -19044,6 +19120,7 @@
           "admin"
         ],
         "operationId": "removeOperator",
+        "x-hubtask-cli": "admin operator rm",
         "x-hubtask-rest": "generated",
         "summary": "Take an account out of the register",
         "description": "The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read \"there are two\".\nThe account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).\n",
@@ -19145,6 +19222,13 @@
           "admin"
         ],
         "operationId": "listPlatformEvents",
+        "x-hubtask-cli": "admin events",
+        "x-hubtask-cli-columns": [
+          "id",
+          "type",
+          "time",
+          "data"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-query": {
           "size": "limit"
@@ -19182,6 +19266,15 @@
           "admin"
         ],
         "operationId": "listPlatformSubscriptions",
+        "x-hubtask-cli": "admin subscription ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "target_url",
+          "state",
+          "dead_letters",
+          "last_error",
+          "version"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "asWritten",
         "summary": "The installation's subscriptions for a purchase platform",
@@ -19265,6 +19358,7 @@
           "admin"
         ],
         "operationId": "readPlatformSubscription",
+        "x-hubtask-cli": "admin subscription show",
         "x-hubtask-rest": "generated",
         "summary": "One subscription of the installation",
         "description": "Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.",
@@ -19289,6 +19383,7 @@
           "admin"
         ],
         "operationId": "updatePlatformSubscription",
+        "x-hubtask-cli": "admin subscription set",
         "x-hubtask-rest": "generated",
         "summary": "Change a subscription's target, or pause and resume it",
         "description": "An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
@@ -19331,6 +19426,7 @@
           "admin"
         ],
         "operationId": "deletePlatformSubscription",
+        "x-hubtask-cli": "admin subscription rm",
         "x-hubtask-rest": "generated",
         "summary": "Unsubscribe",
         "description": "The subscription goes with its deliveries; the events stay readable. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
@@ -19406,6 +19502,16 @@
           "admin"
         ],
         "operationId": "listPlatformDeliveries",
+        "x-hubtask-cli": "admin subscription deliveries",
+        "x-hubtask-cli-columns": [
+          "id",
+          "event_type",
+          "attempt",
+          "status",
+          "response_status",
+          "error_code",
+          "next_attempt_at"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-query": {
           "size": "limit"
@@ -19468,6 +19574,7 @@
           "admin"
         ],
         "operationId": "redeliverPlatformSubscription",
+        "x-hubtask-cli": "admin subscription redeliver",
         "x-hubtask-rest": "generated",
         "summary": "Send the subscription's dead letters again",
         "description": "Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
@@ -19703,6 +19810,7 @@
           "admin"
         ],
         "operationId": "listInstanceIdentityProviders",
+        "x-hubtask-cli": "admin provider ls",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "identityProvidersResponse",
         "summary": "The providers this installation offers every workspace",
@@ -19731,6 +19839,7 @@
           "admin"
         ],
         "operationId": "createInstanceIdentityProvider",
+        "x-hubtask-cli": "admin provider add",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-use-case": "ConfigureInstanceIdentityProvider",
         "x-hubtask-rest-answer": "identityProviderResponse",
@@ -19779,6 +19888,7 @@
           "admin"
         ],
         "operationId": "configureInstanceIdentityProvider",
+        "x-hubtask-cli": "admin provider set",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-path": {
           "providerId": "id"
@@ -19822,6 +19932,7 @@
           "admin"
         ],
         "operationId": "removeInstanceIdentityProvider",
+        "x-hubtask-cli": "admin provider rm",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-path": {
           "providerId": "id"
@@ -19854,6 +19965,7 @@
           "admin"
         ],
         "operationId": "withdrawInstanceIdentityProvider",
+        "x-hubtask-cli": "admin provider withdraw",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "identityProviderResponse",
         "x-hubtask-rest-path": {
@@ -19904,6 +20016,7 @@
           "admin"
         ],
         "operationId": "cancelInstanceIdentityProviderWithdrawal",
+        "x-hubtask-cli": "admin provider cancel-withdrawal",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "identityProviderResponse",
         "x-hubtask-rest-path": {
@@ -19939,6 +20052,7 @@
           "admin"
         ],
         "operationId": "readEncryptionStatus",
+        "x-hubtask-cli": "admin encryption show",
         "x-hubtask-rest": "generated",
         "summary": "The keyring, and what still names each key",
         "description": "What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.\nInstallation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.\n",
@@ -19965,6 +20079,7 @@
           "admin"
         ],
         "operationId": "resealSecrets",
+        "x-hubtask-cli": "admin encryption reseal",
         "x-hubtask-rest": "generated",
         "summary": "Re-seal what older keys still hold",
         "description": "Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.\nOne job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.\n",
@@ -21346,6 +21461,19 @@
           "suggestions"
         ],
         "operationId": "listSuggestions",
+        "x-hubtask-cli": "suggestion ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "target_type",
+          "kind",
+          "status",
+          "source",
+          "model",
+          "prompt_id",
+          "prompt_version",
+          "produced_at"
+        ],
+        "x-hubtask-cli-rows": "items",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-query": {
           "size": "page_size"
@@ -21763,6 +21891,7 @@
           "oauth"
         ],
         "operationId": "listOauthClients",
+        "x-hubtask-cli": "oauth client ls",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "oauthClientResponse",
         "summary": "The workspace's registered third-party apps",
@@ -21840,6 +21969,7 @@
           "oauth"
         ],
         "operationId": "readOauthClient",
+        "x-hubtask-cli": "oauth client show",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "oauthClientSummaryResponse",
         "summary": "What an app is called, for the person being asked to allow it",
@@ -21865,6 +21995,7 @@
           "oauth"
         ],
         "operationId": "deleteOauthClient",
+        "x-hubtask-cli": "oauth client rm",
         "x-hubtask-rest": "generated",
         "summary": "Remove a third-party app",
         "description": "Removes the client and revokes every grant that pointed at it: the sessions those grants leashed refuse on their next request. What people allowed the app is withdrawn with the app, because a grant to a client nobody can name is a door with no label.\n",
@@ -22590,6 +22721,7 @@
           "identity"
         ],
         "operationId": "grantMembership",
+        "x-hubtask-cli": "people grant",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-location": "/memberships/{id}",
         "x-hubtask-rest-answer": "membershipResponse",

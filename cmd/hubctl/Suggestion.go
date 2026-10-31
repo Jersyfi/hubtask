@@ -5,8 +5,6 @@ package main
 
 import (
 	"context"
-	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -31,12 +29,6 @@ func suggestionGroup() group {
 		summary: "what AI proposed about an entry, and accepting or turning it down",
 		commands: []command{
 			{
-				name:    "ls",
-				usage:   "--target <id> [--target-type ITEM|JUMBLE_ENTRY] [--status <s>] [--cursor <c>] [--size <n>]",
-				summary: "the suggestions standing against one entry, newest first",
-				run:     suggestionList,
-			},
-			{
 				name:    "ask",
 				usage:   "--target <id> [--target-type ITEM|JUMBLE_ENTRY]",
 				summary: "ask the workspace's provider to propose something about an entry",
@@ -50,53 +42,6 @@ func suggestionGroup() group {
 			},
 		},
 	}
-}
-
-func suggestionList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "suggestion", "ls",
-		"--target <id> [--target-type <t>] [--status <s>] [--cursor <c>] [--size <n>]")
-	target := flags.String("target", "", "the entry the suggestions are about")
-	targetType := flags.String("target-type", "ITEM", "ITEM or JUMBLE_ENTRY")
-	status := flags.String("status", "", "PROPOSED, ACCEPTED or DISMISSED; unset answers what is still standing")
-	cursor := flags.String("cursor", "", "continue the previous page")
-	size := flags.Int("size", 0, "how many at most")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if *target == "" {
-		return usagef("hubctl suggestion ls needs --target")
-	}
-	targetID, err := cli.parseID("--target", *target)
-	if err != nil {
-		return err
-	}
-
-	query := url.Values{"target_type": {*targetType}, "target_id": {targetID.String()}}
-	if *status != "" {
-		query.Set("status", *status)
-	}
-	if *size > 0 {
-		query.Set("size", strconv.Itoa(*size))
-	}
-	if *cursor != "" {
-		query.Set("cursor", *cursor)
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var page openapi.SuggestionPage
-	if err := client.Get(ctx, suggestionPath, query, &page); err != nil {
-		return err
-	}
-	if err := cli.Emit(page, suggestionTable(page.Items)); err != nil {
-		return err
-	}
-	// This page is flat rather than nested, unlike most - so the continuation is assembled here
-	// rather than passed through.
-	cli.reportMore(openapi.PageInfo{HasMore: page.HasMore, NextCursor: page.NextCursor})
-	return nil
 }
 
 // suggestionAsk asks, and says so: the answer is `202` and a suggestion appears under
@@ -141,8 +86,8 @@ func suggestionAsk(ctx context.Context, cli *CLI, args []string) error {
 	}
 	if !cli.JSON {
 		printf(cli.Err,
-			"asked; the suggestion appears under `hubctl suggestion ls --target %s` when the provider answers\n",
-			targetID)
+			"asked; the suggestion appears under `hubctl suggestion ls --target-id %s --target-type %s` when the provider answers\n",
+			targetID, *targetType)
 	}
 	return nil
 }

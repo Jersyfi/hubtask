@@ -44,12 +44,6 @@ func peopleGroup() group {
 				run:     peopleInvite,
 			},
 			{
-				name:    "grant",
-				usage:   "<account id> --role <role> [--scope … --scope-id <id>]",
-				summary: "give an account a role",
-				run:     peopleGrant,
-			},
-			{
 				name:    "add-managed",
 				usage:   "--name <text> --sign-in <name> --role <role> [--scope … --scope-id <id>]",
 				summary: "create an account without an address - its start password is shown once",
@@ -177,42 +171,6 @@ func peopleInvite(ctx context.Context, cli *CLI, args []string) error {
 		return fmt.Errorf("the account is invited, and the role was not given: %w", grantErr)
 	}
 	return nil
-}
-
-func peopleGrant(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "people grant <account id> --role <role> [--scope … --scope-id <id>]"
-	accountID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "people", "grant", "<account id> --role <role> [--scope … --scope-id <id>]")
-	role := flags.String("role", "", "the role: OWNER, ADMIN, MEMBER, CONTRIBUTOR, VIEWER, GUEST or AUDITOR")
-	where := addPlacementFlags(flags)
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	if *role == "" {
-		return usagef("people grant needs --role")
-	}
-	scope, scopeID, err := where.read(cli)
-	if err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var membership openapi.Membership
-	if err := cli.proveAgain(ctx, client, func(stepUp string) error {
-		return client.PostWithHeader(ctx, membershipsPath, openapi.MembershipGrant{
-			AccountId: &accountID, Role: openapi.MembershipRole(strings.ToUpper(*role)),
-			ScopeType: scope, ScopeId: scopeID,
-		}, stepUpProof(stepUp), &membership)
-	}); err != nil {
-		return err
-	}
-	return cli.Emit(membership, membershipTable([]openapi.Membership{membership}))
 }
 
 func peopleAddManaged(ctx context.Context, cli *CLI, args []string) error {

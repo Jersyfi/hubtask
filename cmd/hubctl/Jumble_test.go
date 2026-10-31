@@ -95,15 +95,18 @@ func TestTheDestinationsAreListedWithTheirHub(t *testing.T) {
 }
 
 // Something has to be in an entry, and the client says so rather than sending an empty one.
-func TestAnEmptySubmissionIsRefusedHere(t *testing.T) {
-	stub := serveJSON(t, http.StatusCreated, oneJumbleEntry)
+// An empty submission is the entry's to refuse (jumble.entry_empty); the command passes the refusal on
+// and fails.
+func TestAnEmptySubmissionIsRefused(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		problemJSON(w, http.StatusUnprocessableEntity, map[string]any{
+			"status": 422, "code": "validation_failed", "detail_code": "jumble.entry_empty",
+		})
+	})
 
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "jumble", "submit")
-	if code != exitUsage {
-		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
-	}
-	if !strings.Contains(errOut, "subject") {
-		t.Errorf("the complaint is %q", errOut)
+	if code != exitError || stub.body != "{}" {
+		t.Fatalf("exit %d, sent %q: %s", code, stub.body, errOut)
 	}
 }
 
@@ -111,7 +114,7 @@ func TestSubmittingSendsTheChannelAndTheText(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneJumbleEntry)
 
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"jumble", "submit", "--subject", "Call the printer", "--channel", "QUICK_CAPTURE")
+		"jumble", "submit", "--raw-subject", "Call the printer", "--channel", "QUICK_CAPTURE")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}

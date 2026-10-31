@@ -319,7 +319,7 @@ func TestAddingAProviderCarriesTheDirectoriesItWasGiven(t *testing.T) {
 		"admin", "provider", "add",
 		"--issuer", "https://login.microsoftonline.com/common/v2.0",
 		"--client-id", "hubtask", "--client-secret", "s3cr3t",
-		"--admits", "DOMAINS", "--directory", "72f988bf-86f1-41af-91ab-2d7cd011db47, 9188040d-6c67-4c5b-b112-36a304b66dad")
+		"--provisioning", "DOMAINS", "--allowed-directories", "72f988bf-86f1-41af-91ab-2d7cd011db47, 9188040d-6c67-4c5b-b112-36a304b66dad")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}

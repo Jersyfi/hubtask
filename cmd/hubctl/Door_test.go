@@ -195,3 +195,54 @@ func TestAPlainArrayIsListedAndNoAnswerIsSaid(t *testing.T) {
 		t.Errorf("exit %d, out %q, err %q", code, out, errOut)
 	}
 }
+
+// A page whose rows are not `data` (x-hubtask-cli-rows) is still a table, and its flat cursor is
+// said; a feed read to its end still says where the next read starts.
+func TestAPageOfItemsIsListedAndItsCursorSaid(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK,
+		`{"items":[{"id":"`+roleGrantID+`","kind":"FIELDS","status":"PROPOSED"}],"has_more":true,"next_cursor":"c9"}`)
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"suggestion", "ls", "--target-id", itemID, "--target-type", "ITEM")
+	if code != exitOK || !strings.Contains(out, roleGrantID) || !strings.Contains(out, "PROPOSED") ||
+		strings.Contains(out, "FIELD ") || !strings.Contains(errOut, "--cursor c9") {
+		t.Fatalf("exit %d, %q: %s", code, out, errOut)
+	}
+
+	feed := serveJSON(t, http.StatusOK, `{"data":[],"page":{"next_cursor":"c10","has_more":false}}`)
+	if _, _, errOut := invokeAgainst(t, feed, signedIn(feed), "", "admin", "events", "--cursor", "c9"); !strings.Contains(errOut, "later with --cursor c10") {
+		t.Errorf("the end of the feed said %q", errOut)
+	}
+}
+
+// A word the command does not take is refused before the call rather than dropped, and a switch's
+// value written apart (`--is-default false`) is named as the mistake it is.
+func TestAStrayWordIsRefusedBeforeTheCall(t *testing.T) {
+	stub := serve(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("a call was made with a word the command does not take")
+	})
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"people", "grant", roleGrantID, "--role", "MEMBER", "--scope-type", "TENANT")
+	if code != exitUsage || !strings.Contains(errOut, roleGrantID) {
+		t.Errorf("exit %d: %s", code, errOut)
+	}
+	code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "presets", "set", roleGrantID, "--is-default", "false")
+	if code != exitUsage || !strings.Contains(errOut, "--name=false") {
+		t.Errorf("exit %d: %s", code, errOut)
+	}
+}
+
+// A dry run says that nothing changed (P-08), beside the answer that says what would.
+func TestADryRunSaysNothingChanged(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"features_resting":[],"exceptions_kept":[],"limits_exceeded":[]}`)
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "tenant", "move-plan", roleGrantID, "--plan", "family", "--dry-run")
+	if code != exitOK || !strings.Contains(errOut, "nothing changed") {
+		t.Errorf("exit %d: %s", code, errOut)
+	}
+	real := serveJSON(t, http.StatusOK, `{"features_resting":[],"exceptions_kept":[],"limits_exceeded":[]}`)
+	if _, _, errOut := invokeAgainst(t, real, signedIn(real), "",
+		"admin", "tenant", "move-plan", roleGrantID, "--plan", "family"); strings.Contains(errOut, "nothing changed") {
+		t.Errorf("a real move said %q", errOut)
+	}
+}
