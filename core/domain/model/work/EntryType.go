@@ -60,6 +60,11 @@ type EntryType struct {
 	// Name is empty on a system type nobody named: a client then shows its own word for the level,
 	// because the backend carries no display text (rule 8).
 	Name string
+	// Description says what the type is for; a portal shows it beside the name. Empty for none.
+	Description string
+	// Translations are the name and description in further languages by BCP 47 tag, read through
+	// TextIn; a language not named reads Name and Description.
+	Translations map[string]EntryTypeText
 	// Icon is the name of an icon in the design system's set, never an image.
 	Icon string
 	// ColorToken is one of the label tokens, never a colour value (rule 15).
@@ -127,6 +132,8 @@ type NewEntryTypeInput struct {
 	Key             string
 	Level           ItemType
 	Name            string
+	Description     string
+	Translations    map[string]EntryTypeText
 	Icon            string
 	ColorToken      string
 	Behaviours      EntryBehaviours
@@ -158,7 +165,7 @@ func NewEntryType(in NewEntryTypeInput) (EntryType, error) {
 	}
 	return t.with(EntryTypeChange{
 		Name: &in.Name, Icon: &in.Icon, ColorToken: &in.ColorToken, Behaviours: &in.Behaviours,
-		AllowedChildren: &in.AllowedChildren,
+		AllowedChildren: &in.AllowedChildren, Description: &in.Description, Translations: &in.Translations,
 	}, in.Text)
 }
 
@@ -175,6 +182,8 @@ func isSystemEntryTypeKey(key string) bool {
 // "set it" stay two requests; Archived true archives, false brings the type back.
 type EntryTypeChange struct {
 	Name            *string
+	Description     *string
+	Translations    *map[string]EntryTypeText
 	Icon            *string
 	ColorToken      *string
 	Behaviours      *EntryBehaviours
@@ -186,7 +195,8 @@ type EntryTypeChange struct {
 // IsEmpty reports whether the change asks for nothing.
 func (c EntryTypeChange) IsEmpty() bool {
 	return c.Name == nil && c.Icon == nil && c.ColorToken == nil && c.Behaviours == nil &&
-		c.AllowedChildren == nil && c.Position == nil && c.Archived == nil
+		c.AllowedChildren == nil && c.Position == nil && c.Archived == nil && c.Description == nil &&
+		c.Translations == nil
 }
 
 // Changed applies a change at now and reports which fields moved. A system type is never archived
@@ -235,6 +245,20 @@ func (t EntryType) with(change EntryTypeChange, form text.Normalizer) (EntryType
 			}
 			next.Name = normalised
 		}
+	}
+	if change.Description != nil {
+		description, err := entryTypeDescription(*change.Description, form, "/description")
+		if err != nil {
+			return EntryType{}, err
+		}
+		next.Description = description
+	}
+	if change.Translations != nil {
+		translations, err := entryTypeTranslations(*change.Translations, form)
+		if err != nil {
+			return EntryType{}, err
+		}
+		next.Translations = translations
 	}
 	if change.Icon != nil {
 		icon := strings.TrimSpace(*change.Icon)
@@ -289,6 +313,8 @@ func (t EntryType) diff(next EntryType) []FieldChange {
 		}
 	}
 	add(FieldName, t.Name, next.Name)
+	add(FieldDescription, t.Description, next.Description)
+	add(FieldTranslations, translationsCode(t.Translations), translationsCode(next.Translations))
 	add("icon", t.Icon, next.Icon)
 	add(FieldColorToken, t.ColorToken, next.ColorToken)
 	add("behaviours", t.Behaviours.code(), next.Behaviours.code())
