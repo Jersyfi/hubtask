@@ -121,6 +121,22 @@ func TestACommandNamedTwiceFails(t *testing.T) {
 	}
 }
 
+// A page whose rows are not `data` names them, and a name that is no array of the answer fails.
+func TestAPageNamesTheMemberOfItsRows(t *testing.T) {
+	items := strings.Replace(contract, "                  data: { type: array", "                  items: { type: array", 1)
+	items = strings.Replace(items, `x-hubtask-cli: "thing ls"`, "x-hubtask-cli: \"thing ls\"\n      x-hubtask-cli-rows: items", 1)
+	commands, _, err := table([]byte(items))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if list := commands[0]; !list.List || list.Rows != "items" || strings.Join(list.Columns, ",") != "id,name" {
+		t.Errorf("the list is %+v", list)
+	}
+	if _, _, err := table([]byte(strings.Replace(items, "x-hubtask-cli-rows: items", "x-hubtask-cli-rows: entries", 1))); err == nil {
+		t.Error("rows named by a member the answer lacks, and nothing failed")
+	}
+}
+
 // The committed table is what the contract generates now (rule 11).
 func TestTheCommittedTableIsTheContracts(t *testing.T) {
 	raw, err := os.ReadFile("../../api/openapi.yaml")

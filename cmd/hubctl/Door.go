@@ -29,6 +29,7 @@ type door struct {
 	PathParams, Query, Body                         []doorParam
 	HasBody, BodyRequired, IfMatch, StepUp, List    bool
 	Columns                                         []string
+	Rows                                            string // the page's member of rows, `data` when empty
 }
 
 type doorParam struct {
@@ -119,6 +120,16 @@ func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
+	if flags.NArg() > 0 {
+		// A word the command does not take is refused, never dropped: `people grant <id>` without
+		// --account-id would otherwise grant nobody the person meant.
+		// `--confirm false` would otherwise read as --confirm and drop the false.
+		if _, isBool := strconv.ParseBool(flags.Arg(0)); isBool == nil {
+			return usagef("hubctl %s %s takes no argument %q: a switch takes its value as --name=%s",
+				d.Group, d.Verb, flags.Arg(0), flags.Arg(0))
+		}
+		return usagef("hubctl %s %s takes no argument %q: %s", d.Group, d.Verb, flags.Arg(0), d.usage())
+	}
 	named := given(flags)
 
 	path := d.Path
@@ -201,6 +212,9 @@ func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
+	if dryRun(query, body) {
+		printf(cli.Err, "a dry run: nothing changed\n")
+	}
 	if answer == nil {
 		// No answer to show: what was done is said on standard error, so a deletion is not
 		// silence and a pipe stays empty.
@@ -214,16 +228,29 @@ func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 	return nil
 }
 
+// dryRun is whether the call only asked what it would do (P-08), which the person is told.
+func dryRun(query url.Values, body map[string]any) bool {
+	return query.Get("dry_run") == "true" || body["dry_run"] == true
+}
+
 // reportMore says how a paged list goes on, on standard error so a pipe holds the page alone.
 func (d door) reportMore(cli *CLI, answer any) {
 	object, _ := answer.(map[string]any)
-	page, _ := object["page"].(map[string]any)
+	page, nested := object["page"].(map[string]any)
+	if !nested {
+		page = object // a flat page, as the suggestions' is, says it beside its rows
+	}
 	next, _ := page["next_cursor"].(string)
-	if cli.JSON || next == "" || page["has_more"] == false {
+	if cli.JSON || next == "" {
 		return
 	}
-	for _, p := range d.Query {
+	for _, p := range append(append([]doorParam{}, d.Query...), d.Body...) {
 		if p.Name == "cursor" {
+			if page["has_more"] == false {
+				// A feed read forward ends with the cursor the next read starts from.
+				printf(cli.Err, "nothing more for now; continue later with --cursor %s\n", next)
+				return
+			}
 			printf(cli.Err, "more entries follow; continue with --cursor %s\n", next)
 			return
 		}
@@ -321,7 +348,11 @@ func parseValue(p doorParam, raw string) (any, error) {
 // and its value per line.
 func (d door) table(answer any) Table {
 	object, _ := answer.(map[string]any)
-	rows, ok := object["data"].([]any)
+	member := d.Rows
+	if member == "" {
+		member = "data"
+	}
+	rows, ok := object[member].([]any)
 	if plain, isArray := answer.([]any); isArray {
 		rows, ok = plain, true
 	}

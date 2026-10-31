@@ -120,7 +120,7 @@ func TestWorkflowCommandsReachTheirOperations(t *testing.T) {
 	}
 
 	code, _, errOut = invokeAgainst(t, stub, signedIn(stub), `{"workflow":"triage"}`,
-		"workflow", "scheme", "set", "--body", "-", "--confirm", "true")
+		"workflow", "scheme", "set", "--body", "-", "--confirm")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}

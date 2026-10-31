@@ -58,6 +58,7 @@ type operation struct {
 	Description string      `yaml:"description"`
 	CLI         string      `yaml:"x-hubtask-cli"`
 	Columns     []string    `yaml:"x-hubtask-cli-columns"`
+	Rows        string      `yaml:"x-hubtask-cli-rows"`
 	Parameters  []parameter `yaml:"parameters"`
 	RequestBody *struct {
 		Required bool                 `yaml:"required"`
@@ -113,6 +114,8 @@ type Command struct {
 	PathParams, Query, Body                         []Param
 	HasBody, BodyRequired, IfMatch, StepUp, List    bool
 	Columns                                         []string
+	// Rows is the member of a page that holds its rows where it is not `data` (`items`).
+	Rows string
 }
 
 // Param is one positional argument or flag.
@@ -295,7 +298,14 @@ func build(doc document, path, method string, shared []parameter, op operation) 
 			break
 		}
 		answer := doc.resolve(content.Schema)
-		if data, ok := answer.Properties["data"]; ok && data.Type == "array" && data.Items != nil {
+		rows := "data"
+		if op.Rows != "" {
+			if member, ok := answer.Properties[op.Rows]; !ok || member.Type != "array" {
+				return Command{}, fmt.Errorf("x-hubtask-cli-rows %q is no array of the answer", op.Rows)
+			}
+			rows, command.Rows = op.Rows, op.Rows
+		}
+		if data, ok := answer.Properties[rows]; ok && data.Type == "array" && data.Items != nil {
 			command.List = true
 			answer = doc.resolve(*data.Items)
 		} else if answer.Type == "array" && answer.Items != nil {
@@ -452,8 +462,12 @@ func render(commands []Command, groups map[string]string) ([]byte, error) {
 		writeParams(&b, "PathParams", c.PathParams)
 		writeParams(&b, "Query", c.Query)
 		writeParams(&b, "Body", c.Body)
-		fmt.Fprintf(&b, "\t\tHasBody: %t, BodyRequired: %t, IfMatch: %t, StepUp: %t, List: %t, Columns: %#v},\n",
-			c.HasBody, c.BodyRequired, c.IfMatch, c.StepUp, c.List, c.Columns)
+		rows := ""
+		if c.Rows != "" {
+			rows = fmt.Sprintf(", Rows: %q", c.Rows)
+		}
+		fmt.Fprintf(&b, "\t\tHasBody: %t, BodyRequired: %t, IfMatch: %t, StepUp: %t, List: %t, Columns: %#v%s},\n",
+			c.HasBody, c.BodyRequired, c.IfMatch, c.StepUp, c.List, c.Columns, rows)
 	}
 	b.WriteString("}\n")
 	return format.Source(b.Bytes())
