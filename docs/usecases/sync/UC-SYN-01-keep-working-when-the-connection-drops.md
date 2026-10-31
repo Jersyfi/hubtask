@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-10, P-11, P-12]
 state: partial
 tasks: [N-01, N-02, N-04, N-10, F6-03, F6-04, F6-05, F6-06, F7-04, F7-05, F7-07]
-checked_by: [packages/sync-engine/test/replica.test.ts, packages/sync-engine/test/queue.test.ts, packages/sync-engine/test/engine.test.ts, test/integration/push_test.go, test/integration/initial_sync_test.go]
+checked_by: [packages/sync-engine/test/replica.test.ts, apps/webapp/src/lib/data/replica.test.ts, packages/sync-engine/test/queue.test.ts, packages/sync-engine/test/engine.test.ts, test/integration/push_test.go, test/integration/initial_sync_test.go]
 ---
 
 # Keep working when the connection drops
@@ -47,6 +47,9 @@ refused with a note that it needs the connection.
 8. Signing out deletes the local copy completely.
 9. Changes made offline start rules when they reach the server; a rule's time condition judges the
    moment the server received them, not the moment on the device.
+10. Without a connection, a page's or a board's mentions and cards resolve from the copy: an entry,
+    hub, collection, page, board, configuration item, goal or dashboard the copy holds shows its
+    title as online, one it does not hold - or a view - only as unavailable.
 
 ## Where it ends
 
