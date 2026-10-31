@@ -190,8 +190,8 @@ this list with its row.
 | S-24 coverage | Templates: questions on applying, roles mapped to groups, sample entries, a collection part, and the rest of templates.md §4's catalogue | S-24 (a later coverage worker) |
 | S-24 coverage | Offline: the workflow scheme and the workflow and role lists are still read online (no scheme snapshot in the walk) | closed by `01c3719d4`, `1b06d7389`, `88f8558eb` (`workflow_scheme`, one record per workspace with the shipped workflow, in the walk and on every scheme change; `GET /workflows` from the copy). The role catalogue stays online by choice (offline-sync.md §4.4: the permission catalogue and shipped roles are the server's, the roles screen an administrator's) |
 | Third answers | Board versions are not thinned like page versions | open: build it (accepted.md, "The owner's third answers", item 1) |
-| Third answers | A requester's erasure and REQUESTER expiry leave the intake's "From:" line in notes and comments | open: build it (accepted.md, "The owner's third answers", item 2) |
-| Third answers | UC-PRV-01 and the mail intake use case name no check for the erasure by address | open: build it (accepted.md, "The owner's third answers", item 3) |
+| Third answers | A requester's erasure and REQUESTER expiry leave the intake's "From:" line in notes and comments | closed: the line goes through the ordinary edits (UC-PRV-01 check 11, UC-JUM-12 check 8; accepted.md, "The owner's third answers", item 2) |
+| Third answers | UC-PRV-01 and the mail intake use case name no check for the erasure by address | closed: UC-PRV-01 check 11, UC-JUM-12 check 8 (accepted.md, "The owner's third answers", item 3) |
 | Third answers | LDAP synchronisation is not under the OWN_SIGN_IN_PROVIDERS entitlement | open: build it (accepted.md, "The owner's third answers", item 6) |
 | Third answers | Renamed hubctl flags have no aliases for their old names | open: build it (accepted.md, "The owner's third answers", item 7) |
 | Third answers | POST /items:export embeds the whole ItemQuery instead of its own query schema | open: build it (accepted.md, "The owner's third answers", item 8) |

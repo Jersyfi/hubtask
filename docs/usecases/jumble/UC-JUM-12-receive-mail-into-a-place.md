@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11, P-12]
 state: built
 tasks: []
-checked_by: [core/domain/model/mail/Route_test.go, core/domain/model/mail/Settings_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go, presentation/rest/MailIntakeController_test.go, apps/webapp/e2e/mail.test.mjs]
+checked_by: [core/application/service/privacy/IntakeLines_test.go, core/domain/model/mail/Route_test.go, core/domain/model/mail/Settings_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go, presentation/rest/MailIntakeController_test.go, apps/webapp/e2e/mail.test.mjs]
 ---
 
 # Receive mail into a place
@@ -52,6 +52,9 @@ operator's receiving domain.
    nothing a second time.
 7. The operator's inbound route refuses a request without the installation's inbound key, and an
    address that names no workspace with its intake on is answered not-found.
+8. When the sender's address is erased, or its requester record expires, the *From:* line goes from
+   the entries and comments filed for them, written in their history as an ordinary edit; a hold
+   on the workspace keeps it.
 
 ## Where it ends
 

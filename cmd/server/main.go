@@ -1832,6 +1832,10 @@ func run() error {
 		Owners: grants,
 		// A case by address erases a requester without an account (accepted.md B).
 		Addresses: postgres.RequesterRepository{IDs: ids},
+		// And the intake's "From:" line on what was filed for them (third answers 2).
+		IntakeLines: privacyservice.StripIntakeLines{
+			Lines: postgres.RequesterRepository{IDs: ids}, Entries: ruleCatalogue,
+		},
 	}
 	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
 	entitlementGate := adminservice.EntitlementGate{Plans: postgres.NewPlanRepository(), UnitOfWork: unitOfWork}
@@ -4466,6 +4470,10 @@ func run() error {
 			AgentJobs: postgres.AgentJobExpiry{},
 			// Requesters without an account, 24 months after their last contact (accepted.md B).
 			Requesters: postgres.RequesterRepository{IDs: ids},
+			// Their intake's "From:" line goes with them (third answers 2).
+			RequesterLines: privacyservice.StripIntakeLines{
+				Lines: postgres.RequesterRepository{IDs: ids}, Entries: ruleCatalogue,
+			},
 			// Pages and boards trashed on their own, after the trash's period, page versions
 			// thinned after ninety days (accepted.md B), and a board's history only under the
 			// workspace's own rule (WHITEBOARD_HISTORY).

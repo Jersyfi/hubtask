@@ -91,6 +91,9 @@ type Eraser struct {
 	// requester record, the mail receipts and the jumble entries it sent (accepted.md B). Nil
 	// erases nothing for such a case, as before.
 	Addresses AddressErasure
+	// IntakeLines removes the intake's "From:" line naming the address from the entries and
+	// comments filed on the requester's behalf (third answers 2). Zero removes none.
+	IntakeLines StripIntakeLines
 }
 
 // AddressErasure is the requester record's and the intake's half of an erasure by address.
@@ -586,6 +589,27 @@ func pseudonymFor(accountID shared.ID) string {
 	return fmt.Sprintf("%s%s", pseudonymPrefix, digest)
 }
 
+// stripIntakeLines removes the intake's lines naming the address unless a hold on the workspace
+// stands.
+func (e Eraser) stripIntakeLines(ctx context.Context, actor appshared.ActorContext, address string) (int, error) {
+	if e.IntakeLines.Lines == nil {
+		return 0, nil
+	}
+	stripped := 0
+	err := e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		holds, err := e.Holds.Active(ctx)
+		if err != nil {
+			return err
+		}
+		if _, held := holds.OnTenant(); held {
+			return nil
+		}
+		stripped, err = e.IntakeLines.Strip(ctx, actor.TenantID, []string{address}, actor)
+		return err
+	})
+	return stripped, err
+}
+
 // eraseAddress erases a requester without an account: the record, the mail receipts and the
 // jumble entries of the address - removed in a full deletion, stripped of the address otherwise.
 // The entries an account filed on their behalf are the team's and stay. A hold on the workspace
@@ -600,7 +624,13 @@ func (e Eraser) eraseAddress(
 	}
 	now := e.Clock.Now()
 	erased := Erased{Mode: request.ErasureMode}
-	err := e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	// The lines first, each through its own edit: a refusal leaves the case open rather than
+	// reported erased while the name is still on an entry. A workspace hold keeps them.
+	stripped, err := e.stripIntakeLines(ctx, actor, address)
+	if err != nil {
+		return Erased{}, err
+	}
+	err = e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		found, err := e.Requests.Lock(ctx, request.ID)
 		if err != nil {
 			return err
@@ -628,6 +658,7 @@ func (e Eraser) eraseAddress(
 		if erased.Intake, err = e.Addresses.EraseAddress(ctx, address, request.ErasureMode == domain.ModeFullDelete); err != nil {
 			return err
 		}
+		erased.Intake += stripped
 		// Nothing kept: a remainder that runs this marks the earlier record erased.
 		return e.Kept.RecordKept(ctx, request.ID, nil, now)
 	})

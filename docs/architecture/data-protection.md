@@ -119,8 +119,12 @@ practice. Rules:
   (`REQUESTER`, [data-retention.md](./data-retention.md) §3). A case naming only an address erases
   the record and the address's mail receipts in both modes, and its jumble entries in a full
   deletion (the anonymisation keeps their text without the address); the entries filed for the
-  person are the team's and stay, with the `From:` line the intake wrote. A hold on the workspace
-  keeps it all, recorded as kept, and the remainder erases it when the hold is released; no
+  person are the team's and stay, without the `From:` line the intake wrote above their notes and
+  comments: it is removed through the ordinary edit and comment use cases, as the account that
+  filed it (or, refused, the owner running the erasure), so the history, the devices and the trail
+  follow; a comment holding nothing else is deleted. `REQUESTER` expiry removes the line the same
+  way, and a line nobody may edit any more is logged and left. A hold on the workspace keeps it
+  all, recorded as kept, and the remainder erases it when the hold is released; no
   narrower hold reaches what an address sent.
   The record's one other use is answering the person: a public reply on an entry filed for them is
   mailed to the address, one mail per address (UC-SVC-12); the queued job names the comment only,

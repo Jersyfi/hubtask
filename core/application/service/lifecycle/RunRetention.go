@@ -69,6 +69,9 @@ type RunRetention struct {
 	// Requesters is the record of requesters without an account (REQUESTER). Optional, the
 	// deliveries' reason.
 	Requesters ExpiringRows
+	// RequesterLines removes the intake's "From:" line of each requester the batch removes, before
+	// it goes (third answers 2). Optional: without it the lines stay, as before.
+	RequesterLines RequesterLines
 	// Proposals is the suggestion store's remover. Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before, and what it would have
 	// removed is a working note rather than personal content nobody looks at - a suggestion's
@@ -375,7 +378,11 @@ func (h RunRetention) Execute(
 
 	requesters := Outcome{}
 	if h.Requesters != nil {
-		if requesters, err = h.sweepHeldByTenant(ctx, started, domain.KindRequester, h.Requesters); err != nil {
+		rows := h.Requesters
+		if h.RequesterLines != nil {
+			rows = requesterRows{rows: rows, lines: h.RequesterLines, tenantID: actor.TenantID}
+		}
+		if requesters, err = h.sweepHeldByTenant(ctx, started, domain.KindRequester, rows); err != nil {
 			return outcome, err
 		}
 	}
@@ -999,6 +1006,30 @@ func (h RunRetention) sweepHeldByTenant(
 		return Outcome{}, err
 	}
 	return h.sweepHeldUntil(ctx, started, kind, cutoff, rows)
+}
+
+// RequesterLines removes the intake's lines of the requesters the next REQUESTER batch removes.
+type RequesterLines interface {
+	BeforeExpiry(ctx context.Context, tenantID shared.ID, cutoff time.Time, batch int) error
+}
+
+// requesterRows strips the batch's intake lines before the batch goes, in the same transaction and
+// only when no hold stopped the sweep.
+type requesterRows struct {
+	rows     ExpiringRows
+	lines    RequesterLines
+	tenantID shared.ID
+}
+
+func (r requesterRows) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
+	return r.rows.CountExpired(ctx, cutoff, ceiling)
+}
+
+func (r requesterRows) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	if err := r.lines.BeforeExpiry(ctx, r.tenantID, cutoff, batch); err != nil {
+		return 0, err
+	}
+	return r.rows.DeleteExpired(ctx, cutoff, batch)
 }
 
 // tenantCutoff is the cutoff of a kind with a default period: the workspace's TENANT-scope rule
