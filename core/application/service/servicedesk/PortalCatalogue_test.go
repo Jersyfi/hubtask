@@ -7,10 +7,10 @@ import (
 	"context"
 	"testing"
 
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
-	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 )
 
 type brandedDesk struct{ workrepo.Containers }

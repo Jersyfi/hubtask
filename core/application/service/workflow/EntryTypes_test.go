@@ -304,7 +304,7 @@ func TestATypeCarriesItsTextsPerLanguage(t *testing.T) {
 	f := newFixture()
 	out, err := workflow.CreateEntryType{Registry: f.registry}.Descriptor().Handler.Invoke(ctx, actor(), usecase.Input{
 		"key": "incident", "level": "TASK", "name": "Incident", "icon": "alert", "color_token": "red",
-		"description": "Something is broken",
+		"description":  "Something is broken",
 		"translations": map[string]any{"de": map[string]any{"name": "Störung", "description": "Etwas ist kaputt"}},
 	})
 	if err != nil {

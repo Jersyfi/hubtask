@@ -145,7 +145,9 @@ func (w *sampleWorld) Mark(_ context.Context, _, item shared.ID, key string, _ t
 	return true, nil
 }
 
-func (w *sampleWorld) List(context.Context, shared.ID) ([]configrepo.Sample, error) { return w.listed, nil }
+func (w *sampleWorld) List(context.Context, shared.ID) ([]configrepo.Sample, error) {
+	return w.listed, nil
+}
 
 func sampleFixture() (fixture, *sampleWorld) {
 	f := hubFixture()

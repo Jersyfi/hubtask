@@ -43,7 +43,7 @@ func TestATypesTextsAreStoredWholeAndItsOwn(t *testing.T) {
 	incident, err := domain.NewEntryType(domain.NewEntryTypeInput{
 		ID: shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fe11"), TenantID: textsTenantA,
 		Key: "incident", Level: domain.ItemTask, Name: "Incident", Icon: "alert", ColorToken: "red",
-		Description: "Something is broken",
+		Description:  "Something is broken",
 		Translations: map[string]domain.EntryTypeText{"de": {Name: "Störung", Description: "Etwas ist kaputt"}},
 		Behaviours:   domain.EntryBehaviours{Completable: true, Schedulable: true}, Now: now, Text: text.Composing{},
 	})

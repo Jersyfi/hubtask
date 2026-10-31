@@ -23,7 +23,7 @@ import (
 // lintCollection and lintHandle stand for the collection a collection part is linted against.
 const (
 	lintCollection shared.ID = "00000000-0000-7000-8000-000000000001"
-	lintHandle               = "collection"
+	lintHandle     string    = "collection"
 )
 
 // collectionField is the input naming a collection taking a template's collection part.
