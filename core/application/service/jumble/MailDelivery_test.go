@@ -328,6 +328,9 @@ func TestAStrangerWaitsUnlessTheLevelAdmitsThem(t *testing.T) {
 	if create.actor.AccountID != opener || !strings.HasPrefix(create.in.String("notes"), "From: Kunde <kunde@shop.test>") {
 		t.Errorf("written as %s with %q", create.actor.AccountID, create.in.String("notes"))
 	}
+	if !create.actor.ForSender {
+		t.Error("the sender's words are not marked as theirs (UC-SVC-12)")
+	}
 }
 
 func TestABlockedOrAutomaticOrFloodingSenderIsDropped(t *testing.T) {

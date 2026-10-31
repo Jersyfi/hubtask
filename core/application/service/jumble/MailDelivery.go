@@ -362,6 +362,7 @@ func (h ReceiveMail) write(
 	text := domain.CutQuotedReply(message.Body)
 	if onBehalf {
 		text = fromLine(message) + "\n\n" + text
+		actor.ForSender = true
 	}
 	var result MailDeliveryResult
 	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {

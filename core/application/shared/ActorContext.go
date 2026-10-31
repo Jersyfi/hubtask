@@ -87,6 +87,10 @@ type ActorContext struct {
 	// set by the adapter - MCP, the sync service, mail intake, import - and empty for the REST
 	// door, which the web app and hubctl share.
 	Channel string
+	// ForSender marks words that are a sender's without an account, filed by the mail intake as
+	// the administrator who opened it (UC-JUM-12 check 4). Set by the intake and nowhere else: a
+	// comment so filed is the requester's own, never a reply mailed back to them (UC-SVC-12).
+	ForSender bool
 	// Present is true for a request a person is waiting on now: a call through the REST API - the
 	// web app's door and hubctl's - set by that adapter and nowhere else. It decides one thing:
 	// whether the workspace owner's running emergency access to a private hub counts (ADR-0073 §4,

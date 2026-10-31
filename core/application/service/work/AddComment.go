@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"maps"
 	"time"
 
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
@@ -213,10 +214,16 @@ func (h AddComment) Execute(
 		if err != nil {
 			return err
 		}
+		snapshot := announcement.Payload
+		if actor.ForSender {
+			// The event's alone: the moment's door, not a fact of the comment a device keeps.
+			announcement.Payload = maps.Clone(snapshot)
+			announcement.Payload["by_requester"] = true
+		}
 		if err := w.Events.Append(ctx, announcement); err != nil {
 			return err
 		}
-		if err := w.recordChange(ctx, comment, item, actor, announcement.Payload); err != nil {
+		if err := w.recordChange(ctx, comment, item, actor, snapshot); err != nil {
 			return err
 		}
 		if err := w.recordAudit(ctx, comment, actor, CommentCreatedAction, now); err != nil {

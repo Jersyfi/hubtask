@@ -212,6 +212,30 @@ func TestCommentingWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 	}
 }
 
+// A sender's words the mail intake filed say so in the event, so the reply mail never answers the
+// requester with themselves (UC-SVC-12); a device's copy of the comment keeps no such mark.
+func TestASendersFiledWordsAreMarkedInTheEventAlone(t *testing.T) {
+	h := newCommentHarness(t)
+	h.withItem(domain.ItemTask)
+	filed := actor()
+	filed.ForSender = true
+	if _, err := (AddComment{Writer: h.writer}).Execute(t.Context(), filed, addCmd("Still broken.")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (AddComment{Writer: h.writer}).Execute(t.Context(), actor(), addCmd("Fixed.")); err != nil {
+		t.Fatal(err)
+	}
+	if h.events.appended[0].Payload["by_requester"] != true {
+		t.Errorf("the filed words' event is %+v", h.events.appended[0].Payload)
+	}
+	if _, marked := h.events.appended[1].Payload["by_requester"]; marked {
+		t.Error("a reply somebody wrote is marked as the requester's")
+	}
+	if _, marked := h.changes.recorded[0].Payload["by_requester"]; marked {
+		t.Error("the change log's copy carries the mark")
+	}
+}
+
 // Rule 10: the body is user content. The audit entry records a fingerprint of it, never the text.
 func TestTheCommentAuditEntryCarriesNoText(t *testing.T) {
 	h := newCommentHarness(t)
