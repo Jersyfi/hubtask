@@ -113,3 +113,27 @@ The completion round raised eleven further questions; the owner accepted every p
     person to approve, only for a ticket nobody holds. UC-AGT-07 gets check 9, and its *Where it
     ends* says a group itself holds no ticket and skills are not weighed.
 11. Searching inside attached files: not now; search stays by file name (no text extractor).
+
+## The owner's third answers — 2026-10-31
+
+The decisions round raised ten further questions; the owner accepted every proposal
+("Accept all", 2026-10-31).
+
+1. Board versions (`whiteboard_version`) are thinned like page versions: named versions and the
+   newest of each day are kept, the others go after 90 days.
+2. On a requester's erasure, and on `REQUESTER` expiry, the intake-written first line
+   "From: name <address>" of their entries' notes and comments is removed through the ordinary
+   update and comment use cases.
+3. UC-PRV-01 (and the mail intake's use case) get a check: a case naming only an address erases the
+   requester record, the receipts and the intake of that address; a workspace hold keeps it.
+4. goxmldsig (Apache-2.0) is accepted as the XML signature library for SAML.
+5. The changed *Where it ends* of UC-ID-11 and UC-ID-28 (SAML is UC-ID-30) is confirmed.
+6. LDAP synchronisation (`ConfigureLdapDirectory`, `SyncLdapDirectory`) belongs to the
+   `OWN_SIGN_IN_PROVIDERS` plan entitlement (UC-INS-13 checks 4 and 5, multi-tenancy.md §4.2).
+7. `hubctl` flags renamed to the contract's names keep their old names as aliases, so existing
+   scripts do not break.
+8. `POST /items:export` gets its own query schema without `page`, `count`, `group_by` and `expand`.
+9. The 10⁷ capacity run: the owner provides the host; the command is in `test/load/README`.
+10. The retention sweeps of kinds with a default period (`DOCUMENT_HISTORY`, `PAGE_VERSION`,
+    `AGENT_*`, `REQUESTER`, …) read the workspace's TENANT-scope rule, as `WHITEBOARD_HISTORY` does,
+    keeping each kind's lower bound.

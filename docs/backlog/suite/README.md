@@ -181,6 +181,13 @@ this list with its row.
 | S-24 coverage | Forms: no `PUBLIC` channel (anonymous, per-address rate limit, proof-of-work, off by default) and no scan port for uploads (a no-op adapter and a clamd adapter, a file held back until scanned) | S-24 (a later coverage worker) |
 | S-24 coverage | Matrix: no widget definition for a room and no portal tile (UC-INT-18 answers links and captures tasks only) | S-24 (a later coverage worker) |
 | S-24 coverage | Wiki import: the editor's table and details blocks need new npm packages (the owner's); HTML and DOCX are converters now (UC-IMP-05 check 7), and a notes app's export is read as its Markdown or HTML export | S-24 (a later coverage worker) |
+| Third answers | Board versions are not thinned like page versions | open: build it (accepted.md, "The owner's third answers", item 1) |
+| Third answers | A requester's erasure and REQUESTER expiry leave the intake's "From:" line in notes and comments | open: build it (accepted.md, "The owner's third answers", item 2) |
+| Third answers | UC-PRV-01 and the mail intake use case name no check for the erasure by address | open: build it (accepted.md, "The owner's third answers", item 3) |
+| Third answers | LDAP synchronisation is not under the OWN_SIGN_IN_PROVIDERS entitlement | open: build it (accepted.md, "The owner's third answers", item 6) |
+| Third answers | Renamed hubctl flags have no aliases for their old names | open: build it (accepted.md, "The owner's third answers", item 7) |
+| Third answers | POST /items:export embeds the whole ItemQuery instead of its own query schema | open: build it (accepted.md, "The owner's third answers", item 8) |
+| Third answers | Retention sweeps of default-period kinds ignore the workspace's TENANT-scope rule | open: build it (accepted.md, "The owner's third answers", item 10) |
 
 ## State
 
