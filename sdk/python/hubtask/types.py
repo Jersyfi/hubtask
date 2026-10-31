@@ -4402,7 +4402,16 @@ class ItemExport(TypedDict, total=False):
     """What to render and how. The query decides which rows; the format decides what they become."""
     format: Required[Literal["CSV", "JSON", "ICS"]]
     time_zone: str
-    query: Required["ItemQuery"]
+    query: Required["ItemExportQuery"]
+
+class ItemExportQuery(TypedDict, total=False):
+    """The rows of an export: the question POST /items:query takes, without the page, the count, the grouping and the expansion - a file is every row up to max_export_rows, flat."""
+    scope: Required[dict[str, Any]]
+    q: str
+    filter: "FilterNode"
+    sort: list["SortTerm"]
+    include_archived: bool
+    include_trashed: bool
 
 class ItemExportDocument(TypedDict, total=False):
     """The JSON rendering - the query's rows, and what the export knows about itself."""

@@ -17249,7 +17249,9 @@ type ItemAttachments struct {
 type ItemExport struct {
 	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
 	Format ItemExportFormat `json:"format"`
-	Query  ItemQuery        `json:"query"`
+
+	// Query The rows of an export: the question POST /items:query takes, without the page, the count, the grouping and the expansion - a file is every row up to max_export_rows, flat.
+	Query ItemExportQuery `json:"query"`
 
 	// TimeZone The zone the dates are written in. Defaults to the caller's own. It decides how a timestamp reads, never which rows are selected.
 	TimeZone *string `json:"time_zone,omitempty"`
@@ -17267,6 +17269,37 @@ type ItemExportDocument struct {
 
 	// Truncated True when the result reached max_export_rows. The same statement the Export-Truncated header makes, in the one format that can carry it in the body.
 	Truncated bool `json:"truncated"`
+}
+
+// ItemExportQuery The rows of an export: the question POST /items:query takes, without the page, the count, the grouping and the expansion - a file is every row up to max_export_rows, flat.
+type ItemExportQuery struct {
+	// Filter Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
+	// `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
+	// `nodes`, is refused rather than half-read.
+	//
+	// Combinations nest at most five deep and a filter holds at most fifty nodes in total - the
+	// bound that keeps a query's cost a function of the data rather than of the request.
+	Filter          *FilterNode `json:"filter,omitempty"`
+	IncludeArchived *bool       `json:"include_archived,omitempty"`
+	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
+
+	// Q The filter and the order as one line instead of `filter` and `sort`, read exactly as on POST /items:query.
+	Q *string `json:"q,omitempty"`
+
+	// Scope Where to look. Exactly one of `container_id` and `item_id`, and it is required: the permission is checked against this scope once for the whole result.
+	Scope struct {
+		// ContainerId A collection, or a hub - with `include_descendants`, a hub covers the items of every collection in it.
+		ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
+
+		// IncludeDescendants False narrows the scope to one level: the entries directly in the collection, or the direct children of the entry. Ignored for a hub.
+		IncludeDescendants *bool `json:"include_descendants,omitempty"`
+
+		// ItemId An entry, whose subtree is exported with `include_descendants`.
+		ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+	} `json:"scope"`
+
+	// Sort Ordered, most significant first, and always completed by `id ASC`. Defaults to the manual order (`order_key ASC`).
+	Sort *[]SortTerm `json:"sort,omitempty"`
 }
 
 // ItemLabels The labels one entry carries. Returned by adding and removing rather than the entry itself, because neither touches the entry's own row: a label lives beside it, and an entry whose version had moved would tell a client its title had changed too.
@@ -35435,7 +35468,7 @@ type ClientInterface interface {
 	// ExportItemsWithBody The result of a query, as a file
 	//
 	// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
-	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so its query has no page, count, grouping or expansion; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35445,7 +35478,7 @@ type ClientInterface interface {
 	// ExportItems The result of a query, as a file
 	//
 	// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
-	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so its query has no page, count, grouping or expansion; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -52886,7 +52919,7 @@ func (c *Client) FindDuplicatesByTitle(ctx context.Context, body FindDuplicatesB
 // ExportItemsWithBody The result of a query, as a file
 //
 // A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
-// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so its query has no page, count, grouping or expansion; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
 //
 // Takes any type of body and a specified content type.
 //
@@ -52906,7 +52939,7 @@ func (c *Client) ExportItemsWithBody(ctx context.Context, params *ExportItemsPar
 // ExportItems The result of a query, as a file
 //
 // A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
-// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so its query has no page, count, grouping or expansion; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -104851,7 +104884,7 @@ type ClientWithResponsesInterface interface {
 	// ExportItemsWithBodyWithResponse The result of a query, as a file
 	//
 	// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
-	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so its query has no page, count, grouping or expansion; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -104861,7 +104894,7 @@ type ClientWithResponsesInterface interface {
 	// ExportItemsWithResponse The result of a query, as a file
 	//
 	// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
-	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so its query has no page, count, grouping or expansion; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -158109,7 +158142,7 @@ func (c *ClientWithResponses) FindDuplicatesByTitleWithResponse(ctx context.Cont
 // ExportItemsWithBodyWithResponse The result of a query, as a file
 //
 // A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
-// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so its query has no page, count, grouping or expansion; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -158125,7 +158158,7 @@ func (c *ClientWithResponses) ExportItemsWithBodyWithResponse(ctx context.Contex
 // ExportItemsWithResponse The result of a query, as a file
 //
 // A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
-// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so its query has no page, count, grouping or expansion; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

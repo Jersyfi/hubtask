@@ -18680,7 +18680,6 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-rest-writer: { by: exportItemsWriter, members: [format, time_zone] }
       x-hubtask-rest-flatten: { query: { q: q, filter: filter, sort: sort, include_archived: include_archived, include_trashed: include_trashed, scope.container_id: scope_container_id, scope.item_id: scope_item_id, scope.include_descendants: include_descendants } }
-      x-hubtask-rest-drop: [query.page, query.count, query.group_by, query.expand]
       summary: The result of a query, as a file
       description: >
         A collection as it is filtered, rendered whole without saving a view first: the same
@@ -18690,9 +18689,9 @@ paths:
 
         The query is checked against its scope once, under the caller's authorisation, exactly
         as POST /items:query checks it - a refusal is a refusal rather than an empty file. The
-        export walks every page itself up to max_export_rows, so the query's page, count,
-        group_by and expand are not its business and are ignored; a result that reached the cap
-        is answered whole up to the cap with the Export-Truncated header set.
+        export walks every page itself up to max_export_rows, so its query has no page, count,
+        grouping or expansion; a result that reached the cap is answered whole up to the cap
+        with the Export-Truncated header set.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -34464,7 +34463,53 @@ components:
             The zone the dates are written in. Defaults to the caller's own. It decides how a
             timestamp reads, never which rows are selected.
           example: "Europe/Berlin"
-        query: { $ref: "#/components/schemas/ItemQuery" }
+        query: { $ref: "#/components/schemas/ItemExportQuery" }
+
+    ItemExportQuery:
+      type: object
+      required: [scope]
+      description: >
+        The rows of an export: the question POST /items:query takes, without the page, the count,
+        the grouping and the expansion - a file is every row up to max_export_rows, flat.
+      properties:
+        scope:
+          type: object
+          description: >
+            Where to look. Exactly one of `container_id` and `item_id`, and it is required: the
+            permission is checked against this scope once for the whole result.
+          properties:
+            container_id:
+              type: string
+              format: uuid
+              description: >
+                A collection, or a hub - with `include_descendants`, a hub covers the items of
+                every collection in it.
+            item_id:
+              type: string
+              format: uuid
+              description: An entry, whose subtree is exported with `include_descendants`.
+            include_descendants:
+              type: boolean
+              default: true
+              description: >
+                False narrows the scope to one level: the entries directly in the collection, or
+                the direct children of the entry. Ignored for a hub.
+        q:
+          type: string
+          maxLength: 4000
+          description: >
+            The filter and the order as one line instead of `filter` and `sort`, read exactly as
+            on POST /items:query.
+        filter: { $ref: "#/components/schemas/FilterNode" }
+        sort:
+          type: array
+          maxItems: 4
+          description: >
+            Ordered, most significant first, and always completed by `id ASC`. Defaults to the
+            manual order (`order_key ASC`).
+          items: { $ref: "#/components/schemas/SortTerm" }
+        include_archived: { type: boolean, default: false }
+        include_trashed: { type: boolean, default: false }
 
     ItemExportDocument:
       type: object

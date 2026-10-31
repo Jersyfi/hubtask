@@ -27517,14 +27517,8 @@
             "scope.include_descendants": "include_descendants"
           }
         },
-        "x-hubtask-rest-drop": [
-          "query.page",
-          "query.count",
-          "query.group_by",
-          "query.expand"
-        ],
         "summary": "The result of a query, as a file",
-        "description": "A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.\nThe query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.\n",
+        "description": "A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.\nThe query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so its query has no page, count, grouping or expansion; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -56549,7 +56543,61 @@
             "example": "Europe/Berlin"
           },
           "query": {
-            "$ref": "#/components/schemas/ItemQuery"
+            "$ref": "#/components/schemas/ItemExportQuery"
+          }
+        }
+      },
+      "ItemExportQuery": {
+        "type": "object",
+        "required": [
+          "scope"
+        ],
+        "description": "The rows of an export: the question POST /items:query takes, without the page, the count, the grouping and the expansion - a file is every row up to max_export_rows, flat.\n",
+        "properties": {
+          "scope": {
+            "type": "object",
+            "description": "Where to look. Exactly one of `container_id` and `item_id`, and it is required: the permission is checked against this scope once for the whole result.\n",
+            "properties": {
+              "container_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "A collection, or a hub - with `include_descendants`, a hub covers the items of every collection in it.\n"
+              },
+              "item_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "An entry, whose subtree is exported with `include_descendants`."
+              },
+              "include_descendants": {
+                "type": "boolean",
+                "default": true,
+                "description": "False narrows the scope to one level: the entries directly in the collection, or the direct children of the entry. Ignored for a hub.\n"
+              }
+            }
+          },
+          "q": {
+            "type": "string",
+            "maxLength": 4000,
+            "description": "The filter and the order as one line instead of `filter` and `sort`, read exactly as on POST /items:query.\n"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/FilterNode"
+          },
+          "sort": {
+            "type": "array",
+            "maxItems": 4,
+            "description": "Ordered, most significant first, and always completed by `id ASC`. Defaults to the manual order (`order_key ASC`).\n",
+            "items": {
+              "$ref": "#/components/schemas/SortTerm"
+            }
+          },
+          "include_archived": {
+            "type": "boolean",
+            "default": false
+          },
+          "include_trashed": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
