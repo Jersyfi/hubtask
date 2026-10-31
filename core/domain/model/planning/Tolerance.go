@@ -8,7 +8,7 @@ import (
 )
 
 // TimeToleranceKey is how many calendar days a plan's forecast end may slip past its agreed one
-// before the plan is in exception (standards.md P12, PRINCE2's time tolerance). Decided by the
+// before the plan is in exception (configuration.md §10, PRINCE2's time tolerance). Decided by the
 // workspace, a hub or a collection, inherited below and lockable there, like every setting.
 const TimeToleranceKey setting.Key = "planning.time_tolerance_days"
 

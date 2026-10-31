@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// templates.md §1, a hub template: a template's hub part is taken by a hub once the workspace took
+// configuration.md §6, a hub template: a template's hub part is taken by a hub once the workspace took
 // the template's own part, applied to the hub through the hub's use cases, and recorded as that
 // hub's provenance - not the workspace's, and the base of the hub's own upgrade.
 func TestAHubTakesATemplatesHubPart(t *testing.T) {

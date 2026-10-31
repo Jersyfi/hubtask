@@ -31,7 +31,7 @@ const MaxAnswerLength = 200
 // rewritten.
 const answerMark = "answer:"
 
-// Question is what a template asks when it is applied (templates.md §1), "which group answers
+// Question is what a template asks when it is applied (configuration.md §6), "which group answers
 // first". Its key is what the document's marks name.
 type Question struct {
 	Key      string

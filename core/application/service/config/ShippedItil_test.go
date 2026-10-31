@@ -44,7 +44,7 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	if template.Origin != domain.OriginHubtask || template.Version != 6 || !reservedKey(template.Key) {
 		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
 	}
-	// Its hub part (templates.md §1): the hub's switches and which of the template's workflows
+	// Its hub part (configuration.md §6): the hub's switches and which of the template's workflows
 	// each of its types follows in the hub - every section one a hub's document has.
 	hubKnown := map[string]bool{}
 	for _, s := range hubSections(lintHub) {
@@ -87,7 +87,7 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	if len(template.Hub[sectionRules]) == 0 {
 		t.Error("the desk brings no macro")
 	}
-	// Its one timed rule (templates.md §1): a resolved incident is closed a week after it was done,
+	// Its one timed rule (configuration.md §6): a resolved incident is closed a week after it was done,
 	// asked again when it is due, so one reopened or closed by hand is left alone.
 	closing := template.Hub[sectionRules]["close_resolved"]
 	if trigger, _ := closing["trigger"].(map[string]any); trigger["kind"] != "RELATIVE_DATE" || trigger["anchor"] != "COMPLETED_AT" {
@@ -101,7 +101,7 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	}); err != nil {
 		t.Errorf("the closing rule: %v", err)
 	}
-	// Its escalation (templates.md §1): an SLA goal at risk tells the assignee by an internal
+	// Its escalation (configuration.md §6): an SLA goal at risk tells the assignee by an internal
 	// comment, a breached one also raises an incident's priority by one step.
 	escalation := map[string]string{"sla_at_risk": "de.hubtask.work.item.sla_at_risk.v1", "sla_breached": "de.hubtask.work.item.sla_breached.v1"}
 	for key, block := range template.Hub[sectionRules] {

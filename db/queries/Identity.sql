@@ -130,7 +130,7 @@ SELECT EXISTS (
 -- How many people hold a role - built-in or the workspace's own, directly or through a group - in
 -- the tenant, or within one hub when hub_id is named: at the hub, at a collection of it, at an
 -- entry there, or at the workspace unless the hub is private. A disabled or deleted account is
--- not counted. What a module switched off there leaves without it (config-document.md §2).
+-- not counted. What a module switched off there leaves without it (configuration.md §2).
 WITH grants AS (
   SELECT m.account_id, m.group_id, m.scope_type, m.scope_id FROM membership m
   UNION ALL

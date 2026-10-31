@@ -41,7 +41,7 @@
 
   $effect(() => untrack(() => quotas.open()));
 
-  // The configuration check (configuration/ui.md A5, UC-CFG-01 check 10): what the configuration
+  // The configuration check (configuration.md §11, UC-CFG-01 check 10): what the configuration
   // in force would strand people on, found before they meet it.
   const mayCheck = $derived(holdsHere('STRUCTURE') === true || mayReadConfiguration);
   let check = $state<{ status: string; data?: ConfigCheck }>({ status: 'idle' });

@@ -327,7 +327,7 @@ WHERE a.deleted_at IS NULL AND a.status <> 'DISABLED'
 // How many people hold a role - built-in or the workspace's own, directly or through a group - in
 // the tenant, or within one hub when hub_id is named: at the hub, at a collection of it, at an
 // entry there, or at the workspace unless the hub is private. A disabled or deleted account is
-// not counted. What a module switched off there leaves without it (config-document.md §2).
+// not counted. What a module switched off there leaves without it (configuration.md §2).
 func (q *Queries) CountPeopleReaching(ctx context.Context, hubID pgtype.UUID) (int32, error) {
 	row := q.db.QueryRow(ctx, countPeopleReaching, hubID)
 	var people int32

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// What a configuration plan reaches beyond the configuration (config-document.md §2), as the
+// What a configuration plan reaches beyond the configuration (configuration.md §2), as the
 // lines a person reads before applying it: every count the server answered, none invented. A
 // reach the reader may not see is said once and counts nothing.
 

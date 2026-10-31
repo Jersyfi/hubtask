@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// TemplateOrigin is who keeps a template (configuration/templates.md §2).
+// TemplateOrigin is who keeps a template (configuration.md §7).
 type TemplateOrigin string
 
 const (
@@ -31,7 +31,7 @@ type Template struct {
 	Name     string
 	Origin   TemplateOrigin
 	Document Document
-	// Hub is the part a hub takes (templates.md §1, a hub template): a hub's own document - its
+	// Hub is the part a hub takes (configuration.md §6, a hub template): a hub's own document - its
 	// switches, structure, scheme and calendars - beside the workspace's part; nil for a template
 	// of the workspace only.
 	Hub Document

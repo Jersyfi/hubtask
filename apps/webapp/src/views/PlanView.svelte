@@ -104,7 +104,7 @@
     });
   });
 
-  // The plan's time tolerance and its standing against the latest baseline (standards.md P12):
+  // The plan's time tolerance and its standing against the latest baseline (configuration.md §10):
   // beyond it the plan is in exception, drawn as a danger banner every reader sees.
   let tolerance = $state<PlanTolerance | undefined>(undefined);
   $effect(() => {

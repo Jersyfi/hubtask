@@ -37,7 +37,7 @@ func TestEveryWorkspaceSettingIsInTheDocument(t *testing.T) {
 }
 
 // Every catalogue setting a hub or a collection may decide is a block of the hub's document
-// (config-document.md §1): the hub's own in a section of its own, a collection's in a collection
+// (configuration.md §1): the hub's own in a section of its own, a collection's in a collection
 // section keyed by its handle. A new setting decided there that joins none of them fails here
 // rather than being left out of an export, a rollback and an apply to a second hub.
 func TestEveryHubAndCollectionSettingIsInTheHubsDocument(t *testing.T) {

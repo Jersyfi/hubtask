@@ -25,7 +25,7 @@ const collectionKeyPattern = "^[a-z][a-z0-9]{1,19}\\.[a-z][a-z0-9_]{0,62}$"
 
 // Schema is the document's JSON Schema, generated from the operations that write each section -
 // their declared fields, kinds, allowed values and descriptions - rather than kept beside them, so
-// it cannot say less or more than the use cases accept (configuration/model.md §4).
+// it cannot say less or more than the use cases accept (configuration.md §1).
 func (d Desk) Schema() map[string]any {
 	properties := d.sectionsSchema(sections())
 	properties[sectionSettings] = settingsSchema()
@@ -34,7 +34,7 @@ func (d Desk) Schema() map[string]any {
 		"$schema": "https://json-schema.org/draft/2020-12/schema",
 		"title":   "Hubtask configuration document",
 		"type":    "object", "properties": properties, "additionalProperties": false,
-		// A hub's own document, read and written with hub_id (config-document.md §1).
+		// A hub's own document, read and written with hub_id (configuration.md §1).
 		"$defs": map[string]any{"hub": map[string]any{
 			"title": "A hub's configuration document",
 			"type":  "object", "properties": hub, "additionalProperties": false,

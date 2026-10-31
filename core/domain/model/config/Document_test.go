@@ -120,7 +120,7 @@ func TestCountsOf(t *testing.T) {
 	}
 }
 
-// config-document.md §3: promoting a sandbox asks only what it changed since its copy, so what
+// configuration.md §3: promoting a sandbox asks only what it changed since its copy, so what
 // changed in force meanwhile is kept.
 func TestASandboxPromotesOnlyWhatItChanged(t *testing.T) {
 	base := Document{"types": Section{

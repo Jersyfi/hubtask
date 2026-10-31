@@ -85,7 +85,7 @@ test('a configuration finding opens the page of the block it names', () => {
   assert.equal(pageOfFinding('nothing.here'), undefined);
 });
 
-// configuration/ui.md A5: each block's own page shows the findings about its sections, in the
+// configuration.md §11: each block's own page shows the findings about its sections, in the
 // check's order, and none about another page's blocks.
 test('a page shows the findings about its own sections', () => {
   const findings = [

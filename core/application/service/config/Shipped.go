@@ -21,7 +21,7 @@ import (
 // the HUBTASK origin changes with a release, never at run time.
 var shippedAt = time.Date(2026, 10, 29, 0, 0, 0, 0, time.UTC)
 
-// The key a preset's template carries by origin (configuration/templates.md §1): Hubtask's by
+// The key a preset's template carries by origin (configuration.md §6): Hubtask's by
 // its own key, a saved one by its identifier. A workspace template may take none of them.
 const (
 	installationPrefix = "installation_"
@@ -31,8 +31,8 @@ const (
 
 // presetTemplates is every preset the reader may start from as a template bundling only the
 // structure part, read through ListPresets so it offers what the presets screen offers - held to
-// the installation's bound, a person's own to that person alone - and none is lost (templates.md
-// §1). Hubtask's carry their key as the name, which a client names in the reader's language
+// the installation's bound, a person's own to that person alone - and none is lost (configuration.md
+// §6). Hubtask's carry their key as the name, which a client names in the reader's language
 // (rule 8).
 //
 // Hubtask's document templates follow them (bundledTemplates): offered to every reader who may
@@ -66,7 +66,7 @@ func (d Desk) presetTemplates(ctx context.Context, actor appshared.ActorContext)
 }
 
 // shipped holds Hubtask's document templates, one file each: a template of the HUBTASK origin is
-// the release's, read once (templates.md §2). Its words are the template's own, which the
+// the release's, read once (configuration.md §7). Its words are the template's own, which the
 // workspace takes as its own vocabulary and renames at will - the template is content, not a
 // sentence the backend says (rule 8).
 //

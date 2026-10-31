@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// A hub's document holds its collections' own configuration too (config-document.md §1): what a
+// A hub's document holds its collections' own configuration too (configuration.md §1): what a
 // collection decides itself - its structure settings, its time tolerance, its shared views (a
 // queue is one) and its rules - in sections whose block key is the collection's handle, a dot and
 // the block's own key (`collection_views.network.open`). A handle names a collection of the

@@ -17,7 +17,7 @@ import (
 
 // RecordPlanException tells whoever decided a plan's time tolerance - the level above, as
 // PRINCE2's exception goes up - that the plan's forecast end slipped past its latest baseline's by
-// more than the tolerance (standards.md P12). REMINDER's switch decides: it is a moment the person
+// more than the tolerance (configuration.md §10). REMINDER's switch decides: it is a moment the person
 // asked to be told of when they set the bound. The record names the baseline and nothing else
 // (rule 10), and the table keeps one per baseline and recipient, so every later read of the same
 // exception writes nothing.

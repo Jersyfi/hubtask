@@ -31,7 +31,7 @@ var deskQuestions = []Question{
 	{Key: "tone", Kind: QuestionChoice, Options: []string{"formal", "casual"}, Required: true},
 }
 
-// A template's questions are answered when it is applied (templates.md §1): an answer takes the
+// A template's questions are answered when it is applied (configuration.md §6): an answer takes the
 // place of its mark, a question left open takes its default, and a block naming a question nobody
 // answered and nothing defaults is left out rather than applied half-made.
 func TestAnswersTakeThePlaceOfTheirMarks(t *testing.T) {

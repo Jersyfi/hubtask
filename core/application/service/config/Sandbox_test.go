@@ -9,7 +9,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 )
 
-// config-document.md §3: an agent changes the sandbox freely - the workspace's policy does not
+// configuration.md §3: an agent changes the sandbox freely - the workspace's policy does not
 // hold it back, because nothing runs - and the configuration in force stays as it is.
 func TestAnAgentChangesTheSandboxAndNothingRuns(t *testing.T) {
 	f := newFixture()

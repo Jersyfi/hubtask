@@ -17,7 +17,7 @@ func serviceShape(statuses ...string) map[string]any {
 	return map[string]any{"statuses": rows}
 }
 
-// config-document.md §2: a plan says what a workflow's new shape reaches - the entries it moves,
+// configuration.md §2: a plan says what a workflow's new shape reaches - the entries it moves,
 // taken from the publish preview of the shape the plan sets, before anything is saved.
 func TestAPlanNamesTheEntriesAWorkflowsNewShapeMoves(t *testing.T) {
 	f := newFixture()
@@ -88,7 +88,7 @@ func TestAPlanRefusesAShapeRemovingAStatusInUse(t *testing.T) {
 	}
 }
 
-// config-document.md §2: a plan says which people a role's change gives or takes a permission -
+// configuration.md §2: a plan says which people a role's change gives or takes a permission -
 // how many hold it directly and as a group, and the permissions gained and lost.
 func TestAPlanNamesThePeopleARolesChangeReaches(t *testing.T) {
 	f := newFixture()

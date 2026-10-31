@@ -218,7 +218,7 @@ async function one(storage: Storage, collection: string, id: string): Promise<Do
 }
 
 // ---------------------------------------------------------------------------------------------
-// References resolved from the copy (connected.md §5, P-19)
+// References resolved from the copy (P-19)
 // ---------------------------------------------------------------------------------------------
 
 const REFERENCE_STORES: Readonly<Record<string, string>> = {

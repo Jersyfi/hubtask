@@ -128,7 +128,7 @@ func TestTheSetsTravelOnlyWhenTheyWereRead(t *testing.T) {
 	}
 }
 
-// A rule that closes a resolved incident asks for its status (templates.md §1): the entry's type
+// A rule that closes a resolved incident asks for its status (configuration.md §6): the entry's type
 // and status read as the contract answers them, the status absent where no workflow runs.
 func TestTheDocumentNamesTheTypeAndTheStatus(t *testing.T) {
 	document := condition.ItemDocument(work.WorkItem{Type: work.ItemTask, EntryType: "incident", Status: "resolved"})

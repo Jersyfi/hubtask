@@ -47,7 +47,7 @@ operator ([control-mapping.md](./control-mapping.md)). Not legal advice.
 | (c) business continuity, 2024/2690 point 4 | Backups, restore drills per release, point-in-time recovery, a full workspace export and import | [backup-restore.md](../architecture/backup-restore.md), [tenant-export.md](../architecture/tenant-export.md) |
 | (h) cryptography | Envelope encryption of stored credentials, TLS for every connection | [security.md](../architecture/security.md) §8 |
 | (i) access control, (j) MFA | Roles and custom roles from a permission catalogue, second factor enforceable per workspace, passkeys, step-up, scoped tokens, revocable sessions | [identity.md](../architecture/identity.md), [control-mapping.md](./control-mapping.md) §1 |
-| 2024/2690 point 6 (configuration management) | The configuration document: export, plan, apply, history and rollback of a workspace's configuration | [config-document.md](../backlog/suite/configuration/config-document.md) |
+| 2024/2690 point 6 (configuration management) | The configuration document: export, plan, apply, history and rollback of a workspace's configuration | [configuration.md](../architecture/configuration.md) |
 
 ## 4. What stays the operator's
 

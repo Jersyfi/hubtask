@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	// The scopes of config-document.md §3: an agent token gets read and plan.
+	// The scopes of configuration.md §3: an agent token gets read and plan.
 	scopeRead  = "config:read"
 	scopePlan  = "config:plan"
 	scopeApply = "config:apply"
@@ -623,7 +623,7 @@ func (d Desk) resolveAgentApply(ctx context.Context, definition setting.Definiti
 // run applies a plan's operations in the caller's transaction; the first refusal ends it, named
 // by the key path it was for.
 // stepUp is the fresh proof an apply carries, handed to the operation changing the sign-in rule.
-// ApplyScopes are the per-section scopes of an apply (config-document.md §3): a token holding
+// ApplyScopes are the per-section scopes of an apply (configuration.md §3): a token holding
 // `config:apply:<section>` beside `config:apply` applies that section's blocks without holding each
 // block's own scope - an agent's token is given the sections it configures, not the areas' scopes.
 // The person's permission is asked by every block's use case as always; only the credential's

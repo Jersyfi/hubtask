@@ -140,7 +140,7 @@ const (
 	KindApprovalEmail Kind = "notification.approval"
 
 	// KindPlanExceptionEmail tells whoever decided a plan's time tolerance that the plan slipped
-	// past it (standards.md P12), under its own kind for the same rolling update: a process of the
+	// past it (configuration.md §10), under its own kind for the same rolling update: a process of the
 	// previous release does not know the record's baseline. Its attempt budget is
 	// PageReviewAttempts.
 	KindPlanExceptionEmail Kind = "notification.plan_exception"

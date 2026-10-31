@@ -85,7 +85,7 @@ func collectionsFixture() (fixture, placesCatalogue) {
 	return f, c
 }
 
-// config-document.md §1, UC-CFG-01: a hub's document holds its collections' own configuration -
+// configuration.md §1, UC-CFG-01: a hub's document holds its collections' own configuration -
 // structure, tolerance, queue and rule - by the collection's handle, and the hub's own tolerance;
 // another hub's collection is in none of it.
 func TestAHubsDocumentHoldsItsCollectionsOwnBlocks(t *testing.T) {

@@ -143,7 +143,7 @@ const (
 	AnchorDueDate   DateAnchor = "DUE_DATE"
 	AnchorCreatedAt DateAnchor = "CREATED_AT"
 	// AnchorCompletedAt is the moment the entry was done; an open entry has none, so a reopened
-	// one owes nothing ("close resolved incidents after a while", templates.md §1).
+	// one owes nothing ("close resolved incidents after a while", configuration.md §6).
 	AnchorCompletedAt DateAnchor = "COMPLETED_AT"
 	// AnchorField is a DATE or DATE_TIME custom field the trigger names by key, a contract's notice
 	// date: an entry whose field is empty, or holds no date, owes nothing.

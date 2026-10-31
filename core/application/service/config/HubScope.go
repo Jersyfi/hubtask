@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// A hub's own document (config-document.md §1) holds what the hub decides itself - its structure
+// A hub's own document (configuration.md §1) holds what the hub decides itself - its structure
 // settings, its module switches, which workflow it runs for which type, its own versions of the
 // workspace's business calendars, its time tolerance, its shared views and rules, and its
 // collections' own blocks (Collections.go) - each block by a key that is the same in every hub,

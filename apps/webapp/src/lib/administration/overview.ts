@@ -177,7 +177,7 @@ export interface FindingAt {
 }
 
 /**
- * The findings a block's own page shows (configuration/ui.md A5): those about a block of the
+ * The findings a block's own page shows (configuration.md §11): those about a block of the
  * sections the page configures, in the check's order - errors first.
  */
 export function findingsIn<F extends FindingAt>(findings: readonly F[], sections: readonly string[]): F[] {

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// Severity is how much a finding of the configuration check weighs (configuration/ui.md A5).
+// Severity is how much a finding of the configuration check weighs (configuration.md §11).
 type Severity string
 
 const (

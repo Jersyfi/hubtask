@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Two configuration documents compared block by block (config-document.md §5, *Changes*): each
+ * Two configuration documents compared block by block (configuration.md §5, *Changes*): each
  * block whose key path is in one and not the other, or whose attributes differ, in the order of
  * its section and key, so two versions are read side by side by what changed between them.
  */

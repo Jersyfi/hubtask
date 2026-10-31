@@ -20,6 +20,7 @@ one subject document, linked from the chapter that needs it; an ADR records why 
   [the data catalogue](../privacy/data-catalog.md), [data-retention.md](./data-retention.md),
   [backup-restore.md](./backup-restore.md), [tenant-export.md](./tenant-export.md).
 * Behaviour: [offline-sync.md](./offline-sync.md), [automation.md](./automation.md),
+  [configuration.md](./configuration.md),
   [ai-first.md](./ai-first.md), [i18n-l10n.md](./i18n-l10n.md).
 * Operation and delivery: [observability-reliability.md](./observability-reliability.md),
   [deployment.md](./deployment.md), [support-matrix.md](./support-matrix.md),

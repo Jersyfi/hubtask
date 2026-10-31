@@ -1,13 +1,13 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The *Templates* gallery (configuration/templates.md, ui.md §4): every template the reader may
+  // The *Templates* gallery (configuration.md §6, ui.md §4): every template the reader may
   // take, by its four origins, with its version, the version the workspace took and *Update
   // available*. Taking or updating is a plan first - the dialog shows what it changes, and an
   // update lists each change the template made, a change the workspace made itself unticked until
   // the person ticks it - and the apply is exactly that plan, recording `template@version`. In a
   // hub's settings, the templates with a hub part: the hub takes that part for itself, once the
-  // workspace took the template (templates.md §1).
+  // workspace took the template (configuration.md §6).
 
   import { untrack } from 'svelte';
   import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';

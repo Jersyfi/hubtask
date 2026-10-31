@@ -1394,7 +1394,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// somebody may still be using elsewhere.
 	"account_password_history": "§8.4 - hashes of passwords that are no longer current; an archive that carried them would be worth stealing, and a restore needs none of them",
 	"auth_pending":             "a half-finished sign-in lives minutes; restoring one would revive a credential that was already over",
-	// A scratch copy (config-document.md §3): what it led to is in the configuration's versions,
+	// A scratch copy (configuration.md §3): what it led to is in the configuration's versions,
 	// which are archived; restoring one would set a stale copy beside a configuration it no longer
 	// matches.
 	"config_sandbox": "a scratch copy of the configuration; the versions its promotion wrote are archived, a stale copy is not worth restoring",

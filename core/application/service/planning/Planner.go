@@ -94,7 +94,7 @@ type Planner struct {
 	Baselines planrepo.Baselines
 	Sprints   planrepo.Sprints
 	Releases  planrepo.Releases
-	// Settings holds a plan's tolerances (standards.md P12); nil leaves every plan without one.
+	// Settings holds a plan's tolerances (configuration.md §10); nil leaves every plan without one.
 	Settings settingrepo.Settings
 	// Exceptions tells whoever decided a plan's tolerance that the plan slipped past it; nil tells
 	// nobody, and the exception stands in the trail alone.

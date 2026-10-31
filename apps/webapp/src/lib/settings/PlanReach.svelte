@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What a configuration plan reaches beyond the configuration (config-document.md §2), drawn the
+  // What a configuration plan reaches beyond the configuration (configuration.md §2), drawn the
   // same wherever a plan is shown before it applies: a rollback, a template, a sandbox's promotion,
   // an agent's proposal.
 

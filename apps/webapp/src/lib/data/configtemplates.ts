@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The *Templates* gallery's arithmetic (configuration/templates.md): the four origins in the order
+ * The *Templates* gallery's arithmetic (configuration.md §6): the four origins in the order
  * the gallery draws them, what a template offers the workspace - to take it, to update it, or
  * nothing because the version in force is the newest -, and which of an upgrade's changes are
  * taken before the person chooses: every one the workspace did not change itself, never a conflict.

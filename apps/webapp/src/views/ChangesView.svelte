@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Changes* (configuration/ui.md §1, config-document.md §5): the changes proposed by agents
+  // *Changes* (configuration/ui.md §1, configuration.md §5): the changes proposed by agents
   // waiting for a person (D-16), the drafts not yet published, the configuration's versions with a
   // rollback and two of them compared, and the configuration file - the document every door reads,
   // never a second representation.
@@ -67,7 +67,7 @@
     }
   }
 
-  // An agent's proposal is shown with the same preview as any plan (config-document.md §3): planned
+  // An agent's proposal is shown with the same preview as any plan (configuration.md §3): planned
   // afresh against the configuration in force, as the reader, writing nothing.
   let previewing = $state<string>();
   let previewed = $state<ConfigPlan>();
@@ -184,7 +184,7 @@
     }
   }
 
-  // *Sandbox* (config-document.md §3): a copy where an agent changes freely and nothing runs;
+  // *Sandbox* (configuration.md §3): a copy where an agent changes freely and nothing runs;
   // promoting it applies what it changed since its copy, by the plan shown here.
   let sandbox = $state<ResourceState<ConfigSandbox>>();
   $effect(() => untrack(() => config.sandbox((next) => (sandbox = next))));

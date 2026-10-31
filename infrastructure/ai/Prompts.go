@@ -347,7 +347,7 @@ const (
 	// provider. It is published over MCP and never asked by anything in `core`.
 	PromptWeeklyReview = "weekly-review"
 	// PromptConfigureWorkspace is the agent guide to the configuration document
-	// (configuration/config-document.md §4): published over MCP, never asked by `core`.
+	// (configuration.md §4): published over MCP, never asked by `core`.
 	PromptConfigureWorkspace = "configure-workspace"
 )
 

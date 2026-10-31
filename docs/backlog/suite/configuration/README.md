@@ -17,10 +17,10 @@ features. Every existing screen changes where the result requires it.
 |---|---|
 | [`today.md`](./today.md) | What Hubtask's administration is today, read from the code on `main` (b832f6ceb), and where it already splits the way the market does |
 | [`model.md`](./model.md) | The model: levels and who configures them, the building blocks, the one-solution rule, the settings catalogue |
-| [`templates.md`](./templates.md) | Templates (blueprints): what they bundle, the four origins, versions and upgrades |
+| [`templates.md`](./templates.md) | Moved to `docs/architecture/configuration.md` §6–9 |
 | [`standards.md`](./standards.md) | ITIL 4, Scrum, Kanban, scaled agile, PRINCE2 / PMBOK, OKR and others mapped onto building blocks and templates |
 | [`connected.md`](./connected.md) | The connected suite: one reference type, mention / card / live view, conversions, designed synergies (P-19) |
-| [`config-document.md`](./config-document.md) | Configuration as one document: schema, plan, apply, rollback; the doors for REST, `hubctl`, MCP; safety for agents |
+| [`config-document.md`](./config-document.md) | Moved to `docs/architecture/configuration.md` §1–5 |
 | [`ui.md`](./ui.md) | The administration's information architecture and the patterns every settings screen follows; the inventory of existing screens that change |
 | [`../decisions.md`](../decisions.md) | The owner's questions D-11 … D-18, as they were put — answered in [`../accepted.md`](../accepted.md) |
 | [`../research/admin-2026-10.md`](../research/admin-2026-10.md) | The web research behind it (Atlassian, others, standards), with sources |

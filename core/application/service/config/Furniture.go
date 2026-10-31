@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// A workspace's and a hub's furniture as sections of their documents (config-document.md §1):
+// A workspace's and a hub's furniture as sections of their documents (configuration.md §1):
 // the saved views shared where they live - a queue is one - and the automation rules there - a
 // macro is one -, each by its stable key (migration 0286). A view's anchor, a `collection_id` it
 // filters on and a rule step's container are named by the hub's or collection's handle, and in a

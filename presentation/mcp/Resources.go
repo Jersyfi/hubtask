@@ -84,7 +84,7 @@ var resourceKinds = []ResourceKind{
 }
 
 // FixedResource is one resource with a single address per workspace: the configuration document's
-// schema, the document in force and its history (config-document.md §2). A read of one takes no
+// schema, the document in force and its history (configuration.md §2). A read of one takes no
 // identifier, so it is a table of its own beside the kinds.
 type FixedResource struct {
 	URI         string

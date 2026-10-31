@@ -784,7 +784,7 @@ test('a plan is answered from the copy without the server\'s proposals', async (
   assert.equal(hub.entries.length, 3);
 });
 
-// connected.md §5, UC-SYN-01 check 10: offline, a page's mentions and cards resolve from the copy -
+// UC-SYN-01 check 10: offline, a page's mentions and cards resolve from the copy -
 // each object the device holds as the server shows it, one it does not hold only by its address.
 test('references resolve from the copy, what it does not hold as unavailable', async () => {
   const storage = await workspace();

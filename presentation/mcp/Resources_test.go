@@ -300,7 +300,7 @@ func TestUriOfAndParseAreEachOthersInverse(t *testing.T) {
 	}
 }
 
-// The configuration document is a resource an agent reads before it plans (config-document.md §2):
+// The configuration document is a resource an agent reads before it plans (configuration.md §2):
 // one address per workspace, read through the same use case as GET /config.
 func TestTheConfigurationInForceIsAResource(t *testing.T) {
 	store := listCatalogue()

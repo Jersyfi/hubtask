@@ -174,7 +174,7 @@ func sections() []section {
 		},
 		{
 			// The workspace's own structure, one block per setting it decides itself; a setting
-			// left to the installation's or Hubtask's default has no block (configuration/model.md).
+			// left to the installation's or Hubtask's default has no block (configuration.md §1).
 			name: sectionStructure, list: ReadWorkspaceName, key: "setting", attributes: []string{settingValueField, presetIDAttribute},
 			rowsOf: structureRows,
 			block: func(row map[string]any) (string, domain.Block) {

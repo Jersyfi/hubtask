@@ -98,7 +98,7 @@ func (v ToleranceView) Output() usecase.Output {
 
 // ReadPlanTolerance reads a plan's time tolerance - its value, the level it comes from and the
 // level that locked it - and, when the plan keeps a baseline, compares the forecast end with the
-// latest baseline's: beyond the tolerance the plan is in exception (standards.md P12).
+// latest baseline's: beyond the tolerance the plan is in exception (configuration.md §10).
 type ReadPlanTolerance struct{ Planner Planner }
 
 // Execute reads it.
@@ -235,7 +235,7 @@ type SetPlanToleranceCommand struct {
 }
 
 // SetPlanTolerance sets a hub's or a collection's time tolerance, locked for the levels below when
-// asked, or leaves it to the level above (standards.md P12). It is the place's shape, so STRUCTURE
+// asked, or leaves it to the level above (configuration.md §10). It is the place's shape, so STRUCTURE
 // at the place decides it; a level above that locked it refuses.
 type SetPlanTolerance struct{ Planner Planner }
 
@@ -372,7 +372,7 @@ func workspaceToleranceOutput(r setting.Resolution) usecase.Output {
 }
 
 // ReadWorkspaceTolerance answers the time tolerance the workspace decides for every plan in it,
-// with the level it comes from and the level that locked it (standards.md P12).
+// with the level it comes from and the level that locked it (configuration.md §10).
 type ReadWorkspaceTolerance struct{ Planner Planner }
 
 // Descriptor is the catalogue entry.

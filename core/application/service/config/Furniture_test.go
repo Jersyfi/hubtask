@@ -113,7 +113,7 @@ func block(t *testing.T, document map[string]any, section, key string) map[strin
 	return row
 }
 
-// accepted.md D, config-document.md §1: the workspace's shared views and rules are sections of
+// accepted.md D, configuration.md §1: the workspace's shared views and rules are sections of
 // its document by their stable keys, and the places they name are named by handle, so the
 // document applies to a second workspace; a person's own bookmark is in none.
 func TestViewsAndRulesAreSectionsByTheirKeys(t *testing.T) {

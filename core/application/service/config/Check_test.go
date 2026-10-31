@@ -10,7 +10,7 @@ import (
 	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// configuration/ui.md A5, UC-CFG-01 check 10: the check reads the configuration in force, the
+// configuration.md §11, UC-CFG-01 check 10: the check reads the configuration in force, the
 // workspace's and a hub's, and answers what people would meet - errors first, each with the block
 // to change - before anybody meets it.
 func TestTheConfigurationCheckFindsWhatPeopleWouldMeet(t *testing.T) {

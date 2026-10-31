@@ -14,7 +14,7 @@ import (
 	textport "github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// The Scrum team, the Kanban team and the Classic project are Hubtask templates (templates.md §4,
+// The Scrum team, the Kanban team and the Classic project are Hubtask templates (configuration.md §9,
 // standards.md): each brings its types with their forms and workflows, the modules it needs, the
 // roles it asks for, and a hub part whose scheme runs each type in its own workflow - every block one
 // the use cases that apply it accept, and every section one the document has.

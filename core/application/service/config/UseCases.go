@@ -114,7 +114,7 @@ func (d Desk) planned(ctx context.Context, actor appshared.ActorContext, in usec
 }
 
 // PlanOutput is a plan as every door answers it, in the order a person reads it: what changes,
-// what it reaches, what is refused, what must be acknowledged (config-document.md §2).
+// what it reaches, what is refused, what must be acknowledged (configuration.md §2).
 func PlanOutput(p plan) usecase.Output {
 	changes := make([]usecase.Output, 0, len(p.Changes))
 	for _, change := range p.Changes {

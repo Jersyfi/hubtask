@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
-// The sandbox (config-document.md §3): one copy of the workspace's configuration without content,
+// The sandbox (configuration.md §3): one copy of the workspace's configuration without content,
 // where an agent changes freely - its token's plan scope is enough, and no policy holds it back,
 // because nothing runs. A write is checked as its promotion would be, so the sandbox never holds
 // what the workspace would refuse; promoting it is an ordinary plan and apply of what it changed

@@ -386,7 +386,7 @@ func TestThePollerAnswersTheEarlierOfTheTwoDebts(t *testing.T) {
 
 var _ repository.Occurrences = (*occurrences)(nil)
 
-// "Close resolved incidents after a while" (templates.md §1): a rule measures from the moment the
+// "Close resolved incidents after a while" (configuration.md §6): a rule measures from the moment the
 // entry was done, owes it when the entry completes and owes nothing once it is reopened.
 func TestTheCompletionAnchorFollowsCompletingAndReopening(t *testing.T) {
 	item := dueItem(nil)

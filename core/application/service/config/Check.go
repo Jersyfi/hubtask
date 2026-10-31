@@ -20,7 +20,7 @@ import (
 const CheckConfigName = "CheckConfig"
 
 // CheckConfig answers what the configuration in force would make people meet before they meet it
-// (configuration/ui.md A5): the findings of domain.CheckDocument over the document every door
+// (configuration.md §11): the findings of domain.CheckDocument over the document every door
 // exports, the workspace's and, for a hub, the hub's own.
 type CheckConfig struct{ Desk Desk }
 

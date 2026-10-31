@@ -90,7 +90,7 @@ const (
 	bodyApprovalReminder    = "email.approval_reminder.body"
 	subjectApprovalOverdue  = "email.approval_overdue.subject"
 	bodyApprovalOverdue     = "email.approval_overdue.body"
-	// A plan beyond its time tolerance, told to whoever decided it (standards.md P12): the subject
+	// A plan beyond its time tolerance, told to whoever decided it (configuration.md §10): the subject
 	// is a baseline, its title the plan's place.
 	subjectPlanException = "email.plan_exception.subject"
 	bodyPlanException    = "email.plan_exception.body"

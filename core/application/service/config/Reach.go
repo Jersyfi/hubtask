@@ -14,7 +14,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 )
 
-// reach is what one change touches beyond the configuration (config-document.md §2): the
+// reach is what one change touches beyond the configuration (configuration.md §2): the
 // entries a workflow's new shape moves, the people a role's change gains or loses a permission
 // for, the people a module switched off leaves without it. Counts and identifiers only - never an entry's content (rule 10).
 type reach struct {

@@ -200,7 +200,7 @@ export type ConfigApplyResult = components['schemas']['ConfigApplyResult'];
 export type ConfigVersion = components['schemas']['ConfigVersion'];
 export type ConfigVersionList = components['schemas']['ConfigVersionList'];
 export type ConfigProposal = components['schemas']['ConfigProposal'];
-/** The configuration check's findings (configuration/ui.md A5). */
+/** The configuration check's findings (configuration.md §11). */
 export type ConfigCheck = components['schemas']['ConfigCheck'];
 export type ConfigFinding = components['schemas']['ConfigFinding'];
 /** A person's own settings with the level each comes from (model.md §4). */

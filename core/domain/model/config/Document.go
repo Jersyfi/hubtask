@@ -269,7 +269,7 @@ func digest(text string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Flags are what a plan must have acknowledged before it applies (config-document.md §3).
+// Flags are what a plan must have acknowledged before it applies (configuration.md §3).
 type Flags struct {
 	HidesData          bool
 	ChangesPermissions bool

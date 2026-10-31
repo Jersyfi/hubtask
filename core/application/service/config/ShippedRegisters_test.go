@@ -18,7 +18,7 @@ import (
 )
 
 // The registers - IT assets, risks, contacts and organisations, vendors and contracts - are Hubtask
-// templates (research products-2026-10 §8, templates.md §4): each brings record types, never done
+// templates (research products-2026-10 §8, configuration.md §9): each brings record types, never done
 // and never scheduled, with a form whose every field the template defines, each definition one
 // DefineCustomField accepts, on the level its types are. The risk's score is the likelihood times
 // the impact, from the template's own numbers.

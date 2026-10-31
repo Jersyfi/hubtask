@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The time tolerance the workspace decides for every plan (standards.md P12): its days, where
+  // The time tolerance the workspace decides for every plan (configuration.md §10): its days, where
   // they come from and who locked them, and - for whoever may shape the workspace - the days set,
   // locked for the hubs and collections, or left to the level above. A plan beyond it is told to
   // the person who set it.

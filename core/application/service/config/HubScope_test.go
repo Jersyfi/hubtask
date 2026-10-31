@@ -28,7 +28,7 @@ func hubFixture() fixture {
 	return f
 }
 
-// config-document.md §1: a hub's own document holds what the hub decides itself - its structure
+// configuration.md §1: a hub's own document holds what the hub decides itself - its structure
 // settings and which workflow it runs for which type - by keys the same in every hub, and none of
 // the workspace's blocks.
 func TestAHubsDocumentHoldsWhatTheHubDecides(t *testing.T) {

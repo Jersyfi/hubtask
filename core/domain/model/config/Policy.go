@@ -156,7 +156,7 @@ func ErrAgentApplyNever() error {
 	return shared.ErrForbidden.WithDetail("config.agent_apply_never")
 }
 
-// Sandbox is a workspace's copy of its configuration without content (config-document.md §3):
+// Sandbox is a workspace's copy of its configuration without content (configuration.md §3):
 // an agent changes it freely and nothing runs; promoting it plans what it changed since Base.
 type Sandbox struct {
 	TenantID shared.ID

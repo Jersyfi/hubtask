@@ -97,7 +97,7 @@ func agentPolicyOp(change domain.BlockChange, _ map[string]any) (operation, erro
 	return operation{UseCase: "SetAgentPolicy", Path: change.Path(), Input: usecase.Input{"registered_only": on}}, nil
 }
 
-// planningPrefix is the plans' time tolerance the workspace decides (standards.md P12).
+// planningPrefix is the plans' time tolerance the workspace decides (configuration.md §10).
 const planningPrefix = "planning."
 
 // lockAttribute is a tolerance block's lock: the workspace fixes it for the hubs and collections.

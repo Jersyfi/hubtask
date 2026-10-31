@@ -219,7 +219,7 @@ type Notification struct {
 	// is overdue (UC-SVC-09 check 4): the message reads the entry's title at delivery.
 	ApprovalID shared.ID
 	// BaselineID is the baseline a plan slipped past by more than its time tolerance, told to whoever
-	// decided the tolerance (standards.md P12): the message reads the plan's place at delivery.
+	// decided the tolerance (configuration.md §10): the message reads the plan's place at delivery.
 	BaselineID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
