@@ -27,5 +27,15 @@ func (l Locator) Locate(ctx context.Context, actor appshared.ActorContext, id sh
 	if err := l.Space.admitted(ctx, actor, page.ID); err != nil {
 		return realtime.Place{}, err
 	}
-	return realtime.Place{Path: hubPath(page.HubID), Read: service.PermissionRead, Write: service.PermissionWriteItems}, nil
+	// In a space with drafts the live document holds words not yet published: its writers alone
+	// open it, and its readers read the page as published (UC-DOC-15).
+	drafts, err := l.Space.drafting(ctx, actor.TenantID, page.HubID)
+	if err != nil {
+		return realtime.Place{}, err
+	}
+	read := service.PermissionRead
+	if drafts {
+		read = service.PermissionWriteItems
+	}
+	return realtime.Place{Path: hubPath(page.HubID), Read: read, Write: service.PermissionWriteItems}, nil
 }

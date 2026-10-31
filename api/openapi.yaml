@@ -20895,6 +20895,60 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /hubs/{hubId}/page-drafts:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [pages]
+      operationId: readSpaceDrafts
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page drafts"
+      summary: Whether a space keeps drafts
+      description: >
+        Whether the hub's space keeps its writers' changes in drafts until one of them publishes -
+        or is a live document, every change read at once -, the level that decided it, the level
+        that locked it and how many drafts wait. Needs READ on the hub.
+      responses:
+        "200":
+          description: The space's way of writing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageSpaceDrafts"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [pages]
+      operationId: setSpaceDrafts
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page drafts-set"
+      summary: Switch a space to drafts or back
+      description: >
+        Switches the hub's space between the live document and drafts with publishing, inside what
+        the workspace leaves. Back to the live document only once no draft waits
+        (`pages.drafts_pending`). Needs STRUCTURE on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [drafts]
+              properties:
+                drafts: { type: boolean }
+      responses:
+        "200":
+          description: Switched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageSpaceDrafts"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /hubs/{hubId}/trashed-pages:
     parameters:
       - name: hubId
@@ -21557,6 +21611,49 @@ paths:
       responses:
         "204":
           description: Taken away
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages/{pageId}:publish:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: publishPage
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page release"
+      summary: Publish what waits on a page
+      description: >
+        In a space with drafts: a page never published opens to the space's readers, and a draft's
+        title and body become the page's, kept as a version of its history. Refused with
+        `pages.nothing_to_publish` when nothing waits. Needs WRITE_ITEMS on the hub.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages/{pageId}/draft:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    delete:
+      tags: [pages]
+      operationId: discardPageDraft
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page discard"
+      summary: Throw a page's draft away
+      description: >
+        The page stays as published. A page never published has no draft to throw away
+        (`pages.nothing_to_discard`): it is put in the trash instead. Needs WRITE_ITEMS on the hub.
+      responses:
+        "204":
+          description: Thrown away
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -37665,6 +37762,37 @@ components:
         updated_by: { type: string, format: uuid }
         updated_at: { type: string, format: date-time }
         version: { type: integer, description: "The optimistic lock." }
+        drafts:
+          type: boolean
+          description: >
+            The page's space keeps its writers' changes in drafts until they are published; answered
+            when a page is read or written.
+        unpublished:
+          type: boolean
+          description: Written in a space with drafts and never published - its writer's alone until then.
+        draft:
+          description: The title and body waiting to be published, shown to a writer alone; null for none.
+          oneOf:
+            - $ref: "#/components/schemas/PageDraft"
+            - type: "null"
+
+    PageDraft:
+      type: object
+      required: [title, body, updated_by, updated_at]
+      properties:
+        title: { type: string, maxLength: 200 }
+        body: { type: string, maxLength: 1048576 }
+        updated_by: { type: string, format: uuid }
+        updated_at: { type: string, format: date-time }
+
+    PageSpaceDrafts:
+      type: object
+      required: [drafts, source, pending]
+      properties:
+        drafts: { type: boolean, description: "Changes wait in drafts until a writer publishes them." }
+        source: { type: string, description: The level whose value is in force. }
+        locked_by: { type: string, description: The level that locked it, where one did. }
+        pending: { type: integer, description: "How many published pages have a draft waiting." }
 
     PageRead:
       description: A page with its body, its breadcrumb and whether the reader may write it.

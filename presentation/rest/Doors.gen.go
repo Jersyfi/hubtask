@@ -218,6 +218,7 @@ var restDoors = map[string]restDoor{
 	"detachMedia":                       {UseCase: "DetachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disableRule":                       {UseCase: "DisableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disableTotp":                       {UseCase: "DisableTotp", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"discardPageDraft":                  {UseCase: "DiscardPageDraft", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"discardTimer":                      {UseCase: "DiscardTimer", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disconnectCalendarPush":            {UseCase: "DisconnectCalendarPush", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disconnectFileStore":               {UseCase: "DisconnectFileStore", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -450,6 +451,7 @@ var restDoors = map[string]restDoor{
 	"proposeConfig":                     {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"provisionTenant":                   {UseCase: "ProvisionTenant", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/admin/tenants", NullClears: false, Integers: []string(nil), ShownOnce: "owner_redemption_token"},
 	"publishConfigTemplate":             {UseCase: "PublishConfigTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"publishPage":                       {UseCase: "PublishPage", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"publishPageToPortal":               {UseCase: "PublishPageToPortal", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"publishRelease":                    {UseCase: "PublishRelease", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"publishWorkflow":                   {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -512,6 +514,7 @@ var restDoors = map[string]restDoor{
 	"readRelease":                       {UseCase: "ReadRelease", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readServiceMap":                    {UseCase: "ReadServiceMap", Status: 200, Query: []string{"service_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSettingsCatalogue":             {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readSpaceDrafts":                   {UseCase: "ReadSpaceDrafts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSprint":                        {UseCase: "ReadSprint", Status: 200, Query: []string{"calendar", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSprintBacklog":                 {UseCase: "ReadSprintBacklog", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readTenant":                        {UseCase: "ReadTenant", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -651,6 +654,7 @@ var restDoors = map[string]restDoor{
 	"setPublicFormsPolicy":              {UseCase: "SetPublicFormsPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setPublicLinksPolicy":              {UseCase: "SetPublicLinksPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setRecurrence":                     {UseCase: "SetRecurrence", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"horizon_days", "max_count"}},
+	"setSpaceDrafts":                    {UseCase: "SetSpaceDrafts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"setUpInstallation":                 {UseCase: "SetUpInstallation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), Request: []string{"user_agent", "remote_addr"}},
 	"setWorkflowScheme":                 {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2113,6 +2117,11 @@ func (c *RestController) DisableRule(w http.ResponseWriter, r *http.Request, rul
 func (c *RestController) DisableTotp(w http.ResponseWriter, r *http.Request, params openapi.DisableTotpParams) {
 	var body openapi.DisableTotpJSONRequestBody
 	c.door(w, r, restDoors["disableTotp"], usecase.Input{}, params, &body, nil)
+}
+
+// DiscardPageDraft answers DELETE /pages/{pageId}/draft by the generated mapping.
+func (c *RestController) DiscardPageDraft(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	c.door(w, r, restDoors["discardPageDraft"], usecase.Input{"page_id": pageId.String()}, nil, nil, nil)
 }
 
 // DiscardTimer answers DELETE /timer by the generated mapping.
@@ -3637,6 +3646,12 @@ func (c *RestController) PublishConfigTemplate(w http.ResponseWriter, r *http.Re
 	c.door(w, r, restDoors["publishConfigTemplate"], usecase.Input{}, nil, &body, &answer)
 }
 
+// PublishPage answers POST /pages/{pageId}:publish by the generated mapping.
+func (c *RestController) PublishPage(w http.ResponseWriter, r *http.Request, pageId openapi.PageId, params openapi.PublishPageParams) {
+	var answer openapi.Page
+	c.door(w, r, restDoors["publishPage"], usecase.Input{"page_id": pageId.String()}, params, nil, &answer)
+}
+
 // PublishPageToPortal answers POST /pages/{pageId}/articles by the generated mapping.
 func (c *RestController) PublishPageToPortal(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
 	var body openapi.PublishPageToPortalJSONRequestBody
@@ -4001,6 +4016,12 @@ func (c *RestController) ReadServiceMap(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.SettingsCatalogue
 	c.door(w, r, restDoors["readSettingsCatalogue"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ReadSpaceDrafts answers GET /hubs/{hubId}/page-drafts by the generated mapping.
+func (c *RestController) ReadSpaceDrafts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var answer openapi.PageSpaceDrafts
+	c.door(w, r, restDoors["readSpaceDrafts"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
 }
 
 // ReadSprint answers GET /sprints/{sprintId} by the generated mapping.
@@ -4865,6 +4886,13 @@ func (c *RestController) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Req
 func (c *RestController) SetRecurrence(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SetRecurrenceParams) {
 	var body openapi.SetRecurrenceJSONRequestBody
 	c.door(w, r, restDoors["setRecurrence"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(recurrenceResponse))
+}
+
+// SetSpaceDrafts answers PUT /hubs/{hubId}/page-drafts by the generated mapping.
+func (c *RestController) SetSpaceDrafts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var body openapi.SetSpaceDraftsJSONRequestBody
+	var answer openapi.PageSpaceDrafts
+	c.door(w, r, restDoors["setSpaceDrafts"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
 }
 
 // SetTimePolicy answers PUT /time-policy by the generated mapping.

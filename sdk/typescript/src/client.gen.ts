@@ -3793,6 +3793,16 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/pages", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Whether a space keeps drafts */
+  readSpaceDrafts(hubId: string, options: CallOptions = {}): Promise<operations["readSpaceDrafts"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/page-drafts", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Switch a space to drafts or back */
+  setSpaceDrafts(hubId: string, body: NonNullable<operations["setSpaceDrafts"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setSpaceDrafts"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/hubs/{hubId}/page-drafts", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** A hub's trashed pages */
   listTrashedPages(hubId: string, options: CallOptions = {}): Promise<operations["listTrashedPages"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/trashed-pages", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -3916,6 +3926,16 @@ export class HubtaskClient {
   /** Take a page's share away */
   unsharePage(pageId: string, accountId: string, options: CallOptions = {}): Promise<void> {
     return this.call("DELETE", "/pages/{pageId}/shares/{accountId}", { "pageId": pageId, "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Publish what waits on a page */
+  publishPage(pageId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["publishPage"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}:publish", { "pageId": pageId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Throw a page's draft away */
+  discardPageDraft(pageId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/pages/{pageId}/draft", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** Make a page's public link */

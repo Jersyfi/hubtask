@@ -1760,6 +1760,24 @@ var generatedCommands = []door{
 			{Name: "with_subpages", Kind: "boolean", Help: "Started from a template, bring its subpages along beneath the new page", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "discard", OperationID: "discardPageDraft", Method: "DELETE", Path: "/pages/{pageId}/draft", Summary: "Throw a page's draft away",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "page", Verb: "drafts", OperationID: "readSpaceDrafts", Method: "GET", Path: "/hubs/{hubId}/page-drafts", Summary: "Whether a space keeps drafts",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"drafts", "locked_by", "pending", "source"}},
+	{Group: "page", Verb: "drafts-set", OperationID: "setSpaceDrafts", Method: "PUT", Path: "/hubs/{hubId}/page-drafts", Summary: "Switch a space to drafts or back",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "drafts", Kind: "boolean", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"drafts", "locked_by", "pending", "source"}},
 	{Group: "page", Verb: "export", OperationID: "exportPage", Method: "POST", Path: "/pages/{pageId}:export", Summary: "Export a page as Markdown",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
@@ -1827,6 +1845,11 @@ var generatedCommands = []door{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"collection_id", "helpful", "page_id", "published_at", "published_by"}},
+	{Group: "page", Verb: "release", OperationID: "publishPage", Method: "POST", Path: "/pages/{pageId}:publish", Summary: "Publish what waits on a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
 	{Group: "page", Verb: "restore", OperationID: "restorePage", Method: "POST", Path: "/pages/{pageId}:restore", Summary: "Bring a page back from the trash",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},

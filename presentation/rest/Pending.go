@@ -1718,6 +1718,22 @@ func (pending) ReadOwnSettings(w http.ResponseWriter, r *http.Request) { notAvai
 
 func (pending) CopyPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }
 
+func (pending) PublishPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.PublishPageParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DiscardPageDraft(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadSpaceDrafts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) SetSpaceDrafts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) ListPageLabels(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
 	notAvailable(w, r)
 }

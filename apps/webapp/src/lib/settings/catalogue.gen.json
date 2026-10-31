@@ -1715,6 +1715,27 @@
       ]
     },
     {
+      "key": "knowledge.drafts",
+      "kind": "FLAG",
+      "levels": [
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
       "key": "servicedesk.public_forms",
       "kind": "FLAG",
       "levels": [

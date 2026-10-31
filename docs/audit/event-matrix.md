@@ -741,11 +741,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.created` | CopyPage | `page` | INFO | Every time |
 | `page.created` | CreatePage | `page` | INFO | Every time |
 | `page.created` | OpenDailyNote | `page` | INFO | Every time |
+| `page.draft_discarded` | DiscardPageDraft | `page` | INFO | Every time |
 | `page.exported` | ExportPage | `page` | INFO | Every time |
 | `page.media_attached` | AttachPageMedia | `page` | INFO | Every time |
 | `page.moved` | MovePage | `page` | INFO | Every time |
 | `page.public_link_created` | CreatePagePublicLink | `page` | NOTICE | Every time |
 | `page.public_link_deleted` | DeletePagePublicLink | `page` | NOTICE | Every time |
+| `page.published` | PublishPage | `page` | INFO | Every time |
 | `page.read` | ListPageBacklinks | `page` | INFO | When refused |
 | `page.read` | ListPageComments | `page_comment` | INFO | When refused |
 | `page.read` | ListPageLabels | `page` | INFO | When refused |
@@ -790,6 +792,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `page_public_links.policy_read` | ReadPublicLinksPolicy | `page_public_links` | INFO | When refused |
 | `page_public_links.policy_set` | SetPublicLinksPolicy | `page_public_links` | NOTICE | Every time |
+
+## Page_space
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_space.drafts_read` | ReadSpaceDrafts | `page_space` | INFO | When refused |
+| `page_space.drafts_set` | SetSpaceDrafts | `page_space` | NOTICE | Every time |
 
 ## Permissions
 

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
+	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -112,6 +113,15 @@ type Space struct {
 	Articles repository.Articles
 	// Media reads the uploads a page holds as its pictures and files (UC-DOC-14); nil attaches none.
 	Media MediaObjects
+	// Drafting keeps a space's changes in drafts until they are published (UC-DOC-15); its zero
+	// value keeps every space a live document.
+	Drafting Drafting
+}
+
+// Drafting is what a space with drafts needs beside the pages.
+type Drafting struct {
+	Drafts   repository.Drafts
+	Settings settingrepo.Settings
 }
 
 // announce records each page as it now stands, body included, filed under its hub.

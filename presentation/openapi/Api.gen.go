@@ -19003,6 +19003,12 @@ type Page struct {
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`
 
+	// Draft The title and body waiting to be published, shown to a writer alone; null for none.
+	Draft *PageDraft `json:"draft,omitempty"`
+
+	// Drafts The page's space keeps its writers' changes in drafts until they are published; answered when a page is read or written.
+	Drafts *bool `json:"drafts,omitempty"`
+
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
 
@@ -19024,13 +19030,16 @@ type Page struct {
 	Restricted bool `json:"restricted"`
 
 	// Template Offered as a template of the space.
-	Template   bool                `json:"template"`
-	Title      string              `json:"title"`
-	TrashedAt  *time.Time          `json:"trashed_at"`
-	UpdatedAt  time.Time           `json:"updated_at"`
-	UpdatedBy  openapi_types.UUID  `json:"updated_by"`
-	VerifiedAt *time.Time          `json:"verified_at"`
-	VerifiedBy *openapi_types.UUID `json:"verified_by"`
+	Template  bool       `json:"template"`
+	Title     string     `json:"title"`
+	TrashedAt *time.Time `json:"trashed_at"`
+
+	// Unpublished Written in a space with drafts and never published - its writer's alone until then.
+	Unpublished *bool               `json:"unpublished,omitempty"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	UpdatedBy   openapi_types.UUID  `json:"updated_by"`
+	VerifiedAt  *time.Time          `json:"verified_at"`
+	VerifiedBy  *openapi_types.UUID `json:"verified_by"`
 
 	// VerifiedUntil Until when the page is known to be right.
 	VerifiedUntil *time.Time `json:"verified_until"`
@@ -19175,6 +19184,14 @@ type PageCreate struct {
 	WithSubpages *bool `json:"with_subpages,omitempty"`
 }
 
+// PageDraft defines model for PageDraft.
+type PageDraft struct {
+	Body      string             `json:"body"`
+	Title     string             `json:"title"`
+	UpdatedAt time.Time          `json:"updated_at"`
+	UpdatedBy openapi_types.UUID `json:"updated_by"`
+}
+
 // PageExport defines model for PageExport.
 type PageExport struct {
 	Files []struct {
@@ -19304,6 +19321,12 @@ type PageRead struct {
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`
 
+	// Draft The title and body waiting to be published, shown to a writer alone; null for none.
+	Draft *PageDraft `json:"draft,omitempty"`
+
+	// Drafts The page's space keeps its writers' changes in drafts until they are published; answered when a page is read or written.
+	Drafts *bool `json:"drafts,omitempty"`
+
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
 
@@ -19328,13 +19351,16 @@ type PageRead struct {
 	Shared bool `json:"shared"`
 
 	// Template Offered as a template of the space.
-	Template   bool                `json:"template"`
-	Title      string              `json:"title"`
-	TrashedAt  *time.Time          `json:"trashed_at"`
-	UpdatedAt  time.Time           `json:"updated_at"`
-	UpdatedBy  openapi_types.UUID  `json:"updated_by"`
-	VerifiedAt *time.Time          `json:"verified_at"`
-	VerifiedBy *openapi_types.UUID `json:"verified_by"`
+	Template  bool       `json:"template"`
+	Title     string     `json:"title"`
+	TrashedAt *time.Time `json:"trashed_at"`
+
+	// Unpublished Written in a space with drafts and never published - its writer's alone until then.
+	Unpublished *bool               `json:"unpublished,omitempty"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	UpdatedBy   openapi_types.UUID  `json:"updated_by"`
+	VerifiedAt  *time.Time          `json:"verified_at"`
+	VerifiedBy  *openapi_types.UUID `json:"verified_by"`
 
 	// VerifiedUntil Until when the page is known to be right.
 	VerifiedUntil *time.Time `json:"verified_until"`
@@ -19386,6 +19412,21 @@ type PageShare struct {
 // PageShareCreate defines model for PageShareCreate.
 type PageShareCreate struct {
 	AccountId openapi_types.UUID `json:"account_id"`
+}
+
+// PageSpaceDrafts defines model for PageSpaceDrafts.
+type PageSpaceDrafts struct {
+	// Drafts Changes wait in drafts until a writer publishes them.
+	Drafts bool `json:"drafts"`
+
+	// LockedBy The level that locked it
+	LockedBy *string `json:"locked_by,omitempty"`
+
+	// Pending How many published pages have a draft waiting.
+	Pending int `json:"pending"`
+
+	// Source The level whose value is in force.
+	Source string `json:"source"`
 }
 
 // PageSubpage defines model for PageSubpage.
@@ -26078,6 +26119,11 @@ type DefineCiConnectorParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetSpaceDraftsJSONBody defines parameters for SetSpaceDrafts.
+type SetSpaceDraftsJSONBody struct {
+	Drafts bool `json:"drafts"`
+}
+
 // ListPagesParams defines parameters for ListPages.
 type ListPagesParams struct {
 	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
@@ -26846,6 +26892,12 @@ type SetPageLabelsJSONBody struct {
 
 // MovePageParams defines parameters for MovePage.
 type MovePageParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// PublishPageParams defines parameters for PublishPage.
+type PublishPageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -28202,6 +28254,9 @@ type DefineCiConnectorJSONRequestBody = CiConnectorDefine
 
 // CreateCodeHookJSONRequestBody defines body for CreateCodeHook for application/json ContentType.
 type CreateCodeHookJSONRequestBody = CodeHookCreate
+
+// SetSpaceDraftsJSONRequestBody defines body for SetSpaceDrafts for application/json ContentType.
+type SetSpaceDraftsJSONRequestBody SetSpaceDraftsJSONBody
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
@@ -30281,6 +30336,12 @@ type ServerInterface interface {
 	// CreateCodeHook Add a forge hook
 	// (POST /hubs/{hubId}/code-hooks)
 	CreateCodeHook(w http.ResponseWriter, r *http.Request, hubId HubId)
+	// ReadSpaceDrafts Whether a space keeps drafts
+	// (GET /hubs/{hubId}/page-drafts)
+	ReadSpaceDrafts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// SetSpaceDrafts Switch a space to drafts or back
+	// (PUT /hubs/{hubId}/page-drafts)
+	SetSpaceDrafts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListSpaceLabels The labels of a hub's pages
 	// (GET /hubs/{hubId}/page-labels)
 	ListSpaceLabels(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
@@ -30854,6 +30915,9 @@ type ServerInterface interface {
 	// AddPageComment Comment on a page
 	// (POST /pages/{pageId}/comments)
 	AddPageComment(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// DiscardPageDraft Throw a page's draft away
+	// (DELETE /pages/{pageId}/draft)
+	DiscardPageDraft(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// ListPageLabels A page's labels
 	// (GET /pages/{pageId}/labels)
 	ListPageLabels(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -30896,6 +30960,9 @@ type ServerInterface interface {
 	// MovePage Move a page
 	// (POST /pages/{pageId}:move)
 	MovePage(w http.ResponseWriter, r *http.Request, pageId PageId, params MovePageParams)
+	// PublishPage Publish what waits on a page
+	// (POST /pages/{pageId}:publish)
+	PublishPage(w http.ResponseWriter, r *http.Request, pageId PageId, params PublishPageParams)
 	// RestorePage Bring a page back from the trash
 	// (POST /pages/{pageId}:restore)
 	RestorePage(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -43642,6 +43709,58 @@ func (siw *ServerInterfaceWrapper) CreateCodeHook(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ReadSpaceDrafts operation middleware
+func (siw *ServerInterfaceWrapper) ReadSpaceDrafts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadSpaceDrafts(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetSpaceDrafts operation middleware
+func (siw *ServerInterfaceWrapper) SetSpaceDrafts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetSpaceDrafts(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSpaceLabels operation middleware
 func (siw *ServerInterfaceWrapper) ListSpaceLabels(w http.ResponseWriter, r *http.Request) {
 
@@ -50621,6 +50740,32 @@ func (siw *ServerInterfaceWrapper) AddPageComment(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// DiscardPageDraft operation middleware
+func (siw *ServerInterfaceWrapper) DiscardPageDraft(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiscardPageDraft(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPageLabels operation middleware
 func (siw *ServerInterfaceWrapper) ListPageLabels(w http.ResponseWriter, r *http.Request) {
 
@@ -51089,6 +51234,56 @@ func (siw *ServerInterfaceWrapper) MovePage(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.MovePage(w, r, pageId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PublishPage operation middleware
+func (siw *ServerInterfaceWrapper) PublishPage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PublishPageParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PublishPage(w, r, pageId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -58721,6 +58916,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/page-labels", wrapper.ListSpaceLabels)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/pages", wrapper.ListPages)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/pages", wrapper.CreatePage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/page-drafts", wrapper.ReadSpaceDrafts)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/page-drafts", wrapper.SetSpaceDrafts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/trashed-pages", wrapper.ListTrashedPages)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}", wrapper.TrashPage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}", wrapper.ReadPage)
@@ -58746,6 +58943,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/access", wrapper.ReadPageAccess)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/shares", wrapper.SharePage)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/shares/{accountId}", wrapper.UnsharePage)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:publish", wrapper.PublishPage)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/draft", wrapper.DiscardPageDraft)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.DeletePagePublicLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.CreatePagePublicLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/media", wrapper.AttachPageMedia)

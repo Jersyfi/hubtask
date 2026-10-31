@@ -5388,6 +5388,21 @@ class Page(TypedDict, total=False):
     updated_by: Required[str]
     updated_at: Required[str]
     version: Required[int]
+    drafts: bool
+    unpublished: bool
+    draft: "PageDraft" | Any
+
+class PageDraft(TypedDict, total=False):
+    title: Required[str]
+    body: Required[str]
+    updated_by: Required[str]
+    updated_at: Required[str]
+
+class PageSpaceDrafts(TypedDict, total=False):
+    drafts: Required[bool]
+    source: Required[str]
+    locked_by: str
+    pending: Required[int]
 
 class PageRead(TypedDict, total=False):
     """A page with its body, its breadcrumb and whether the reader may write it."""
@@ -5414,6 +5429,9 @@ class PageRead(TypedDict, total=False):
     updated_by: Required[str]
     updated_at: Required[str]
     version: Required[int]
+    drafts: bool
+    unpublished: bool
+    draft: "PageDraft" | Any
     ancestors: Required[list[dict[str, Any]]]
     writable: Required[bool]
     shared: Required[bool]

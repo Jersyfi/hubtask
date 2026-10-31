@@ -49,6 +49,7 @@ func Catalogue() (domain.Catalogue, error) {
 	definitions = append(definitions, config.AgentApplyDefinition())
 	definitions = append(definitions, agent.RegisteredOnlyDefinition())
 	definitions = append(definitions, knowledge.PublicLinksDefinition())
+	definitions = append(definitions, knowledge.DraftsDefinition())
 	definitions = append(definitions, servicedesk.PublicFormsDefinition())
 	definitions = append(definitions, planning.TimeToleranceDefinition())
 	definitions = append(definitions, timekeeping.PolicyDefinitions()...)

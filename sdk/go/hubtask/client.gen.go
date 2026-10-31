@@ -19009,6 +19009,12 @@ type Page struct {
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`
 
+	// Draft The title and body waiting to be published, shown to a writer alone; null for none.
+	Draft *PageDraft `json:"draft,omitempty"`
+
+	// Drafts The page's space keeps its writers' changes in drafts until they are published; answered when a page is read or written.
+	Drafts *bool `json:"drafts,omitempty"`
+
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
 
@@ -19030,13 +19036,16 @@ type Page struct {
 	Restricted bool `json:"restricted"`
 
 	// Template Offered as a template of the space.
-	Template   bool                `json:"template"`
-	Title      string              `json:"title"`
-	TrashedAt  *time.Time          `json:"trashed_at"`
-	UpdatedAt  time.Time           `json:"updated_at"`
-	UpdatedBy  openapi_types.UUID  `json:"updated_by"`
-	VerifiedAt *time.Time          `json:"verified_at"`
-	VerifiedBy *openapi_types.UUID `json:"verified_by"`
+	Template  bool       `json:"template"`
+	Title     string     `json:"title"`
+	TrashedAt *time.Time `json:"trashed_at"`
+
+	// Unpublished Written in a space with drafts and never published - its writer's alone until then.
+	Unpublished *bool               `json:"unpublished,omitempty"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	UpdatedBy   openapi_types.UUID  `json:"updated_by"`
+	VerifiedAt  *time.Time          `json:"verified_at"`
+	VerifiedBy  *openapi_types.UUID `json:"verified_by"`
 
 	// VerifiedUntil Until when the page is known to be right.
 	VerifiedUntil *time.Time `json:"verified_until"`
@@ -19181,6 +19190,14 @@ type PageCreate struct {
 	WithSubpages *bool `json:"with_subpages,omitempty"`
 }
 
+// PageDraft defines model for PageDraft.
+type PageDraft struct {
+	Body      string             `json:"body"`
+	Title     string             `json:"title"`
+	UpdatedAt time.Time          `json:"updated_at"`
+	UpdatedBy openapi_types.UUID `json:"updated_by"`
+}
+
 // PageExport defines model for PageExport.
 type PageExport struct {
 	Files []struct {
@@ -19310,6 +19327,12 @@ type PageRead struct {
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`
 
+	// Draft The title and body waiting to be published, shown to a writer alone; null for none.
+	Draft *PageDraft `json:"draft,omitempty"`
+
+	// Drafts The page's space keeps its writers' changes in drafts until they are published; answered when a page is read or written.
+	Drafts *bool `json:"drafts,omitempty"`
+
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
 
@@ -19334,13 +19357,16 @@ type PageRead struct {
 	Shared bool `json:"shared"`
 
 	// Template Offered as a template of the space.
-	Template   bool                `json:"template"`
-	Title      string              `json:"title"`
-	TrashedAt  *time.Time          `json:"trashed_at"`
-	UpdatedAt  time.Time           `json:"updated_at"`
-	UpdatedBy  openapi_types.UUID  `json:"updated_by"`
-	VerifiedAt *time.Time          `json:"verified_at"`
-	VerifiedBy *openapi_types.UUID `json:"verified_by"`
+	Template  bool       `json:"template"`
+	Title     string     `json:"title"`
+	TrashedAt *time.Time `json:"trashed_at"`
+
+	// Unpublished Written in a space with drafts and never published - its writer's alone until then.
+	Unpublished *bool               `json:"unpublished,omitempty"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	UpdatedBy   openapi_types.UUID  `json:"updated_by"`
+	VerifiedAt  *time.Time          `json:"verified_at"`
+	VerifiedBy  *openapi_types.UUID `json:"verified_by"`
 
 	// VerifiedUntil Until when the page is known to be right.
 	VerifiedUntil *time.Time `json:"verified_until"`
@@ -19392,6 +19418,21 @@ type PageShare struct {
 // PageShareCreate defines model for PageShareCreate.
 type PageShareCreate struct {
 	AccountId openapi_types.UUID `json:"account_id"`
+}
+
+// PageSpaceDrafts defines model for PageSpaceDrafts.
+type PageSpaceDrafts struct {
+	// Drafts Changes wait in drafts until a writer publishes them.
+	Drafts bool `json:"drafts"`
+
+	// LockedBy The level that locked it
+	LockedBy *string `json:"locked_by,omitempty"`
+
+	// Pending How many published pages have a draft waiting.
+	Pending int `json:"pending"`
+
+	// Source The level whose value is in force.
+	Source string `json:"source"`
 }
 
 // PageSubpage defines model for PageSubpage.
@@ -26084,6 +26125,11 @@ type DefineCiConnectorParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetSpaceDraftsJSONBody defines parameters for SetSpaceDrafts.
+type SetSpaceDraftsJSONBody struct {
+	Drafts bool `json:"drafts"`
+}
+
 // ListPagesParams defines parameters for ListPages.
 type ListPagesParams struct {
 	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
@@ -26852,6 +26898,12 @@ type SetPageLabelsJSONBody struct {
 
 // MovePageParams defines parameters for MovePage.
 type MovePageParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// PublishPageParams defines parameters for PublishPage.
+type PublishPageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -28208,6 +28260,9 @@ type DefineCiConnectorJSONRequestBody = CiConnectorDefine
 
 // CreateCodeHookJSONRequestBody defines body for CreateCodeHook for application/json ContentType.
 type CreateCodeHookJSONRequestBody = CodeHookCreate
+
+// SetSpaceDraftsJSONRequestBody defines body for SetSpaceDrafts for application/json ContentType.
+type SetSpaceDraftsJSONRequestBody SetSpaceDraftsJSONBody
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
@@ -34290,6 +34345,31 @@ type ClientInterface interface {
 	// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
 	CreateCodeHook(ctx context.Context, hubId HubId, body CreateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReadSpaceDrafts Whether a space keeps drafts
+	//
+	// Whether the hub's space keeps its writers' changes in drafts until one of them publishes - or is a live document, every change read at once -, the level that decided it, the level that locked it and how many drafts wait. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/page-drafts (the `ReadSpaceDrafts` operationId).
+	ReadSpaceDrafts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetSpaceDraftsWithBody Switch a space to drafts or back
+	//
+	// Switches the hub's space between the live document and drafts with publishing, inside what the workspace leaves. Back to the live document only once no draft waits (`pages.drafts_pending`). Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/page-drafts (the `SetSpaceDrafts` operationId).
+	SetSpaceDraftsWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetSpaceDrafts Switch a space to drafts or back
+	//
+	// Switches the hub's space between the live document and drafts with publishing, inside what the workspace leaves. Back to the live document only once no draft waits (`pages.drafts_pending`). Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/page-drafts (the `SetSpaceDrafts` operationId).
+	SetSpaceDrafts(ctx context.Context, hubId openapi_types.UUID, body SetSpaceDraftsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListSpaceLabels The labels of a hub's pages
 	//
 	// Every label the space's live pages carry, with how many pages carry it, most used first: the facet a search narrows by. A page the reader may not read is not counted. Needs READ on the hub.
@@ -36532,6 +36612,13 @@ type ClientInterface interface {
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DiscardPageDraft Throw a page's draft away
+	//
+	// The page stays as published. A page never published has no draft to throw away (`pages.nothing_to_discard`): it is put in the trash instead. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with DELETE /pages/{pageId}/draft (the `DiscardPageDraft` operationId).
+	DiscardPageDraft(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListPageLabels A page's labels
 	//
 	// The labels a page carries, in alphabetical order. Needs READ on the hub.
@@ -36706,6 +36793,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
 	MovePage(ctx context.Context, pageId PageId, params *MovePageParams, body MovePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishPage Publish what waits on a page
+	//
+	// In a space with drafts: a page never published opens to the space's readers, and a draft's title and body become the page's, kept as a version of its history. Refused with `pages.nothing_to_publish` when nothing waits. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /pages/{pageId}:publish (the `PublishPage` operationId).
+	PublishPage(ctx context.Context, pageId PageId, params *PublishPageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RestorePage Bring a page back from the trash
 	//
@@ -50140,6 +50234,61 @@ func (c *Client) CreateCodeHook(ctx context.Context, hubId HubId, body CreateCod
 	return c.Client.Do(req)
 }
 
+// ReadSpaceDrafts Whether a space keeps drafts
+//
+// Whether the hub's space keeps its writers' changes in drafts until one of them publishes - or is a live document, every change read at once -, the level that decided it, the level that locked it and how many drafts wait. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/page-drafts (the `ReadSpaceDrafts` operationId).
+func (c *Client) ReadSpaceDrafts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadSpaceDraftsRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetSpaceDraftsWithBody Switch a space to drafts or back
+//
+// Switches the hub's space between the live document and drafts with publishing, inside what the workspace leaves. Back to the live document only once no draft waits (`pages.drafts_pending`). Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /hubs/{hubId}/page-drafts (the `SetSpaceDrafts` operationId).
+func (c *Client) SetSpaceDraftsWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetSpaceDraftsRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetSpaceDrafts Switch a space to drafts or back
+//
+// Switches the hub's space between the live document and drafts with publishing, inside what the workspace leaves. Back to the live document only once no draft waits (`pages.drafts_pending`). Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /hubs/{hubId}/page-drafts (the `SetSpaceDrafts` operationId).
+func (c *Client) SetSpaceDrafts(ctx context.Context, hubId openapi_types.UUID, body SetSpaceDraftsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetSpaceDraftsRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListSpaceLabels The labels of a hub's pages
 //
 // Every label the space's live pages carry, with how many pages carry it, most used first: the facet a search narrows by. A page the reader may not read is not counted. Needs READ on the hub.
@@ -55052,6 +55201,23 @@ func (c *Client) AddPageComment(ctx context.Context, pageId PageId, body AddPage
 	return c.Client.Do(req)
 }
 
+// DiscardPageDraft Throw a page's draft away
+//
+// The page stays as published. A page never published has no draft to throw away (`pages.nothing_to_discard`): it is put in the trash instead. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with DELETE /pages/{pageId}/draft (the `DiscardPageDraft` operationId).
+func (c *Client) DiscardPageDraft(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDiscardPageDraftRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListPageLabels A page's labels
 //
 // The labels a page carries, in alphabetical order. Needs READ on the hub.
@@ -55427,6 +55593,23 @@ func (c *Client) MovePageWithBody(ctx context.Context, pageId PageId, params *Mo
 // Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
 func (c *Client) MovePage(ctx context.Context, pageId PageId, params *MovePageParams, body MovePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewMovePageRequest(c.Server, pageId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishPage Publish what waits on a page
+//
+// In a space with drafts: a page never published opens to the space's readers, and a draft's title and body become the page's, kept as a version of its history. Refused with `pages.nothing_to_publish` when nothing waits. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /pages/{pageId}:publish (the `PublishPage` operationId).
+func (c *Client) PublishPage(ctx context.Context, pageId PageId, params *PublishPageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishPageRequest(c.Server, pageId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -78794,6 +78977,87 @@ func NewCreateCodeHookRequestWithBody(server string, hubId HubId, contentType st
 	return req, nil
 }
 
+// NewReadSpaceDraftsRequest constructs an http.Request for the ReadSpaceDrafts method
+func NewReadSpaceDraftsRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/page-drafts", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetSpaceDraftsRequest calls the generic SetSpaceDrafts builder with application/json body
+func NewSetSpaceDraftsRequest(server string, hubId openapi_types.UUID, body SetSpaceDraftsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetSpaceDraftsRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewSetSpaceDraftsRequestWithBody constructs an http.Request for the SetSpaceDrafts method, with any body, and a specified content type
+func NewSetSpaceDraftsRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/page-drafts", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListSpaceLabelsRequest constructs an http.Request for the ListSpaceLabels method
 func NewListSpaceLabelsRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
 	var err error
@@ -87930,6 +88194,40 @@ func NewAddPageCommentRequestWithBody(server string, pageId PageId, contentType 
 	return req, nil
 }
 
+// NewDiscardPageDraftRequest constructs an http.Request for the DiscardPageDraft method
+func NewDiscardPageDraftRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/draft", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListPageLabelsRequest constructs an http.Request for the ListPageLabels method
 func NewListPageLabelsRequest(server string, pageId PageId) (*http.Request, error) {
 	var err error
@@ -88575,6 +88873,55 @@ func NewMovePageRequestWithBody(server string, pageId PageId, params *MovePagePa
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewPublishPageRequest constructs an http.Request for the PublishPage method
+func NewPublishPageRequest(server string, pageId PageId, params *PublishPageParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s:publish", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	if params != nil {
 
@@ -104119,6 +104466,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/code-hooks (the `CreateCodeHook` operationId).
 	CreateCodeHookWithResponse(ctx context.Context, hubId HubId, body CreateCodeHookJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCodeHookResult, error)
 
+	// ReadSpaceDraftsWithResponse Whether a space keeps drafts
+	//
+	// Whether the hub's space keeps its writers' changes in drafts until one of them publishes - or is a live document, every change read at once -, the level that decided it, the level that locked it and how many drafts wait. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/page-drafts (the `ReadSpaceDrafts` operationId).
+	ReadSpaceDraftsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadSpaceDraftsResult, error)
+
+	// SetSpaceDraftsWithBodyWithResponse Switch a space to drafts or back
+	//
+	// Switches the hub's space between the live document and drafts with publishing, inside what the workspace leaves. Back to the live document only once no draft waits (`pages.drafts_pending`). Needs STRUCTURE on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/page-drafts (the `SetSpaceDrafts` operationId).
+	SetSpaceDraftsWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetSpaceDraftsResult, error)
+
+	// SetSpaceDraftsWithResponse Switch a space to drafts or back
+	//
+	// Switches the hub's space between the live document and drafts with publishing, inside what the workspace leaves. Back to the live document only once no draft waits (`pages.drafts_pending`). Needs STRUCTURE on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/page-drafts (the `SetSpaceDrafts` operationId).
+	SetSpaceDraftsWithResponse(ctx context.Context, hubId openapi_types.UUID, body SetSpaceDraftsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetSpaceDraftsResult, error)
+
 	// ListSpaceLabelsWithResponse The labels of a hub's pages
 	//
 	// Every label the space's live pages carry, with how many pages carry it, most used first: the facet a search narrows by. A page the reader may not read is not counted. Needs READ on the hub.
@@ -106625,6 +106999,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageCommentWithResponse(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error)
 
+	// DiscardPageDraftWithResponse Throw a page's draft away
+	//
+	// The page stays as published. A page never published has no draft to throw away (`pages.nothing_to_discard`): it is put in the trash instead. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /pages/{pageId}/draft (the `DiscardPageDraft` operationId).
+	DiscardPageDraftWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*DiscardPageDraftResult, error)
+
 	// ListPageLabelsWithResponse A page's labels
 	//
 	// The labels a page carries, in alphabetical order. Needs READ on the hub.
@@ -106813,6 +107196,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
 	MovePageWithResponse(ctx context.Context, pageId PageId, params *MovePageParams, body MovePageJSONRequestBody, reqEditors ...RequestEditorFn) (*MovePageResult, error)
+
+	// PublishPageWithResponse Publish what waits on a page
+	//
+	// In a space with drafts: a page never published opens to the space's readers, and a draft's title and body become the page's, kept as a version of its history. Refused with `pages.nothing_to_publish` when nothing waits. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:publish (the `PublishPage` operationId).
+	PublishPageWithResponse(ctx context.Context, pageId PageId, params *PublishPageParams, reqEditors ...RequestEditorFn) (*PublishPageResult, error)
 
 	// RestorePageWithResponse Bring a page back from the trash
 	//
@@ -127798,6 +128190,102 @@ func (r CreateCodeHookResult) ContentType() string {
 	return ""
 }
 
+type ReadSpaceDraftsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageSpaceDrafts
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadSpaceDraftsResult) GetJSON200() *PageSpaceDrafts {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadSpaceDraftsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadSpaceDraftsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadSpaceDraftsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadSpaceDraftsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadSpaceDraftsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetSpaceDraftsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageSpaceDrafts
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetSpaceDraftsResult) GetJSON200() *PageSpaceDrafts {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetSpaceDraftsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetSpaceDraftsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetSpaceDraftsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetSpaceDraftsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetSpaceDraftsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListSpaceLabelsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -137133,6 +137621,47 @@ func (r AddPageCommentResult) ContentType() string {
 	return ""
 }
 
+type DiscardPageDraftResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DiscardPageDraftResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DiscardPageDraftResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DiscardPageDraftResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DiscardPageDraftResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DiscardPageDraftResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPageLabelsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -137785,6 +138314,54 @@ func (r MovePageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r MovePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PublishPageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PublishPageResult) GetJSON200() *Page {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PublishPageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PublishPageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PublishPageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PublishPageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PublishPageResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -156825,6 +157402,51 @@ func (c *ClientWithResponses) CreateCodeHookWithResponse(ctx context.Context, hu
 	return ParseCreateCodeHookResult(rsp)
 }
 
+// ReadSpaceDraftsWithResponse Whether a space keeps drafts
+//
+// Whether the hub's space keeps its writers' changes in drafts until one of them publishes - or is a live document, every change read at once -, the level that decided it, the level that locked it and how many drafts wait. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/page-drafts (the `ReadSpaceDrafts` operationId).
+func (c *ClientWithResponses) ReadSpaceDraftsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadSpaceDraftsResult, error) {
+	rsp, err := c.ReadSpaceDrafts(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadSpaceDraftsResult(rsp)
+}
+
+// SetSpaceDraftsWithBodyWithResponse Switch a space to drafts or back
+//
+// Switches the hub's space between the live document and drafts with publishing, inside what the workspace leaves. Back to the live document only once no draft waits (`pages.drafts_pending`). Needs STRUCTURE on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/page-drafts (the `SetSpaceDrafts` operationId).
+func (c *ClientWithResponses) SetSpaceDraftsWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetSpaceDraftsResult, error) {
+	rsp, err := c.SetSpaceDraftsWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetSpaceDraftsResult(rsp)
+}
+
+// SetSpaceDraftsWithResponse Switch a space to drafts or back
+//
+// Switches the hub's space between the live document and drafts with publishing, inside what the workspace leaves. Back to the live document only once no draft waits (`pages.drafts_pending`). Needs STRUCTURE on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/page-drafts (the `SetSpaceDrafts` operationId).
+func (c *ClientWithResponses) SetSpaceDraftsWithResponse(ctx context.Context, hubId openapi_types.UUID, body SetSpaceDraftsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetSpaceDraftsResult, error) {
+	rsp, err := c.SetSpaceDrafts(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetSpaceDraftsResult(rsp)
+}
+
 // ListSpaceLabelsWithResponse The labels of a hub's pages
 //
 // Every label the space's live pages carry, with how many pages carry it, most used first: the facet a search narrows by. A page the reader may not read is not counted. Needs READ on the hub.
@@ -160933,6 +161555,21 @@ func (c *ClientWithResponses) AddPageCommentWithResponse(ctx context.Context, pa
 	return ParseAddPageCommentResult(rsp)
 }
 
+// DiscardPageDraftWithResponse Throw a page's draft away
+//
+// The page stays as published. A page never published has no draft to throw away (`pages.nothing_to_discard`): it is put in the trash instead. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /pages/{pageId}/draft (the `DiscardPageDraft` operationId).
+func (c *ClientWithResponses) DiscardPageDraftWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*DiscardPageDraftResult, error) {
+	rsp, err := c.DiscardPageDraft(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDiscardPageDraftResult(rsp)
+}
+
 // ListPageLabelsWithResponse A page's labels
 //
 // The labels a page carries, in alphabetical order. Needs READ on the hub.
@@ -161246,6 +161883,21 @@ func (c *ClientWithResponses) MovePageWithResponse(ctx context.Context, pageId P
 		return nil, err
 	}
 	return ParseMovePageResult(rsp)
+}
+
+// PublishPageWithResponse Publish what waits on a page
+//
+// In a space with drafts: a page never published opens to the space's readers, and a draft's title and body become the page's, kept as a version of its history. Refused with `pages.nothing_to_publish` when nothing waits. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:publish (the `PublishPage` operationId).
+func (c *ClientWithResponses) PublishPageWithResponse(ctx context.Context, pageId PageId, params *PublishPageParams, reqEditors ...RequestEditorFn) (*PublishPageResult, error) {
+	rsp, err := c.PublishPage(ctx, pageId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishPageResult(rsp)
 }
 
 // RestorePageWithResponse Bring a page back from the trash
@@ -178924,6 +179576,72 @@ func ParseCreateCodeHookResult(rsp *http.Response) (*CreateCodeHookResult, error
 	return response, nil
 }
 
+// ParseReadSpaceDraftsResult parses an HTTP response from a ReadSpaceDraftsWithResponse call
+func ParseReadSpaceDraftsResult(rsp *http.Response) (*ReadSpaceDraftsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadSpaceDraftsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageSpaceDrafts
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetSpaceDraftsResult parses an HTTP response from a SetSpaceDraftsWithResponse call
+func ParseSetSpaceDraftsResult(rsp *http.Response) (*SetSpaceDraftsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetSpaceDraftsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageSpaceDrafts
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListSpaceLabelsResult parses an HTTP response from a ListSpaceLabelsWithResponse call
 func ParseListSpaceLabelsResult(rsp *http.Response) (*ListSpaceLabelsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -185641,6 +186359,35 @@ func ParseAddPageCommentResult(rsp *http.Response) (*AddPageCommentResult, error
 	return response, nil
 }
 
+// ParseDiscardPageDraftResult parses an HTTP response from a DiscardPageDraftWithResponse call
+func ParseDiscardPageDraftResult(rsp *http.Response) (*DiscardPageDraftResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DiscardPageDraftResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListPageLabelsResult parses an HTTP response from a ListPageLabelsWithResponse call
 func ParseListPageLabelsResult(rsp *http.Response) (*ListPageLabelsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -186071,6 +186818,39 @@ func ParseMovePageResult(rsp *http.Response) (*MovePageResult, error) {
 	}
 
 	response := &MovePageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePublishPageResult parses an HTTP response from a PublishPageWithResponse call
+func ParsePublishPageResult(rsp *http.Response) (*PublishPageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PublishPageResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

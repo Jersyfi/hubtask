@@ -157,7 +157,13 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		if err != nil {
 			return err
 		}
-		if err := h.Space.write(ctx, actor, page, now); err != nil {
+		// In a space with drafts a new page waits for its writer to publish it (UC-DOC-15); the
+		// subpages written with it wait under it.
+		unpublished, err := h.Space.drafting(ctx, actor.TenantID, cmd.HubID)
+		if err != nil {
+			return err
+		}
+		if page, err = h.Space.write(ctx, actor, page, unpublished, now); err != nil {
 			return err
 		}
 		return h.Space.writeSubpages(ctx, actor, page, plan, now)
@@ -198,18 +204,25 @@ func subpagesOf(list []any, path string, depth int) ([]Subpage, error) {
 	return out, nil
 }
 
-// write stores a new page with its first version, its change and its trail.
-func (s Space) write(ctx context.Context, actor appshared.ActorContext, page domain.Page, now time.Time) error {
+// write stores a new page with its first version, its change and its trail; unpublished keeps it
+// to its writer until it is published.
+func (s Space) write(ctx context.Context, actor appshared.ActorContext, page domain.Page, unpublished bool, now time.Time) (domain.Page, error) {
 	if err := s.Pages.Insert(ctx, page); err != nil {
-		return err
+		return domain.Page{}, err
+	}
+	if unpublished {
+		var err error
+		if page, err = s.markUnpublished(ctx, actor, page, now); err != nil {
+			return domain.Page{}, err
+		}
 	}
 	if err := s.snapshot(ctx, page, actor.AccountID, now); err != nil {
-		return err
+		return domain.Page{}, err
 	}
 	if err := s.announce(ctx, actor, page); err != nil {
-		return err
+		return domain.Page{}, err
 	}
-	return s.record(ctx, actor, PageCreatedAction, pageTarget, page.ID,
+	return page, s.record(ctx, actor, PageCreatedAction, pageTarget, page.ID,
 		changed([]string{domain.FieldTitle, domain.FieldBody}, page), now)
 }
 
@@ -303,7 +316,7 @@ func (s Space) writeSubpages(ctx context.Context, actor appshared.ActorContext, 
 		if err != nil {
 			return err
 		}
-		if err := s.write(ctx, actor, page, now); err != nil {
+		if _, err := s.write(ctx, actor, page, false, now); err != nil {
 			return err
 		}
 		written[i] = page.ID
@@ -375,6 +388,10 @@ type Read struct {
 	Writable  bool
 	// Shared marks a page read by a share alone: without the pages above it, never written.
 	Shared bool
+	// Drafts tells whether the page's space keeps drafts; Draft is what waits on the page, shown
+	// to a writer alone (UC-DOC-15).
+	Drafts bool
+	Draft  *domain.Draft
 }
 
 // Execute reads the page.
@@ -390,18 +407,27 @@ func (h ReadPage) Execute(ctx context.Context, actor appshared.ActorContext, id 
 		return Read{}, err
 	}
 	out := Read{Page: page, Ancestors: []usecase.Output{}}
+	if out.Writable, err = h.Space.mayWrite(ctx, actor, page.HubID); err != nil {
+		return Read{}, err
+	}
 	err = h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		ancestors, err := h.Space.Pages.Ancestors(ctx, page.ID)
+		if err != nil {
+			return err
+		}
 		for i := len(ancestors) - 1; i >= 0; i-- {
 			out.Ancestors = append(out.Ancestors, usecase.Output{"id": ancestors[i].ID.String(), "title": ancestors[i].Title})
 		}
+		if out.Drafts, err = h.Space.drafting(ctx, actor.TenantID, page.HubID); err != nil || !out.Writable {
+			return err
+		}
+		out.Draft, err = h.Space.draftOf(ctx, page.ID)
 		return err
 	})
 	if err != nil {
 		return Read{}, err
 	}
-	out.Writable, err = h.Space.mayWrite(ctx, actor, page.HubID)
-	return out, err
+	return out, nil
 }
 
 // Descriptor is the catalogue entry.
@@ -426,6 +452,8 @@ func (h ReadPage) Descriptor() usecase.Descriptor {
 			}
 			out := PageOutput(read.Page, true, h.Space.Clock.Now())
 			out["ancestors"], out["writable"], out["shared"] = read.Ancestors, read.Writable, read.Shared
+			out["drafts"], out["draft"] = read.Drafts, DraftOutput(read.Draft)
+			out["unpublished"] = read.Draft != nil && read.Draft.Unpublished
 			return out, nil
 		}),
 	})
@@ -518,14 +546,26 @@ type UpdatePage struct{ Space Space }
 
 // Execute writes the page.
 func (h UpdatePage) Execute(ctx context.Context, actor appshared.ActorContext, cmd UpdatePageCommand) (domain.Page, error) {
+	written, err := h.write(ctx, actor, cmd)
+	return written.Page, err
+}
+
+// Written is a page after a write, with the draft that waits on it in a space with drafts.
+type Written struct {
+	Page   domain.Page
+	Draft  *domain.Draft
+	Drafts bool
+}
+
+func (h UpdatePage) write(ctx context.Context, actor appshared.ActorContext, cmd UpdatePageCommand) (Written, error) {
 	place, err := h.Space.placeOf(ctx, actor, cmd.PageID)
 	if err != nil {
-		return domain.Page{}, err
+		return Written{}, err
 	}
 	if err := h.Space.authorizeWrite(ctx, actor, place.HubID, place.ID, PageChangedAction, pageTarget); err != nil {
-		return domain.Page{}, err
+		return Written{}, err
 	}
-	var page domain.Page
+	var out Written
 	err = h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		current, err := h.Space.find(ctx, cmd.PageID, true)
 		if err != nil {
@@ -534,8 +574,36 @@ func (h UpdatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		if cmd.ExpectedVersion != 0 && cmd.ExpectedVersion != current.Version {
 			return shared.ErrVersionConflict.WithDetail("pages.version_conflict")
 		}
+		change := cmd.Change
+		// In a space with drafts a published page's title and body change in its draft; its readers
+		// read what was published (UC-DOC-15). A page never published is its writer's alone and is
+		// written as it is.
+		if out.Drafts, err = h.Space.drafting(ctx, actor.TenantID, current.HubID); err != nil {
+			return err
+		}
+		if out.Draft, err = h.Space.draftOf(ctx, current.ID); err != nil {
+			return err
+		}
+		if out.Drafts && change.Touches() && (out.Draft == nil || out.Draft.Pending()) {
+			var drafted domain.Change
+			drafted, change = domain.DraftOnly(change)
+			if out.Draft, err = h.Space.saveDraft(ctx, actor, current, out.Draft, drafted); err != nil {
+				return err
+			}
+		}
+		page, err := h.change(ctx, actor, current, change)
+		out.Page = page
+		return err
+	})
+	return out, err
+}
+
+// change writes what a change changes on the page itself.
+func (h UpdatePage) change(ctx context.Context, actor appshared.ActorContext, current domain.Page, change domain.Change) (domain.Page, error) {
+	var page domain.Page
+	err := func() error {
 		now := h.Space.Clock.Now()
-		next, fields, err := current.Changed(cmd.Change, actor.AccountID, now, h.Space.Text)
+		next, fields, err := current.Changed(change, actor.AccountID, now, h.Space.Text)
 		if err != nil {
 			return err
 		}
@@ -557,7 +625,7 @@ func (h UpdatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 			return err
 		}
 		return h.Space.record(ctx, actor, PageChangedAction, pageTarget, next.ID, changed(fields, next), now)
-	})
+	}()
 	return page, err
 }
 
@@ -587,7 +655,7 @@ func (h UpdatePage) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			page, err := h.Execute(ctx, actor, UpdatePageCommand{
+			written, err := h.write(ctx, actor, UpdatePageCommand{
 				PageID: id, ExpectedVersion: in.Int("expected_version"),
 				Change: domain.Change{
 					Title: in.OptionalString("title"), Body: rawText(in, "body"), Icon: in.OptionalString("icon"),
@@ -598,7 +666,10 @@ func (h UpdatePage) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			return PageOutput(page, true, h.Space.Clock.Now()), nil
+			out := PageOutput(written.Page, true, h.Space.Clock.Now())
+			out["drafts"], out["draft"] = written.Drafts, DraftOutput(written.Draft)
+			out["unpublished"] = written.Draft != nil && written.Draft.Unpublished
+			return out, nil
 		}),
 	})
 }

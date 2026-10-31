@@ -1925,6 +1925,8 @@ func run() error {
 		Articles: postgres.NewPageArticleRepository(),
 		// A page's pictures and files (UC-DOC-14).
 		Media: mediaObjects,
+		// A space's drafts until they are published (UC-DOC-15).
+		Drafting: knowledgeservice.Drafting{Drafts: postgres.NewPageDraftRepository(), Settings: postgres.SettingRepository{}},
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
@@ -2175,6 +2177,10 @@ func run() error {
 		agentservice.ListAgentJobs{Desk: agentDesk}.Descriptor(),
 		knowledgeservice.CreatePage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.CopyPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.PublishPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.DiscardPageDraft{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadSpaceDrafts{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SetSpaceDrafts{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListPageLabels{Space: pageSpace}.Descriptor(),
 		knowledgeservice.SetPageLabels{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListSpaceLabels{Space: pageSpace}.Descriptor(),

@@ -3015,6 +3015,14 @@ class Client:
         """Write a new page"""
         return self._call("POST", "/hubs/{hubId}/pages", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
+    def read_space_drafts(self, hub_id: str) -> "PageSpaceDrafts":
+        """Whether a space keeps drafts"""
+        return self._call("GET", "/hubs/{hubId}/page-drafts", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def set_space_drafts(self, hub_id: str, body: dict[str, Any]) -> "PageSpaceDrafts":
+        """Switch a space to drafts or back"""
+        return self._call("PUT", "/hubs/{hubId}/page-drafts", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
     def list_trashed_pages(self, hub_id: str) -> "PageList":
         """A hub's trashed pages"""
         return self._call("GET", "/hubs/{hubId}/trashed-pages", {"hubId": hub_id}, None, {}, None, "none", None, "json")
@@ -3114,6 +3122,14 @@ class Client:
     def unshare_page(self, page_id: str, account_id: str) -> None:
         """Take a page's share away"""
         return self._call("DELETE", "/pages/{pageId}/shares/{accountId}", {"pageId": page_id, "accountId": account_id}, None, {}, None, "none", None, "void")
+
+    def publish_page(self, page_id: str, *, if_match: str | None = None) -> "Page":
+        """Publish what waits on a page"""
+        return self._call("POST", "/pages/{pageId}:publish", {"pageId": page_id}, None, {"If-Match": if_match}, None, "none", None, "json")
+
+    def discard_page_draft(self, page_id: str) -> None:
+        """Throw a page's draft away"""
+        return self._call("DELETE", "/pages/{pageId}/draft", {"pageId": page_id}, None, {}, None, "none", None, "void")
 
     def create_page_public_link(self, page_id: str) -> "PagePublicLinkMinted":
         """Make a page's public link"""
