@@ -362,8 +362,10 @@ entries in a long tail, each read path that grows with a workspace held for the 
 and the smallest workspace. **10⁶ ran on the owner's workstation on 2026-10-31**
 ([evidence](../evidence/capacity-1000000-2026-10-31.md)): every path answered without a server
 error; at 170 124 entries in the largest workspace a collection's page held P95 7 ms, the board
-47 ms, a count over the hub 60 ms - and the hub's level, whose figures are counted on every read,
-254 ms with eight concurrent readers (about 75 ms of database time for one). The database held
+47 ms, a count over the hub 60 ms - and the hub's level 254 ms with eight concurrent readers while
+its figures were counted on every read (about 75 ms of database time for one), 7 ms once a
+collection's figure is kept between reads while it is unchanged (migration 0292; the first read
+after a write counts that collection again). The database held
 1.2 GB per 10⁶ entries, 70 % of it indexes; the server stayed at about 200 MB resident. The run
 found and fixed a seed that grew with the square of a collection's entries (migration 0289),
 whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ is

@@ -51,7 +51,9 @@ workspace: 30 s each after a 5 s warm-up, eight callers, paced at 400 requests a
 `capacity-<items>.json` with requests per second per vCPU and P50 / P95 / P99 per path and
 workspace, which is how the decay with entries per workspace is read. It asserts only that every
 path answered without a server error; what the figures mean is the release tier's to judge, and a
-cell no run filled stays *not measured*. It skips unless `HUBTASK_LOAD_CAPACITY` is set, so
+cell no run filled stays *not measured*. No path writes, so the hub's level is answered from the
+collections' kept figures after the warm-up (migration 0292): it measures the read once a count is
+kept, not the count a write makes the next read pay. It skips unless `HUBTASK_LOAD_CAPACITY` is set, so
 `make gate-load` does not run it. The server's peak resident memory is recorded where `/proc` is
 readable (Linux); elsewhere `memory_observed` is false.
 
