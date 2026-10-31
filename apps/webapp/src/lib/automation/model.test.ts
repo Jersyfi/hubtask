@@ -127,6 +127,21 @@ test('a relative date sends its date field only when it is measured from one', (
   assert.deepEqual(toRuleDraft(draft, 'n').trigger, { kind: 'RELATIVE_DATE', anchor: 'DUE_DATE', offset: '-P30D' });
 });
 
+test('a relative date on a business calendar keeps its calendar when it is edited (UC-AUT-04 check 9)', () => {
+  const stored: Rule = {
+    ...STORED,
+    trigger: { kind: 'RELATIVE_DATE', anchor: 'COMPLETED_AT', offset: 'P5D', calendar: 'office' },
+  };
+  const draft = fromRule(stored);
+  assert.equal(draft.trigger.calendar, 'office');
+  assert.deepEqual(toRuleDraft(draft, 'n').trigger, {
+    kind: 'RELATIVE_DATE',
+    anchor: 'COMPLETED_AT',
+    offset: 'P5D',
+    calendar: 'office',
+  });
+});
+
 test('a path names one step through the arms, and translates to the pointer a refusal carries', () => {
   const { actions } = fromRule(STORED);
   assert.equal(stepAt(actions, '1/then/0')?.kind, 'NOTIFY_GROUP');

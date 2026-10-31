@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-10, P-11]
 state: built
 tasks: [G-08]
-checked_by: [core/application/service/automation/SchedulePass_test.go, core/application/service/automation/RelativeDates_test.go, test/integration/automation_trigger_test.go, core/domain/model/automation/Occurrence_test.go, core/domain/model/calendar/BusinessCalendar_test.go, core/application/service/servicedesk/InstallationCalendars_test.go, core/application/service/config/ShippedItil_test.go]
+checked_by: [core/application/service/automation/SchedulePass_test.go, core/application/service/automation/RelativeDates_test.go, test/integration/automation_trigger_test.go, core/domain/model/automation/Occurrence_test.go, core/domain/model/calendar/BusinessCalendar_test.go, core/application/service/servicedesk/InstallationCalendars_test.go, core/application/service/config/ShippedItil_test.go, apps/webapp/src/lib/automation/model.test.ts]
 ---
 
 # Run a rule on a schedule, or a set time before or after a date

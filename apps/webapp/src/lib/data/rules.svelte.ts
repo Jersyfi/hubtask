@@ -47,6 +47,8 @@ export interface RuleTrigger {
   /** A `FIELD` anchor's custom field key. */
   readonly anchor_field?: string;
   readonly offset?: string;
+  /** A business calendar's key: the offset counts its working days (UC-AUT-04 check 9). */
+  readonly calendar?: string;
   /** `STEP_TAKEN`'s: the workflow's key and the step's (UC-FLW-04 check 4). */
   readonly workflow?: string;
   readonly step?: string;

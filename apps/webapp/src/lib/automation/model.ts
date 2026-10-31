@@ -37,6 +37,7 @@ export interface TriggerDraft {
   anchor?: string;
   anchor_field?: string;
   offset?: string;
+  calendar?: string;
   workflow?: string;
   step?: string;
 }
@@ -143,6 +144,7 @@ export function fromRule(rule: Rule): Draft {
       ...(rule.trigger.anchor ? { anchor: rule.trigger.anchor } : {}),
       ...(rule.trigger.anchor_field ? { anchor_field: rule.trigger.anchor_field } : {}),
       ...(rule.trigger.offset ? { offset: rule.trigger.offset } : {}),
+      ...(rule.trigger.calendar ? { calendar: rule.trigger.calendar } : {}),
       ...(rule.trigger.workflow ? { workflow: rule.trigger.workflow } : {}),
       ...(rule.trigger.step ? { step: rule.trigger.step } : {}),
     },
@@ -252,6 +254,7 @@ export function toRuleDraft(draft: Draft, name: string): RuleDraft {
               ...(t.anchor ? { anchor: t.anchor } : {}),
               ...(t.anchor === 'FIELD' && t.anchor_field ? { anchor_field: t.anchor_field } : {}),
               ...(t.offset ? { offset: t.offset } : {}),
+              ...(t.calendar ? { calendar: t.calendar } : {}),
             }
           : t.kind === 'STEP_TAKEN'
             ? { kind: t.kind, ...(t.workflow ? { workflow: t.workflow } : {}), ...(t.step ? { step: t.step } : {}) }
