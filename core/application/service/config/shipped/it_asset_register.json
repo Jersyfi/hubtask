@@ -1,0 +1,191 @@
+{
+  "key": "it_asset_register",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "asset_tag": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "asset_status": {
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Ordered",
+          "In stock",
+          "In use",
+          "In repair",
+          "Retired"
+        ]
+      },
+      "asset_category": {
+        "kind": "CASCADING_SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Hardware",
+          "Hardware/Laptop",
+          "Hardware/Desktop",
+          "Hardware/Server",
+          "Hardware/Network device",
+          "Hardware/Phone",
+          "Software",
+          "Software/Licence",
+          "Software/Service"
+        ]
+      },
+      "asset_serial_number": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "asset_ip_address": {
+        "kind": "IP_ADDRESS",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "asset_owner": {
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "asset_support_group": {
+        "kind": "GROUP",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "asset_purchased_on": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "asset_warranty_until": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "asset_purchase_price": {
+        "kind": "MONEY",
+        "applies_to": [
+          "TASK"
+        ],
+        "currency": "EUR"
+      },
+      "asset_depends_on": {
+        "kind": "REFERENCE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "asset_labels": {
+        "kind": "LABEL",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "asset": {
+        "level": "TASK",
+        "name": "Asset",
+        "icon": "wrench",
+        "color_token": "blue",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "identity",
+              "name": "Identity"
+            },
+            {
+              "key": "lifecycle",
+              "name": "Lifecycle"
+            },
+            {
+              "key": "ownership",
+              "name": "Ownership"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "identity",
+              "required": true
+            },
+            {
+              "key": "custom_fields.asset_tag",
+              "section": "identity"
+            },
+            {
+              "key": "custom_fields.asset_category",
+              "section": "identity"
+            },
+            {
+              "key": "custom_fields.asset_serial_number",
+              "section": "identity"
+            },
+            {
+              "key": "custom_fields.asset_ip_address",
+              "section": "identity"
+            },
+            {
+              "key": "custom_fields.asset_status",
+              "section": "lifecycle"
+            },
+            {
+              "key": "custom_fields.asset_purchased_on",
+              "section": "lifecycle"
+            },
+            {
+              "key": "custom_fields.asset_warranty_until",
+              "section": "lifecycle"
+            },
+            {
+              "key": "custom_fields.asset_purchase_price",
+              "section": "lifecycle"
+            },
+            {
+              "key": "custom_fields.asset_owner",
+              "section": "ownership"
+            },
+            {
+              "key": "custom_fields.asset_support_group",
+              "section": "ownership"
+            },
+            {
+              "key": "custom_fields.asset_depends_on",
+              "section": "ownership"
+            },
+            {
+              "key": "custom_fields.asset_labels",
+              "section": "ownership"
+            },
+            {
+              "key": "notes",
+              "section": "ownership"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

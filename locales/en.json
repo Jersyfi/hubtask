@@ -11019,5 +11019,9 @@
   "app.fields.pick_group_none": "No group",
   "app.fields.pick_file": "Which of the entry's files",
   "app.fields.pick_file_none": "No file",
-  "app.fields.pick_file_empty": "Attach a file to the entry first."
+  "app.fields.pick_file_empty": "Attach a file to the entry first.",
+  "app.structure.preset.IT_ASSET_REGISTER": "IT asset register",
+  "app.structure.preset.RISK_REGISTER": "Risk register",
+  "app.structure.preset.CONTACT_REGISTER": "Contacts and organisations",
+  "app.structure.preset.VENDOR_CONTRACTS": "Vendors and contracts"
 }

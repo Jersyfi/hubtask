@@ -1,0 +1,167 @@
+{
+  "key": "contact_register",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "organisation_category": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Customer",
+          "Partner",
+          "Supplier",
+          "Authority"
+        ]
+      },
+      "organisation_website": {
+        "kind": "URL",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contact_organisation": {
+        "kind": "REFERENCE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contact_role": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contact_email": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contact_phone": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contact_status": {
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Active",
+          "Inactive"
+        ]
+      },
+      "contact_labels": {
+        "kind": "LABEL",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "organisation": {
+        "level": "TASK",
+        "name": "Organisation",
+        "icon": "users",
+        "color_token": "violet",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "organisation",
+              "name": "Organisation"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "organisation",
+              "required": true
+            },
+            {
+              "key": "custom_fields.organisation_category",
+              "section": "organisation"
+            },
+            {
+              "key": "custom_fields.organisation_website",
+              "section": "organisation"
+            },
+            {
+              "key": "notes",
+              "section": "organisation"
+            }
+          ]
+        }
+      },
+      "contact": {
+        "level": "TASK",
+        "name": "Contact",
+        "icon": "user",
+        "color_token": "green",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "person",
+              "name": "Person"
+            },
+            {
+              "key": "reach",
+              "name": "How to reach"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "person",
+              "required": true
+            },
+            {
+              "key": "custom_fields.contact_organisation",
+              "section": "person"
+            },
+            {
+              "key": "custom_fields.contact_role",
+              "section": "person"
+            },
+            {
+              "key": "custom_fields.contact_status",
+              "section": "person"
+            },
+            {
+              "key": "custom_fields.contact_email",
+              "section": "reach"
+            },
+            {
+              "key": "custom_fields.contact_phone",
+              "section": "reach"
+            },
+            {
+              "key": "custom_fields.contact_labels",
+              "section": "reach"
+            },
+            {
+              "key": "notes",
+              "section": "reach"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

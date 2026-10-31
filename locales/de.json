@@ -11016,5 +11016,9 @@
   "app.fields.pick_group_none": "Keine Gruppe",
   "app.fields.pick_file": "Welche Datei des Eintrags",
   "app.fields.pick_file_none": "Keine Datei",
-  "app.fields.pick_file_empty": "Hänge zuerst eine Datei an den Eintrag."
+  "app.fields.pick_file_empty": "Hänge zuerst eine Datei an den Eintrag.",
+  "app.structure.preset.IT_ASSET_REGISTER": "IT-Inventar",
+  "app.structure.preset.RISK_REGISTER": "Risikoregister",
+  "app.structure.preset.CONTACT_REGISTER": "Kontakte und Organisationen",
+  "app.structure.preset.VENDOR_CONTRACTS": "Lieferanten und Verträge"
 }

@@ -1,0 +1,200 @@
+{
+  "key": "vendor_contracts",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "vendor_status": {
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Prospect",
+          "Approved",
+          "Under review",
+          "Ended"
+        ]
+      },
+      "vendor_website": {
+        "kind": "URL",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "vendor_manager": {
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contract_vendor": {
+        "kind": "REFERENCE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contract_status": {
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Draft",
+          "Active",
+          "Notice given",
+          "Ended"
+        ]
+      },
+      "contract_value": {
+        "kind": "MONEY",
+        "applies_to": [
+          "TASK"
+        ],
+        "currency": "EUR"
+      },
+      "contract_starts_on": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contract_ends_on": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contract_notice_by": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contract_owner": {
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "contract_document": {
+        "kind": "FILE",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "vendor": {
+        "level": "TASK",
+        "name": "Vendor",
+        "icon": "briefcase",
+        "color_token": "slate",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "vendor",
+              "name": "Vendor"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "vendor",
+              "required": true
+            },
+            {
+              "key": "custom_fields.vendor_status",
+              "section": "vendor"
+            },
+            {
+              "key": "custom_fields.vendor_website",
+              "section": "vendor"
+            },
+            {
+              "key": "custom_fields.vendor_manager",
+              "section": "vendor"
+            },
+            {
+              "key": "notes",
+              "section": "vendor"
+            }
+          ]
+        }
+      },
+      "contract": {
+        "level": "TASK",
+        "name": "Contract",
+        "icon": "file-text",
+        "color_token": "blue",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "contract",
+              "name": "Contract"
+            },
+            {
+              "key": "term",
+              "name": "Term"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "contract",
+              "required": true
+            },
+            {
+              "key": "custom_fields.contract_vendor",
+              "section": "contract"
+            },
+            {
+              "key": "custom_fields.contract_status",
+              "section": "contract"
+            },
+            {
+              "key": "custom_fields.contract_value",
+              "section": "contract"
+            },
+            {
+              "key": "custom_fields.contract_owner",
+              "section": "contract"
+            },
+            {
+              "key": "custom_fields.contract_document",
+              "section": "contract"
+            },
+            {
+              "key": "custom_fields.contract_starts_on",
+              "section": "term"
+            },
+            {
+              "key": "custom_fields.contract_ends_on",
+              "section": "term"
+            },
+            {
+              "key": "custom_fields.contract_notice_by",
+              "section": "term"
+            },
+            {
+              "key": "notes",
+              "section": "term"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
