@@ -61,6 +61,7 @@ func (s *organisationStore) OfDomain(_ context.Context, d string) (domain.Organi
 	}
 	return domain.Organisation{}, shared.ErrNotFound
 }
+
 type addressBook struct {
 	identityrepo.Accounts
 	emails map[shared.ID]string
