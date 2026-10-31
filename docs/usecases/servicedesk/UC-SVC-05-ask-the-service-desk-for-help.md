@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Portal_test.go, core/domain/model/work/EntryTypeText_test.go, core/application/service/servicedesk/PortalCatalogue_test.go, core/application/service/workflow/EntryTypes_test.go, test/integration/entry_type_texts_test.go, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/src/lib/data/entrytypes.test.ts, core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/access/EmergencyAccess_test.go, core/application/service/servicedesk/Portal_test.go, core/application/service/work/AddCommentPortal_test.go]
+checked_by: [core/domain/model/servicedesk/Portal_test.go, core/domain/model/work/EntryTypeText_test.go, core/application/service/servicedesk/PortalCatalogue_test.go, core/application/service/workflow/EntryTypes_test.go, test/integration/entry_type_texts_test.go, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/src/lib/data/entrytypes.test.ts, core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/access/EmergencyAccess_test.go, core/application/service/servicedesk/Portal_test.go, core/application/service/work/AddCommentPortal_test.go, core/domain/model/media/Object_test.go, core/application/service/media/ReadMedia_test.go, core/application/service/servicedesk/DeskLogo_test.go, test/integration/desk_logo_test.go]
 ---
 
 # Ask the service desk for help and follow my request
@@ -31,6 +31,7 @@ Mehmet holds the requester role on the collection *IT help*. The portal shows hi
 
 7. The catalogue names and describes each type in the reader's language where the type's texts say it there - the exact language tag first, then its language alone (`de` for `de-AT`), then the type's default name and description, field by field; an administrator writes these texts per language on the type, at most 20 languages, and a tag that is no language is refused as `entry_types.language_malformed`.
 8. The portal's head shows the service it is for: the collection's name, description, icon and colour, as the catalogue answers them; the portal's own words stand where the collection has no description.
+9. Somebody holding STRUCTURE at the collection gives the desk a logo of their own upload - a PNG, JPEG, GIF or WebP image, at most 5 MB; anything else is refused as `media.logo_not_an_image` - and the portal's head draws it in place of the icon for every requester, who may read it as they may raise a request there; removed, the icon and colour stand again.
 
 ## Where it ends
 
