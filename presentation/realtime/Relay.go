@@ -4,6 +4,7 @@
 package realtime
 
 import (
+	"context"
 	"sync"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/realtime"
@@ -15,12 +16,25 @@ import (
 const relayBuffer = 16
 
 // Relay hands awareness from one connection to the other connections of the same document in this
-// process. Process-local: awareness is never stored, and a reader on another process sees it only
-// once the document's connections share one (offline-sync.md §13, open point).
+// process, and through Bus to those on the other processes (offline-sync.md §13). Awareness is
+// never stored.
 type Relay struct {
 	mu     sync.Mutex
 	next   int64
 	joined map[relayKey]map[int64]chan []byte
+	// Bus carries awareness to the other processes; nil keeps it in this one.
+	Bus AwarenessBus
+}
+
+// AwarenessBus relays a document's awareness to its connections on the other processes, best
+// effort: a message lost is replaced by the next.
+type AwarenessBus interface {
+	Publish(ctx context.Context, tenantID shared.ID, kind string, documentID shared.ID, message []byte) error
+}
+
+// Deliver hands a message another process relayed to every reader of the document here.
+func (r *Relay) Deliver(tenant shared.ID, kind string, documentID shared.ID, message []byte) {
+	r.Publish(tenant, domain.Ref{Kind: domain.Kind(kind), ID: documentID}, 0, message)
 }
 
 type relayKey struct {

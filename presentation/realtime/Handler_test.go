@@ -33,6 +33,7 @@ type documents struct {
 	writable bool
 	updates  []domain.Update
 	ended    bool
+	asked    int
 }
 
 func (d *documents) Open(context.Context, appshared.ActorContext, domain.Ref) (realtimeservice.Opened, error) {
@@ -49,6 +50,7 @@ func (d *documents) Open(context.Context, appshared.ActorContext, domain.Ref) (r
 func (d *documents) Since(_ context.Context, _ appshared.ActorContext, _ domain.Ref, after int64) ([]domain.Update, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.asked++
 	if d.ended {
 		return nil, shared.ErrForbidden.WithDetail("realtime.access_ended")
 	}
@@ -240,5 +242,82 @@ func TestTheFramingRoundTrips(t *testing.T) {
 	}
 	if _, err := Decode([]byte{messageSync, syncUpdate, 5, 1}); err == nil {
 		t.Error("a payload shorter than its length decoded")
+	}
+}
+
+// bell is a wake-up rung by hand, for a workspace or for one document.
+type bell struct{ ring chan struct{} }
+
+func (b bell) Subscribe(shared.ID) (<-chan struct{}, func()) { return b.ring, func() {} }
+
+func (b bell) SubscribeDocument(shared.ID, string, shared.ID) (<-chan struct{}, func()) {
+	return b.ring, func() {}
+}
+
+// A busy workspace does not cost a query per open document per change (SY-E): with a document's
+// own wake-up, the workspace's changes re-ask the reader's access at most every accessRecheck, and
+// the document's own update catches up at once.
+func TestAWorkspacesChangesDoNotReaskAccessEachTime(t *testing.T) {
+	docs := &documents{writable: true}
+	workspace, own := bell{make(chan struct{})}, bell{make(chan struct{})}
+	handler := Handler{Documents: docs, Relay: NewRelay(), Wakeups: workspace, DocumentWakeups: own}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil)
+	}))
+	t.Cleanup(server.Close)
+	conn := dial(t, server)
+	next(t, conn)
+	next(t, conn)
+	for range 20 {
+		workspace.ring <- struct{}{}
+	}
+	docs.mu.Lock()
+	asked := docs.asked
+	docs.updates = append(docs.updates, domain.Update{Seq: 2, Data: []byte("theirs")})
+	docs.mu.Unlock()
+	if asked != 0 {
+		t.Errorf("twenty changes of the workspace asked access %d times, want none within the interval", asked)
+	}
+	own.ring <- struct{}{}
+	if got := next(t, conn); !bytes.Equal(got, SyncUpdate([]byte("theirs"))) {
+		t.Errorf("the document's own wake-up handed out %v, want the update", got)
+	}
+}
+
+// relayBus hands what one process publishes to another process's relay, as the listener does.
+type relayBus struct{ to *Relay }
+
+func (b relayBus) Publish(_ context.Context, tenantID shared.ID, kind string, documentID shared.ID, message []byte) error {
+	b.to.Deliver(tenantID, kind, documentID, message)
+	return nil
+}
+
+// SY-E: two readers of one document on two processes see each other's awareness through the bus.
+func TestAwarenessCrossesToAnotherProcess(t *testing.T) {
+	docs := &documents{writable: true}
+	first, second := NewRelay(), NewRelay()
+	first.Bus, second.Bus = relayBus{to: second}, relayBus{to: first}
+	open := func(relay *Relay) *websocket.Conn {
+		handler := Handler{Documents: docs, Relay: relay}
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil)
+		}))
+		t.Cleanup(server.Close)
+		conn := dial(t, server)
+		next(t, conn)
+		next(t, conn)
+		return conn
+	}
+	here, there := open(first), open(second)
+	send(t, here, Awareness([]byte("cursor-1")))
+	send(t, here, Awareness([]byte("cursor-2")))
+	got := next(t, there)
+	if !bytes.Equal(got, Awareness([]byte("cursor-1"))) && !bytes.Equal(got, Awareness([]byte("cursor-2"))) {
+		t.Fatalf("the reader on the other process got %v", got)
+	}
+	if !bytes.Equal(got, Awareness([]byte("cursor-2"))) {
+		if latest := next(t, there); !bytes.Equal(latest, Awareness([]byte("cursor-2"))) {
+			t.Errorf("the latest cursor did not follow: %v", latest)
+		}
 	}
 }

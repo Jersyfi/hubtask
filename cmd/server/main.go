@@ -321,6 +321,9 @@ func run() error {
 	// pool for as long as the process serves streams (ADR-0007).
 	streamCursors := streamCursorAdapter{codec: security.NewStreamCursorCodec(cfg.SecretKey)}
 	changeListener := postgres.NewChangeListener(pool)
+	// A live document's awareness crosses the processes through the listener (offline-sync.md §13).
+	liveRelay := realtimeadapter.NewRelay()
+	changeListener.OnAwareness(liveRelay.Deliver)
 
 	// The change stream's process-local bookkeeping. Built before the chain, because the
 	// shutdown path needs it as much as the handler does: a stream has no natural end, so nothing
@@ -374,6 +377,7 @@ func run() error {
 	// with the observer on the way in, so no use case can run without its metric and its span
 	// (gate RT-12), and REST, MCP and automation then execute the same handlers (arc42 §4).
 	unitOfWork := postgres.NewUnitOfWork(pool)
+	liveRelay.Bus = postgres.AwarenessBus{Work: unitOfWork, Listener: changeListener}
 	// Readiness compares the database's migrations with the ones this build embeds (deployment.md
 	// §5): behind is not ready. The start only says so in the log - a failing startup probe would
 	// restart a pod that is merely waiting for its migration.
@@ -3705,8 +3709,9 @@ func run() error {
 					},
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},
-				Wakeups: changeListener,
-				Relay:   realtimeadapter.NewRelay(),
+				Wakeups:         changeListener,
+				DocumentWakeups: changeListener,
+				Relay:           liveRelay,
 			},
 			Registry: streams,
 		}

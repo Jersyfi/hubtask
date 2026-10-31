@@ -6,6 +6,7 @@ package realtime
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -34,6 +35,13 @@ const (
 	idleTimeout  = 90 * time.Second
 	pingInterval = 30 * time.Second
 	pollInterval = 2 * time.Second
+	// With a document's own wake-up, a workspace's change only asks the reader's access again, at
+	// most every accessRecheck; refreshInterval catches up regardless, should a wake-up be lost.
+	// awarenessEvery bounds how often one connection's awareness goes to the other processes, the
+	// latest kept and sent at the end of the interval.
+	accessRecheck   = 5 * time.Second
+	refreshInterval = 30 * time.Second
+	awarenessEvery  = 100 * time.Millisecond
 )
 
 // The close codes a client is told why with: in the range RFC 6455 leaves to applications.
@@ -56,11 +64,19 @@ type Wakeups interface {
 	Subscribe(tenantID shared.ID) (<-chan struct{}, func())
 }
 
+// DocumentWakeups rings when one document's log moved (migration 0296).
+type DocumentWakeups interface {
+	SubscribeDocument(tenantID shared.ID, kind string, documentID shared.ID) (<-chan struct{}, func())
+}
+
 // Handler serves one document's connection.
 type Handler struct {
 	Documents Documents
 	Wakeups   Wakeups
-	Relay     *Relay
+	// DocumentWakeups, where wired, wakes a connection for its own document alone; a workspace's
+	// change then re-asks access at most every accessRecheck instead of catching up each time.
+	DocumentWakeups DocumentWakeups
+	Relay           *Relay
 }
 
 // Serve opens the document and holds the connection until the client leaves, the process asks it
@@ -98,6 +114,13 @@ type connection struct {
 	// its own updates, which the catch-up does not echo.
 	last int64
 	own  map[int64]bool
+	// checked is when access was last asked (every catch-up asks it); recheck fires a deferred one.
+	checked time.Time
+	recheck <-chan time.Time
+	// pending is the newest awareness not yet sent to the other processes, flush when it goes.
+	pending []byte
+	sentAt  time.Time
+	flush   <-chan time.Time
 }
 
 func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, closing <-chan struct{}) (websocket.StatusCode, string) {
@@ -109,6 +132,8 @@ func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, clo
 	if err := c.start(ctx, opened); err != nil {
 		return c.ending(err)
 	}
+	// Opening asked the reader's access.
+	c.checked = time.Now()
 
 	incoming := make(chan []byte)
 	failed := make(chan error, 1)
@@ -121,6 +146,14 @@ func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, clo
 		ticker := time.NewTicker(pollInterval)
 		defer ticker.Stop()
 		poll = ticker.C
+	}
+	own, unsubscribeOwn := c.subscribeDocument()
+	defer unsubscribeOwn()
+	var refresh <-chan time.Time
+	if own != nil {
+		ticker := time.NewTicker(refreshInterval)
+		defer ticker.Stop()
+		refresh = ticker.C
 	}
 	for {
 		select {
@@ -135,9 +168,34 @@ func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, clo
 				return c.ending(err)
 			}
 		case <-woken:
+			if own != nil {
+				// Another change of the workspace: it may have taken the reader's access.
+				if wait := accessRecheck - time.Since(c.checked); wait > 0 {
+					if c.recheck == nil {
+						c.recheck = time.After(wait)
+					}
+					continue
+				}
+			}
 			if err := c.catchUp(ctx); err != nil {
 				return c.ending(err)
 			}
+		case <-own:
+			if err := c.catchUp(ctx); err != nil {
+				return c.ending(err)
+			}
+		case <-c.recheck:
+			c.recheck = nil
+			if err := c.catchUp(ctx); err != nil {
+				return c.ending(err)
+			}
+		case <-refresh:
+			if err := c.catchUp(ctx); err != nil {
+				return c.ending(err)
+			}
+		case <-c.flush:
+			c.flush = nil
+			c.broadcast(ctx)
 		case <-poll:
 			if err := c.catchUp(ctx); err != nil {
 				return c.ending(err)
@@ -234,7 +292,18 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 		if err := c.h.Documents.Relayable(message.Payload); err != nil {
 			return err
 		}
-		c.h.Relay.Publish(c.actor.TenantID, c.ref, relayID, Awareness(message.Payload))
+		relayed := Awareness(message.Payload)
+		c.h.Relay.Publish(c.actor.TenantID, c.ref, relayID, relayed)
+		if c.h.Relay.Bus != nil {
+			c.pending = relayed
+			if wait := awarenessEvery - time.Since(c.sentAt); wait > 0 {
+				if c.flush == nil {
+					c.flush = time.After(wait)
+				}
+				return nil
+			}
+			c.broadcast(ctx)
+		}
 		return nil
 	case message.Type == messageCompact:
 		err := c.h.Documents.Compact(ctx, c.actor, c.ref, int64(message.Seq), message.Payload) //nolint:gosec // bounded by the head
@@ -250,6 +319,7 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 // catchUp hands out what was appended since the last update this connection knows of, its own
 // updates excepted. The service asks for read access again each time.
 func (c *connection) catchUp(ctx context.Context) error {
+	c.checked = time.Now()
 	for {
 		updates, err := c.h.Documents.Since(ctx, c.actor, c.ref, c.last)
 		if err != nil {
@@ -285,6 +355,26 @@ func (c *connection) write(ctx context.Context, message []byte) error {
 	writeCtx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	return c.conn.Write(writeCtx, websocket.MessageBinary, message)
+}
+
+// broadcast sends the newest awareness to the other processes. A failure is not the connection's:
+// awareness is best effort, and the next message replaces this one.
+func (c *connection) broadcast(ctx context.Context) {
+	if c.pending == nil {
+		return
+	}
+	message := c.pending
+	c.pending, c.sentAt = nil, time.Now()
+	if err := c.h.Relay.Bus.Publish(ctx, c.actor.TenantID, string(c.ref.Kind), c.ref.ID, message); err != nil {
+		slog.DebugContext(ctx, "awareness not relayed to the other processes", slog.String("error", err.Error()))
+	}
+}
+
+func (c *connection) subscribeDocument() (<-chan struct{}, func()) {
+	if c.h.DocumentWakeups == nil {
+		return nil, func() {}
+	}
+	return c.h.DocumentWakeups.SubscribeDocument(c.actor.TenantID, string(c.ref.Kind), c.ref.ID)
 }
 
 func (c *connection) subscribe() (<-chan struct{}, func()) {
