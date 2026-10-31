@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/url"
@@ -94,14 +95,14 @@ func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, d.Group, d.Verb, d.usage())
 	queryValues := map[string]*string{}
 	for _, p := range d.Query {
-		queryValues[p.Name] = flags.String(flagName(p.Name), "", p.Help)
+		queryValues[p.Name] = declare(flags, p, p.Help)
 	}
 	bodyValues := map[string]*string{}
 	for _, p := range d.Body {
 		if flags.Lookup(flagName(p.Name)) != nil {
 			continue
 		}
-		bodyValues[p.Name] = flags.String(flagName(p.Name), "", kindHelp(p))
+		bodyValues[p.Name] = declare(flags, p, kindHelp(p))
 	}
 	var bodyFile, version *string
 	if d.HasBody && flags.Lookup("body") == nil {
@@ -197,6 +198,31 @@ func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 		return nil
 	}
 	return cli.Emit(answer, d.table(answer))
+}
+
+// declare makes a parameter's flag. A boolean one stands alone as a switch (`--refresh`) and still
+// takes `--refresh=false`.
+func declare(flags *flag.FlagSet, p doorParam, help string) *string {
+	value := new(string)
+	if p.Kind == "boolean" {
+		flags.Var((*switchFlag)(value), flagName(p.Name), help)
+		return value
+	}
+	flags.StringVar(value, flagName(p.Name), "", help)
+	return value
+}
+
+// switchFlag is a boolean flag kept as the text it was given, so it travels as the person wrote it.
+type switchFlag string
+
+func (s *switchFlag) String() string   { return string(*s) }
+func (s *switchFlag) IsBoolFlag() bool { return true }
+func (s *switchFlag) Set(value string) error {
+	if _, err := strconv.ParseBool(value); err != nil {
+		return fmt.Errorf("%q is not true or false", value)
+	}
+	*s = switchFlag(value)
+	return nil
 }
 
 func kindHelp(p doorParam) string {
