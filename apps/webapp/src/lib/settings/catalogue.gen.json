@@ -703,7 +703,8 @@
       "kind": "LOCALE",
       "levels": [
         "INSTANCE",
-        "WORKSPACE"
+        "WORKSPACE",
+        "PERSON"
       ],
       "lockable": false,
       "restrictable": false,
@@ -715,6 +716,10 @@
         {
           "level": "WORKSPACE",
           "permission": "STRUCTURE"
+        },
+        {
+          "level": "PERSON",
+          "permission": "SELF"
         }
       ]
     },
@@ -723,7 +728,8 @@
       "kind": "TIME_ZONE",
       "levels": [
         "INSTANCE",
-        "WORKSPACE"
+        "WORKSPACE",
+        "PERSON"
       ],
       "lockable": false,
       "restrictable": false,
@@ -735,6 +741,10 @@
         {
           "level": "WORKSPACE",
           "permission": "STRUCTURE"
+        },
+        {
+          "level": "PERSON",
+          "permission": "SELF"
         }
       ]
     },
@@ -743,7 +753,8 @@
       "kind": "CHOICE",
       "levels": [
         "INSTANCE",
-        "WORKSPACE"
+        "WORKSPACE",
+        "PERSON"
       ],
       "lockable": false,
       "options": [
@@ -760,6 +771,10 @@
         {
           "level": "WORKSPACE",
           "permission": "STRUCTURE"
+        },
+        {
+          "level": "PERSON",
+          "permission": "SELF"
         }
       ]
     },
