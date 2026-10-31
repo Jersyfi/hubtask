@@ -5428,8 +5428,16 @@ class PageCreate(TypedDict, total=False):
     icon: str
     template: bool
     template_id: str
+    with_subpages: bool
+    subpages: list["PageSubpage"]
     content_language: str
     id: str
+
+class PageSubpage(TypedDict, total=False):
+    title: Required[str]
+    body: str
+    icon: str
+    subpages: list["PageSubpage"]
 
 class PageChange(TypedDict, total=False):
     title: str

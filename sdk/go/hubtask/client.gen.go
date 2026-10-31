@@ -19168,11 +19168,17 @@ type PageCreate struct {
 	// Id An identifier the client minted for a page made offline.
 	Id       *openapi_types.UUID `json:"id,omitempty"`
 	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
-	Template *bool               `json:"template,omitempty"`
+
+	// Subpages Pages written beneath the new page in the same write - a space template. Not together with `with_subpages`; at most 100 pages in one write, the new page included.
+	Subpages *[]PageSubpage `json:"subpages,omitempty"`
+	Template *bool          `json:"template,omitempty"`
 
 	// TemplateId A template of the same space to start from.
 	TemplateId *openapi_types.UUID `json:"template_id,omitempty"`
 	Title      string              `json:"title"`
+
+	// WithSubpages Started from a template, bring its subpages along beneath the new page.
+	WithSubpages *bool `json:"with_subpages,omitempty"`
 }
 
 // PageExport defines model for PageExport.
@@ -19386,6 +19392,14 @@ type PageShare struct {
 // PageShareCreate defines model for PageShareCreate.
 type PageShareCreate struct {
 	AccountId openapi_types.UUID `json:"account_id"`
+}
+
+// PageSubpage defines model for PageSubpage.
+type PageSubpage struct {
+	Body     *string        `json:"body,omitempty"`
+	Icon     *string        `json:"icon,omitempty"`
+	Subpages *[]PageSubpage `json:"subpages,omitempty"`
+	Title    string         `json:"title"`
 }
 
 // PageTrashed defines model for PageTrashed.
@@ -34292,7 +34306,7 @@ type ClientInterface interface {
 
 	// CreatePageWithBody Write a new page
 	//
-	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given, and with `with_subpages` the template's subpages beneath it; `subpages` writes a tree of pages beneath it at once. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -34301,7 +34315,7 @@ type ClientInterface interface {
 
 	// CreatePage Write a new page
 	//
-	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given, and with `with_subpages` the template's subpages beneath it; `subpages` writes a tree of pages beneath it at once. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -50162,7 +50176,7 @@ func (c *Client) ListPages(ctx context.Context, hubId openapi_types.UUID, params
 
 // CreatePageWithBody Write a new page
 //
-// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given, and with `with_subpages` the template's subpages beneath it; `subpages` writes a tree of pages beneath it at once. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -50181,7 +50195,7 @@ func (c *Client) CreatePageWithBody(ctx context.Context, hubId openapi_types.UUI
 
 // CreatePage Write a new page
 //
-// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given, and with `with_subpages` the template's subpages beneath it; `subpages` writes a tree of pages beneath it at once. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -104125,7 +104139,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreatePageWithBodyWithResponse Write a new page
 	//
-	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given, and with `with_subpages` the template's subpages beneath it; `subpages` writes a tree of pages beneath it at once. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -104134,7 +104148,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreatePageWithResponse Write a new page
 	//
-	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given, and with `with_subpages` the template's subpages beneath it; `subpages` writes a tree of pages beneath it at once. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -156843,7 +156857,7 @@ func (c *ClientWithResponses) ListPagesWithResponse(ctx context.Context, hubId o
 
 // CreatePageWithBodyWithResponse Write a new page
 //
-// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given, and with `with_subpages` the template's subpages beneath it; `subpages` writes a tree of pages beneath it at once. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -156858,7 +156872,7 @@ func (c *ClientWithResponses) CreatePageWithBodyWithResponse(ctx context.Context
 
 // CreatePageWithResponse Write a new page
 //
-// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given, and with `with_subpages` the template's subpages beneath it; `subpages` writes a tree of pages beneath it at once. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

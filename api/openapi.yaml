@@ -20877,7 +20877,8 @@ paths:
         Writes a page in the hub's space, at the top or under another page, at the end of its
         siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views.
         Started from one of the space's templates (`template_id`), it takes the template's body
-        unless one is given. Needs WRITE_ITEMS on the hub.
+        unless one is given, and with `with_subpages` the template's subpages beneath it;
+        `subpages` writes a tree of pages beneath it at once. Needs WRITE_ITEMS on the hub.
       requestBody:
         required: true
         content:
@@ -37702,8 +37703,32 @@ components:
         icon: { type: string, maxLength: 16 }
         template: { type: boolean }
         template_id: { type: string, format: uuid, description: "A template of the same space to start from." }
+        with_subpages:
+          type: boolean
+          description: Started from a template, bring its subpages along beneath the new page.
+        subpages:
+          type: array
+          maxItems: 100
+          description: >
+            Pages written beneath the new page in the same write - a space template. Not together
+            with `with_subpages`; at most 100 pages in one write, the new page included.
+          items:
+            $ref: "#/components/schemas/PageSubpage"
         content_language: { type: string }
         id: { type: string, format: uuid, description: "An identifier the client minted for a page made offline." }
+
+    PageSubpage:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        body: { type: string, maxLength: 1048576 }
+        icon: { type: string, maxLength: 16 }
+        subpages:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/PageSubpage"
 
     PageChange:
       type: object

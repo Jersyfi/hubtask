@@ -173,10 +173,15 @@ func (s *store) Ancestors(_ context.Context, id shared.ID) ([]repository.Ancesto
 }
 func (s *store) Subtree(_ context.Context, id shared.ID, _ bool, _ int) ([]domain.Page, error) {
 	out := []domain.Page{s.pages[id]}
-	for _, page := range s.pages {
-		if page.ParentID == id {
-			out = append(out, page)
+	for i := 0; i < len(out); i++ {
+		var level []domain.Page
+		for _, page := range s.pages {
+			if page.ParentID == out[i].ID {
+				level = append(level, page)
+			}
 		}
+		slices.SortFunc(level, func(a, b domain.Page) int { return strings.Compare(a.OrderKey, b.OrderKey) })
+		out = append(out, level...)
 	}
 	return out, nil
 }

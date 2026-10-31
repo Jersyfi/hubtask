@@ -37,6 +37,9 @@ const (
 	MaxDepth = 12
 	// MaxPagesPerHub bounds one space's tree, which a client reads whole.
 	MaxPagesPerHub = 5000
+	// MaxPagesPerWrite bounds the pages one write makes - a page with the subpages of a space
+	// template - so that it stays one short transaction.
+	MaxPagesPerWrite = 100
 )
 
 // DocumentKind is the live document kind a page registers (realtime.Kind).

@@ -19162,11 +19162,17 @@ type PageCreate struct {
 	// Id An identifier the client minted for a page made offline.
 	Id       *openapi_types.UUID `json:"id,omitempty"`
 	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
-	Template *bool               `json:"template,omitempty"`
+
+	// Subpages Pages written beneath the new page in the same write - a space template. Not together with `with_subpages`; at most 100 pages in one write, the new page included.
+	Subpages *[]PageSubpage `json:"subpages,omitempty"`
+	Template *bool          `json:"template,omitempty"`
 
 	// TemplateId A template of the same space to start from.
 	TemplateId *openapi_types.UUID `json:"template_id,omitempty"`
 	Title      string              `json:"title"`
+
+	// WithSubpages Started from a template, bring its subpages along beneath the new page.
+	WithSubpages *bool `json:"with_subpages,omitempty"`
 }
 
 // PageExport defines model for PageExport.
@@ -19380,6 +19386,14 @@ type PageShare struct {
 // PageShareCreate defines model for PageShareCreate.
 type PageShareCreate struct {
 	AccountId openapi_types.UUID `json:"account_id"`
+}
+
+// PageSubpage defines model for PageSubpage.
+type PageSubpage struct {
+	Body     *string        `json:"body,omitempty"`
+	Icon     *string        `json:"icon,omitempty"`
+	Subpages *[]PageSubpage `json:"subpages,omitempty"`
+	Title    string         `json:"title"`
 }
 
 // PageTrashed defines model for PageTrashed.

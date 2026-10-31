@@ -5,6 +5,7 @@ package knowledge
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -40,6 +41,18 @@ type CreatePageCommand struct {
 	Icon            string
 	Template        bool
 	ContentLanguage string
+	// WithSubpages brings the template's subpages along beneath the new page: a space's own space
+	// template (UC-DOC-05 check 5).
+	WithSubpages bool
+	// Subpages are written beneath the new page in the same write: Hubtask's own space templates,
+	// whose words the client writes in the reader's language (rule 8, UC-DOC-05 check 6).
+	Subpages []Subpage
+}
+
+// Subpage is one page of a tree written at once, with the pages under it.
+type Subpage struct {
+	Title, Body, Icon string
+	Subpages          []Subpage
 }
 
 // CreatePage writes a new page in a hub's space, at the end of its parent's pages (UC-DOC-01), or
@@ -55,6 +68,14 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 	if id.IsZero() {
 		id = h.Space.IDs.NewID()
 	}
+	if cmd.WithSubpages && len(cmd.Subpages) > 0 {
+		return domain.Page{}, shared.ErrValidation.WithDetail("pages.subpages_twice").
+			WithFields(shared.FieldError{Path: "/subpages", Code: "pages.subpages_twice"})
+	}
+	if cmd.WithSubpages && cmd.TemplateID.IsZero() {
+		return domain.Page{}, shared.ErrValidation.WithDetail("pages.subpages_without_template").
+			WithFields(shared.FieldError{Path: "/with_subpages", Code: "pages.subpages_without_template"})
+	}
 	now := h.Space.Clock.Now()
 	var page domain.Page
 	err := h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -68,6 +89,7 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		if count >= domain.MaxPagesPerHub {
 			return shared.ErrConflict.WithDetail("pages.space_full").WithParams(map[string]string{"maximum": "5000"})
 		}
+		level := 1
 		if !cmd.ParentID.IsZero() {
 			parent, err := h.Space.find(ctx, cmd.ParentID, false)
 			if err != nil {
@@ -83,7 +105,9 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 			if err := domain.CheckParent(id, parent, ancestorIDs(ancestors), cmd.HubID); err != nil {
 				return err
 			}
+			level = len(ancestors) + 2
 		}
+		plan := planSubpages(cmd.Subpages, -1, 1, nil)
 		body := ""
 		if cmd.Body != nil {
 			body = *cmd.Body
@@ -108,6 +132,14 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 			if cmd.Body == nil {
 				body = template.Body
 			}
+			if cmd.WithSubpages {
+				if plan, err = h.Space.templateSubpages(ctx, actor, template.ID); err != nil {
+					return err
+				}
+			}
+		}
+		if err := checkPlan(plan, count, level); err != nil {
+			return err
 		}
 		last, err := h.Space.Pages.LastOrderKey(ctx, cmd.HubID, cmd.ParentID)
 		if err != nil {
@@ -125,19 +157,158 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		if err != nil {
 			return err
 		}
-		if err := h.Space.Pages.Insert(ctx, page); err != nil {
+		if err := h.Space.write(ctx, actor, page, now); err != nil {
 			return err
 		}
-		if err := h.Space.snapshot(ctx, page, actor.AccountID, now); err != nil {
-			return err
-		}
-		if err := h.Space.announce(ctx, actor, page); err != nil {
-			return err
-		}
-		return h.Space.record(ctx, actor, PageCreatedAction, pageTarget, page.ID,
-			changed([]string{domain.FieldTitle, domain.FieldBody}, page), now)
+		return h.Space.writeSubpages(ctx, actor, page, plan, now)
 	})
 	return page, err
+}
+
+// subpagesOf reads a tree of subpages as the channels deliver it: objects of strings with their own
+// `subpages`, never deeper than a space holds.
+func subpagesOf(list []any, path string, depth int) ([]Subpage, error) {
+	if len(list) == 0 {
+		return nil, nil
+	}
+	if depth > domain.MaxDepth || len(list) > domain.MaxPagesPerWrite {
+		return nil, shared.ErrValidation.WithDetail("pages.too_many_at_once").
+			WithParams(map[string]string{"maximum": "100"}).
+			WithFields(shared.FieldError{Path: path, Code: "pages.too_many_at_once"})
+	}
+	out := make([]Subpage, 0, len(list))
+	for i, item := range list {
+		fields, ok := item.(map[string]any)
+		at := fmt.Sprintf("%s/%d", path, i)
+		if !ok {
+			return nil, shared.ErrValidation.WithDetail("pages.subpage_invalid").
+				WithFields(shared.FieldError{Path: at, Code: "pages.subpage_invalid"})
+		}
+		text := func(key string) string {
+			value, _ := fields[key].(string)
+			return value
+		}
+		children, _ := fields["subpages"].([]any)
+		below, err := subpagesOf(children, at+"/subpages", depth+1)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, Subpage{Title: text("title"), Body: text("body"), Icon: text("icon"), Subpages: below})
+	}
+	return out, nil
+}
+
+// write stores a new page with its first version, its change and its trail.
+func (s Space) write(ctx context.Context, actor appshared.ActorContext, page domain.Page, now time.Time) error {
+	if err := s.Pages.Insert(ctx, page); err != nil {
+		return err
+	}
+	if err := s.snapshot(ctx, page, actor.AccountID, now); err != nil {
+		return err
+	}
+	if err := s.announce(ctx, actor, page); err != nil {
+		return err
+	}
+	return s.record(ctx, actor, PageCreatedAction, pageTarget, page.ID,
+		changed([]string{domain.FieldTitle, domain.FieldBody}, page), now)
+}
+
+// planned is one subpage of a write, its parent an earlier entry of the plan or the new page (-1).
+type planned struct {
+	parent                      int
+	depth                       int
+	title, body, icon, language string
+}
+
+// planSubpages flattens a tree parents first, so that each parent is written before its pages.
+func planSubpages(pages []Subpage, parent, depth int, plan []planned) []planned {
+	for _, sub := range pages {
+		plan = append(plan, planned{parent: parent, depth: depth, title: sub.Title, body: sub.Body, icon: sub.Icon})
+		plan = planSubpages(sub.Subpages, len(plan)-1, depth+1, plan)
+	}
+	return plan
+}
+
+// checkPlan refuses a write past its bounds before anything of it is written.
+func checkPlan(plan []planned, count, level int) error {
+	if len(plan)+1 > domain.MaxPagesPerWrite {
+		return shared.ErrValidation.WithDetail("pages.too_many_at_once").
+			WithParams(map[string]string{"maximum": "100"}).
+			WithFields(shared.FieldError{Path: "/subpages", Code: "pages.too_many_at_once"})
+	}
+	if count+len(plan)+1 > domain.MaxPagesPerHub {
+		return shared.ErrConflict.WithDetail("pages.space_full").WithParams(map[string]string{"maximum": "5000"})
+	}
+	for _, sub := range plan {
+		if level+sub.depth > domain.MaxDepth {
+			return shared.ErrValidation.WithDetail("pages.too_deep").WithParams(map[string]string{"maximum": "12"}).
+				WithFields(shared.FieldError{Path: "/subpages", Code: "pages.too_deep"})
+		}
+	}
+	return nil
+}
+
+// templateSubpages plans a template's live subpages the writer may read: an archived page or one
+// behind a restriction that does not admit them stays behind with every page under it.
+func (s Space) templateSubpages(ctx context.Context, actor appshared.ActorContext, templateID shared.ID) ([]planned, error) {
+	tree, err := s.Pages.Subtree(ctx, templateID, false, domain.MaxPagesPerWrite+1)
+	if err != nil {
+		return nil, err
+	}
+	admitted, err := s.keepAdmitted(ctx, actor, tree)
+	if err != nil {
+		return nil, err
+	}
+	readable := make(map[shared.ID]bool, len(admitted))
+	for _, page := range admitted {
+		readable[page.ID] = !page.IsArchived()
+	}
+	index := map[shared.ID]int{templateID: -1}
+	depth := map[shared.ID]int{templateID: 0}
+	var plan []planned
+	for _, page := range tree {
+		parent, ok := index[page.ParentID]
+		if page.ID == templateID || !ok || !readable[page.ID] {
+			continue
+		}
+		depth[page.ID] = depth[page.ParentID] + 1
+		plan = append(plan, planned{
+			parent: parent, depth: depth[page.ID], title: page.Title, body: page.Body, icon: page.Icon,
+			language: page.ContentLanguage,
+		})
+		index[page.ID] = len(plan) - 1
+	}
+	return plan, nil
+}
+
+// writeSubpages writes a plan beneath a new page, each at the end of its parent's pages.
+func (s Space) writeSubpages(ctx context.Context, actor appshared.ActorContext, root domain.Page, plan []planned, now time.Time) error {
+	written := make([]shared.ID, len(plan))
+	last := map[shared.ID]string{}
+	for i, sub := range plan {
+		parent := root.ID
+		if sub.parent >= 0 {
+			parent = written[sub.parent]
+		}
+		key, err := service.OrderKeyAfter(last[parent])
+		if err != nil {
+			return err
+		}
+		last[parent] = key
+		page, err := domain.NewPage(domain.NewPageInput{
+			ID: s.IDs.NewID(), TenantID: actor.TenantID, HubID: root.HubID, ParentID: parent, Title: sub.title,
+			Body: sub.body, Icon: sub.icon, OrderKey: key, ContentLanguage: sub.language,
+			CreatedBy: actor.AccountID, Now: now, Text: s.Text,
+		})
+		if err != nil {
+			return err
+		}
+		if err := s.write(ctx, actor, page, now); err != nil {
+			return err
+		}
+		written[i] = page.ID
+	}
+	return nil
 }
 
 // Descriptor is the catalogue entry.
@@ -147,7 +318,9 @@ func (h CreatePage) Descriptor() usecase.Descriptor {
 		Summary: "Writes a new page in a hub's space - at the top or under another page, at the end of " +
 			"its siblings - with a title and a Markdown body whose `hubtask:` links are mentions, cards " +
 			"and live views. Started from one of the space's templates, it takes the template's body " +
-			"unless one is given.",
+			"unless one is given, and with `with_subpages` the template's subpages beneath it; " +
+			"`subpages` writes a tree of pages beneath it in the same write (a space template). At most " +
+			"100 pages in one write.",
 		SideEffects: "Writes the page, its first version and an audit entry.",
 		TokenScope:  pagesWrite,
 		Input: []usecase.Field{
@@ -158,6 +331,8 @@ func (h CreatePage) Descriptor() usecase.Descriptor {
 			{Name: "icon", Kind: usecase.KindString, Description: "An emoji or short symbol shown beside the title."},
 			{Name: "template", Kind: usecase.KindBool, Description: "Offer the page as a template of the space."},
 			{Name: "template_id", Kind: usecase.KindID, Description: "A template of the same space to start from."},
+			{Name: "with_subpages", Kind: usecase.KindBool, Description: "Bring the template's subpages along beneath the new page."},
+			{Name: "subpages", Kind: usecase.KindList, Description: "Pages written beneath the new page, each {title, body, icon, subpages}."},
 			{Name: "content_language", Kind: usecase.KindString, Description: "The BCP-47 tag search stems the page by."},
 			{Name: "id", Kind: usecase.KindID, CallerOnly: true, Description: "An identifier the client minted for a page made offline."},
 		},
@@ -171,10 +346,16 @@ func (h CreatePage) Descriptor() usecase.Descriptor {
 				}
 				ids[field] = id
 			}
+			list, _ := in["subpages"].([]any)
+			subpages, err := subpagesOf(list, "/subpages", 1)
+			if err != nil {
+				return nil, err
+			}
 			page, err := h.Execute(ctx, actor, CreatePageCommand{
 				ID: ids["id"], HubID: ids["hub_id"], ParentID: ids["parent_id"], TemplateID: ids["template_id"],
 				Title: in.String("title"), Body: rawText(in, "body"), Icon: in.String("icon"),
 				Template: in.Bool("template"), ContentLanguage: in.String("content_language"),
+				WithSubpages: in.Bool("with_subpages"), Subpages: subpages,
 			})
 			if err != nil {
 				return nil, err
