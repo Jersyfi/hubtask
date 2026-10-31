@@ -810,6 +810,7 @@ func run() error {
 		importdomain.KindMicrosoftTodo: importadapter.MicrosoftTodo{},
 		importdomain.KindIssueTracker:  importadapter.IssueTracker{},
 		importdomain.KindWiki:          importadapter.Wiki{},
+		importdomain.KindMarkdown:      importadapter.Markdown{},
 	}
 	importKinds := make([]importdomain.Kind, 0, len(importConverters))
 	for kind := range importConverters {
