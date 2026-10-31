@@ -126,6 +126,42 @@ func TestARuleSurvivesTheColumnsItIsStoredIn(t *testing.T) {
 	}
 }
 
+// A relative date on a business calendar comes back with its calendar (UC-AUT-04 check 9): a
+// column that dropped it would count plain days and close earlier than promised.
+func TestARelativeDateKeepsItsCalendarInTheColumn(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	runAs := seedServiceAccount(ctx, t, tenantA)
+
+	written, err := domain.NewRule(domain.NewRuleInput{
+		ID: freshID(t), TenantID: tenantA, Name: freshName(t),
+		Scope: domain.Scope{Type: domain.ScopeTenant}, RunAs: runAs,
+		Trigger:  domain.Trigger{Kind: domain.TriggerRelativeDate, Anchor: domain.AnchorCompletedAt, Offset: "P5D", Calendar: "office"},
+		Actions:  []domain.Action{{Kind: "ADD_LABEL", Params: map[string]any{"label_id": "x"}}},
+		Throttle: domain.Throttle{MaxRunsPerHour: 100}, OnError: domain.OnErrorContinue,
+		CreatedBy: authorA, Now: time.Now().UTC().Truncate(time.Microsecond),
+	})
+	if err != nil {
+		t.Fatalf("building the rule: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().Insert(ctx, written)
+	}); err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+	var stored domain.Rule
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var findErr error
+		stored, findErr = automationRules().Find(ctx, written.ID)
+		return findErr
+	}); err != nil {
+		t.Fatalf("reading the rule: %v", err)
+	}
+	if stored.Trigger.Calendar != "office" || stored.Trigger.Offset != "P5D" || stored.Trigger.Anchor != domain.AnchorCompletedAt {
+		t.Errorf("trigger %+v", stored.Trigger)
+	}
+}
+
 // The guard is in the WHERE rather than in a read-then-write, because a check in the application
 // layer is a check something else can commit between.
 func TestAStaleVersionCannotOverwriteARule(t *testing.T) {
