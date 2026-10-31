@@ -21,6 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -69,10 +70,13 @@ type Authorizer interface {
 // Desk is what every calendar and policy use case shares.
 type Desk struct {
 	Calendars repository.Calendars
-	Policies  repository.Policies
-	Records   repository.Records
-	Replies   repository.ReplyTemplates
-	Ratings   repository.Ratings
+	// Offered are the installation's calendars (WithInstallation): a policy may name one, and a
+	// workspace calendar of the same key may go though a policy names it.
+	Offered  map[string]domain.Calendar
+	Policies repository.Policies
+	Records  repository.Records
+	Replies  repository.ReplyTemplates
+	Ratings  repository.Ratings
 	// Organisations groups the portal's requesters by mail domain (UC-SVC-11); nil holds none.
 	Organisations repository.Organisations
 	// HubCalendars and Containers serve a hub's own calendars: the hub is read to ask there.

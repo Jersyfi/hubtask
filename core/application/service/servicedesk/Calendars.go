@@ -263,6 +263,9 @@ func (h DeleteBusinessCalendar) Execute(ctx context.Context, actor appshared.Act
 		if err := h.Desk.Calendars.Delete(ctx, key); err != nil {
 			return err
 		}
+		if err := h.Desk.calendarStillNamed(ctx, key); err != nil {
+			return err
+		}
 		return h.Desk.record(ctx, actor, CalendarDeletedAction, calendarTarget, current.ID, now,
 			audit.Change{Field: "key", Classification: audit.Open, From: current.Key})
 	})
@@ -286,4 +289,22 @@ func (h DeleteBusinessCalendar) Descriptor() usecase.Descriptor {
 			return usecase.Output{}, nil
 		}),
 	}, calendarTarget)
+}
+
+// calendarStillNamed refuses, inside the deleting transaction, a calendar a policy names unless
+// the installation offers one of the key the policy then counts on.
+func (d Desk) calendarStillNamed(ctx context.Context, key string) error {
+	if _, offered := d.Offered[key]; offered {
+		return nil
+	}
+	policies, err := d.Policies.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, p := range policies {
+		if p.CalendarKey == key {
+			return shared.ErrConflict.WithDetail("calendars.in_use").WithParams(map[string]string{"key": key})
+		}
+	}
+	return nil
 }

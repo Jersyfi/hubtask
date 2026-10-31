@@ -207,6 +207,11 @@ func (s SlaClocks) arm(
 		return nil
 	}
 	cal, err := s.calendarOf(ctx, policy, item)
+	if errors.Is(err, shared.ErrNotFound) {
+		// The calendar is gone - an instance file no longer offering its key. The entry is kept and
+		// its goals are not armed, rather than an entry refused for a calendar nobody holds.
+		return nil
+	}
 	if err != nil {
 		return err
 	}

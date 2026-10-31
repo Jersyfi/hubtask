@@ -170,6 +170,9 @@ func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 	}
 	var out domain.SlaPolicy
 	err := h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := h.Desk.calendarHeld(ctx, strings.TrimSpace(cmd.CalendarKey)); err != nil {
+			return err
+		}
 		current, err := h.Desk.Policies.Find(ctx, strings.TrimSpace(cmd.Key))
 		switch {
 		case errors.Is(err, shared.ErrNotFound):
@@ -293,4 +296,21 @@ func (h DeleteSlaPolicy) Descriptor() usecase.Descriptor {
 			return usecase.Output{}, nil
 		}),
 	}, policyTarget)
+}
+
+// calendarHeld refuses a policy's calendar that neither the workspace nor the installation holds
+// (UC-SVC-01 check 6); no key counts around the clock.
+func (d Desk) calendarHeld(ctx context.Context, key string) error {
+	if key == "" {
+		return nil
+	}
+	if _, offered := d.Offered[key]; offered {
+		return nil
+	}
+	_, err := d.Calendars.Find(ctx, key)
+	if errors.Is(err, shared.ErrNotFound) {
+		return shared.ErrValidation.WithDetail("sla_policies.calendar_unknown").
+			WithFields(shared.FieldError{Path: "/calendar", Code: "sla_policies.calendar_unknown"})
+	}
+	return err
 }

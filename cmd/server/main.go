@@ -1922,7 +1922,7 @@ func run() error {
 	slaRecords := deskAnnouncer.Records(serviceDeskStore.Records())
 	deskApprovals := deskAnnouncer.Approvals(serviceDeskStore.Approvals())
 	serviceDesk := servicedeskservice.Desk{
-		Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
+		Calendars: serviceDeskStore.Calendars(), Offered: installationCalendars, Policies: serviceDeskStore.Policies(),
 		Records: slaRecords, Replies: serviceDeskStore.Replies(),
 		Ratings:       deskAnnouncer.Ratings(serviceDeskStore.Ratings()),
 		Organisations: serviceDeskStore.Organisations(),

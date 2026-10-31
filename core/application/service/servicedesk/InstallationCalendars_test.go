@@ -8,6 +8,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -70,5 +71,50 @@ func TestAWorkspaceCalendarFallsBackToTheInstallations(t *testing.T) {
 	}
 	if _, err := reader.Find(context.Background(), "nowhere"); !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("a key nobody holds answered %v", err)
+	}
+}
+
+// UC-SVC-01 check 6: a policy may name a calendar the installation offers and none that nobody
+// holds; a workspace calendar a policy names is deleted only where the installation offers one of
+// its key; and an entry whose policy names a calendar gone from the instance file is kept, its
+// goals not armed.
+func TestAPolicyNamesACalendarTheInstallationOffers(t *testing.T) {
+	f := newFixture(t)
+	offered, err := InstallationCalendars([]map[string]any{installationEntry("bavaria")}, text.Composing{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	office := f.clocks.Calendars.(calendarStore).office
+	named := f.clocks.Policies.(policyStore).rows
+	desk := Desk{
+		Calendars: calendarStore{office: office}, Offered: offered, Policies: policyStore{rows: named},
+		Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{},
+	}
+	goals := []domain.SlaGoal{{Kind: domain.GoalResolution, Minutes: 600}}
+	define := func(calendar string) error {
+		_, err := DefineSlaPolicy{Desk: desk}.Execute(context.Background(), reader(), DefineSlaPolicyCommand{
+			Key: "changes", Name: "Changes", CalendarKey: calendar, EntryTypes: []string{"change"}, Goals: goals, Enabled: true,
+		})
+		return err
+	}
+	if err := define("bavaria"); err != nil {
+		t.Fatalf("a policy on the installation's calendar: %v", err)
+	}
+	if err := define("nowhere"); shared.AsError(err).DetailCode != "sla_policies.calendar_unknown" {
+		t.Fatalf("a policy on a calendar nobody holds: %v", err)
+	}
+	remove := DeleteBusinessCalendar{Desk: desk}
+	if err := remove.Execute(context.Background(), reader(), "office"); shared.AsError(err).DetailCode != "calendars.in_use" {
+		t.Fatalf("a named calendar was deleted: %v", err)
+	}
+	desk.Offered = map[string]domain.Calendar{"office": office}
+	if err := (DeleteBusinessCalendar{Desk: desk}).Execute(context.Background(), reader(), "office"); err != nil {
+		t.Fatalf("a named calendar the installation also offers: %v", err)
+	}
+
+	f.clocks.Calendars = WithInstallation{Calendars: calendarStore{}, Installation: offered}
+	f.deliver(t, event.ItemCreated, monday, nil)
+	if len(f.timers.rows) != 0 {
+		t.Fatalf("goals armed on a calendar nobody holds: %+v", f.timers.rows)
 	}
 }
