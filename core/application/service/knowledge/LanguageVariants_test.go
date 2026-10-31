@@ -52,7 +52,7 @@ type spoken struct {
 	tongues *tongues
 }
 
-func (s spoken) Search(_ context.Context, collection shared.ID, text string, languages []string, _ int) ([]repository.ArticleHit, error) {
+func (s spoken) Search(ctx context.Context, collection shared.ID, text string, languages []string, _ int) ([]repository.ArticleHit, error) {
 	var out []repository.ArticleHit
 	for key := range s.articles {
 		source := s.pages.pages[key[0]]
@@ -60,7 +60,7 @@ func (s spoken) Search(_ context.Context, collection shared.ID, text string, lan
 			continue
 		}
 		chosen, language := source, source.ContentLanguage
-		variants, _ := s.tongues.VariantsOf(context.Background(), source.ID)
+		variants, _ := s.tongues.VariantsOf(ctx, source.ID)
 		for _, tag := range slices.Backward(languages) {
 			for _, v := range variants {
 				if strings.EqualFold(v.Language, tag) {
