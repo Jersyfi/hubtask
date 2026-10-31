@@ -365,7 +365,9 @@ error; at 170 124 entries in the largest workspace a collection's page held P95 
 47 ms, a count over the hub 60 ms - and the hub's level 254 ms with eight concurrent readers while
 its figures were counted on every read (about 75 ms of database time for one), 7 ms once a
 collection's figure is kept between reads while it is unchanged (migration 0292; the first read
-after a write counts that collection again). The database held
+after a write counts that collection again). **The hub's level read while entries are written is
+*not measured* at 10⁶**: the run predates the mixed window (`measureMixed`), so its JSON carries no
+`mixed`; P2 of the long-run plan measures it. The database held
 1.2 GB per 10⁶ entries, 70 % of it indexes; the server stayed at about 200 MB resident. The run
 found and fixed a seed that grew with the square of a collection's entries (migration 0289),
 whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ is

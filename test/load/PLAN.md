@@ -20,7 +20,7 @@ holds about 1.7 million entries instead of 170 000.
 | # | Run | Command | Machine | Measured or estimated duration |
 |---|---|---|---|---|
 | P1 | Probe, 10⁵ entries over 20 workspaces | `make capacity ITEMS=100000 TENANTS=20` | the owner's workstation | 14 minutes (839 s), the seed well under one; no server error on any path (measured 2026-10-31, commit `0b2f6ba47`) |
-| P2 | Probe, 10⁶ entries over 200 workspaces | `make capacity` | the owner's workstation | about 14 minutes, seed about 3 (measured 2026-10-31, the 10⁶ evidence) |
+| P2 | Probe, 10⁶ entries over 200 workspaces - run again, because the 10⁶ evidence predates the mixed window and carries no `mixed` | `make capacity` | the owner's workstation | about 14 minutes, seed about 3 (measured 2026-10-31, the 10⁶ evidence) |
 | R1 | The capacity run, 10⁷ entries over 2 000 workspaces | `make capacity ITEMS=10000000 TENANTS=2000` | the owner's workstation (third answers 9) | **about 50 to 60 minutes**, of which the seed about 30, the vacuum and the indexes up to 10, the measuring 11 |
 | R2 | If R1 found and fixed anything: R1 again on the fix | the same | the same | the same |
 
@@ -75,3 +75,7 @@ yet; the owner decides whether it is worth its time (about the seed's 40 minutes
    beside it, in the shape of the 10⁶ evidence; the S-12 row of `docs/backlog/suite/README.md`
    names it.
 4. R2 repeats R1 only when R1 led to a fix, and its write-up replaces R1's.
+5. P2's `capacity-1000000.json` replaces the one in `docs/evidence/capacity-1000000-2026-10-31/`;
+   the P95 of the hub's level under writers is added to that write-up and to
+   `observability-reliability.md` §13.2, and the S-12 row's *Reads under a mix of writes are not
+   measured* is closed by it - or stays open with what the run found.
