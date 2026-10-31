@@ -43,8 +43,9 @@ entry's link.
 
 ## Where it ends
 
-* Matrix only: Slack, Teams and Mattermost link unfurls and commands need each platform's own app
-  with its consent, which this installation does not register.
+* Matrix only: Slack, Teams and Mattermost link unfurls and commands are
+  [UC-INT-19](./UC-INT-19-answer-and-capture-from-slack-teams-and-mattermost.md), each with the
+  app its platform's administrator registers.
 * Nothing a room says is stored but a captured title; the sender's Matrix name is not kept.
 * The bot's account is removed from the room in Matrix; the entries it captured stay.
 * No end-to-end encrypted room: the bot reads what the homeserver answers in clear.

@@ -636,6 +636,59 @@ A hub's Matrix account answers links to the hub's entries and makes `!task` mess
   homeserver out of reach is read again at the next minute. Not archived: the token opens on one
   installation only.
 
+### 3.9 A Slack, Teams or Mattermost bot in a hub's channel
+
+The same bot on the platforms that post to it: a `ChatBot` with `platform` SLACK, TEAMS or
+MATTERMOST answers links to the hub's entries and makes commands entries
+([UC-INT-19](../usecases/integration/UC-INT-19-answer-and-capture-from-slack-teams-and-mattermost.md)).
+Nothing is read on a schedule: the platform posts to the bot's intake,
+`POST /chat-intake/{tenantId}/{botId}`, and is answered there.
+
+* **Each platform's own consent.** The installation registers no app of its own on any platform.
+  The administrator of the Slack workspace, the Entra tenant or the Mattermost server registers one
+  app per bot in their own platform, consents to it there and hands its credentials to the hub's
+  administrator, who seats the bot with them; the bot's row then shows the intake address the app
+  is pointed at.
+  * *Slack*: an app created in the workspace (api.slack.com/apps) with the bot scopes `links:read`,
+    `links:write` and `commands`; *Event Subscriptions* on, its request URL the intake, the bot
+    event `link_shared`, the workspace's address (the installation's host) under *App unfurl
+    domains*; a slash command (`/task`) with the intake as its request URL; installed to the
+    workspace and invited to the channel. The hub's administrator gives the *Bot User OAuth Token*
+    (`xoxb-…`) and the *Signing Secret*; `auth.test` names the bot user.
+  * *Teams*: an Azure Bot of the *single tenant* type in the organisation's Entra tenant, its
+    messaging endpoint the intake and the Microsoft Teams channel on; a client secret on its
+    application; a Teams app package (manifest) with the bot in the `team` and `groupChat` scopes
+    and a messaging extension whose `messageHandlers` name the installation's host under
+    `link`/`domains`, uploaded by the Teams administrator and added to the team. The hub's
+    administrator gives the application's identifier, the tenant's and the secret; a token drawn
+    from the tenant proves them together.
+  * *Mattermost*: a slash command (`/task`, method POST) and an outgoing webhook on the bot's
+    channel without trigger words, both with the intake as their callback URL; a system
+    administrator allows `EnableOutgoingWebhooks` and `EnableCommands`. The hub's administrator
+    gives the token Mattermost shows for each - the command's to capture, the webhook's to unfurl.
+* **Proof.** Slack's `X-Slack-Signature` is the HMAC-SHA256 of `v0:<timestamp>:<body>` under the
+  signing secret, its `X-Slack-Request-Timestamp` at most five minutes off the arrival. A Teams
+  activity carries the Bot Framework's token: RS256 by a key the Bot Framework publishes (read
+  through the guarded client, again for an unknown key at most every five minutes), issuer
+  `https://api.botframework.com`, audience the bot's application, its moments within five minutes,
+  naming the activity's service address - which must be one of the Bot Framework's hosts, so a
+  reply never goes elsewhere. Mattermost's token in the body is compared in constant time, each
+  door with its own. Every refusal is the intake's one `404`.
+* **Answers.** Only a delivery from the bot's own channel (a Teams thread's conversation before
+  `;messageid=`) is answered; any other is acknowledged and not answered. A link
+  `<workspace>/items/<id>` to one of the hub's entries is answered with a card of its status, title
+  and link through `GetWorkItem` as whoever seated the bot - Slack's through `chat.unfurl` with the
+  bot token, Teams' `composeExtension/queryLink` and Mattermost's outgoing webhook in the response.
+  A command - Slack's and Mattermost's slash command, `task <title>` said to the Teams bot - runs
+  `CreateWorkItem` in the bot's collection the same way, answered in the response (Teams: as a
+  reply through the Bot Connector with a token drawn from the bot's tenant). Titles are escaped so
+  they neither link nor call a channel. An answer is due within eight seconds, inside what Slack
+  and Teams wait for.
+* **Refusals.** An answer the platform does not take - a revoked token, a refused secret - is kept
+  on the bot as its failure and the delivery still acknowledged; the next answer that goes through
+  clears it. The credentials are sealed together under the bot's purpose label, never answered,
+  and not archived.
+
 ---
 
 ## 4. Why automation is its own service

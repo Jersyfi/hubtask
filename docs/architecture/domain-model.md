@@ -1057,12 +1057,16 @@ per person, one per store and login. *Link a file* walks its folders as **`filel
 keeps a picked one as an ordinary file link (UC-INT-17, migration 0279, not archived: the grant
 opens on one installation).
 
-### 3.17 A Matrix bot in a hub's room (context: Integration, M10)
+### 3.17 A chat bot in a hub's room (context: Integration, M10)
 
 A **`ChatBot`** is a Matrix account seated in one room for one hub: it answers links to the hub's
 entries (`LinkedEntries`) and makes `!task` messages entries in its collection (`Captured`), as
 whoever set it up; at most ten per hub, one per room, its sync position kept between reads
 (UC-INT-18, migration 0280, not archived: the token opens on one installation).
+A bot's **`Platform`** is MATRIX, SLACK, TEAMS or MATTERMOST; on the last three the platform posts
+to the bot's intake and the bot's room is a channel or conversation by its identifier, checked in
+each platform's shape (`CheckChatBotOn`), a Teams thread read as its conversation (`SameRoom`)
+(UC-INT-19, migration 0288).
 
 ## 4. Domain events
 
