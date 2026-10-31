@@ -72,6 +72,27 @@ export function emptyDraft(eventType = ''): Draft {
   };
 }
 
+/** The one trigger kind a person's own rule may start on (configuration/model.md §1). */
+export const OWN_TRIGGERS: readonly string[] = ['EVENT'];
+
+/**
+ * The draft as a person's own rule (UC-AUT-01 check 10): scoped to their account, run as them and
+ * started by an event. The editor fixes the three rather than offering what the server refuses.
+ */
+export function asOwn(draft: Draft, accountId: string, eventType: string): Draft {
+  return {
+    ...draft,
+    scope: { type: 'PERSON', id: accountId },
+    runAs: accountId,
+    trigger: draft.trigger.kind === 'EVENT' ? draft.trigger : { kind: 'EVENT', event_type: eventType },
+  };
+}
+
+/** Whether a rule is the reader's own. */
+export function isOwnRule(rule: { readonly scope: { readonly type: string; readonly id?: string | null } }, accountId: string | undefined): boolean {
+  return accountId !== undefined && rule.scope.type === 'PERSON' && rule.scope.id === accountId;
+}
+
 /**
  * A fresh rule on one step of one workflow (UC-FLW-04 check 4): what the designer's *Then* opens.
  * It runs in the step's own change, so it is scoped to the workspace and the step decides where.

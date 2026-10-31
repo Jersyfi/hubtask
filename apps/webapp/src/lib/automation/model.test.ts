@@ -22,6 +22,9 @@ import {
   offeredBlocks,
   offersDescribing,
   emptyDraft,
+  asOwn,
+  isOwnRule,
+  OWN_TRIGGERS,
   insertAt,
   isAutomatic,
   moveStep,
@@ -436,4 +439,21 @@ test('a rule on a step sends its workflow and step, and is found on that step (U
   assert.equal(onStep({ trigger: sent.trigger }, 'purchase', 'order'), true);
   assert.equal(onStep({ trigger: sent.trigger }, 'purchase', 'approve'), false);
   assert.equal(onStep({ trigger: { kind: 'EVENT' } }, 'purchase', 'order'), false);
+});
+
+// A person's own rule (UC-AUT-01 check 10): scope PERSON on their account, run as them, started by
+// an event - the editor fixes the three rather than letting the server refuse them.
+test("a rule of one's own is scoped to its owner, runs as them and starts on an event", () => {
+  const own = asOwn({ ...emptyDraft(), runAs: 'svc-1', trigger: { kind: 'SCHEDULE', rrule: 'FREQ=DAILY' } }, 'acc-1', 'de.hubtask.work.item.created.v1');
+  assert.deepEqual(own.scope, { type: 'PERSON', id: 'acc-1' });
+  assert.equal(own.runAs, 'acc-1');
+  assert.deepEqual(own.trigger, { kind: 'EVENT', event_type: 'de.hubtask.work.item.created.v1' });
+  const kept = asOwn(emptyDraft('de.hubtask.work.item.moved.v1'), 'acc-1', 'other');
+  assert.deepEqual(kept.trigger, { kind: 'EVENT', event_type: 'de.hubtask.work.item.moved.v1' });
+  assert.deepEqual(toRuleDraft(own, 'n').scope, { type: 'PERSON', id: 'acc-1' });
+  assert.deepEqual(OWN_TRIGGERS, ['EVENT']);
+  assert.equal(isOwnRule({ scope: { type: 'PERSON', id: 'acc-1' } }, 'acc-1'), true);
+  assert.equal(isOwnRule({ scope: { type: 'PERSON', id: 'acc-2' } }, 'acc-1'), false);
+  assert.equal(isOwnRule({ scope: { type: 'TENANT' } }, 'acc-1'), false);
+  assert.equal(isOwnRule({ scope: { type: 'PERSON', id: 'acc-1' } }, undefined), false);
 });
