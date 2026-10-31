@@ -85,13 +85,3 @@ func stepUpHeaderField(token *openapi.StepUpToken) any {
 	return string(*token)
 }
 
-func recoveryCodeList(value any) []string {
-	values, _ := value.([]any)
-	codes := make([]string, 0, len(values))
-	for _, entry := range values {
-		if code, isString := entry.(string); isString {
-			codes = append(codes, code)
-		}
-	}
-	return codes
-}

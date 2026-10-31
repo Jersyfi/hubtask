@@ -12,15 +12,6 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-func privateHubsResponse(out usecase.Output) []openapi.PrivateHubSummary {
-	rows, _ := out["data"].([]usecase.Output)
-	hubs := make([]openapi.PrivateHubSummary, 0, len(rows))
-	for _, row := range rows {
-		hubs = append(hubs, privateHubSummaryResponse(row))
-	}
-	return hubs
-}
-
 func privateHubSummaryResponse(row usecase.Output) openapi.PrivateHubSummary {
 	hub := openapi.PrivateHubSummary{
 		Id:          uuidValue(row.String("id")),
@@ -68,11 +59,3 @@ func privateHubAccessResponse(out usecase.Output) openapi.PrivateHubAccess {
 	return answer
 }
 
-func privateHubAccessesResponse(out usecase.Output) []openapi.PrivateHubAccess {
-	rows, _ := out["data"].([]usecase.Output)
-	answer := make([]openapi.PrivateHubAccess, 0, len(rows))
-	for _, row := range rows {
-		answer = append(answer, privateHubAccessResponse(row))
-	}
-	return answer
-}

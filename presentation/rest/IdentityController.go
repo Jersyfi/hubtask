@@ -279,27 +279,6 @@ func optionalUUIDList(values *[]openapi_types.UUID) any {
 	return ids
 }
 
-func weekStartOrEmpty(value *openapi.AccountPreferencesWeekStart) string {
-	if value == nil {
-		return ""
-	}
-	return string(*value)
-}
-
-func boolWordOrEmpty(value *bool) string {
-	if value == nil {
-		return ""
-	}
-	return strconv.FormatBool(*value)
-}
-
-func instantOrEmpty(value *time.Time) string {
-	if value == nil {
-		return ""
-	}
-	return value.UTC().Format(time.RFC3339)
-}
-
 // groupDetailResponse is a group with its members, and whether this reader may change them.
 func groupDetailResponse(out usecase.Output) openapi.GroupDetail {
 	group := groupResponse(out)
