@@ -229,6 +229,12 @@ func (e Eraser) erase(
 		}
 		erased.Credentials = credentials
 
+		// The person's own rules are their configuration, like an AI draft for them alone: they go
+		// whatever is kept. The count above is of the workspace's rules only.
+		if _, err := e.Erasure.DiscardPersonalRules(ctx, subject); err != nil {
+			return err
+		}
+
 		notifications, err := e.Erasure.DiscardNotifications(ctx, subject)
 		if err != nil {
 			return err

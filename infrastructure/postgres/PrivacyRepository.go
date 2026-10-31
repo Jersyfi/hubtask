@@ -655,6 +655,19 @@ func (r PrivacyRepository) DiscardNotifications(
 	return int(rows), nil
 }
 
+// DiscardPersonalRules removes the person's own rules, and their runs by the cascade.
+func (r PrivacyRepository) DiscardPersonalRules(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := queries.DeletePersonalRulesOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the own rules of an account", err)
+	}
+	return int(rows), nil
+}
+
 // DiscardAiDrafts removes what AI drafted for the person alone, and the words they asked with.
 func (r PrivacyRepository) DiscardAiDrafts(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)

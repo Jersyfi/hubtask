@@ -263,6 +263,12 @@ WHERE tenant_id = current_tenant_id()
   AND (created_by = sqlc.arg('account_id')
        OR lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id')));
 
+-- name: DeletePersonalRulesOfAccount :execrows
+-- The person's own rules (scope PERSON, migration 0312): their configuration, gone with them
+-- whatever the mode, their runs by the cascade; before the account itself, which their run_as holds.
+DELETE FROM automation_rule
+WHERE tenant_id = current_tenant_id() AND scope_type = 'PERSON' AND scope_id = sqlc.arg('account_id');
+
 -- name: AutomationsRunningAs :one
 -- What stands in the way of a full deletion, counted before it is attempted.
 --
@@ -271,8 +277,9 @@ WHERE tenant_id = current_tenant_id()
 -- acting as nobody. So an erasure that would leave such a rule behind is refused with a reason
 -- rather than attempted and failed on a foreign key - PG-2 found the second, which reached the
 -- caller as a dependency error and told them nothing.
+-- A person's own rules (PERSON) are not counted: they go with the person (DeletePersonalRulesOfAccount).
 SELECT count(*) FROM automation_rule
-WHERE tenant_id = current_tenant_id() AND run_as = sqlc.arg('account_id');
+WHERE tenant_id = current_tenant_id() AND run_as = sqlc.arg('account_id') AND scope_type <> 'PERSON';
 
 -- name: DeleteAccount :execrows
 -- The mode that takes the person with them. The cascades of `0001_init` do the rest: memberships,

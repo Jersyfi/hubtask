@@ -237,6 +237,9 @@ type Erasure interface {
 	// credentials, the feeds, the devices, the consents and the notifications with it.
 	Delete(ctx context.Context, accountID shared.ID) (bool, error)
 
+	// DiscardPersonalRules removes the person's own rules (scope PERSON), their configuration,
+	// with their runs. AutomationsRunningAs counts the workspace's rules alone.
+	DiscardPersonalRules(ctx context.Context, accountID shared.ID) (int, error)
 	// AutomationsRunningAs counts the automation rules that act as the person.
 	//
 	// It is asked before a full deletion is attempted, because `automation_rule.run_as` is the one

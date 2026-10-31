@@ -659,3 +659,59 @@ func TestTheResolverAnswersForThisWorkspaceOnly(t *testing.T) {
 		t.Error("a kind the resolver does not know answered rather than failing")
 	}
 }
+
+// A person's own rules (UC-AUT-01 check 10) against the database: a PERSON rule acting as anybody
+// but its owner is refused by the CHECK, and an erasure takes the person's own rules alone - not
+// another person's, not another workspace's - and counts none of them as standing in its way.
+func TestAPersonsOwnRulesGoWithThemAlone(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	owner := seedServiceAccount(ctx, t, tenantA)
+	colleague := seedServiceAccount(ctx, t, tenantA)
+	elsewhere := seedServiceAccount(ctx, t, tenantB)
+	personal := func(tenant, account shared.ID) domain.Rule {
+		rule := ruleFixture(t, tenant, account, account)
+		rule.Scope = domain.Scope{Type: domain.ScopePerson, ID: account}
+		return rule
+	}
+	theirs, colleagues, otherWorkspace := personal(tenantA, owner), personal(tenantA, colleague), personal(tenantB, elsewhere)
+	for tenant, rule := range map[shared.ID]domain.Rule{tenantA: theirs, tenantB: otherWorkspace} {
+		if err := write(ctx, t, tenant, func(ctx context.Context) error { return automationRules().Insert(ctx, rule) }); err != nil {
+			t.Fatalf("writing a person's rule: %v", err)
+		}
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return automationRules().Insert(ctx, colleagues) }); err != nil {
+		t.Fatalf("writing the colleague's rule: %v", err)
+	}
+	impersonating := personal(tenantA, owner)
+	impersonating.RunAs = colleague
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().Insert(ctx, impersonating)
+	}); err == nil {
+		t.Error("a person's rule acting as a colleague was stored")
+	}
+
+	privacy := postgres.NewPrivacyRepository(pageCursors())
+	var removed, standing int
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		if standing, err = privacy.AutomationsRunningAs(ctx, owner); err != nil {
+			return err
+		}
+		removed, err = privacy.DiscardPersonalRules(ctx, owner)
+		return err
+	}); err != nil {
+		t.Fatalf("discarding: %v", err)
+	}
+	if standing != 0 || removed != 1 {
+		t.Errorf("%d rules stood in the way and %d were removed, want 0 and the person's one", standing, removed)
+	}
+	for tenant, rule := range map[shared.ID]domain.Rule{tenantA: colleagues, tenantB: otherWorkspace} {
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			_, err := automationRules().Find(ctx, rule.ID)
+			return err
+		}); err != nil {
+			t.Errorf("another person's own rule went too: %v", err)
+		}
+	}
+}

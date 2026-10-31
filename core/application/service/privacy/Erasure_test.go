@@ -38,8 +38,10 @@ type erasureStore struct {
 	order        []string
 	// runningRules is what the workspace would be left with: rules that act as the person.
 	runningRules int
-	intakeGone   int
-	intakeFreed  int
+	// personalRules are the person's own rules, which go with them before the count above.
+	personalRules int
+	intakeGone    int
+	intakeFreed   int
 	// contributions are the person's rows on entries, and where each entry is.
 	contributions  []repository.Contribution
 	commentIDsGone []shared.ID
@@ -66,7 +68,17 @@ func (e *erasureStore) AutomationsRunningAs(context.Context, shared.ID) (int, er
 	if err := e.step("automations"); err != nil {
 		return 0, err
 	}
-	return e.runningRules, nil
+	return e.runningRules - e.personalRules, nil
+}
+
+func (e *erasureStore) DiscardPersonalRules(context.Context, shared.ID) (int, error) {
+	if err := e.step("personal rules"); err != nil {
+		return 0, err
+	}
+	gone := e.personalRules
+	e.runningRules -= gone
+	e.personalRules = 0
+	return gone, nil
 }
 
 func (e *erasureStore) step(name string) error {
@@ -663,6 +675,20 @@ func TestAFullDeletionIsRefusedWhileARuleActsAsThePerson(t *testing.T) {
 	}
 	if harness.storage.deleted {
 		t.Error("the account was deleted anyway")
+	}
+}
+
+// A person's own rules are their configuration and go with them (UC-AUT-01 check 10): they do
+// not stand in the way of a full deletion as the workspace's rules do.
+func TestAPersonsOwnRulesGoWithThemAndBlockNoDeletion(t *testing.T) {
+	harness := newErasureHarness()
+	harness.storage.runningRules, harness.storage.personalRules = 2, 2
+
+	if _, err := harness.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete)); err != nil {
+		t.Fatalf("the person's own rules blocked their deletion: %v", err)
+	}
+	if !harness.storage.deleted || harness.storage.runningRules != 0 {
+		t.Errorf("deleted %v, %d rules left acting as them", harness.storage.deleted, harness.storage.runningRules)
 	}
 }
 

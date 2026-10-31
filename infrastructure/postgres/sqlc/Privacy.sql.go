@@ -109,7 +109,7 @@ func (q *Queries) AuditPseudonyms(ctx context.Context, actorIds []pgtype.UUID) (
 
 const automationsRunningAs = `-- name: AutomationsRunningAs :one
 SELECT count(*) FROM automation_rule
-WHERE tenant_id = current_tenant_id() AND run_as = $1
+WHERE tenant_id = current_tenant_id() AND run_as = $1 AND scope_type <> 'PERSON'
 `
 
 // What stands in the way of a full deletion, counted before it is attempted.
@@ -119,6 +119,7 @@ WHERE tenant_id = current_tenant_id() AND run_as = $1
 // acting as nobody. So an erasure that would leave such a rule behind is refused with a reason
 // rather than attempted and failed on a foreign key - PG-2 found the second, which reached the
 // caller as a dependency error and told them nothing.
+// A person's own rules (PERSON) are not counted: they go with the person (DeletePersonalRulesOfAccount).
 func (q *Queries) AutomationsRunningAs(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, automationsRunningAs, accountID)
 	var count int64
@@ -423,6 +424,21 @@ DELETE FROM webauthn_credential WHERE account_id = $1
 // credentials (identity.md §23.5).
 func (q *Queries) DeletePasskeysOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deletePasskeysOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePersonalRulesOfAccount = `-- name: DeletePersonalRulesOfAccount :execrows
+DELETE FROM automation_rule
+WHERE tenant_id = current_tenant_id() AND scope_type = 'PERSON' AND scope_id = $1
+`
+
+// The person's own rules (scope PERSON, migration 0312): their configuration, gone with them
+// whatever the mode, their runs by the cascade; before the account itself, which their run_as holds.
+func (q *Queries) DeletePersonalRulesOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePersonalRulesOfAccount, accountID)
 	if err != nil {
 		return 0, err
 	}
