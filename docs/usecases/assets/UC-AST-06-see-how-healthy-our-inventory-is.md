@@ -34,5 +34,5 @@ Before the yearly review Dana opens the inventory's health: completeness is 82 %
 
 ## Where it ends
 
-* No certification campaigns asking owners to confirm their CIs, no lifecycle policies - the following release.
+* Owners confirming their CIs in a campaign is UC-AST-10; no lifecycle policies - the following release.
 * An unconfirmed relation is counted, not expired: removing what a program no longer reports is a lifecycle policy.

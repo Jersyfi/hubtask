@@ -54,6 +54,6 @@ pages.
 ## Where it ends
 
 * A dependency's lag or lead and the scheduling that moves dates by it are UC-PLN-02.
-* Links run between entries. References to pages, whiteboards, dashboards, goals and sprints are
-  valid and resolve once those modules exist; until then they show "not available".
+* Links run between entries. References to pages, whiteboards, dashboards and goals resolve to
+  their object; a reference to a sprint is valid and shows "not available" until sprints resolve.
 * A link does not change who may see either entry.

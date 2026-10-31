@@ -32,4 +32,4 @@ Ole points the team's Alertmanager at the hub's intake with the secret Hubtask d
 
 ## Where it ends
 
-* No on-call schedules, routing or escalation, no deduplication across intakes, no affected CIs on an entry beyond the reference in its notes (S-18's incidents) - the following release.
+* No on-call schedules, routing or escalation, no deduplication across intakes, and an alert's entry names its CI in its notes, not among the entry's affected CIs (UC-AST-09) - the following release.

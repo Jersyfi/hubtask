@@ -36,5 +36,5 @@ Dana runs IT for a practice of forty people. She records the booking application
 
 ## Where it ends
 
-* No financial asset record (cost, purchase, warranty) beside the CI, no software licence position - the following release.
+* The asset record beside the CI (cost, purchase, warranty, disposal) is UC-AST-12 and software counted by its product UC-AST-13; no licence position against entitlements - the following release.
 * No deletion of a CI: a CI is retired; deleting one is the owner's decision.

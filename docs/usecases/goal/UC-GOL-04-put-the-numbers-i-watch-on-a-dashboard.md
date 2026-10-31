@@ -70,7 +70,7 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
 
 * The mail carries no PDF (the owner's answer of 2026-10-30: CSV and a link), and a table larger
   than the mail's bound is read through the link.
-* No wallboard mode, no historical snapshots, no read API for BI tools.
+* No wallboard mode, no historical snapshots; a BI tool reads a saved view through UC-INT-15.
 * Entries from before the status history have no cycle time, WIP age or time in status, and
   none is backfilled: a history that was never written is not invented.
 * No numbers across workspaces (P-01).

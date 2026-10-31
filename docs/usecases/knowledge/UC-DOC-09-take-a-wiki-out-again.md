@@ -29,5 +29,5 @@ The handbook moves to a printed binder: the editor exports "Handbook" with every
 
 ## Where it ends
 
-* Bringing a wiki in from elsewhere is S-23 (D-10).
+* Bringing a wiki in from elsewhere is UC-IMP-05.
 * PDF export is the browser's print of a page.

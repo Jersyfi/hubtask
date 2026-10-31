@@ -35,6 +35,6 @@ The web team writes "How we release" in its hub and puts "Checklist" and "Rollba
 ## Where it ends
 
 * A page is not an entry: no level, completion, status or assignee.
-* No public website and no publishing for the portal here - the service desk's knowledge base comes with M5.
-* No import from other wikis here (S-23).
+* No public website here; answering a requester from the knowledge base is UC-DOC-13.
+* Bringing pages in from another wiki is UC-IMP-05.
 * A page's labels are read online: the offline copy holds pages, not their labels, and a copied page starts without labels.

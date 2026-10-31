@@ -50,4 +50,4 @@ The comparison shows all three.
 
 ## Where it ends
 
-* The Gantt screen's baseline bars and variance columns come with the screen (UC-PLN-02 check 7).
+* The *Plan* screen draws a chosen baseline's bars beside today's and each entry's slip (UC-PLN-02 check 7); no variance report beyond it.

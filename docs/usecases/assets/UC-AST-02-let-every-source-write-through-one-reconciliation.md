@@ -32,4 +32,4 @@ The network team's inventory tool reports the servers every night; a scanner rep
 
 ## Where it ends
 
-* Connectors that pull from other systems and signed push intake are S-17's; relations no source confirms any more do not expire yet - the following release.
+* Connectors that pull from other systems and the signed push intake are UC-AST-07's; relations no source confirms any more do not expire yet - the following release.

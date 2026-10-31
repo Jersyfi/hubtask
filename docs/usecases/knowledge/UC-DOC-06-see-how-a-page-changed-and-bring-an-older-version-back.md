@@ -30,4 +30,4 @@ Somebody rewrote the travel policy last week. Anna opens its history, compares T
 ## Where it ends
 
 * No diff computed by the server: the client compares two versions.
-* No retention rule for page history in this release.
+* Page history is thinned by the retention kind `PAGE_VERSION` (UC-LIF-04, data-retention.md): named versions and each day's last stay.
