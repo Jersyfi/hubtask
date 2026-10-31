@@ -89,7 +89,8 @@ workspace's own words and a key the refusal names; and **channels** that may onl
 a channel closes itself for creating the type, hides fields and presets them, and never adds a
 field or a rule of its own (`model.md` §6 of the suite plan). The channels are the doors the server
 tells apart - `APP` (the REST door the web app and hubctl share), `MCP`, `RULE`, `SYNC`, `IMPORT`,
-`MAIL` - and the adapter sets one on the actor (`ActorContext.Channel`); a channel the server could
+`MAIL`, `PORTAL`, `PUBLIC` (a public form, UC-SVC-13; closed unless a form names it and leaves it
+open, a type without a form included) - and the adapter sets one on the actor (`ActorContext.Channel`); a channel the server could
 not tell apart would be a narrowing anybody could step around. A condition is CEL over `entry`,
 `actor` (`role`, the built-in role; `roles` and `permissions`, every role key - custom ones
 included - and every permission held along the path, a list tested with `in`; `kind`), `channel`
@@ -850,6 +851,12 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   `AddComment` on the same door - public only, only on the requester's own entry. The portal's
   reads answer the requester's own entries without the team's fields, internal notes or system
   comments.
+* **A `PublicForm`** (UC-SVC-13, migration 0302) is a collection's link for people without an
+  account, one per collection, kept as its token's keyed hash; made where the workspace allows it
+  (`servicedesk.public_forms`). It offers the types whose form opens `PUBLIC`; a submission carries
+  a signed proof-of-work challenge, is filed through `CreateWorkItem` on the `PUBLIC` door as the
+  link's maker, evaluated at every submission, and names the visitor by the mail intake's From line
+  and a requester's record.
 * **An `Organisation`** (UC-SVC-11, migration 0287) groups a workspace's requesters by the mail
   domains of their addresses - read when asked, never stored per person; a domain is in at most one
   organisation of a workspace. Where it `sharesRequests` (off by default), its people list and read
