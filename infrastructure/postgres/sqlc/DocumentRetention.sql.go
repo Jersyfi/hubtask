@@ -55,7 +55,8 @@ SELECT count(*) FROM (
     AND (d.author_id IS NULL OR NOT (d.author_id = ANY(coalesce($3::uuid[], '{}'))))
     AND EXISTS (
       SELECT 1 FROM whiteboard_version n
-       WHERE n.tenant_id = d.tenant_id AND n.whiteboard_id = d.whiteboard_id AND n.seq > d.seq)
+       WHERE n.tenant_id = d.tenant_id AND n.whiteboard_id = d.whiteboard_id AND n.seq > d.seq
+         AND (n.created_at AT TIME ZONE 'UTC')::date = (d.created_at AT TIME ZONE 'UTC')::date)
   LIMIT $4::int
 ) AS due
 `
@@ -163,7 +164,8 @@ WHERE (v.tenant_id, v.whiteboard_id, v.seq) IN (
     AND (d.author_id IS NULL OR NOT (d.author_id = ANY(coalesce($3::uuid[], '{}'))))
     AND EXISTS (
       SELECT 1 FROM whiteboard_version n
-       WHERE n.tenant_id = d.tenant_id AND n.whiteboard_id = d.whiteboard_id AND n.seq > d.seq)
+       WHERE n.tenant_id = d.tenant_id AND n.whiteboard_id = d.whiteboard_id AND n.seq > d.seq
+         AND (n.created_at AT TIME ZONE 'UTC')::date = (d.created_at AT TIME ZONE 'UTC')::date)
   ORDER BY d.created_at
   LIMIT $4::int
 )
@@ -176,9 +178,9 @@ type DeleteAgedWhiteboardVersionsParams struct {
 	Batch        int32
 }
 
-// A whiteboard's history past the workspace's WHITEBOARD_HISTORY period (UC-CNV-06, UC-CNV-09):
-// unnamed versions that are not their board's newest, oldest first, and threads resolved before the
-// cutoff, whose replies go by the parent's cascade. A board in a held hub stays, and so does a
+// A whiteboard's history past the WHITEBOARD_HISTORY period (UC-CNV-06, UC-CNV-09): unnamed
+// versions that are not the newest of their day (UTC), oldest first, as a page's are thinned, and
+// threads resolved before the cutoff, whose replies go by the parent's cascade. A board in a held hub stays, and so does a
 // version by a held or restricted author or a thread one of them wrote in.
 func (q *Queries) DeleteAgedWhiteboardVersions(ctx context.Context, arg DeleteAgedWhiteboardVersionsParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteAgedWhiteboardVersions,

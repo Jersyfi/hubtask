@@ -109,9 +109,10 @@ func postgresDocument(id shared.ID) lifecycle.TrashedDocument {
 }
 
 // WHITEBOARD_HISTORY against the real statements (UC-CNV-06 check 5): another workspace's pass
-// removes nothing of this one's; this one's takes an unnamed version past the cutoff and a thread
-// resolved before it with its reply, while a named version, the board's newest, an open thread and
-// a thread a held author wrote in stay.
+// removes nothing of this one's; this one's thins the unnamed versions past the cutoff to each
+// day's newest, alone without the workspace's rule, and under it takes a thread resolved before
+// the cutoff with its reply, while a named version, an open thread and a thread a held author
+// wrote in stay.
 func TestABoardsHistoryAgesOutInItsWorkspaceAndKeepsWhatItMust(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
@@ -121,16 +122,20 @@ func TestABoardsHistoryAgesOutInItsWorkspaceAndKeepsWhatItMust(t *testing.T) {
 		tenantA.String(), collection.String()).Scan(&hub); err != nil {
 		t.Fatalf("reading the hub: %v", err)
 	}
-	long := time.Now().UTC().AddDate(0, 0, -200)
+	long := time.Now().UTC().AddDate(0, 0, -200).Truncate(24 * time.Hour).Add(time.Hour)
 	board := freshID(t)
 	if _, err := pool.Exec(ctx, `INSERT INTO whiteboard (id, tenant_id, hub_id, title, created_by, created_at,
 		updated_by, updated_at) VALUES ($1, $2, $3, 'B', $4, $5, $4, $5)`,
 		board.String(), tenantA.String(), hub, authorA.String(), long); err != nil {
 		t.Fatalf("writing a board: %v", err)
 	}
-	for seq, name := range []string{"", "Agreed", "", ""} {
+	// Two days: the first's four versions, one named, and the next day's two (third answers 1).
+	for seq, version := range []struct {
+		name string
+		at   time.Duration
+	}{{"", 0}, {"Agreed", time.Hour}, {"", 2 * time.Hour}, {"", 3 * time.Hour}, {"", 25 * time.Hour}, {"", 26 * time.Hour}} {
 		if _, err := pool.Exec(ctx, `INSERT INTO whiteboard_version (tenant_id, whiteboard_id, seq, title, scene, name, created_at)
-			VALUES ($1, $2, $3, 'B', '[]', $4, $5)`, tenantA.String(), board.String(), seq+1, name, long.Add(time.Duration(seq)*time.Hour)); err != nil {
+			VALUES ($1, $2, $3, 'B', '[]', $4, $5)`, tenantA.String(), board.String(), seq+1, version.name, long.Add(version.at)); err != nil {
 			t.Fatalf("writing a version: %v", err)
 		}
 	}
@@ -158,7 +163,7 @@ func TestABoardsHistoryAgesOutInItsWorkspaceAndKeepsWhatItMust(t *testing.T) {
 	history := postgres.WhiteboardHistoryAging{}
 	cutoff := time.Now().UTC().AddDate(0, 0, -30)
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		n, err := history.DeleteAged(ctx, cutoff, nil, nil, 100)
+		n, err := history.DeleteAged(ctx, cutoff, nil, nil, true, 100)
 		if err != nil || n != 0 {
 			t.Errorf("another workspace aged out %d rows (%v)", n, err)
 		}
@@ -168,12 +173,28 @@ func TestABoardsHistoryAgesOutInItsWorkspaceAndKeepsWhatItMust(t *testing.T) {
 	}
 
 	heldAccounts := []shared.ID{shared.MustParseID(heldAuthor)}
+	// Without the workspace's rule only the versions are thinned; every thread stays.
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		due, err := history.CountAged(ctx, cutoff, nil, heldAccounts, 100)
+		n, err := history.DeleteAged(ctx, cutoff, nil, heldAccounts, false, 100)
+		if err != nil || n != 3 {
+			t.Errorf("thinning alone removed %d rows, want the 3 versions (%v)", n, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var threads int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM whiteboard_comment WHERE tenant_id = $1 AND whiteboard_id = $2 AND parent_id IS NULL`,
+		tenantA.String(), board.String()).Scan(&threads); err != nil || threads != 3 {
+		t.Errorf("thinning alone left %d of 3 threads (%v)", threads, err)
+	}
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		due, err := history.CountAged(ctx, cutoff, nil, heldAccounts, true, 100)
 		if err != nil {
 			return err
 		}
-		n, err := history.DeleteAged(ctx, cutoff, nil, heldAccounts, 100)
+		n, err := history.DeleteAged(ctx, cutoff, nil, heldAccounts, true, 100)
 		if err != nil {
 			return err
 		}
@@ -199,8 +220,8 @@ func TestABoardsHistoryAgesOutInItsWorkspaceAndKeepsWhatItMust(t *testing.T) {
 		seqs = append(seqs, seq)
 	}
 	rows.Close()
-	if len(seqs) != 2 || seqs[0] != 2 || seqs[1] != 4 {
-		t.Errorf("versions left %v, want the named 2 and the newest 4", seqs)
+	if len(seqs) != 3 || seqs[0] != 2 || seqs[1] != 4 || seqs[2] != 6 {
+		t.Errorf("versions left %v, want the named 2 and each day's newest, 4 and 6", seqs)
 	}
 	var left []string
 	rows, err = pool.Query(ctx, `SELECT id::text FROM whiteboard_comment WHERE tenant_id = $1 AND whiteboard_id = $2 AND parent_id IS NULL`,

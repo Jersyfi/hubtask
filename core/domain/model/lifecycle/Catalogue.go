@@ -349,12 +349,14 @@ var catalogue = []Kind{
 		Blockable: []string{BlockedByLegalHold},
 	},
 	{
-		// A whiteboard's history (UC-CNV-06, UC-CNV-09; accepted.md, second answers 6): its
-		// unnamed versions by their creation and its resolved threads, replies included, by their
-		// resolution. Kept whole unless the workspace writes a rule - no default period, because a
-		// board's history is the record of how a team decided. A named version, each board's newest
-		// version and an open thread stay whatever the rule says; a hold on the workspace, the
-		// board's hub or an author keeps what it covers, and so does a restricted author.
+		// A whiteboard's history (UC-CNV-06, UC-CNV-09; accepted.md, second answers 6 and third
+		// answers 1): its unnamed versions by their creation, thinned like a page's - one that is
+		// not the newest of its day (UTC) goes - and its resolved threads, replies included, by
+		// their resolution. Without the workspace's rule the versions are thinned after
+		// WhiteboardVersionDays and the threads kept, so DefaultDays stays zero: the threads have
+		// no default period. A named version, each day's newest and an open thread stay whatever
+		// the rule says; a hold on the workspace, the board's hub or an author keeps what it
+		// covers, and so does a restricted author.
 		Name: KindWhiteboardHistory, Anchor: AnchorCreatedAt, WorkspaceOnly: true,
 		Actions:   []Action{ActionHardDelete},
 		Blockable: []string{BlockedByLegalHold},
@@ -388,19 +390,23 @@ const (
 	KindMailReceipt     DataKind = "MAIL_RECEIPT"
 	// KindOutboxEvent is how long a dispatched event stays readable after every consumer has had it
 	// (ADR-0007's second countermeasure).
-	KindOutboxEvent           DataKind = "OUTBOX_EVENT"
-	KindSession               DataKind = "SESSION"
-	KindDevice                DataKind = "DEVICE"
-	KindSyncLog               DataKind = "SYNC_LOG"
-	KindIdempotencyKey        DataKind = "IDEMPOTENCY_KEY"
-	KindAudit                 DataKind = "AUDIT"
-	KindMediaOrphan           DataKind = "MEDIA_ORPHAN"
-	KindDocumentHistory       DataKind = "DOCUMENT_HISTORY"
-	KindAgentLedger           DataKind = "AGENT_LEDGER"
-	KindAgentRequest          DataKind = "AGENT_REQUEST"
-	KindAgentJob              DataKind = "AGENT_JOB"
-	KindPageVersion           DataKind = "PAGE_VERSION"
-	KindWhiteboardHistory     DataKind = "WHITEBOARD_HISTORY"
+	KindOutboxEvent       DataKind = "OUTBOX_EVENT"
+	KindSession           DataKind = "SESSION"
+	KindDevice            DataKind = "DEVICE"
+	KindSyncLog           DataKind = "SYNC_LOG"
+	KindIdempotencyKey    DataKind = "IDEMPOTENCY_KEY"
+	KindAudit             DataKind = "AUDIT"
+	KindMediaOrphan       DataKind = "MEDIA_ORPHAN"
+	KindDocumentHistory   DataKind = "DOCUMENT_HISTORY"
+	KindAgentLedger       DataKind = "AGENT_LEDGER"
+	KindAgentRequest      DataKind = "AGENT_REQUEST"
+	KindAgentJob          DataKind = "AGENT_JOB"
+	KindPageVersion       DataKind = "PAGE_VERSION"
+	KindWhiteboardHistory DataKind = "WHITEBOARD_HISTORY"
+
+	// WhiteboardVersionDays is how long a board's unnamed versions stay whole where the workspace
+	// wrote no WHITEBOARD_HISTORY rule, PAGE_VERSION's period (accepted.md, third answers 1).
+	WhiteboardVersionDays              = 90
 	KindRequester             DataKind = "REQUESTER"
 	KindDeletedAccountResidue DataKind = "DELETED_ACCOUNT_RESIDUE"
 )

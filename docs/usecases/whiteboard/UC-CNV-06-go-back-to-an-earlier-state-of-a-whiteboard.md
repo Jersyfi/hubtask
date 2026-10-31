@@ -26,13 +26,14 @@ After the workshop the board is crowded. Carla names the version from the mornin
 2. A reader of the hub lists a board's versions newest first with the moment, the number of objects and the name, and reads one with its objects; whoever may write the board names a version or takes its name away, and a reader who may not write is refused.
 3. Bringing a version back puts its objects on the board in place of what stands, for everyone drawing at once; what stood before stays in the history as the version before.
 4. Another workspace neither reads, names nor adds a board's versions.
-5. A board's history is kept whole unless the workspace writes a `WHITEBOARD_HISTORY` rule; under
-   one, an unnamed version past its period goes unless it is the board's newest, and a thread
-   resolved before it goes with its replies, while a named version, an open thread and whatever a
-   hold or a restricted author covers stay.
+5. A board's versions are thinned like a page's: past ninety days, or past the period of the
+   workspace's `WHITEBOARD_HISTORY` rule, an unnamed version goes unless it is the newest of its
+   day (UTC); a thread resolved before the period goes with its replies only under that rule. A
+   rule that only announces or is switched off removes nothing, and a named version, an open
+   thread and whatever a hold or a restricted author covers stay.
 
 ## Where it ends
 
 * Two versions are not drawn side by side or as a difference.
-* A board's history ages out only under the workspace's own rule, never a hub's, and by no default
-  period.
+* A board's history follows the workspace's own rule, never a hub's; without one its threads are
+  kept whole.
