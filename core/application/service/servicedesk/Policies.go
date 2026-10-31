@@ -223,7 +223,7 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 			{Name: "calendar", Kind: usecase.KindString, Description: "A business calendar's key; absent counts around the clock."},
 			{Name: "entry_types", Kind: usecase.KindList, Required: true, Description: "The entry type keys the policy measures."},
 			{Name: "priority_field", Kind: usecase.KindString, Description: "The custom field whose option value picks a goal's target."},
-			{Name: "goals", Kind: usecase.KindList, Required: true, Description: "{kind: FIRST_RESPONSE or RESOLUTION, minutes, by_priority, pause_statuses, warn_percent}, each kind once."},
+			{Name: "goals", Kind: usecase.KindList, Required: true, Description: "{kind: FIRST_RESPONSE, NEXT_RESPONSE or RESOLUTION, minutes, by_priority, pause_statuses, warn_percent}, each kind once."},
 			{Name: "position", Kind: usecase.KindInt, Description: "The order in which policies are tried; lower first."},
 			{Name: "enabled", Kind: usecase.KindBool, Description: "Whether the policy measures new entries; true when absent."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read; a replacement of a newer one is refused."},

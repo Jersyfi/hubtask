@@ -43825,9 +43825,10 @@
             "type": "string",
             "enum": [
               "FIRST_RESPONSE",
+              "NEXT_RESPONSE",
               "RESOLUTION"
             ],
-            "description": "FIRST_RESPONSE is met by a comment of somebody other than who raised the entry, or by its completion; RESOLUTION by the completion."
+            "description": "FIRST_RESPONSE is met by a public comment of somebody other than the requester, or by the completion; NEXT_RESPONSE starts with each comment of the requester once the first response is met and is met by the next public comment of somebody else or the completion; RESOLUTION by the completion."
           },
           "minutes": {
             "type": "integer",
@@ -43994,6 +43995,7 @@
             "type": "string",
             "enum": [
               "FIRST_RESPONSE",
+              "NEXT_RESPONSE",
               "RESOLUTION"
             ]
           },
@@ -44665,6 +44667,7 @@
                   "type": "string",
                   "enum": [
                     "FIRST_RESPONSE",
+                    "NEXT_RESPONSE",
                     "RESOLUTION"
                   ]
                 },

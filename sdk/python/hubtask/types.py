@@ -2070,7 +2070,7 @@ class BusinessCalendarDefine(TypedDict, total=False):
     holidays: list[str]
 
 class SlaGoal(TypedDict, total=False):
-    kind: Required[Literal["FIRST_RESPONSE", "RESOLUTION"]]
+    kind: Required[Literal["FIRST_RESPONSE", "NEXT_RESPONSE", "RESOLUTION"]]
     minutes: Required[int]
     by_priority: dict[str, Any]
     pause_statuses: list[str]
@@ -2101,7 +2101,7 @@ class SlaPolicyDefine(TypedDict, total=False):
     enabled: bool
 
 class EntrySlaGoal(TypedDict, total=False):
-    goal: Required[Literal["FIRST_RESPONSE", "RESOLUTION"]]
+    goal: Required[Literal["FIRST_RESPONSE", "NEXT_RESPONSE", "RESOLUTION"]]
     policy_key: Required[str]
     standing: Required[Literal["RUNNING", "PAUSED", "MET", "BREACHED"]]
     target_seconds: Required[int]

@@ -4393,6 +4393,7 @@ func (e EntrySchedulingMode) Valid() bool {
 // Defines values for EntrySlaGoalGoal.
 const (
 	EntrySlaGoalGoalFIRSTRESPONSE EntrySlaGoalGoal = "FIRST_RESPONSE"
+	EntrySlaGoalGoalNEXTRESPONSE  EntrySlaGoalGoal = "NEXT_RESPONSE"
 	EntrySlaGoalGoalRESOLUTION    EntrySlaGoalGoal = "RESOLUTION"
 )
 
@@ -4400,6 +4401,8 @@ const (
 func (e EntrySlaGoalGoal) Valid() bool {
 	switch e {
 	case EntrySlaGoalGoalFIRSTRESPONSE:
+		return true
+	case EntrySlaGoalGoalNEXTRESPONSE:
 		return true
 	case EntrySlaGoalGoalRESOLUTION:
 		return true
@@ -8512,6 +8515,7 @@ func (e SignInPolicyChangeRotationFrom) Valid() bool {
 // Defines values for SlaGoalKind.
 const (
 	SlaGoalKindFIRSTRESPONSE SlaGoalKind = "FIRST_RESPONSE"
+	SlaGoalKindNEXTRESPONSE  SlaGoalKind = "NEXT_RESPONSE"
 	SlaGoalKindRESOLUTION    SlaGoalKind = "RESOLUTION"
 )
 
@@ -8519,6 +8523,8 @@ const (
 func (e SlaGoalKind) Valid() bool {
 	switch e {
 	case SlaGoalKindFIRSTRESPONSE:
+		return true
+	case SlaGoalKindNEXTRESPONSE:
 		return true
 	case SlaGoalKindRESOLUTION:
 		return true
@@ -8530,6 +8536,7 @@ func (e SlaGoalKind) Valid() bool {
 // Defines values for SlaReportDataGoal.
 const (
 	SlaReportDataGoalFIRSTRESPONSE SlaReportDataGoal = "FIRST_RESPONSE"
+	SlaReportDataGoalNEXTRESPONSE  SlaReportDataGoal = "NEXT_RESPONSE"
 	SlaReportDataGoalRESOLUTION    SlaReportDataGoal = "RESOLUTION"
 )
 
@@ -8537,6 +8544,8 @@ const (
 func (e SlaReportDataGoal) Valid() bool {
 	switch e {
 	case SlaReportDataGoalFIRSTRESPONSE:
+		return true
+	case SlaReportDataGoalNEXTRESPONSE:
 		return true
 	case SlaReportDataGoalRESOLUTION:
 		return true
@@ -21816,7 +21825,7 @@ type SlaGoal struct {
 	// ByPriority Targets per option of the policy's priority field; an option without one takes minutes.
 	ByPriority *map[string]int `json:"by_priority,omitempty"`
 
-	// Kind FIRST_RESPONSE is met by a comment of somebody other than who raised the entry, or by its completion; RESOLUTION by the completion.
+	// Kind FIRST_RESPONSE is met by a public comment of somebody other than the requester, or by the completion; NEXT_RESPONSE starts with each comment of the requester once the first response is met and is met by the next public comment of somebody else or the completion; RESOLUTION by the completion.
 	Kind SlaGoalKind `json:"kind"`
 
 	// Minutes The target in working minutes.
@@ -21829,7 +21838,7 @@ type SlaGoal struct {
 	WarnPercent *int `json:"warn_percent,omitempty"`
 }
 
-// SlaGoalKind FIRST_RESPONSE is met by a comment of somebody other than who raised the entry, or by its completion; RESOLUTION by the completion.
+// SlaGoalKind FIRST_RESPONSE is met by a public comment of somebody other than the requester, or by the completion; NEXT_RESPONSE starts with each comment of the requester once the first response is met and is met by the next public comment of somebody else or the completion; RESOLUTION by the completion.
 type SlaGoalKind string
 
 // SlaPolicy A promise of response and resolution times for entries of some types, on a business calendar.

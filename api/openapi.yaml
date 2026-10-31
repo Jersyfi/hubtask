@@ -27822,8 +27822,8 @@ components:
       properties:
         kind:
           type: string
-          enum: [FIRST_RESPONSE, RESOLUTION]
-          description: FIRST_RESPONSE is met by a comment of somebody other than who raised the entry, or by its completion; RESOLUTION by the completion.
+          enum: [FIRST_RESPONSE, NEXT_RESPONSE, RESOLUTION]
+          description: FIRST_RESPONSE is met by a public comment of somebody other than the requester, or by the completion; NEXT_RESPONSE starts with each comment of the requester once the first response is met and is met by the next public comment of somebody else or the completion; RESOLUTION by the completion.
         minutes: { type: integer, minimum: 1, description: "The target in working minutes." }
         by_priority:
           type: object
@@ -27872,7 +27872,7 @@ components:
       type: object
       required: [goal, policy_key, standing, target_seconds, armed_at, due_at, at_risk_at, met_at, breached_at]
       properties:
-        goal: { type: string, enum: [FIRST_RESPONSE, RESOLUTION] }
+        goal: { type: string, enum: [FIRST_RESPONSE, NEXT_RESPONSE, RESOLUTION] }
         policy_key: { type: string }
         standing: { type: string, enum: [RUNNING, PAUSED, MET, BREACHED] }
         target_seconds: { type: integer, format: int64 }
@@ -28081,7 +28081,7 @@ components:
             required: [policy_key, goal, standing, entries]
             properties:
               policy_key: { type: string }
-              goal: { type: string, enum: [FIRST_RESPONSE, RESOLUTION] }
+              goal: { type: string, enum: [FIRST_RESPONSE, NEXT_RESPONSE, RESOLUTION] }
               standing: { type: string, enum: [RUNNING, PAUSED, MET, BREACHED] }
               entries: { type: integer }
 
