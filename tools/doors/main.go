@@ -298,6 +298,10 @@ func build(doc document, path, method string, shared []parameter, op operation) 
 		if data, ok := answer.Properties["data"]; ok && data.Type == "array" && data.Items != nil {
 			command.List = true
 			answer = doc.resolve(*data.Items)
+		} else if answer.Type == "array" && answer.Items != nil {
+			// A plain array, as a collection's buckets are answered: its items are the rows.
+			command.List = true
+			answer = doc.resolve(*answer.Items)
 		}
 		if len(command.Columns) == 0 {
 			command.Columns = columns(doc, answer)

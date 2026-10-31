@@ -187,8 +187,15 @@ func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 	} else {
 		err = send("")
 	}
-	if err != nil || answer == nil {
+	if err != nil {
 		return err
+	}
+	if answer == nil {
+		// No answer to show: what was done is said, so a deletion is not silence.
+		if !cli.JSON {
+			printf(cli.Err, "done: %s %s\n", strings.ToLower(d.Summary), strings.Join(positional, " "))
+		}
+		return nil
 	}
 	return cli.Emit(answer, d.table(answer))
 }
@@ -259,7 +266,11 @@ func parseValue(p doorParam, raw string) (any, error) {
 // and its value per line.
 func (d door) table(answer any) Table {
 	object, _ := answer.(map[string]any)
-	if rows, ok := object["data"].([]any); ok && d.List {
+	rows, ok := object["data"].([]any)
+	if plain, isArray := answer.([]any); isArray {
+		rows, ok = plain, true
+	}
+	if ok && d.List {
 		table := Table{Columns: columnHeads(d.Columns)}
 		for _, row := range rows {
 			fields, _ := row.(map[string]any)
