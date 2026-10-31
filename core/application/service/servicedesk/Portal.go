@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	repository "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
@@ -164,10 +165,18 @@ func (p Portal) request(
 // organisationOf answers the caller's organisation - the one the mail domain of their address
 // belongs to -, false for none. Read inside the caller's transaction.
 func (p Portal) organisationOf(ctx context.Context, account shared.ID) (domain.Organisation, bool, error) {
-	if p.Accounts == nil || p.Desk.Organisations == nil {
+	return organisationOf(ctx, p.Accounts, p.Desk.Organisations, account)
+}
+
+// organisationOf answers an account's organisation by its address's mail domain, false for none;
+// either store nil holds none.
+func organisationOf(
+	ctx context.Context, accounts identityrepo.Accounts, organisations repository.Organisations, account shared.ID,
+) (domain.Organisation, bool, error) {
+	if accounts == nil || organisations == nil || account.IsZero() {
 		return domain.Organisation{}, false, nil
 	}
-	found, err := p.Accounts.Find(ctx, account)
+	found, err := accounts.Find(ctx, account)
 	switch {
 	case errors.Is(err, shared.ErrNotFound):
 		return domain.Organisation{}, false, nil
@@ -178,7 +187,7 @@ func (p Portal) organisationOf(ctx context.Context, account shared.ID) (domain.O
 	if mailDomain == "" {
 		return domain.Organisation{}, false, nil
 	}
-	organisation, err := p.Desk.Organisations.OfDomain(ctx, mailDomain)
+	organisation, err := organisations.OfDomain(ctx, mailDomain)
 	switch {
 	case errors.Is(err, shared.ErrNotFound):
 		return domain.Organisation{}, false, nil

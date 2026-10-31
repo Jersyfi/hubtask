@@ -215,3 +215,28 @@ func TestAnOrganisationsRequestsAreSeenWhereItSharesThem(t *testing.T) {
 		}
 	})
 }
+
+// UC-SVC-02 check 9: a policy names organisations the workspace holds, and reads them back.
+func TestAPolicyNamesOrganisationsTheWorkspaceHolds(t *testing.T) {
+	define := DefineSlaPolicy{Desk: Desk{
+		Policies: policyStore{}, Organisations: &organisationStore{rows: map[string]domain.Organisation{"acme": {Key: "acme"}}},
+		Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{},
+		Text: text.Composing{},
+	}}
+	command := DefineSlaPolicyCommand{
+		Key: "key_accounts", Name: "Key accounts", EntryTypes: []string{"incident"}, Enabled: true,
+		Organisations: []string{"acme", "initech"},
+		Goals:         []domain.SlaGoal{{Kind: domain.GoalFirstResponse, Minutes: 30}},
+	}
+	if _, err := define.Execute(context.Background(), reader(), command); shared.AsError(err).DetailCode != "sla_policies.organisation_unknown" {
+		t.Errorf("an organisation nobody holds: %v", err)
+	}
+	command.Organisations = []string{"acme"}
+	policy, err := define.Execute(context.Background(), reader(), command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := PolicyOutput(policy); !slices.Equal(out["organisations"].([]string), []string{"acme"}) {
+		t.Errorf("output %v", out["organisations"])
+	}
+}

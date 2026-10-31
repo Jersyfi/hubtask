@@ -4159,6 +4159,7 @@ func run() error {
 				Records: slaRecords, Items: items, IDs: ids,
 				Timers:     calendarservice.Clocks{Timers: postgres.NewTimerRepository(), Jobs: jobs, IDs: ids},
 				Requesters: postgres.RequesterRepository{IDs: ids},
+				Accounts:   accounts, Organisations: serviceDeskStore.Organisations(),
 			},
 			// A public reply mailed to the requesters an entry was filed for by mail (UC-SVC-12):
 			// one job per comment, the mail sent outside the dispatcher's transaction.

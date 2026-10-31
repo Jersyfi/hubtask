@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -55,6 +56,10 @@ type SlaClocks struct {
 	// Requesters tells the entries the mail intake filed for a requester without an account; nil
 	// takes who raised an entry for its requester.
 	Requesters RequesterAddresses
+	// Accounts and Organisations name the requester's organisation for a policy that is for some
+	// (UC-SVC-02 check 9); either nil reads every requester as of none.
+	Accounts      identityrepo.Accounts
+	Organisations repository.Organisations
 }
 
 var _ eventbus.Subscriber = SlaClocks{}
@@ -191,6 +196,34 @@ func (s SlaClocks) calendarOf(ctx context.Context, policy domain.SlaPolicy, item
 	return found.Calendar, nil
 }
 
+// choose answers the policy the entry is measured against. The requester's organisation is read
+// only when a policy is for some: who raised the entry, by their address's domain - none for an
+// entry the mail intake filed for a requester without an account (UC-SVC-11 *Where it ends*).
+func (s SlaClocks) choose(ctx context.Context, item work.WorkItem, policies []domain.SlaPolicy) (domain.SlaPolicy, bool, error) {
+	organisation := ""
+	if domain.ForOrganisations(policies) {
+		filed := false
+		if s.Requesters != nil {
+			addresses, err := s.Requesters.AddressesOn(ctx, item.ID)
+			if err != nil {
+				return domain.SlaPolicy{}, false, err
+			}
+			filed = len(addresses) > 0
+		}
+		if !filed {
+			found, held, err := organisationOf(ctx, s.Accounts, s.Organisations, item.CreatedBy)
+			if err != nil {
+				return domain.SlaPolicy{}, false, err
+			}
+			if held {
+				organisation = found.Key
+			}
+		}
+	}
+	policy, covered := domain.Choose(policies, item.EntryType, organisation)
+	return policy, covered, nil
+}
+
 // PriorityOf reads the option an entry holds in the policy's priority field.
 func PriorityOf(item work.WorkItem, policy domain.SlaPolicy) string {
 	if policy.PriorityField == "" {
@@ -214,9 +247,9 @@ func (s SlaClocks) arm(
 	if item.Completion.IsCompleted || item.DeletedAt != nil {
 		return nil
 	}
-	policy, covered := domain.Choose(policies, item.EntryType)
-	if !covered {
-		return nil
+	policy, covered, err := s.choose(ctx, item, policies)
+	if err != nil || !covered {
+		return err
 	}
 	cal, err := s.calendarOf(ctx, policy, item)
 	if errors.Is(err, shared.ErrNotFound) {
@@ -273,9 +306,9 @@ func (s SlaClocks) awaitNext(
 	if item.Completion.IsCompleted || item.DeletedAt != nil {
 		return nil
 	}
-	policy, covered := domain.Choose(policies, item.EntryType)
-	if !covered {
-		return nil
+	policy, covered, err := s.choose(ctx, item, policies)
+	if err != nil || !covered {
+		return err
 	}
 	goal, wanted := policy.Goal(domain.GoalNextResponse)
 	if !wanted {

@@ -453,3 +453,45 @@ func TestOnAnEntryFiledByMailTheOpenersReplyAnswers(t *testing.T) {
 		t.Errorf("the requester's filed words did not arm the next response: %+v", next)
 	}
 }
+
+// UC-SVC-02 check 9: a policy for some organisations measures their requesters' entries; the next
+// one measures everybody else's - a requester of another organisation, of none, and one the mail
+// intake filed for, who belongs to none.
+func TestAnOrganisationsPolicyMeasuresItsRequestersEntries(t *testing.T) {
+	for name, c := range map[string]struct {
+		email  string
+		filed  bool
+		policy string
+	}{
+		"of the organisation":       {email: "mehmet@acme.example", policy: "key_accounts"},
+		"of another organisation":   {email: "ann@globex.example", policy: "incidents"},
+		"of none":                   {email: "bo@elsewhere.example", policy: "incidents"},
+		"filed for by mail":         {email: "mehmet@acme.example", filed: true, policy: "incidents"},
+		"an account no longer held": {policy: "incidents"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t)
+			everyone := f.clocks.Policies.(policyStore).rows[0]
+			everyone.Position = 1
+			vip := everyone
+			vip.Key, vip.Position, vip.Organisations = "key_accounts", 0, []string{"acme"}
+			f.clocks.Policies = policyStore{rows: []domain.SlaPolicy{everyone, vip}}
+			emails := map[shared.ID]string{}
+			if c.email != "" {
+				emails[requesterID] = c.email
+			}
+			f.clocks.Accounts = addressBook{emails: emails}
+			f.clocks.Organisations = &organisationStore{rows: map[string]domain.Organisation{
+				"acme":   {Key: "acme", Domains: []string{"acme.example"}},
+				"globex": {Key: "globex", Domains: []string{"globex.example"}},
+			}}
+			if c.filed {
+				f.clocks.Requesters = requesterBook{itemID: {{Address: "kunde@shop.test"}}}
+			}
+			f.deliver(t, event.ItemCreated, monday, nil)
+			if got := f.records.goal(domain.GoalFirstResponse).PolicyKey; got != c.policy {
+				t.Errorf("measured by %q, want %q", got, c.policy)
+			}
+		})
+	}
+}

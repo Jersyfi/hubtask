@@ -66,8 +66,10 @@ func GoalOfTimer(name string) (GoalKind, bool, bool) {
 // Bounds of a policy, so that a policy stays a small document every write can read whole.
 const (
 	MaxPolicyEntryTypes = 50
-	MaxPriorityTargets  = 20
-	MaxPauseStatuses    = 20
+	// MaxPolicyOrganisations bounds the requester organisations one policy is for.
+	MaxPolicyOrganisations = 20
+	MaxPriorityTargets     = 20
+	MaxPauseStatuses       = 20
 	// MaxTargetMinutes is the timer's own bound: a year of working time.
 	MaxTargetMinutes = int(calendar.MaxBudget / time.Minute)
 )
@@ -117,6 +119,9 @@ type SlaPolicy struct {
 	Name        string
 	CalendarKey string
 	EntryTypes  []string
+	// Organisations are the requester organisations' keys whose entries the policy measures;
+	// empty measures every requester's (UC-SVC-02 check 9).
+	Organisations []string
 	// PriorityField is the custom field whose option value picks a goal's target; empty takes the
 	// goals' own.
 	PriorityField string
@@ -134,6 +139,7 @@ type NewSlaPolicyInput struct {
 	Key, Name     string
 	CalendarKey   string
 	EntryTypes    []string
+	Organisations []string
 	PriorityField string
 	Goals         []SlaGoal
 	Position      int
@@ -171,6 +177,10 @@ func NewSlaPolicy(in NewSlaPolicyInput) (SlaPolicy, error) {
 	if len(types) == 0 {
 		return SlaPolicy{}, invalid("/entry_types", "sla_policies.entry_types_required")
 	}
+	organisations, err := checkKeys(in.Organisations, "/organisations", MaxPolicyOrganisations)
+	if err != nil {
+		return SlaPolicy{}, err
+	}
 	if len(in.Goals) == 0 {
 		return SlaPolicy{}, invalid("/goals", "sla_policies.goals_required")
 	}
@@ -190,7 +200,7 @@ func NewSlaPolicy(in NewSlaPolicyInput) (SlaPolicy, error) {
 	})
 	return SlaPolicy{
 		ID: in.ID, TenantID: in.TenantID, Key: key, Name: name, CalendarKey: calendarKey,
-		EntryTypes: types, PriorityField: priorityField, Goals: goals, Position: in.Position,
+		EntryTypes: types, Organisations: organisations, PriorityField: priorityField, Goals: goals, Position: in.Position,
 		Enabled: in.Enabled, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil
 }
@@ -258,9 +268,17 @@ func (p SlaPolicy) Change(in NewSlaPolicyInput) (SlaPolicy, error) {
 	return changed, nil
 }
 
-// Covers reports whether the policy measures entries of the type.
-func (p SlaPolicy) Covers(entryType string) bool {
-	return p.Enabled && entryType != "" && slices.Contains(p.EntryTypes, entryType)
+// Covers reports whether the policy measures entries of the type raised by a requester of the
+// organisation (its key, empty for none).
+func (p SlaPolicy) Covers(entryType, organisation string) bool {
+	return p.Enabled && entryType != "" && slices.Contains(p.EntryTypes, entryType) &&
+		(len(p.Organisations) == 0 || organisation != "" && slices.Contains(p.Organisations, organisation))
+}
+
+// ForOrganisations reports whether any of the policies is for some organisations only, so that
+// a caller reads the requester's organisation only where it can matter.
+func ForOrganisations(policies []SlaPolicy) bool {
+	return slices.ContainsFunc(policies, func(p SlaPolicy) bool { return p.Enabled && len(p.Organisations) > 0 })
 }
 
 // Goal answers the policy's goal of a kind.
@@ -273,15 +291,16 @@ func (p SlaPolicy) Goal(kind GoalKind) (SlaGoal, bool) {
 	return SlaGoal{}, false
 }
 
-// Choose answers the policy an entry of the type is measured against: the first enabled one that
-// covers the type, by position and then key - one policy per entry, so its clocks never disagree.
-func Choose(policies []SlaPolicy, entryType string) (SlaPolicy, bool) {
+// Choose answers the policy an entry of the type, raised by a requester of the organisation, is
+// measured against: the first enabled one that covers both, by position and then key - one policy
+// per entry, so its clocks never disagree.
+func Choose(policies []SlaPolicy, entryType, organisation string) (SlaPolicy, bool) {
 	ordered := slices.Clone(policies)
 	slices.SortFunc(ordered, func(a, b SlaPolicy) int {
 		return cmp.Or(cmp.Compare(a.Position, b.Position), cmp.Compare(a.Key, b.Key))
 	})
 	for _, policy := range ordered {
-		if policy.Covers(entryType) {
+		if policy.Covers(entryType, organisation) {
 			return policy, true
 		}
 	}

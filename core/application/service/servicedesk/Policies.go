@@ -88,7 +88,7 @@ func PolicyOutput(p domain.SlaPolicy) usecase.Output {
 	}
 	out := usecase.Output{
 		"key": p.Key, "name": p.Name, "calendar": nil, "entry_types": p.EntryTypes,
-		"priority_field": nil, "goals": goals, "position": p.Position, "enabled": p.Enabled,
+		"organisations": keysOf(p.Organisations), "priority_field": nil, "goals": goals, "position": p.Position, "enabled": p.Enabled,
 		"version": p.Version,
 	}
 	if p.CalendarKey != "" {
@@ -146,6 +146,7 @@ type DefineSlaPolicyCommand struct {
 	Name            string
 	CalendarKey     string
 	EntryTypes      []string
+	Organisations   []string
 	PriorityField   string
 	Goals           []domain.SlaGoal
 	Position        int
@@ -165,12 +166,15 @@ func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 	now := h.Desk.Clock.Now()
 	input := domain.NewSlaPolicyInput{
 		ID: h.Desk.IDs.NewID(), TenantID: actor.TenantID, Key: cmd.Key, Name: cmd.Name,
-		CalendarKey: cmd.CalendarKey, EntryTypes: cmd.EntryTypes, PriorityField: cmd.PriorityField,
-		Goals: cmd.Goals, Position: cmd.Position, Enabled: cmd.Enabled, Now: now, Text: h.Desk.Text,
+		CalendarKey: cmd.CalendarKey, EntryTypes: cmd.EntryTypes, Organisations: cmd.Organisations,
+		PriorityField: cmd.PriorityField, Goals: cmd.Goals, Position: cmd.Position, Enabled: cmd.Enabled, Now: now, Text: h.Desk.Text,
 	}
 	var out domain.SlaPolicy
 	err := h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Desk.calendarHeld(ctx, strings.TrimSpace(cmd.CalendarKey)); err != nil {
+			return err
+		}
+		if err := h.Desk.organisationsHeld(ctx, cmd.Organisations); err != nil {
 			return err
 		}
 		current, err := h.Desk.Policies.Find(ctx, strings.TrimSpace(cmd.Key))
@@ -201,6 +205,7 @@ func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 			audit.Change{Field: "name", Classification: audit.Sensitive, To: out.Name},
 			audit.Change{Field: "calendar", Classification: audit.Open, To: out.CalendarKey},
 			audit.Change{Field: "entry_types", Classification: audit.Open, To: strings.Join(out.EntryTypes, ",")},
+			audit.Change{Field: "organisations", Classification: audit.Open, To: strings.Join(out.Organisations, ",")},
 			audit.Change{Field: "enabled", Classification: audit.Open, To: strconv.FormatBool(out.Enabled)})
 	})
 	return out, err
@@ -214,7 +219,7 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 			"first-response and a resolution goal with targets in working minutes per priority, the statuses " +
 			"that pause a goal, the share of the target at which it is at risk, and the business calendar its " +
 			"time is counted on - around the clock when none is named. An entry is measured by the first " +
-			"enabled policy, by position, that covers its type.",
+			"enabled policy, by position, that covers its type and, where it names organisations, the requester's.",
 		SideEffects: "Writes the policy and an audit entry. Entries already measured keep their clocks.",
 		TokenScope:  deskWrite,
 		Input: []usecase.Field{
@@ -222,6 +227,7 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 			{Name: "name", Kind: usecase.KindString, Required: true, Description: "Up to 120 characters, on one line."},
 			{Name: "calendar", Kind: usecase.KindString, Description: "A business calendar's key; absent counts around the clock."},
 			{Name: "entry_types", Kind: usecase.KindList, Required: true, Description: "The entry type keys the policy measures."},
+			{Name: "organisations", Kind: usecase.KindList, Description: "The requester organisations' keys whose requests the policy measures; absent or empty measures every requester's."},
 			{Name: "priority_field", Kind: usecase.KindString, Description: "The custom field whose option value picks a goal's target."},
 			{Name: "goals", Kind: usecase.KindList, Required: true, Description: "{kind: FIRST_RESPONSE, NEXT_RESPONSE or RESOLUTION, minutes, by_priority, pause_statuses, warn_percent}, each kind once."},
 			{Name: "position", Kind: usecase.KindInt, Description: "The order in which policies are tried; lower first."},
@@ -231,6 +237,10 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 		Audit: usecase.AuditDeclaration{Action: PolicyDefinedAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			types, err := in.StringList("entry_types")
+			if err != nil {
+				return nil, err
+			}
+			organisations, err := in.StringList("organisations")
 			if err != nil {
 				return nil, err
 			}
@@ -244,7 +254,7 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 			}
 			defined, err := h.Execute(ctx, actor, DefineSlaPolicyCommand{
 				Key: in.String("key"), Name: in.String("name"), CalendarKey: in.String("calendar"),
-				EntryTypes: types, PriorityField: in.String("priority_field"), Goals: goals,
+				EntryTypes: types, Organisations: organisations, PriorityField: in.String("priority_field"), Goals: goals,
 				Position: in.Int("position"), Enabled: enabled, ExpectedVersion: in.Int("expected_version"),
 			})
 			if err != nil {
@@ -300,6 +310,33 @@ func (h DeleteSlaPolicy) Descriptor() usecase.Descriptor {
 
 // calendarHeld refuses a policy's calendar that neither the workspace nor the installation holds
 // (UC-SVC-01 check 6); no key counts around the clock.
+// organisationsHeld refuses a policy for an organisation the workspace does not hold: it would
+// measure nobody's requests without saying so.
+func (d Desk) organisationsHeld(ctx context.Context, keys []string) error {
+	for i, key := range keys {
+		key = strings.TrimSpace(key)
+		if key == "" || d.Organisations == nil {
+			continue
+		}
+		if _, err := d.Organisations.Find(ctx, key); errors.Is(err, shared.ErrNotFound) {
+			at := "/organisations/" + strconv.Itoa(i)
+			return shared.ErrValidation.WithDetail("sla_policies.organisation_unknown").
+				WithFields(shared.FieldError{Path: at, Code: "sla_policies.organisation_unknown"})
+		} else if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// keysOf answers keys for an output, never null.
+func keysOf(keys []string) []string {
+	if keys == nil {
+		return []string{}
+	}
+	return keys
+}
+
 func (d Desk) calendarHeld(ctx context.Context, key string) error {
 	if key == "" {
 		return nil

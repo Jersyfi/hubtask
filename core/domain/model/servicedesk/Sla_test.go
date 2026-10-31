@@ -5,6 +5,8 @@ package servicedesk
 
 import (
 	"errors"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -87,12 +89,40 @@ func TestChoose(t *testing.T) {
 	second.Key, second.Position = "all_incidents", 1
 	disabled := first
 	disabled.Key, disabled.Position, disabled.Enabled = "aaa", -1, false
-	chosen, ok := Choose([]SlaPolicy{second, disabled, first}, "incident")
+	chosen, ok := Choose([]SlaPolicy{second, disabled, first}, "incident", "")
 	if !ok || chosen.Key != "incidents" {
 		t.Errorf("want incidents, got %q", chosen.Key)
 	}
-	if _, ok := Choose([]SlaPolicy{first}, "task"); ok {
+	if _, ok := Choose([]SlaPolicy{first}, "task", ""); ok {
 		t.Error("a type no policy covers is measured by none")
+	}
+}
+
+// UC-SVC-02 check 9: a policy naming organisations measures only their requesters' entries; the
+// next policy measures everybody else's, and a requester of no organisation is never taken by one.
+func TestAPolicyForOrganisationsMeasuresOnlyTheirRequests(t *testing.T) {
+	in := policyInput()
+	in.Key, in.Organisations = "key_accounts", []string{"acme", " acme", "globex"}
+	vip, err := NewSlaPolicy(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(vip.Organisations, []string{"acme", "globex"}) {
+		t.Errorf("organisations %v", vip.Organisations)
+	}
+	everyone, _ := NewSlaPolicy(policyInput())
+	everyone.Position = 1
+	for organisation, want := range map[string]string{"acme": "key_accounts", "globex": "key_accounts", "initech": "incidents", "": "incidents"} {
+		if chosen, _ := Choose([]SlaPolicy{everyone, vip}, "incident", organisation); chosen.Key != want {
+			t.Errorf("a requester of %q is measured by %q, want %q", organisation, chosen.Key, want)
+		}
+	}
+	in.Organisations = make([]string, MaxPolicyOrganisations+1)
+	for i := range in.Organisations {
+		in.Organisations[i] = "org_" + strconv.Itoa(i)
+	}
+	if _, err := NewSlaPolicy(in); shared.AsError(err).DetailCode != "sla_policies.too_many" {
+		t.Errorf("too many organisations: %v", err)
 	}
 }
 
