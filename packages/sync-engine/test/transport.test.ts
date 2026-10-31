@@ -493,3 +493,15 @@ test('a document asks for the file its caller names, else the default list', asy
   assert.equal(file.contentType, sheet);
   assert.equal(file.fileName, 'time.xlsx');
 });
+
+// A document a privileged act answers - the workspace's whole archive - carries the step-up proof.
+test('a document carries the step-up proof it is asked with', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(new Uint8Array([0x50, 0x4b]), {
+    status: 200, headers: { 'Content-Type': 'application/zip' },
+  }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+  await transport.document('/backups:download-workspace', {}, { timeoutMs: 1000, accept: 'application/zip', stepUpToken: 'proof' });
+  await transport.document('/views/v1:export', { format: 'CSV' }, { timeoutMs: 1000 });
+  assert.equal(new Headers(calls[0]?.init.headers).get('X-Hubtask-Step-Up'), 'proof');
+  assert.equal(new Headers(calls[1]?.init.headers).get('X-Hubtask-Step-Up'), null);
+});

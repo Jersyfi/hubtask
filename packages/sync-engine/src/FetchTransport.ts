@@ -289,6 +289,7 @@ export class FetchTransport implements Transport {
     const headers = new Headers({ Accept: options.accept ?? 'text/csv, application/json, text/calendar' });
     if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
     if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
+    if (options.stepUpToken) headers.set('X-Hubtask-Step-Up', options.stepUpToken);
     headers.set('Content-Type', 'application/json');
 
     let answer: globalThis.Response;

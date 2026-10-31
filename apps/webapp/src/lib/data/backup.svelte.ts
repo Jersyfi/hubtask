@@ -21,7 +21,7 @@
  * so one listing plus one read per row needs no mapping in between.
  */
 
-import type { ResourceState } from '@hubtask/sync-engine';
+import type { ResourceState, TransportDocument } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { jobs } from './jobs.svelte.ts';
@@ -288,6 +288,16 @@ class Backup {
    * the job ends is read the run again — "we have backups" and "we have backups that open" are
    * different claims and they are stored in different fields.
    */
+  /**
+   * The whole workspace as one ZIP file, for its owner (UC-BAK-07 check 7): once in 24 hours, with
+   * a fresh proof. Six hours, because a large workspace is a long transfer, and a bound is owed.
+   */
+  downloadWorkspace(stepUpToken?: string): Promise<TransportDocument> {
+    return engine.document('/backups:download-workspace', {}, {
+      timeoutMs: 6 * 60 * 60 * 1000, accept: 'application/zip', stepUpToken,
+    });
+  }
+
   async verify(runId: string): Promise<JobRef> {
     const accepted = await engine.mutate<JobRef>('POST', `${RUNS}/${runId}:verify`, {}, {
       idempotencyKey: crypto.randomUUID(),

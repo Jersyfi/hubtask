@@ -748,7 +748,7 @@ export class SyncEngine {
    * travels through access logs — the same reason `/search` is one — and the engine already knows
    * that a `POST` can be a read.
    */
-  async document(path: string, body: unknown, options: { timeoutMs?: number; idempotencyKey?: string; accept?: string } = {}) {
+  async document(path: string, body: unknown, options: { timeoutMs?: number; idempotencyKey?: string; accept?: string; stepUpToken?: string } = {}) {
     return this.#attempt(() => this.#transport.document(path, body, { ...this.#options(options), accept: options.accept }));
   }
 

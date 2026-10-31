@@ -40,6 +40,8 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
+  import { stepUp } from '../lib/data/stepup.svelte.ts';
+  import { platform } from '../lib/platform/index.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
@@ -225,6 +227,20 @@
   const mayOwn = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
   /** Why a schedule's switch is off for this reader, where it is. */
   const ownRefusal = $derived(workspaceRefusal('DELETE_CONTAINER'));
+
+  /**
+   * The owner's way out without a target (UC-BAK-07 check 7): the whole workspace as one file, once
+   * in 24 hours, behind a fresh proof - `stepUp.around` turns the refusal into the prompt.
+   */
+  let isDownloading = $state(false);
+  async function downloadWorkspace(): Promise<void> {
+    isDownloading = true;
+    await attempt(async () => {
+      const file = await stepUp.around((token) => backup.downloadWorkspace(token));
+      platform.saveFile(file.body, file.fileName ?? 'hubtask-export.zip');
+    }, t('app.backup.download_done'));
+    isDownloading = false;
+  }
 </script>
 
 <Stack gap="300">
@@ -300,6 +316,20 @@
               {sentence(watched.job.error_code) ?? t('app.backup.run_failed')}
             </p>
           {/if}
+        </Stack>
+      </section>
+    {/if}
+
+    {#if mayOwn}
+      <section class="panel">
+        <Stack gap="100">
+          <h2 class="section">{t('app.backup.download_title')}</h2>
+          <p class="quiet">{t('app.backup.download_intro')}</p>
+          <div>
+            <Button tone="secondary" isBusy={isDownloading} busyLabel={t('app.backup.downloading')} onclick={() => void downloadWorkspace()}>
+              {t('app.backup.download')}
+            </Button>
+          </div>
         </Stack>
       </section>
     {/if}
