@@ -3,7 +3,8 @@
 The owner asked for this plan before the long runs start (accepted.md, "The owner's word on the
 performance tests", 2026-10-31): what runs, how long it really takes — measured by short probes,
 not guessed — and how every error a run sees is collected, deduplicated and afterwards fixed. It
-is shown to the owner; **no run below starts before the owner has said yes to it.** The commands
+was shown to the owner, who accepted it with R3 on 2026-10-31 (accepted.md, "The owner's fourth
+answers", item 13): P2, R1 and R3 run as written, R2 only after a fix. The commands
 and the dataset are in [README.md](./README.md); the rule they answer is
 [`observability-reliability.md` §13.2](../../docs/architecture/observability-reliability.md).
 
@@ -61,8 +62,8 @@ The run's log also prints each row (`server WARN ×12: …`), so a run read in t
 same list. **Browser console errors** are not part of R1: the capacity run drives the API and no
 browser. A walk of the web app against the 10⁷ dataset, with every console error and failed
 request of the page counted the same way (`page.on('console')` and `page.on('requestfailed')`, as
-`apps/webapp/e2e/fixture.mjs` already records `pageerror`), is the proposed run R3 — not built
-yet; the owner decides whether it is worth its time (about the seed's 40 minutes plus the walk).
+`apps/webapp/e2e/fixture.mjs` already records `pageerror`), is run R3, accepted by the owner (fourth answers 13; about the seed's 40 minutes plus the walk).
+It is not built yet: nothing records `console` or `requestfailed` today.
 
 ## What happens with what was collected
 
