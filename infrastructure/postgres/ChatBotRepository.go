@@ -34,7 +34,8 @@ func chatBotFailed(what string, err error) error {
 func chatBotOf(r sqlc.ListChatBotsRow) integration.ChatBot {
 	var k cmdbIDs
 	return integration.ChatBot{
-		ID: k.of(r.ID), HubID: k.of(r.HubID), CollectionID: k.of(r.CollectionID), Homeserver: r.Homeserver, Room: r.Room,
+		ID: k.of(r.ID), HubID: k.of(r.HubID), CollectionID: k.of(r.CollectionID), Platform: integration.DeliveryFormat(r.Platform),
+		Homeserver: r.Homeserver, Room: r.Room,
 		BotUser: r.BotUser, Locale: r.Locale, Unfurl: r.Unfurl, Capture: r.Capture, Enabled: r.Enabled, RunAs: k.of(r.RunAs),
 		Since: r.Since, Failure: r.Failure, CreatedAt: timeFrom(r.CreatedAt), UpdatedAt: timeFrom(r.UpdatedAt), Version: int(r.Version),
 	}
@@ -93,8 +94,8 @@ func (ChatBotRepository) Find(ctx context.Context, id shared.ID) (integration.Ch
 		return integration.ChatBot{}, crypto.Sealed{}, chatBotFailed("finding", err)
 	}
 	bot := chatBotOf(sqlc.ListChatBotsRow{
-		ID: r.ID, HubID: r.HubID, CollectionID: r.CollectionID, Homeserver: r.Homeserver, Room: r.Room, BotUser: r.BotUser,
-		Locale: r.Locale, Unfurl: r.Unfurl, Capture: r.Capture, Enabled: r.Enabled, RunAs: r.RunAs, Since: r.Since,
+		ID: r.ID, HubID: r.HubID, CollectionID: r.CollectionID, Platform: r.Platform, Homeserver: r.Homeserver, Room: r.Room,
+		BotUser: r.BotUser, Locale: r.Locale, Unfurl: r.Unfurl, Capture: r.Capture, Enabled: r.Enabled, RunAs: r.RunAs, Since: r.Since,
 		Failure: r.Failure, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, Version: r.Version,
 	})
 	return bot, crypto.Sealed{KeyID: r.SecretKeyID, Ciphertext: r.SecretEnc}, nil
@@ -105,6 +106,9 @@ func (ChatBotRepository) Insert(ctx context.Context, b integration.ChatBot, seal
 	if err != nil {
 		return err
 	}
+	if b.Platform == "" {
+		b.Platform = integration.FormatMatrix
+	}
 	var ids [4]pgtype.UUID
 	for i, id := range []shared.ID{b.ID, b.HubID, b.CollectionID, b.RunAs} {
 		if ids[i], err = uuidOf(id); err != nil {
@@ -112,7 +116,7 @@ func (ChatBotRepository) Insert(ctx context.Context, b integration.ChatBot, seal
 		}
 	}
 	err = q.InsertChatBot(ctx, sqlc.InsertChatBotParams{
-		ID: ids[0], HubID: ids[1], CollectionID: ids[2], Homeserver: b.Homeserver, Room: b.Room, BotUser: b.BotUser,
+		ID: ids[0], HubID: ids[1], CollectionID: ids[2], Platform: string(b.Platform), Homeserver: b.Homeserver, Room: b.Room, BotUser: b.BotUser,
 		Locale: b.Locale, Unfurl: b.Unfurl, Capture: b.Capture, RunAs: ids[3], SecretEnc: sealed.Ciphertext,
 		SecretKeyID: sealed.KeyID, CreatedAt: timestampOf(b.CreatedAt),
 	})

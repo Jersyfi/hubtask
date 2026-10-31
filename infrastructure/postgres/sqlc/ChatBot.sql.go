@@ -35,7 +35,7 @@ func (q *Queries) DeleteChatBot(ctx context.Context, id pgtype.UUID) (int64, err
 }
 
 const findChatBot = `-- name: FindChatBot :one
-SELECT id, hub_id, collection_id, homeserver, room, bot_user, locale, unfurl, capture, enabled, run_as, since,
+SELECT id, hub_id, collection_id, platform, homeserver, room, bot_user, locale, unfurl, capture, enabled, run_as, since,
        failure, created_at, updated_at, version, secret_enc, secret_key_id
 FROM chat_bot
 WHERE tenant_id = current_tenant_id() AND id = $1
@@ -45,6 +45,7 @@ type FindChatBotRow struct {
 	ID           pgtype.UUID
 	HubID        pgtype.UUID
 	CollectionID pgtype.UUID
+	Platform     string
 	Homeserver   string
 	Room         string
 	BotUser      string
@@ -69,6 +70,7 @@ func (q *Queries) FindChatBot(ctx context.Context, id pgtype.UUID) (FindChatBotR
 		&i.ID,
 		&i.HubID,
 		&i.CollectionID,
+		&i.Platform,
 		&i.Homeserver,
 		&i.Room,
 		&i.BotUser,
@@ -89,18 +91,19 @@ func (q *Queries) FindChatBot(ctx context.Context, id pgtype.UUID) (FindChatBotR
 }
 
 const insertChatBot = `-- name: InsertChatBot :exec
-INSERT INTO chat_bot (id, tenant_id, hub_id, collection_id, homeserver, room, bot_user, locale, unfurl, capture,
+INSERT INTO chat_bot (id, tenant_id, hub_id, collection_id, platform, homeserver, room, bot_user, locale, unfurl, capture,
                       enabled, run_as, since, failure, secret_enc, secret_key_id, created_at, updated_at, version)
-VALUES ($1, current_tenant_id(), $2, $3, $4,
-        $5, $6, $7, $8, $9, true,
-        $10, '', '', $11, $12, $13,
-        $13, 1)
+VALUES ($1, current_tenant_id(), $2, $3, $4, $5,
+        $6, $7, $8, $9, $10, true,
+        $11, '', '', $12, $13, $14,
+        $14, 1)
 `
 
 type InsertChatBotParams struct {
 	ID           pgtype.UUID
 	HubID        pgtype.UUID
 	CollectionID pgtype.UUID
+	Platform     string
 	Homeserver   string
 	Room         string
 	BotUser      string
@@ -118,6 +121,7 @@ func (q *Queries) InsertChatBot(ctx context.Context, arg InsertChatBotParams) er
 		arg.ID,
 		arg.HubID,
 		arg.CollectionID,
+		arg.Platform,
 		arg.Homeserver,
 		arg.Room,
 		arg.BotUser,
@@ -134,7 +138,7 @@ func (q *Queries) InsertChatBot(ctx context.Context, arg InsertChatBotParams) er
 
 const listChatBots = `-- name: ListChatBots :many
 
-SELECT id, hub_id, collection_id, homeserver, room, bot_user, locale, unfurl, capture, enabled, run_as, since,
+SELECT id, hub_id, collection_id, platform, homeserver, room, bot_user, locale, unfurl, capture, enabled, run_as, since,
        failure, created_at, updated_at, version
 FROM chat_bot
 WHERE tenant_id = current_tenant_id() AND hub_id = $1
@@ -145,6 +149,7 @@ type ListChatBotsRow struct {
 	ID           pgtype.UUID
 	HubID        pgtype.UUID
 	CollectionID pgtype.UUID
+	Platform     string
 	Homeserver   string
 	Room         string
 	BotUser      string
@@ -160,7 +165,7 @@ type ListChatBotsRow struct {
 	Version      int32
 }
 
-// A Matrix bot in a hub's room (migration 0280, UC-INT-18).
+// A chat bot in a hub's room (migrations 0280, 0288; UC-INT-18, UC-INT-19).
 func (q *Queries) ListChatBots(ctx context.Context, hubID pgtype.UUID) ([]ListChatBotsRow, error) {
 	rows, err := q.db.Query(ctx, listChatBots, hubID)
 	if err != nil {
@@ -174,6 +179,7 @@ func (q *Queries) ListChatBots(ctx context.Context, hubID pgtype.UUID) ([]ListCh
 			&i.ID,
 			&i.HubID,
 			&i.CollectionID,
+			&i.Platform,
 			&i.Homeserver,
 			&i.Room,
 			&i.BotUser,

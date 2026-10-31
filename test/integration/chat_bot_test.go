@@ -70,10 +70,24 @@ func TestAChatBotStaysInItsWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// A Slack bot beside it keeps its platform; the Matrix one, seated without, is MATRIX.
+	slack := bot
+	slack.ID, slack.Platform, slack.Homeserver, slack.Room = freshID(t), integration.FormatSlack, integration.SlackOrigin, "C0123ABCD"
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.Insert(ctx, slack, crypto.Sealed{KeyID: "k1", Ciphertext: []byte("bundle")})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		found, sealed, err := repo.Find(ctx, bot.ID)
-		if err != nil || found.Since != "s42" || string(sealed.Ciphertext) != "token" || !found.Capture {
+		if err != nil || found.Since != "s42" || string(sealed.Ciphertext) != "token" || !found.Capture || found.Platform != integration.FormatMatrix {
 			t.Errorf("find = %+v %v", found, err)
+		}
+		if other, _, err := repo.Find(ctx, slack.ID); err != nil || other.Platform != integration.FormatSlack {
+			t.Errorf("the Slack bot = %+v %v", other, err)
+		}
+		if err := repo.Delete(ctx, slack.ID); err != nil {
+			return err
 		}
 		return repo.Delete(ctx, bot.ID)
 	}); err != nil {

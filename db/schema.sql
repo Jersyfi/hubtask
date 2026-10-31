@@ -7003,7 +7003,8 @@ CREATE POLICY tenant_isolation ON file_store_authorization
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON file_store_authorization TO hubtask_app;
 
--- A Matrix bot in a hub's room (migration 0280).
+-- A chat bot in a hub's room (migrations 0280, 0288): a Matrix account, or a Slack, Teams or
+-- Mattermost app posting to the bot's intake.
 CREATE TABLE chat_bot (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL,
@@ -7024,6 +7025,8 @@ CREATE TABLE chat_bot (
   created_at    timestamptz NOT NULL,
   updated_at    timestamptz NOT NULL,
   version       integer NOT NULL DEFAULT 1,
+  platform      text NOT NULL DEFAULT 'MATRIX'
+    CONSTRAINT chat_bot_platform_check CHECK (platform IN ('MATRIX', 'SLACK', 'TEAMS', 'MATTERMOST')),
   UNIQUE (tenant_id, id),
   UNIQUE (tenant_id, hub_id, homeserver, room),
   CONSTRAINT chat_bot_run_as_fkey FOREIGN KEY (tenant_id, run_as)

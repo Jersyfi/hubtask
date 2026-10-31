@@ -1031,6 +1031,7 @@ type ChatBot struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 	Version      int32
+	Platform     string
 }
 
 type CmdbAffected struct {
