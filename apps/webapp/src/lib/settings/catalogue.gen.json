@@ -1,0 +1,1731 @@
+{
+  "settings": [
+    {
+      "key": "sign_in.min_length",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "maximum": 128,
+      "may": "TIGHTEN",
+      "minimum": 8,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.min_lowercase",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.min_uppercase",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.min_digits",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.min_symbols",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.min_classes",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "maximum": 4,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.max_repeat",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.common_passwords",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.context_words",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.breach_check",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.max_age_days",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.history_count",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "maximum": 10,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.min_age_hours",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "maximum": 24,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.mfa_required_for",
+      "kind": "CHOICE",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "options": [
+        "NONE",
+        "ADMINS",
+        "EVERYONE"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.methods",
+      "kind": "CHOICES",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "options": [
+        "PASSWORD",
+        "OIDC",
+        "PASSKEY"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.session_max_days",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "maximum": 30,
+      "may": "TIGHTEN",
+      "minimum": 1,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.session_idle_minutes",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.managed_accounts",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.private_hubs",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "sign_in.rotation_from",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "legal.imprint_url",
+      "kind": "LINK",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "legal.privacy_url",
+      "kind": "LINK",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "legal.terms_url",
+      "kind": "LINK",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "legal.terms_version",
+      "kind": "TEXT",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "legal.accessibility_url",
+      "kind": "LINK",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "legal.account_url",
+      "kind": "LINK",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "PLAN_REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "localisation.locale",
+      "kind": "LOCALE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE"
+      ],
+      "lockable": false,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "localisation.time_zone",
+      "kind": "TIME_ZONE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE"
+      ],
+      "lockable": false,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "localisation.week_start",
+      "kind": "CHOICE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE"
+      ],
+      "lockable": false,
+      "options": [
+        "MONDAY",
+        "SATURDAY",
+        "SUNDAY"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "quotas.api_requests_per_minute",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "quotas.items",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "quotas.media_bytes",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "quotas.automation_runs_per_hour",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "quotas.webhook_targets",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "quotas.export_jobs",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "quotas.ai_tokens_per_day",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "quotas.ai_arrival_proposals_per_day",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "quotas.accounts",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "ai.sources",
+      "kind": "CHOICE",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "options": [
+        "EITHER",
+        "OFFERED",
+        "OWN",
+        "NONE"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "ai.min_jurisdiction",
+      "kind": "CHOICE",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "options": [
+        "ANY",
+        "ADEQUACY",
+        "EEA",
+        "SELF_HOSTED"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
+      "key": "ai.person_opt_out",
+      "kind": "CHOICE",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "options": [
+        "OFFERED"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "structure.levels",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "preview": "previewContainerStructure",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "structure.fields",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "preview": "previewContainerStructure",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "structure.views",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "preview": "previewContainerStructure",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "structure.counts",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "preview": "previewContainerStructure",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "structure.completion",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "preview": "previewContainerStructure",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "structure.capture",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "preview": "previewContainerStructure",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "structure.celebration",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "preview": "previewContainerStructure",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "structure.automation",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "preview": "previewContainerStructure",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "structure.entry_types",
+      "kind": "STRUCTURE",
+      "levels": [
+        "INSTANCE",
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "preview": "previewContainerStructure",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "module.workflows",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "module.planning",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "module.knowledge",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "module.whiteboard",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "module.service_desk",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "module.assets",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "module.time",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "module.goals",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "module.agents",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
+      "key": "config.agent_apply",
+      "kind": "CHOICE",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "options": [
+        "ALLOWED",
+        "APPROVAL",
+        "NEVER"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "CONFIGURE"
+        }
+      ]
+    },
+    {
+      "key": "agents.registered_only",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "knowledge.public_links",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "planning.time_tolerance_days",
+      "kind": "COUNT",
+      "levels": [
+        "WORKSPACE",
+        "HUB",
+        "COLLECTION"
+      ],
+      "lockable": true,
+      "maximum": 365,
+      "may": "REPLACE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "COLLECTION",
+          "permission": "STRUCTURE"
+        }
+      ]
+    }
+  ]
+}
