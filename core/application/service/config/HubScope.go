@@ -28,6 +28,10 @@ const (
 	schemeEveryType   = "every_type"
 	workflowAttribute = "workflow"
 	sourceHub         = "HUB"
+	// sectionPages is how the hub's space is written (UC-DOC-15): its one block `drafts`, there
+	// while the space keeps drafts; a removed block makes it a live document again.
+	sectionPages = "pages"
+	draftsKey    = "drafts"
 )
 
 // hubSections is a hub document's shape, in apply order: a module before the blocks it carries.
@@ -130,7 +134,34 @@ func hubSections(hub shared.ID) []section {
 			locate: "key", locateFrom: "key", changeable: []string{"name", "zone", "hours", "holidays"}, whole: true,
 		},
 		hubToleranceSection(hub),
+		hubPagesSection(hub),
 	}, append(furnitureSections(hub), collectionSections()...)...)
+}
+
+// hubPagesSection is the hub's space's way of writing: a block while it keeps drafts, none while
+// it is the live document every space starts as.
+func hubPagesSection(hub shared.ID) section {
+	id := hub.String()
+	return section{
+		name: sectionPages, module: module.Knowledge, list: "ReadSpaceDrafts", listInput: usecase.Input{"hub_id": id},
+		key: "setting", attributes: []string{settingValueField},
+		rowsOf: func(answer map[string]any) []any {
+			if on, _ := answer[draftsKey].(bool); !on || text(answer["source"]) != sourceHub {
+				return nil
+			}
+			return []any{map[string]any{"setting": draftsKey, settingValueField: true}}
+		},
+		block: func(row map[string]any) (string, domain.Block) {
+			return text(row["setting"]), domain.Block{settingValueField: row[settingValueField]}
+		},
+		ops: func(change domain.BlockChange, _ map[string]any) ([]operation, error) {
+			if change.Key != draftsKey {
+				return nil, refused("config.key_unknown", change.Path(), nil)
+			}
+			on := change.Op != domain.OpRemove && change.After[settingValueField] == true
+			return []operation{{UseCase: "SetSpaceDrafts", Path: change.Path(), Input: usecase.Input{"hub_id": id, "drafts": on}}}, nil
+		},
+	}
 }
 
 // hubStructureRows is a hub's answer as one row per structure setting: its value in force and

@@ -71,6 +71,8 @@ func (d Desk) sectionsSchema(list []section) map[string]any {
 		switch {
 		case s.name == sectionTolerance:
 			names = map[string]any{"enum": []string{toleranceKey}}
+		case s.name == sectionPages:
+			names = map[string]any{"enum": []string{draftsKey}}
 		case s.collection:
 			// A collection's handle, a dot and the block's own key.
 			names = map[string]any{"pattern": collectionKeyPattern}
@@ -96,6 +98,10 @@ func (d Desk) attributeSchema(s section, attribute string) map[string]any {
 		}
 		return map[string]any{"type": "integer", "minimum": 0, "maximum": 365,
 			"description": "The calendar days the forecast end may slip; a removed block leaves it to the level above."}
+	}
+	if s.name == sectionPages {
+		return map[string]any{"type": "boolean", "const": true,
+			"description": "The space keeps its writers' changes in drafts until they are published; a removed block makes it a live document."}
 	}
 	if s.name == sectionRoleGroups {
 		return map[string]any{"type": "array", "items": map[string]any{"type": "string", "format": "uuid"},

@@ -52,7 +52,7 @@ func TestEveryHubAndCollectionSettingIsInTheHubsDocument(t *testing.T) {
 		collections[s.name] = s.collection
 	}
 	at := map[setting.Level]map[string]string{
-		setting.LevelHub:        {"structure.": sectionStructure, "module.": sectionModules, planningPrefix: sectionTolerance},
+		setting.LevelHub:        {"structure.": sectionStructure, "module.": sectionModules, planningPrefix: sectionTolerance, "knowledge.": sectionPages},
 		setting.LevelCollection: {"structure.": sectionCollectionStructure, planningPrefix: sectionCollectionTolerance},
 	}
 	for level, prefixes := range at {

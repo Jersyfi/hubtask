@@ -21,7 +21,9 @@ too. One mechanism serves all three.
   structure settings, time tolerance, shared views, rules and custom fields in the `collection_*`
   sections, each
   block under the collection's handle, a dot and the block's key (`collection_views.network.open`);
-  a handle that names no collection of the hub is refused (`config.collection_unknown`).
+  a handle that names no collection of the hub is refused (`config.collection_unknown`). The hub's
+  `pages` section holds its space's way of writing: the block `drafts` while the space keeps drafts
+  until they are published (UC-DOC-15), none while it is a live document.
 * **Contents:** every catalogue setting and every building block (the building blocks of `domain-model.md`) — never content
   (entries, comments, pages' text; templates' sample entries excepted and marked), never a secret
   (a sealed secret is referenced by name).
