@@ -25,7 +25,8 @@ too. One mechanism serves all three.
   `pages` section holds its space's way of writing: the block `drafts` while the space keeps drafts
   until they are published (UC-DOC-15), none while it is a live document.
 * **Contents:** every catalogue setting and every building block (the building blocks of `domain-model.md`) — never content
-  (entries, comments, pages' text; templates' sample entries excepted and marked), never a secret
+  (entries, comments, pages' text; templates' sample entries and the titles of templates' pages
+  excepted and marked), never a secret
   (a sealed secret is referenced by name).
 * **Stable keys, not identifiers.** Blocks are named by keys (`types.incident`,
   `workflows.service_standard.steps.resolve`); the server maps keys to identifiers, so a document
@@ -130,7 +131,7 @@ not, a default). A string value `answer:<key>` anywhere in a block is replaced b
 with no default is not taken - the desk without a first group comes without the P1 escalation. A
 `GROUP` answer is a group of the workspace the person can see, or refused. Answers are not stored:
 an upgrade is planned with them again, and the base it compares with is answered the same way, so
-an unchanged answer is no change. `itil_service_desk@8` asks the first group and the group that
+an unchanged answer is no change. `itil_service_desk@9` asks the first group and the group that
 holds *CAB member*; working hours and the time zone are still the calendar's own values.
 
 **Roles mapped to groups** are the document's `role_groups` section: a block per custom role, its
@@ -148,8 +149,19 @@ takes the template - an upgrade neither adds nor removes them, so nothing a pers
 flow on is trashed by a newer version. Applying creates each as a task through `AddSampleEntry`,
 marked under its key (`sample_entry`); a hub's document reads them back while they are out of the
 trash, and `RemoveSampleEntries` moves every marked entry of the hub into the trash at once -
-restorable for the trash period, and never an entry nobody marked. `itil_service_desk@8` brings
+restorable for the trash period, and never an entry nobody marked. `itil_service_desk@9` brings
 three incidents.
+
+**Pages** are the hub part's `template_pages` section: a block per page, its `title`, `icon`,
+Markdown `body` and the `subpages` beneath it (at most 100 pages in one block), each fixed once
+written. Applying writes each at the top of the hub's space through `AddHubTemplatePage` - an
+ordinary page, marked under its key (`template_page`) - and a hub's document reads back each
+marked page out of the trash by its title and icon alone, since a page's text is not configuration
+(§1). They come with a hub's first take of the template only; an upgrade compares none of them, so
+a guide the hub rewrote is never rewritten or trashed by a newer version. A block naming a written
+page's body differently is refused (`config.attribute_fixed`): the page is changed as a page.
+`itil_service_desk@9` switches knowledge on and brings *How we work with this desk* - what the
+organisation still decides itself (`standards.md` §3) - and a knowledge base with its first pages.
 
 Scopes: a **hub template** (most templates), a **collection template**, and a **workspace starter**
 (several hubs, asked once at the first start — UC-WRK-30 check 5's starter set, grown).

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-18]
 state: built
 tasks: [S-09]
-checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/e2e/changes.test.mjs, core/application/service/config/RoleGroups_test.go, core/application/service/config/Questions_test.go, core/application/service/config/Samples_test.go, test/integration/sample_entry_repository_test.go, core/application/service/config/Drafts_test.go, core/application/service/config/ServiceDesk_test.go, test/integration/config_draft_repository_test.go, apps/webapp/src/lib/data/configdrafts.test.ts]
+checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/e2e/changes.test.mjs, core/application/service/config/RoleGroups_test.go, core/application/service/config/Questions_test.go, core/application/service/config/Samples_test.go, test/integration/sample_entry_repository_test.go, core/application/service/config/Drafts_test.go, core/application/service/config/ServiceDesk_test.go, test/integration/config_draft_repository_test.go, apps/webapp/src/lib/data/configdrafts.test.ts, core/application/service/config/TemplatePages_test.go, test/integration/template_page_repository_test.go]
 ---
 
 # Change our configuration as one document, seen before it applies
@@ -104,6 +104,11 @@ the two versions and rolls the hub's workflow back.
     what it changes and reaches; applying that plan puts it in force and removes the draft, while a
     draft saved again since is kept. An apply touching a policy keeps its requester organisations
     and its OLA group.
+14. A hub taking a template with pages (*Templates*) gets them at the top of its space - the ITIL
+    service desk's guide *How we work with this desk* and its knowledge base -, marked; a hub's
+    document lists them by key with their title and never their text while they are out of the
+    trash, and neither a second take nor an upgrade of the template writes, rewrites or trashes
+    one.
 
 ## Where it ends
 
