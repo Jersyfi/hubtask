@@ -20,6 +20,7 @@ export {
 export { linkLine, mirrorTicks, taskLineAt, taskLines, tickedEntries } from './tasks.ts';
 export type { TaskLine } from './tasks.ts';
 export type { Editor, PageEditorOptions, ReferenceDrawing, SelectedBlock, WikiBlock } from './editor.ts';
+export { EMOJI_SHORTCODES, EmojiShortcodes, emojiOf, shortcodeAt } from './emoji.ts';
 export { findPassage, selectedWords } from './passages.ts';
 export type { Passage, PassageRange } from './passages.ts';
 export { Doc } from 'yjs';

@@ -21,6 +21,7 @@ import type * as Y from 'yjs';
 
 import type { LiveDocument } from './live.ts';
 import { CALLOUT_TONES, STATUS_TONES, embeddable, fromMarkdown, toMarkdown, type DocNode, type ReferenceAttrs } from './markdown.ts';
+import { EmojiShortcodes } from './emoji.ts';
 import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
 import { MIRROR_META, linkLine, mirrorTicks, taskLineAt, tickedEntries, type TaskLine } from './tasks.ts';
 
@@ -419,6 +420,7 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     Embed.configure({ drawing: options.drawing }),
     DateChip.configure({ drawing: options.drawing }),
     StatusChip,
+    EmojiShortcodes,
     BlockIds,
     CommentPassages,
   ];
