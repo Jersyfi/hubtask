@@ -369,7 +369,35 @@ after a write counts that collection again). The database held
 1.2 GB per 10⁶ entries, 70 % of it indexes; the server stayed at about 200 MB resident. The run
 found and fixed a seed that grew with the square of a collection's entries (migration 0289),
 whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ is
-*not measured*** - it belongs to the integration server.
+*not measured*** - it runs on the owner's workstation as well (accepted.md, third answers 9), after
+the long-run plan of the performance tests is shown to the owner.
+
+### 13.3 Partitioning of the entries
+
+**`work_item` is not partitioned up to 10⁷ entries in one database, and nothing is built for it
+before a run shows the need.** Every read path of 13.2 walks an index that leads with the
+workspace, so its cost grows with the entries of the workspace read, not with the table: at 10⁶
+the largest workspace (170 124 entries) answered as the smallest within a millisecond on every
+path except those that count the workspace, and those are bounded by its own size. Hash
+partitioning by workspace would make each partition's indexes shallower by a level at most, and it
+would put every statement that names no workspace - the retention walk, the job claims across
+workspaces - over every partition. What it would buy is maintenance: a vacuum and a reindex per
+partition rather than per table. At 1.2 GB per 10⁶ entries, 10⁷ is a table of about 12 GB, which
+autovacuum and `REINDEX CONCURRENTLY` handle unpartitioned.
+
+**When it is reconsidered:** a capacity run whose breach is traced to the table's size rather than
+a workspace's - autovacuum of `work_item` not finishing between its runs, index bloat a
+`REINDEX CONCURRENTLY` cannot keep up with - or `work_item` past about 50 GB on one installation.
+
+**What is already in place for it** (ADR-0024): `work_item_tenant_id_uq` on `(tenant_id, id)`,
+every foreign key that names an entry (34 of 34) composite on it, and every unique index on the
+table leading with `tenant_id`. A partitioned table's keys must hold the partition key, and these
+do. **The expand steps, when needed:** a partitioned shadow table `work_item_p` by
+`HASH (tenant_id)` with the primary key `(tenant_id, id)`; a trigger mirroring writes into it, as
+`work_item_side_rows` mirrors the slim entry (versioning-release.md §4); a resumable copy job in
+batches per workspace; readers moved release by release; the foreign keys re-pointed at
+`work_item_p (tenant_id, id)` as `NOT VALID` and validated; the rename in the release after the
+last reader moved. No step rewrites the table under a lock.
 
 ---
 

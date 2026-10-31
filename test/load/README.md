@@ -64,10 +64,11 @@ What a run needs: Docker, Go and `make tools` on the host, and the database grow
 per 10⁶ entries (indexes 70 % of it) - at 10⁷ about 12 GB, with the COPY files (about 3 GB twice)
 in the host's temporary directory and room for the WAL beside it. At 10⁶ the seed takes about three
 minutes on a workstation and the whole run about fourteen; the run's own budget for the stack is
-twenty minutes and ten more per 10⁶ entries. The 10⁷ run on the integration server:
+twenty minutes and ten more per 10⁶ entries. The 10⁷ run, on the owner's workstation (accepted.md,
+third answers 9) - give the Docker VM at least 16 GB of disk for the database beside its WAL:
 
 ```bash
-HUBTASK_LOAD_HARDWARE="integration (Hetzner vServer, 4 vCPU, 8 GB)" \
+HUBTASK_LOAD_HARDWARE="workstation (Apple silicon, 14 cores, 36 GB)" \
 HUBTASK_LOAD_EVIDENCE_DIR=$PWD/load-evidence \
   make capacity ITEMS=10000000 TENANTS=2000
 ```
