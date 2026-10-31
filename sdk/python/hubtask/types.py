@@ -5564,12 +5564,28 @@ class PageArticle(TypedDict, total=False):
     helpful: Required[int]
     unhelpful: Required[int]
 
+class PageLanguageLink(TypedDict, total=False):
+    source_page_id: Required[str]
+    language: Required[str]
+
+class PageLanguageVariant(TypedDict, total=False):
+    page_id: Required[str]
+    source_page_id: Required[str]
+    language: Required[str]
+
+class PageLanguageVariants(TypedDict, total=False):
+    page_id: Required[str]
+    source_page_id: Required[str | None]
+    language: Required[str | None]
+    variants: Required[list["PageLanguageVariant"]]
+
 class ArticleSuggestionList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
 class Article(TypedDict, total=False):
     page_id: Required[str]
     collection_id: Required[str]
+    variant_page_id: Required[str | None]
     title: Required[str]
     icon: Required[str]
     body: Required[str]

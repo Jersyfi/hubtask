@@ -286,6 +286,7 @@ var restDoors = map[string]restDoor{
 	"linkEntries":                       {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkEntryFile":                     {UseCase: "LinkEntryFile", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkGoalEntries":                   {UseCase: "LinkGoalEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"linkPageLanguageVariant":           {UseCase: "LinkPageLanguageVariant", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listAbsences":                      {UseCase: "ListAbsences", Status: 200, Query: []string{"account_id", "from", "to"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listAccessTokens":                  {UseCase: "ListAccessTokens", Status: 200, Query: []string{"account_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listActivity":                      {UseCase: "ListActivity", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
@@ -378,6 +379,7 @@ var restDoors = map[string]restDoor{
 	"listPageBacklinks":                 {UseCase: "ListPageBacklinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPageComments":                  {UseCase: "ListPageComments", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPageLabels":                    {UseCase: "ListPageLabels", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listPageLanguageVariants":          {UseCase: "ListPageLanguageVariants", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPageVersions":                  {UseCase: "ListPageVersions", Status: 200, Query: []string{"before", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before", "limit"}},
 	"listPages":                         {UseCase: "ListPages", Status: 200, Query: []string{"include_archived", "templates"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPlans":                         {UseCase: "ListPlans", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -726,6 +728,7 @@ var restDoors = map[string]restDoor{
 	"unlinkEntries":                     {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkEntryFile":                   {UseCase: "UnlinkEntryFile", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkGoalEntry":                   {UseCase: "UnlinkGoalEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unlinkPageLanguageVariant":         {UseCase: "UnlinkPageLanguageVariant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unpublishPageFromPortal":           {UseCase: "UnpublishPageFromPortal", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unrelateCis":                       {UseCase: "UnrelateCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unsharePage":                       {UseCase: "UnsharePage", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2643,6 +2646,13 @@ func (c *RestController) LinkGoalEntries(w http.ResponseWriter, r *http.Request,
 	c.door(w, r, restDoors["linkGoalEntries"], usecase.Input{"goal_id": goalId.String()}, nil, &body, &answer)
 }
 
+// LinkPageLanguageVariant answers PUT /pages/{pageId}/language-source by the generated mapping.
+func (c *RestController) LinkPageLanguageVariant(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var body openapi.LinkPageLanguageVariantJSONRequestBody
+	var answer openapi.PageLanguageVariant
+	c.door(w, r, restDoors["linkPageLanguageVariant"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
+}
+
 // ListAbsences answers GET /time-absences by the generated mapping.
 func (c *RestController) ListAbsences(w http.ResponseWriter, r *http.Request, params openapi.ListAbsencesParams) {
 	var answer openapi.AbsenceList
@@ -3160,6 +3170,12 @@ func (c *RestController) ListPageComments(w http.ResponseWriter, r *http.Request
 func (c *RestController) ListPageLabels(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
 	var answer openapi.PageLabels
 	c.door(w, r, restDoors["listPageLabels"], usecase.Input{"page_id": pageId.String()}, nil, nil, &answer)
+}
+
+// ListPageLanguageVariants answers GET /pages/{pageId}/language-variants by the generated mapping.
+func (c *RestController) ListPageLanguageVariants(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var answer openapi.PageLanguageVariants
+	c.door(w, r, restDoors["listPageLanguageVariants"], usecase.Input{"page_id": pageId.String()}, nil, nil, &answer)
 }
 
 // ListPageVersions answers GET /pages/{pageId}/versions by the generated mapping.
@@ -5395,6 +5411,11 @@ func (c *RestController) UnlinkEntryFile(w http.ResponseWriter, r *http.Request,
 func (c *RestController) UnlinkGoalEntry(w http.ResponseWriter, r *http.Request, goalId openapi.GoalId, entryId openapi_types.UUID) {
 	var answer openapi.Goal
 	c.door(w, r, restDoors["unlinkGoalEntry"], usecase.Input{"goal_id": goalId.String(), "entry_id": entryId.String()}, nil, nil, &answer)
+}
+
+// UnlinkPageLanguageVariant answers DELETE /pages/{pageId}/language-source by the generated mapping.
+func (c *RestController) UnlinkPageLanguageVariant(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	c.door(w, r, restDoors["unlinkPageLanguageVariant"], usecase.Input{"page_id": pageId.String()}, nil, nil, nil)
 }
 
 // UnpublishPageFromPortal answers DELETE /pages/{pageId}/articles/{collectionId} by the generated mapping.

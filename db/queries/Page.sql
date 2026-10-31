@@ -389,21 +389,57 @@ SELECT EXISTS (
 
 -- name: SearchPageArticles :many
 -- The live articles of one service a text finds, ranked; with no text, the most read. A page
--- behind a restriction is never an article a requester reads.
-SELECT p.id, p.title, p.icon, p.updated_at,
+-- behind a restriction is never an article a requester reads. Each article is offered in the
+-- first of `languages` (lower case, preferred first) a live, unrestricted variant of its page is
+-- written in, else as the page itself, and is found by the words of the text it is offered in.
+WITH articles AS (
+  SELECT a.page_id, a.views
+  FROM page_article a
+  JOIN page s ON s.tenant_id = a.tenant_id AND s.id = a.page_id
+  WHERE a.tenant_id = current_tenant_id() AND a.collection_id = sqlc.arg('collection_id')
+    AND s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+), chosen AS (
+  SELECT DISTINCT ON (r.page_id) r.page_id AS article_id, r.views, p.title, p.icon, p.updated_at,
+         p.body, p.content_language, p.language_variant, p.search_document
+  FROM articles r
+  JOIN page p ON p.tenant_id = current_tenant_id()
+    AND (p.id = r.page_id
+         OR (p.language_source_id = r.page_id AND p.deleted_at IS NULL AND p.archived_at IS NULL
+             AND lower(p.language_variant) = ANY(sqlc.arg('languages')::text[])
+             AND NOT page_behind_restriction(p.id)))
+  ORDER BY r.page_id,
+           coalesce(array_position(sqlc.arg('languages')::text[], lower(p.language_variant)),
+                    cardinality(sqlc.arg('languages')::text[]) + 1)
+)
+SELECT c.article_id AS id, c.title, c.icon, c.updated_at,
+       coalesce(c.language_variant, c.content_language) AS content_language,
        CASE WHEN sqlc.arg('text')::text = '' THEN ''::text
-            ELSE ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
+            ELSE ts_headline(hubtask_text_config(c.content_language), c.body, q.query,
                    'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»')::text END AS excerpt
-FROM page_article a
-JOIN page p ON p.tenant_id = a.tenant_id AND p.id = a.page_id,
-     LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(p.content_language), sqlc.arg('text')::text)
+FROM chosen c,
+     LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(c.content_language), sqlc.arg('text')::text)
                   || websearch_to_tsquery('simple', sqlc.arg('text')::text) AS query) q
-WHERE a.tenant_id = current_tenant_id() AND a.collection_id = sqlc.arg('collection_id')
-  AND p.deleted_at IS NULL AND p.archived_at IS NULL AND NOT page_behind_restriction(p.id)
-  AND (sqlc.arg('text')::text = '' OR p.search_document @@ q.query)
-ORDER BY CASE WHEN sqlc.arg('text')::text = '' THEN 0 ELSE ts_rank_cd(p.search_document, q.query) END DESC,
-         a.views DESC, p.updated_at DESC, p.id
+WHERE sqlc.arg('text')::text = '' OR c.search_document @@ q.query
+ORDER BY CASE WHEN sqlc.arg('text')::text = '' THEN 0 ELSE ts_rank_cd(c.search_document, q.query) END DESC,
+         c.views DESC, c.updated_at DESC, c.article_id
 LIMIT sqlc.arg('batch');
+
+-- name: PageLanguageLink :one
+-- The page a page is a language variant of, and under which tag; both null for none.
+SELECT language_source_id, language_variant FROM page
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('page_id');
+
+-- name: PageLanguageVariants :many
+-- The pages that are language variants of a page, trashed ones left out.
+SELECT id, language_variant::text AS language FROM page
+WHERE tenant_id = current_tenant_id() AND language_source_id = sqlc.arg('source_id')
+  AND deleted_at IS NULL AND language_variant IS NOT NULL
+ORDER BY lower(language_variant), id;
+
+-- name: SetPageLanguageLink :execrows
+-- Links a page to its source under a tag, or unlinks it with both null.
+UPDATE page SET language_source_id = sqlc.narg('source_id'), language_variant = sqlc.narg('language')
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('page_id');
 
 -- name: CountPageArticleView :execrows
 UPDATE page_article SET views = views + 1

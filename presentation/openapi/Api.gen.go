@@ -12110,6 +12110,9 @@ type Article struct {
 	PageId          openapi_types.UUID `json:"page_id"`
 	Title           string             `json:"title"`
 	UpdatedAt       time.Time          `json:"updated_at"`
+
+	// VariantPageId The language variant read in the page's place; null when the page itself is read.
+	VariantPageId *openapi_types.UUID `json:"variant_page_id"`
 }
 
 // ArticleRating defines model for ArticleRating.
@@ -12122,6 +12125,9 @@ type ArticleRating struct {
 // ArticleSuggestionList defines model for ArticleSuggestionList.
 type ArticleSuggestionList struct {
 	Data []struct {
+		// ContentLanguage The language the article is offered in; null for the page's own.
+		ContentLanguage *string `json:"content_language"`
+
 		// Excerpt The passage the words found, marked « »; empty without words.
 		Excerpt   string             `json:"excerpt"`
 		Icon      string             `json:"icon"`
@@ -19381,6 +19387,33 @@ type PageLabelCounts struct {
 // PageLabels defines model for PageLabels.
 type PageLabels struct {
 	Labels []string `json:"labels"`
+}
+
+// PageLanguageLink defines model for PageLanguageLink.
+type PageLanguageLink struct {
+	// Language A BCP 47 tag: `de`, `de-AT`, `pt-BR`.
+	Language     string             `json:"language"`
+	SourcePageId openapi_types.UUID `json:"source_page_id"`
+}
+
+// PageLanguageVariant defines model for PageLanguageVariant.
+type PageLanguageVariant struct {
+	Language     string             `json:"language"`
+	PageId       openapi_types.UUID `json:"page_id"`
+	SourcePageId openapi_types.UUID `json:"source_page_id"`
+}
+
+// PageLanguageVariants defines model for PageLanguageVariants.
+type PageLanguageVariants struct {
+	// Language The tag it is a variant under; null for none.
+	Language *string            `json:"language"`
+	PageId   openapi_types.UUID `json:"page_id"`
+
+	// SourcePageId The page this one is a variant of; null for none.
+	SourcePageId *openapi_types.UUID `json:"source_page_id"`
+
+	// Variants The pages that are variants of this one, that the caller may read.
+	Variants []PageLanguageVariant `json:"variants"`
 }
 
 // PageList defines model for PageList.
@@ -28707,6 +28740,9 @@ type PublishPageToPortalJSONRequestBody PublishPageToPortalJSONBody
 // AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
 type AddPageCommentJSONRequestBody = PageCommentCreate
 
+// LinkPageLanguageVariantJSONRequestBody defines body for LinkPageLanguageVariant for application/json ContentType.
+type LinkPageLanguageVariantJSONRequestBody = PageLanguageLink
+
 // AttachPageMediaJSONRequestBody defines body for AttachPageMedia for application/json ContentType.
 type AttachPageMediaJSONRequestBody = PageMediaAttachment
 
@@ -31169,6 +31205,15 @@ type ServerInterface interface {
 	// ListPageLabels A page's labels
 	// (GET /pages/{pageId}/labels)
 	ListPageLabels(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// UnlinkPageLanguageVariant Make a language variant a page of its own again
+	// (DELETE /pages/{pageId}/language-source)
+	UnlinkPageLanguageVariant(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// LinkPageLanguageVariant Make a page the variant of another in one language
+	// (PUT /pages/{pageId}/language-source)
+	LinkPageLanguageVariant(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ListPageLanguageVariants The languages a page is written in for a service's portal
+	// (GET /pages/{pageId}/language-variants)
+	ListPageLanguageVariants(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// AttachPageMedia Attach an uploaded picture or file to a page
 	// (POST /pages/{pageId}/media)
 	AttachPageMedia(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -51343,6 +51388,84 @@ func (siw *ServerInterfaceWrapper) ListPageLabels(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// UnlinkPageLanguageVariant operation middleware
+func (siw *ServerInterfaceWrapper) UnlinkPageLanguageVariant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnlinkPageLanguageVariant(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LinkPageLanguageVariant operation middleware
+func (siw *ServerInterfaceWrapper) LinkPageLanguageVariant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LinkPageLanguageVariant(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPageLanguageVariants operation middleware
+func (siw *ServerInterfaceWrapper) ListPageLanguageVariants(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPageLanguageVariants(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // AttachPageMedia operation middleware
 func (siw *ServerInterfaceWrapper) AttachPageMedia(w http.ResponseWriter, r *http.Request) {
 
@@ -59511,6 +59634,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/media", wrapper.AttachPageMedia)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/articles", wrapper.PublishPageToPortal)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/articles/{collectionId}", wrapper.UnpublishPageFromPortal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/language-variants", wrapper.ListPageLanguageVariants)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/language-source", wrapper.UnlinkPageLanguageVariant)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/pages/{pageId}/language-source", wrapper.LinkPageLanguageVariant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:public-links", wrapper.ReadPublicLinksPolicy)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/pages:public-links", wrapper.SetPublicLinksPolicy)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/collections/{collectionId}/public-form", wrapper.DeletePublicForm)

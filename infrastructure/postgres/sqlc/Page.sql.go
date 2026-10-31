@@ -1293,6 +1293,57 @@ func (q *Queries) PageLabels(ctx context.Context, pageIds []pgtype.UUID) ([]Page
 	return items, nil
 }
 
+const pageLanguageLink = `-- name: PageLanguageLink :one
+SELECT language_source_id, language_variant FROM page
+WHERE tenant_id = current_tenant_id() AND id = $1
+`
+
+type PageLanguageLinkRow struct {
+	LanguageSourceID pgtype.UUID
+	LanguageVariant  *string
+}
+
+// The page a page is a language variant of, and under which tag; both null for none.
+func (q *Queries) PageLanguageLink(ctx context.Context, pageID pgtype.UUID) (PageLanguageLinkRow, error) {
+	row := q.db.QueryRow(ctx, pageLanguageLink, pageID)
+	var i PageLanguageLinkRow
+	err := row.Scan(&i.LanguageSourceID, &i.LanguageVariant)
+	return i, err
+}
+
+const pageLanguageVariants = `-- name: PageLanguageVariants :many
+SELECT id, language_variant::text AS language FROM page
+WHERE tenant_id = current_tenant_id() AND language_source_id = $1
+  AND deleted_at IS NULL AND language_variant IS NOT NULL
+ORDER BY lower(language_variant), id
+`
+
+type PageLanguageVariantsRow struct {
+	ID       pgtype.UUID
+	Language string
+}
+
+// The pages that are language variants of a page, trashed ones left out.
+func (q *Queries) PageLanguageVariants(ctx context.Context, sourceID pgtype.UUID) ([]PageLanguageVariantsRow, error) {
+	rows, err := q.db.Query(ctx, pageLanguageVariants, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PageLanguageVariantsRow{}
+	for rows.Next() {
+		var i PageLanguageVariantsRow
+		if err := rows.Scan(&i.ID, &i.Language); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pageRestrictedTo = `-- name: PageRestrictedTo :many
 SELECT account_id FROM page_restriction
 WHERE tenant_id = current_tenant_id() AND page_id = $1
@@ -1696,40 +1747,66 @@ func (q *Queries) RestorePageSubtree(ctx context.Context, arg RestorePageSubtree
 }
 
 const searchPageArticles = `-- name: SearchPageArticles :many
-SELECT p.id, p.title, p.icon, p.updated_at,
+WITH articles AS (
+  SELECT a.page_id, a.views
+  FROM page_article a
+  JOIN page s ON s.tenant_id = a.tenant_id AND s.id = a.page_id
+  WHERE a.tenant_id = current_tenant_id() AND a.collection_id = $3
+    AND s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+), chosen AS (
+  SELECT DISTINCT ON (r.page_id) r.page_id AS article_id, r.views, p.title, p.icon, p.updated_at,
+         p.body, p.content_language, p.language_variant, p.search_document
+  FROM articles r
+  JOIN page p ON p.tenant_id = current_tenant_id()
+    AND (p.id = r.page_id
+         OR (p.language_source_id = r.page_id AND p.deleted_at IS NULL AND p.archived_at IS NULL
+             AND lower(p.language_variant) = ANY($4::text[])
+             AND NOT page_behind_restriction(p.id)))
+  ORDER BY r.page_id,
+           coalesce(array_position($4::text[], lower(p.language_variant)),
+                    cardinality($4::text[]) + 1)
+)
+SELECT c.article_id AS id, c.title, c.icon, c.updated_at,
+       coalesce(c.language_variant, c.content_language) AS content_language,
        CASE WHEN $1::text = '' THEN ''::text
-            ELSE ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
+            ELSE ts_headline(hubtask_text_config(c.content_language), c.body, q.query,
                    'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»')::text END AS excerpt
-FROM page_article a
-JOIN page p ON p.tenant_id = a.tenant_id AND p.id = a.page_id,
-     LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(p.content_language), $1::text)
+FROM chosen c,
+     LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(c.content_language), $1::text)
                   || websearch_to_tsquery('simple', $1::text) AS query) q
-WHERE a.tenant_id = current_tenant_id() AND a.collection_id = $2
-  AND p.deleted_at IS NULL AND p.archived_at IS NULL AND NOT page_behind_restriction(p.id)
-  AND ($1::text = '' OR p.search_document @@ q.query)
-ORDER BY CASE WHEN $1::text = '' THEN 0 ELSE ts_rank_cd(p.search_document, q.query) END DESC,
-         a.views DESC, p.updated_at DESC, p.id
-LIMIT $3
+WHERE $1::text = '' OR c.search_document @@ q.query
+ORDER BY CASE WHEN $1::text = '' THEN 0 ELSE ts_rank_cd(c.search_document, q.query) END DESC,
+         c.views DESC, c.updated_at DESC, c.article_id
+LIMIT $2
 `
 
 type SearchPageArticlesParams struct {
 	Text         string
-	CollectionID pgtype.UUID
 	Batch        int32
+	CollectionID pgtype.UUID
+	Languages    []string
 }
 
 type SearchPageArticlesRow struct {
-	ID        pgtype.UUID
-	Title     string
-	Icon      string
-	UpdatedAt pgtype.Timestamptz
-	Excerpt   string
+	ID              pgtype.UUID
+	Title           string
+	Icon            string
+	UpdatedAt       pgtype.Timestamptz
+	ContentLanguage *string
+	Excerpt         string
 }
 
 // The live articles of one service a text finds, ranked; with no text, the most read. A page
-// behind a restriction is never an article a requester reads.
+// behind a restriction is never an article a requester reads. Each article is offered in the
+// first of `languages` (lower case, preferred first) a live, unrestricted variant of its page is
+// written in, else as the page itself, and is found by the words of the text it is offered in.
 func (q *Queries) SearchPageArticles(ctx context.Context, arg SearchPageArticlesParams) ([]SearchPageArticlesRow, error) {
-	rows, err := q.db.Query(ctx, searchPageArticles, arg.Text, arg.CollectionID, arg.Batch)
+	rows, err := q.db.Query(ctx, searchPageArticles,
+		arg.Text,
+		arg.Batch,
+		arg.CollectionID,
+		arg.Languages,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1742,6 +1819,7 @@ func (q *Queries) SearchPageArticles(ctx context.Context, arg SearchPageArticles
 			&i.Title,
 			&i.Icon,
 			&i.UpdatedAt,
+			&i.ContentLanguage,
 			&i.Excerpt,
 		); err != nil {
 			return nil, err
@@ -1836,6 +1914,26 @@ func (q *Queries) SearchPages(ctx context.Context, arg SearchPagesParams) ([]Sea
 		return nil, err
 	}
 	return items, nil
+}
+
+const setPageLanguageLink = `-- name: SetPageLanguageLink :execrows
+UPDATE page SET language_source_id = $1, language_variant = $2
+WHERE tenant_id = current_tenant_id() AND id = $3
+`
+
+type SetPageLanguageLinkParams struct {
+	SourceID pgtype.UUID
+	Language *string
+	PageID   pgtype.UUID
+}
+
+// Links a page to its source under a tag, or unlinks it with both null.
+func (q *Queries) SetPageLanguageLink(ctx context.Context, arg SetPageLanguageLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setPageLanguageLink, arg.SourceID, arg.Language, arg.PageID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setPageRestricted = `-- name: SetPageRestricted :execrows

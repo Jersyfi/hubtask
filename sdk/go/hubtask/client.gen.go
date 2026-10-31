@@ -12116,6 +12116,9 @@ type Article struct {
 	PageId          openapi_types.UUID `json:"page_id"`
 	Title           string             `json:"title"`
 	UpdatedAt       time.Time          `json:"updated_at"`
+
+	// VariantPageId The language variant read in the page's place; null when the page itself is read.
+	VariantPageId *openapi_types.UUID `json:"variant_page_id"`
 }
 
 // ArticleRating defines model for ArticleRating.
@@ -12128,6 +12131,9 @@ type ArticleRating struct {
 // ArticleSuggestionList defines model for ArticleSuggestionList.
 type ArticleSuggestionList struct {
 	Data []struct {
+		// ContentLanguage The language the article is offered in; null for the page's own.
+		ContentLanguage *string `json:"content_language"`
+
 		// Excerpt The passage the words found, marked « »; empty without words.
 		Excerpt   string             `json:"excerpt"`
 		Icon      string             `json:"icon"`
@@ -19387,6 +19393,33 @@ type PageLabelCounts struct {
 // PageLabels defines model for PageLabels.
 type PageLabels struct {
 	Labels []string `json:"labels"`
+}
+
+// PageLanguageLink defines model for PageLanguageLink.
+type PageLanguageLink struct {
+	// Language A BCP 47 tag: `de`, `de-AT`, `pt-BR`.
+	Language     string             `json:"language"`
+	SourcePageId openapi_types.UUID `json:"source_page_id"`
+}
+
+// PageLanguageVariant defines model for PageLanguageVariant.
+type PageLanguageVariant struct {
+	Language     string             `json:"language"`
+	PageId       openapi_types.UUID `json:"page_id"`
+	SourcePageId openapi_types.UUID `json:"source_page_id"`
+}
+
+// PageLanguageVariants defines model for PageLanguageVariants.
+type PageLanguageVariants struct {
+	// Language The tag it is a variant under; null for none.
+	Language *string            `json:"language"`
+	PageId   openapi_types.UUID `json:"page_id"`
+
+	// SourcePageId The page this one is a variant of; null for none.
+	SourcePageId *openapi_types.UUID `json:"source_page_id"`
+
+	// Variants The pages that are variants of this one, that the caller may read.
+	Variants []PageLanguageVariant `json:"variants"`
 }
 
 // PageList defines model for PageList.
@@ -28713,6 +28746,9 @@ type PublishPageToPortalJSONRequestBody PublishPageToPortalJSONBody
 // AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
 type AddPageCommentJSONRequestBody = PageCommentCreate
 
+// LinkPageLanguageVariantJSONRequestBody defines body for LinkPageLanguageVariant for application/json ContentType.
+type LinkPageLanguageVariantJSONRequestBody = PageLanguageLink
+
 // AttachPageMediaJSONRequestBody defines body for AttachPageMedia for application/json ContentType.
 type AttachPageMediaJSONRequestBody = PageMediaAttachment
 
@@ -31380,14 +31416,14 @@ type ClientInterface interface {
 
 	// SuggestArticles The articles a service's portal offers for what a requester types
 	//
-	// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
+	// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Each in the reader's language where a variant of its page is written in it, and found by that variant's words. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
 	//
 	// Corresponds with GET /articles (the `SuggestArticles` operationId).
 	SuggestArticles(ctx context.Context, params *SuggestArticlesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadArticle Open an article of a service's portal
 	//
-	// The article's page alone with its Markdown body, as it stands now; the opening is counted. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
+	// The article's page alone with its Markdown body, as it stands now, in the reader's language where a variant of the page is written in it - the exact tag first, then the language alone, then the page itself; the opening is counted on the article. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
 	//
 	// Corresponds with GET /articles/{pageId} (the `ReadArticle` operationId).
 	ReadArticle(ctx context.Context, pageId PageId, params *ReadArticleParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -36977,6 +37013,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /pages/{pageId}/labels (the `ListPageLabels` operationId).
 	ListPageLabels(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnlinkPageLanguageVariant Make a language variant a page of its own again
+	//
+	// A portal answers the source page again where this one stood; `pages.variant_not_found` for a page that is no variant. Needs MANAGE_MEMBERS on the page's hub.
+	//
+	// Corresponds with DELETE /pages/{pageId}/language-source (the `UnlinkPageLanguageVariant` operationId).
+	UnlinkPageLanguageVariant(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LinkPageLanguageVariantWithBody Make a page the variant of another in one language
+	//
+	// Links the page to its source page under a BCP 47 tag: wherever the source is published to a service's portal, a requester whose language the tag names reads this page in its place. Both pages sit in the same space. Refused with `pages.language_malformed` for a tag that is no language, `pages.variant_of_itself`, `pages.variant_other_space`, `pages.variant_of_a_variant` for a source that is a variant itself, `pages.variant_has_variants` for a page other pages are variants of, `pages.variant_language_taken` for a tag the source or another variant holds, and `pages.too_many_variants` past 20. Linked again, the link is replaced. Needs MANAGE_MEMBERS on the page's hub, as publishing does.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /pages/{pageId}/language-source (the `LinkPageLanguageVariant` operationId).
+	LinkPageLanguageVariantWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LinkPageLanguageVariant Make a page the variant of another in one language
+	//
+	// Links the page to its source page under a BCP 47 tag: wherever the source is published to a service's portal, a requester whose language the tag names reads this page in its place. Both pages sit in the same space. Refused with `pages.language_malformed` for a tag that is no language, `pages.variant_of_itself`, `pages.variant_other_space`, `pages.variant_of_a_variant` for a source that is a variant itself, `pages.variant_has_variants` for a page other pages are variants of, `pages.variant_language_taken` for a tag the source or another variant holds, and `pages.too_many_variants` past 20. Linked again, the link is replaced. Needs MANAGE_MEMBERS on the page's hub, as publishing does.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /pages/{pageId}/language-source (the `LinkPageLanguageVariant` operationId).
+	LinkPageLanguageVariant(ctx context.Context, pageId PageId, body LinkPageLanguageVariantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPageLanguageVariants The languages a page is written in for a service's portal
+	//
+	// The page it is a language variant of, under which tag, and the variants of its own that the caller may read. A portal answers an article in the reader's language from these: the exact tag first, then the language alone, then the page itself. Needs READ on the page.
+	//
+	// Corresponds with GET /pages/{pageId}/language-variants (the `ListPageLanguageVariants` operationId).
+	ListPageLanguageVariants(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AttachPageMediaWithBody Attach an uploaded picture or file to a page
 	//
@@ -43753,7 +43821,7 @@ func (c *Client) DecideApproval(ctx context.Context, approvalId openapi_types.UU
 
 // SuggestArticles The articles a service's portal offers for what a requester types
 //
-// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
+// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Each in the reader's language where a variant of its page is written in it, and found by that variant's words. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
 //
 // Corresponds with GET /articles (the `SuggestArticles` operationId).
 func (c *Client) SuggestArticles(ctx context.Context, params *SuggestArticlesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -43770,7 +43838,7 @@ func (c *Client) SuggestArticles(ctx context.Context, params *SuggestArticlesPar
 
 // ReadArticle Open an article of a service's portal
 //
-// The article's page alone with its Markdown body, as it stands now; the opening is counted. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
+// The article's page alone with its Markdown body, as it stands now, in the reader's language where a variant of the page is written in it - the exact tag first, then the language alone, then the page itself; the opening is counted on the article. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
 //
 // Corresponds with GET /articles/{pageId} (the `ReadArticle` operationId).
 func (c *Client) ReadArticle(ctx context.Context, pageId PageId, params *ReadArticleParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -55851,6 +55919,78 @@ func (c *Client) DiscardPageDraft(ctx context.Context, pageId PageId, reqEditors
 // Corresponds with GET /pages/{pageId}/labels (the `ListPageLabels` operationId).
 func (c *Client) ListPageLabels(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListPageLabelsRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnlinkPageLanguageVariant Make a language variant a page of its own again
+//
+// A portal answers the source page again where this one stood; `pages.variant_not_found` for a page that is no variant. Needs MANAGE_MEMBERS on the page's hub.
+//
+// Corresponds with DELETE /pages/{pageId}/language-source (the `UnlinkPageLanguageVariant` operationId).
+func (c *Client) UnlinkPageLanguageVariant(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnlinkPageLanguageVariantRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LinkPageLanguageVariantWithBody Make a page the variant of another in one language
+//
+// Links the page to its source page under a BCP 47 tag: wherever the source is published to a service's portal, a requester whose language the tag names reads this page in its place. Both pages sit in the same space. Refused with `pages.language_malformed` for a tag that is no language, `pages.variant_of_itself`, `pages.variant_other_space`, `pages.variant_of_a_variant` for a source that is a variant itself, `pages.variant_has_variants` for a page other pages are variants of, `pages.variant_language_taken` for a tag the source or another variant holds, and `pages.too_many_variants` past 20. Linked again, the link is replaced. Needs MANAGE_MEMBERS on the page's hub, as publishing does.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /pages/{pageId}/language-source (the `LinkPageLanguageVariant` operationId).
+func (c *Client) LinkPageLanguageVariantWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLinkPageLanguageVariantRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LinkPageLanguageVariant Make a page the variant of another in one language
+//
+// Links the page to its source page under a BCP 47 tag: wherever the source is published to a service's portal, a requester whose language the tag names reads this page in its place. Both pages sit in the same space. Refused with `pages.language_malformed` for a tag that is no language, `pages.variant_of_itself`, `pages.variant_other_space`, `pages.variant_of_a_variant` for a source that is a variant itself, `pages.variant_has_variants` for a page other pages are variants of, `pages.variant_language_taken` for a tag the source or another variant holds, and `pages.too_many_variants` past 20. Linked again, the link is replaced. Needs MANAGE_MEMBERS on the page's hub, as publishing does.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /pages/{pageId}/language-source (the `LinkPageLanguageVariant` operationId).
+func (c *Client) LinkPageLanguageVariant(ctx context.Context, pageId PageId, body LinkPageLanguageVariantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLinkPageLanguageVariantRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPageLanguageVariants The languages a page is written in for a service's portal
+//
+// The page it is a language variant of, under which tag, and the variants of its own that the caller may read. A portal answers an article in the reader's language from these: the exact tag first, then the language alone, then the page itself. Needs READ on the page.
+//
+// Corresponds with GET /pages/{pageId}/language-variants (the `ListPageLanguageVariants` operationId).
+func (c *Client) ListPageLanguageVariants(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPageLanguageVariantsRequest(c.Server, pageId)
 	if err != nil {
 		return nil, err
 	}
@@ -89314,6 +89454,121 @@ func NewListPageLabelsRequest(server string, pageId PageId) (*http.Request, erro
 	return req, nil
 }
 
+// NewUnlinkPageLanguageVariantRequest constructs an http.Request for the UnlinkPageLanguageVariant method
+func NewUnlinkPageLanguageVariantRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/language-source", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewLinkPageLanguageVariantRequest calls the generic LinkPageLanguageVariant builder with application/json body
+func NewLinkPageLanguageVariantRequest(server string, pageId PageId, body LinkPageLanguageVariantJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewLinkPageLanguageVariantRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewLinkPageLanguageVariantRequestWithBody constructs an http.Request for the LinkPageLanguageVariant method, with any body, and a specified content type
+func NewLinkPageLanguageVariantRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/language-source", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListPageLanguageVariantsRequest constructs an http.Request for the ListPageLanguageVariants method
+func NewListPageLanguageVariantsRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/language-variants", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewAttachPageMediaRequest calls the generic AttachPageMedia builder with application/json body
 func NewAttachPageMediaRequest(server string, pageId PageId, body AttachPageMediaJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -102061,7 +102316,7 @@ type ClientWithResponsesInterface interface {
 
 	// SuggestArticlesWithResponse The articles a service's portal offers for what a requester types
 	//
-	// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
+	// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Each in the reader's language where a variant of its page is written in it, and found by that variant's words. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -102070,7 +102325,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadArticleWithResponse Open an article of a service's portal
 	//
-	// The article's page alone with its Markdown body, as it stands now; the opening is counted. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
+	// The article's page alone with its Markdown body, as it stands now, in the reader's language where a variant of the page is written in it - the exact tag first, then the language alone, then the page itself; the opening is counted on the article. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -108214,6 +108469,42 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /pages/{pageId}/labels (the `ListPageLabels` operationId).
 	ListPageLabelsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPageLabelsResult, error)
+
+	// UnlinkPageLanguageVariantWithResponse Make a language variant a page of its own again
+	//
+	// A portal answers the source page again where this one stood; `pages.variant_not_found` for a page that is no variant. Needs MANAGE_MEMBERS on the page's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /pages/{pageId}/language-source (the `UnlinkPageLanguageVariant` operationId).
+	UnlinkPageLanguageVariantWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*UnlinkPageLanguageVariantResult, error)
+
+	// LinkPageLanguageVariantWithBodyWithResponse Make a page the variant of another in one language
+	//
+	// Links the page to its source page under a BCP 47 tag: wherever the source is published to a service's portal, a requester whose language the tag names reads this page in its place. Both pages sit in the same space. Refused with `pages.language_malformed` for a tag that is no language, `pages.variant_of_itself`, `pages.variant_other_space`, `pages.variant_of_a_variant` for a source that is a variant itself, `pages.variant_has_variants` for a page other pages are variants of, `pages.variant_language_taken` for a tag the source or another variant holds, and `pages.too_many_variants` past 20. Linked again, the link is replaced. Needs MANAGE_MEMBERS on the page's hub, as publishing does.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /pages/{pageId}/language-source (the `LinkPageLanguageVariant` operationId).
+	LinkPageLanguageVariantWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LinkPageLanguageVariantResult, error)
+
+	// LinkPageLanguageVariantWithResponse Make a page the variant of another in one language
+	//
+	// Links the page to its source page under a BCP 47 tag: wherever the source is published to a service's portal, a requester whose language the tag names reads this page in its place. Both pages sit in the same space. Refused with `pages.language_malformed` for a tag that is no language, `pages.variant_of_itself`, `pages.variant_other_space`, `pages.variant_of_a_variant` for a source that is a variant itself, `pages.variant_has_variants` for a page other pages are variants of, `pages.variant_language_taken` for a tag the source or another variant holds, and `pages.too_many_variants` past 20. Linked again, the link is replaced. Needs MANAGE_MEMBERS on the page's hub, as publishing does.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /pages/{pageId}/language-source (the `LinkPageLanguageVariant` operationId).
+	LinkPageLanguageVariantWithResponse(ctx context.Context, pageId PageId, body LinkPageLanguageVariantJSONRequestBody, reqEditors ...RequestEditorFn) (*LinkPageLanguageVariantResult, error)
+
+	// ListPageLanguageVariantsWithResponse The languages a page is written in for a service's portal
+	//
+	// The page it is a language variant of, under which tag, and the variants of its own that the caller may read. A portal answers an article in the reader's language from these: the exact tag first, then the language alone, then the page itself. Needs READ on the page.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId}/language-variants (the `ListPageLanguageVariants` operationId).
+	ListPageLanguageVariantsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPageLanguageVariantsResult, error)
 
 	// AttachPageMediaWithBodyWithResponse Attach an uploaded picture or file to a page
 	//
@@ -139387,6 +139678,143 @@ func (r ListPageLabelsResult) ContentType() string {
 	return ""
 }
 
+type UnlinkPageLanguageVariantResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnlinkPageLanguageVariantResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnlinkPageLanguageVariantResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnlinkPageLanguageVariantResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnlinkPageLanguageVariantResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnlinkPageLanguageVariantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LinkPageLanguageVariantResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageLanguageVariant
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r LinkPageLanguageVariantResult) GetJSON200() *PageLanguageVariant {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r LinkPageLanguageVariantResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r LinkPageLanguageVariantResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LinkPageLanguageVariantResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LinkPageLanguageVariantResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LinkPageLanguageVariantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPageLanguageVariantsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageLanguageVariants
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPageLanguageVariantsResult) GetJSON200() *PageLanguageVariants {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPageLanguageVariantsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPageLanguageVariantsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPageLanguageVariantsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPageLanguageVariantsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPageLanguageVariantsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type AttachPageMediaResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -153432,7 +153860,7 @@ func (c *ClientWithResponses) DecideApprovalWithResponse(ctx context.Context, ap
 
 // SuggestArticlesWithResponse The articles a service's portal offers for what a requester types
 //
-// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
+// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Each in the reader's language where a variant of its page is written in it, and found by that variant's words. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -153447,7 +153875,7 @@ func (c *ClientWithResponses) SuggestArticlesWithResponse(ctx context.Context, p
 
 // ReadArticleWithResponse Open an article of a service's portal
 //
-// The article's page alone with its Markdown body, as it stands now; the opening is counted. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
+// The article's page alone with its Markdown body, as it stands now, in the reader's language where a variant of the page is written in it - the exact tag first, then the language alone, then the page itself; the opening is counted on the article. Unpublished, trashed, archived or restricted since, it is not found. Needs REQUEST at the collection.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -163490,6 +163918,66 @@ func (c *ClientWithResponses) ListPageLabelsWithResponse(ctx context.Context, pa
 		return nil, err
 	}
 	return ParseListPageLabelsResult(rsp)
+}
+
+// UnlinkPageLanguageVariantWithResponse Make a language variant a page of its own again
+//
+// A portal answers the source page again where this one stood; `pages.variant_not_found` for a page that is no variant. Needs MANAGE_MEMBERS on the page's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /pages/{pageId}/language-source (the `UnlinkPageLanguageVariant` operationId).
+func (c *ClientWithResponses) UnlinkPageLanguageVariantWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*UnlinkPageLanguageVariantResult, error) {
+	rsp, err := c.UnlinkPageLanguageVariant(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnlinkPageLanguageVariantResult(rsp)
+}
+
+// LinkPageLanguageVariantWithBodyWithResponse Make a page the variant of another in one language
+//
+// Links the page to its source page under a BCP 47 tag: wherever the source is published to a service's portal, a requester whose language the tag names reads this page in its place. Both pages sit in the same space. Refused with `pages.language_malformed` for a tag that is no language, `pages.variant_of_itself`, `pages.variant_other_space`, `pages.variant_of_a_variant` for a source that is a variant itself, `pages.variant_has_variants` for a page other pages are variants of, `pages.variant_language_taken` for a tag the source or another variant holds, and `pages.too_many_variants` past 20. Linked again, the link is replaced. Needs MANAGE_MEMBERS on the page's hub, as publishing does.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /pages/{pageId}/language-source (the `LinkPageLanguageVariant` operationId).
+func (c *ClientWithResponses) LinkPageLanguageVariantWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LinkPageLanguageVariantResult, error) {
+	rsp, err := c.LinkPageLanguageVariantWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLinkPageLanguageVariantResult(rsp)
+}
+
+// LinkPageLanguageVariantWithResponse Make a page the variant of another in one language
+//
+// Links the page to its source page under a BCP 47 tag: wherever the source is published to a service's portal, a requester whose language the tag names reads this page in its place. Both pages sit in the same space. Refused with `pages.language_malformed` for a tag that is no language, `pages.variant_of_itself`, `pages.variant_other_space`, `pages.variant_of_a_variant` for a source that is a variant itself, `pages.variant_has_variants` for a page other pages are variants of, `pages.variant_language_taken` for a tag the source or another variant holds, and `pages.too_many_variants` past 20. Linked again, the link is replaced. Needs MANAGE_MEMBERS on the page's hub, as publishing does.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /pages/{pageId}/language-source (the `LinkPageLanguageVariant` operationId).
+func (c *ClientWithResponses) LinkPageLanguageVariantWithResponse(ctx context.Context, pageId PageId, body LinkPageLanguageVariantJSONRequestBody, reqEditors ...RequestEditorFn) (*LinkPageLanguageVariantResult, error) {
+	rsp, err := c.LinkPageLanguageVariant(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLinkPageLanguageVariantResult(rsp)
+}
+
+// ListPageLanguageVariantsWithResponse The languages a page is written in for a service's portal
+//
+// The page it is a language variant of, under which tag, and the variants of its own that the caller may read. A portal answers an article in the reader's language from these: the exact tag first, then the language alone, then the page itself. Needs READ on the page.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId}/language-variants (the `ListPageLanguageVariants` operationId).
+func (c *ClientWithResponses) ListPageLanguageVariantsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPageLanguageVariantsResult, error) {
+	rsp, err := c.ListPageLanguageVariants(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPageLanguageVariantsResult(rsp)
 }
 
 // AttachPageMediaWithBodyWithResponse Attach an uploaded picture or file to a page
@@ -188640,6 +189128,101 @@ func ParseListPageLabelsResult(rsp *http.Response) (*ListPageLabelsResult, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PageLabels
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnlinkPageLanguageVariantResult parses an HTTP response from a UnlinkPageLanguageVariantWithResponse call
+func ParseUnlinkPageLanguageVariantResult(rsp *http.Response) (*UnlinkPageLanguageVariantResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnlinkPageLanguageVariantResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLinkPageLanguageVariantResult parses an HTTP response from a LinkPageLanguageVariantWithResponse call
+func ParseLinkPageLanguageVariantResult(rsp *http.Response) (*LinkPageLanguageVariantResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LinkPageLanguageVariantResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageLanguageVariant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPageLanguageVariantsResult parses an HTTP response from a ListPageLanguageVariantsWithResponse call
+func ParseListPageLanguageVariantsResult(rsp *http.Response) (*ListPageLanguageVariantsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPageLanguageVariantsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageLanguageVariants
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

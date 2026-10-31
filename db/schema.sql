@@ -1609,6 +1609,10 @@ CREATE TABLE page (
   restricted       boolean NOT NULL DEFAULT false,   -- migration 0261: who reads it is page_restriction
   daily_for        date,                             -- a personal space's daily note (UC-DOC-07)
   search_document  tsvector,
+  -- A language variant of another page for a portal (migration 0314); cleared when the source goes.
+  language_source_id uuid,
+  language_variant   text CONSTRAINT page_language_variant_check
+                     CHECK (language_variant IS NULL OR char_length(language_variant) BETWEEN 1 AND 35),
   UNIQUE (tenant_id, id),
   CHECK (parent_id IS NULL OR parent_id <> id),
   CONSTRAINT page_hub_fkey FOREIGN KEY (tenant_id, hub_id)
@@ -1618,8 +1622,13 @@ CREATE TABLE page (
   CONSTRAINT page_parent_fkey FOREIGN KEY (tenant_id, parent_id)
     REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT page_owner_fkey FOREIGN KEY (tenant_id, owner_id)
-    REFERENCES account (tenant_id, id) ON DELETE SET NULL (owner_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (owner_id),
+  CONSTRAINT page_language_source_fkey FOREIGN KEY (tenant_id, language_source_id)
+    REFERENCES page (tenant_id, id) ON DELETE SET NULL (language_source_id) DEFERRABLE INITIALLY DEFERRED
 );
+-- One language variant per tag and source (migration 0314).
+CREATE UNIQUE INDEX page_language_variant_idx ON page (tenant_id, language_source_id, lower(language_variant))
+  WHERE language_source_id IS NOT NULL;
 -- The tree a space reads: its pages in order under each parent.
 CREATE INDEX page_tree_idx ON page (tenant_id, hub_id, parent_id, order_key);
 CREATE INDEX page_search_idx ON page USING gin (search_document);

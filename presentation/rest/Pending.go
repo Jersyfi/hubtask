@@ -2813,6 +2813,18 @@ func (pending) UnpublishPageFromPortal(w http.ResponseWriter, r *http.Request, _
 	notAvailable(w, r)
 }
 
+func (pending) ListPageLanguageVariants(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) LinkPageLanguageVariant(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnlinkPageLanguageVariant(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
 func (pending) SuggestArticles(w http.ResponseWriter, r *http.Request, _ openapi.SuggestArticlesParams) {
 	notAvailable(w, r)
 }

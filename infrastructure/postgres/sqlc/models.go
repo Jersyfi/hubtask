@@ -2358,30 +2358,32 @@ type OutboxEvent struct {
 }
 
 type Page struct {
-	ID              pgtype.UUID
-	TenantID        pgtype.UUID
-	HubID           pgtype.UUID
-	ParentID        pgtype.UUID
-	Title           string
-	Body            string
-	Icon            string
-	OrderKey        string
-	Template        bool
-	ContentLanguage *string
-	OwnerID         pgtype.UUID
-	VerifiedUntil   pgtype.Timestamptz
-	VerifiedAt      pgtype.Timestamptz
-	VerifiedBy      pgtype.UUID
-	ArchivedAt      pgtype.Timestamptz
-	DeletedAt       pgtype.Timestamptz
-	CreatedBy       pgtype.UUID
-	CreatedAt       pgtype.Timestamptz
-	UpdatedBy       pgtype.UUID
-	UpdatedAt       pgtype.Timestamptz
-	Version         int32
-	SearchDocument  interface{}
-	Restricted      bool
-	DailyFor        pgtype.Date
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	HubID            pgtype.UUID
+	ParentID         pgtype.UUID
+	Title            string
+	Body             string
+	Icon             string
+	OrderKey         string
+	Template         bool
+	ContentLanguage  *string
+	OwnerID          pgtype.UUID
+	VerifiedUntil    pgtype.Timestamptz
+	VerifiedAt       pgtype.Timestamptz
+	VerifiedBy       pgtype.UUID
+	ArchivedAt       pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedBy        pgtype.UUID
+	UpdatedAt        pgtype.Timestamptz
+	Version          int32
+	SearchDocument   interface{}
+	Restricted       bool
+	DailyFor         pgtype.Date
+	LanguageSourceID pgtype.UUID
+	LanguageVariant  *string
 }
 
 type PageArticle struct {

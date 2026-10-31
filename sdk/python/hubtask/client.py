@@ -3191,6 +3191,18 @@ class Client:
         """Take a page back from a service's portal"""
         return self._call("DELETE", "/pages/{pageId}/articles/{collectionId}", {"pageId": page_id, "collectionId": collection_id}, None, {}, None, "none", None, "void")
 
+    def list_page_language_variants(self, page_id: str) -> "PageLanguageVariants":
+        """The languages a page is written in for a service's portal"""
+        return self._call("GET", "/pages/{pageId}/language-variants", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def link_page_language_variant(self, page_id: str, body: "PageLanguageLink") -> "PageLanguageVariant":
+        """Make a page the variant of another in one language"""
+        return self._call("PUT", "/pages/{pageId}/language-source", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def unlink_page_language_variant(self, page_id: str) -> None:
+        """Make a language variant a page of its own again"""
+        return self._call("DELETE", "/pages/{pageId}/language-source", {"pageId": page_id}, None, {}, None, "none", None, "void")
+
     def read_public_links_policy(self) -> "PublicLinksPolicy":
         """Whether pages may be opened by a public link"""
         return self._call("GET", "/pages:public-links", {}, None, {}, None, "none", None, "json")

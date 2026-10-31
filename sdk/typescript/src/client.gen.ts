@@ -4013,6 +4013,21 @@ export class HubtaskClient {
     return this.call("DELETE", "/pages/{pageId}/articles/{collectionId}", { "pageId": pageId, "collectionId": collectionId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The languages a page is written in for a service's portal */
+  listPageLanguageVariants(pageId: string, options: CallOptions = {}): Promise<operations["listPageLanguageVariants"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}/language-variants", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Make a page the variant of another in one language */
+  linkPageLanguageVariant(pageId: string, body: NonNullable<operations["linkPageLanguageVariant"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["linkPageLanguageVariant"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/pages/{pageId}/language-source", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Make a language variant a page of its own again */
+  unlinkPageLanguageVariant(pageId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/pages/{pageId}/language-source", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Whether pages may be opened by a public link */
   readPublicLinksPolicy(options: CallOptions = {}): Promise<operations["readPublicLinksPolicy"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/pages:public-links", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -6046,13 +6046,14 @@ const importPage = `-- name: ImportPage :execrows
 INSERT INTO page (
   id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
   owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-  created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+  created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
+  language_source_id, language_variant
 )
 SELECT
   r.id, r.tenant_id, r.hub_id, r.parent_id, r.title, r.body, r.icon, r.order_key, r.template,
   r.content_language, r.owner_id, r.verified_until, r.verified_at, r.verified_by, r.archived_at,
   r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version,
-  coalesce(r.restricted, false), r.daily_for
+  coalesce(r.restricted, false), r.daily_for, r.language_source_id, r.language_variant
 FROM jsonb_populate_record(
   NULL::page,
   ($1::jsonb - 'search_document') || jsonb_build_object('tenant_id', current_tenant_id())
@@ -6065,6 +6066,8 @@ ON CONFLICT (id) DO UPDATE SET
   order_key = EXCLUDED.order_key,
   template = EXCLUDED.template,
   content_language = EXCLUDED.content_language,
+  language_source_id = EXCLUDED.language_source_id,
+  language_variant = EXCLUDED.language_variant,
   owner_id = EXCLUDED.owner_id,
   verified_until = EXCLUDED.verified_until,
   verified_at = EXCLUDED.verified_at,

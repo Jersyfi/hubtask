@@ -1974,6 +1974,25 @@ var generatedCommands = []door{
 			{Name: "accountId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "page", Verb: "variant-of", OperationID: "linkPageLanguageVariant", Method: "PUT", Path: "/pages/{pageId}/language-source", Summary: "Make a page the variant of another in one language",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "language", Kind: "string", Help: "A BCP 47 tag: `de`, `de-AT`, `pt-BR`", Required: true},
+			{Name: "source_page_id", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"language", "page_id", "source_page_id"}},
+	{Group: "page", Verb: "variant-unlink", OperationID: "unlinkPageLanguageVariant", Method: "DELETE", Path: "/pages/{pageId}/language-source", Summary: "Make a language variant a page of its own again",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "page", Verb: "variants", OperationID: "listPageLanguageVariants", Method: "GET", Path: "/pages/{pageId}/language-variants", Summary: "The languages a page is written in for a service's portal",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"language", "page_id", "source_page_id"}},
 	{Group: "page", Verb: "verify", OperationID: "verifyPage", Method: "POST", Path: "/pages/{pageId}:verify", Summary: "Mark a page as checked",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
