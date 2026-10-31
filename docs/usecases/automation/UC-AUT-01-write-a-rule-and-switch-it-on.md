@@ -5,7 +5,7 @@ context: automation
 actors: [PE-admin, PE-owner, PE-member, PE-scripter, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-08, P-11, P-12]
-state: built
+state: partial
 tasks: [G-05, G-06, G-07, G-09, F4-13, F8-04, F8-16, F8-17, F8-18, F8-22]
 checked_by: [core/application/service/automation/Rules_test.go, core/application/service/automation/PersonRules_test.go, core/application/service/privacy/Erasure_test.go, test/integration/automation_rule_test.go, apps/webapp/e2e/rules.test.mjs]
 ---
@@ -62,3 +62,7 @@ A scripter does the same with `hubctl rule add` or the API; an agent through MCP
 * Rules are not written or switched offline; a device holds nothing of a rule.
 * No rule applies to what happened before it was switched on.
 * Recurring tasks are a property of the entry, not a rule; a rule may still set one.
+
+## Today
+
+* Check 10: not met — the web app has no *Rules → Mine* and no *Only for me* scope in the editor; the doors and the server are built (docs/backlog/suite/README.md, gap row of a person's own rules).
