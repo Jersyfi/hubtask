@@ -6,12 +6,13 @@ package sync
 import (
 	"context"
 	"errors"
-	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/agent"

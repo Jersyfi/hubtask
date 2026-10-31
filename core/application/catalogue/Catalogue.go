@@ -19,9 +19,10 @@
 package catalogue
 
 import (
-	agentservice "github.com/Jersyfi/hubtask/core/application/service/agent"
 	"slices"
 	"strings"
+
+	agentservice "github.com/Jersyfi/hubtask/core/application/service/agent"
 
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"

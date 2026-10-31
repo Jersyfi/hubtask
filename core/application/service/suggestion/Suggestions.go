@@ -14,10 +14,11 @@ package suggestion
 import (
 	"context"
 	"errors"
-	agentdomain "github.com/Jersyfi/hubtask/core/domain/model/agent"
 	"sort"
 	"strings"
 	"time"
+
+	agentdomain "github.com/Jersyfi/hubtask/core/domain/model/agent"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
