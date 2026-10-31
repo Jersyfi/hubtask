@@ -207,7 +207,7 @@ this list with its row.
 | Fourth answers | Leaving a shared installation: a full encrypted workspace download independent of backup targets | open: build it (accepted.md, "The owner's fourth answers", item 1) |
 | Fourth answers | Editor blocks: table, details, math, Mermaid, code highlighting, emoji picker | open: build it (accepted.md, "The owner's fourth answers", item 2) |
 | Fourth answers | Anonymous public intake form behind a switch, rate limit and proof of work | open: build it (accepted.md, "The owner's fourth answers", item 3) |
-| Fourth answers | Upload scan port (no-op, clamd through a guarded dialer), files held until scanned | open: build it (accepted.md, "The owner's fourth answers", item 4) |
+| Fourth answers | Upload scan port (no-op, clamd through a guarded dialer), files held until scanned | closed: `clamd.Scanner` dials a TCP daemon through `httpclient.Guard` (allowlist, resolution, `CheckControl`, connect timeout; `ForOperatorService` opens private networks only for it), configured by the instance file's `upload_scanner` with `HUBTASK_CLAMD_ADDRESS` as override; `TestARefusedAddressIsNeverDialled` |
 | Fourth answers | A relative-date trigger counts business days; the ITIL auto-close after 5 business days | open: build it (accepted.md, "The owner's fourth answers", item 5) |
 | Fourth answers | The automation action NOTIFY_ROLE | open: build it (accepted.md, "The owner's fourth answers", item 6) |
 | Fourth answers | A merged portal request read through its duplicates link, with replies told | open: build it (accepted.md, "The owner's fourth answers", item 7) |

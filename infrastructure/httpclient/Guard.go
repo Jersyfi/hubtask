@@ -73,6 +73,15 @@ func (g *Guard) WithResolver(lookup func(ctx context.Context, host string) ([]ne
 	return &copied
 }
 
+// ForOperatorService returns a copy open to private networks, for a service the operator named in
+// the installation's configuration - an upload scanner beside the server - and that no person
+// can point elsewhere. The allowlist and the always-blocked metadata addresses stay in force.
+func (g *Guard) ForOperatorService() *Guard {
+	copied := *g
+	copied.allowPrivate = true
+	return &copied
+}
+
 func defaultLookup(ctx context.Context, host string) ([]netip.Addr, error) {
 	return net.DefaultResolver.LookupNetIP(ctx, "ip", host)
 }

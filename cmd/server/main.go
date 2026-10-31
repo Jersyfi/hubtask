@@ -316,10 +316,11 @@ func run() error {
 		return fmt.Errorf("object storage: %w", err)
 	}
 	mediaGuard := storageadapter.NewUploadGuard()
-	// The upload scanner (security.md §4): none unless HUBTASK_CLAMD_ADDRESS names a daemon.
-	var mediaScanner storageport.Scanner
-	if cfg.Media.ScannerAddress != "" {
-		mediaScanner = clamd.Scanner{Address: cfg.Media.ScannerAddress, Timeout: cfg.Media.ScannerTimeout}
+	// The upload scanner (security.md §4): none unless the instance file or HUBTASK_CLAMD_ADDRESS
+	// names a daemon.
+	mediaScanner, err := uploadScanner(cfg)
+	if err != nil {
+		return fmt.Errorf("upload scanner: %w", err)
 	}
 
 	// The stream's cursor codec and its wake-up. The codec is keyed on the installation secret
@@ -6038,6 +6039,36 @@ func applyPlatformSubscriptions(ctx context.Context, applying applyingInstanceFi
 		"mode", string(applying.mode), "created", outcome.Created, "rotated", outcome.Rotated,
 		"kept", outcome.Kept, "removed", outcome.Removed)
 	return nil
+}
+
+// uploadScanner builds the scanner the instance file's `upload_scanner` names, the environment
+// overriding it; none is a nil scanner. The guard is the installation's, opened to private networks
+// because a daemon beside the server is the normal deployment and no person can repoint it.
+func uploadScanner(cfg envport.Config) (storageport.Scanner, error) {
+	address, timeout := cfg.Media.ScannerAddress, cfg.Media.ScannerTimeout
+	if address == "" && cfg.InstanceFile != "" {
+		document, found, err := instancefile.Read(cfg.InstanceFile)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			named, err := instancefile.UploadScanner(document, cfg.InstanceFile)
+			if err != nil {
+				return nil, err
+			}
+			address = named.Address
+			if named.Timeout > 0 {
+				timeout = named.Timeout
+			}
+		}
+	}
+	if address == "" {
+		return nil, nil
+	}
+	return clamd.Scanner{
+		Address: address, Timeout: timeout, ConnectTimeout: cfg.Outbound.ConnectTimeout,
+		Guard: httpclient.NewGuard(cfg.Outbound).ForOperatorService(),
+	}, nil
 }
 
 // readInstallationCalendars reads the instance file's `business_calendars`; no file is none.

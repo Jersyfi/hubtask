@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -266,6 +267,32 @@ func TestTheFileOffersBusinessCalendars(t *testing.T) {
 	}
 	for _, malformed := range []any{"federal", []any{"federal"}} {
 		if _, err := BusinessCalendars(map[string]any{"business_calendars": malformed}, path); err == nil {
+			t.Errorf("%v was accepted", malformed)
+		}
+	}
+}
+
+// The upload scanner is configured in the file (security.md §4): an address and an optional
+// timeout; a block that is not that shape refuses the file rather than scanning nothing.
+func TestTheFileNamesTheUploadScanner(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instance.json")
+	if err := os.WriteFile(path, []byte(`{"upload_scanner": {"address": "clamav:3310", "timeout": "90s"}}`), 0o600); err != nil {
+		t.Fatalf("writing the fixture: %v", err)
+	}
+	body, found, err := Read(path)
+	if err != nil || !found {
+		t.Fatalf("the file answered %v (found %v)", err, found)
+	}
+	scanner, err := UploadScanner(body, path)
+	if err != nil || scanner.Address != "clamav:3310" || scanner.Timeout != 90*time.Second {
+		t.Fatalf("scanner = %+v, %v", scanner, err)
+	}
+	if none, err := UploadScanner(map[string]any{}, path); err != nil || none.Address != "" {
+		t.Fatalf("a file without the block answered %+v, %v", none, err)
+	}
+	for _, malformed := range []any{"clamav:3310", map[string]any{"address": 3310},
+		map[string]any{"address": "clamav:3310", "timeout": "soon"}, map[string]any{"address": "clamav:3310", "port": 1}} {
+		if _, err := UploadScanner(map[string]any{"upload_scanner": malformed}, path); err == nil {
 			t.Errorf("%v was accepted", malformed)
 		}
 	}

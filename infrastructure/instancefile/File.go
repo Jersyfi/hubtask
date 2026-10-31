@@ -35,6 +35,7 @@ import (
 	"io/fs"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -100,7 +101,7 @@ func Read(path string) (map[string]any, bool, error) {
 
 	for name := range document {
 		if !areas[name] && name != "blocklist_file" && name != "metering" && name != "reserved_short_names" && name != aiModelsKey && name != plansKey && name != presetsKey &&
-			name != platformSubscriptionsKey && name != businessCalendarsKey {
+			name != platformSubscriptionsKey && name != businessCalendarsKey && name != uploadScannerKey {
 			return nil, false, shared.ErrValidation.
 				WithDetail("config.instance_file_area_unknown").
 				WithParams(map[string]string{"source": path, "area": name})
@@ -323,4 +324,51 @@ func BusinessCalendars(document map[string]any, source string) ([]map[string]any
 		calendars = append(calendars, fields)
 	}
 	return calendars, nil
+}
+
+// uploadScannerKey is the installation's upload scanner (security.md §4): `address` is
+// `host:port` or `unix:/path`, `timeout` a duration bounding one scan. Read at every start in
+// either mode - nothing but the file and its environment override configure it.
+const uploadScannerKey = "upload_scanner"
+
+// Scanner is the upload scanner the file names; an empty Address is none.
+type Scanner struct {
+	Address string
+	Timeout time.Duration
+}
+
+// UploadScanner reads the file's scanner. A block of another shape refuses the file: an operator
+// who wrote one believes uploads are scanned.
+func UploadScanner(document map[string]any, source string) (Scanner, error) {
+	raw, present := document[uploadScannerKey]
+	if !present {
+		return Scanner{}, nil
+	}
+	fields, isObject := raw.(map[string]any)
+	if !isObject {
+		return Scanner{}, malformedPlans(source)
+	}
+	var scanner Scanner
+	for name, value := range fields {
+		text, isText := value.(string)
+		if !isText {
+			return Scanner{}, malformedPlans(source)
+		}
+		switch name {
+		case "address":
+			scanner.Address = strings.TrimSpace(text)
+		case "timeout":
+			timeout, err := time.ParseDuration(text)
+			if err != nil || timeout <= 0 {
+				return Scanner{}, malformedPlans(source)
+			}
+			scanner.Timeout = timeout
+		default:
+			return Scanner{}, malformedPlans(source)
+		}
+	}
+	if scanner.Address == "" {
+		return Scanner{}, malformedPlans(source)
+	}
+	return scanner, nil
 }

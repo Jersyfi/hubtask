@@ -150,8 +150,12 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   sender is provenance, never an identity (the intake address is the credential); every bound is
   checked before allocation. A client draws it as text, never markup or a live link, and labels the
   sender as what the transport claimed.
-* **Uploads can be scanned** where the operator runs a ClamAV daemon (`HUBTASK_CLAMD_ADDRESS`,
-  `storage.Scanner`, `infrastructure/clamd`): the confirmation streams the whole file to it, and
+* **Uploads can be scanned** where the operator runs a ClamAV daemon (the instance file's
+  `upload_scanner` with `address` and `timeout`, `HUBTASK_CLAMD_ADDRESS` overriding it;
+  `storage.Scanner`, `infrastructure/clamd`). A TCP daemon is dialled through the outbound guard
+  (rule 6): the egress allowlist, resolution and the address at dial time, private networks open
+  for this one operator-named service, metadata addresses refused always, a connect timeout of
+  `HUBTASK_HTTP_CONNECT_TIMEOUT`; a `unix:` socket is a local file and needs none. The confirmation streams the whole file to it, and
   a mail's attachment is scanned before it is stored. A malicious file is refused with
   `media.infected` and its bytes removed; a file the daemon cannot answer for - down, timed out, an
   error reply - is held `PENDING_SCAN`: it may be attached, is never downloaded, and the

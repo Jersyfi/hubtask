@@ -4,7 +4,8 @@
 // Package clamd is the upload scanner (core/port/storage.Scanner) against a ClamAV daemon, over
 // its INSTREAM command: the bytes stream in length-prefixed chunks, never a path the daemon reads
 // (security.md §4, T-11). A daemon that cannot be reached, times out or answers an error is
-// ErrUnavailable, which holds the file rather than passing it.
+// ErrUnavailable, which holds the file rather than passing it. A TCP daemon is dialled through
+// the outbound guard (rule 6): the allowlist, resolution and the address at dial time.
 package clamd
 
 import (
@@ -16,10 +17,12 @@ import (
 	"io"
 	"net"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/storage"
+	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 )
 
 // chunkSize stays far below clamd's StreamMaxLength granularity; the daemon caps the whole stream.
@@ -28,12 +31,20 @@ const chunkSize = 64 << 10
 // Dial opens the connection to the daemon - a field so a test can script the other end.
 type Dial func(ctx context.Context, network, address string) (net.Conn, error)
 
+// defaultConnectTimeout bounds the connection on its own where the guard's configuration names
+// none, so a daemon that accepts nothing fails fast instead of consuming the scan's budget.
+const defaultConnectTimeout = 5 * time.Second
+
 // Scanner scans through one daemon. Address is `host:port` or `unix:/path/to/clamd.sock`.
 type Scanner struct {
 	Address string
 	// Timeout bounds one scan, connection to verdict (rule 7); zero is two minutes.
 	Timeout time.Duration
-	Dial    Dial
+	// ConnectTimeout bounds the connection attempt; zero is five seconds.
+	ConnectTimeout time.Duration
+	// Guard checks a TCP daemon's host and address; without it a TCP address is never dialled.
+	Guard *httpclient.Guard
+	Dial  Dial
 }
 
 var _ storage.Scanner = Scanner{}
@@ -51,11 +62,7 @@ func (s Scanner) Scan(ctx context.Context, content io.Reader) (storage.Verdict, 
 	if path, ok := strings.CutPrefix(s.Address, "unix:"); ok {
 		network, address = "unix", path
 	}
-	dial := s.Dial
-	if dial == nil {
-		dial = (&net.Dialer{}).DialContext
-	}
-	conn, err := dial(ctx, network, address)
+	conn, err := s.dial(ctx, network, address)
 	if err != nil {
 		return storage.Verdict{}, unavailable("connecting to the scanner", err)
 	}
@@ -77,6 +84,42 @@ func (s Scanner) Scan(ctx context.Context, content io.Reader) (storage.Verdict, 
 		return storage.Verdict{}, unavailable("reading the verdict", err)
 	}
 	return verdictOf(strings.TrimRight(reply, "\x00\n"))
+}
+
+// dial connects to the daemon. A unix socket is a file on this host the operator named, not an
+// egress, so the guard has nothing to check there; a TCP address passes the same checks
+// GuardedClient makes for HTTP, the last of them on the concrete address at dial time.
+func (s Scanner) dial(ctx context.Context, network, address string) (net.Conn, error) {
+	if s.Dial != nil {
+		return s.Dial(ctx, network, address)
+	}
+	connectTimeout := s.ConnectTimeout
+	if connectTimeout <= 0 {
+		connectTimeout = defaultConnectTimeout
+	}
+	if network == "unix" {
+		return (&net.Dialer{Timeout: connectTimeout}).DialContext(ctx, network, address)
+	}
+	if s.Guard == nil {
+		return nil, errors.New("no outbound guard is wired")
+	}
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, fmt.Errorf("the address is not host:port: %w", err)
+	}
+	if err := s.Guard.CheckHost(host); err != nil {
+		return nil, err
+	}
+	if _, err := s.Guard.Resolve(ctx, host); err != nil {
+		return nil, err
+	}
+	dialer := &net.Dialer{
+		Timeout: connectTimeout,
+		Control: func(network, address string, _ syscall.RawConn) error {
+			return s.Guard.CheckControl(network, address)
+		},
+	}
+	return dialer.DialContext(ctx, network, address)
 }
 
 // stream writes the content in length-prefixed chunks and the zero-length chunk that ends it.

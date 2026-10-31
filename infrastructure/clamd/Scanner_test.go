@@ -10,11 +10,15 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
+	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 )
 
 // daemon plays clamd on the far end of a pipe: it reads the command and the chunks, keeps what was
@@ -80,5 +84,73 @@ func TestNoVerdictIsUnavailable(t *testing.T) {
 	refused := func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("connection refused") }
 	if _, err := (Scanner{Dial: refused}).Scan(t.Context(), strings.NewReader("x")); !errors.Is(err, shared.ErrUnavailable) {
 		t.Errorf("an unreachable daemon was answered %v", err)
+	}
+}
+
+// A TCP daemon is dialled through the guard: an address the guard refuses - a metadata address,
+// a host off the allowlist - is never connected, so no byte of the file leaves, and the refusal
+// is unavailable, which holds the file.
+func TestARefusedAddressIsNeverDialled(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = listener.Close() }()
+	accepted := make(chan struct{}, 1)
+	concurrency.Go(t.Context(), "clamd.test.listener", func(context.Context) {
+		if conn, err := listener.Accept(); err == nil {
+			accepted <- struct{}{}
+			_ = conn.Close()
+		}
+	})
+	_, port, _ := net.SplitHostPort(listener.Addr().String())
+
+	metadata := httpclient.NewGuard(env.OutboundConfig{}).ForOperatorService().
+		WithResolver(func(context.Context, string) ([]netip.Addr, error) {
+			return []netip.Addr{netip.MustParseAddr("169.254.169.254")}, nil
+		})
+	for name, tc := range map[string]Scanner{
+		"metadata address":      {Address: "169.254.169.254:80", Guard: httpclient.NewGuard(env.OutboundConfig{}).ForOperatorService()},
+		"resolves to metadata":  {Address: "clamav:" + port, Guard: metadata},
+		"off the allowlist":     {Address: "127.0.0.1:" + port, Guard: httpclient.NewGuard(env.OutboundConfig{AllowedHosts: []string{"clamav"}}).ForOperatorService()},
+		"private, guard closed": {Address: "127.0.0.1:" + port, Guard: httpclient.NewGuard(env.OutboundConfig{})},
+		"no guard":              {Address: "127.0.0.1:" + port},
+	} {
+		_, err := tc.Scan(t.Context(), strings.NewReader("the file"))
+		if !errors.Is(err, shared.ErrUnavailable) || shared.AsError(err).DetailCode != "dependency.scanner_unavailable" {
+			t.Errorf("%s: answered %v", name, err)
+		}
+	}
+	select {
+	case <-accepted:
+		t.Error("a refused address was connected")
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+// An allowed daemon on the operator's own network is dialled through the guard and scans.
+func TestAnAllowedDaemonIsDialledThroughTheGuard(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = listener.Close() }()
+	streamed := &bytes.Buffer{}
+	serve := daemon(t, "stream: OK", streamed)
+	concurrency.Go(t.Context(), "clamd.test.listener", func(ctx context.Context) {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		pipe, _ := serve(ctx, "", "")
+		concurrency.Go(ctx, "clamd.test.copy", func(context.Context) { _, _ = io.Copy(pipe, conn) })
+		_, _ = io.Copy(conn, pipe)
+		_ = conn.Close()
+	})
+	guard := httpclient.NewGuard(env.OutboundConfig{AllowedHosts: []string{"127.0.0.1"}}).ForOperatorService()
+	verdict, err := Scanner{Address: listener.Addr().String(), Guard: guard, Timeout: 5 * time.Second}.
+		Scan(t.Context(), strings.NewReader("the file"))
+	if err != nil || verdict.Malicious || streamed.String() != "the file" {
+		t.Errorf("an allowed daemon answered %+v, %v, streamed %q", verdict, err, streamed.String())
 	}
 }
