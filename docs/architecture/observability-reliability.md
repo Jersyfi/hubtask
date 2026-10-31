@@ -350,15 +350,24 @@ What is measured so far is a laptop's over a toy dataset (5 000 items in 10 tena
 serving every role): [RT-6's overload run](../archive/evidence/RT-6-2026-09-02.md) — 62.4 req/s per
 vCPU at a held interactive P95 of 94 ms, shedding engaged with no interactive request refused — and
 [the nightly baseline](../../test/load/baselines/steady-state.json), an interactive P95 of 16 ms at
-200 req/s. Memory per process, the connections a size needs, storage per item and the items per
-tenant at which any of these knees are *not measured*. The chart ships one `values.yaml` and no
+200 req/s. Memory per process and storage per item are measured once, on a workstation, by the capacity
+run below; on named hardware they, the connections a size needs and the items per tenant at which
+any of these knees are *not measured*. The chart ships one `values.yaml` and no
 per-size presets; its defaults agree with everything measured.
 
 **How a cell gets filled.** The release tier of [`test/load/README.md`](../../test/load/README.md),
 once per release on the integration server, written up under `docs/evidence/` with its JSON.
 The decay with entries per workspace is the capacity run's (`make capacity`, F-10): 10⁶ and 10⁷
 entries in a long tail, each read path that grows with a workspace held for the largest, a middle
-and the smallest workspace. Neither size has run yet; both are *not measured*.
+and the smallest workspace. **10⁶ ran on the owner's workstation on 2026-10-31**
+([evidence](../evidence/capacity-1000000-2026-10-31.md)): every path answered without a server
+error; at 170 124 entries in the largest workspace a collection's page held P95 7 ms, the board
+47 ms, a count over the hub 60 ms - and the hub's level, whose figures are counted on every read,
+254 ms with eight concurrent readers (about 75 ms of database time for one). The database held
+1.2 GB per 10⁶ entries, 70 % of it indexes; the server stayed at about 200 MB resident. The run
+found and fixed a seed that grew with the square of a collection's entries (migration 0289),
+whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ is
+*not measured*** - it belongs to the integration server.
 
 ---
 

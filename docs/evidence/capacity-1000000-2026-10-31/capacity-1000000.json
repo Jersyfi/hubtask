@@ -1,0 +1,243 @@
+{
+  "test": "capacity",
+  "ran_at": "2026-10-31T03:31:26.704344Z",
+  "hardware": "owner-workstation (Apple, 14 cores, 36 GB; Docker VM 14 vCPU, 8 GB)",
+  "vcpus": 14,
+  "dataset": {
+    "tenants": 200,
+    "items": 1000000
+  },
+  "tenants": [
+    {
+      "rank": 0,
+      "items": 170124,
+      "paths": [
+        {
+          "name": "list_collection",
+          "per_second": 399.96666666666664,
+          "per_second_per_vcpu": 28.569047619047616,
+          "latency": {
+            "count": 11999,
+            "p50": 7,
+            "p95": 7,
+            "p99": 8,
+            "max": 32
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "query_open_by_due",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 1,
+            "p95": 2,
+            "p99": 3,
+            "max": 5
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "board_by_completion",
+          "per_second": 195.8,
+          "per_second_per_vcpu": 13.985714285714286,
+          "latency": {
+            "count": 5874,
+            "p50": 39,
+            "p95": 47,
+            "p99": 50,
+            "max": 61
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "count_hub_by_completion",
+          "per_second": 137.36666666666667,
+          "per_second_per_vcpu": 9.811904761904762,
+          "latency": {
+            "count": 4121,
+            "p50": 54,
+            "p95": 60,
+            "p99": 64,
+            "max": 77
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "hub_level",
+          "per_second": 34.733333333333334,
+          "per_second_per_vcpu": 2.480952380952381,
+          "latency": {
+            "count": 1042,
+            "p50": 238,
+            "p95": 254,
+            "p99": 260,
+            "max": 264
+          },
+          "server_errors": 0,
+          "refused": 0
+        }
+      ]
+    },
+    {
+      "rank": 4,
+      "items": 34024,
+      "paths": [
+        {
+          "name": "list_collection",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 7,
+            "p95": 7,
+            "p99": 8,
+            "max": 18
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "query_open_by_due",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 1,
+            "p95": 2,
+            "p99": 3,
+            "max": 4
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "board_by_completion",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 14,
+            "p95": 15,
+            "p99": 20,
+            "max": 27
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "count_hub_by_completion",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 13,
+            "p95": 14,
+            "p99": 18,
+            "max": 23
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "hub_level",
+          "per_second": 152.5,
+          "per_second_per_vcpu": 10.892857142857142,
+          "latency": {
+            "count": 4575,
+            "p50": 53,
+            "p95": 61,
+            "p99": 66,
+            "max": 74
+          },
+          "server_errors": 0,
+          "refused": 0
+        }
+      ]
+    },
+    {
+      "rank": 7,
+      "items": 21265,
+      "paths": [
+        {
+          "name": "list_collection",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 7,
+            "p95": 8,
+            "p99": 12,
+            "max": 20
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "query_open_by_due",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 1,
+            "p95": 2,
+            "p99": 3,
+            "max": 4
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "board_by_completion",
+          "per_second": 399.96666666666664,
+          "per_second_per_vcpu": 28.569047619047616,
+          "latency": {
+            "count": 11999,
+            "p50": 11,
+            "p95": 13,
+            "p99": 16,
+            "max": 24
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "count_hub_by_completion",
+          "per_second": 400.06666666666666,
+          "per_second_per_vcpu": 28.576190476190476,
+          "latency": {
+            "count": 12002,
+            "p50": 9,
+            "p95": 11,
+            "p99": 12,
+            "max": 20
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "hub_level",
+          "per_second": 224.4,
+          "per_second_per_vcpu": 16.02857142857143,
+          "latency": {
+            "count": 6732,
+            "p50": 36,
+            "p95": 47,
+            "p99": 52,
+            "max": 61
+          },
+          "server_errors": 0,
+          "refused": 0
+        }
+      ]
+    }
+  ],
+  "peak_resident_bytes": 0,
+  "memory_limit_bytes": 805306368,
+  "memory_observed": false
+}
