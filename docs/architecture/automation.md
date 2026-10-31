@@ -51,7 +51,7 @@ rule can be edited into another kind.
 |---|---|---|---|
 | `EVENT` | Any domain event; field filters through `changed_fields` | The outbox dispatcher, through the matching subscriber | The event |
 | `SCHEDULE` | RRULE with a time zone ("Mondays at 08:00") | The tenant's poller, when the stored `next_run_at` has come | The occurrence's instant |
-| `RELATIVE_DATE` | "24 h before the due date", anchored on `DUE_DATE` or `CREATED_AT` | The same poller, when a stored occurrence has come | The occurrence row |
+| `RELATIVE_DATE` | "24 h before the due date", anchored on `DUE_DATE`, `CREATED_AT` or `COMPLETED_AT` ("5 days after it was done"; a reopened entry owes nothing) | The same poller, when a stored occurrence has come | The occurrence row |
 | `MANUAL` | A button, an API call or an MCP tool | `POST /automation/rules/{id}:trigger` | The run, so two presses are two runs |
 | `INBOUND_WEBHOOK` | A token-protected URL per rule; the body is `payload` in CEL | `POST /automation/inbound/{token}` | The delivery, so two posts are two runs |
 | `JUMBLE_ENTRY` | A new arrival in the jumble, the basis for automatic conversion | An arrival in the jumble | The entry |

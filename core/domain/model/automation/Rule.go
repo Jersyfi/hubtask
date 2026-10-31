@@ -142,6 +142,9 @@ type DateAnchor string
 const (
 	AnchorDueDate   DateAnchor = "DUE_DATE"
 	AnchorCreatedAt DateAnchor = "CREATED_AT"
+	// AnchorCompletedAt is the moment the entry was done; an open entry has none, so a reopened
+	// one owes nothing ("close resolved incidents after a while", templates.md §1).
+	AnchorCompletedAt DateAnchor = "COMPLETED_AT"
 )
 
 // OnError is what a failing action does to the rest of the run (automation.md §2).
@@ -456,7 +459,7 @@ func ValidTrigger(trigger Trigger) (Trigger, error) {
 		return kept, foreign(trigger, kept)
 	case TriggerRelativeDate:
 		switch trigger.Anchor {
-		case AnchorDueDate, AnchorCreatedAt:
+		case AnchorDueDate, AnchorCreatedAt, AnchorCompletedAt:
 		case "":
 			return Trigger{}, fieldError("/trigger/anchor", "automation.anchor_required")
 		default:

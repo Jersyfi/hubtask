@@ -385,3 +385,36 @@ func TestThePollerAnswersTheEarlierOfTheTwoDebts(t *testing.T) {
 }
 
 var _ repository.Occurrences = (*occurrences)(nil)
+
+// "Close resolved incidents after a while" (templates.md §1): a rule measures from the moment the
+// entry was done, owes it when the entry completes and owes nothing once it is reopened.
+func TestTheCompletionAnchorFollowsCompletingAndReopening(t *testing.T) {
+	item := dueItem(nil)
+	done := now.Add(-time.Hour)
+	item.Completion = work.Completion{IsCompleted: true, CompletedAt: &done}
+	h := newDates([]domain.Rule{relativeRule(domain.AnchorCompletedAt, "P5D")}, item)
+
+	completed := itemEvent()
+	completed.Type = event.ItemCompleted
+	if !h.subscriber.Wants(event.ItemCompleted) || !h.subscriber.Wants(event.ItemReopened) {
+		t.Fatal("completing and reopening move the completion anchor")
+	}
+	if err := h.subscriber.Deliver(context.Background(), completed); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	owed, found := h.owed.rows[owedKey(ruleID, itemID)]
+	if !found || !owed.FireAt.Equal(done.Add(5*24*time.Hour).UTC()) {
+		t.Fatalf("owes %+v (found %v), want five days after it was done", owed, found)
+	}
+
+	item.Completion = work.Completion{}
+	h.subscriber.Entries = entries{rows: map[shared.ID]work.WorkItem{item.ID: item}}
+	reopened := itemEvent()
+	reopened.Type = event.ItemReopened
+	if err := h.subscriber.Deliver(context.Background(), reopened); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if _, found := h.owed.rows[owedKey(ruleID, itemID)]; found {
+		t.Error("a reopened entry still owes the moment measured from its completion")
+	}
+}

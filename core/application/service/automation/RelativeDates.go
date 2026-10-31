@@ -70,13 +70,13 @@ func (d RelativeDates) Name() string { return RelativeDatesConsumer }
 
 // Wants reports whether an event can have moved an anchor.
 //
-// The two anchors are the due date and the creation instant, so what matters is an entry appearing,
-// its deadline moving, and an entry ending. A narrow list rather than every type, because unlike
+// The anchors are the due date, the creation and the completion instant, so what matters is an
+// entry appearing, its deadline moving, its completing or reopening, and an entry ending. A narrow list rather than every type, because unlike
 // MatchRules this subscriber does a read per event and a rule's existence cannot make an unrelated
 // event relevant - `comment.created` moves no anchor whatever anybody has written.
 func (d RelativeDates) Wants(eventType event.Type) bool {
 	switch eventType {
-	case event.ItemCreated, event.ItemDueChanged, event.ItemUpdated,
+	case event.ItemCreated, event.ItemDueChanged, event.ItemUpdated, event.ItemCompleted, event.ItemReopened,
 		event.ItemTrashed, event.ItemPurged, event.ItemRestored:
 		return true
 	default:
@@ -173,13 +173,15 @@ func (d RelativeDates) wake(ctx context.Context, tenantID shared.ID, at time.Tim
 	return err
 }
 
-// anchoredItem is the entry as this subscriber reads it: where it sits, and the two instants a
+// anchoredItem is the entry as this subscriber reads it: where it sits, and the instants a
 // relative-date rule can measure from.
 type anchoredItem struct {
 	ID           shared.ID
 	CollectionID shared.ID
 	CreatedAt    time.Time
 	DueAt        *time.Time
+	// CompletedAt is when the entry was done, nil while it is open.
+	CompletedAt *time.Time
 	// Trashed marks an entry in the trash. It has both anchors still and owes nothing: a rule that
 	// escalated a deleted entry's deadline would act on something its author had thrown away.
 	Trashed bool
@@ -198,6 +200,8 @@ func (i anchoredItem) anchor(kind domain.DateAnchor) *time.Time {
 	case domain.AnchorCreatedAt:
 		created := i.CreatedAt
 		return &created
+	case domain.AnchorCompletedAt:
+		return i.CompletedAt
 	default:
 		return nil
 	}
@@ -225,6 +229,10 @@ func (d RelativeDates) entry(
 	if item.Due != nil {
 		due := item.Due.At
 		anchored.DueAt = &due
+	}
+	if item.Completion.IsCompleted && item.Completion.CompletedAt != nil {
+		done := *item.Completion.CompletedAt
+		anchored.CompletedAt = &done
 	}
 	return anchored, true, nil
 }
