@@ -326,4 +326,3 @@ func checkedRulesResponse(out usecase.Output) map[string]any {
 	}
 	return map[string]any{"data": rules}
 }
-

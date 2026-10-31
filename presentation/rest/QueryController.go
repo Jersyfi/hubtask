@@ -4,7 +4,6 @@
 package rest
 
 import (
-
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )

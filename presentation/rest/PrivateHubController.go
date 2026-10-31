@@ -58,4 +58,3 @@ func privateHubAccessResponse(out usecase.Output) openapi.PrivateHubAccess {
 	}
 	return answer
 }
-

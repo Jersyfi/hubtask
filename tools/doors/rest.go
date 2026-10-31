@@ -154,10 +154,10 @@ type restOperation struct {
 		By      string   `yaml:"by"`
 		Members []string `yaml:"members"`
 	} `yaml:"x-hubtask-rest-writer"`
-	Words       []string                     `yaml:"x-hubtask-rest-words"`
-	UTC         []string                     `yaml:"x-hubtask-rest-utc"`
-	Expand      map[string]string            `yaml:"x-hubtask-rest-expand"`
-	Alternate   *struct {
+	Words     []string          `yaml:"x-hubtask-rest-words"`
+	UTC       []string          `yaml:"x-hubtask-rest-utc"`
+	Expand    map[string]string `yaml:"x-hubtask-rest-expand"`
+	Alternate *struct {
 		When   string `yaml:"when"`
 		Answer string `yaml:"answer"`
 	} `yaml:"x-hubtask-rest-alternate"`

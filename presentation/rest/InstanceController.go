@@ -4,7 +4,6 @@
 package rest
 
 import (
-
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
