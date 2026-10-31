@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/Clocks_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
+checked_by: [core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/Clocks_test.go, core/application/service/servicedesk/Organisations_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
 ---
 
 # Promise response times and see which promise is about to break
@@ -30,6 +30,7 @@ Lena's policy *incidents* measures entries of the type *incident*: a first respo
 6. Whoever may read the entry reads how its goals stand: target, running, standing still, met or breached, when it falls due and when it was at risk; somebody who may not read it is told it does not exist.
 7. Somebody holding STRUCTURE at the workspace counts the goals armed in a period of at most a year per policy, goal and standing; the count names no entry.
 8. A policy may promise a next response: armed by each public comment of the requester once the first response is met - their words the mail intake filed count as theirs, the administrator's own reply on what the intake filed does not -, met by the next public comment of somebody else or the completion, never by an internal note, and armed again by the requester's next comment; a breached next response stays breached.
+9. A policy may name requester organisations (UC-SVC-11): it then measures only entries raised by a person whose address is at one of their domains, and the next policy by position measures everybody else's; a requester the mail intake filed for belongs to none. A policy naming an organisation the workspace does not hold is refused with `sla_policies.organisation_unknown`.
 
 ## Where it ends
 
