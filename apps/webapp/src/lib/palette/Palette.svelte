@@ -205,7 +205,9 @@
     if (!isOpen || (!reach.isAdministrationReachable && !reach.isInstanceReachable && !shapedPlace)) return;
     return untrack(() =>
       settingsCatalogue.read((next) => {
-        if (next.status === 'ready') catalogue = next.data.settings;
+        // An answer without the list (an older server, a proxy's page) offers no setting rather
+        // than taking the palette down with it.
+        if (next.status === 'ready') catalogue = Array.isArray(next.data.settings) ? next.data.settings : [];
       }),
     );
   });
