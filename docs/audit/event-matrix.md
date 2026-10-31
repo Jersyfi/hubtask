@@ -339,6 +339,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `config.sample_added` | AddSampleEntry | `configuration` | INFO | Every time |
 | `config.samples_removed` | RemoveSampleEntries | `configuration` | NOTICE | Every time |
 | `config.sandbox_written` | WriteConfigSandbox | `configuration` | INFO | Every time |
+| `config.template_page_added` | AddHubTemplatePage | `configuration` | INFO | Every time |
 | `config.template_published` | PublishConfigTemplate | `configuration` | INFO | Every time |
 
 ## Dashboard
@@ -729,6 +730,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | GetSignInRules | `` |  | When refused |
 | `` | InspectInvitation | `` |  | When refused |
 | `` | ListConfigDrafts | `` |  | When refused |
+| `` | ListHubTemplatePages | `` |  | When refused |
 | `` | ListRoles | `` |  | When refused |
 | `` | ListSampleEntries | `` |  | When refused |
 | `` | LocateOidcFlow | `` |  | When refused |

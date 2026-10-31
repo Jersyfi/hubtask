@@ -312,9 +312,11 @@ func (d Desk) hubPart(ctx context.Context, actor appshared.ActorContext, in usec
 	if part == nil {
 		part = domain.Document{}
 	}
-	// The samples name a collection the empty hub has none of: their shape is checked alone.
-	lint := d.planOf(current{Document: lintBase(), Hub: lintHub}, withoutRemovals(withoutSamples(part)), domain.ModeMerge)
+	// The samples name a collection the empty hub has none of, and pages are words: their shape
+	// is checked alone.
+	lint := d.planOf(current{Document: lintBase(), Hub: lintHub}, withoutRemovals(withoutTemplatePages(withoutSamples(part))), domain.ModeMerge)
 	lint.Refusals = append(lint.Refusals, sampleRefusals(part[sectionSamples])...)
+	lint.Refusals = append(lint.Refusals, templatePageRefusals(part[sectionTemplatePages])...)
 	if len(lint.Refusals) > 0 {
 		for i := range lint.Refusals {
 			lint.Refusals[i].Path = "/hub_document/" + strings.TrimPrefix(lint.Refusals[i].Path, "/")
@@ -471,8 +473,14 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 		}
 		// The samples are offered once, to a hub taking the template: an upgrade that compared
 		// them would trash the entries a person had started to try the flow on.
-		if !samples || slices.ContainsFunc(uses, func(u domain.TemplateUse) bool { return u.TemplateKey == key }) {
+		// Its pages come with the first take alone, for the same reason: the guide is the hub's
+		// to rewrite from then on.
+		takenBefore := slices.ContainsFunc(uses, func(u domain.TemplateUse) bool { return u.TemplateKey == key })
+		if !samples || takenBefore {
 			document = withoutSamples(document)
+		}
+		if takenBefore {
+			document = withoutTemplatePages(document)
 		}
 		now, err := d.export(ctx, actor, hub)
 		if err != nil {
@@ -491,7 +499,7 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 			if err != nil {
 				base = use.Document
 			}
-			base = withoutSamples(base)
+			base = withoutTemplatePages(withoutSamples(base))
 			changes := domain.ThreeWay(base, now.Document, document)
 			for _, change := range changes {
 				upgrades = append(upgrades, usecase.Output{

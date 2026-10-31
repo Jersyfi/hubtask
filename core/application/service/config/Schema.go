@@ -107,6 +107,16 @@ func (d Desk) attributeSchema(s section, attribute string) map[string]any {
 		return map[string]any{"type": "string", "description": "The handle of the hub's collection the sample " +
 			"entry is created in; omitted is the hub's first. Set when the block is created; fixed afterwards."}
 	}
+	if s.name == sectionTemplatePages {
+		switch attribute {
+		case "subpages":
+			return map[string]any{"type": "array", "maxItems": 99, "items": map[string]any{"type": "object"},
+				"description": "Pages written beneath it, each {title, body, icon, subpages}; given once, when the page is written."}
+		case "body":
+			return map[string]any{"type": "string", "description": "The page's body in Markdown; given once, when the " +
+				"page is written - a page's text is not read back as configuration."}
+		}
+	}
 	if s.name == sectionRoleGroups {
 		return map[string]any{"type": "array", "items": map[string]any{"type": "string", "format": "uuid"},
 			"description": "The groups holding the custom role at the whole workspace."}

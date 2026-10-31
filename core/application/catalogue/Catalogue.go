@@ -91,6 +91,8 @@ func Descriptors() []usecase.Descriptor {
 		configservice.ListSampleEntries{}.Descriptor(),
 		configservice.AddSampleEntry{}.Descriptor(),
 		configservice.RemoveSampleEntries{}.Descriptor(),
+		configservice.ListHubTemplatePages{}.Descriptor(),
+		configservice.AddHubTemplatePage{}.Descriptor(),
 		configservice.ListConfigDrafts{}.Descriptor(),
 		configservice.SaveConfigDraft{}.Descriptor(),
 		configservice.DiscardConfigDraft{}.Descriptor(),

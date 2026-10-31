@@ -135,7 +135,7 @@ func hubSections(hub shared.ID) []section {
 		},
 		hubToleranceSection(hub),
 		hubPagesSection(hub),
-	}, append(append(furnitureSections(hub), collectionSections()...), hubSamplesSection(hub))...)
+	}, append(append(furnitureSections(hub), collectionSections()...), hubSamplesSection(hub), hubTemplatePagesSection(hub))...)
 }
 
 // hubPagesSection is the hub's space's way of writing: a block while it keeps drafts, none while

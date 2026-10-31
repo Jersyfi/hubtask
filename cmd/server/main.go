@@ -1872,7 +1872,8 @@ func run() error {
 	// every block it changes goes through the use case every other door reaches.
 	configCatalogue := &deferredCatalogue{}
 	configDesk := configservice.Desk{
-		Catalogue: configCatalogue, Store: postgres.NewConfigRepository(), Samples: postgres.SampleEntryRepository{}, Drafts: postgres.ConfigDraftRepository{},
+		Catalogue: configCatalogue, Store: postgres.NewConfigRepository(), Samples: postgres.SampleEntryRepository{},
+		TemplatePages: postgres.TemplatePageRepository{}, Drafts: postgres.ConfigDraftRepository{},
 		Settings:   postgres.SettingRepository{},
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -2486,6 +2487,8 @@ func run() error {
 		configservice.ListSampleEntries{Desk: configDesk}.Descriptor(),
 		configservice.AddSampleEntry{Desk: configDesk}.Descriptor(),
 		configservice.RemoveSampleEntries{Desk: configDesk}.Descriptor(),
+		configservice.ListHubTemplatePages{Desk: configDesk}.Descriptor(),
+		configservice.AddHubTemplatePage{Desk: configDesk}.Descriptor(),
 		configservice.ListConfigDrafts{Desk: configDesk}.Descriptor(),
 		configservice.SaveConfigDraft{Desk: configDesk}.Descriptor(),
 		configservice.DiscardConfigDraft{Desk: configDesk}.Descriptor(),
