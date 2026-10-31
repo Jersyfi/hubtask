@@ -137,7 +137,11 @@ a step that moves its writers lands one release before the drop:
   the trigger and `work_item_mirror_side_rows`, the eight columns, `wi_due_announce_idx`,
   `work_item_retention_idx` and the generated `search_vector`. Until then no new query names
   the eight columns: `TestNoNewQueryNamesTheSlimEntrysMirroredColumns` holds the queries that still
-  do to a list, which each moved writer leaves.
+  do to a list, which each moved writer leaves. Neither step can be forgotten: `make release-tag`
+  counts the releases (pre-releases aside) that already shipped migration 0228 and runs
+  `TestTheSlimEntrysContractStepsAreDueOnTime` with that count, which refuses the release after
+  the suite's while a query on that list other than `CountFigureFlow` remains, and the release
+  after that while no later migration drops `work_item_side_rows`.
 
 ---
 

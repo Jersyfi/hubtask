@@ -1017,6 +1017,12 @@ release-tag:
 	@test -n "$(VERSION_TO_TAG)" || { echo "Usage: make release-tag VERSION_TO_TAG=1.2.3"; exit 1; }
 	@git diff --quiet || { echo "Working tree is not clean"; exit 1; }
 	@$(MAKE) verify
+	@# A scheduled contract step falls due by the releases that shipped its expand half
+	@# (versioning-release.md §4); a pre-release does not count.
+	@expand=$$(git log --diff-filter=A --format=%H -- 'db/migrations/0228_*.sql' | tail -1); \
+		test -n "$$expand" || { echo "migration 0228 not found in the history"; exit 1; }; \
+		n=$$(git tag --list 'v*' --contains "$$expand" | grep -cv -e '-' || true); \
+		HUBTASK_RELEASES_SINCE_SLIM_EXPAND=$$n $(GO) test -count=1 -run '^TestTheSlimEntrysContractStepsAreDueOnTime$$' ./test/architecture/
 	git tag -s "v$(VERSION_TO_TAG)" -m "Release v$(VERSION_TO_TAG)"
 	git push origin "v$(VERSION_TO_TAG)"
 	@echo "The release workflow now waits for the 'production' environment approval."
