@@ -41,8 +41,8 @@ type HubCalendars interface {
 
 // Policies stores the workspace's SLA policies.
 type Policies interface {
-	// Insert writes a new policy; a key the workspace holds is `sla_policies.key_taken`, a
-	// calendar it does not hold `sla_policies.calendar_unknown`.
+	// Insert writes a new policy; a key the workspace holds is `sla_policies.key_taken`. The
+	// calendar's key is the use case's to check: the installation's calendars are no rows.
 	Insert(ctx context.Context, policy servicedesk.SlaPolicy) error
 	Update(ctx context.Context, policy servicedesk.SlaPolicy, expectedVersion int) error
 	Find(ctx context.Context, key string) (servicedesk.SlaPolicy, error)

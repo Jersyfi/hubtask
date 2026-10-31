@@ -17,9 +17,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A calendar, a policy on it and an entry's record are stored and read back; the workspace next
-// door sees none of them, a calendar in use is not deleted, and a policy naming no calendar of the
-// workspace is refused (migration 0240, UC-SVC-01, UC-SVC-02).
+// A calendar, a policy on it and an entry's record are stored and read back, and the workspace next
+// door sees none of them (migration 0240, UC-SVC-01, UC-SVC-02). Since migration 0291 the use cases
+// hold a policy's calendar by key - the installation's calendars are no rows -, so the store takes
+// a policy on a key the workspace does not hold and lets a named calendar go.
 func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -50,13 +51,6 @@ func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 		t.Fatalf("insert: %v", err)
 	}
 
-	stray := policy
-	stray.ID, stray.TenantID = freshID(t), tenantB
-	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Policies().Insert(ctx, stray)
-	}); !errors.Is(err, shared.ErrValidation) {
-		t.Errorf("a policy on the other workspace's calendar: %v, want sla_policies.calendar_unknown", err)
-	}
 	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
 		if _, err := repo.Calendars().Find(ctx, "office"); !errors.Is(err, shared.ErrNotFound) {
 			return errors.Join(err, errors.New("the calendar crossed the workspace"))
@@ -69,10 +63,12 @@ func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 		t.Error(err)
 	}
 
+	stray := policy
+	stray.ID, stray.Key, stray.CalendarKey = freshID(t), "offered", "federal"
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Calendars().Delete(ctx, "office")
-	}); !errors.Is(err, shared.ErrConflict) {
-		t.Errorf("a calendar in use was deleted: %v", err)
+		return repo.Policies().Insert(ctx, stray)
+	}); err != nil {
+		t.Errorf("a policy on a key the installation offers: %v", err)
 	}
 
 	item := seedWorkItemForRules(ctx, t, tenantA)

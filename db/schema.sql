@@ -5565,9 +5565,8 @@ CREATE TABLE sla_policy (
   updated_at     timestamptz NOT NULL,
   version        integer NOT NULL DEFAULT 1,
   UNIQUE (tenant_id, id),
-  CONSTRAINT sla_policy_key_uq UNIQUE (tenant_id, key),
-  CONSTRAINT sla_policy_calendar_fkey
-    FOREIGN KEY (tenant_id, calendar_key) REFERENCES business_calendar (tenant_id, key)
+  -- the calendar is held by key in the use cases: the workspace's or the installation's (0291)
+  CONSTRAINT sla_policy_key_uq UNIQUE (tenant_id, key)
 );
 ALTER TABLE sla_policy ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sla_policy FORCE ROW LEVEL SECURITY;
