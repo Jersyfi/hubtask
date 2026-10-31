@@ -5101,7 +5101,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "time set-policy",
         "summary": "Lock a period and choose what a lead sees",
-        "description": "The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.\n",
+        "description": "The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked is sent as it stands; a different value is refused (setting.locked).\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -40544,17 +40544,61 @@
               "string",
               "null"
             ],
-            "format": "date"
+            "format": "date",
+            "description": "The last locked day in force."
           },
           "visibility": {
             "type": "string",
             "enum": [
               "FULL",
               "AGGREGATED"
-            ]
+            ],
+            "description": "The visibility in force."
           },
           "version": {
-            "type": "integer"
+            "type": "integer",
+            "description": "The workspace's own policy's version; 0 before it set one."
+          },
+          "settings": {
+            "type": "object",
+            "description": "Both parts keyed by the settings catalogue's key, with the level each comes from and the level that locked it: a part the installation or the plan locked is not the workspace's to change.",
+            "properties": {
+              "time.locked_through": {
+                "$ref": "#/components/schemas/TimePolicySetting"
+              },
+              "time.visibility": {
+                "$ref": "#/components/schemas/TimePolicySetting"
+              }
+            }
+          }
+        }
+      },
+      "TimePolicySetting": {
+        "type": "object",
+        "required": [
+          "value",
+          "source",
+          "locked_by"
+        ],
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The value in force; null for no locked day."
+          },
+          "source": {
+            "type": "string",
+            "description": "The level whose value is in force."
+          },
+          "locked_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The level that locked it",
+            "where one did.": null
           }
         }
       },
@@ -46873,7 +46917,7 @@
       },
       "SettingKind": {
         "type": "string",
-        "description": "The shape of a setting's value; `STRUCTURE` is a value whose shape its own operations describe.",
+        "description": "The shape of a setting's value; `DATE` is a calendar day, `YYYY-MM-DD`; `STRUCTURE` is a value whose shape its own operations describe.",
         "enum": [
           "COUNT",
           "FLAG",
@@ -46883,6 +46927,7 @@
           "TEXT",
           "LOCALE",
           "TIME_ZONE",
+          "DATE",
           "STRUCTURE"
         ]
       },

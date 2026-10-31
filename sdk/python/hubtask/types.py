@@ -1508,6 +1508,12 @@ class TimePolicy(TypedDict, total=False):
     locked_through: Required[str | None]
     visibility: Required[Literal["FULL", "AGGREGATED"]]
     version: Required[int]
+    settings: dict[str, Any]
+
+class TimePolicySetting(TypedDict, total=False):
+    value: Required[str | None]
+    source: Required[str]
+    locked_by: Required[str | None]
 
 Capacity = TypedDict("Capacity", {
     "account_id": Required[str],
@@ -2491,7 +2497,7 @@ class EntryTypeChange(TypedDict, total=False):
     position: int
     archived: bool
 
-SettingKind = Literal["COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "TEXT", "LOCALE", "TIME_ZONE", "STRUCTURE"]
+SettingKind = Literal["COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "TEXT", "LOCALE", "TIME_ZONE", "DATE", "STRUCTURE"]
 
 class SettingDefinition(TypedDict, total=False):
     key: Required[str]

@@ -8469,6 +8469,7 @@ const (
 	SettingKindCHOICE    SettingKind = "CHOICE"
 	SettingKindCHOICES   SettingKind = "CHOICES"
 	SettingKindCOUNT     SettingKind = "COUNT"
+	SettingKindDATE      SettingKind = "DATE"
 	SettingKindFLAG      SettingKind = "FLAG"
 	SettingKindLINK      SettingKind = "LINK"
 	SettingKindLOCALE    SettingKind = "LOCALE"
@@ -8485,6 +8486,8 @@ func (e SettingKind) Valid() bool {
 	case SettingKindCHOICES:
 		return true
 	case SettingKindCOUNT:
+		return true
+	case SettingKindDATE:
 		return true
 	case SettingKindFLAG:
 		return true
@@ -21736,7 +21739,7 @@ type SettingDefinition struct {
 	// Key The setting's stable name, area and switch dotted - `sign_in.min_length`.
 	Key string `json:"key"`
 
-	// Kind The shape of a setting's value; `STRUCTURE` is a value whose shape its own operations describe.
+	// Kind The shape of a setting's value; `DATE` is a calendar day, `YYYY-MM-DD`; `STRUCTURE` is a value whose shape its own operations describe.
 	Kind SettingKind `json:"kind"`
 
 	// Levels The levels that may decide it, top-down; Hubtask's own default is implied.
@@ -21766,7 +21769,7 @@ type SettingDefinition struct {
 // SettingDefinitionMay What an open setting leaves the level below; absent where it is a default only.
 type SettingDefinitionMay string
 
-// SettingKind The shape of a setting's value; `STRUCTURE` is a value whose shape its own operations describe.
+// SettingKind The shape of a setting's value; `DATE` is a calendar day, `YYYY-MM-DD`; `STRUCTURE` is a value whose shape its own operations describe.
 type SettingKind string
 
 // SettingSource The level a value in force comes from; `DEFAULT` is Hubtask's own.
@@ -23046,13 +23049,36 @@ type TimeExport struct {
 
 // TimePolicy defines model for TimePolicy.
 type TimePolicy struct {
-	LockedThrough *openapi_types.Date  `json:"locked_through"`
-	Version       int                  `json:"version"`
-	Visibility    TimePolicyVisibility `json:"visibility"`
+	// LockedThrough The last locked day in force.
+	LockedThrough *openapi_types.Date `json:"locked_through"`
+
+	// Settings Both parts keyed by the settings catalogue's key, with the level each comes from and the level that locked it: a part the installation or the plan locked is not the workspace's to change.
+	Settings *struct {
+		TimeLockedThrough *TimePolicySetting `json:"time.locked_through,omitempty"`
+		TimeVisibility    *TimePolicySetting `json:"time.visibility,omitempty"`
+	} `json:"settings,omitempty"`
+
+	// Version The workspace's own policy's version; 0 before it set one.
+	Version int `json:"version"`
+
+	// Visibility The visibility in force.
+	Visibility TimePolicyVisibility `json:"visibility"`
 }
 
-// TimePolicyVisibility defines model for TimePolicy.Visibility.
+// TimePolicyVisibility The visibility in force.
 type TimePolicyVisibility string
+
+// TimePolicySetting defines model for TimePolicySetting.
+type TimePolicySetting struct {
+	// LockedBy The level that locked it
+	LockedBy *string `json:"locked_by"`
+
+	// Source The level whose value is in force.
+	Source string `json:"source"`
+
+	// Value The value in force; null for no locked day.
+	Value *string `json:"value"`
+}
 
 // TimeRecord defines model for TimeRecord.
 type TimeRecord struct {
@@ -38604,7 +38630,7 @@ type ClientInterface interface {
 
 	// SetTimePolicyWithBody Lock a period and choose what a lead sees
 	//
-	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked is sent as it stands; a different value is refused (setting.locked).
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -38613,7 +38639,7 @@ type ClientInterface interface {
 
 	// SetTimePolicy Lock a period and choose what a lead sees
 	//
-	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked is sent as it stands; a different value is refused (setting.locked).
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -59455,7 +59481,7 @@ func (c *Client) ReadTimePolicy(ctx context.Context, reqEditors ...RequestEditor
 
 // SetTimePolicyWithBody Lock a period and choose what a lead sees
 //
-// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked is sent as it stands; a different value is refused (setting.locked).
 //
 // Takes any type of body and a specified content type.
 //
@@ -59474,7 +59500,7 @@ func (c *Client) SetTimePolicyWithBody(ctx context.Context, contentType string, 
 
 // SetTimePolicy Lock a period and choose what a lead sees
 //
-// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked is sent as it stands; a different value is refused (setting.locked).
 //
 // Takes a body of the `application/json` content type.
 //
@@ -108296,7 +108322,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetTimePolicyWithBodyWithResponse Lock a period and choose what a lead sees
 	//
-	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked is sent as it stands; a different value is refused (setting.locked).
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -108305,7 +108331,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetTimePolicyWithResponse Lock a period and choose what a lead sees
 	//
-	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+	// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked is sent as it stands; a different value is refused (setting.locked).
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -163594,7 +163620,7 @@ func (c *ClientWithResponses) ReadTimePolicyWithResponse(ctx context.Context, re
 
 // SetTimePolicyWithBodyWithResponse Lock a period and choose what a lead sees
 //
-// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked is sent as it stands; a different value is refused (setting.locked).
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -163609,7 +163635,7 @@ func (c *ClientWithResponses) SetTimePolicyWithBodyWithResponse(ctx context.Cont
 
 // SetTimePolicyWithResponse Lock a period and choose what a lead sees
 //
-// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.
+// The last locked day (none unlocks every day), before and on which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked is sent as it stands; a different value is refused (setting.locked).
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
