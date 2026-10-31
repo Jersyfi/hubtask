@@ -90,6 +90,7 @@ import (
 	whiteboarddomain "github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	domainwork "github.com/Jersyfi/hubtask/core/domain/model/work"
 	providerport "github.com/Jersyfi/hubtask/core/port/ai"
+	chatbotport "github.com/Jersyfi/hubtask/core/port/chatbot"
 	clockport "github.com/Jersyfi/hubtask/core/port/clock"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
@@ -2055,12 +2056,17 @@ func run() error {
 		Addresses:   workspaceAddress(cfg), Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}
-	// A hub's Matrix bot (UC-INT-18): it reads its room through the guarded client every minute
-	// and runs the entry use cases as whoever seated it, through the catalogue set below.
+	// A hub's chat bot: a Matrix bot reads its room through the guarded client every minute
+	// (UC-INT-18), a Slack, Teams or Mattermost app posts to its intake (UC-INT-19); either runs the
+	// entry use cases as whoever seated it, through the catalogue set below.
 	botEntries := &deferredCatalogue{}
 	chatBots := chatbotservice.Bots{
 		Store: postgres.NewChatBotRepository(), Containers: containers, Entries: entryLinks,
 		Room: chatbotadapter.Matrix{Client: outboundClient}, Invoker: botEntries, Texts: renderer,
+		Platforms: map[integrationmodel.DeliveryFormat]chatbotport.Platform{
+			integrationmodel.FormatSlack: chatbotadapter.Slack{Client: outboundClient},
+			integrationmodel.FormatTeams: chatbotadapter.NewTeams(outboundClient), integrationmodel.FormatMattermost: chatbotadapter.Mattermost{},
+		},
 		Addresses: workspaceAddress(cfg), Encryptor: encryptor, Authorizer: authorizer, Jobs: jobs,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -3613,6 +3619,8 @@ func run() error {
 		// The mail door beside it: the message is parsed here, its files go through the
 		// media pipeline's server-side end, and what lands is an EMAIL entry.
 		controller.Intake.CodeIntake = intake.CodeIntake{Deliveries: codeForge}
+		// The chat bots' intake (UC-INT-19): Slack, Teams and Mattermost post to a bot.
+		controller.Intake.ChatIntake = chatBots
 		controller.Intake.CmdbAlerts = intake.AlertIntake{Deliveries: connectors}
 		controller.Intake.CmdbInventory = intake.InventoryIntake{Deliveries: connectors}
 		// The SCIM door a directory provisions through (UC-ID-28): the group acts are the
