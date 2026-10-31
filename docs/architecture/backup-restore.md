@@ -391,7 +391,7 @@ with `hubctl` and a credential that holds `admin:tenants`.
    workspace, and whether it was released in the rewound period — that owner is told to release it
    again. A second run changes nothing.
 3. **Where the end of the archive is unusable**, the source is the workspace's newest archive that
-   includes the audit trail (`hubctl backup ls --target <target>`), read by the server, which holds
+   includes the audit trail (`hubctl backup ls <target>`), read by the server, which holds
    the archive's key:
 
    ```bash
