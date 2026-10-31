@@ -94,6 +94,7 @@ func Descriptors() []usecase.Descriptor {
 		workflowservice.SetEntryTypeForm{}.Descriptor(),
 		work.EvaluateEntryForm{}.Descriptor(),
 		knowledgeservice.CreatePage{}.Descriptor(),
+		knowledgeservice.CopyPage{}.Descriptor(),
 		knowledgeservice.ReadPage{}.Descriptor(),
 		knowledgeservice.ListPages{}.Descriptor(),
 		knowledgeservice.UpdatePage{}.Descriptor(),

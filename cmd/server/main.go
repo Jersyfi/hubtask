@@ -2145,6 +2145,7 @@ func run() error {
 		agentservice.StartAgentJob{Desk: agentDesk}.Descriptor(),
 		agentservice.ListAgentJobs{Desk: agentDesk}.Descriptor(),
 		knowledgeservice.CreatePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.CopyPage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListPages{Space: pageSpace}.Descriptor(),
 		knowledgeservice.UpdatePage{Space: pageSpace}.Descriptor(),

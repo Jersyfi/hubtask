@@ -489,11 +489,16 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `entry_link.timed` | SetDependencyTiming | `entry_link` | INFO | Every time |
 
-## Entry_sla
+## Entry_requester
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `entry_requester.read` | ReadEntryRequester | `entry_requester` | INFO | When refused |
+
+## Entry_sla
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
 | `entry_sla.read` | ReadEntrySla | `entry_sla` | INFO | When refused |
 | `entry_sla.reported` | ReportSla | `entry_sla` | INFO | When refused |
 
@@ -732,6 +737,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.article_published` | PublishPageToPortal | `page` | INFO | Every time |
 | `page.article_unpublished` | UnpublishPageFromPortal | `page` | INFO | Every time |
 | `page.changed` | UpdatePage | `page` | INFO | Every time |
+| `page.created` | CopyPage | `page` | INFO | Every time |
 | `page.created` | CreatePage | `page` | INFO | Every time |
 | `page.created` | OpenDailyNote | `page` | INFO | Every time |
 | `page.exported` | ExportPage | `page` | INFO | Every time |
