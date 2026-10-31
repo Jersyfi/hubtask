@@ -90,3 +90,9 @@ WHERE s.tenant_id = current_tenant_id() AND (s.kind, s.document_id, s.up_to_seq)
   SELECT e.kind, e.document_id, e.up_to_seq FROM realtime_snapshot e
   WHERE e.tenant_id = current_tenant_id() AND e.superseded_at < sqlc.arg('cutoff')
   LIMIT sqlc.arg('batch'));
+
+-- name: NotifyAwareness :exec
+-- A cursor or a presence for the document's connections on the other processes (offline-sync.md
+-- §13): delivered at COMMIT on `hubtask_awareness`, never stored. The payload is the adapter's
+-- bounded framing; PostgreSQL refuses one of 8000 bytes or more.
+SELECT pg_notify('hubtask_awareness', sqlc.arg('payload')::text);

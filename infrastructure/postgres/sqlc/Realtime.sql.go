@@ -258,6 +258,18 @@ func (q *Queries) LatestRealtimeSnapshot(ctx context.Context, arg LatestRealtime
 	return i, err
 }
 
+const notifyAwareness = `-- name: NotifyAwareness :exec
+SELECT pg_notify('hubtask_awareness', $1::text)
+`
+
+// A cursor or a presence for the document's connections on the other processes (offline-sync.md
+// §13): delivered at COMMIT on `hubtask_awareness`, never stored. The payload is the adapter's
+// bounded framing; PostgreSQL refuses one of 8000 bytes or more.
+func (q *Queries) NotifyAwareness(ctx context.Context, payload string) error {
+	_, err := q.db.Exec(ctx, notifyAwareness, payload)
+	return err
+}
+
 const openRealtimeDocument = `-- name: OpenRealtimeDocument :exec
 
 INSERT INTO realtime_document (tenant_id, kind, document_id, created_at, updated_at)

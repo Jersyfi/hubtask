@@ -3464,6 +3464,19 @@ CREATE TRIGGER realtime_update_notify
   AFTER INSERT ON realtime_update
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
 
+-- And the document's own connections alone, by its key (migration 0296).
+CREATE OR REPLACE FUNCTION hubtask_notify_document() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_document', NEW.tenant_id::text || '/' || NEW.kind || '/' || NEW.document_id::text);
+  RETURN NULL;
+END $$;
+
+CREATE TRIGGER realtime_update_notify_document
+  AFTER INSERT ON realtime_update
+  FOR EACH ROW EXECUTE FUNCTION hubtask_notify_document();
+
 -- The wake-up for the dispatcher (ADR-0007). The queue rather than outbox_event: an event is
 -- written together with its dispatch job in one transaction, so the row the worker waits for is the
 -- job. No payload - `job` has no tenant column and none is needed, and an empty payload is what

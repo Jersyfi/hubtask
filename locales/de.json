@@ -343,6 +343,7 @@
   "config.secret_file_unreadable": "{variable} zeigt auf eine Datei, die sich nicht lesen lässt.",
   "config.encryption_key_id_invalid": "{variable} nennt den Schlüssel {key_id}, der kein brauchbarer Bezeichner ist. Verwende Kleinbuchstaben, Ziffern und Unterstriche, höchstens 32 Zeichen.",
   "mail.recipient_missing": "Diese Installation konnte eine Nachricht nicht senden: Sie hatte keine Adresse, an die sie gehen sollte.",
+  "mail.attachment_refused": "Diese Installation hat eine Nachricht nicht gesendet, deren Anhang einen anderen Typ, einen unsicheren Namen oder eine zu große Datei hatte.",
   "mail.header_injection": "Diese Installation hat eine Nachricht nicht gesendet, deren Betreff oder Adresse nicht auf einer Zeile stand.",
   "mail.unparseable": "Diese Nachricht konnte nicht als E-Mail gelesen werden. Sie wurde so aufbewahrt, wie sie ankam.",
   "mail.too_many_parts": "Diese Nachricht hat mehr Teile, als eine E-Mail tragen darf.",

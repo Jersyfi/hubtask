@@ -1370,6 +1370,7 @@
   "email.emergency_access.body": "{actor}, an owner of this workspace, opened your private hub “{title}” through the emergency access on {when}. The access ends on {until} and cannot be extended.\n\nThe reason given: {reason}\n\nEvery member of the hub has been told. The hub lists every access to it.\n\n{link}",
   "email.emergency_access.body.withheld": "{actor}, an owner of this workspace, opened one of your private hubs through the emergency access on {when}. The access ends on {until} and cannot be extended.\n\nThe reason given: {reason}\n\nEvery member of the hub has been told. The hub lists every access to it.\n\n{link}",
   "mail.recipient_missing": "This installation could not send a message: it had no address to send it to.",
+  "mail.attachment_refused": "This installation refused to send a message whose attachment was of another type, named unsafely or too large.",
   "mail.header_injection": "This installation refused to send a message whose subject or address was not on one line.",
   "usecase.input_invalid": "The request contains invalid values.",
   "usecase.field_required": "This field is required.",

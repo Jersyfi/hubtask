@@ -5,8 +5,12 @@ package postgres
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,10 +62,67 @@ type ChangeListener struct {
 	// worth reporting, because a process that never reconnects is a process where every stream is
 	// silently slow.
 	connected bool
+	// documents are the waiters of one live document, woken by its own log (migration 0296).
+	documents map[DocumentKey]map[int64]chan struct{}
+	// origin names this process on the awareness channel, so that it skips what it sent itself;
+	// heard is where another process's awareness goes.
+	origin string
+	heard  func(tenantID shared.ID, kind string, documentID shared.ID, message []byte)
 }
 
+// DocumentKey names one live document of a workspace.
+type DocumentKey struct {
+	TenantID   shared.ID
+	Kind       string
+	DocumentID shared.ID
+}
+
+// The channels besides ChangeChannel: a document's own log (migration 0296) and the awareness
+// relayed between processes (AwarenessBus).
+const (
+	DocumentChannel  = "hubtask_document"
+	AwarenessChannel = "hubtask_awareness"
+)
+
 func NewChangeListener(pool *pgxpool.Pool) *ChangeListener {
-	return &ChangeListener{pool: pool, waiters: map[shared.ID]map[int64]chan struct{}{}}
+	origin := make([]byte, 8)
+	_, _ = rand.Read(origin)
+	return &ChangeListener{
+		pool: pool, waiters: map[shared.ID]map[int64]chan struct{}{},
+		documents: map[DocumentKey]map[int64]chan struct{}{}, origin: hex.EncodeToString(origin),
+	}
+}
+
+// SubscribeDocument asks to be woken when the document's log moves, as Subscribe for a workspace.
+func (l *ChangeListener) SubscribeDocument(tenantID shared.ID, kind string, documentID shared.ID) (<-chan struct{}, func()) {
+	key := DocumentKey{TenantID: tenantID, Kind: kind, DocumentID: documentID}
+	woken := make(chan struct{}, 1)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.nextID++
+	id := l.nextID
+	if l.documents[key] == nil {
+		l.documents[key] = map[int64]chan struct{}{}
+	}
+	l.documents[key][id] = woken
+	var once sync.Once
+	return woken, func() {
+		once.Do(func() {
+			l.mu.Lock()
+			defer l.mu.Unlock()
+			delete(l.documents[key], id)
+			if len(l.documents[key]) == 0 {
+				delete(l.documents, key)
+			}
+		})
+	}
+}
+
+// OnAwareness names where another process's awareness goes; set before Run.
+func (l *ChangeListener) OnAwareness(heard func(tenantID shared.ID, kind string, documentID shared.ID, message []byte)) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.heard = heard
 }
 
 // Subscribe asks to be woken when the workspace changes, and returns the channel and the way to
@@ -142,8 +203,10 @@ func (l *ChangeListener) listen(ctx context.Context) error {
 	}
 	defer conn.Release()
 
-	if _, err := conn.Exec(ctx, "LISTEN "+ChangeChannel); err != nil {
-		return err
+	for _, channel := range []string{ChangeChannel, DocumentChannel, AwarenessChannel} {
+		if _, err := conn.Exec(ctx, "LISTEN "+channel); err != nil {
+			return err
+		}
 	}
 
 	l.setConnected(true)
@@ -162,6 +225,16 @@ func (l *ChangeListener) listen(ctx context.Context) error {
 			return err
 		}
 
+		switch notification.Channel {
+		case DocumentChannel:
+			if key, ok := documentKeyOf(notification.Payload); ok {
+				l.wakeDocument(key)
+			}
+			continue
+		case AwarenessChannel:
+			l.hear(notification.Payload)
+			continue
+		}
 		tenantID, err := shared.ParseID(notification.Payload)
 		if err != nil {
 			// Something else is announcing on this channel. Ignored rather than fatal: the
@@ -191,4 +264,56 @@ func (l *ChangeListener) wake(tenantID shared.ID) {
 			// first does not, and blocking here would let one slow stream stop every other.
 		}
 	}
+}
+
+func (l *ChangeListener) wakeDocument(key DocumentKey) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, woken := range l.documents[key] {
+		select {
+		case woken <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// hear hands another process's awareness to this one's relay; its own, and a payload that is not
+// the bus's framing, are skipped.
+func (l *ChangeListener) hear(payload string) {
+	origin, rest, _ := strings.Cut(payload, "/")
+	if origin == l.origin {
+		return
+	}
+	keyText, encoded, found := strings.Cut(rest, "|")
+	key, ok := documentKeyOf(keyText)
+	if !found || !ok {
+		return
+	}
+	message, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil || len(message) == 0 {
+		return
+	}
+	l.mu.Lock()
+	heard := l.heard
+	l.mu.Unlock()
+	if heard != nil {
+		heard(key.TenantID, key.Kind, key.DocumentID, message)
+	}
+}
+
+// documentKeyOf reads `tenant/kind/document`, as migration 0296 writes it.
+func documentKeyOf(payload string) (DocumentKey, bool) {
+	parts := strings.Split(payload, "/")
+	if len(parts) != 3 || parts[1] == "" {
+		return DocumentKey{}, false
+	}
+	tenantID, err := shared.ParseID(parts[0])
+	if err != nil {
+		return DocumentKey{}, false
+	}
+	documentID, err := shared.ParseID(parts[2])
+	if err != nil {
+		return DocumentKey{}, false
+	}
+	return DocumentKey{TenantID: tenantID, Kind: parts[1], DocumentID: documentID}, true
 }
