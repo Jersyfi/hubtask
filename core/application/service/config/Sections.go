@@ -133,6 +133,7 @@ func sections() []section {
 			create:     "CreateRole", change: "ChangeRole", remove: "DeleteRole", locate: "key", locateFrom: "key",
 			changeable: []string{"name", "permissions"}, whole: true, permissions: true,
 		},
+		roleGroupsSection(),
 		workspaceFieldsSection(),
 		{
 			name: sectionLinkTypes, list: "ListLinkTypes", rows: "data", key: "key", system: "system",

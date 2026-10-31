@@ -120,8 +120,16 @@ not, a default). A string value `answer:<key>` anywhere in a block is replaced b
 with no default is not taken - the desk without a first group comes without the P1 escalation. A
 `GROUP` answer is a group of the workspace the person can see, or refused. Answers are not stored:
 an upgrade is planned with them again, and the base it compares with is answered the same way, so
-an unchanged answer is no change. `itil_service_desk@6` asks the first group; working hours and the
-time zone are still the calendar's own values.
+an unchanged answer is no change. `itil_service_desk@7` asks the first group and the group that
+holds *CAB member*; working hours and the time zone are still the calendar's own values.
+
+**Roles mapped to groups** are the document's `role_groups` section: a block per custom role, its
+`groups` the groups holding it at the whole workspace. Applying adds a `GrantRole` for each group
+the block adds and a `RevokeRoleGrant` for each it drops; the plan is flagged as changing what
+somebody may do. A template's roles part is a `role_groups` block naming `answer:<key>` of a `GROUP`
+question, so a role it brings is held from the moment it is applied, and left to an administrator
+where the question stays open. A grant to a person, or at a hub or a collection, is not the
+document's.
 
 Scopes: a **hub template** (most templates), a **collection template**, and a **workspace starter**
 (several hubs, asked once at the first start — UC-WRK-30 check 5's starter set, grown).

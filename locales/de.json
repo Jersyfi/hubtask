@@ -10681,6 +10681,7 @@
   "app.consent.scope.agents_read": "Die Agenten des Arbeitsbereichs, ihr Protokoll und was auf Freigabe wartet, sehen",
   "app.consent.scope.agents_write": "Agenten registrieren, freigeben, stoppen und prüfen",
   "app.consent.scope.config_apply_modules": "Module der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_role_groups": "Festlegen, welche Gruppen die Rollen der Konfiguration halten, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_roles": "Rollen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_fields": "Felder der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_business_calendars": "Geschäftskalender der Konfiguration anwenden, ohne deren eigenen Bereich",

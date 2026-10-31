@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-18]
 state: built
 tasks: [S-09]
-checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/e2e/changes.test.mjs]
+checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/e2e/changes.test.mjs, core/application/service/config/RoleGroups_test.go, core/application/service/config/Questions_test.go]
 ---
 
 # Change our configuration as one document, seen before it applies
@@ -88,6 +88,10 @@ the two versions and rolls the hub's workflow back.
     shows those about its own blocks. Beside them the overview shows what waits for a person's word: the
     plans proposed and not yet decided, opening *Changes*, and each template the workspace took
     that has a newer version, opening *Templates*.
+11. A custom role's block of `role_groups` names the groups holding it at the workspace: an apply
+    grants it to each group added and revokes it from each dropped, flagged as changing
+    permissions, and the export reads them back; a template's roles part names the group a
+    `GROUP` question asks for, so the role is held once the template is applied.
 
 ## Where it ends
 

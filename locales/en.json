@@ -10681,6 +10681,7 @@
   "app.consent.scope.agents_read": "See the workspace's agents, their ledger and what waits for approval",
   "app.consent.scope.agents_write": "Register, approve, stop and evaluate agents",
   "app.consent.scope.config_apply_modules": "Apply the configuration's modules without their own permission scope",
+  "app.consent.scope.config_apply_role_groups": "Apply which groups hold the configuration's roles without their own permission scope",
   "app.consent.scope.config_apply_roles": "Apply the configuration's roles without their own permission scope",
   "app.consent.scope.config_apply_fields": "Apply the configuration's fields without their own permission scope",
   "app.consent.scope.config_apply_business_calendars": "Apply the configuration's business calendars without their own permission scope",

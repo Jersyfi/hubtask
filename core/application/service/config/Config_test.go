@@ -7,7 +7,9 @@ import (
 	"context"
 	"errors"
 	"maps"
+	"slices"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -227,6 +229,15 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		w.roles[in.String("key")] = map[string]any{"key": in["key"], "name": in["name"], "permissions": in["permissions"]}
 	case "DeleteRole":
 		delete(w.roles, in.String("key"))
+	case "GrantRole":
+		w.grants = append(w.grants, map[string]any{
+			"id": "0190a8f0-0000-7000-8000-0000000001" + strconv.Itoa(10+len(w.grants)), "role": in["role"],
+			"scope_type": in["scope_type"], "group_id": in["group_id"],
+		})
+	case "RevokeRoleGrant":
+		w.grants = slices.DeleteFunc(slices.Clone(w.grants), func(raw any) bool {
+			return raw.(map[string]any)["id"] == in["grant_id"]
+		})
 	case "ReadWorkspace":
 		if w.structure == nil {
 			return nil, shared.ErrValidation.WithDetail("module.off")
