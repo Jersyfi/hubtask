@@ -17,8 +17,9 @@ import (
 
 // A hub's own document (config-document.md §1) holds what the hub decides itself - its structure
 // settings, its module switches, which workflow it runs for which type, its own versions of the
-// workspace's business calendars, and its shared views and rules - each block by a key that is
-// the same in every hub, so a hub's document applies to a second hub unchanged. The hub is named
+// workspace's business calendars, its time tolerance, its shared views and rules, and its
+// collections' own blocks (Collections.go) - each block by a key that is the same in every hub,
+// so a hub's document applies to a second hub unchanged. The hub is named
 // by the request, and inside the document as `@hub` (Furniture.go).
 const (
 	sectionScheme = "scheme"
@@ -128,7 +129,8 @@ func hubSections(hub shared.ID) []section {
 			create:     "DefineHubCalendar", change: "DefineHubCalendar", remove: "DeleteHubCalendar",
 			locate: "key", locateFrom: "key", changeable: []string{"name", "zone", "hours", "holidays"}, whole: true,
 		},
-	}, furnitureSections(hub)...)
+		hubToleranceSection(hub),
+	}, append(furnitureSections(hub), collectionSections()...)...)
 }
 
 // hubStructureRows is a hub's answer as one row per structure setting: its value in force and

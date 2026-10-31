@@ -41,6 +41,9 @@ type places struct {
 	key map[string]string
 	id  map[string]string
 	hub string
+	// children and order are the hub's own collections, for its document's collection blocks.
+	children map[string]bool
+	order    []string
 }
 
 // out names a place by its key: `@hub` for the document's own hub, a handle, or the identifier
@@ -82,7 +85,6 @@ func furnitureSections(hub shared.ID) []section {
 		scopeType, scopeID = "HUB", hub.String()
 		viewsInput = usecase.Input{"container_id": scopeID}
 	}
-	viewAttributes := []string{"name", "layout", "query", "grouping", "visible_fields"}
 	ruleAttributes := []string{"name", "enabled", "run_as", "trigger", "conditions", "actions", "throttle", "on_error"}
 	return []section{
 		{
@@ -106,41 +108,7 @@ func furnitureSections(hub shared.ID) []section {
 				return block
 			},
 			opsAt: func(now current, change domain.BlockChange, row map[string]any) ([]operation, error) {
-				path := change.Path()
-				after := domain.Block{}
-				for name, value := range change.After {
-					after[name] = value
-				}
-				if query, held := after["query"]; held {
-					after["query"] = mapQuery(query, now.Places.in)
-				}
-				switch change.Op {
-				case domain.OpAdd:
-					in := usecase.Input{"key": change.Key, "scope_type": scopeType, "sharing": "SCOPE"}
-					if scopeID != "" {
-						in["scope_id"] = scopeID
-					}
-					for _, name := range viewAttributes {
-						if value, held := after[name]; held {
-							in[name] = value
-						}
-					}
-					return []operation{{UseCase: "CreateSavedView", Path: path, Input: in}}, nil
-				case domain.OpChange:
-					in := usecase.Input{"view_id": row["id"]}
-					for _, name := range change.Fields {
-						// An attribute the document leaves out is left as it is.
-						if value, held := after[name]; held {
-							in[name] = value
-						}
-					}
-					if len(in) == 1 {
-						return nil, nil
-					}
-					return []operation{{UseCase: "UpdateSavedView", Path: path, Input: in}}, nil
-				default:
-					return []operation{{UseCase: "DeleteSavedView", Path: path, Input: usecase.Input{"view_id": row["id"]}}}, nil
-				}
+				return viewOps(now, change, row, change.Key, scopeType, scopeID)
 			},
 			hides: removing,
 		},
@@ -167,7 +135,7 @@ func furnitureSections(hub shared.ID) []section {
 				return block
 			},
 			opsAt: func(now current, change domain.BlockChange, row map[string]any) ([]operation, error) {
-				return ruleOps(now, change, row, scopeType, scopeID)
+				return ruleOps(now, change, row, change.Key, scopeType, scopeID)
 			},
 			// A rule acts with somebody's rights, and its removal stops what people rely on.
 			hides: removing, permissions: true,
@@ -175,9 +143,52 @@ func furnitureSections(hub shared.ID) []section {
 	}
 }
 
-// ruleOps writes a rule through its use cases: written switched off, then switched on where the
-// block says so, so the trail says both; a change of `enabled` is its own use case.
-func ruleOps(now current, change domain.BlockChange, row map[string]any, scopeType, scopeID string) ([]operation, error) {
+// viewAttributes are what a shared view's block holds.
+var viewAttributes = []string{"name", "layout", "query", "grouping", "visible_fields"}
+
+// viewOps writes a shared view under key where scopeType and scopeID say, the places its query
+// names back to identifiers.
+func viewOps(now current, change domain.BlockChange, row map[string]any, key, scopeType, scopeID string) ([]operation, error) {
+	path := change.Path()
+	after := domain.Block{}
+	for name, value := range change.After {
+		after[name] = value
+	}
+	if query, held := after["query"]; held {
+		after["query"] = mapQuery(query, now.Places.in)
+	}
+	switch change.Op {
+	case domain.OpAdd:
+		in := usecase.Input{"key": key, "scope_type": scopeType, "sharing": "SCOPE"}
+		if scopeID != "" {
+			in["scope_id"] = scopeID
+		}
+		for _, name := range viewAttributes {
+			if value, held := after[name]; held {
+				in[name] = value
+			}
+		}
+		return []operation{{UseCase: "CreateSavedView", Path: path, Input: in}}, nil
+	case domain.OpChange:
+		in := usecase.Input{"view_id": row["id"]}
+		for _, name := range change.Fields {
+			// An attribute the document leaves out is left as it is.
+			if value, held := after[name]; held {
+				in[name] = value
+			}
+		}
+		if len(in) == 1 {
+			return nil, nil
+		}
+		return []operation{{UseCase: "UpdateSavedView", Path: path, Input: in}}, nil
+	default:
+		return []operation{{UseCase: "DeleteSavedView", Path: path, Input: usecase.Input{"view_id": row["id"]}}}, nil
+	}
+}
+
+// ruleOps writes a rule under key through its use cases: written switched off, then switched on
+// where the block says so, so the trail says both; a change of `enabled` is its own use case.
+func ruleOps(now current, change domain.BlockChange, row map[string]any, key, scopeType, scopeID string) ([]operation, error) {
 	path := change.Path()
 	if change.Op == domain.OpRemove {
 		return []operation{{UseCase: "DeleteRule", Path: path, Input: usecase.Input{"rule_id": row["id"]}}}, nil
@@ -195,7 +206,7 @@ func ruleOps(now current, change domain.BlockChange, row map[string]any, scopeTy
 		if scopeID != "" {
 			scope["id"] = scopeID
 		}
-		in := usecase.Input{"key": change.Key, "scope": scope}
+		in := usecase.Input{"key": key, "scope": scope}
 		for _, name := range []string{"name", "run_as", "trigger", "conditions", "actions", "throttle", "on_error"} {
 			if value, held := after[name]; held {
 				in[name] = value
@@ -320,7 +331,7 @@ func mapActions(raw any, name func(any) any) any {
 // readPlaces lists the hubs and collections the reader reaches with their handles: the hubs, then
 // each hub's collections, archived ones included.
 func (d Desk) readPlaces(ctx context.Context, actor appshared.ActorContext, hub shared.ID) (places, error) {
-	out := places{key: map[string]string{}, id: map[string]string{}}
+	out := places{key: map[string]string{}, id: map[string]string{}, children: map[string]bool{}}
 	if !hub.IsZero() {
 		out.hub = hub.String()
 	}
@@ -333,7 +344,14 @@ func (d Desk) readPlaces(ctx context.Context, actor appshared.ActorContext, hub 
 		return places{}, err
 	}
 	for _, id := range hubs {
-		if err := d.eachPage(ctx, actor, "ListContainers", usecase.Input{"parent_id": id, "include_archived": true}, out.add); err != nil {
+		own := id == out.hub
+		if err := d.eachPage(ctx, actor, "ListContainers", usecase.Input{"parent_id": id, "include_archived": true}, func(row map[string]any) {
+			out.add(row)
+			if child := text(row["id"]); own && child != "" && text(row["handle"]) != "" {
+				out.children[child] = true
+				out.order = append(out.order, child)
+			}
+		}); err != nil {
 			return places{}, err
 		}
 	}

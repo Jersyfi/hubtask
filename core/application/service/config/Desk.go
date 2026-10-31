@@ -145,12 +145,29 @@ func (d Desk) export(ctx context.Context, actor appshared.ActorContext, hub shar
 	if err != nil && !withheld(err) {
 		return current{}, err
 	}
-	if err != nil {
+	placesWithheld := err != nil
+	if placesWithheld {
 		// A reader who may not list the places reads identifiers where handles would be.
-		placed = places{key: map[string]string{}, id: map[string]string{}, hub: hub.String()}
+		placed = places{key: map[string]string{}, id: map[string]string{}, hub: hub.String(), children: map[string]bool{}}
 	}
 	out.Places = placed
 	for _, s := range out.sections() {
+		if s.collection {
+			// A reader who may not list the collections reads none of their blocks - not an
+			// empty section an apply would read as removals.
+			var err error = errWithheld
+			if !placesWithheld {
+				err = d.exportCollections(ctx, actor, s, &out)
+			}
+			if err != nil && withheld(err) {
+				out.Withheld = append(out.Withheld, s.name)
+				continue
+			}
+			if err != nil {
+				return current{}, err
+			}
+			continue
+		}
 		answer, err := d.list(ctx, actor, s)
 		if err != nil {
 			if withheld(err) {
@@ -233,6 +250,9 @@ func (d Desk) list(ctx context.Context, actor appshared.ActorContext, s section)
 	}
 	return usecase.Output{"data": rows}, nil
 }
+
+// errWithheld is a section the reader may not read.
+var errWithheld = shared.ErrForbidden.WithDetail("config.section_withheld")
 
 // withheld reports whether a section's read was refused for a reason that leaves the rest of the
 // document readable: its module is off, or the reader may not read it.
@@ -352,6 +372,12 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 			}
 		}
 		for key := range desired[name] {
+			if s := known[name]; s.collection {
+				if refusal := now.Places.collectionKeyRefusal(name, key); refusal != nil {
+					p.Refusals = append(p.Refusals, *refusal)
+				}
+				continue
+			}
 			if !domain.ValidKey(key) && name != sectionSettings {
 				p.Refusals = append(p.Refusals, domain.Refusal("config.key_invalid", name+"."+key, nil))
 			}

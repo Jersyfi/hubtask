@@ -72,6 +72,12 @@ type section struct {
 	// changes what somebody may do.
 	hides       func(change domain.BlockChange) bool
 	permissions bool
+	// collection marks a hub document's section of its collections' own blocks (Collections.go):
+	// read once per collection with listFor's input, or one listing for all where listFor is nil;
+	// rowsFor picks the collection's rows.
+	collection bool
+	listFor    func(collection string) usecase.Input
+	rowsFor    func(answer map[string]any, collection string) []any
 	// releases marks a change that gives up what another block of the section may claim in the
 	// same apply - an organisation's mail domain: it runs first in its section, a removal too.
 	releases func(change domain.BlockChange) bool

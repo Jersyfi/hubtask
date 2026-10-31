@@ -19,6 +19,10 @@ import (
 
 const keyPattern = "^[a-z][a-z0-9_]{0,62}$"
 
+// collectionKeyPattern is a collection block's key: the collection's handle (migration 0204), a
+// dot and the block's own key.
+const collectionKeyPattern = "^[a-z][a-z0-9]{1,19}\\.[a-z][a-z0-9_]{0,62}$"
+
 // Schema is the document's JSON Schema, generated from the operations that write each section -
 // their declared fields, kinds, allowed values and descriptions - rather than kept beside them, so
 // it cannot say less or more than the use cases accept (configuration/model.md §4).
@@ -64,6 +68,13 @@ func (d Desk) sectionsSchema(list []section) map[string]any {
 			}
 			names = map[string]any{"enum": keys}
 		}
+		switch {
+		case s.name == sectionTolerance:
+			names = map[string]any{"enum": []string{toleranceKey}}
+		case s.collection:
+			// A collection's handle, a dot and the block's own key.
+			names = map[string]any{"pattern": collectionKeyPattern}
+		}
 		properties[s.name] = map[string]any{
 			"type": "object", "propertyNames": names,
 			"additionalProperties": map[string]any{"oneOf": []any{block, map[string]any{"type": "null"}}},
@@ -78,6 +89,17 @@ func (d Desk) attributeSchema(s section, attribute string) map[string]any {
 	if s.name == sectionModules {
 		return map[string]any{"type": "string", "enum": []string{"ON", "OFF", "INHERIT"},
 			"description": "ON or OFF here, or INHERIT to leave the module to the level above."}
+	}
+	if s.name == sectionTolerance || s.name == sectionCollectionTolerance {
+		if attribute == lockAttribute {
+			return map[string]any{"type": "boolean", "description": "Fix it for the collections below."}
+		}
+		return map[string]any{"type": "integer", "minimum": 0, "maximum": 365,
+			"description": "The calendar days the forecast end may slip; a removed block leaves it to the level above."}
+	}
+	if s.name == sectionCollectionStructure {
+		return map[string]any{"description": "The collection's own value of the setting, in the shape of " +
+			"StructureSettings; a removed block leaves it to the hub."}
 	}
 	if s.name == sectionStructure {
 		if attribute == presetIDAttribute {
