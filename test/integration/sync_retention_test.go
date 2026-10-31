@@ -105,13 +105,16 @@ func TestAnAgedChangeLogMonthFallsAsAPartition(t *testing.T) {
 		t.Fatalf("seeding: %v", err)
 	}
 
-	// Next month exists since the migration; an old month can be made to.
+	// Next month exists since the migration; an old month can be made to. Counted from the first of
+	// this month: AddDate on the 31st skips a short month.
+	now := time.Now().UTC()
+	thisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	var next int
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM pg_class WHERE relname = $1`,
-		"change_log_"+time.Now().UTC().AddDate(0, 1, 0).Format("2006_01")).Scan(&next); err != nil || next != 1 {
+		"change_log_"+thisMonth.AddDate(0, 1, 0).Format("2006_01")).Scan(&next); err != nil || next != 1 {
 		t.Fatalf("next month's partition of the change log is not there (%d, %v)", next, err)
 	}
-	old := time.Now().UTC().AddDate(0, -5, 0)
+	old := thisMonth.AddDate(0, -5, 0)
 	var name string
 	if err := pool.QueryRow(ctx,
 		`SELECT ensure_stream_partition('change_log', date_trunc('month', $1::timestamptz)::date)`,
