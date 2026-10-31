@@ -917,7 +917,15 @@ person's `personal_space` is a private hub of their own made on first use, and a
 `daily_for` is its note of a day, one per day (UC-DOC-07). A page carries labels (`page_label`,
 UC-DOC-01 check 9): one lower-case word each, at most 20, found rather than defined - a space's
 vocabulary is whatever its pages carry, counted over the pages the reader may read - and no part
-of the page's words, so labelling makes no version.
+of the page's words, so labelling makes no version. A hub's space is a live document unless its
+`knowledge.drafts` is on (UC-DOC-15): then a `Draft` (`page_draft`, one per page) holds what waits
+to be published - the mark of a page never published, kept to its writer by a restriction, or the
+title and body its writers changed since the page was last published. The page is always what its
+readers read, so search, references, export and the offline copy read what was published; only
+the space's writers open its live document. Publishing makes the draft the page and a version;
+the space goes back to the live document once no draft waits. A template's subpages come along
+when a page is started from it with them, and a tree of at most 100 pages is written in one write
+(UC-DOC-05 checks 5 and 6), so a space template is a page with pages under it.
 
 ### 3.9 Whiteboards (context: Whiteboard, M4)
 
