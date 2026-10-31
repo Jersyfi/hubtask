@@ -25,6 +25,7 @@ remains fully functional (QS-09). Which AI features exist and how a person uses 
 | Tool name | The stable use case name in `snake_case` (`create_work_item`, `query_items`) |
 | Description | From the registry, including preconditions and side effects |
 | Input schema | JSON Schema, identical to the REST request body |
+| Output schema | Every answer is `structuredContent` as well as text. A tool declares an `outputSchema` only where its use case declares the members every answer carries (`Descriptor.Output`) and a test holds its real answers to them (`OutputMismatch`): a client refuses structured content that misses the schema, so an unproven schema would break the tool. Undeclared members may follow; an optional member may be null. Declared today: `plan_config` |
 | Auth | Service account or PAT with scopes; every tool call is audited as `actor.type = AI_AGENT` |
 | Read/write marking | `annotations.readOnlyHint` / `destructiveHint`, so clients can ask for confirmation |
 | Resources | Containers, items and views are readable as MCP resources (`hubtask://items/{id}`). A resource is a catalogue read addressed by URI, so `resources/read` carries no authorisation of its own, as `tools/call` carries none ([ADR-0051](../adr/ADR-0051-mcp-resources-are-catalogue-reads.md)). `resources/list` pages the hubs and the caller's saved views; entries are reached by URI or `search_items`, since no unanchored item list exists |

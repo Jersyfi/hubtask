@@ -124,7 +124,11 @@ type Descriptor struct {
 	// or one decided by the entry alone.
 	Permission service.Permission
 
-	Input    []Field
+	Input []Field
+	// Output names the members every answer carries, for a client that reads them by schema (an
+	// MCP tool's outputSchema). Declared only where a test holds the answers to it
+	// (OutputMismatch); empty declares nothing.
+	Output   []Field
 	Audit    AuditDeclaration
 	Activity ActivityDeclaration
 	Handler  Handler

@@ -25,7 +25,9 @@ type Tool struct {
 	// description, not display text - what a user sees is rendered from a message code.
 	Description string         `json:"description"`
 	InputSchema map[string]any `json:"inputSchema"`
-	Annotations Annotations    `json:"annotations"`
+	// OutputSchema is the shape of the structured content, where the use case declares one.
+	OutputSchema map[string]any `json:"outputSchema,omitempty"`
+	Annotations  Annotations    `json:"annotations"`
 }
 
 // Annotations are the hints a client uses to decide whether to ask for confirmation before it
@@ -46,9 +48,10 @@ func ToolsOf(descriptors []usecase.Descriptor) []Tool {
 			description += " " + descriptor.SideEffects
 		}
 		tools = append(tools, Tool{
-			Name:        descriptor.MCPTool(),
-			Description: description,
-			InputSchema: InputSchema(descriptor.Input),
+			Name:         descriptor.MCPTool(),
+			Description:  description,
+			InputSchema:  InputSchema(descriptor.Input),
+			OutputSchema: OutputSchema(descriptor.Output),
 			Annotations: Annotations{
 				ReadOnlyHint:    descriptor.ReadOnly,
 				DestructiveHint: descriptor.Destructive,
@@ -121,4 +124,41 @@ func jsonType(kind usecase.Kind) string {
 	default:
 		return "string"
 	}
+}
+
+// OutputSchema turns a use case's declared answer into JSON Schema, or nil where it declares none.
+//
+// A client refuses structured content that misses a tool's outputSchema, so only the members the
+// use case declares - and a test holds its answers to (usecase.Descriptor.OutputMismatch) - are
+// named; others may follow (`additionalProperties: true`). A member that is not required may be
+// null, as an answer's optional members are.
+func OutputSchema(fields []usecase.Field) map[string]any {
+	if len(fields) == 0 {
+		return nil
+	}
+	properties := make(map[string]any, len(fields))
+	required := make([]string, 0, len(fields))
+	for _, field := range fields {
+		property := map[string]any{}
+		if field.Kind != usecase.KindAny {
+			kind := jsonType(field.Kind)
+			if field.Required {
+				property["type"] = kind
+			} else {
+				property["type"] = []string{kind, "null"}
+			}
+		}
+		if field.Description != "" {
+			property["description"] = field.Description
+		}
+		properties[field.Name] = property
+		if field.Required {
+			required = append(required, field.Name)
+		}
+	}
+	schema := map[string]any{"type": "object", "properties": properties, "additionalProperties": true}
+	if len(required) > 0 {
+		schema["required"] = required
+	}
+	return schema
 }

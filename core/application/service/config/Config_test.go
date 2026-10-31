@@ -538,6 +538,9 @@ func invoke(t *testing.T, d usecase.Descriptor, actor appshared.ActorContext, in
 		}
 		t.Fatalf("%s: %v", d.Name, err)
 	}
+	if member, missed := d.OutputMismatch(out); missed {
+		t.Fatalf("%s answered %q outside its declared output: %v", d.Name, member, out)
+	}
 	return out
 }
 

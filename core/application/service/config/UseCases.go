@@ -440,6 +440,7 @@ func (h PlanConfig) Descriptor() usecase.Descriptor {
 		TokenScope:  scopePlan,
 		ReadOnly:    true,
 		Input:       planFields(),
+		Output:      planAnswer(),
 		Audit:       usecase.AuditDeclaration{Action: PlannedAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity:    usecase.ActivityDeclaration{Exempt: "a plan changes nothing."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -456,6 +457,22 @@ func (h PlanConfig) Descriptor() usecase.Descriptor {
 			}
 			return PlanOutput(p), nil
 		}),
+	}
+}
+
+// planAnswer is what every plan answers, as PlanOutput writes it: an agent reads the plan hash it
+// applies or proposes by, and the refusals it corrects itself from.
+func planAnswer() []usecase.Field {
+	return []usecase.Field{
+		{Name: "base_hash", Kind: usecase.KindString, Required: true, Description: "The hash of the configuration the plan was made on."},
+		{Name: "plan_hash", Kind: usecase.KindString, Description: "The hash to apply or propose the plan by; null where the plan refuses."},
+		{Name: "changes", Kind: usecase.KindList, Required: true, Description: "Each change by key path, with before and after."},
+		{Name: "operations", Kind: usecase.KindList, Required: true, Description: "The use cases the plan runs, in order."},
+		{Name: "refusals", Kind: usecase.KindList, Required: true, Description: "What the plan refuses: path, code and parameters."},
+		{Name: "flags", Kind: usecase.KindObject, Required: true, Description: "hides_data and changes_permissions."},
+		{Name: "step_up", Kind: usecase.KindBool, Required: true, Description: "Whether applying needs a fresh step-up proof."},
+		{Name: "reach", Kind: usecase.KindList, Required: true, Description: "The entries and people the plan reaches."},
+		{Name: "counts", Kind: usecase.KindObject, Required: true, Description: "added, changed and removed."},
 	}
 }
 
