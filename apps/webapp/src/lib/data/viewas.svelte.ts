@@ -18,10 +18,16 @@ export const VIEW_AS_PATH = '/auth/sessions:view-as';
 
 class ViewAsState {
   #state = $state<ResourceState<ViewAs>>({ status: 'idle' });
+  /**
+   * Once answered, answered: a re-read after a failure passes through `loading`, and were that
+   * "not settled" the frame would stop the stream and start it again - whose attach re-reads this
+   * failed answer - a loop as tight as the network while the server is away.
+   */
+  #hasSettled = $state(false);
 
   /** Whether the answer arrived - or could not, which is no view: the server judges each request. */
   get settled(): boolean {
-    return this.#state.status === 'ready' || this.#state.status === 'failed';
+    return this.#hasSettled;
   }
 
   /** The running view, or undefined. */
@@ -33,6 +39,7 @@ class ViewAsState {
   open(): () => void {
     return engine.subscribe<ViewAs>({ path: VIEW_AS_PATH }, (next) => {
       this.#state = next;
+      if (next.status === 'ready' || next.status === 'failed') this.#hasSettled = true;
     });
   }
 
