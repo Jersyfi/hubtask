@@ -707,6 +707,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `module.read` | ListModules | `module` | INFO | When refused |
 | `module.switched` | SetModule | `module` | INFO | Every time |
 
+## Notifications
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `notifications.rule_notice_sent` | NotifyAccount | `item` | INFO | Every time |
+| `notifications.rule_notice_sent` | NotifyGroup | `item` | INFO | Every time |
+| `notifications.rule_notice_sent` | NotifyRole | `item` | INFO | Every time |
+
 ## Oauth
 
 | Action | Use case | Target | Severity | Recorded |

@@ -813,6 +813,8 @@
   "notifications.tenant_missing": "Diese Installation konnte eine Benachrichtigung nicht festhalten.",
   "notifications.recipient_missing": "Diese Installation konnte eine Benachrichtigung nicht festhalten.",
   "notifications.category_unknown": "{value} ist keine Kategorie von Benachrichtigungen.",
+  "notifications.recipient_unknown": "Dieser Workspace hat kein solches Konto, keine solche Gruppe oder Rolle, die benachrichtigt werden könnte.",
+  "notifications.too_many_recipients": "Ein Benachrichtigungsschritt darf höchstens {limit} Personen benachrichtigen.",
   "notifications.subject_ambiguous": "Eine Benachrichtigung betrifft eine Sache; dieser Datensatz nennt zwei.",
   "notifications.channel_unknown": "{value} ist kein Benachrichtigungskanal.",
   "notifications.category_off": "Du hast Benachrichtigungen dieser Art ausgeschaltet.",

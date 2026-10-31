@@ -1276,6 +1276,8 @@
   "notifications.tenant_missing": "This installation could not record a notification.",
   "notifications.recipient_missing": "This installation could not record a notification.",
   "notifications.category_unknown": "{value} is not a notification category.",
+  "notifications.recipient_unknown": "This workspace has no such account, group or role to tell.",
+  "notifications.too_many_recipients": "A notification step may tell at most {limit} people.",
   "notifications.subject_ambiguous": "A notification is about one thing; this record names two.",
   "notifications.channel_unknown": "{value} is not a notification channel.",
   "notifications.category_off": "You have switched notifications of this kind off.",

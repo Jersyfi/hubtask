@@ -46,6 +46,7 @@ import (
 	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	metaservice "github.com/Jersyfi/hubtask/core/application/service/meta"
+	notificationservice "github.com/Jersyfi/hubtask/core/application/service/notification"
 	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
@@ -738,6 +739,9 @@ func Descriptors() []usecase.Descriptor {
 		integration.ListWebhookDeliveries{}.Descriptor(),
 		integration.ReplayWebhookDelivery{}.Descriptor(),
 		integration.SendWebhook{}.Descriptor(),
+		notificationservice.NotifyAccount{}.Descriptor(),
+		notificationservice.NotifyGroup{}.Descriptor(),
+		notificationservice.NotifyRole{}.Descriptor(),
 		integration.RotateWebhookSecret{}.Descriptor(),
 		integration.PollTriggerEvents{}.Descriptor(),
 		automationservice.CreateRule{}.Descriptor(),

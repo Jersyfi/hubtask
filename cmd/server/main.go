@@ -908,6 +908,16 @@ func run() error {
 		Changes: changes, HLC: hybrid,
 	}
 
+	// A rule's notification steps (UC-AUT-09): the notification path every message takes, the
+	// authoriser for who may read the entry and who holds a role along it.
+	noticeDesk := notification.NoticeDesk{
+		Notifications: notifications, Preferences: notificationPreferences, Accounts: accounts,
+		Items: items, Containers: containers, Groups: groups,
+		Holders: postgres.NewMembershipRepository(), CustomRoles: postgres.NewCustomRoleRepository(),
+		Restricted: accounts, Authorizer: authorizer, Audit: auditSink, Jobs: jobs,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	// The workspace's own roles (UC-ID-26): shared by the seven role use cases.
 	customRoles := identity.Roles{
 		Store: postgres.NewCustomRoleRepository(), Authorizer: authorizer, Reach: authorizer, Held: authorizer,
@@ -2886,6 +2896,9 @@ func run() error {
 		integrationservice.ListWebhookDeliveries{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ReplayWebhookDelivery{Writer: webhookWriter, Jobs: jobs}.Descriptor(),
 		integrationservice.SendWebhook{Writer: webhookWriter, Jobs: jobs, Events: outbox}.Descriptor(),
+		notification.NotifyAccount{Desk: noticeDesk}.Descriptor(),
+		notification.NotifyGroup{Desk: noticeDesk}.Descriptor(),
+		notification.NotifyRole{Desk: noticeDesk}.Descriptor(),
 		integrationservice.RotateWebhookSecret{Writer: webhookWriter}.Descriptor(),
 		automationservice.CreateRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.GetRule{Writer: ruleWriter}.Descriptor(),
