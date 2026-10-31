@@ -107,7 +107,8 @@ func (r Registry) record(
 	trail = append(trail, audit.Change{Field: "key", Classification: audit.Open, To: entryType.Key})
 	for _, change := range changes {
 		classification := audit.Open
-		if change.Field == domain.FieldName {
+		switch change.Field {
+		case domain.FieldName, domain.FieldDescription, domain.FieldTranslations:
 			classification = audit.Sensitive
 		}
 		entry := audit.Change{Field: change.Field, Classification: classification, To: change.To}
@@ -146,7 +147,70 @@ func EntryTypeOutput(t domain.EntryType) usecase.Output {
 	if t.Name != "" {
 		out["name"] = t.Name
 	}
+	// Left out when empty, so the configuration document of a type without texts stays as it was.
+	if t.Description != "" {
+		out["description"] = t.Description
+	}
+	if len(t.Translations) > 0 {
+		out["translations"] = TranslationsOutput(t.Translations)
+	}
 	return out
+}
+
+// TranslationsOutput is a type's texts per language under the contract's names
+// (EntryTypeTranslations); an empty member is left out.
+func TranslationsOutput(translations map[string]domain.EntryTypeText) map[string]any {
+	out := make(map[string]any, len(translations))
+	for tag, words := range translations {
+		member := map[string]any{}
+		if words.Name != "" {
+			member["name"] = words.Name
+		}
+		if words.Description != "" {
+			member["description"] = words.Description
+		}
+		out[tag] = member
+	}
+	return out
+}
+
+// TranslationsFromInput reads a type's texts per language from the contract's document; a member
+// of the wrong shape is refused naming it, never dropped.
+func TranslationsFromInput(raw any) (map[string]domain.EntryTypeText, error) {
+	if raw == nil {
+		return map[string]domain.EntryTypeText{}, nil
+	}
+	document, ok := raw.(map[string]any)
+	if !ok {
+		return nil, malformedTranslations("/translations")
+	}
+	out := make(map[string]domain.EntryTypeText, len(document))
+	for tag, entry := range document {
+		member, ok := entry.(map[string]any)
+		if !ok {
+			return nil, malformedTranslations("/translations/" + tag)
+		}
+		name, nameIsText := member["name"].(string)
+		description, descriptionIsText := member["description"].(string)
+		if (member["name"] != nil && !nameIsText) || (member["description"] != nil && !descriptionIsText) {
+			return nil, malformedTranslations("/translations/" + tag)
+		}
+		out[tag] = domain.EntryTypeText{Name: name, Description: description}
+	}
+	return out, nil
+}
+
+func malformedTranslations(path string) error {
+	return shared.ErrValidation.WithDetail("entry_types.translations_malformed").
+		WithFields(shared.FieldError{Path: path, Code: "entry_types.translations_malformed"})
+}
+
+// textFields are the inputs of a type's texts, on create and change alike.
+func textFields() []usecase.Field {
+	return []usecase.Field{
+		{Name: "description", Kind: usecase.KindString, Description: "What the type is for, up to 500 characters; a portal shows it beside the name."},
+		{Name: "translations", Kind: usecase.KindObject, Description: "The name and description in further languages by BCP 47 tag (schema EntryTypeTranslations); replaces the ones before. At most 20."},
+	}
 }
 
 // ListEntryTypes reads the workspace's registry.
@@ -201,6 +265,8 @@ type CreateEntryTypeCommand struct {
 	Key             string
 	Level           domain.ItemType
 	Name            string
+	Description     string
+	Translations    map[string]domain.EntryTypeText
 	Icon            string
 	ColorToken      string
 	Behaviours      domain.EntryBehaviours
@@ -220,6 +286,7 @@ func (h CreateEntryType) Execute(ctx context.Context, actor appshared.ActorConte
 	created, err := domain.NewEntryType(domain.NewEntryTypeInput{
 		ID: h.Registry.IDs.NewID(), TenantID: actor.TenantID, Key: cmd.Key, Level: cmd.Level,
 		Name: cmd.Name, Icon: cmd.Icon, ColorToken: cmd.ColorToken, Behaviours: cmd.Behaviours,
+		Description: cmd.Description, Translations: cmd.Translations,
 		AllowedChildren: cmd.AllowedChildren, Position: cmd.Position, Now: now, Text: h.Registry.Text,
 	})
 	if err != nil {
@@ -290,13 +357,17 @@ func (h CreateEntryType) Descriptor() usecase.Descriptor {
 			{Name: "name", Kind: usecase.KindString, Required: true, Description: "Up to 120 characters, on one line."},
 			{Name: "icon", Kind: usecase.KindString, Required: true, Description: "The name of an icon of the design system's set."},
 			{Name: "color_token", Kind: usecase.KindString, Required: true, Description: "One of the ten label colour tokens."},
-		}, behaviourFields()...),
+		}, append(textFields(), behaviourFields()...)...),
 		Audit: usecase.AuditDeclaration{
 			Action: EntryTypeCreatedAction, TargetType: EntryTypeTarget, Severity: audit.SeverityInfo, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{Exempt: "a type is the workspace's configuration, not an entry."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			children, err := in.StringList("allowed_children")
+			if err != nil {
+				return nil, err
+			}
+			translations, err := TranslationsFromInput(in["translations"])
 			if err != nil {
 				return nil, err
 			}
@@ -313,6 +384,7 @@ func (h CreateEntryType) Descriptor() usecase.Descriptor {
 			created, err := h.Execute(ctx, actor, CreateEntryTypeCommand{
 				Key: in.String("key"), Level: domain.ItemType(in.String("level")), Name: in.String("name"),
 				Icon: in.String("icon"), ColorToken: in.String("color_token"),
+				Description: in.String("description"), Translations: translations,
 				Behaviours: domain.EntryBehaviours{
 					Completable: completable, Workflow: in.Bool("workflow"), Record: in.Bool("record"),
 					Schedulable: schedulable, Estimable: in.Bool("estimable"),
@@ -400,11 +472,12 @@ func (h ChangeEntryType) Descriptor() usecase.Descriptor {
 		{Name: "color_token", Kind: usecase.KindString, Description: "One of the ten label colour tokens."},
 		{Name: "archived", Kind: usecase.KindBool, Description: "True archives the type: not offered for new entries, readable on old ones. False brings it back. A system type is never archived."},
 		{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read, for optimistic locking."},
-	}, behaviourFields()...)
+	}, append(textFields(), behaviourFields()...)...)
 	return usecase.Descriptor{
 		Permission: service.PermissionStructure,
 		Name:       ChangeEntryTypeName,
-		Summary: "Changes an entry type: its name, icon, colour, behaviours, allowed children or place, " +
+		Summary: "Changes an entry type: its name, description, texts per language, icon, colour, " +
+			"behaviours, allowed children or place, " +
 			"or archives it or brings it back. Only what is sent changes. A record is never " +
 			"completable, and a system type never becomes a record and is never archived.",
 		SideEffects: "Writes the type, records a change for offline clients, and writes an audit entry.",
@@ -422,6 +495,14 @@ func (h ChangeEntryType) Descriptor() usecase.Descriptor {
 func (h ChangeEntryType) invoke(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	var change domain.EntryTypeChange
 	change.Name, change.Icon, change.ColorToken = in.OptionalString("name"), in.OptionalString("icon"), in.OptionalString("color_token")
+	change.Description = in.OptionalString("description")
+	if in.Present("translations") {
+		translations, err := TranslationsFromInput(in["translations"])
+		if err != nil {
+			return nil, err
+		}
+		change.Translations = &translations
+	}
 	if in.Present("archived") {
 		archived := in.Bool("archived")
 		change.Archived = &archived

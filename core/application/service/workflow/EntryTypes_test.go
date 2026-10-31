@@ -296,3 +296,39 @@ func TestTheRegistryBelongsToTheWorkflowsModule(t *testing.T) {
 		t.Fatalf("the registry refused the descriptors: %v", err)
 	}
 }
+
+// UC-SVC-05 check 7: a type carries a description and its texts in further languages through
+// every door, written on create and changed on their own; malformed ones are refused.
+func TestATypeCarriesItsTextsPerLanguage(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture()
+	out, err := workflow.CreateEntryType{Registry: f.registry}.Descriptor().Handler.Invoke(ctx, actor(), usecase.Input{
+		"key": "incident", "level": "TASK", "name": "Incident", "icon": "alert", "color_token": "red",
+		"description": "Something is broken",
+		"translations": map[string]any{"de": map[string]any{"name": "Störung", "description": "Etwas ist kaputt"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	translations, _ := out["translations"].(map[string]any)
+	german, _ := translations["de"].(map[string]any)
+	if out["description"] != "Something is broken" || german["name"] != "Störung" || german["description"] != "Etwas ist kaputt" {
+		t.Errorf("the type came back %v", out)
+	}
+	changed, err := workflow.ChangeEntryType{Registry: f.registry}.Descriptor().Handler.Invoke(ctx, actor(), usecase.Input{
+		"key": "incident", "translations": map[string]any{"fr": map[string]any{"name": "Incident"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	translations, _ = changed["translations"].(map[string]any)
+	if _, kept := translations["de"]; kept || changed["description"] != "Something is broken" {
+		t.Errorf("translations replace the ones before and leave the description: %v", changed)
+	}
+	_, err = workflow.ChangeEntryType{Registry: f.registry}.Descriptor().Handler.Invoke(ctx, actor(), usecase.Input{
+		"key": "incident", "translations": map[string]any{"de": "Störung"},
+	})
+	if detail(err) != "entry_types.translations_malformed" {
+		t.Errorf("a language without its texts' object was taken: %v", err)
+	}
+}

@@ -147,13 +147,13 @@ func sections() []section {
 			name: sectionTypes, module: module.Workflows, list: "ListEntryTypes", rows: "data", key: "key", system: "system",
 			attributes: []string{
 				"level", "name", "icon", "color_token", "completable", "workflow", "record", "schedulable",
-				"estimable", "allowed_children", "position", "archived", "form",
+				"estimable", "allowed_children", "position", "archived", "form", "description", "translations",
 			},
 			fixed:  []string{"level"},
 			create: "CreateEntryType", change: "ChangeEntryType", remove: "DeleteEntryType", locate: "key", locateFrom: "key",
 			changeable: []string{
 				"name", "icon", "color_token", "archived", "completable", "workflow", "record", "schedulable",
-				"estimable", "allowed_children", "position",
+				"estimable", "allowed_children", "position", "description", "translations",
 			},
 			separate: map[string]string{"form": "SetEntryTypeForm"},
 			hides:    removing,
