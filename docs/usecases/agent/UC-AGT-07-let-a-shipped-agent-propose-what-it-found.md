@@ -52,9 +52,14 @@ knowledge agent proposes a page from it in the hub's space.
    its resolution - with the action `START_AGENT_JOB`, the run supplying the entry; a hub's job is
    not started from an entry (`agents.target_invalid`), and a start naming no target is refused
    (`agents.target_required`). The rule's account is held to the owner's or an administrator's right.
+9. Ticket triage routes a ticket nobody holds by its offering: the offering it names, else the
+   nearest one a CI it names affects (none if two are equally near, or if it names two), and
+   proposes `AssignWorkItem`, held for a person to approve, to the member of that offering's support
+   group with the fewest open entries in the hub.
 
 ## Where it ends
 
 * A job runs when somebody or a rule starts it; nothing starts one without a rule saying so.
-* Routing a ticket to a queue by its offering is not proposed.
+* A group itself holds no ticket: routing proposes a member of it, never the group; skills are not
+  weighed.
 * No agent-to-agent protocol and no orchestration of several agents.

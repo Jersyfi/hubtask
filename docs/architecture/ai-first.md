@@ -79,7 +79,10 @@ remains fully functional (QS-09). Which AI features exist and how a person uses 
 * **A shipped agent proposes; a person applies** (G11, UC-AGT-07): ticket triage, CI suggestion,
   duplicate review and knowledge draft run as jobs on their own account through the gate, which
   holds every write a shipped agent attempts whatever its policy says; the triage's labels are a
-  suggestion. A job is held to the agent's tokens per day and its runs at once, and its tokens are a
+  suggestion. The triage routes a ticket nobody holds by its offering - the one it names, else the
+  nearest one a CI it names affects, none where two are equally near - and proposes `AssignWorkItem`
+  to the member of that offering's support group with the fewest open entries in the hub; a group
+  holds no ticket and skills are not weighed. A job is held to the agent's tokens per day and its runs at once, and its tokens are a
   row of the ledger.
 * **Configuring agents get sections, not areas** (UC-AGT-06): `config:apply:<section>` beside
   `config:apply` applies that section's blocks without each block's own scope, and `config:plan`

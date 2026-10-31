@@ -810,6 +810,10 @@ deadline and a change's effectiveness check.
   ISO 4217 currency over a validity without overlaps, a person's before their role's; a
   **`Budget`** of a hub or collection holds minutes, money or both, and `BurnOf` counts recorded
   time against it, leaving minutes whose rate is in another currency unpriced (no exchange rates).
+  A **`BillingRate`** is what an hour of billable time on a hub or collection is charged to its
+  client, over a validity without overlaps per plan, a collection's before its hub's; kept as a row
+  of `time_cost_rate` whose subject is the plan (migration 0290), read only with `MANAGE_COSTS`, and
+  `BillableValueMinor` is a record's minutes at it - nothing where the record is not billable.
 * **The portal** (UC-SVC-05): a requester holds `REQUEST` at a collection serving as a service. Its
   catalogue is the top-level types the collection offers whose form names the `PORTAL` channel and
   leaves it open (opt-in per type); a request is an entry raised through `CreateWorkItem` on the
@@ -1026,7 +1030,9 @@ administrator starts a **`Job`** of it on one target - an entry for ticket triag
 knowledge draft, a hub's inventory for duplicate review -, judged like an act and held to the
 agent's tokens per day and its runs at once (a job counts for a lease of fifteen minutes); the job
 runs as the agent's own account through the catalogue, and keeps how it ended, what it proposed and
-the tokens it spent, never what it read (migration 0252, archived).
+the tokens it spent, never what it read (migration 0252, archived). A triage routes a ticket nobody
+holds by its offering - named, else the nearest a named CI affects, none on a tie - to the support
+group member with the fewest open entries in the hub, as a held `AssignWorkItem`.
 
 ### 3.13 Code from a forge (context: Integration, M10)
 
