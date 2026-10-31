@@ -419,6 +419,33 @@ func (r MediaRepository) ServesAvatar(ctx context.Context, mediaID shared.ID) (b
 	return serves, nil
 }
 
+// ServedDesks returns the live collections showing the object as their desk's logo.
+func (r MediaRepository) ServedDesks(ctx context.Context, mediaID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(mediaID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListMediaServedDesks(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the desks of %s: %w", mediaID, err))
+	}
+	desks := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		desk, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		desks = append(desks, desk)
+	}
+	return desks, nil
+}
+
 // ListForItem returns one page of an item's attachments as media objects.
 func (r MediaRepository) ListForItem(
 	ctx context.Context, itemID shared.ID, page repository.Page,

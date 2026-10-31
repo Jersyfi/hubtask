@@ -211,6 +211,45 @@ func TestOnlyAConfirmedImageStagedAsAnAvatarIsAPicture(t *testing.T) {
 	}
 }
 
+// A desk's logo is drawn on its portal for every requester (UC-SVC-05 check 9): bounded as a
+// picture of oneself is, and only a confirmed image a browser renders without executing anything.
+func TestOnlyAConfirmedImageStagedAsADeskLogoIsALogo(t *testing.T) {
+	input := staging()
+	input.Usage, input.ClaimedType = media.UsageDeskLogo, "image/png"
+	input.DeclaredSize, input.SizeLimit = media.MaxAvatarBytes+1, 100<<20
+	if _, err := media.NewPendingObject(input); detailOf(err) != "media.too_large" {
+		t.Errorf("a logo past the picture's bound was staged: %v", err)
+	}
+	if usage, err := media.ParseUsage("DESK_LOGO"); err != nil || usage != media.UsageDeskLogo {
+		t.Errorf("DESK_LOGO parsed as %q, %v", usage, err)
+	}
+
+	ready := media.Object{Usage: media.UsageDeskLogo, Status: media.StatusReady, ContentType: "image/png"}
+	held := ready
+	held.Status = media.StatusPendingScan
+	avatar := ready
+	avatar.Usage = media.UsageAvatar
+	svg := ready
+	svg.ContentType = "image/svg+xml"
+	cases := []struct {
+		name   string
+		object media.Object
+		want   string
+	}{
+		{"a confirmed PNG", ready, ""},
+		{"one held for a scan", held, "media.not_ready"},
+		{"one staged as somebody's picture", avatar, "media.usage_mismatch"},
+		{"an SVG, which a browser may execute", svg, "media.logo_not_an_image"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := detailOf(tc.object.Emblem()); got != tc.want {
+				t.Errorf("answered %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func detailOf(err error) string {
 	if err == nil {
 		return ""

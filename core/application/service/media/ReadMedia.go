@@ -132,6 +132,8 @@ func (h GetMedia) Execute(
 type reach struct {
 	paths    [][]identity.Scope
 	portrait bool
+	// desks are the paths of the collections showing the object as their logo.
+	desks [][]identity.Scope
 	// pages are the live pages holding the object.
 	pages []shared.ID
 }
@@ -154,6 +156,20 @@ func (h GetMedia) read(
 		}
 		object = found
 
+		if found.Usage == media.UsageDeskLogo {
+			collections, err := h.Objects.ServedDesks(ctx, mediaID)
+			if err != nil {
+				return err
+			}
+			for _, id := range collections {
+				collection, err := h.Containers.Find(ctx, id)
+				if err != nil {
+					return err
+				}
+				served.desks = append(served.desks, containerPath(collection))
+			}
+			return nil
+		}
 		if found.Usage == media.UsageAvatar {
 			// Whoever is in the workspace: the transaction's tenant already bounds the question,
 			// so a picture of another workspace's member does not resolve here.
@@ -243,6 +259,9 @@ func (h GetMedia) ensureReadable(
 	if object.CreatedBy == actor.AccountID || served.portrait {
 		return nil
 	}
+	if len(served.desks) > 0 {
+		return h.ensureRequests(ctx, actor, object, served.desks)
+	}
 	paths := served.paths
 	if len(paths) == 0 {
 		return h.ensureReadsPage(ctx, actor, object, served)
@@ -264,6 +283,30 @@ func (h GetMedia) ensureReadable(
 		}
 	}
 	return h.ensureReadsPage(ctx, actor, object, served)
+}
+
+// ensureRequests answers for a desk's logo: whoever may raise a request at the collection - the
+// portal's own question - or read it, as the team does, reads the logo the portal draws.
+func (h GetMedia) ensureRequests(
+	ctx context.Context, actor appshared.ActorContext, object media.Object, desks [][]identity.Scope,
+) error {
+	allowed, err := h.Reader.Permitted(ctx, actor, access.Request{
+		Permission:  service.PermissionRequest,
+		Alternative: service.PermissionRead,
+		Action:      MediaReadAction,
+		TokenScope:  mediaRead,
+		TargetType:  mediaTarget,
+		TargetID:    object.ID,
+	}, desks)
+	if err != nil {
+		return err
+	}
+	for _, may := range allowed {
+		if may {
+			return nil
+		}
+	}
+	return mediaNotFound(object.ID)
 }
 
 // ensureReadsPage is the last answer: a reader of a page holding the object reads it (UC-DOC-14).

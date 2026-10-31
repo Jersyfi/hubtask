@@ -59,6 +59,9 @@ const (
 	// member of the workspace, so it is bounded tighter than an attachment and must be an image a
 	// browser renders inline.
 	UsageAvatar Usage = "AVATAR"
+	// UsageDeskLogo is a desk's own logo (PUT /containers/{id}/desk-logo): drawn on the portal for
+	// every requester of the service, so it is bounded and judged as a picture of oneself is.
+	UsageDeskLogo Usage = "DESK_LOGO"
 )
 
 // MaxAvatarBytes is the most a picture of oneself may be, whatever the installation allows for an
@@ -67,7 +70,7 @@ const MaxAvatarBytes int64 = 5_000_000
 
 func knownUsage(usage Usage) bool {
 	return usage == UsageCover || usage == UsageAttachment || usage == UsageImport ||
-		usage == UsageAvatar
+		usage == UsageAvatar || usage == UsageDeskLogo
 }
 
 // ParseUsage reads a submitted usage.
@@ -146,7 +149,7 @@ func NewPendingObject(input NewObjectInput) (Object, error) {
 	if input.SizeLimit > 0 && input.DeclaredSize > input.SizeLimit {
 		return Object{}, TooLarge(input.SizeLimit)
 	}
-	if input.Usage == UsageAvatar && input.DeclaredSize > MaxAvatarBytes {
+	if (input.Usage == UsageAvatar || input.Usage == UsageDeskLogo) && input.DeclaredSize > MaxAvatarBytes {
 		return Object{}, TooLarge(MaxAvatarBytes)
 	}
 	fileName, err := validFileName(input.FileName, input.Text)
@@ -249,17 +252,27 @@ func (o Object) Attachable(usage Usage) error {
 // an avatar, and judged an image a browser renders without executing anything (T-11). Anything
 // else would be served as a download, and a download is not a picture.
 func (o Object) Portrayable() error {
-	if err := o.Attachable(UsageAvatar); err != nil {
+	return o.drawable(UsageAvatar, "media.avatar_not_an_image")
+}
+
+// Emblem answers whether the object may be shown as a desk's logo, by Portrayable's rules: every
+// requester's browser draws it.
+func (o Object) Emblem() error {
+	return o.drawable(UsageDeskLogo, "media.logo_not_an_image")
+}
+
+func (o Object) drawable(usage Usage, notAnImage string) error {
+	if err := o.Attachable(usage); err != nil {
 		return err
 	}
 	if o.Status != StatusReady {
-		// Shown to every member beside a name: a picture is drawn, so a held one is not one yet.
+		// Drawn for others: a picture is drawn, so a held one is not one yet.
 		return notReady()
 	}
 	if DeliveryFor(o.ContentType) != DispositionInline {
 		return shared.ErrValidation.
-			WithDetail("media.avatar_not_an_image").
-			WithFields(shared.FieldError{Path: "/media_id", Code: "media.avatar_not_an_image"})
+			WithDetail(notAnImage).
+			WithFields(shared.FieldError{Path: "/media_id", Code: notAnImage})
 	}
 	return nil
 }

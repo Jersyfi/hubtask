@@ -118,6 +118,10 @@ type Objects interface {
 	// readable by every member, as the name beside it is.
 	ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error)
 
+	// ServedDesks returns the live collections that show the object as their desk's logo, bounded,
+	// for the authorisation question: whoever may raise a request there may read it.
+	ServedDesks(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)
+
 	// ListForItem returns one page of an item's attachments as media objects.
 	ListForItem(ctx context.Context, itemID shared.ID, page repository.Page) (ObjectPage, error)
 }

@@ -16,6 +16,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	work "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
@@ -77,15 +78,17 @@ func (c *containers) Neighbours(context.Context, shared.ID, shared.ID, shared.ID
 
 // reader is the many-paths permission answer, recorded so a test can say how often it was asked.
 type reader struct {
-	allow bool
-	asked [][][]identity.Scope
-	err   error
+	allow    bool
+	asked    [][][]identity.Scope
+	requests []access.Request
+	err      error
 }
 
 func (r *reader) Permitted(
-	_ context.Context, _ appshared.ActorContext, _ access.Request, paths [][]identity.Scope,
+	_ context.Context, _ appshared.ActorContext, request access.Request, paths [][]identity.Scope,
 ) ([]bool, error) {
 	r.asked = append(r.asked, paths)
+	r.requests = append(r.requests, request)
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -591,6 +594,35 @@ func TestAPictureOnABoardIsReadByTheBoardsReaders(t *testing.T) {
 		want := []identity.Scope{identity.TenantScope(), identity.HubScope(hubID)}
 		if len(permission.asked) != 1 || !samePath(permission.asked[0][0], want) {
 			t.Fatalf("asked %v, want the hub's path", permission.asked)
+		}
+	}
+}
+
+// UC-SVC-05 check 9: a desk's logo is read by whoever may raise a request at its collection - the
+// portal's question, REQUEST or READ along the collection's path; anybody else is told it does
+// not exist.
+func TestADesksLogoIsReadByTheDesksRequesters(t *testing.T) {
+	for _, allow := range []bool{true, false} {
+		handler, records, permission, _ := readingHarness()
+		logo := ready(strangerA)
+		logo.Usage = domain.UsageDeskLogo
+		records.stored[mintedID] = logo
+		records.desks = map[shared.ID][]shared.ID{mintedID: {collectionID}}
+		permission.allow = allow
+
+		_, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+		if allow && err != nil {
+			t.Fatalf("a requester of the desk was refused: %v", err)
+		}
+		if !allow && !errors.Is(err, shared.ErrNotFound) {
+			t.Fatalf("somebody outside the desk got %v, want not found", err)
+		}
+		want := []identity.Scope{identity.TenantScope(), identity.HubScope(hubID), identity.CollectionScope(collectionID)}
+		if len(permission.asked) != 1 || !samePath(permission.asked[0][0], want) {
+			t.Fatalf("asked %v, want the collection's path", permission.asked)
+		}
+		if asked := permission.requests[0]; asked.Permission != service.PermissionRequest || asked.Alternative != service.PermissionRead {
+			t.Fatalf("asked %s or %s, want REQUEST or READ", asked.Permission, asked.Alternative)
 		}
 	}
 }

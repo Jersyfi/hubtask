@@ -65,7 +65,9 @@ type objects struct {
 	boards map[shared.ID][]shared.ID
 	// pagesHolding are the pages holding each object.
 	pagesHolding map[shared.ID][]shared.ID
-	marked       []shared.ID
+	// desks are the collections showing each object as their logo.
+	desks  map[shared.ID][]shared.ID
+	marked []shared.ID
 	// pages is what ListForItem answers, and asked records the page it was asked for - which is
 	// how a test says that the size was clamped rather than passed through.
 	pages    map[shared.ID]repository.ObjectPage
@@ -164,6 +166,10 @@ func (o *objects) ReferencingBoards(_ context.Context, id shared.ID) ([]shared.I
 
 func (o *objects) ReferencingPages(_ context.Context, id shared.ID) ([]shared.ID, error) {
 	return o.pagesHolding[id], nil
+}
+
+func (o *objects) ServedDesks(_ context.Context, id shared.ID) ([]shared.ID, error) {
+	return o.desks[id], nil
 }
 
 func (o *objects) ServesAvatar(_ context.Context, id shared.ID) (bool, error) {

@@ -42,6 +42,9 @@ func (objectDouble) ReferencingItems(context.Context, shared.ID) ([]ItemRef, err
 	return nil, nil
 }
 func (objectDouble) ServesAvatar(context.Context, shared.ID) (bool, error) { return false, nil }
+func (objectDouble) ServedDesks(context.Context, shared.ID) ([]shared.ID, error) {
+	return nil, nil
+}
 func (objectDouble) ReferencingBoards(context.Context, shared.ID) ([]shared.ID, error) {
 	return nil, nil
 }
