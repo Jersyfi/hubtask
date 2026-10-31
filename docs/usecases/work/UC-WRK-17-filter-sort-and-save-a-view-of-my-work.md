@@ -79,4 +79,4 @@ before saving a new one. At the end of the month the lead exports the view as CS
 
 ## Today
 
-* Check 6: not met — applying a view sets the query and the layout, but the filter panel keeps its own empty state: the view's conditions are not shown, and touching the filter replaces them.
+* Check 6: met for a view whose filter is conditions joined by AND — applying it draws them in the filter panel (`QueryPanel`, `conditionsOf` in `apps/webapp/src/lib/data/query.test.ts`), where they are changed. A filter the panel cannot draw (an OR, a NOT) is kept whole, counted as one condition and combined with what the person adds, so it is honoured but not shown condition by condition.
