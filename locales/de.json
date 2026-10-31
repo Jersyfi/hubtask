@@ -10692,6 +10692,7 @@
   "app.consent.scope.config_apply_collection_tolerance": "Zeittoleranzen der Sammlungen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_collection_views": "Ansichten der Sammlungen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_collection_rules": "Automatisierungsregeln der Sammlungen der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_collection_fields": "Felder der Sammlungen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "imports.kind_takes_no_collection": "Ein Wiki-Export legt seine Seiten im Hub an. Lass die Sammlung weg und importiere erneut.",
   "imports.archive_unreadable": "Dieses ZIP ließ sich nicht öffnen, oder es enthält keine Datei, die diese Art von Import liest.",
   "activity.item_history_imported": "Vor dem Import wurde dieser Eintrag im früheren Werkzeug geändert",

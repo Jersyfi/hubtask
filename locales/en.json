@@ -10692,6 +10692,7 @@
   "app.consent.scope.config_apply_collection_tolerance": "Apply the configuration's collection time tolerances without their own permission scope",
   "app.consent.scope.config_apply_collection_views": "Apply the configuration's collection views without their own permission scope",
   "app.consent.scope.config_apply_collection_rules": "Apply the configuration's collection automation rules without their own permission scope",
+  "app.consent.scope.config_apply_collection_fields": "Apply the configuration's collection fields without their own permission scope",
   "imports.kind_takes_no_collection": "A wiki export lands its pages in the hub. Leave the collection out and import again.",
   "imports.archive_unreadable": "This ZIP could not be opened, or it holds no file this kind of import reads.",
   "activity.item_history_imported": "Before the import, this entry was changed in the earlier tool",
