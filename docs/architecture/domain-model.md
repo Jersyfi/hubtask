@@ -758,8 +758,9 @@ deadline and a change's effectiveness check.
 * **`SlaPolicy`** (UC-SVC-02): the entry types it measures, a `FIRST_RESPONSE` and a `RESOLUTION`
   goal - a target in working minutes, narrower per option of a priority field, the workflow
   statuses it stands still in, the share at which it is at risk -, a calendar by key or none
-  (around the clock), a position and a switch. An entry is measured by the first enabled policy by
-  position that covers its type, armed when it appears or takes the type (the `SlaClocks` outbox
+  (around the clock), the requester organisations it is for (none: every requester's), a position
+  and a switch. An entry is measured by the first enabled policy by position that covers its type
+  and, where the policy names organisations, its requester's (UC-SVC-02 check 9), armed when it appears or takes the type (the `SlaClocks` outbox
   subscriber, counted at the event's moment): one `SLA` timer per goal and one for its warning
   share. A comment by somebody other than who raised the entry meets the first response, the
   completion every goal; the trash stands them still. **`EntrySla`** (`entry_sla`) is what became
