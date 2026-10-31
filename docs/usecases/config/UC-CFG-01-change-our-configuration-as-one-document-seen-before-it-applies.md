@@ -103,7 +103,8 @@ the two versions and rolls the hub's workflow back.
     only the draft's attributes are checked. *Review and publish* plans the drafted block and shows
     what it changes and reaches; applying that plan puts it in force and removes the draft, while a
     draft saved again since is kept. An apply touching a policy keeps its requester organisations
-    and its OLA group.
+    and its OLA group. *Changes → Drafts* lists every waiting draft - a workflow's and each type's,
+    policy's and role's - opening the page that publishes it.
 14. A hub taking a template with pages (*Templates*) gets them at the top of its space - the ITIL
     service desk's guide *How we work with this desk* and its knowledge base -, marked; a hub's
     document lists them by key with their title and never their text while they are out of the

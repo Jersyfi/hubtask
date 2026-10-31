@@ -2413,6 +2413,7 @@
   "app.changes.drafts": "Drafts",
   "app.changes.no_drafts": "Nothing is edited and waiting to be published.",
   "app.changes.draft_unpublished": "edited, not published",
+  "app.changes.draft_saved": "draft saved {at}, not published",
   "app.changes.open_draft": "Open",
   "app.changes.file": "Configuration file",
   "app.changes.file_explain": "The configuration in force as one document, each block by its key. hubctl config export answers the same.",

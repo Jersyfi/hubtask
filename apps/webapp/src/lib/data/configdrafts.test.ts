@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { draftOf, publishStep } from './configdrafts.ts';
+import { draftOf, draftRows, publishStep } from './configdrafts.ts';
 
 const draft = (section: 'types' | 'roles', key: string) => ({ section, key, block: {}, saved_by: 'a', saved_at: '2026-10-31T09:00:00Z', version: 1 });
 
@@ -25,4 +25,16 @@ test('a publish plan is held back by a refusal and by data it hides', () => {
   assert.equal(publishStep({ plan_hash: 'h', refusals: [], flags, changes: [] } as never), 'unchanged');
   assert.equal(publishStep({ plan_hash: 'h', refusals: [], flags: { ...flags, hides_data: true }, changes: [change] } as never), 'acknowledge');
   assert.equal(publishStep({ plan_hash: 'h', refusals: [], flags, changes: [change] } as never), 'ready');
+});
+
+test('Changes lists every drafted block, each opening the page that publishes it', () => {
+  const list = { drafts: [draft('types', 'incident'), { ...draft('roles', 'lead'), section: 'roles' as const }, { ...draft('types', 'x'), section: 'sla_policies' as never, key: 'gold' }] };
+  const rows = draftRows(list, [{ key: 'support', name: 'Support', draft: { states: [] } }, { key: 'done', draft: null }]);
+  assert.deepEqual(rows.map((row) => [row.path, row.href]), [
+    ['workflows.support', '/administration/workflows'],
+    ['types.incident', '/administration/types'],
+    ['roles.lead', '/administration/people?tab=permissions'],
+    ['sla_policies.gold', '/administration/service-desk'],
+  ]);
+  assert.deepEqual(draftRows(undefined, []), []);
 });

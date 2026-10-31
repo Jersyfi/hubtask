@@ -2412,6 +2412,7 @@
   "app.changes.drafts": "Entwürfe",
   "app.changes.no_drafts": "Nichts ist bearbeitet und wartet auf die Veröffentlichung.",
   "app.changes.draft_unpublished": "bearbeitet, nicht veröffentlicht",
+  "app.changes.draft_saved": "Entwurf gespeichert {at}, nicht veröffentlicht",
   "app.changes.open_draft": "Öffnen",
   "app.changes.file": "Konfigurationsdatei",
   "app.changes.file_explain": "Die geltende Konfiguration als ein Dokument, jeder Baustein unter seinem Schlüssel. hubctl config export antwortet dasselbe.",

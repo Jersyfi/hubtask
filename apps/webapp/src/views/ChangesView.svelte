@@ -12,11 +12,12 @@
 
   import { untrack } from 'svelte';
   import { Banner, Button, Checkbox, CodeBlock, Dialog, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
-  import type { ConfigExport, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
+  import type { ConfigDraftList, ConfigExport, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { config, needsAcknowledge } from '../lib/data/config.svelte.ts';
   import { compareDocuments, type BlockDifference } from '../lib/data/configdiff.ts';
+  import { draftRows } from '../lib/data/configdrafts.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { workflows } from '../lib/data/workflows.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
@@ -38,14 +39,16 @@
 
   const mayChange = $derived(holdsHere('STRUCTURE') === true);
 
-  // *Drafts* (configuration/ui.md A4): the blocks edited and not yet published - today the
-  // workflows, the one block kept as a draft - each opening where it is published.
+  // *Drafts* (configuration/ui.md A4): the blocks edited and not yet published - a workflow's own
+  // draft and the drafts of types, SLA policies and roles - each opening where it is published.
   const workflowsOn = $derived(manifest.value?.modules_on?.includes('WORKFLOWS') === true);
   $effect(() => {
     if (!workflowsOn) return;
     return untrack(() => workflows.open());
   });
-  const drafts = $derived((workflows.list?.data ?? []).filter((each) => each.draft !== null && each.draft !== undefined));
+  let blockDrafts = $state<ResourceState<ConfigDraftList>>();
+  $effect(() => untrack(() => config.drafts((next) => (blockDrafts = next))));
+  const drafts = $derived(draftRows(blockDrafts?.status === 'ready' ? blockDrafts.data : undefined, workflowsOn ? (workflows.list?.data ?? []) : []));
   const at = (iso: string) => formatDateTime(iso, messages.locale);
   const refusalOf = (state: ResourceState<unknown> | undefined) =>
     state?.status === 'failed' ? renderProblem(state.error, messages) : undefined;
@@ -309,27 +312,25 @@
     {/if}
   </section>
 
-  {#if workflowsOn}
-    <section class="panel" data-drafts>
-      <h2>{t('app.changes.drafts')}</h2>
-      {#if drafts.length === 0}
-        <p class="quiet">{t('app.changes.no_drafts')}</p>
-      {:else}
-        <ul class="rows">
-          {#each drafts as workflow (workflow.key)}
-            <li class="row" data-draft={`workflows.${workflow.key}`}>
-              <div class="identity">
-                <code class="name">workflows.{workflow.key}</code>
-                {#if workflow.name}<span class="note">{workflow.name}</span>{/if}
-                <span class="note">{t('app.changes.draft_unpublished')}</span>
-              </div>
-              <a class="open" href="/administration/workflows">{t('app.changes.open_draft')}</a>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </section>
-  {/if}
+  <section class="panel" data-drafts>
+    <h2>{t('app.changes.drafts')}</h2>
+    {#if drafts.length === 0}
+      <p class="quiet">{t('app.changes.no_drafts')}</p>
+    {:else}
+      <ul class="rows">
+        {#each drafts as draft (draft.path)}
+          <li class="row" data-draft={draft.path}>
+            <div class="identity">
+              <code class="name">{draft.path}</code>
+              {#if draft.name}<span class="note">{draft.name}</span>{/if}
+              <span class="note">{draft.savedAt ? t('app.changes.draft_saved', { at: at(draft.savedAt) }) : t('app.changes.draft_unpublished')}</span>
+            </div>
+            <a class="open" href={draft.href}>{t('app.changes.open_draft')}</a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
 
   {#if versions?.status === 'ready' && versions.data.data.length > 1}
     <section class="panel" data-compare>
