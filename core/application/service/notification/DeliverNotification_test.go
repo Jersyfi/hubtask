@@ -641,3 +641,25 @@ func TestARequestReplyLinksIntoThePortal(t *testing.T) {
 		t.Errorf("the subject does not name the request: %q", message.Subject)
 	}
 }
+
+// UC-AUT-09 check 2: what a rule's notification step tells reads as the rule's notice, names the
+// entry and links to it - a title and a link, nothing else.
+func TestARuleNoticeNamesTheEntryAndLinksToIt(t *testing.T) {
+	fixture := delivery(t, domain.CategorySLA, true)
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(fixture.mailbox.sent) != 1 {
+		t.Fatalf("%d messages sent, want one", len(fixture.mailbox.sent))
+	}
+	message := fixture.mailbox.sent[0]
+	if !strings.Contains(message.Subject, subjectRuleNotice) || !strings.Contains(message.Body, bodyRuleNotice) {
+		t.Errorf("not the rule's notice: %q / %q", message.Subject, message.Body)
+	}
+	if !strings.Contains(message.Body, mainBase+"/items/"+itemID.String()) {
+		t.Errorf("the link is not the entry's: %q", message.Body)
+	}
+	if !strings.Contains(message.Subject, "title=Review the quote") {
+		t.Errorf("the subject does not name the entry: %q", message.Subject)
+	}
+}

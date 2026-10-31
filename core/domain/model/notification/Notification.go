@@ -79,6 +79,10 @@ const (
 	// category rather than COMMENT, because the link and the switch are a requester's, not a
 	// team member's.
 	CategoryRequestReply Category = "REQUEST_REPLY"
+	// CategorySLA is what a rule's notification step tells an account, the members of a group or
+	// the holders of a role (UC-AUT-09): an overdue invoice, a request arrived. Its own switch, because
+	// what a rule announces is the workspace's arrangement rather than somebody's act.
+	CategorySLA Category = "SLA"
 )
 
 // Categories is the closed set, in the order the schema's check constraint lists them.
@@ -86,6 +90,7 @@ func Categories() []Category {
 	return []Category{
 		CategoryAssignment, CategoryMembership, CategoryComment, CategoryInvitation,
 		CategoryReminder, CategoryIntegration, CategoryRetention, CategoryEmergencyAccess, CategoryRequestReply,
+		CategorySLA,
 	}
 }
 

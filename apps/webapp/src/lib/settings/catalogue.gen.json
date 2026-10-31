@@ -1951,6 +1951,22 @@
           "permission": "SELF"
         }
       ]
+    },
+    {
+      "key": "notifications.sla",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
     }
   ]
 }

@@ -50,13 +50,17 @@ const (
 	// "we stopped calling your server" is the wrong news about a rule.
 	subjectRuleDisabled = "email.rule_disabled.subject"
 	bodyRuleDisabled    = "email.rule_disabled.body"
-	bodyAssignment      = "email.assignment.body"
-	bodyMembership      = "email.membership.body"
-	bodyComment         = "email.comment.body"
-	bodyInvitation      = "email.invitation.body"
-	bodyReminder        = "email.reminder.body"
-	bodyIntegration     = "email.integration.body"
-	bodyRetention       = "email.retention.body"
+	// What a rule's notification step tells (UC-AUT-09): SLA's category; nobody's act, so no
+	// {actor} in it.
+	subjectRuleNotice = "email.rule_notice.subject"
+	bodyRuleNotice    = "email.rule_notice.body"
+	bodyAssignment    = "email.assignment.body"
+	bodyMembership    = "email.membership.body"
+	bodyComment       = "email.comment.body"
+	bodyInvitation    = "email.invitation.body"
+	bodyReminder      = "email.reminder.body"
+	bodyIntegration   = "email.integration.body"
+	bodyRetention     = "email.retention.body"
 	// A private hub nobody was left in went to the trash: MEMBERSHIP's category, its own sentence,
 	// and never a title - there is none it may carry (ADR-0073 §5).
 	subjectPrivateHubTrashed = "email.private_hub_trashed.subject"
@@ -677,6 +681,8 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 		return subjectRetention, bodyRetention
 	case domain.CategoryEmergencyAccess:
 		return subjectEmergencyAccess, bodyEmergencyAccess
+	case domain.CategorySLA:
+		return subjectRuleNotice, bodyRuleNotice
 	case domain.CategoryRequestReply:
 		// The comment's sentence: somebody wrote on the request; only the link differs.
 		return subjectComment, bodyComment
