@@ -201,8 +201,11 @@ data:
 * **A point-in-time restore is the one restore the journal does not cover** — the journal lives in
   the rewound database; §8.5 step 5 places the legal holds again and re-applies the erasures.
 * `include_audit` weighs evidence against longer persistence of personal metadata.
-* No route hands an archive to a caller; one that does will audit the download (`backup.downloaded`,
-  reserved).
+* One route hands an archive to a caller: the owner's download of the whole workspace
+  (`POST /backups:download-workspace`, `hubctl backup download --out <file>`; UC-BAK-07 check 7),
+  once in 24 hours, audited as `tenant.exported` with `download` as its target. `hubctl` keeps the
+  file only once its ZIP directory reads, so a cut transfer leaves nothing behind. MCP has no door
+  for it: a tool's answer is a message, not a stream of a whole workspace.
 * An archive at a target is the operator's responsibility. A third-country target is a transfer
   under GDPR Chapter V; target setup says so and records the region.
 
