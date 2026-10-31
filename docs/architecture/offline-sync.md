@@ -523,6 +523,11 @@ it, order it and decide who may touch it.
   the scene beside the document a moment after the drawing stops, without `If-Match`; a reader is
   connected read-only and, before the document holds anything, draws the scene as last saved.
   Offline, an open board keeps being drawn on and merges when the connection is back.
+* **An entry's presence** (kind `entry`) is awareness alone: who has the entry open and who is
+  writing a reply (UC-SVC-03 check 4). It is read with READ on the entry itself - a role reading
+  only its own entries is judged on it - and never written: the service answers it read-only and
+  refuses an update or a snapshot as `realtime.read_only`, so nothing of it is stored. Offline,
+  nobody is shown.
 * **Read offline.** A board's saved scene is an ordinary record of the change log and the walk
   (entity `whiteboard`, filed under its hub): making, drawing, renaming, trashing and restoring a
   board record it as it now stands. While the server is away the web app answers a hub's boards

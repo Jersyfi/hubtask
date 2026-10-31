@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [infrastructure/postgres/query/Sla_test.go, test/integration/query_sla_test.go]
+checked_by: [infrastructure/postgres/query/Sla_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts]
 ---
 
 # Work the queue by what breaks first
@@ -25,6 +25,7 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
 1. A query or a saved view sorts by `sla_due`: an entry's earliest due moment among its goals that still run, entries without a running goal last; the next page continues in the same order.
 2. A query or a saved view filters by `sla_standing`, the worst standing of the entry's goals - `MET`, `PAUSED`, `RUNNING`, `AT_RISK` or `BREACHED` - and by `sla_due` before or after a moment; an entry no policy measures has none. A standing outside the list is refused as `query.value_not_in_enum`.
 3. A queue is a saved view; how many entries it holds is its query's exact count (`count=exact`), read with the view's own filter and the reader's own permissions.
+4. A handler who opens a request sees who else has it open, and who of them is writing a reply, while both are connected; the presence is read with READ on the entry, nothing of it is stored, and an update sent to it is refused as `realtime.read_only`.
 
 ## Where it ends
 
