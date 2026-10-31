@@ -247,8 +247,9 @@ generate:
 	@# hubctl's commands (x-hubtask-cli) and the REST adapter's generated mapping
 	@# (x-hubtask-rest), from the contract and the generated router (F-7).
 	$(GO) run ./tools/doors api/openapi.yaml presentation/openapi/Api.gen.go cmd/hubctl/Doors.gen.go presentation/rest/Doors.gen.go
-	@# The settings catalogue, which the web app's tests hold to a screen per setting (model.md §4).
-	$(GO) run ./tools/settingscatalogue apps/webapp/src/lib/settings/catalogue.gen.json
+	@# The settings catalogue, which the web app's tests hold to a screen per setting (model.md §4),
+	@# and the documentation's who-configures-what matrix drawn from it.
+	$(GO) run ./tools/settingscatalogue apps/webapp/src/lib/settings/catalogue.gen.json docs/reference/settings-matrix.md
 	@$(MAKE) --no-print-directory sdk-go
 	@$(MAKE) --no-print-directory sdk
 
