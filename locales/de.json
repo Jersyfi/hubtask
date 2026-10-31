@@ -3754,6 +3754,7 @@
   "app.templates.origin.OWN": "Ihre eigenen",
   "app.templates.questions_about": "Die Vorlage fragt zuerst ein paar Dinge. Was du offen lässt, richtet sie nicht ein.",
   "app.templates.question.first_group": "Welche Gruppe antwortet zuerst auf einen P1-Vorfall?",
+  "app.templates.question.cab_group": "Welche Gruppe bildet das Change Advisory Board?",
   "app.templates.question_open": "Nicht jetzt",
   "app.templates.question_optional": "Bleibt sie offen, wird der Teil, der die Antwort braucht, nicht übernommen.",
   "app.templates.take": "Verwenden",

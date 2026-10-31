@@ -4351,6 +4351,7 @@
   "app.templates.origin.OWN": "Your own",
   "app.templates.questions_about": "The template asks a few things first. What you leave open, it does not set up.",
   "app.templates.question.first_group": "Which group answers a P1 incident first?",
+  "app.templates.question.cab_group": "Which group sits on the change advisory board?",
   "app.templates.question_open": "Not now",
   "app.templates.question_optional": "Left open, the part that needs the answer is not taken.",
   "app.templates.take": "Use",
