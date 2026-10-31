@@ -15,7 +15,7 @@
     Badge, Button, Checkbox, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
   } from '@hubtask/design-system/components';
   import type {
-    BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaGoal, SlaPolicy, SlaPolicyList, SlaReport,
+    BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaGoal, SlaPolicy, SlaPolicyDefine, SlaPolicyList, SlaReport,
   } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -29,6 +29,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import DraftPublish from '../lib/settings/DraftPublish.svelte';
   import { WEEKDAYS, byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, policyDefinitionOf, reportRows } from '../lib/servicedesk/desk.ts';
   import { domainsOf } from '../lib/servicedesk/organisations.ts';
 
@@ -102,27 +103,44 @@
     };
   }
 
-  async function savePolicy(event: SubmitEvent) {
-    event.preventDefault();
+  /** The goals as the form holds them; undefined where a priority's targets do not read. */
+  function policyGoals(): SlaPolicyDefine['goals'] | undefined {
     const firstBy = byPriorityOf(policy.firstBy);
     const nextBy = byPriorityOf(policy.nextBy);
     const resolutionBy = byPriorityOf(policy.resolutionBy);
-    if (!firstBy || !nextBy || !resolutionBy) {
-      refusal = t('app.desk.by_priority_malformed');
-      return;
-    }
+    if (!firstBy || !nextBy || !resolutionBy) return undefined;
     const goal = (kind: SlaGoal['kind'], minutes: string, by: Record<string, number>) => ({
       kind, minutes: Number(minutes), by_priority: by, pause_statuses: words(policy.pauses), warn_percent: Number(policy.warn),
     });
-    const goals = [
+    return [
       ...(policy.first.trim() ? [goal('FIRST_RESPONSE', policy.first, firstBy)] : []),
       // An OLA promises a first response and a resolution only (UC-SVC-02 check 10).
       ...(policy.next.trim() && !policy.group ? [goal('NEXT_RESPONSE', policy.next, nextBy)] : []),
       ...(policy.resolution.trim() ? [goal('RESOLUTION', policy.resolution, resolutionBy)] : []),
     ];
+  }
+  const policyBlocked = $derived(policyGoals() ? undefined : t('app.desk.by_priority_malformed'));
+
+  /** A new policy is defined at once: nothing measures by it yet. One in use changes through its draft (ui.md A4). */
+  async function savePolicy(event: SubmitEvent) {
+    event.preventDefault();
+    // Enter in a field of a policy in use submits the form: it goes through the draft's buttons only.
+    if (policy.key) return;
+    const goals = policyGoals();
+    if (!goals) {
+      refusal = t('app.desk.by_priority_malformed');
+      return;
+    }
     const key = policy.key || keyFrom(policy.name);
     const saved = await attempt(() => desk.definePolicy(key, policyDefinitionOf(policy, goals)), 'app.desk.policy_saved');
     if (saved) policy = emptyPolicy();
+  }
+
+  /** A draft's block read back into the form, as a policy row is. */
+  function editDraftedPolicy(key: string, block: Record<string, unknown>) {
+    editPolicy({ ...(block as Partial<SlaPolicy>), key, name: String(block.name ?? ''), entry_types: (block.entry_types as string[] | undefined) ?? [],
+      organisations: (block.organisations as string[] | undefined) ?? [], goals: (block.goals as SlaPolicy['goals'] | undefined) ?? [],
+      position: Number(block.position ?? 0), enabled: block.enabled !== false } as SlaPolicy);
   }
 
   // A canned reply.
@@ -278,8 +296,16 @@
               </div>
               <Switch label={t('app.desk.enabled')} checked={policy.enabled}
                 onchange={(event: Event) => (policy.enabled = (event.currentTarget as HTMLInputElement).checked)} />
-              <div><Button type="submit" tone="secondary" icon="clock" isBusy={isSaving} busyLabel={t('app.desk.saving')}>
-                {policy.key ? t('app.desk.replace') : t('app.desk.add_policy')}</Button></div>
+              {#if policy.key}
+                {#key policy.key}
+                  <DraftPublish section="sla_policies" key={policy.key} blockedReason={policyBlocked}
+                    block={() => policyDefinitionOf(policy, policyGoals() ?? []) as unknown as Record<string, unknown>}
+                    onLoad={(saved) => editDraftedPolicy(policy.key, saved)} onPublished={() => (policy = emptyPolicy())} />
+                {/key}
+              {:else}
+                <div><Button type="submit" tone="secondary" icon="clock" isBusy={isSaving} busyLabel={t('app.desk.saving')}>
+                  {t('app.desk.add_policy')}</Button></div>
+              {/if}
             </Stack>
           </form>
         {/if}

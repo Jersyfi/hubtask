@@ -31,6 +31,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import SectionFindings from '../lib/settings/SectionFindings.svelte';
+  import DraftPublish from '../lib/settings/DraftPublish.svelte';
 
   const TENANT = { scopeType: 'TENANT' } as const;
   const WORKSPACE_PLACE = '';
@@ -142,10 +143,9 @@
       focusFirst(document);
       return;
     }
-    const role = custom.find((each) => each.key === editing);
-    const done = role
-      ? await attempt(() => roles.change(role, name.trim(), permissions), t('app.roles.changed_announced'))
-      : await attempt(() => roles.create(key, name.trim(), permissions), t('app.roles.created_announced'));
+    // A role people hold changes through its draft (ui.md A4); Enter in its name submits nothing.
+    if (custom.some((each) => each.key === editing)) return;
+    const done = await attempt(() => roles.create(key, name.trim(), permissions), t('app.roles.created_announced'));
     if (done) editing = undefined;
   }
 
@@ -324,10 +324,22 @@
               {#if missing.permissions && chosen(offered, new Set(checked), carried).length === 0}
                 <p class="error small">{t(missing.permissions)}</p>
               {/if}
+              {#if editing !== 'new'}
+                {#key editing}
+                  <DraftPublish section="roles" key={editing}
+                    blockedReason={name.trim() === '' || chosen(offered, new Set(checked), carried).length === 0 ? t('app.roles.draft_incomplete') : undefined}
+                    block={() => ({ name: name.trim(), permissions: chosen(offered, new Set(checked), carried) })}
+                    onLoad={(saved) => {
+                      if (typeof saved.name === 'string') name = saved.name;
+                      if (Array.isArray(saved.permissions)) checked = saved.permissions.map(String);
+                    }}
+                    onPublished={() => (editing = undefined)} />
+                {/key}
+              {/if}
               <div class="row">
-                <Button type="submit" tone="primary" isBusy={isWriting} busyLabel={t('app.roles.working')}>
-                  {editing === 'new' ? t('app.roles.create') : t('app.roles.save')}
-                </Button>
+                {#if editing === 'new'}
+                  <Button type="submit" tone="primary" isBusy={isWriting} busyLabel={t('app.roles.working')}>{t('app.roles.create')}</Button>
+                {/if}
                 <Button tone="subtle" onclick={() => (editing = undefined)}>{t('app.roles.cancel')}</Button>
               </div>
             </Stack>

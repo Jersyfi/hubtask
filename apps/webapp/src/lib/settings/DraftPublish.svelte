@@ -28,9 +28,11 @@
     onPublished: () => void;
     /** The fields a refused publish names, for the editor to show beside its controls. */
     onProblem?: (fields: ReturnType<typeof renderProblem>['fields']) => void;
+    /** Why the block as the editor holds it cannot be saved or planned yet; nothing is sent. */
+    blockedReason?: string;
   }
 
-  let { section, key, block, onLoad, onPublished, onProblem }: Props = $props();
+  let { section, key, block, onLoad, onPublished, onProblem, blockedReason }: Props = $props();
 
   let drafts = $state<ResourceState<ConfigDraftList> | undefined>(undefined);
   let loaded = false;
@@ -114,13 +116,13 @@
     {#if waiting}
       <Button tone="subtle" isBusy={isBusy} onclick={discard}>{t('app.config_drafts.discard')}</Button>
     {/if}
-    <Button tone="secondary" data-save-draft isBusy={isBusy} onclick={saveDraft}>{t('app.config_drafts.save')}</Button>
+    <Button tone="secondary" data-save-draft isBusy={isBusy} disabledReason={blockedReason} onclick={saveDraft}>{t('app.config_drafts.save')}</Button>
     {#if plan && (step === 'ready' || step === 'acknowledge')}
       <Button tone="primary" data-publish isBusy={isBusy}
         disabledReason={step === 'acknowledge' && !acknowledged ? t('app.config_drafts.acknowledge_first') : undefined}
         onclick={publish}>{t('app.config_drafts.publish')}</Button>
     {:else}
-      <Button tone="primary" data-review isBusy={isBusy} onclick={review}>{t('app.config_drafts.review')}</Button>
+      <Button tone="primary" data-review isBusy={isBusy} disabledReason={blockedReason} onclick={review}>{t('app.config_drafts.review')}</Button>
     {/if}
   </Inline>
 </Stack>
