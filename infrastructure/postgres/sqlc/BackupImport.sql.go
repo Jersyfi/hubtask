@@ -507,6 +507,18 @@ func (q *Queries) ClearComment(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearConfigDraft = `-- name: ClearConfigDraft :execrows
+DELETE FROM config_draft
+`
+
+func (q *Queries) ClearConfigDraft(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearConfigDraft)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearConfigHubTemplateUse = `-- name: ClearConfigHubTemplateUse :execrows
 DELETE FROM config_hub_template_use
 `
@@ -2081,6 +2093,20 @@ SELECT EXISTS (SELECT 1 FROM comment WHERE id = ($1::jsonb->>'id')::uuid) AS hel
 
 func (q *Queries) HoldsComment(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsComment, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsConfigDraft = `-- name: HoldsConfigDraft :one
+SELECT EXISTS (
+  SELECT 1 FROM config_draft
+  WHERE section = $1::jsonb->>'section' AND key = $1::jsonb->>'key'
+) AS held
+`
+
+func (q *Queries) HoldsConfigDraft(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsConfigDraft, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4681,6 +4707,32 @@ type ImportCommentParams struct {
 
 func (q *Queries) ImportComment(ctx context.Context, arg ImportCommentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importComment, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importConfigDraft = `-- name: ImportConfigDraft :execrows
+INSERT INTO config_draft (tenant_id, section, key, block, saved_by, saved_at, version)
+SELECT r.tenant_id, r.section, r.key, r.block, r.saved_by, r.saved_at, r.version
+FROM jsonb_populate_record(
+  NULL::config_draft,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, section, key) DO UPDATE SET
+  block = EXCLUDED.block, saved_by = EXCLUDED.saved_by, saved_at = EXCLUDED.saved_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportConfigDraftParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportConfigDraft(ctx context.Context, arg ImportConfigDraftParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importConfigDraft, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

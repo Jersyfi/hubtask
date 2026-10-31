@@ -1950,6 +1950,53 @@ func (q *Queries) ExportComments(ctx context.Context, arg ExportCommentsParams) 
 	return items, nil
 }
 
+const exportConfigDrafts = `-- name: ExportConfigDrafts :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (d.section || '/' || d.key)::text AS record_id,
+         d.saved_at AS changed_at,
+         (to_jsonb(d) - 'tenant_id')::jsonb AS payload,
+         d.section AS key_1,
+         d.key AS key_2
+  FROM config_draft d
+) s
+  WHERE (s.key_1, s.key_2) > ($1::text, $2::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportConfigDraftsParams struct {
+	AfterID     string
+	AfterSecond string
+	Batch       int32
+}
+
+type ExportConfigDraftsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportConfigDrafts(ctx context.Context, arg ExportConfigDraftsParams) ([]ExportConfigDraftsRow, error) {
+	rows, err := q.db.Query(ctx, exportConfigDrafts, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportConfigDraftsRow{}
+	for rows.Next() {
+		var i ExportConfigDraftsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportConfigHubTemplateUses = `-- name: ExportConfigHubTemplateUses :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

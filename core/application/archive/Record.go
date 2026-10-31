@@ -729,6 +729,11 @@ var entities = []Entity{
 			{Field: "updated_by", Table: "account"},
 		},
 	},
+	// Drafts of the configuration's shared blocks (migration 0308, ui.md A4).
+	{
+		Name: "config_drafts", Table: "config_draft", Whole: true, Later: true, Keys: []string{"section", "key"},
+		References: []Reference{{Field: "saved_by", Table: "account"}},
+	},
 	// A template's sample entries (migration 0307): the mark only, after the entries it names.
 	{
 		Name: "sample_entries", Table: "sample_entry", Whole: true, Later: true, Keys: []string{"item_id"},

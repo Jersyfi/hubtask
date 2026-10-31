@@ -1887,3 +1887,17 @@ FROM (
   WHERE s.key_1 > sqlc.arg('after_id')::uuid
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportConfigDrafts :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (d.section || '/' || d.key)::text AS record_id,
+         d.saved_at AS changed_at,
+         (to_jsonb(d) - 'tenant_id')::jsonb AS payload,
+         d.section AS key_1,
+         d.key AS key_2
+  FROM config_draft d
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::text, sqlc.arg('after_second')::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;

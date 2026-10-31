@@ -1376,6 +1376,16 @@ type Comment struct {
 	Internal        bool
 }
 
+type ConfigDraft struct {
+	TenantID pgtype.UUID
+	Section  string
+	Key      string
+	Block    []byte
+	SavedBy  pgtype.UUID
+	SavedAt  pgtype.Timestamptz
+	Version  int32
+}
+
 type ConfigHubTemplateUse struct {
 	TenantID    pgtype.UUID
 	HubID       pgtype.UUID

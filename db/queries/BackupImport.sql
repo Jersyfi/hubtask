@@ -3888,3 +3888,24 @@ SELECT EXISTS (
 
 -- name: ClearSampleEntry :execrows
 DELETE FROM sample_entry;
+
+-- name: ImportConfigDraft :execrows
+INSERT INTO config_draft (tenant_id, section, key, block, saved_by, saved_at, version)
+SELECT r.tenant_id, r.section, r.key, r.block, r.saved_by, r.saved_at, r.version
+FROM jsonb_populate_record(
+  NULL::config_draft,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, section, key) DO UPDATE SET
+  block = EXCLUDED.block, saved_by = EXCLUDED.saved_by, saved_at = EXCLUDED.saved_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsConfigDraft :one
+SELECT EXISTS (
+  SELECT 1 FROM config_draft
+  WHERE section = sqlc.arg('payload')::jsonb->>'section' AND key = sqlc.arg('payload')::jsonb->>'key'
+) AS held;
+
+-- name: ClearConfigDraft :execrows
+DELETE FROM config_draft;

@@ -2267,6 +2267,23 @@ ALTER TABLE sample_entry FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON sample_entry
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON sample_entry TO hubtask_app;
+-- Drafts of the configuration's shared blocks (migration 0308, ui.md A4): in force once applied.
+CREATE TABLE config_draft (
+  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  section   text NOT NULL CHECK (section IN ('types', 'sla_policies', 'roles')),
+  key       text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  block     jsonb NOT NULL
+    CHECK (jsonb_typeof(block) = 'object' AND pg_column_size(block) <= 262144),
+  saved_by  uuid NOT NULL,
+  saved_at  timestamptz NOT NULL,
+  version   integer NOT NULL DEFAULT 1,
+  PRIMARY KEY (tenant_id, section, key)
+);
+ALTER TABLE config_draft ENABLE ROW LEVEL SECURITY;
+ALTER TABLE config_draft FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON config_draft
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON config_draft TO hubtask_app;
 -- Cleared rather than refused when the picture goes: a replace-restore and an erasure both remove
 -- media before the account row is done with (migration 0199).
 ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey

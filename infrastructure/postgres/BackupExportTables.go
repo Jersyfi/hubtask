@@ -156,6 +156,20 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"config_draft": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportConfigDrafts(ctx, sqlc.ExportConfigDraftsParams{
+				AfterID:     cursorText(page.After, 0),
+				AfterSecond: cursorText(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportConfigDraftsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"config_hub_template_use": {
 		delta: false,
 		keys:  2,
