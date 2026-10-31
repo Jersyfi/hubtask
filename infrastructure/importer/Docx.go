@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"io"
 	"net/url"
 	"path"
@@ -235,7 +236,7 @@ func (r *docxReader) readBody(document []byte) error {
 	)
 	for {
 		token, err := decoder.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {

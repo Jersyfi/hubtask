@@ -6,6 +6,7 @@ package intake
 import (
 	"bytes"
 	"compress/zlib"
+	"errors"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
@@ -82,7 +83,7 @@ func TestAGLPIAgentsContactIsAnsweredAndAnythingElseRefused(t *testing.T) {
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			_, err := ParseInventory(c.kind, []byte(c.body))
-			if e, ok := err.(*shared.Error); !ok || e.DetailCode != c.code {
+			if e := (*shared.Error)(nil); !errors.As(err, &e) || e.DetailCode != c.code {
 				t.Fatalf("got %v, want %s", err, c.code)
 			}
 		})

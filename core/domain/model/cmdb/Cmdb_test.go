@@ -4,6 +4,7 @@
 package cmdb
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -57,7 +58,7 @@ func code(err error) string {
 	if err == nil {
 		return ""
 	}
-	if e, ok := err.(*shared.Error); ok {
+	if e := (*shared.Error)(nil); errors.As(err, &e) {
 		return e.DetailCode
 	}
 	return err.Error()
