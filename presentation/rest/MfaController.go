@@ -76,12 +76,3 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 	}
 	return challenge
 }
-
-// stepUpHeaderField reads the proof off the header a privileged operation accepts it in.
-func stepUpHeaderField(token *openapi.StepUpToken) any {
-	if token == nil || *token == "" {
-		return nil
-	}
-	return string(*token)
-}
-

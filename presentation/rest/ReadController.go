@@ -126,20 +126,3 @@ func pageResponse(out usecase.Output) openapi.PageInfo {
 	}
 	return info
 }
-
-// optionalBoolField and optionalIntField are optionalStringField for the other two query parameter
-// kinds: an absent parameter reaches the catalogue as an absent entry rather than as false or zero, so
-// that every channel sees the same input and the use case's own default applies.
-func optionalBoolField(value *bool) any {
-	if value == nil {
-		return nil
-	}
-	return *value
-}
-
-func optionalIntField(value *int) any {
-	if value == nil {
-		return nil
-	}
-	return *value
-}

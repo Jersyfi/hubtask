@@ -32,6 +32,13 @@ func TestEveryGeneratedBodyMemberIsADeclaredInput(t *testing.T) {
 	// A summary's ask shares AiAsk with the asks that apply, and a summary has nowhere to apply
 	// to: `apply` is refused there. Removing it from that body is a contract change, not this test's.
 	refused := map[string]bool{"aiSummarizeContainer.apply": true}
+	// The members of an entry's create and patch that another door writes - a label, a member, an
+	// assignment, a cover, a custom field - reach the use case and are refused by name, so a client
+	// is told where to send them rather than believing them stored.
+	for _, name := range []string{"createWorkItem.label_ids", "createWorkItem.member_ids",
+		"updateWorkItem.assignee_id", "updateWorkItem.cover", "updateWorkItem.custom_fields"} {
+		refused[name] = true
+	}
 	raw, err := os.ReadFile("../../api/openapi.yaml")
 	if err != nil {
 		t.Fatal(err)

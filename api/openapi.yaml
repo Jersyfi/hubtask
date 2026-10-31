@@ -18158,6 +18158,9 @@ paths:
     post:
       tags: [items]
       operationId: createWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
+      x-hubtask-rest-location: "/items/{id}"
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -18205,6 +18208,10 @@ paths:
     patch:
       tags: [items]
       operationId: updateWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
+      x-hubtask-rest-null: empty
+      x-hubtask-rest-null-as: { due_date_only: false }
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       requestBody:

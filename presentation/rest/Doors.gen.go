@@ -152,6 +152,7 @@ var restDoors = map[string]restDoor{
 	"createTemplate":                    {UseCase: "CreateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createWebhookSubscription":         {UseCase: "CreateWebhookSubscription", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/integrations/webhooks/{id}", NullClears: false, Integers: []string(nil)},
 	"createWhiteboard":                  {UseCase: "CreateWhiteboard", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/whiteboards/{id}", NullClears: false, Integers: []string(nil)},
+	"createWorkItem":                    {UseCase: "CreateWorkItem", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/items/{id}", NullClears: false, Integers: []string(nil)},
 	"createWorkflow":                    {UseCase: "CreateWorkflow", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"decideAgentRequest":                {UseCase: "DecideAgentRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"decideApproval":                    {UseCase: "DecideApproval", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -726,6 +727,7 @@ var restDoors = map[string]restDoor{
 	"updateTimeRecord":                  {UseCase: "UpdateTimeRecord", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version", "minutes"}},
 	"updateWebhookSubscription":         {UseCase: "UpdateWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateWhiteboard":                  {UseCase: "UpdateWhiteboard", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateWorkItem":                    {UseCase: "UpdateWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), NullAs: map[string]any{"due_date_only": false}},
 	"updateWorkspace":                   {UseCase: "UpdateWorkspace", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"validateConfig":                    {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"verifyAuditChain":                  {UseCase: "VerifyAuditChain", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), UTC: []string{"from", "to"}},
@@ -1637,6 +1639,12 @@ func (c *RestController) CreateWhiteboard(w http.ResponseWriter, r *http.Request
 	var body openapi.CreateWhiteboardJSONRequestBody
 	var answer openapi.WhiteboardRead
 	c.door(w, r, restDoors["createWhiteboard"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
+}
+
+// CreateWorkItem answers POST /items by the generated mapping.
+func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, params openapi.CreateWorkItemParams) {
+	var body openapi.CreateWorkItemJSONRequestBody
+	c.door(w, r, restDoors["createWorkItem"], usecase.Input{}, params, &body, answerBy(workItemResponse))
 }
 
 // CreateWorkflow answers POST /workflows by the generated mapping.
@@ -5330,6 +5338,12 @@ func (c *RestController) UpdateWhiteboard(w http.ResponseWriter, r *http.Request
 	var body openapi.UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.WhiteboardRead
 	c.door(w, r, restDoors["updateWhiteboard"], usecase.Input{"whiteboard_id": whiteboardId.String()}, params, &body, &answer)
+}
+
+// UpdateWorkItem answers PATCH /items/{itemId} by the generated mapping.
+func (c *RestController) UpdateWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.UpdateWorkItemParams) {
+	var body openapi.UpdateWorkItemApplicationMergePatchPlusJSONRequestBody
+	c.door(w, r, restDoors["updateWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
 }
 
 // UpdateWorkspace answers PATCH /tenant by the generated mapping.

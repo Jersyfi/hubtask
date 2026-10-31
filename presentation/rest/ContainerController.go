@@ -4,7 +4,6 @@
 package rest
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -36,38 +35,6 @@ func etag(version int) string { return `"` + strconv.Itoa(version) + `"` }
 // applies to what a client *reads*, not to what it sends).
 func decodeJSON(r *http.Request, into any) error {
 	return decodeFrom(r.Body, into)
-}
-
-// decodeJSONWithPresence decodes the body and also reports which fields the client actually sent.
-//
-// It exists for one distinction the generated types cannot express: a field declared `[string, "null"]` and
-// optional decodes to a nil pointer whether the client sent `null` or sent nothing at all. For
-// `target_parent_id` those are different requests - null is "move to the top level", absent is "leave the
-// parent alone" - and reading them as the same would move items nobody asked to move.
-//
-// The body is read once and decoded twice from the same bytes, so the typed decode still refuses an unknown
-// field and the presence map cannot disagree with it about what arrived.
-func decodeJSONWithPresence(r *http.Request, into any) (map[string]bool, error) {
-	raw, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, shared.ErrMalformedRequest.WithDetail("request.body_unreadable").WithCause(err)
-	}
-	if err := decodeFrom(bytes.NewReader(raw), into); err != nil {
-		return nil, err
-	}
-
-	// Unmarshalled rather than decoded field by field: the typed pass above has already established that this
-	// is an object with known keys, so this one cannot fail on anything the first one accepted.
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &fields); err != nil {
-		return nil, shared.ErrMalformedRequest.WithDetail("request.body_malformed").WithCause(err)
-	}
-
-	present := make(map[string]bool, len(fields))
-	for name := range fields {
-		present[name] = true
-	}
-	return present, nil
 }
 
 func decodeFrom(body io.Reader, into any) error {
@@ -224,13 +191,6 @@ func optionalStringField(value *string) any {
 		return nil
 	}
 	return *value
-}
-
-func optionalUUIDField(value *openapi_types.UUID) any {
-	if value == nil {
-		return nil
-	}
-	return value.String()
 }
 
 // uuidValue is the generated type's form of an identifier. A value the use case produced is
