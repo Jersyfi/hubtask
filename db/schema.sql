@@ -2284,6 +2284,25 @@ ALTER TABLE config_draft FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON config_draft
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON config_draft TO hubtask_app;
+-- A template's pages (migration 0309, configuration.md §6): read back by the hub's document.
+CREATE TABLE template_page (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  hub_id     uuid NOT NULL,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id),
+  UNIQUE (tenant_id, hub_id, key),
+  CONSTRAINT template_page_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+  CONSTRAINT template_page_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+ALTER TABLE template_page ENABLE ROW LEVEL SECURITY;
+ALTER TABLE template_page FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON template_page
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON template_page TO hubtask_app;
 -- Cleared rather than refused when the picture goes: a replace-restore and an erasure both remove
 -- media before the account row is done with (migration 0199).
 ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey

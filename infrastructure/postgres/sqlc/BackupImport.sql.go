@@ -1443,6 +1443,18 @@ func (q *Queries) ClearTemplate(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearTemplatePage = `-- name: ClearTemplatePage :execrows
+DELETE FROM template_page
+`
+
+func (q *Queries) ClearTemplatePage(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearTemplatePage)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearTimeAbsence = `-- name: ClearTimeAbsence :execrows
 DELETE FROM time_absence
 `
@@ -3043,6 +3055,19 @@ SELECT EXISTS (SELECT 1 FROM template WHERE id = ($1::jsonb->>'id')::uuid) AS he
 
 func (q *Queries) HoldsTemplate(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsTemplate, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsTemplatePage = `-- name: HoldsTemplatePage :one
+SELECT EXISTS (
+  SELECT 1 FROM template_page WHERE page_id = ($1::jsonb->>'page_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsTemplatePage(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsTemplatePage, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -7385,6 +7410,31 @@ type ImportTemplateParams struct {
 
 func (q *Queries) ImportTemplate(ctx context.Context, arg ImportTemplateParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importTemplate, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importTemplatePage = `-- name: ImportTemplatePage :execrows
+INSERT INTO template_page (tenant_id, page_id, hub_id, key, created_at)
+SELECT r.tenant_id, r.page_id, r.hub_id, r.key, r.created_at
+FROM jsonb_populate_record(
+  NULL::template_page,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id, key = EXCLUDED.key, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportTemplatePageParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportTemplatePage(ctx context.Context, arg ImportTemplatePageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importTemplatePage, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

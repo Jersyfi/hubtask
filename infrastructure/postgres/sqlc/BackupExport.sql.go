@@ -5565,6 +5565,51 @@ func (q *Queries) ExportStructurePresets(ctx context.Context, arg ExportStructur
 	return items, nil
 }
 
+const exportTemplatePages = `-- name: ExportTemplatePages :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (e.page_id)::text AS record_id,
+         e.created_at AS changed_at,
+         (to_jsonb(e) - 'tenant_id')::jsonb AS payload,
+         e.page_id AS key_1
+  FROM template_page e
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportTemplatePagesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportTemplatePagesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportTemplatePages(ctx context.Context, arg ExportTemplatePagesParams) ([]ExportTemplatePagesRow, error) {
+	rows, err := q.db.Query(ctx, exportTemplatePages, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportTemplatePagesRow{}
+	for rows.Next() {
+		var i ExportTemplatePagesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportTemplates = `-- name: ExportTemplates :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

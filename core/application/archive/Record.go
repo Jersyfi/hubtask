@@ -742,6 +742,14 @@ var entities = []Entity{
 			{Field: "hub_id", Table: "container"},
 		},
 	},
+	// A template's pages (migration 0309): the mark only, after the pages it names.
+	{
+		Name: "template_pages", Table: "template_page", Whole: true, Later: true, Keys: []string{"page_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "hub_id", Table: "container"},
+		},
+	},
 	// The labels a page carries (migration 0297), after the pages.
 	{
 		Name: "page_labels", Table: "page_label", Whole: true, Later: true, Keys: []string{"page_id", "label"},

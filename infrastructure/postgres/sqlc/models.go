@@ -3081,6 +3081,14 @@ type Template struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type TemplatePage struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	HubID     pgtype.UUID
+	Key       string
+	CreatedAt pgtype.Timestamptz
+}
+
 type Tenant struct {
 	ID                      pgtype.UUID
 	Slug                    string
