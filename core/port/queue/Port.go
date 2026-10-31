@@ -268,6 +268,12 @@ const (
 	// upload is the first thing that can ever need reclaiming - and a deletion pulls it forward.
 	KindMediaReconcile Kind = "media.reconcile"
 
+	// KindMediaScan scans one tenant's uploads held while the scanner could not answer
+	// (security.md §4). Seeded by the confirmation that held one, deduplicated per tenant, and
+	// repeating while anything stays held - so a scanner that comes back clears the backlog on its
+	// own, and one that stays down keeps the files held rather than served.
+	KindMediaScan Kind = "media.scan"
+
 	// KindBackupRun writes one archive to one target (backup-restore.md §5).
 	//
 	// One job per run rather than per tenant, because a run is a thing somebody asked for and can

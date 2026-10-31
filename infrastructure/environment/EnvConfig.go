@@ -180,6 +180,8 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			OrphanGrace:       getDuration("HUBTASK_MEDIA_ORPHAN_GRACE", time.Hour),
 			BatchSize:         getInt("HUBTASK_MEDIA_RECONCILE_BATCH_SIZE", 100),
 			Interval:          getDuration("HUBTASK_MEDIA_RECONCILE_INTERVAL", 6*time.Hour),
+			ScannerAddress:    get("HUBTASK_CLAMD_ADDRESS", ""),
+			ScannerTimeout:    getDuration("HUBTASK_CLAMD_TIMEOUT", 2*time.Minute),
 		},
 		Metrics: env.MetricsConfig{
 			TenantLabel: getBool("HUBTASK_METRICS_TENANT_LABEL", false),

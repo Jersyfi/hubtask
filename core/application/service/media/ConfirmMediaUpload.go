@@ -44,6 +44,11 @@ type ConfirmMediaUpload struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	Config     env.Config
+	// Scanner checks the whole file before it is READY. Nil on an installation that scans
+	// nothing: the confirmation then reads the head only, as it always did.
+	Scanner storage.Scanner
+	// Jobs asks for the scan job when a file is held. Nil enqueues nothing.
+	Jobs Enqueuer
 }
 
 // ConfirmCommand is the input, typed.
@@ -66,8 +71,8 @@ func (h ConfirmMediaUpload) Execute(
 	if err != nil {
 		return media.Object{}, err
 	}
-	if object.Status == media.StatusReady {
-		// Already sealed. Nothing is read back, nothing is written and nothing is recorded a
+	if object.Status != media.StatusPending {
+		// Already sealed - READY, held for a scan, or found malicious since. Nothing is read back, nothing is written and nothing is recorded a
 		// second time - which is what makes a retry harmless rather than merely accepted.
 		return object, nil
 	}
@@ -82,7 +87,16 @@ func (h ConfirmMediaUpload) Execute(
 		return media.Object{}, err
 	}
 
-	sealed, err := object.Sealed(judged.contentType, judged.size)
+	held, err := h.scan(ctx, object)
+	if err != nil {
+		h.discard(ctx, object)
+		return media.Object{}, err
+	}
+	seal := object.Sealed
+	if held {
+		seal = object.HeldForScan
+	}
+	sealed, err := seal(judged.contentType, judged.size)
 	if err != nil {
 		return media.Object{}, err
 	}
@@ -91,6 +105,11 @@ func (h ConfirmMediaUpload) Execute(
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Objects.Seal(ctx, sealed); err != nil {
 			return err
+		}
+		if held {
+			if err := seedScan(ctx, h.Jobs, object.TenantID); err != nil {
+				return err
+			}
 		}
 		return h.recordAudit(ctx, object, sealed, actor, now)
 	})
@@ -159,6 +178,34 @@ func (h ConfirmMediaUpload) judge(ctx context.Context, object media.Object) (jud
 		return judgement{}, err
 	}
 	return judgement{contentType: inspection.ContentType, size: stored.Size}, nil
+}
+
+// scan reads the whole object through the installation's scanner, outside any transaction, and
+// reports whether it is to be held: the scanner could not answer. A malicious file is refused.
+func (h ConfirmMediaUpload) scan(ctx context.Context, object media.Object) (bool, error) {
+	if h.Scanner == nil {
+		return false, nil
+	}
+	stored, err := h.Store.Get(ctx, object.StorageKey)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = stored.Content.Close() }()
+	verdict, err := h.Scanner.Scan(ctx, stored.Content)
+	if err != nil {
+		if errors.Is(err, shared.ErrUnavailable) {
+			slog.WarnContext(ctx, "the upload scanner did not answer; the file is held",
+				slog.String("media_id", object.ID.String()), slog.String("error", err.Error()))
+			return true, nil
+		}
+		return false, err
+	}
+	if verdict.Malicious {
+		slog.WarnContext(ctx, "an upload was refused as malicious",
+			slog.String("media_id", object.ID.String()), slog.String("signature", verdict.Signature))
+		return false, media.Infected()
+	}
+	return false, nil
 }
 
 // discard removes the bytes a refused confirmation staged.

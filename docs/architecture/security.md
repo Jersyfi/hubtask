@@ -150,6 +150,14 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   sender is provenance, never an identity (the intake address is the credential); every bound is
   checked before allocation. A client draws it as text, never markup or a live link, and labels the
   sender as what the transport claimed.
+* **Uploads can be scanned** where the operator runs a ClamAV daemon (`HUBTASK_CLAMD_ADDRESS`,
+  `storage.Scanner`, `infrastructure/clamd`): the confirmation streams the whole file to it, and
+  a mail's attachment is scanned before it is stored. A malicious file is refused with
+  `media.infected` and its bytes removed; a file the daemon cannot answer for - down, timed out, an
+  error reply - is held `PENDING_SCAN`: it may be attached, is never downloaded, and the
+  `media.scan` job scans it again until it is READY or `INFECTED` (bytes removed at once). A scanner
+  that is down never stops an upload and never lets an unscanned file out. Without a daemon nothing
+  is scanned.
 * **CEL expressions** run under a time, depth and cost limit (`cel-go` cost budget), with no network
   or time functions beyond the ones provided.
 

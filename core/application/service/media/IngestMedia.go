@@ -6,6 +6,7 @@ package media
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log/slog"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/media"
@@ -53,6 +54,8 @@ type IngestMedia struct {
 	Config     env.Config
 	// Text brings the file name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Scanner checks the bytes before they are stored; nil scans nothing.
+	Scanner storage.Scanner
 }
 
 // Enqueuer is the half of the queue an ingest needs: it asks for work and never claims any.
@@ -88,7 +91,8 @@ type IngestedFile struct {
 // One file that cannot be stored does not lose the rest: it is skipped and the ones that worked
 // are answered, because what this serves is an inbox entry, and an entry with three of its four
 // attachments is worth more than no entry at all. What it does not do is answer an identifier for
-// something that is not READY - a caller attaching one of these is attaching a sealed object.
+// something unsealed - a caller attaching one of these attaches a READY object, or one held for a
+// scan, which serves nothing until the scan clears it.
 func (h IngestMedia) Execute(
 	ctx context.Context, tenantID shared.ID, files []IngestedFile,
 ) ([]shared.ID, error) {
@@ -146,7 +150,11 @@ func (h IngestMedia) one(
 		return "", err
 	}
 
-	sealed, err := h.write(ctx, object, file.Content)
+	held, err := h.scan(ctx, object, file.Content)
+	if err != nil {
+		return "", err
+	}
+	sealed, err := h.write(ctx, object, file.Content, held)
 	if err != nil {
 		// The bytes are removed where they got as far as being written, and the PENDING record is
 		// left to the reconciliation. Removing the record here would be a second deletion path for
@@ -156,11 +164,38 @@ func (h IngestMedia) one(
 	}
 
 	if err := h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		return h.Objects.Seal(ctx, sealed)
+		if err := h.Objects.Seal(ctx, sealed); err != nil {
+			return err
+		}
+		if held {
+			return seedScan(ctx, h.Jobs, tenantID)
+		}
+		return nil
 	}); err != nil {
 		return "", err
 	}
 	return sealed.ID, nil
+}
+
+// scan judges the bytes before anything is stored and reports whether the file is to be held: the
+// scanner could not answer. A malicious file is refused and never reaches the store.
+func (h IngestMedia) scan(ctx context.Context, object media.Object, content []byte) (bool, error) {
+	if h.Scanner == nil {
+		return false, nil
+	}
+	verdict, err := h.Scanner.Scan(ctx, bytes.NewReader(content))
+	if errors.Is(err, shared.ErrUnavailable) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if verdict.Malicious {
+		slog.WarnContext(ctx, "an inbound attachment was refused as malicious",
+			slog.String("media_id", object.ID.String()), slog.String("signature", verdict.Signature))
+		return false, media.Infected()
+	}
+	return false, nil
 }
 
 // write judges the bytes and puts them in the store, and answers the object as it will be sealed.
@@ -171,7 +206,7 @@ func (h IngestMedia) one(
 // confirmation does for a presigned upload - read back and judge - has nothing left to add here,
 // because nothing between the judgement and the write could have changed them.
 func (h IngestMedia) write(
-	ctx context.Context, object media.Object, content []byte,
+	ctx context.Context, object media.Object, content []byte, held bool,
 ) (media.Object, error) {
 	inspection, err := h.Guard.Inspect(
 		bytes.NewReader(content), object.ContentType, h.Config.Request.MaxUploadBytes)
@@ -186,6 +221,9 @@ func (h IngestMedia) write(
 		Content:     inspection.Content,
 	}); err != nil {
 		return media.Object{}, err
+	}
+	if held {
+		return object.HeldForScan(inspection.ContentType, object.ByteSize)
 	}
 	return object.Sealed(inspection.ContentType, object.ByteSize)
 }

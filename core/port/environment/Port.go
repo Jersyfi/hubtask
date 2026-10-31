@@ -287,6 +287,11 @@ type MediaConfig struct {
 	// Interval is how long a tenant's reconciliation waits after a pass that found nothing left to
 	// do. What a quiet installation pays for having the machinery at all.
 	Interval time.Duration
+	// ScannerAddress is the ClamAV daemon uploads are scanned by (`host:port` or `unix:/path`);
+	// empty scans nothing (security.md §4).
+	ScannerAddress string
+	// ScannerTimeout bounds one scan; a scan past it holds the file.
+	ScannerTimeout time.Duration
 }
 
 // QueueConfig is the background work of the worker and scheduler roles (ADR-0008).

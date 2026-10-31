@@ -112,6 +112,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	calendarpushadapter "github.com/Jersyfi/hubtask/infrastructure/calendarpush"
 	chatbotadapter "github.com/Jersyfi/hubtask/infrastructure/chatbot"
+	"github.com/Jersyfi/hubtask/infrastructure/clamd"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	connectoradapter "github.com/Jersyfi/hubtask/infrastructure/connector"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
@@ -315,6 +316,11 @@ func run() error {
 		return fmt.Errorf("object storage: %w", err)
 	}
 	mediaGuard := storageadapter.NewUploadGuard()
+	// The upload scanner (security.md §4): none unless HUBTASK_CLAMD_ADDRESS names a daemon.
+	var mediaScanner storageport.Scanner
+	if cfg.Media.ScannerAddress != "" {
+		mediaScanner = clamd.Scanner{Address: cfg.Media.ScannerAddress, Timeout: cfg.Media.ScannerTimeout}
+	}
 
 	// The stream's cursor codec and its wake-up. The codec is keyed on the installation secret
 	// like every other opaque value this server mints; the listener holds one connection of the
@@ -856,7 +862,7 @@ func run() error {
 		Media: mediaservice.IngestMedia{
 			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
-			Text: forms,
+			Text: forms, Scanner: mediaScanner,
 		},
 		Catalogue: ruleCatalogue, Events: outbox, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Domain: cfg.Mail.InboundDomain,
@@ -3296,6 +3302,7 @@ func run() error {
 		mediaservice.ConfirmMediaUpload{
 			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Config: cfg,
+			Scanner: mediaScanner, Jobs: jobs,
 		}.Descriptor(),
 		work.SetCover{Cover: coverWriter}.Descriptor(),
 		work.ClearCover{Cover: coverWriter}.Descriptor(),
@@ -3675,7 +3682,7 @@ func run() error {
 				Media: mediaservice.IngestMedia{
 					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
 					UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
-					Text: forms,
+					Text: forms, Scanner: mediaScanner,
 				},
 				Events: outbox, UnitOfWork: unitOfWork,
 				Clock: clockadapter.System{}, IDs: ids,
@@ -4716,6 +4723,9 @@ func run() error {
 		queueport.KindOutboxDispatch:        dispatcher,
 		queueport.KindRetentionSweep:        retention,
 		queueport.KindMediaReconcile:        mediaReconciliation,
+		queueport.KindMediaScan: worker.MediaScan{Scan: mediaservice.ScanHeldMedia{
+			Objects: mediaObjects, Store: mediaStore, Scanner: mediaScanner, UnitOfWork: unitOfWork,
+		}},
 		queueport.KindFigureRecount: worker.FigureRecount{
 			Recount: work.RecountFigures{
 				Kept: keptFigures, Figures: figures.Figures, UnitOfWork: unitOfWork,

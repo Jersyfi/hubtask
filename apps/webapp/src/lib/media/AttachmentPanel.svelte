@@ -92,7 +92,11 @@
   /** The second line of a row: what it is and how big, in the reader's units. */
   function detailOf(object: MediaObject): string {
     const size = formatBytes(object.size, messages.locale);
-    return isReady(object) ? `${object.content_type} · ${size}` : `${t('app.media.pending')} · ${size}`;
+    if (isReady(object)) return `${object.content_type} · ${size}`;
+    // Held for the installation's scanner, or found malicious since: neither is downloaded.
+    if (object.status === 'PENDING_SCAN') return `${t('app.media.held')} · ${size}`;
+    if (object.status === 'INFECTED') return t('app.media.infected');
+    return `${t('app.media.pending')} · ${size}`;
   }
 
   async function choose(file: File) {
