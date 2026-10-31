@@ -79,6 +79,7 @@ export type {
   ConfigCheck,
   ConfigExport,
   ConfigFinding,
+  OwnSettings,
   ConfigPlan,
   ConfigApplyResult,
   ConfigVersion,

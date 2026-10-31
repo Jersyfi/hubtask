@@ -23,6 +23,26 @@ import type { Capabilities, NotificationPreference } from '@hubtask/sync-engine'
 /** The three the contract's enum declares, plus the empty choice that clears the preference. */
 export const WEEK_STARTS = ['MONDAY', 'SUNDAY', 'SATURDAY'] as const;
 
+/** A setting in force for the person, as `/accounts/me/settings` answers it. */
+export interface InForce {
+  readonly value?: string;
+  readonly source: string;
+}
+
+/**
+ * What one of a person's settings is in force at and where it comes from (model.md §4): the
+ * server's resolution by the catalogue key, or nothing before it arrives - never a guess of the
+ * chain account → workspace → installation of the client's own.
+ */
+export function inForce(
+  rows: readonly { readonly setting: string; readonly value?: unknown; readonly source: string }[] | undefined,
+  key: string,
+): InForce | undefined {
+  const row = rows?.find((each) => each.setting === key);
+  if (!row) return undefined;
+  return typeof row.value === 'string' && row.value !== '' ? { value: row.value, source: row.source } : { source: row.source };
+}
+
 /**
  * What a `PATCH` sends for a field somebody cleared: **the empty string**.
  *

@@ -49,6 +49,8 @@ interface Screen {
 
 const INSTANCE: Screen = { path: '/instance/settings', code: 'app.instance.settings' };
 const PLAN: Screen = { path: '/instance/plans', code: 'app.instance.plans' };
+/** A person's own settings, drawn on their profile (model.md §4); the palette offers them by its own rows (SETTING_ROWS). */
+const PERSON: Screen = { path: '/profile', code: 'app.profile.title' };
 
 /** The workspace's screen of each area; an area without one is not decided by the workspace. */
 const WORKSPACE: Readonly<Record<string, Screen>> = {
@@ -87,6 +89,7 @@ export function screenOf(definition: SettingDefinition, level: Level, place?: Pl
   if (level === 'INSTANCE') return INSTANCE;
   if (level === 'PLAN') return PLAN;
   if (level === 'WORKSPACE') return WORKSPACE[areaOf(definition.key)];
+  if (level === 'PERSON') return PERSON;
   if (place === undefined || level !== place.level) return undefined;
   const screen = PLACE[areaOf(definition.key)];
   if (!screen) return undefined;

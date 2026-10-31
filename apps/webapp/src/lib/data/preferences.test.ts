@@ -10,6 +10,7 @@ import {
   categoriesOf,
   channelsOf,
   clearedOr,
+  inForce,
   isAlwaysOn,
   knownZones,
   zoneOptions,
@@ -116,4 +117,17 @@ test('the zones come from the platform, or not at all', () => {
     // a name this client expects to find in it.
     assert.ok(zones.length > 100, 'a real zone database rather than a handful');
   }
+});
+
+// model.md §4: the profile names where each of the person's settings comes from by the server's
+// resolution, and says nothing before it arrives rather than guessing.
+test('a setting in force is the server\'s value and its source', () => {
+  const rows = [
+    { setting: 'localisation.locale', value: 'de', source: 'WORKSPACE' },
+    { setting: 'localisation.week_start', source: 'DEFAULT' },
+  ];
+  assert.deepEqual(inForce(rows, 'localisation.locale'), { value: 'de', source: 'WORKSPACE' });
+  assert.deepEqual(inForce(rows, 'localisation.week_start'), { source: 'DEFAULT' });
+  assert.equal(inForce(rows, 'localisation.time_zone'), undefined);
+  assert.equal(inForce(undefined, 'localisation.locale'), undefined);
 });

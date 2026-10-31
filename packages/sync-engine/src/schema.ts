@@ -203,6 +203,8 @@ export type ConfigProposal = components['schemas']['ConfigProposal'];
 /** The configuration check's findings (configuration/ui.md A5). */
 export type ConfigCheck = components['schemas']['ConfigCheck'];
 export type ConfigFinding = components['schemas']['ConfigFinding'];
+/** A person's own settings with the level each comes from (model.md §4). */
+export type OwnSettings = components['schemas']['OwnSettings'];
 export type ConfigProposalList = components['schemas']['ConfigProposalList'];
 /** The sandbox: a copy of the configuration where changes run nothing, and its promotion's plan. */
 export type ConfigSandbox = components['schemas']['ConfigSandbox'];

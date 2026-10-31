@@ -38,7 +38,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Avatar, EmptyState, Input, SaveBar, Select, Stack } from '@hubtask/design-system/components';
+  import { Avatar, Badge, EmptyState, Input, SaveBar, Select, Stack } from '@hubtask/design-system/components';
+  import type { OwnSettings } from '@hubtask/sync-engine';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
@@ -51,7 +52,8 @@
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
-  import { WEEK_STARTS, clearedOr, zoneOptions, localesOf, withWorkspaceChoice } from '../lib/data/preferences.ts';
+  import { WEEK_STARTS, clearedOr, inForce, zoneOptions, localesOf, withWorkspaceChoice } from '../lib/data/preferences.ts';
+  import { engine } from '../lib/data/engine.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
@@ -59,6 +61,18 @@
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
 
   const account = $derived(actor.account);
+
+  // Where each of the person's settings comes from, as the catalogue resolves it (model.md §4):
+  // the server's answer, re-read when a save invalidates `/accounts`.
+  let settings = $state<OwnSettings>();
+  $effect(() => untrack(() => engine.subscribe<OwnSettings>({ path: '/accounts/me/settings' }, (next) => {
+    settings = next.status === 'ready' ? next.data : settings;
+  })));
+  const sourceOf = (key: string, label: (value: string) => string) => {
+    const held = inForce(settings?.data, `localisation.${key}`);
+    if (!held) return undefined;
+    return { source: held.source, value: held.value === undefined ? t('app.profile.source_default_value') : label(held.value) };
+  };
 
   // Whether the password is a way in here decides whether an address may be added (identity.md
   // §13); the sign-in rules say it, fallback included.
@@ -194,6 +208,7 @@
 
         <PictureField />
 
+
         {#if locales.length > 0}
           <Select
             label={t('app.profile.language')}
@@ -205,6 +220,7 @@
               t('app.profile.use_workspace'),
             )}
           />
+          {@render inForceLine(sourceOf('locale', (value) => languageName(value, messages.locale)))}
         {:else}
           <!-- An installation that declares no locales has none to choose between, and an empty
                dropdown says that badly. Found by reading a real manifest, which reports none. -->
@@ -225,6 +241,7 @@
               t('app.profile.use_workspace'),
             )}
           />
+          {@render inForceLine(sourceOf('time_zone', (value) => value))}
         {:else}
           <!-- A browser that will not list the zones still lets somebody type one, and the server
                refuses an unknown name. A worse offer, not a broken one. -->
@@ -241,6 +258,7 @@
             t('app.profile.use_workspace'),
           )}
         />
+        {@render inForceLine(sourceOf('week_start', (value) => t(`app.profile.week_${value}`)))}
 
         {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       </Stack>
@@ -284,6 +302,15 @@
   </Stack>
 {/if}
 
+{#snippet inForceLine(held: { source: string; value: string } | undefined)}
+  {#if held}
+    <p class="in-force" data-source={held.source}>
+      <span>{t('app.profile.in_force', { value: held.value })}</span>
+      <Badge tone={held.source === 'PERSON' ? 'info' : 'neutral'}>{t(`app.profile.source_${held.source.toLowerCase()}`)}</Badge>
+    </p>
+  {/if}
+{/snippet}
+
 <style>
   /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
      input as wide as the region is a target nobody aims at, so the fields carry a measure of
@@ -313,6 +340,7 @@
   .label { font-size: var(--fs-075); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
+  .in-force { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); color: var(--text-secondary); font-size: var(--fs-075); }
 
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
