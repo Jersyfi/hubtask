@@ -18351,6 +18351,18 @@ type MembershipRole string
 // MembershipScope defines model for MembershipScope.
 type MembershipScope string
 
+// MergeResult defines model for MergeResult.
+type MergeResult struct {
+	// IntoId The entry it was taken into.
+	IntoId openapi_types.UUID `json:"into_id"`
+
+	// LinkId The `duplicates` link from the merged entry to the other.
+	LinkId openapi_types.UUID `json:"link_id"`
+
+	// MergedId The entry taken in, now archived.
+	MergedId openapi_types.UUID `json:"merged_id"`
+}
+
 // MfaChallenge The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in.
 type MfaChallenge struct {
 	// Email Whose account the step is for, for the identity line on the card, where the person typed no address: with `LINK`, the account the provider's address matched - the person arrived from the provider; with the first step a provider's return or a connect link from the mail answers, for the same reason; and with every step a password reset answers - the person arrived from the link in the mail. A later step of the same sign-in may carry none: the card keeps the name it already shows. Absent after a password sign-in, whose first step the address was typed into.
@@ -26135,6 +26147,12 @@ type DuplicateWorkItemParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// MergeWorkItemsJSONBody defines parameters for MergeWorkItems.
+type MergeWorkItemsJSONBody struct {
+	// IntoId The entry this one is taken into; it stays open.
+	IntoId openapi_types.UUID `json:"into_id"`
+}
+
 // MoveWorkItemJSONBody defines parameters for MoveWorkItem.
 type MoveWorkItemJSONBody struct {
 	// BeforeItemId The sibling to place this item before at the destination. Null or omitted appends.
@@ -26188,6 +26206,24 @@ type RestoreWorkItemParams struct {
 
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SplitWorkItemJSONBody defines parameters for SplitWorkItem.
+type SplitWorkItemJSONBody struct {
+	// LinkType The key of a link type drawn from this entry to the new one - a workspace's own or one Hubtask ships; omitted draws none.
+	LinkType *string `json:"link_type,omitempty"`
+
+	// Notes The new entry's notes; omitted keeps this entry's.
+	Notes *string `json:"notes,omitempty"`
+
+	// Title The new entry's title.
+	Title string `json:"title"`
+}
+
+// SplitWorkItemParams defines parameters for SplitWorkItem.
+type SplitWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // TakeStepJSONBody defines parameters for TakeStep.
@@ -27932,11 +27968,17 @@ type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
 // DuplicateWorkItemJSONRequestBody defines body for DuplicateWorkItem for application/json ContentType.
 type DuplicateWorkItemJSONRequestBody DuplicateWorkItemJSONBody
 
+// MergeWorkItemsJSONRequestBody defines body for MergeWorkItems for application/json ContentType.
+type MergeWorkItemsJSONRequestBody MergeWorkItemsJSONBody
+
 // MoveWorkItemJSONRequestBody defines body for MoveWorkItem for application/json ContentType.
 type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 
 // ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
+
+// SplitWorkItemJSONRequestBody defines body for SplitWorkItem for application/json ContentType.
+type SplitWorkItemJSONRequestBody SplitWorkItemJSONBody
 
 // TakeStepJSONRequestBody defines body for TakeStep for application/json ContentType.
 type TakeStepJSONRequestBody TakeStepJSONBody
@@ -30172,6 +30214,9 @@ type ServerInterface interface {
 	// SuggestDuplicates Which entries look like this one
 	// (POST /items/{itemId}:duplicates)
 	SuggestDuplicates(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// MergeWorkItems Merge the entry into another
+	// (POST /items/{itemId}:merge)
+	MergeWorkItems(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (POST /items/{itemId}:move)
 	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params MoveWorkItemParams)
@@ -30190,6 +30235,9 @@ type ServerInterface interface {
 	// RetainItem Take an object out of the running retention period
 	// (POST /items/{itemId}:retain)
 	RetainItem(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
+	// SplitWorkItem Split a part of the entry off into an entry of its own
+	// (POST /items/{itemId}:split)
+	SplitWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params SplitWorkItemParams)
 	// TakeStep Move an entry on by one step
 	// (POST /items/{itemId}:step)
 	TakeStep(w http.ResponseWriter, r *http.Request, itemId ItemId, params TakeStepParams)
@@ -47046,6 +47094,32 @@ func (siw *ServerInterfaceWrapper) SuggestDuplicates(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// MergeWorkItems operation middleware
+func (siw *ServerInterfaceWrapper) MergeWorkItems(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MergeWorkItems(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // MoveWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -47351,6 +47425,56 @@ func (siw *ServerInterfaceWrapper) RetainItem(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RetainItem(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SplitWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) SplitWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SplitWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SplitWorkItem(w, r, itemId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -57822,6 +57946,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reorder", wrapper.ReorderWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:move", wrapper.MoveWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:duplicate", wrapper.DuplicateWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:merge", wrapper.MergeWorkItems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:split", wrapper.SplitWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkUpdateWorkItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.ListComments)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.AddComment)

@@ -1460,6 +1460,14 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "status", "version"}},
+	{Group: "item", Verb: "merge", OperationID: "mergeWorkItems", Method: "POST", Path: "/items/{itemId}:merge", Summary: "Merge the entry into another",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "into_id", Kind: "uuid", Help: "The entry this one is taken into; it stays open", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"into_id", "link_id", "merged_id"}},
 	{Group: "item", Verb: "provenance", OperationID: "listValueProvenance", Method: "GET", Path: "/items/{itemId}/provenance", Summary: "Where an entry's AI-originated values came from",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -1470,6 +1478,16 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "item", Verb: "split", OperationID: "splitWorkItem", Method: "POST", Path: "/items/{itemId}:split", Summary: "Split a part of the entry off into an entry of its own",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "link_type", Kind: "string", Help: "The key of a link type drawn from this entry to the new one - a workspace's own or one Hubtask …", Required: false},
+			{Name: "notes", Kind: "string", Help: "The new entry's notes; omitted keeps this entry's", Required: false},
+			{Name: "title", Kind: "string", Help: "The new entry's title", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"copied"}},
 	{Group: "item", Verb: "step", OperationID: "takeStep", Method: "POST", Path: "/items/{itemId}:step", Summary: "Move an entry on by one step",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},

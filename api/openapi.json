@@ -28274,6 +28274,139 @@
         }
       }
     },
+    "/items/{itemId}:merge": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "mergeWorkItems",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "item merge",
+        "summary": "Merge the entry into another",
+        "description": "Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "into_id"
+                ],
+                "properties": {
+                  "into_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "The entry this one is taken into; it stays open."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Merged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}:split": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "splitWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-location": "/items/{item.id}",
+        "x-hubtask-rest-etag": "item.version",
+        "x-hubtask-rest-answer": "duplicateResultResponse",
+        "x-hubtask-cli": "item split",
+        "summary": "Split a part of the entry off into an entry of its own",
+        "description": "Makes a new entry beside this one for a part of what it asks: a copy of the entry alone, with the title and notes given, made for the same requester - the new entry's creator is this entry's, so the requester sees it among their requests and hears of its replies - and carrying neither the comments nor the history, as a copy does. The new entry is linked to this one by `link_type` where one is named. What the copy cannot carry is reported, as `:duplicate` reports it. Needs READ on this entry and WRITE_ITEMS in its collection, and WRITE_ITEMS on this entry where a link is drawn.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "description": "The new entry's title."
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "The new entry's notes; omitted keeps this entry's."
+                  },
+                  "link_type": {
+                    "type": "string",
+                    "description": "The key of a link type drawn from this entry to the new one - a workspace's own or one Hubtask ships; omitted draws none.\n"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Split off",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items:bulk": {
       "post": {
         "tags": [
@@ -56207,6 +56340,31 @@
           },
           "problem": {
             "$ref": "#/components/schemas/Problem"
+          }
+        }
+      },
+      "MergeResult": {
+        "type": "object",
+        "required": [
+          "merged_id",
+          "into_id",
+          "link_id"
+        ],
+        "properties": {
+          "merged_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The entry taken in, now archived."
+          },
+          "into_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The entry it was taken into."
+          },
+          "link_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The `duplicates` link from the merged entry to the other."
           }
         }
       },

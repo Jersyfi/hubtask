@@ -18357,6 +18357,18 @@ type MembershipRole string
 // MembershipScope defines model for MembershipScope.
 type MembershipScope string
 
+// MergeResult defines model for MergeResult.
+type MergeResult struct {
+	// IntoId The entry it was taken into.
+	IntoId openapi_types.UUID `json:"into_id"`
+
+	// LinkId The `duplicates` link from the merged entry to the other.
+	LinkId openapi_types.UUID `json:"link_id"`
+
+	// MergedId The entry taken in, now archived.
+	MergedId openapi_types.UUID `json:"merged_id"`
+}
+
 // MfaChallenge The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in.
 type MfaChallenge struct {
 	// Email Whose account the step is for, for the identity line on the card, where the person typed no address: with `LINK`, the account the provider's address matched - the person arrived from the provider; with the first step a provider's return or a connect link from the mail answers, for the same reason; and with every step a password reset answers - the person arrived from the link in the mail. A later step of the same sign-in may carry none: the card keeps the name it already shows. Absent after a password sign-in, whose first step the address was typed into.
@@ -26141,6 +26153,12 @@ type DuplicateWorkItemParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// MergeWorkItemsJSONBody defines parameters for MergeWorkItems.
+type MergeWorkItemsJSONBody struct {
+	// IntoId The entry this one is taken into; it stays open.
+	IntoId openapi_types.UUID `json:"into_id"`
+}
+
 // MoveWorkItemJSONBody defines parameters for MoveWorkItem.
 type MoveWorkItemJSONBody struct {
 	// BeforeItemId The sibling to place this item before at the destination. Null or omitted appends.
@@ -26194,6 +26212,24 @@ type RestoreWorkItemParams struct {
 
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SplitWorkItemJSONBody defines parameters for SplitWorkItem.
+type SplitWorkItemJSONBody struct {
+	// LinkType The key of a link type drawn from this entry to the new one - a workspace's own or one Hubtask ships; omitted draws none.
+	LinkType *string `json:"link_type,omitempty"`
+
+	// Notes The new entry's notes; omitted keeps this entry's.
+	Notes *string `json:"notes,omitempty"`
+
+	// Title The new entry's title.
+	Title string `json:"title"`
+}
+
+// SplitWorkItemParams defines parameters for SplitWorkItem.
+type SplitWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // TakeStepJSONBody defines parameters for TakeStep.
@@ -27938,11 +27974,17 @@ type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
 // DuplicateWorkItemJSONRequestBody defines body for DuplicateWorkItem for application/json ContentType.
 type DuplicateWorkItemJSONRequestBody DuplicateWorkItemJSONBody
 
+// MergeWorkItemsJSONRequestBody defines body for MergeWorkItems for application/json ContentType.
+type MergeWorkItemsJSONRequestBody MergeWorkItemsJSONBody
+
 // MoveWorkItemJSONRequestBody defines body for MoveWorkItem for application/json ContentType.
 type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 
 // ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
+
+// SplitWorkItemJSONRequestBody defines body for SplitWorkItem for application/json ContentType.
+type SplitWorkItemJSONRequestBody SplitWorkItemJSONBody
 
 // TakeStepJSONRequestBody defines body for TakeStep for application/json ContentType.
 type TakeStepJSONRequestBody TakeStepJSONBody
@@ -34939,6 +34981,24 @@ type ClientInterface interface {
 	// Corresponds with POST /items/{itemId}:duplicates (the `SuggestDuplicates` operationId).
 	SuggestDuplicates(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// MergeWorkItemsWithBody Merge the entry into another
+	//
+	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}:merge (the `MergeWorkItems` operationId).
+	MergeWorkItemsWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MergeWorkItems Merge the entry into another
+	//
+	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}:merge (the `MergeWorkItems` operationId).
+	MergeWorkItems(ctx context.Context, itemId ItemId, body MergeWorkItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// MoveWorkItemWithBody performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -34982,6 +35042,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /items/{itemId}:retain (the `RetainItem` operationId).
 	RetainItem(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SplitWorkItemWithBody Split a part of the entry off into an entry of its own
+	//
+	// Makes a new entry beside this one for a part of what it asks: a copy of the entry alone, with the title and notes given, made for the same requester - the new entry's creator is this entry's, so the requester sees it among their requests and hears of its replies - and carrying neither the comments nor the history, as a copy does. The new entry is linked to this one by `link_type` where one is named. What the copy cannot carry is reported, as `:duplicate` reports it. Needs READ on this entry and WRITE_ITEMS in its collection, and WRITE_ITEMS on this entry where a link is drawn.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}:split (the `SplitWorkItem` operationId).
+	SplitWorkItemWithBody(ctx context.Context, itemId ItemId, params *SplitWorkItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SplitWorkItem Split a part of the entry off into an entry of its own
+	//
+	// Makes a new entry beside this one for a part of what it asks: a copy of the entry alone, with the title and notes given, made for the same requester - the new entry's creator is this entry's, so the requester sees it among their requests and hears of its replies - and carrying neither the comments nor the history, as a copy does. The new entry is linked to this one by `link_type` where one is named. What the copy cannot carry is reported, as `:duplicate` reports it. Needs READ on this entry and WRITE_ITEMS in its collection, and WRITE_ITEMS on this entry where a link is drawn.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}:split (the `SplitWorkItem` operationId).
+	SplitWorkItem(ctx context.Context, itemId ItemId, params *SplitWorkItemParams, body SplitWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// TakeStepWithBody Move an entry on by one step
 	//
@@ -51977,6 +52055,44 @@ func (c *Client) SuggestDuplicates(ctx context.Context, itemId ItemId, reqEditor
 	return c.Client.Do(req)
 }
 
+// MergeWorkItemsWithBody Merge the entry into another
+//
+// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}:merge (the `MergeWorkItems` operationId).
+func (c *Client) MergeWorkItemsWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMergeWorkItemsRequestWithBody(c.Server, itemId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MergeWorkItems Merge the entry into another
+//
+// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}:merge (the `MergeWorkItems` operationId).
+func (c *Client) MergeWorkItems(ctx context.Context, itemId ItemId, body MergeWorkItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMergeWorkItemsRequest(c.Server, itemId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // MoveWorkItemWithBody performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -52091,6 +52207,44 @@ func (c *Client) RestoreWorkItem(ctx context.Context, itemId ItemId, params *Res
 // Corresponds with POST /items/{itemId}:retain (the `RetainItem` operationId).
 func (c *Client) RetainItem(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRetainItemRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SplitWorkItemWithBody Split a part of the entry off into an entry of its own
+//
+// Makes a new entry beside this one for a part of what it asks: a copy of the entry alone, with the title and notes given, made for the same requester - the new entry's creator is this entry's, so the requester sees it among their requests and hears of its replies - and carrying neither the comments nor the history, as a copy does. The new entry is linked to this one by `link_type` where one is named. What the copy cannot carry is reported, as `:duplicate` reports it. Needs READ on this entry and WRITE_ITEMS in its collection, and WRITE_ITEMS on this entry where a link is drawn.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}:split (the `SplitWorkItem` operationId).
+func (c *Client) SplitWorkItemWithBody(ctx context.Context, itemId ItemId, params *SplitWorkItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSplitWorkItemRequestWithBody(c.Server, itemId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SplitWorkItem Split a part of the entry off into an entry of its own
+//
+// Makes a new entry beside this one for a part of what it asks: a copy of the entry alone, with the title and notes given, made for the same requester - the new entry's creator is this entry's, so the requester sees it among their requests and hears of its replies - and carrying neither the comments nor the history, as a copy does. The new entry is linked to this one by `link_type` where one is named. What the copy cannot carry is reported, as `:duplicate` reports it. Needs READ on this entry and WRITE_ITEMS in its collection, and WRITE_ITEMS on this entry where a link is drawn.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}:split (the `SplitWorkItem` operationId).
+func (c *Client) SplitWorkItem(ctx context.Context, itemId ItemId, params *SplitWorkItemParams, body SplitWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSplitWorkItemRequest(c.Server, itemId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -82718,6 +82872,53 @@ func NewSuggestDuplicatesRequest(server string, itemId ItemId) (*http.Request, e
 	return req, nil
 }
 
+// NewMergeWorkItemsRequest calls the generic MergeWorkItems builder with application/json body
+func NewMergeWorkItemsRequest(server string, itemId ItemId, body MergeWorkItemsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMergeWorkItemsRequestWithBody(server, itemId, "application/json", bodyReader)
+}
+
+// NewMergeWorkItemsRequestWithBody constructs an http.Request for the MergeWorkItems method, with any body, and a specified content type
+func NewMergeWorkItemsRequestWithBody(server string, itemId ItemId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s:merge", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewMoveWorkItemRequest calls the generic MoveWorkItem builder with application/json body
 func NewMoveWorkItemRequest(server string, itemId ItemId, params *MoveWorkItemParams, body MoveWorkItemJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -83040,6 +83241,68 @@ func NewRetainItemRequest(server string, itemId openapi_types.UUID) (*http.Reque
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSplitWorkItemRequest calls the generic SplitWorkItem builder with application/json body
+func NewSplitWorkItemRequest(server string, itemId ItemId, params *SplitWorkItemParams, body SplitWorkItemJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSplitWorkItemRequestWithBody(server, itemId, params, "application/json", bodyReader)
+}
+
+// NewSplitWorkItemRequestWithBody constructs an http.Request for the SplitWorkItem method, with any body, and a specified content type
+func NewSplitWorkItemRequestWithBody(server string, itemId ItemId, params *SplitWorkItemParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s:split", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -103732,6 +103995,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /items/{itemId}:duplicates (the `SuggestDuplicates` operationId).
 	SuggestDuplicatesWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*SuggestDuplicatesResult, error)
 
+	// MergeWorkItemsWithBodyWithResponse Merge the entry into another
+	//
+	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:merge (the `MergeWorkItems` operationId).
+	MergeWorkItemsWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MergeWorkItemsResult, error)
+
+	// MergeWorkItemsWithResponse Merge the entry into another
+	//
+	// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:merge (the `MergeWorkItems` operationId).
+	MergeWorkItemsWithResponse(ctx context.Context, itemId ItemId, body MergeWorkItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*MergeWorkItemsResult, error)
+
 	// MoveWorkItemWithBodyWithResponse performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -103787,6 +104068,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /items/{itemId}:retain (the `RetainItem` operationId).
 	RetainItemWithResponse(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RetainItemResult, error)
+
+	// SplitWorkItemWithBodyWithResponse Split a part of the entry off into an entry of its own
+	//
+	// Makes a new entry beside this one for a part of what it asks: a copy of the entry alone, with the title and notes given, made for the same requester - the new entry's creator is this entry's, so the requester sees it among their requests and hears of its replies - and carrying neither the comments nor the history, as a copy does. The new entry is linked to this one by `link_type` where one is named. What the copy cannot carry is reported, as `:duplicate` reports it. Needs READ on this entry and WRITE_ITEMS in its collection, and WRITE_ITEMS on this entry where a link is drawn.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:split (the `SplitWorkItem` operationId).
+	SplitWorkItemWithBodyWithResponse(ctx context.Context, itemId ItemId, params *SplitWorkItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SplitWorkItemResult, error)
+
+	// SplitWorkItemWithResponse Split a part of the entry off into an entry of its own
+	//
+	// Makes a new entry beside this one for a part of what it asks: a copy of the entry alone, with the title and notes given, made for the same requester - the new entry's creator is this entry's, so the requester sees it among their requests and hears of its replies - and carrying neither the comments nor the history, as a copy does. The new entry is linked to this one by `link_type` where one is named. What the copy cannot carry is reported, as `:duplicate` reports it. Needs READ on this entry and WRITE_ITEMS in its collection, and WRITE_ITEMS on this entry where a link is drawn.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:split (the `SplitWorkItem` operationId).
+	SplitWorkItemWithResponse(ctx context.Context, itemId ItemId, params *SplitWorkItemParams, body SplitWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*SplitWorkItemResult, error)
 
 	// TakeStepWithBodyWithResponse Move an entry on by one step
 	//
@@ -130859,6 +131158,54 @@ func (r SuggestDuplicatesResult) ContentType() string {
 	return ""
 }
 
+type MergeWorkItemsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MergeResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MergeWorkItemsResult) GetJSON200() *MergeResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MergeWorkItemsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MergeWorkItemsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MergeWorkItemsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MergeWorkItemsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MergeWorkItemsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // MoveWorkItemResult200Headers the declared response headers of an HTTP 200 response for MoveWorkItem
 type MoveWorkItemResult200Headers struct {
 	ETag *string
@@ -131162,6 +131509,62 @@ func (r RetainItemResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RetainItemResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// SplitWorkItemResult201Headers the declared response headers of an HTTP 201 response for SplitWorkItem
+type SplitWorkItemResult201Headers struct {
+	ETag     *string
+	Location *string
+}
+
+type SplitWorkItemResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *DuplicateResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *SplitWorkItemResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r SplitWorkItemResult) GetJSON201() *DuplicateResult {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SplitWorkItemResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SplitWorkItemResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SplitWorkItemResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SplitWorkItemResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SplitWorkItemResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -156355,6 +156758,36 @@ func (c *ClientWithResponses) SuggestDuplicatesWithResponse(ctx context.Context,
 	return ParseSuggestDuplicatesResult(rsp)
 }
 
+// MergeWorkItemsWithBodyWithResponse Merge the entry into another
+//
+// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:merge (the `MergeWorkItems` operationId).
+func (c *ClientWithResponses) MergeWorkItemsWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MergeWorkItemsResult, error) {
+	rsp, err := c.MergeWorkItemsWithBody(ctx, itemId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMergeWorkItemsResult(rsp)
+}
+
+// MergeWorkItemsWithResponse Merge the entry into another
+//
+// Takes the entry into another one that asks the same: the entry is linked as a duplicate of the other (`duplicates`) and archived, so it leaves the queues and stays readable and restorable, and its requester hears of the other's public replies. Nothing is copied and nothing deleted. Needs WRITE_ITEMS on both entries. Merging an entry into itself is refused with `items.merge_self`, into one archived or in the trash with `items.merge_target_closed`, and an entry already a duplicate of a third with `links.cardinality`. Repeating a merge that was done, or that stopped after its link, finishes it and answers the same.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:merge (the `MergeWorkItems` operationId).
+func (c *ClientWithResponses) MergeWorkItemsWithResponse(ctx context.Context, itemId ItemId, body MergeWorkItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*MergeWorkItemsResult, error) {
+	rsp, err := c.MergeWorkItems(ctx, itemId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMergeWorkItemsResult(rsp)
+}
+
 // MoveWorkItemWithBodyWithResponse performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -156457,6 +156890,36 @@ func (c *ClientWithResponses) RetainItemWithResponse(ctx context.Context, itemId
 		return nil, err
 	}
 	return ParseRetainItemResult(rsp)
+}
+
+// SplitWorkItemWithBodyWithResponse Split a part of the entry off into an entry of its own
+//
+// Makes a new entry beside this one for a part of what it asks: a copy of the entry alone, with the title and notes given, made for the same requester - the new entry's creator is this entry's, so the requester sees it among their requests and hears of its replies - and carrying neither the comments nor the history, as a copy does. The new entry is linked to this one by `link_type` where one is named. What the copy cannot carry is reported, as `:duplicate` reports it. Needs READ on this entry and WRITE_ITEMS in its collection, and WRITE_ITEMS on this entry where a link is drawn.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:split (the `SplitWorkItem` operationId).
+func (c *ClientWithResponses) SplitWorkItemWithBodyWithResponse(ctx context.Context, itemId ItemId, params *SplitWorkItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SplitWorkItemResult, error) {
+	rsp, err := c.SplitWorkItemWithBody(ctx, itemId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSplitWorkItemResult(rsp)
+}
+
+// SplitWorkItemWithResponse Split a part of the entry off into an entry of its own
+//
+// Makes a new entry beside this one for a part of what it asks: a copy of the entry alone, with the title and notes given, made for the same requester - the new entry's creator is this entry's, so the requester sees it among their requests and hears of its replies - and carrying neither the comments nor the history, as a copy does. The new entry is linked to this one by `link_type` where one is named. What the copy cannot carry is reported, as `:duplicate` reports it. Needs READ on this entry and WRITE_ITEMS in its collection, and WRITE_ITEMS on this entry where a link is drawn.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:split (the `SplitWorkItem` operationId).
+func (c *ClientWithResponses) SplitWorkItemWithResponse(ctx context.Context, itemId ItemId, params *SplitWorkItemParams, body SplitWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*SplitWorkItemResult, error) {
+	rsp, err := c.SplitWorkItem(ctx, itemId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSplitWorkItemResult(rsp)
 }
 
 // TakeStepWithBodyWithResponse Move an entry on by one step
@@ -179607,6 +180070,39 @@ func ParseSuggestDuplicatesResult(rsp *http.Response) (*SuggestDuplicatesResult,
 	return response, nil
 }
 
+// ParseMergeWorkItemsResult parses an HTTP response from a MergeWorkItemsWithResponse call
+func ParseMergeWorkItemsResult(rsp *http.Response) (*MergeWorkItemsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MergeWorkItemsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MergeResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseMoveWorkItemResult parses an HTTP response from a MoveWorkItemWithResponse call
 func ParseMoveWorkItemResult(rsp *http.Response) (*MoveWorkItemResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -179848,6 +180344,59 @@ func ParseRetainItemResult(rsp *http.Response) (*RetainItemResult, error) {
 		}
 		response.ApplicationproblemJSON404 = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseSplitWorkItemResult parses an HTTP response from a SplitWorkItemWithResponse call
+func ParseSplitWorkItemResult(rsp *http.Response) (*SplitWorkItemResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SplitWorkItemResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest DuplicateResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers SplitWorkItemResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil

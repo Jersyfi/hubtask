@@ -4417,6 +4417,11 @@ class BulkResult(TypedDict, total=False):
     item: "WorkItem"
     problem: "Problem"
 
+class MergeResult(TypedDict, total=False):
+    merged_id: Required[str]
+    into_id: Required[str]
+    link_id: Required[str]
+
 class DuplicateResult(TypedDict, total=False):
     """What a duplicate produced: the copy, what it could not carry over, and how big it was."""
     item: Required["WorkItem"]

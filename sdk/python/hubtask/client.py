@@ -2783,6 +2783,14 @@ class Client:
         """POST /items/{itemId}:duplicate"""
         return self._call("POST", "/items/{itemId}:duplicate", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def merge_work_items(self, item_id: str, body: dict[str, Any]) -> "MergeResult":
+        """Merge the entry into another"""
+        return self._call("POST", "/items/{itemId}:merge", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def split_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "DuplicateResult":
+        """Split a part of the entry off into an entry of its own"""
+        return self._call("POST", "/items/{itemId}:split", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def bulk_update_work_items(self, body: dict[str, Any], *, idempotency_key: str | None = None) -> dict[str, Any]:
         """POST /items:bulk"""
         return self._call("POST", "/items:bulk", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")

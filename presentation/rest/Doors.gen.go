@@ -417,6 +417,7 @@ var restDoors = map[string]restDoor{
 	"locateOidcFlow":                    {UseCase: "LocateOidcFlow", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"logTime":                           {UseCase: "LogTime", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
 	"makeEntries":                       {UseCase: "MakeEntries", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"mergeWorkItems":                    {UseCase: "MergeWorkItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"moveCiAsset":                       {UseCase: "MoveCiAsset", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"moveContainer":                     {UseCase: "MoveContainer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"movePage":                          {UseCase: "MovePage", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -654,6 +655,7 @@ var restDoors = map[string]restDoor{
 	"showVoiceSettings":                 {UseCase: "ShowVoiceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"signIn":                            {UseCase: "SignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"user_agent", "remote_addr", "tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"skipOccurrence":                    {UseCase: "SkipOccurrence", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"splitWorkItem":                     {UseCase: "SplitWorkItem", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "item.version", BodyAs: "", Location: "/items/{item.id}", NullClears: false, Integers: []string(nil)},
 	"startAgentJob":                     {UseCase: "StartAgentJob", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startAuthenticatorReplacement":     {UseCase: "StartAuthenticatorReplacement", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "secret"},
 	"startBackup":                       {UseCase: "StartBackup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3370,6 +3372,13 @@ func (c *RestController) MakeEntries(w http.ResponseWriter, r *http.Request, con
 	c.door(w, r, restDoors["makeEntries"], usecase.Input{"collection_id": containerId.String()}, params, &body, answerBy(acceptedAsk))
 }
 
+// MergeWorkItems answers POST /items/{itemId}:merge by the generated mapping.
+func (c *RestController) MergeWorkItems(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var body openapi.MergeWorkItemsJSONRequestBody
+	var answer openapi.MergeResult
+	c.door(w, r, restDoors["mergeWorkItems"], usecase.Input{"item_id": itemId.String()}, nil, &body, &answer)
+}
+
 // MoveCiAsset answers POST /cis/{ciId}/asset:move by the generated mapping.
 func (c *RestController) MoveCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params openapi.MoveCiAssetParams) {
 	var body openapi.MoveCiAssetJSONRequestBody
@@ -4853,6 +4862,12 @@ func (c *RestController) SignIn(w http.ResponseWriter, r *http.Request) {
 // SkipOccurrence answers POST /items/{itemId}/recurrence:skip by the generated mapping.
 func (c *RestController) SkipOccurrence(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SkipOccurrenceParams) {
 	c.door(w, r, restDoors["skipOccurrence"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(recurrenceResponse))
+}
+
+// SplitWorkItem answers POST /items/{itemId}:split by the generated mapping.
+func (c *RestController) SplitWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SplitWorkItemParams) {
+	var body openapi.SplitWorkItemJSONRequestBody
+	c.door(w, r, restDoors["splitWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(duplicateResultResponse))
 }
 
 // StartAgentJob answers POST /agents/{agentId}/jobs by the generated mapping.

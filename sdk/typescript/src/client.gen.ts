@@ -3501,6 +3501,16 @@ export class HubtaskClient {
     return this.call("POST", "/items/{itemId}:duplicate", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Merge the entry into another */
+  mergeWorkItems(itemId: string, body: NonNullable<operations["mergeWorkItems"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["mergeWorkItems"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:merge", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Split a part of the entry off into an entry of its own */
+  splitWorkItem(itemId: string, body: NonNullable<operations["splitWorkItem"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["splitWorkItem"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:split", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** POST /items:bulk */
   bulkUpdateWorkItems(body: NonNullable<operations["bulkUpdateWorkItems"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["bulkUpdateWorkItems"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/items:bulk", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
