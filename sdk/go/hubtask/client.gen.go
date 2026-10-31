@@ -14287,6 +14287,9 @@ type CompletionPolicy string
 type ConfigApplyRequest struct {
 	Acknowledge *bool `json:"acknowledge,omitempty"`
 
+	// CollectionId A collection taking a template's collection part; its document is its hub's, which `hub_id` names or the collection implies.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
 
@@ -14298,7 +14301,7 @@ type ConfigApplyRequest struct {
 	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
 	PlanHash string                  `json:"plan_hash"`
 
-	// Template The template@version the document came from, recorded as the workspace's provenance - or with `hub_id` as the hub's, for a template with a hub part.
+	// Template The template@version the document came from, recorded as the workspace's provenance - or with `hub_id` as the hub's, for a template with a hub part, and with `collection_id` as the collection's, for a template with a collection part.
 	Template  *string `json:"template,omitempty"`
 	ToVersion *int    `json:"to_version,omitempty"`
 }
@@ -14477,13 +14480,16 @@ type ConfigPolicyAgentApply string
 
 // ConfigProposal defines model for ConfigProposal.
 type ConfigProposal struct {
-	Added              int                 `json:"added"`
-	BaseHash           string              `json:"base_hash"`
-	Changed            int                 `json:"changed"`
-	ChangesPermissions bool                `json:"changes_permissions"`
-	CreatedAt          time.Time           `json:"created_at"`
-	DecidedAt          *time.Time          `json:"decided_at,omitempty"`
-	DecidedBy          *openapi_types.UUID `json:"decided_by,omitempty"`
+	Added              int    `json:"added"`
+	BaseHash           string `json:"base_hash"`
+	Changed            int    `json:"changed"`
+	ChangesPermissions bool   `json:"changes_permissions"`
+
+	// CollectionId The collection taking the template's collection part; null otherwise.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	CreatedAt    time.Time           `json:"created_at"`
+	DecidedAt    *time.Time          `json:"decided_at,omitempty"`
+	DecidedBy    *openapi_types.UUID `json:"decided_by,omitempty"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document  ConfigDocument `json:"document"`
@@ -14591,7 +14597,9 @@ type ConfigSchema struct {
 
 // ConfigTemplate defines model for ConfigTemplate.
 type ConfigTemplate struct {
-	CreatedAt time.Time `json:"created_at"`
+	// CollectionDocument The part a collection takes - the collection sections of a hub's document, each block keyed without a handle; null for a template no collection takes.
+	CollectionDocument *ConfigDocument `json:"collection_document,omitempty"`
+	CreatedAt          time.Time       `json:"created_at"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
@@ -14626,7 +14634,10 @@ type ConfigTemplateList struct {
 type ConfigTemplatePlan struct {
 	BaseHash string         `json:"base_hash"`
 	Changes  []ConfigChange `json:"changes"`
-	Counts   ConfigCounts   `json:"counts"`
+
+	// CollectionId The collection taking the template's collection part; null otherwise.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	Counts       ConfigCounts        `json:"counts"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
@@ -14665,6 +14676,9 @@ type ConfigTemplatePlanRequest struct {
 	// Answers The template's questions answered, by key. An open question takes its default; on an upgrade the answers are given again, so an answer that did not change is no change.
 	Answers *map[string]string `json:"answers,omitempty"`
 
+	// CollectionId A collection taking the template's collection part, planned as its hub's document.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
 	// HubId A hub taking the template's hub part; omitted is the workspace.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
@@ -14676,6 +14690,9 @@ type ConfigTemplatePlanRequest struct {
 
 // ConfigTemplatePublish defines model for ConfigTemplatePublish.
 type ConfigTemplatePublish struct {
+	// CollectionDocument Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	CollectionDocument *ConfigDocument `json:"collection_document,omitempty"`
+
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
 
@@ -25769,7 +25786,8 @@ type DecideConfigProposalParams struct {
 
 // ListConfigTemplatesParams defines parameters for ListConfigTemplates.
 type ListConfigTemplatesParams struct {
-	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+	HubId        *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+	CollectionId *openapi_types.UUID `form:"collection_id,omitempty" json:"collection_id,omitempty"`
 }
 
 // ListConfigVersionsParams defines parameters for ListConfigVersions.
@@ -33291,14 +33309,14 @@ type ClientInterface interface {
 
 	// ListConfigTemplates The workspace's templates
 	//
-	// Each template's newest version, the version the workspace took and whether an update is available. With `hub_id`, the templates a hub can take - those with a hub part - and the version that hub took.
+	// Each template's newest version, the version the workspace took and whether an update is available. With `hub_id`, the templates a hub can take - those with a hub part - and the version that hub took; with `collection_id`, those with a collection part and the version that collection took.
 	//
 	// Corresponds with GET /config/templates (the `ListConfigTemplates` operationId).
 	ListConfigTemplates(ctx context.Context, params *ListConfigTemplatesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PublishConfigTemplateWithBody Publish a template's next version
 	//
-	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself. A version never changes once published.
+	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself; a collection part - `collection_document`, the collection sections of a hub's document with each block keyed without a handle - one a collection takes for itself. A version never changes once published.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -33307,7 +33325,7 @@ type ClientInterface interface {
 
 	// PublishConfigTemplate Publish a template's next version
 	//
-	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself. A version never changes once published.
+	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself; a collection part - `collection_document`, the collection sections of a hub's document with each block keyed without a handle - one a collection takes for itself. A version never changes once published.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -33316,7 +33334,7 @@ type ClientInterface interface {
 
 	// PlanConfigTemplateWithBody Plan taking or upgrading a template
 	//
-	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template.
+	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template; with `collection_id`, its collection part under that collection's handle, against the collection's hub's document.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -33325,7 +33343,7 @@ type ClientInterface interface {
 
 	// PlanConfigTemplate Plan taking or upgrading a template
 	//
-	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template.
+	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template; with `collection_id`, its collection part under that collection's handle, against the collection's hub's document.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -47739,7 +47757,7 @@ func (c *Client) WriteConfigSandbox(ctx context.Context, body WriteConfigSandbox
 
 // ListConfigTemplates The workspace's templates
 //
-// Each template's newest version, the version the workspace took and whether an update is available. With `hub_id`, the templates a hub can take - those with a hub part - and the version that hub took.
+// Each template's newest version, the version the workspace took and whether an update is available. With `hub_id`, the templates a hub can take - those with a hub part - and the version that hub took; with `collection_id`, those with a collection part and the version that collection took.
 //
 // Corresponds with GET /config/templates (the `ListConfigTemplates` operationId).
 func (c *Client) ListConfigTemplates(ctx context.Context, params *ListConfigTemplatesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -47756,7 +47774,7 @@ func (c *Client) ListConfigTemplates(ctx context.Context, params *ListConfigTemp
 
 // PublishConfigTemplateWithBody Publish a template's next version
 //
-// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself. A version never changes once published.
+// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself; a collection part - `collection_document`, the collection sections of a hub's document with each block keyed without a handle - one a collection takes for itself. A version never changes once published.
 //
 // Takes any type of body and a specified content type.
 //
@@ -47775,7 +47793,7 @@ func (c *Client) PublishConfigTemplateWithBody(ctx context.Context, contentType 
 
 // PublishConfigTemplate Publish a template's next version
 //
-// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself. A version never changes once published.
+// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself; a collection part - `collection_document`, the collection sections of a hub's document with each block keyed without a handle - one a collection takes for itself. A version never changes once published.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -47794,7 +47812,7 @@ func (c *Client) PublishConfigTemplate(ctx context.Context, body PublishConfigTe
 
 // PlanConfigTemplateWithBody Plan taking or upgrading a template
 //
-// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template.
+// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template; with `collection_id`, its collection part under that collection's handle, against the collection's hub's document.
 //
 // Takes any type of body and a specified content type.
 //
@@ -47813,7 +47831,7 @@ func (c *Client) PlanConfigTemplateWithBody(ctx context.Context, key string, con
 
 // PlanConfigTemplate Plan taking or upgrading a template
 //
-// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template.
+// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template; with `collection_id`, its collection part under that collection's handle, against the collection's hub's document.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -74134,6 +74152,18 @@ func NewListConfigTemplatesRequest(server string, params *ListConfigTemplatesPar
 		if params.HubId != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.CollectionId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collection_id", *params.CollectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -103901,7 +103931,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListConfigTemplatesWithResponse The workspace's templates
 	//
-	// Each template's newest version, the version the workspace took and whether an update is available. With `hub_id`, the templates a hub can take - those with a hub part - and the version that hub took.
+	// Each template's newest version, the version the workspace took and whether an update is available. With `hub_id`, the templates a hub can take - those with a hub part - and the version that hub took; with `collection_id`, those with a collection part and the version that collection took.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -103910,7 +103940,7 @@ type ClientWithResponsesInterface interface {
 
 	// PublishConfigTemplateWithBodyWithResponse Publish a template's next version
 	//
-	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself. A version never changes once published.
+	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself; a collection part - `collection_document`, the collection sections of a hub's document with each block keyed without a handle - one a collection takes for itself. A version never changes once published.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -103919,7 +103949,7 @@ type ClientWithResponsesInterface interface {
 
 	// PublishConfigTemplateWithResponse Publish a template's next version
 	//
-	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself. A version never changes once published.
+	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself; a collection part - `collection_document`, the collection sections of a hub's document with each block keyed without a handle - one a collection takes for itself. A version never changes once published.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -103928,7 +103958,7 @@ type ClientWithResponsesInterface interface {
 
 	// PlanConfigTemplateWithBodyWithResponse Plan taking or upgrading a template
 	//
-	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template.
+	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template; with `collection_id`, its collection part under that collection's handle, against the collection's hub's document.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -103937,7 +103967,7 @@ type ClientWithResponsesInterface interface {
 
 	// PlanConfigTemplateWithResponse Plan taking or upgrading a template
 	//
-	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template.
+	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template; with `collection_id`, its collection part under that collection's handle, against the collection's hub's document.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -156401,7 +156431,7 @@ func (c *ClientWithResponses) WriteConfigSandboxWithResponse(ctx context.Context
 
 // ListConfigTemplatesWithResponse The workspace's templates
 //
-// Each template's newest version, the version the workspace took and whether an update is available. With `hub_id`, the templates a hub can take - those with a hub part - and the version that hub took.
+// Each template's newest version, the version the workspace took and whether an update is available. With `hub_id`, the templates a hub can take - those with a hub part - and the version that hub took; with `collection_id`, those with a collection part and the version that collection took.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -156416,7 +156446,7 @@ func (c *ClientWithResponses) ListConfigTemplatesWithResponse(ctx context.Contex
 
 // PublishConfigTemplateWithBodyWithResponse Publish a template's next version
 //
-// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself. A version never changes once published.
+// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself; a collection part - `collection_document`, the collection sections of a hub's document with each block keyed without a handle - one a collection takes for itself. A version never changes once published.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -156431,7 +156461,7 @@ func (c *ClientWithResponses) PublishConfigTemplateWithBodyWithResponse(ctx cont
 
 // PublishConfigTemplateWithResponse Publish a template's next version
 //
-// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself. A version never changes once published.
+// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A hub part - `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub template, which a hub takes for itself; a collection part - `collection_document`, the collection sections of a hub's document with each block keyed without a handle - one a collection takes for itself. A version never changes once published.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -156446,7 +156476,7 @@ func (c *ClientWithResponses) PublishConfigTemplateWithResponse(ctx context.Cont
 
 // PlanConfigTemplateWithBodyWithResponse Plan taking or upgrading a template
 //
-// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template.
+// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template; with `collection_id`, its collection part under that collection's handle, against the collection's hub's document.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -156461,7 +156491,7 @@ func (c *ClientWithResponses) PlanConfigTemplateWithBodyWithResponse(ctx context
 
 // PlanConfigTemplateWithResponse Plan taking or upgrading a template
 //
-// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template.
+// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan. With `hub_id`, the template's hub part against that hub's own document, once the workspace took the template; with `collection_id`, its collection part under that collection's handle, against the collection's hub's document.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

@@ -17701,9 +17701,14 @@ paths:
       description: >
         Each template's newest version, the version the workspace took and whether an update is
         available. With `hub_id`, the templates a hub can take - those with a hub part - and the
-        version that hub took.
+        version that hub took; with `collection_id`, those with a collection part and the version
+        that collection took.
       parameters:
         - name: hub_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: collection_id
           in: query
           required: false
           schema: { type: string, format: uuid }
@@ -17725,7 +17730,9 @@ paths:
         A configuration document in MERGE form that taking the template applies, checked before it
         is published; omitted, the configuration in force (save as template). A hub part -
         `hub_document`, or with `hub_id` that hub's own document in force - makes it a hub
-        template, which a hub takes for itself. A version never changes once published.
+        template, which a hub takes for itself; a collection part - `collection_document`, the
+        collection sections of a hub's document with each block keyed without a handle - one a
+        collection takes for itself. A version never changes once published.
       requestBody:
         required: true
         content:
@@ -17758,7 +17765,9 @@ paths:
         three-way comparison: each change is `TAKE` (the template changed it, the workspace did
         not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the
         document to apply with `template` set, and its plan. With `hub_id`, the template's hub
-        part against that hub's own document, once the workspace took the template.
+        part against that hub's own document, once the workspace took the template; with
+        `collection_id`, its collection part under that collection's handle, against the
+        collection's hub's document.
       requestBody:
         required: true
         content:
@@ -29964,11 +29973,16 @@ components:
           type: string
           description: >
             The template@version the document came from, recorded as the workspace's provenance -
-            or with `hub_id` as the hub's, for a template with a hub part.
+            or with `hub_id` as the hub's, for a template with a hub part, and with
+            `collection_id` as the collection's, for a template with a collection part.
         hub_id:
           type: string
           format: uuid
           description: A hub, for the hub's own document (its modules, structure, workflow scheme and business calendars); omitted is the workspace's.
+        collection_id:
+          type: string
+          format: uuid
+          description: A collection taking a template's collection part; its document is its hub's, which `hub_id` names or the collection implies.
         from_sandbox:
           type: boolean
           description: Promotes the sandbox - what it changed since its copy - instead of a document.
@@ -30066,6 +30080,7 @@ components:
         created_at: { type: string, format: date-time }
         decided_at: { type: [string, "null"], format: date-time }
         hub_id: { type: [string, "null"], format: uuid, description: The hub whose document the proposal changes; null for the workspace's. }
+        collection_id: { type: [string, "null"], format: uuid, description: The collection taking the template's collection part; null otherwise. }
 
     ConfigProposalList:
       type: object
@@ -30116,6 +30131,13 @@ components:
           oneOf:
             - $ref: "#/components/schemas/ConfigDocument"
             - type: "null"
+        collection_document:
+          description: >
+            The part a collection takes - the collection sections of a hub's document, each block
+            keyed without a handle; null for a template no collection takes.
+          oneOf:
+            - $ref: "#/components/schemas/ConfigDocument"
+            - type: "null"
         questions:
           type: array
           description: >
@@ -30160,6 +30182,8 @@ components:
           description: A hub whose own document in force is the template's hub part, unless `hub_document` names it.
         hub_document:
           $ref: "#/components/schemas/ConfigDocument"
+        collection_document:
+          $ref: "#/components/schemas/ConfigDocument"
 
     ConfigTemplatePlanRequest:
       type: object
@@ -30168,6 +30192,10 @@ components:
           type: string
           format: uuid
           description: A hub taking the template's hub part; omitted is the workspace.
+        collection_id:
+          type: string
+          format: uuid
+          description: A collection taking the template's collection part, planned as its hub's document.
         version: { type: integer, minimum: 1 }
         take:
           type: array
@@ -30204,6 +30232,7 @@ components:
           properties:
             template: { type: string }
             hub_id: { type: [string, "null"], format: uuid, description: The hub taking the template's hub part; null for the workspace. }
+            collection_id: { type: [string, "null"], format: uuid, description: The collection taking the template's collection part; null otherwise. }
             from_version: { type: [integer, "null"] }
             upgrade:
               type: array

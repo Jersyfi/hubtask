@@ -1124,6 +1124,7 @@ var generatedCommands = []door{
 	{Group: "config", Verb: "propose", OperationID: "proposeConfig", Method: "POST", Path: "/config:propose", Summary: "Propose a planned change for a person to decide",
 		Body: []doorParam{
 			{Name: "acknowledge", Kind: "boolean", Help: "", Required: false},
+			{Name: "collection_id", Kind: "uuid", Help: "A collection taking a template's collection part; its document is its hub's, which `hub_id` names …", Required: false},
 			{Name: "document", Kind: "json", Help: "Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, …", Required: false},
 			{Name: "from_sandbox", Kind: "boolean", Help: "Promotes the sandbox - what it changed since its copy - instead of a document", Required: false},
 			{Name: "hub_id", Kind: "uuid", Help: "A hub, for the hub's own document (its modules, structure, workflow scheme and business calendars); …", Required: false},

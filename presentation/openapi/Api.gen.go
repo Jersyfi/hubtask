@@ -14281,6 +14281,9 @@ type CompletionPolicy string
 type ConfigApplyRequest struct {
 	Acknowledge *bool `json:"acknowledge,omitempty"`
 
+	// CollectionId A collection taking a template's collection part; its document is its hub's, which `hub_id` names or the collection implies.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
 
@@ -14292,7 +14295,7 @@ type ConfigApplyRequest struct {
 	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
 	PlanHash string                  `json:"plan_hash"`
 
-	// Template The template@version the document came from, recorded as the workspace's provenance - or with `hub_id` as the hub's, for a template with a hub part.
+	// Template The template@version the document came from, recorded as the workspace's provenance - or with `hub_id` as the hub's, for a template with a hub part, and with `collection_id` as the collection's, for a template with a collection part.
 	Template  *string `json:"template,omitempty"`
 	ToVersion *int    `json:"to_version,omitempty"`
 }
@@ -14471,13 +14474,16 @@ type ConfigPolicyAgentApply string
 
 // ConfigProposal defines model for ConfigProposal.
 type ConfigProposal struct {
-	Added              int                 `json:"added"`
-	BaseHash           string              `json:"base_hash"`
-	Changed            int                 `json:"changed"`
-	ChangesPermissions bool                `json:"changes_permissions"`
-	CreatedAt          time.Time           `json:"created_at"`
-	DecidedAt          *time.Time          `json:"decided_at,omitempty"`
-	DecidedBy          *openapi_types.UUID `json:"decided_by,omitempty"`
+	Added              int    `json:"added"`
+	BaseHash           string `json:"base_hash"`
+	Changed            int    `json:"changed"`
+	ChangesPermissions bool   `json:"changes_permissions"`
+
+	// CollectionId The collection taking the template's collection part; null otherwise.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	CreatedAt    time.Time           `json:"created_at"`
+	DecidedAt    *time.Time          `json:"decided_at,omitempty"`
+	DecidedBy    *openapi_types.UUID `json:"decided_by,omitempty"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document  ConfigDocument `json:"document"`
@@ -14585,7 +14591,9 @@ type ConfigSchema struct {
 
 // ConfigTemplate defines model for ConfigTemplate.
 type ConfigTemplate struct {
-	CreatedAt time.Time `json:"created_at"`
+	// CollectionDocument The part a collection takes - the collection sections of a hub's document, each block keyed without a handle; null for a template no collection takes.
+	CollectionDocument *ConfigDocument `json:"collection_document,omitempty"`
+	CreatedAt          time.Time       `json:"created_at"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
@@ -14620,7 +14628,10 @@ type ConfigTemplateList struct {
 type ConfigTemplatePlan struct {
 	BaseHash string         `json:"base_hash"`
 	Changes  []ConfigChange `json:"changes"`
-	Counts   ConfigCounts   `json:"counts"`
+
+	// CollectionId The collection taking the template's collection part; null otherwise.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	Counts       ConfigCounts        `json:"counts"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
@@ -14659,6 +14670,9 @@ type ConfigTemplatePlanRequest struct {
 	// Answers The template's questions answered, by key. An open question takes its default; on an upgrade the answers are given again, so an answer that did not change is no change.
 	Answers *map[string]string `json:"answers,omitempty"`
 
+	// CollectionId A collection taking the template's collection part, planned as its hub's document.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
 	// HubId A hub taking the template's hub part; omitted is the workspace.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
@@ -14670,6 +14684,9 @@ type ConfigTemplatePlanRequest struct {
 
 // ConfigTemplatePublish defines model for ConfigTemplatePublish.
 type ConfigTemplatePublish struct {
+	// CollectionDocument Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	CollectionDocument *ConfigDocument `json:"collection_document,omitempty"`
+
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
 
@@ -25763,7 +25780,8 @@ type DecideConfigProposalParams struct {
 
 // ListConfigTemplatesParams defines parameters for ListConfigTemplates.
 type ListConfigTemplatesParams struct {
-	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+	HubId        *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+	CollectionId *openapi_types.UUID `form:"collection_id,omitempty" json:"collection_id,omitempty"`
 }
 
 // ListConfigVersionsParams defines parameters for ListConfigVersions.
@@ -39879,6 +39897,19 @@ func (siw *ServerInterfaceWrapper) ListConfigTemplates(w http.ResponseWriter, r 
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
 		}
 		return
 	}

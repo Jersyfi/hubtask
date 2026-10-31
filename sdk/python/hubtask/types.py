@@ -2655,6 +2655,7 @@ class ConfigApplyRequest(TypedDict, total=False):
     acknowledge: bool
     template: str
     hub_id: str
+    collection_id: str
     from_sandbox: bool
 
 class ConfigDraft(TypedDict, total=False):
@@ -2721,6 +2722,7 @@ class ConfigProposal(TypedDict, total=False):
     created_at: Required[str]
     decided_at: str | None
     hub_id: str | None
+    collection_id: str | None
 
 class ConfigProposalList(TypedDict, total=False):
     data: Required[list["ConfigProposal"]]
@@ -2748,6 +2750,7 @@ class ConfigTemplate(TypedDict, total=False):
     taken_version: int | None
     update_available: Required[bool]
     hub_document: "ConfigDocument" | Any
+    collection_document: "ConfigDocument" | Any
     questions: list["ConfigTemplateQuestion"]
 
 class ConfigTemplateQuestion(TypedDict, total=False):
@@ -2766,9 +2769,11 @@ class ConfigTemplatePublish(TypedDict, total=False):
     document: "ConfigDocument"
     hub_id: str
     hub_document: "ConfigDocument"
+    collection_document: "ConfigDocument"
 
 class ConfigTemplatePlanRequest(TypedDict, total=False):
     hub_id: str
+    collection_id: str
     version: int
     take: list[str]
     answers: dict[str, Any]
@@ -2794,6 +2799,7 @@ class ConfigTemplatePlan(TypedDict, total=False):
     counts: Required["ConfigCounts"]
     template: Required[str]
     hub_id: str | None
+    collection_id: str | None
     from_version: int | None
     upgrade: Required[list["ConfigUpgradeChange"]]
     document: Required["ConfigDocument"]
