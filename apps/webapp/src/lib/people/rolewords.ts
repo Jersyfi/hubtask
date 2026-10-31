@@ -18,7 +18,10 @@ const DESCRIBED = new Set([
   'APPROVE_TIME', 'MANAGE_COSTS',
 ]);
 
-const SHIPPED = new Set(['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR']);
+/** The seven built-in roles, in the matrix's order. */
+export const SHIPPED_ROLES = ['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'] as const;
+
+const SHIPPED: ReadonlySet<string> = new Set(SHIPPED_ROLES);
 
 /** A permission's words: a base permission's name, a field's or a step's with the object named. */
 export function permissionLabel(permission: string): string {

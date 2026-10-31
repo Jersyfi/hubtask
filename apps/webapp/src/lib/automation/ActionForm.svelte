@@ -105,7 +105,7 @@
       {@const reference = REFERENCE[field.name]}
       {@const choices: readonly Choice[] = reference ? (pickers[reference] ?? []) : []}
       {@const error = errors?.get(field.name) ?? (reference ? gone?.get(field.name) : undefined)}
-      {#if field.kind === 'id' && reference}
+      {#if reference && (field.kind === 'id' || field.kind === 'string')}
         <!-- A value the choices do not hold is named for what it is - gone, or not offered here -
              and never shown as the identifier it is (P-08). -->
         <Select

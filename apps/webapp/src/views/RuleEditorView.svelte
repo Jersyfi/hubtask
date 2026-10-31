@@ -53,6 +53,8 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
+  import { roles } from '../lib/data/roles.svelte.ts';
+  import { roleLabel, SHIPPED_ROLES } from '../lib/people/rolewords.ts';
   import { labels } from '../lib/data/labels.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { rules, type InboundToken } from '../lib/data/rules.svelte.ts';
@@ -379,6 +381,9 @@
     if (needed.has('group')) untrack(() => groups.open());
   });
   $effect(() => {
+    if (needed.has('role')) untrack(() => roles.open());
+  });
+  $effect(() => {
     if (needed.has('template')) untrack(() => templates.open());
   });
   $effect(() => {
@@ -395,6 +400,11 @@
     template: templates.of().map((template) => ({ value: template.id, label: template.name })),
     subscription: webhooks.all.map((subscription) => ({ value: subscription.id, label: subscription.target_url })),
     group: groups.all.map((group) => ({ value: group.id, label: group.name })),
+    // The built-in roles are always offered; the workspace's own once its catalogue is read.
+    role: [
+      ...SHIPPED_ROLES.map((role) => ({ value: role, label: roleLabel(role) })),
+      ...(roles.catalogue?.custom ?? []).map((role) => ({ value: role.key, label: role.name })),
+    ],
     account: everyone,
   });
 

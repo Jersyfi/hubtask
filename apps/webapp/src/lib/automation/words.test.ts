@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { emptyDraft, newStep } from './model.ts';
-import { AI_ACTIONS, eventGroups, eventWord, eventWords, generatedName, grouped, kindFamily, kindWord, offeredKinds, sentence, type Catalogue, type Names } from './words.ts';
+import { AI_ACTIONS, COMMON_GROUPS, REFERENCE, eventGroups, eventWord, eventWords, generatedName, grouped, kindFamily, kindIcon, kindWord, offeredKinds, sentence, type Catalogue, type Names } from './words.ts';
 
 /** A catalogue that answers the code and its parameters, so a test reads the shape rather than the prose. */
 const words: Catalogue = {
@@ -118,4 +118,13 @@ test('every declared AI kind is of the AI family, and nothing else is', () => {
   assert.equal(kindFamily('ADD_LABEL'), 'entries');
   assert.equal(kindFamily('WAIT'), 'flow');
   assert.deepEqual(offeredKinds(['SUGGEST_DUPLICATES', 'ADD_LABEL'], { ai_suggestions: false }), ['ADD_LABEL']);
+});
+
+test('the notification steps are people actions with a picker for whom they tell (UC-AUT-09)', () => {
+  const people = COMMON_GROUPS.find((group) => group.code === 'app.flow.group_people');
+  for (const kind of ['NOTIFY_ACCOUNT', 'NOTIFY_GROUP', 'NOTIFY_ROLE']) assert.ok(people?.kinds.includes(kind), kind);
+  assert.equal(REFERENCE.account_id, 'account');
+  assert.equal(REFERENCE.group_id, 'group');
+  assert.equal(REFERENCE.role, 'role');
+  assert.equal(kindIcon('NOTIFY_GROUP'), 'users');
 });
