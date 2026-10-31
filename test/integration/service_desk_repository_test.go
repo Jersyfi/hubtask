@@ -8,6 +8,8 @@ package integration
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -69,6 +71,31 @@ func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 		return repo.Policies().Insert(ctx, stray)
 	}); err != nil {
 		t.Errorf("a policy on a key the installation offers: %v", err)
+	}
+	// A policy for organisations reads them back; one for every requester holds none (migration 0294).
+	vip := policy
+	vip.ID, vip.Key, vip.Organisations = freshID(t), "key_accounts", []string{"acme"}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.Policies().Insert(ctx, vip); err != nil {
+			return err
+		}
+		vip.Organisations = []string{"acme", "globex"}
+		return repo.Policies().Update(ctx, vip, vip.Version)
+	}); err != nil {
+		t.Fatalf("a policy for organisations: %v", err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		found, err := repo.Policies().Find(ctx, "key_accounts")
+		if err != nil || !slices.Equal(found.Organisations, []string{"acme", "globex"}) {
+			return errors.Join(err, fmt.Errorf("organisations read back as %v", found.Organisations))
+		}
+		everyone, err := repo.Policies().Find(ctx, "incidents")
+		if err != nil || len(everyone.Organisations) != 0 {
+			return errors.Join(err, fmt.Errorf("a policy for everyone reads %v", everyone.Organisations))
+		}
+		return nil
+	}); err != nil {
+		t.Error(err)
 	}
 
 	item := seedWorkItemForRules(ctx, t, tenantA)

@@ -5564,6 +5564,8 @@ CREATE TABLE sla_policy (
   created_at     timestamptz NOT NULL,
   updated_at     timestamptz NOT NULL,
   version        integer NOT NULL DEFAULT 1,
+  -- the requester organisations measured; empty measures every requester's (0294)
+  organisations  text[] NOT NULL DEFAULT '{}' CHECK (cardinality(organisations) <= 20),
   UNIQUE (tenant_id, id),
   -- the calendar is held by key in the use cases: the workspace's or the installation's (0291)
   CONSTRAINT sla_policy_key_uq UNIQUE (tenant_id, key)

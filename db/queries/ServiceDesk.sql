@@ -24,30 +24,31 @@ DELETE FROM business_calendar WHERE key = sqlc.arg('key');
 
 -- name: InsertSlaPolicy :exec
 INSERT INTO sla_policy (
-  id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-  created_at, updated_at, version
+  id, tenant_id, key, name, calendar_key, entry_types, organisations, priority_field, goals, position,
+  enabled, created_at, updated_at, version
 ) VALUES (
   sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('key'), sqlc.arg('name'), sqlc.narg('calendar_key'),
-  sqlc.arg('entry_types')::text[], sqlc.arg('priority_field'), sqlc.arg('goals'), sqlc.arg('position'),
-  sqlc.arg('enabled'), sqlc.arg('now'), sqlc.arg('now'), 1
+  sqlc.arg('entry_types')::text[], sqlc.arg('organisations')::text[], sqlc.arg('priority_field'),
+  sqlc.arg('goals'), sqlc.arg('position'), sqlc.arg('enabled'), sqlc.arg('now'), sqlc.arg('now'), 1
 );
 
 -- name: UpdateSlaPolicy :execrows
 UPDATE sla_policy SET
   name = sqlc.arg('name'), calendar_key = sqlc.narg('calendar_key'),
-  entry_types = sqlc.arg('entry_types')::text[], priority_field = sqlc.arg('priority_field'),
+  entry_types = sqlc.arg('entry_types')::text[], organisations = sqlc.arg('organisations')::text[],
+  priority_field = sqlc.arg('priority_field'),
   goals = sqlc.arg('goals'), position = sqlc.arg('position'), enabled = sqlc.arg('enabled'),
   updated_at = sqlc.arg('now'), version = version + 1
 WHERE key = sqlc.arg('key') AND version = sqlc.arg('expected_version');
 
 -- name: FindSlaPolicy :one
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version
+       created_at, updated_at, version, organisations
 FROM sla_policy WHERE key = sqlc.arg('key');
 
 -- name: ListSlaPolicies :many
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version
+       created_at, updated_at, version, organisations
 FROM sla_policy ORDER BY position, key;
 
 -- name: DeleteSlaPolicy :execrows

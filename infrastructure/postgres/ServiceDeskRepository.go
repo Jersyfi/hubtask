@@ -233,9 +233,9 @@ func (ServiceDeskPolicies) Insert(ctx context.Context, policy servicedesk.SlaPol
 	}
 	if err := queries.InsertSlaPolicy(ctx, sqlc.InsertSlaPolicyParams{
 		ID: id, TenantID: tenant, Key: policy.Key, Name: policy.Name, CalendarKey: optionalKey(policy.CalendarKey),
-		EntryTypes: policy.EntryTypes, PriorityField: policy.PriorityField, Goals: goals,
-		Position: int32(policy.Position), //nolint:gosec // a position is small
-		Enabled:  policy.Enabled, Now: timestampOf(policy.CreatedAt),
+		EntryTypes: policy.EntryTypes, Organisations: keysOrEmpty(policy.Organisations), PriorityField: policy.PriorityField,
+		Goals: goals, Position: int32(policy.Position), //nolint:gosec // a position is small
+		Enabled: policy.Enabled, Now: timestampOf(policy.CreatedAt),
 	}); err != nil {
 		return policyWriteFailed(policy, err)
 	}
@@ -253,7 +253,7 @@ func (ServiceDeskPolicies) Update(ctx context.Context, policy servicedesk.SlaPol
 	}
 	affected, err := queries.UpdateSlaPolicy(ctx, sqlc.UpdateSlaPolicyParams{
 		Name: policy.Name, CalendarKey: optionalKey(policy.CalendarKey), EntryTypes: policy.EntryTypes,
-		PriorityField: policy.PriorityField, Goals: goals,
+		Organisations: keysOrEmpty(policy.Organisations), PriorityField: policy.PriorityField, Goals: goals,
 		Position: int32(policy.Position), //nolint:gosec // a position is small
 		Enabled:  policy.Enabled, Now: timestampOf(policy.UpdatedAt), Key: policy.Key,
 		ExpectedVersion: int32(expectedVersion), //nolint:gosec // a version is far below 2^31
@@ -265,6 +265,14 @@ func (ServiceDeskPolicies) Update(ctx context.Context, policy servicedesk.SlaPol
 		return shared.ErrVersionConflict.WithDetail("sla_policies.version_conflict")
 	}
 	return nil
+}
+
+// keysOrEmpty sends no keys as an empty array: the column holds no NULL.
+func keysOrEmpty(keys []string) []string {
+	if keys == nil {
+		return []string{}
+	}
+	return keys
 }
 
 func policyFrom(row sqlc.SlaPolicy) (servicedesk.SlaPolicy, error) {
@@ -282,7 +290,7 @@ func policyFrom(row sqlc.SlaPolicy) (servicedesk.SlaPolicy, error) {
 	}
 	policy := servicedesk.SlaPolicy{
 		ID: id, TenantID: tenant, Key: row.Key, Name: row.Name, EntryTypes: row.EntryTypes,
-		PriorityField: row.PriorityField, Goals: goals, Position: int(row.Position), Enabled: row.Enabled,
+		Organisations: row.Organisations, PriorityField: row.PriorityField, Goals: goals, Position: int(row.Position), Enabled: row.Enabled,
 		CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time, Version: int(row.Version),
 	}
 	if row.CalendarKey != nil {

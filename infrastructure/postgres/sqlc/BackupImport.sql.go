@@ -6892,8 +6892,9 @@ func (q *Queries) ImportSettingValue(ctx context.Context, arg ImportSettingValue
 }
 
 const importSlaPolicy = `-- name: ImportSlaPolicy :execrows
-INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version)
-SELECT r.id, r.tenant_id, r.key, r.name, r.calendar_key, r.entry_types, r.priority_field, r.goals, r.position, r.enabled, r.created_at, r.updated_at, r.version
+INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version, organisations)
+SELECT r.id, r.tenant_id, r.key, r.name, r.calendar_key, r.entry_types, r.priority_field, r.goals, r.position, r.enabled, r.created_at, r.updated_at, r.version,
+       coalesce(r.organisations, '{}')
 FROM jsonb_populate_record(
   NULL::sla_policy,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -6901,7 +6902,8 @@ FROM jsonb_populate_record(
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name, calendar_key = EXCLUDED.calendar_key, entry_types = EXCLUDED.entry_types,
   priority_field = EXCLUDED.priority_field, goals = EXCLUDED.goals, position = EXCLUDED.position,
-  enabled = EXCLUDED.enabled, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+  enabled = EXCLUDED.enabled, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version,
+  organisations = EXCLUDED.organisations
 WHERE $2::boolean
 `
 

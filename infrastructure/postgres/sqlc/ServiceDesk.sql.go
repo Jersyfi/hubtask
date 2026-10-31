@@ -326,7 +326,7 @@ func (q *Queries) FindSatisfactionRating(ctx context.Context, itemID pgtype.UUID
 
 const findSlaPolicy = `-- name: FindSlaPolicy :one
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version
+       created_at, updated_at, version, organisations
 FROM sla_policy WHERE key = $1
 `
 
@@ -347,6 +347,7 @@ func (q *Queries) FindSlaPolicy(ctx context.Context, key string) (SlaPolicy, err
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Organisations,
 	)
 	return i, err
 }
@@ -543,12 +544,12 @@ func (q *Queries) InsertRequesterOrganisation(ctx context.Context, arg InsertReq
 
 const insertSlaPolicy = `-- name: InsertSlaPolicy :exec
 INSERT INTO sla_policy (
-  id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-  created_at, updated_at, version
+  id, tenant_id, key, name, calendar_key, entry_types, organisations, priority_field, goals, position,
+  enabled, created_at, updated_at, version
 ) VALUES (
   $1, $2, $3, $4, $5,
-  $6::text[], $7, $8, $9,
-  $10, $11, $11, 1
+  $6::text[], $7::text[], $8,
+  $9, $10, $11, $12, $12, 1
 )
 `
 
@@ -559,6 +560,7 @@ type InsertSlaPolicyParams struct {
 	Name          string
 	CalendarKey   *string
 	EntryTypes    []string
+	Organisations []string
 	PriorityField string
 	Goals         []byte
 	Position      int32
@@ -574,6 +576,7 @@ func (q *Queries) InsertSlaPolicy(ctx context.Context, arg InsertSlaPolicyParams
 		arg.Name,
 		arg.CalendarKey,
 		arg.EntryTypes,
+		arg.Organisations,
 		arg.PriorityField,
 		arg.Goals,
 		arg.Position,
@@ -888,7 +891,7 @@ func (q *Queries) ListRequesterOrganisations(ctx context.Context, max int32) ([]
 
 const listSlaPolicies = `-- name: ListSlaPolicies :many
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version
+       created_at, updated_at, version, organisations
 FROM sla_policy ORDER BY position, key
 `
 
@@ -915,6 +918,7 @@ func (q *Queries) ListSlaPolicies(ctx context.Context) ([]SlaPolicy, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Organisations,
 		); err != nil {
 			return nil, err
 		}
@@ -1273,16 +1277,18 @@ func (q *Queries) UpdateRequesterOrganisation(ctx context.Context, arg UpdateReq
 const updateSlaPolicy = `-- name: UpdateSlaPolicy :execrows
 UPDATE sla_policy SET
   name = $1, calendar_key = $2,
-  entry_types = $3::text[], priority_field = $4,
-  goals = $5, position = $6, enabled = $7,
-  updated_at = $8, version = version + 1
-WHERE key = $9 AND version = $10
+  entry_types = $3::text[], organisations = $4::text[],
+  priority_field = $5,
+  goals = $6, position = $7, enabled = $8,
+  updated_at = $9, version = version + 1
+WHERE key = $10 AND version = $11
 `
 
 type UpdateSlaPolicyParams struct {
 	Name            string
 	CalendarKey     *string
 	EntryTypes      []string
+	Organisations   []string
 	PriorityField   string
 	Goals           []byte
 	Position        int32
@@ -1297,6 +1303,7 @@ func (q *Queries) UpdateSlaPolicy(ctx context.Context, arg UpdateSlaPolicyParams
 		arg.Name,
 		arg.CalendarKey,
 		arg.EntryTypes,
+		arg.Organisations,
 		arg.PriorityField,
 		arg.Goals,
 		arg.Position,
