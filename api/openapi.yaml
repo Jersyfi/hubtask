@@ -14338,13 +14338,13 @@ paths:
 
         **Nothing accepts it.** A collection has nowhere to put a status summary — a description
         says what a collection is *for*, not how its week went — so the suggestion is the answer:
-        read it, and `:dismiss` closes it.
+        read it, and `:dismiss` closes it. The body therefore carries no `apply`.
       requestBody:
         required: false
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AiAsk"
+              $ref: "#/components/schemas/AiSummaryAsk"
       responses:
         "202":
           description: The provider will be asked by the job named here; a refusal the job meets is its error_code
@@ -23342,6 +23342,14 @@ components:
             provenance first, the acceptance is audited as its own act, and the change goes through
             the use case that owns it with the caller's own rights — it is the same path with
             nobody pausing in the middle.
+
+    AiSummaryAsk:
+      type: object
+      additionalProperties: false
+      description: >
+        How to ask how a collection stands. It asks nothing beyond the collection the path names:
+        the answer has nowhere to be applied, so there is nothing to choose between proposing and
+        applying.
 
     SuggestionAcceptance:
       type: object

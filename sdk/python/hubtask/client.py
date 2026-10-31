@@ -2115,7 +2115,7 @@ class Client:
         """Ask AI to summarise this entry's discussion"""
         return self._call("POST", "/items/{itemId}:summarize-thread", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
-    def ai_summarize_container(self, container_id: str, body: "AiAsk") -> "JobRef":
+    def ai_summarize_container(self, container_id: str, body: "AiSummaryAsk") -> "JobRef":
         """Ask AI how a collection stands"""
         return self._call("POST", "/containers/{containerId}:summarize", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
 

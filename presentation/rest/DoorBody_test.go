@@ -29,9 +29,7 @@ type bodySchema struct {
 // that lies. A read-only member is the answer's: a client that saves what it read sends it back,
 // and the door drops it.
 func TestEveryGeneratedBodyMemberIsADeclaredInput(t *testing.T) {
-	// A summary's ask shares AiAsk with the asks that apply, and a summary has nowhere to apply
-	// to: `apply` is refused there. Removing it from that body is a contract change, not this test's.
-	refused := map[string]bool{"aiSummarizeContainer.apply": true}
+	refused := map[string]bool{}
 	// The members of an entry's create and patch that another door writes - a label, a member, an
 	// assignment, a cover, a custom field - reach the use case and are refused by name, so a client
 	// is told where to send them rather than believing them stored.

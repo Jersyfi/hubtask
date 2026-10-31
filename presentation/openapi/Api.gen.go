@@ -11833,6 +11833,9 @@ type AiSourceKind string
 // AiSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
 type AiSources string
 
+// AiSummaryAsk How to ask how a collection stands. It asks nothing beyond the collection the path names: the answer has nowhere to be applied, so there is nothing to choose between proposing and applying.
+type AiSummaryAsk = map[string]interface{}
+
 // AiTranslateRequest Which language to read the entry in.
 type AiTranslateRequest struct {
 	// TargetLocale BCP 47 (`de`, `pt-BR`). Absent, the caller's own locale — the account's, else the request's — which is the language they read anything in. A tag the installation has no catalogue for is fine: the provider translates into languages the product does not render.
@@ -27585,7 +27588,7 @@ type MoveContainerJSONRequestBody MoveContainerJSONBody
 type ReorderContainerJSONRequestBody ReorderContainerJSONBody
 
 // AiSummarizeContainerJSONRequestBody defines body for AiSummarizeContainer for application/json ContentType.
-type AiSummarizeContainerJSONRequestBody = AiAsk
+type AiSummarizeContainerJSONRequestBody = AiSummaryAsk
 
 // SetCostRateJSONRequestBody defines body for SetCostRate for application/json ContentType.
 type SetCostRateJSONRequestBody SetCostRateJSONBody

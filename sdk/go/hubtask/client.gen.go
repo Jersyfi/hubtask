@@ -11839,6 +11839,9 @@ type AiSourceKind string
 // AiSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
 type AiSources string
 
+// AiSummaryAsk How to ask how a collection stands. It asks nothing beyond the collection the path names: the answer has nowhere to be applied, so there is nothing to choose between proposing and applying.
+type AiSummaryAsk = map[string]interface{}
+
 // AiTranslateRequest Which language to read the entry in.
 type AiTranslateRequest struct {
 	// TargetLocale BCP 47 (`de`, `pt-BR`). Absent, the caller's own locale — the account's, else the request's — which is the language they read anything in. A tag the installation has no catalogue for is fine: the provider translates into languages the product does not render.
@@ -27591,7 +27594,7 @@ type MoveContainerJSONRequestBody MoveContainerJSONBody
 type ReorderContainerJSONRequestBody ReorderContainerJSONBody
 
 // AiSummarizeContainerJSONRequestBody defines body for AiSummarizeContainer for application/json ContentType.
-type AiSummarizeContainerJSONRequestBody = AiAsk
+type AiSummarizeContainerJSONRequestBody = AiSummaryAsk
 
 // SetCostRateJSONRequestBody defines body for SetCostRate for application/json ContentType.
 type SetCostRateJSONRequestBody SetCostRateJSONBody
@@ -32845,7 +32848,7 @@ type ClientInterface interface {
 	//
 	// Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.
 	// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.
-	// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.
+	// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it. The body therefore carries no `apply`.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -32856,7 +32859,7 @@ type ClientInterface interface {
 	//
 	// Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.
 	// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.
-	// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.
+	// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it. The body therefore carries no `apply`.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -47351,7 +47354,7 @@ func (c *Client) RestoreContainer(ctx context.Context, containerId ContainerId, 
 //
 // Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.
 // Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.
-// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.
+// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it. The body therefore carries no `apply`.
 //
 // Takes any type of body and a specified content type.
 //
@@ -47372,7 +47375,7 @@ func (c *Client) AiSummarizeContainerWithBody(ctx context.Context, containerId C
 //
 // Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.
 // Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.
-// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.
+// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it. The body therefore carries no `apply`.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -100871,7 +100874,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.
 	// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.
-	// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.
+	// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it. The body therefore carries no `apply`.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -100882,7 +100885,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.
 	// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.
-	// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.
+	// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it. The body therefore carries no `apply`.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -151657,7 +151660,7 @@ func (c *ClientWithResponses) RestoreContainerWithResponse(ctx context.Context, 
 //
 // Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.
 // Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.
-// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.
+// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it. The body therefore carries no `apply`.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -151674,7 +151677,7 @@ func (c *ClientWithResponses) AiSummarizeContainerWithBodyWithResponse(ctx conte
 //
 // Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.
 // Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.
-// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.
+// **Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it. The body therefore carries no `apply`.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

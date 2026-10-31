@@ -21314,13 +21314,13 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI how a collection stands",
-        "description": "Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.\nAsynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.\n**Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.\n",
+        "description": "Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.\nAsynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.\n**Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it. The body therefore carries no `apply`.\n",
         "requestBody": {
           "required": false,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AiAsk"
+                "$ref": "#/components/schemas/AiSummaryAsk"
               }
             }
           }
@@ -34159,6 +34159,11 @@
             "description": "Apply the answer as soon as it arrives instead of proposing it. **False unless it is said**, and deliberately: a result is a suggestion, and applying one without a person reading it is a decision somebody configures rather than one that happens by not thinking about it.\nAn applied answer is not a shortcut past anything. The suggestion is recorded with its provenance first, the acceptance is audited as its own act, and the change goes through the use case that owns it with the caller's own rights — it is the same path with nobody pausing in the middle.\n"
           }
         }
+      },
+      "AiSummaryAsk": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "How to ask how a collection stands. It asks nothing beyond the collection the path names: the answer has nowhere to be applied, so there is nothing to choose between proposing and applying.\n"
       },
       "SuggestionAcceptance": {
         "type": "object",

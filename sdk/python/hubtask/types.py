@@ -354,6 +354,8 @@ class AiAsk(TypedDict, total=False):
     """How to ask, which is one question — propose, or apply."""
     apply: bool
 
+AiSummaryAsk = dict[str, Any]
+
 class SuggestionAcceptance(TypedDict, total=False):
     """What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights."""
     overrides: dict[str, Any]
