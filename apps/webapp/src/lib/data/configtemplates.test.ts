@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answersOf, byOrigin, offerOf, offersSamples, takenFirst } from './configtemplates.ts';
+import { answersOf, byOrigin, galleryScope, offerOf, offersSamples, takenFirst } from './configtemplates.ts';
 
 test('the gallery draws the four origins in order and leaves an empty one out', () => {
   const groups = byOrigin([
@@ -48,4 +48,11 @@ test('sample entries are offered to a hub taking a template that brings some, ne
   assert.equal(offersSamples({ ...desk, taken_version: 7, update_available: true }, 'hub'), false, 'an upgrade offers none');
   assert.equal(offersSamples({ ...desk, hub_document: { samples: {} } }, 'hub'), false);
   assert.equal(offersSamples({ ...desk, hub_document: null }, 'hub'), false);
+});
+
+test("a collection's settings draw the collection's gallery, not its hub's", () => {
+  assert.equal(galleryScope(undefined, 'collection'), 'collection');
+  assert.equal(galleryScope('hub', 'collection'), 'collection');
+  assert.equal(galleryScope('hub', undefined), 'hub');
+  assert.equal(galleryScope(undefined, undefined), 'workspace');
 });

@@ -1225,6 +1225,9 @@
             role={structureRole}
             onopened={(itemId) => onnavigate(`/items/${itemId}`)}
           />
+          <!-- Beside the entry templates, the configuration templates this collection takes for
+               itself (configuration.md §6, a collection part). -->
+          <LazyView load={settingsParts.TemplatesGallery} props={{ collectionId: container.id }} />
         {/snippet}
         {#snippet automationTab()}
           <LazyView

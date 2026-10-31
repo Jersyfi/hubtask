@@ -26,8 +26,14 @@ const DRAFTS = '/config/drafts';
 const TOUCHED = ['/config', DRAFTS, TEMPLATES, '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
 
 /** The templates a hub can take, or the workspace's. */
-function templatesPath(hubId?: string): string {
+function templatesPath(hubId?: string, collectionId?: string): string {
+  if (collectionId) return `${TEMPLATES}?collection_id=${encodeURIComponent(collectionId)}`;
   return hubId ? `${TEMPLATES}?hub_id=${encodeURIComponent(hubId)}` : TEMPLATES;
+}
+
+/** What a collection's apply changes besides its hub's: its own templates and the container. */
+function collectionTouched(collectionId: string): string[] {
+  return [templatesPath(undefined, collectionId), `/containers/${encodeURIComponent(collectionId)}`];
 }
 
 /** What a hub's apply changes besides the workspace's reads: the hub's own document and blocks. */
@@ -89,14 +95,15 @@ class Config {
    * Reads the templates the reader may take, the newest version of each - or with a hub, those a
    * hub can take and the version that hub took. **From `untrack`**.
    */
-  templates(onNext: (state: ResourceState<ConfigTemplateList>) => void, hubId?: string): () => void {
-    return engine.subscribe<ConfigTemplateList>({ path: templatesPath(hubId) }, onNext);
+  templates(onNext: (state: ResourceState<ConfigTemplateList>) => void, hubId?: string, collectionId?: string): () => void {
+    return engine.subscribe<ConfigTemplateList>({ path: templatesPath(hubId, collectionId) }, onNext);
   }
 
   /**
    * Plans taking a template, or upgrading to its newer version: `take` names the upgrade's changes
    * to take, omitted taking every one the workspace did not change itself; `answers` answer the
-   * template's questions. Writes nothing.
+   * template's questions; `collectionId` plans a template's collection part for that collection.
+   * Writes nothing.
    */
   async planTemplate(
     key: string,
@@ -104,19 +111,17 @@ class Config {
     hubId?: string,
     answers?: Readonly<Record<string, string>>,
     samples?: boolean,
+    collectionId?: string,
   ): Promise<ConfigTemplatePlan> {
     return engine.mutate<ConfigTemplatePlan>('POST', `${TEMPLATES}/${encodeURIComponent(key)}:plan`, {
       ...(take ? { take: [...take] } : {}),
       ...(hubId ? { hub_id: hubId } : {}),
+      ...(collectionId ? { collection_id: collectionId } : {}),
       ...(samples ? { samples: true } : {}),
       ...(answers && Object.keys(answers).length > 0 ? { answers: { ...answers } } : {}),
     });
   }
 
-  /**
-   * Applies a template's plan by its hash, recording the template's provenance: a hub's plan to
-   * that hub's own document.
-   */
   /**
    * Moves every sample entry of the hub into the trash at once; entries nobody marked stay.
    */
@@ -126,12 +131,19 @@ class Config {
     });
   }
 
+  /**
+   * Applies a template's plan by its hash, recording the template's provenance: a hub's plan to
+   * that hub's own document, a collection's as that collection's.
+   */
   async applyTemplate(plan: ConfigTemplatePlan, acknowledge: boolean): Promise<ConfigApplyResult> {
     const hubId = plan.hub_id ?? undefined;
+    const collectionId = plan.collection_id ?? undefined;
+    const invalidates = [...TOUCHED, ...(hubId ? hubTouched(hubId) : []), ...(collectionId ? collectionTouched(collectionId) : [])];
     return engine.mutate<ConfigApplyResult>('POST', '/config:apply', {
       document: plan.document, mode: plan.mode, plan_hash: plan.plan_hash ?? '', template: plan.template, acknowledge,
       ...(hubId ? { hub_id: hubId } : {}),
-    }, { idempotencyKey: crypto.randomUUID(), invalidates: hubId ? [...TOUCHED, ...hubTouched(hubId)] : TOUCHED });
+      ...(collectionId ? { collection_id: collectionId } : {}),
+    }, { idempotencyKey: crypto.randomUUID(), invalidates });
   }
 
   /** Reads the sandbox and the plan of promoting it. **From `untrack`**. */

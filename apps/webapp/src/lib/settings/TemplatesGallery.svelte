@@ -7,14 +7,15 @@
   // update lists each change the template made, a change the workspace made itself unticked until
   // the person ticks it - and the apply is exactly that plan, recording `template@version`. In a
   // hub's settings, the templates with a hub part: the hub takes that part for itself, once the
-  // workspace took the template (configuration.md §6).
+  // workspace took the template (configuration.md §6). In a collection's settings, the templates
+  // with a collection part, which the collection takes under its own handle.
 
   import { untrack } from 'svelte';
   import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState } from '@hubtask/sync-engine';
 
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
-  import { answersOf, byOrigin, offerOf, offersSamples, takenFirst } from '../data/configtemplates.ts';
+  import { answersOf, byOrigin, galleryScope, offerOf, offersSamples, takenFirst } from '../data/configtemplates.ts';
   import { groups as workspaceGroups } from '../data/groups.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -24,14 +25,19 @@
   interface Props {
     /** A hub taking a template's hub part; omitted is the workspace. */
     hubId?: string;
+    /** A collection taking a template's collection part; its hub follows from it. */
+    collectionId?: string;
   }
 
-  const { hubId }: Props = $props();
+  const { hubId, collectionId }: Props = $props();
+  /** Which gallery this is: its heading, its words and what it says when it offers nothing. */
+  const scope = $derived(galleryScope(hubId, collectionId));
 
   let list = $state<ResourceState<ConfigTemplateList>>();
   $effect(() => {
     const hub = hubId;
-    return untrack(() => config.templates((next) => (list = next), hub));
+    const collection = collectionId;
+    return untrack(() => config.templates((next) => (list = next), hub, collection));
   });
 
   const groups = $derived(list?.status === 'ready' ? byOrigin(list.data.data) : []);
@@ -65,7 +71,7 @@
     withSamples = false;
     acknowledged = false;
     try {
-      plan = await config.planTemplate(template.key, undefined, hubId, answersOf(template.questions, answers));
+      plan = await config.planTemplate(template.key, undefined, hubId, answersOf(template.questions, answers), false, collectionId);
       take = takenFirst(plan.upgrade);
       isOpen = true;
     } catch (error) {
@@ -79,7 +85,7 @@
     if (!chosen) return;
     take = isTaken ? [...take, path] : take.filter((each) => each !== path);
     try {
-      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples);
+      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
@@ -90,7 +96,7 @@
     if (!chosen) return;
     answers = { ...answers, [key]: value };
     try {
-      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples);
+      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
@@ -101,7 +107,7 @@
     if (!chosen) return;
     withSamples = on;
     try {
-      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples);
+      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
@@ -126,12 +132,14 @@
 </script>
 
 <section class="block" aria-labelledby="templates-gallery" data-templates>
-  <h2 id="templates-gallery">{t(hubId ? 'app.templates.hub_gallery' : 'app.templates.gallery')}</h2>
-  <p class="quiet">{t(hubId ? 'app.templates.hub_about' : 'app.templates.about')}</p>
+  <h2 id="templates-gallery">{t(scope === 'collection' ? 'app.templates.collection_gallery' : scope === 'hub' ? 'app.templates.hub_gallery' : 'app.templates.gallery')}</h2>
+  <p class="quiet">{t(scope === 'collection' ? 'app.templates.collection_about' : scope === 'hub' ? 'app.templates.hub_about' : 'app.templates.about')}</p>
   {#if refusal}
     <Banner tone="danger" title={refusal.message} />
   {:else if list?.status !== 'ready'}
     <Spinner label={t('app.templates.reading')} />
+  {:else if scope === 'collection' && groups.length === 0}
+    <p class="quiet" data-no-collection-templates>{t('app.templates.collection_none')}</p>
   {:else if hubId && groups.length === 0}
     <p class="quiet" data-no-hub-templates>{t('app.templates.hub_none')}</p>
   {:else}

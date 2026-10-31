@@ -66,3 +66,12 @@ export function offersSamples(template: WithSamples | undefined, hubId: string |
   const samples = template.hub_document?.['samples'];
   return typeof samples === 'object' && samples !== null && Object.keys(samples).length > 0;
 }
+
+/**
+ * Which gallery a settings page draws: a collection's - the templates with a collection part -
+ * before its hub's, a hub's - those with a hub part - before the workspace's.
+ */
+export function galleryScope(hubId: string | undefined, collectionId: string | undefined): 'collection' | 'hub' | 'workspace' {
+  if (collectionId) return 'collection';
+  return hubId ? 'hub' : 'workspace';
+}
