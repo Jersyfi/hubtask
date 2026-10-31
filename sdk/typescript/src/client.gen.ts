@@ -3813,6 +3813,11 @@ export class HubtaskClient {
     return this.call("POST", "/pages/{pageId}:move", { "pageId": pageId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Copy a page */
+  copyPage(pageId: string, body: NonNullable<operations["copyPage"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["copyPage"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}:copy", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Bring a page back from the trash */
   restorePage(pageId: string, options: CallOptions = {}): Promise<operations["restorePage"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/pages/{pageId}:restore", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

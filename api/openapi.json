@@ -30812,6 +30812,65 @@
         }
       }
     },
+    "/pages/{pageId}:copy": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "copyPage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-location": "/pages/{id}",
+        "x-hubtask-cli": "page copy",
+        "summary": "Copy a page",
+        "description": "Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no \"Copy of\". Needs READ on the page and WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "description": "The copy's title; omitted keeps the page's."
+                  },
+                  "parent_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "description": "The page the copy sits under; null for the top of the space."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Copied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/pages/{pageId}:restore": {
       "parameters": [
         {

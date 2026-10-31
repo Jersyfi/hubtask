@@ -26517,6 +26517,15 @@ type RestorePageVersionParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CopyPageJSONBody defines parameters for CopyPage.
+type CopyPageJSONBody struct {
+	// ParentId The page the copy sits under; null for the top of the space.
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+
+	// Title The copy's title; omitted keeps the page's.
+	Title *string `json:"title,omitempty"`
+}
+
 // MovePageParams defines parameters for MovePage.
 type MovePageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -28110,6 +28119,9 @@ type SharePageJSONRequestBody = PageShareCreate
 
 // NamePageVersionApplicationMergePatchPlusJSONRequestBody defines body for NamePageVersion for application/merge-patch+json ContentType.
 type NamePageVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
+
+// CopyPageJSONRequestBody defines body for CopyPage for application/json ContentType.
+type CopyPageJSONRequestBody CopyPageJSONBody
 
 // ExportPageJSONRequestBody defines body for ExportPage for application/json ContentType.
 type ExportPageJSONRequestBody = PageExportRequest
@@ -36246,6 +36258,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}/versions/{seq}:restore (the `RestorePageVersion` operationId).
 	RestorePageVersion(ctx context.Context, pageId PageId, seq int, params *RestorePageVersionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyPageWithBody Copy a page
+	//
+	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}:copy (the `CopyPage` operationId).
+	CopyPageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyPage Copy a page
+	//
+	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}:copy (the `CopyPage` operationId).
+	CopyPage(ctx context.Context, pageId PageId, body CopyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExportPageWithBody Export a page as Markdown
 	//
@@ -54698,6 +54728,44 @@ func (c *Client) NamePageVersionWithApplicationMergePatchPlusJSONBody(ctx contex
 // Corresponds with POST /pages/{pageId}/versions/{seq}:restore (the `RestorePageVersion` operationId).
 func (c *Client) RestorePageVersion(ctx context.Context, pageId PageId, seq int, params *RestorePageVersionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRestorePageVersionRequest(c.Server, pageId, seq, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyPageWithBody Copy a page
+//
+// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}:copy (the `CopyPage` operationId).
+func (c *Client) CopyPageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyPageRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyPage Copy a page
+//
+// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}:copy (the `CopyPage` operationId).
+func (c *Client) CopyPage(ctx context.Context, pageId PageId, body CopyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyPageRequest(c.Server, pageId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -87420,6 +87488,53 @@ func NewRestorePageVersionRequest(server string, pageId PageId, seq int, params 
 	return req, nil
 }
 
+// NewCopyPageRequest calls the generic CopyPage builder with application/json body
+func NewCopyPageRequest(server string, pageId PageId, body CopyPageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCopyPageRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewCopyPageRequestWithBody constructs an http.Request for the CopyPage method, with any body, and a specified content type
+func NewCopyPageRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s:copy", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewExportPageRequest calls the generic ExportPage builder with application/json body
 func NewExportPageRequest(server string, pageId PageId, body ExportPageJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -105436,6 +105551,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}/versions/{seq}:restore (the `RestorePageVersion` operationId).
 	RestorePageVersionWithResponse(ctx context.Context, pageId PageId, seq int, params *RestorePageVersionParams, reqEditors ...RequestEditorFn) (*RestorePageVersionResult, error)
+
+	// CopyPageWithBodyWithResponse Copy a page
+	//
+	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:copy (the `CopyPage` operationId).
+	CopyPageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyPageResult, error)
+
+	// CopyPageWithResponse Copy a page
+	//
+	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:copy (the `CopyPage` operationId).
+	CopyPageWithResponse(ctx context.Context, pageId PageId, body CopyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyPageResult, error)
 
 	// ExportPageWithBodyWithResponse Export a page as Markdown
 	//
@@ -135953,6 +136086,54 @@ func (r RestorePageVersionResult) ContentType() string {
 	return ""
 }
 
+type CopyPageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CopyPageResult) GetJSON201() *Page {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CopyPageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CopyPageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CopyPageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CopyPageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CopyPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ExportPageResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -159083,6 +159264,36 @@ func (c *ClientWithResponses) RestorePageVersionWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseRestorePageVersionResult(rsp)
+}
+
+// CopyPageWithBodyWithResponse Copy a page
+//
+// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:copy (the `CopyPage` operationId).
+func (c *ClientWithResponses) CopyPageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyPageResult, error) {
+	rsp, err := c.CopyPageWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyPageResult(rsp)
+}
+
+// CopyPageWithResponse Copy a page
+//
+// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:copy (the `CopyPage` operationId).
+func (c *ClientWithResponses) CopyPageWithResponse(ctx context.Context, pageId PageId, body CopyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyPageResult, error) {
+	rsp, err := c.CopyPage(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyPageResult(rsp)
 }
 
 // ExportPageWithBodyWithResponse Export a page as Markdown
@@ -183566,6 +183777,39 @@ func ParseRestorePageVersionResult(rsp *http.Response) (*RestorePageVersionResul
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCopyPageResult parses an HTTP response from a CopyPageWithResponse call
+func ParseCopyPageResult(rsp *http.Response) (*CopyPageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CopyPageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

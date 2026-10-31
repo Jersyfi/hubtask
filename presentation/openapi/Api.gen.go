@@ -26511,6 +26511,15 @@ type RestorePageVersionParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CopyPageJSONBody defines parameters for CopyPage.
+type CopyPageJSONBody struct {
+	// ParentId The page the copy sits under; null for the top of the space.
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+
+	// Title The copy's title; omitted keeps the page's.
+	Title *string `json:"title,omitempty"`
+}
+
 // MovePageParams defines parameters for MovePage.
 type MovePageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -28104,6 +28113,9 @@ type SharePageJSONRequestBody = PageShareCreate
 
 // NamePageVersionApplicationMergePatchPlusJSONRequestBody defines body for NamePageVersion for application/merge-patch+json ContentType.
 type NamePageVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
+
+// CopyPageJSONRequestBody defines body for CopyPage for application/json ContentType.
+type CopyPageJSONRequestBody CopyPageJSONBody
 
 // ExportPageJSONRequestBody defines body for ExportPage for application/json ContentType.
 type ExportPageJSONRequestBody = PageExportRequest
@@ -30516,6 +30528,9 @@ type ServerInterface interface {
 	// RestorePageVersion Bring an older version back
 	// (POST /pages/{pageId}/versions/{seq}:restore)
 	RestorePageVersion(w http.ResponseWriter, r *http.Request, pageId PageId, seq int, params RestorePageVersionParams)
+	// CopyPage Copy a page
+	// (POST /pages/{pageId}:copy)
+	CopyPage(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// ExportPage Export a page as Markdown
 	// (POST /pages/{pageId}:export)
 	ExportPage(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -50451,6 +50466,32 @@ func (siw *ServerInterfaceWrapper) RestorePageVersion(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// CopyPage operation middleware
+func (siw *ServerInterfaceWrapper) CopyPage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CopyPage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ExportPage operation middleware
 func (siw *ServerInterfaceWrapper) ExportPage(w http.ResponseWriter, r *http.Request) {
 
@@ -58048,6 +58089,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}", wrapper.ReadPage)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/pages/{pageId}", wrapper.UpdatePage)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:move", wrapper.MovePage)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:copy", wrapper.CopyPage)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:restore", wrapper.RestorePage)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:verify", wrapper.VerifyPage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/versions", wrapper.ListPageVersions)

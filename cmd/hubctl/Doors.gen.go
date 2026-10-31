@@ -1734,6 +1734,15 @@ var generatedCommands = []door{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "version"}},
+	{Group: "page", Verb: "copy", OperationID: "copyPage", Method: "POST", Path: "/pages/{pageId}:copy", Summary: "Copy a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "parent_id", Kind: "uuid", Help: "The page the copy sits under; null for the top of the space", Required: false},
+			{Name: "title", Kind: "string", Help: "The copy's title; omitted keeps the page's", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
 	{Group: "page", Verb: "create", OperationID: "createPage", Method: "POST", Path: "/hubs/{hubId}/pages", Summary: "Write a new page",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},

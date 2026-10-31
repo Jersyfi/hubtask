@@ -3031,6 +3031,10 @@ class Client:
         """Move a page"""
         return self._call("POST", "/pages/{pageId}:move", {"pageId": page_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def copy_page(self, page_id: str, body: dict[str, Any]) -> "Page":
+        """Copy a page"""
+        return self._call("POST", "/pages/{pageId}:copy", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
     def restore_page(self, page_id: str) -> "Page":
         """Bring a page back from the trash"""
         return self._call("POST", "/pages/{pageId}:restore", {"pageId": page_id}, None, {}, None, "none", None, "json")

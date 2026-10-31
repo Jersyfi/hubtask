@@ -1716,6 +1716,8 @@ func (pending) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
 
 func (pending) ReadOwnSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) CopyPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }
+
 func (pending) ReadEntryRequester(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
