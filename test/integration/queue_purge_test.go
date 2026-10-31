@@ -85,7 +85,9 @@ func TestAPurgeTakesItsBatchOldestFirst(t *testing.T) {
 	ctx := context.Background()
 	admin := adminPool(ctx, t)
 	kind := "test.purge-batch-" + freshID(t).String()
-	base := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	// The purge is oldest first over the whole table, and the shared database holds jobs other tests
+	// finished under fixed clocks; these three end before any of those.
+	base := time.Date(1990, time.January, 1, 12, 0, 0, 0, time.UTC)
 	var ids []shared.ID
 	for i := range 3 {
 		id := freshID(t)
