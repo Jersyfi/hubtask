@@ -2384,6 +2384,18 @@ func (pending) ChangeCostRate(w http.ResponseWriter, r *http.Request, _ openapi_
 func (pending) RemoveCostRate(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RemoveCostRateParams) {
 	notAvailable(w, r)
 }
+func (pending) ListBillingRates(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) SetBillingRate(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) ChangeBillingRate(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi_types.UUID, _ openapi.ChangeBillingRateParams) {
+	notAvailable(w, r)
+}
+func (pending) RemoveBillingRate(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi_types.UUID, _ openapi.RemoveBillingRateParams) {
+	notAvailable(w, r)
+}
 
 // The goals and insight operations (M8).
 func (pending) ListGoalPeriods(w http.ResponseWriter, r *http.Request) {

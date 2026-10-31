@@ -711,6 +711,26 @@ export class HubtaskClient {
     return this.call("DELETE", "/plans/{planId}/budget", { "planId": planId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** A plan's billing rates */
+  listBillingRates(planId: string, options: CallOptions = {}): Promise<operations["listBillingRates"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/plans/{planId}/billing-rates", { "planId": planId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a billing rate to a plan */
+  setBillingRate(planId: string, body: NonNullable<operations["setBillingRate"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setBillingRate"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/plans/{planId}/billing-rates", { "planId": planId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change a billing rate */
+  changeBillingRate(planId: string, rateId: string, body: NonNullable<operations["changeBillingRate"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeBillingRate"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/plans/{planId}/billing-rates/{rateId}", { "planId": planId, "rateId": rateId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a billing rate */
+  removeBillingRate(planId: string, rateId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/plans/{planId}/billing-rates/{rateId}", { "planId": planId, "rateId": rateId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** A person's capacities */
   listCapacities(options: CallOptions & { readonly query?: NonNullable<operations["listCapacities"]['parameters']['query']> } = {}): Promise<operations["listCapacities"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/time-capacities", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

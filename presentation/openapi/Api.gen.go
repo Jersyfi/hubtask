@@ -12557,6 +12557,22 @@ type BaselineVariance struct {
 	StartVarianceDays *int `json:"start_variance_days"`
 }
 
+// BillingRate defines model for BillingRate.
+type BillingRate struct {
+	Currency  string              `json:"currency"`
+	From      openapi_types.Date  `json:"from"`
+	HourMinor int64               `json:"hour_minor"`
+	Id        openapi_types.UUID  `json:"id"`
+	PlanId    openapi_types.UUID  `json:"plan_id"`
+	To        *openapi_types.Date `json:"to"`
+	Version   int                 `json:"version"`
+}
+
+// BillingRateList defines model for BillingRateList.
+type BillingRateList struct {
+	Data []BillingRate `json:"data"`
+}
+
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -22799,23 +22815,26 @@ type TermsInForceSetBy string
 type TimeExport struct {
 	Columns []string `json:"columns"`
 	Rows    []struct {
-		AccountId    openapi_types.UUID  `json:"account_id"`
-		Billable     bool                `json:"billable"`
-		CollectionId *openapi_types.UUID `json:"collection_id"`
-		Corrects     *openapi_types.UUID `json:"corrects"`
-		CostMinor    *int64              `json:"cost_minor,omitempty"`
-		Currency     *string             `json:"currency,omitempty"`
-		Day          openapi_types.Date  `json:"day"`
-		EntryId      *openapi_types.UUID `json:"entry_id"`
-		EntryTitle   string              `json:"entry_title"`
-		Hours        float64             `json:"hours"`
-		HubId        *openapi_types.UUID `json:"hub_id"`
-		Minutes      int                 `json:"minutes"`
-		Note         string              `json:"note"`
-		RateMinor    *int64              `json:"rate_minor,omitempty"`
-		RecordId     openapi_types.UUID  `json:"record_id"`
-		Source       string              `json:"source"`
-		WorkType     string              `json:"work_type"`
+		AccountId          openapi_types.UUID  `json:"account_id"`
+		BillCurrency       *string             `json:"bill_currency,omitempty"`
+		BillRateMinor      *int64              `json:"bill_rate_minor,omitempty"`
+		Billable           bool                `json:"billable"`
+		BillableValueMinor *int64              `json:"billable_value_minor,omitempty"`
+		CollectionId       *openapi_types.UUID `json:"collection_id"`
+		Corrects           *openapi_types.UUID `json:"corrects"`
+		CostMinor          *int64              `json:"cost_minor,omitempty"`
+		Currency           *string             `json:"currency,omitempty"`
+		Day                openapi_types.Date  `json:"day"`
+		EntryId            *openapi_types.UUID `json:"entry_id"`
+		EntryTitle         string              `json:"entry_title"`
+		Hours              float64             `json:"hours"`
+		HubId              *openapi_types.UUID `json:"hub_id"`
+		Minutes            int                 `json:"minutes"`
+		Note               string              `json:"note"`
+		RateMinor          *int64              `json:"rate_minor,omitempty"`
+		RecordId           openapi_types.UUID  `json:"record_id"`
+		Source             string              `json:"source"`
+		WorkType           string              `json:"work_type"`
 	} `json:"rows"`
 	Truncated bool `json:"truncated"`
 }
@@ -26377,6 +26396,35 @@ type TakeBaselineJSONBody struct {
 	Name string `json:"name"`
 }
 
+// SetBillingRateJSONBody defines parameters for SetBillingRate.
+type SetBillingRateJSONBody struct {
+	Currency  string              `json:"currency"`
+	From      openapi_types.Date  `json:"from"`
+	HourMinor int                 `json:"hour_minor"`
+	To        *openapi_types.Date `json:"to,omitempty"`
+}
+
+// RemoveBillingRateParams defines parameters for RemoveBillingRate.
+type RemoveBillingRateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeBillingRateJSONBody defines parameters for ChangeBillingRate.
+type ChangeBillingRateJSONBody struct {
+	Currency        string              `json:"currency"`
+	ExpectedVersion *int                `json:"expected_version,omitempty"`
+	From            openapi_types.Date  `json:"from"`
+	HourMinor       int                 `json:"hour_minor"`
+	To              *openapi_types.Date `json:"to,omitempty"`
+}
+
+// ChangeBillingRateParams defines parameters for ChangeBillingRate.
+type ChangeBillingRateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // RemoveBudgetParams defines parameters for RemoveBudget.
 type RemoveBudgetParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -27940,6 +27988,12 @@ type OpenDailyNoteJSONRequestBody = DailyNoteOpen
 
 // TakeBaselineJSONRequestBody defines body for TakeBaseline for application/json ContentType.
 type TakeBaselineJSONRequestBody TakeBaselineJSONBody
+
+// SetBillingRateJSONRequestBody defines body for SetBillingRate for application/json ContentType.
+type SetBillingRateJSONRequestBody SetBillingRateJSONBody
+
+// ChangeBillingRateJSONRequestBody defines body for ChangeBillingRate for application/json ContentType.
+type ChangeBillingRateJSONRequestBody ChangeBillingRateJSONBody
 
 // SetBudgetJSONRequestBody defines body for SetBudget for application/json ContentType.
 type SetBudgetJSONRequestBody SetBudgetJSONBody
@@ -30349,6 +30403,18 @@ type ServerInterface interface {
 	// TakeBaseline Keep the plan as it is agreed now
 	// (POST /plans/{planId}/baselines)
 	TakeBaseline(w http.ResponseWriter, r *http.Request, planId PlanId)
+	// ListBillingRates A plan's billing rates
+	// (GET /plans/{planId}/billing-rates)
+	ListBillingRates(w http.ResponseWriter, r *http.Request, planId PlanId)
+	// SetBillingRate Add a billing rate to a plan
+	// (POST /plans/{planId}/billing-rates)
+	SetBillingRate(w http.ResponseWriter, r *http.Request, planId PlanId)
+	// RemoveBillingRate Remove a billing rate
+	// (DELETE /plans/{planId}/billing-rates/{rateId})
+	RemoveBillingRate(w http.ResponseWriter, r *http.Request, planId PlanId, rateId openapi_types.UUID, params RemoveBillingRateParams)
+	// ChangeBillingRate Change a billing rate
+	// (PATCH /plans/{planId}/billing-rates/{rateId})
+	ChangeBillingRate(w http.ResponseWriter, r *http.Request, planId PlanId, rateId openapi_types.UUID, params ChangeBillingRateParams)
 	// RemoveBudget Remove a plan's budget
 	// (DELETE /plans/{planId}/budget)
 	RemoveBudget(w http.ResponseWriter, r *http.Request, planId PlanId, params RemoveBudgetParams)
@@ -50397,6 +50463,176 @@ func (siw *ServerInterfaceWrapper) TakeBaseline(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListBillingRates operation middleware
+func (siw *ServerInterfaceWrapper) ListBillingRates(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBillingRates(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetBillingRate operation middleware
+func (siw *ServerInterfaceWrapper) SetBillingRate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetBillingRate(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveBillingRate operation middleware
+func (siw *ServerInterfaceWrapper) RemoveBillingRate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "rateId" -------------
+	var rateId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "rateId", r.PathValue("rateId"), &rateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rateId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveBillingRateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveBillingRate(w, r, planId, rateId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeBillingRate operation middleware
+func (siw *ServerInterfaceWrapper) ChangeBillingRate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "rateId" -------------
+	var rateId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "rateId", r.PathValue("rateId"), &rateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rateId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeBillingRateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeBillingRate(w, r, planId, rateId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RemoveBudget operation middleware
 func (siw *ServerInterfaceWrapper) RemoveBudget(w http.ResponseWriter, r *http.Request) {
 
@@ -56883,6 +57119,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/plans/{planId}/budget", wrapper.RemoveBudget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/budget", wrapper.ReadBudget)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/plans/{planId}/budget", wrapper.SetBudget)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/billing-rates", wrapper.ListBillingRates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plans/{planId}/billing-rates", wrapper.SetBillingRate)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/plans/{planId}/billing-rates/{rateId}", wrapper.RemoveBillingRate)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/plans/{planId}/billing-rates/{rateId}", wrapper.ChangeBillingRate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-capacities", wrapper.ListCapacities)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/time-capacities/{from}", wrapper.RemoveCapacity)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/time-capacities/{from}", wrapper.SetCapacity)

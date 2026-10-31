@@ -4415,7 +4415,7 @@
         },
         "x-hubtask-cli": "time export",
         "summary": "Hand time records to accounting",
-        "description": "At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.\n",
+        "description": "At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted -, and the billing rate of its collection, else of its hub, with its billable value: the record's minutes at that rate where the record is billable, 0 where it is not, empty where no billing rate holds on its day.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -5343,6 +5343,205 @@
         "x-hubtask-cli": "plan rm-budget",
         "summary": "Remove a plan's budget",
         "description": "Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/plans/{planId}/billing-rates": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PlanId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "listBillingRates",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan billing-rates",
+        "summary": "A plan's billing rates",
+        "description": "What an hour of billable time on the hub or the collection is charged to its client, in a currency's minor unit, from a day to a day or on. A collection's own rate comes before its hub's. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.\n",
+        "responses": {
+          "200": {
+            "description": "The billing rates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingRateList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "setBillingRate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan add-billing-rate",
+        "summary": "Add a billing rate to a plan",
+        "description": "An hour's charge in a currency's minor unit with its ISO 4217 code, from a day to a day or on; the days of two rates of one plan never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hour_minor",
+                  "currency",
+                  "from"
+                ],
+                "properties": {
+                  "hour_minor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingRate"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/plans/{planId}/billing-rates/{rateId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PlanId"
+        },
+        {
+          "name": "rateId",
+          "in": "path",
+          "required": true,
+          "description": "A billing rate of the plan.",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "changeBillingRate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-use-case": "SetBillingRate",
+        "x-hubtask-cli": "plan update-billing-rate",
+        "summary": "Change a billing rate",
+        "description": "Its amount, currency and days, held to the version read as If-Match or `expected_version`; its plan stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hour_minor",
+                  "currency",
+                  "from"
+                ],
+                "properties": {
+                  "hour_minor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "expected_version": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingRate"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "time"
+        ],
+        "operationId": "removeBillingRate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan rm-billing-rate",
+        "summary": "Remove a billing rate",
+        "description": "The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -39651,6 +39850,23 @@
                     "null"
                   ],
                   "format": "int64"
+                },
+                "bill_rate_minor": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "int64"
+                },
+                "bill_currency": {
+                  "type": "string"
+                },
+                "billable_value_minor": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "int64"
                 }
               }
             }
@@ -42968,6 +43184,63 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CostRate"
+            }
+          }
+        }
+      },
+      "BillingRate": {
+        "type": "object",
+        "required": [
+          "id",
+          "plan_id",
+          "hour_minor",
+          "currency",
+          "from",
+          "to",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hour_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "BillingRateList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillingRate"
             }
           }
         }

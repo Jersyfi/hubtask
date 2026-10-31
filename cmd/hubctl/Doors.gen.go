@@ -1909,6 +1909,17 @@ var generatedCommands = []door{
 			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
+	{Group: "plan", Verb: "add-billing-rate", OperationID: "setBillingRate", Method: "POST", Path: "/plans/{planId}/billing-rates", Summary: "Add a billing rate to a plan",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "currency", Kind: "string", Help: "", Required: true},
+			{Name: "from", Kind: "string", Help: "", Required: true},
+			{Name: "hour_minor", Kind: "integer", Help: "", Required: true},
+			{Name: "to", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "version"}},
 	{Group: "plan", Verb: "apply", OperationID: "applyPlanSchedule", Method: "POST", Path: "/plans/{planId}/schedule:apply", Summary: "Apply the moves a person accepted",
 		PathParams: []doorParam{
 			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
@@ -1919,6 +1930,11 @@ var generatedCommands = []door{
 			{Name: "zone", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "plan", Verb: "billing-rates", OperationID: "listBillingRates", Method: "GET", Path: "/plans/{planId}/billing-rates", Summary: "A plan's billing rates",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "version"}},
 	{Group: "plan", Verb: "budget", OperationID: "readBudget", Method: "GET", Path: "/plans/{planId}/budget", Summary: "A plan's budget and its burn",
 		PathParams: []doorParam{
 			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
@@ -1944,6 +1960,12 @@ var generatedCommands = []door{
 			{Name: "mode", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id", "milestone", "mode"}},
+	{Group: "plan", Verb: "rm-billing-rate", OperationID: "removeBillingRate", Method: "DELETE", Path: "/plans/{planId}/billing-rates/{rateId}", Summary: "Remove a billing rate",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+			{Name: "rateId", Kind: "uuid", Help: "A billing rate of the plan", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "plan", Verb: "rm-budget", OperationID: "removeBudget", Method: "DELETE", Path: "/plans/{planId}/budget", Summary: "Remove a plan's budget",
 		PathParams: []doorParam{
 			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
@@ -1987,6 +2009,19 @@ var generatedCommands = []door{
 			{Name: "time_tolerance_days", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"baseline_id", "locked_by", "source", "time_tolerance_days"}},
+	{Group: "plan", Verb: "update-billing-rate", OperationID: "changeBillingRate", Method: "PATCH", Path: "/plans/{planId}/billing-rates/{rateId}", Summary: "Change a billing rate",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+			{Name: "rateId", Kind: "uuid", Help: "A billing rate of the plan", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "currency", Kind: "string", Help: "", Required: true},
+			{Name: "expected_version", Kind: "integer", Help: "", Required: false},
+			{Name: "from", Kind: "string", Help: "", Required: true},
+			{Name: "hour_minor", Kind: "integer", Help: "", Required: true},
+			{Name: "to", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "version"}},
 	{Group: "plan", Verb: "workload", OperationID: "readWorkload", Method: "GET", Path: "/plans/{planId}/workload", Summary: "Who has room in a plan",
 		PathParams: []doorParam{
 			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},

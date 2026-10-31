@@ -59,6 +59,7 @@ var restDoors = map[string]restDoor{
 	"cancelTenantDeletion":              {UseCase: "CancelTenantDeletion", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeAgent":                       {UseCase: "ChangeAgent", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"min_accuracy"}},
 	"changeAgentModel":                  {UseCase: "ChangeAgentModel", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"retention_days"}},
+	"changeBillingRate":                 {UseCase: "SetBillingRate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version", "hour_minor"}},
 	"changeCostRate":                    {UseCase: "SetCostRate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version", "hour_minor"}},
 	"changeEntryType":                   {UseCase: "ChangeEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changeGoalPeriod":                  {UseCase: "DefineGoalPeriod", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -293,6 +294,7 @@ var restDoors = map[string]restDoor{
 	"listBackupTargets":                 {UseCase: "ListBackupTargets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBackupsAtTarget":               {UseCase: "ListBackupsAtTarget", Status: 200, Query: []string{"refresh", "tenant_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBaselines":                     {UseCase: "ListBaselines", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listBillingRates":                  {UseCase: "ListBillingRates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBuckets":                       {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBusinessCalendars":             {UseCase: "ListBusinessCalendars", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCalendarFeeds":                 {UseCase: "ListCalendarFeeds", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -532,6 +534,7 @@ var restDoors = map[string]restDoor{
 	"removeAbsence":                     {UseCase: "RemoveAbsence", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeAgentCase":                   {UseCase: "RemoveAgentCase", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeAiProvider":                  {UseCase: "RemoveAiProvider", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeBillingRate":                 {UseCase: "RemoveBillingRate", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeBudget":                      {UseCase: "RemoveBudget", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeCapacity":                    {UseCase: "RemoveCapacity", Status: 204, Query: []string{"account_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeCostRate":                    {UseCase: "RemoveCostRate", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -608,6 +611,7 @@ var restDoors = map[string]restDoor{
 	"setAiArrivalProposals":             {UseCase: "SetAiArrivalProposals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setAiPersonOptOut":                 {UseCase: "SetAiPersonOptOut", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setApprovalDelegation":             {UseCase: "SetApprovalDelegation", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setBillingRate":                    {UseCase: "SetBillingRate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hour_minor"}},
 	"setBudget":                         {UseCase: "SetBudget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"amount_minor", "expected_version", "minutes"}},
 	"setCapacity":                       {UseCase: "SetCapacity", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCiCompliance":                   {UseCase: "SetCiCompliance", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"quantity"}},
@@ -1033,6 +1037,13 @@ func (c *RestController) ChangeAgentModel(w http.ResponseWriter, r *http.Request
 	var body openapi.ChangeAgentModelJSONRequestBody
 	var answer openapi.AgentModel
 	c.door(w, r, restDoors["changeAgentModel"], usecase.Input{"model_id": modelId.String()}, params, &body, &answer)
+}
+
+// ChangeBillingRate answers PATCH /plans/{planId}/billing-rates/{rateId} by the generated mapping.
+func (c *RestController) ChangeBillingRate(w http.ResponseWriter, r *http.Request, planId openapi.PlanId, rateId openapi_types.UUID, params openapi.ChangeBillingRateParams) {
+	var body openapi.ChangeBillingRateJSONRequestBody
+	var answer openapi.BillingRate
+	c.door(w, r, restDoors["changeBillingRate"], usecase.Input{"plan_id": planId.String(), "rate_id": rateId.String()}, params, &body, &answer)
 }
 
 // ChangeCostRate answers PATCH /cost-rates/{rateId} by the generated mapping.
@@ -2627,6 +2638,12 @@ func (c *RestController) ListBaselines(w http.ResponseWriter, r *http.Request, p
 	c.door(w, r, restDoors["listBaselines"], usecase.Input{"plan_id": planId.String()}, nil, nil, &answer)
 }
 
+// ListBillingRates answers GET /plans/{planId}/billing-rates by the generated mapping.
+func (c *RestController) ListBillingRates(w http.ResponseWriter, r *http.Request, planId openapi.PlanId) {
+	var answer openapi.BillingRateList
+	c.door(w, r, restDoors["listBillingRates"], usecase.Input{"plan_id": planId.String()}, nil, nil, &answer)
+}
+
 // ListBuckets answers GET /containers/{containerId}/buckets by the generated mapping.
 func (c *RestController) ListBuckets(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
 	c.door(w, r, restDoors["listBuckets"], usecase.Input{"collection_id": containerId.String()}, nil, nil, answerRows(bucketResponse))
@@ -4098,6 +4115,11 @@ func (c *RestController) RemoveAiProvider(w http.ResponseWriter, r *http.Request
 	c.door(w, r, restDoors["removeAiProvider"], usecase.Input{}, nil, nil, nil)
 }
 
+// RemoveBillingRate answers DELETE /plans/{planId}/billing-rates/{rateId} by the generated mapping.
+func (c *RestController) RemoveBillingRate(w http.ResponseWriter, r *http.Request, planId openapi.PlanId, rateId openapi_types.UUID, params openapi.RemoveBillingRateParams) {
+	c.door(w, r, restDoors["removeBillingRate"], usecase.Input{"plan_id": planId.String(), "rate_id": rateId.String()}, params, nil, nil)
+}
+
 // RemoveBudget answers DELETE /plans/{planId}/budget by the generated mapping.
 func (c *RestController) RemoveBudget(w http.ResponseWriter, r *http.Request, planId openapi.PlanId, params openapi.RemoveBudgetParams) {
 	c.door(w, r, restDoors["removeBudget"], usecase.Input{"plan_id": planId.String()}, params, nil, nil)
@@ -4552,6 +4574,13 @@ func (c *RestController) SetApprovalDelegation(w http.ResponseWriter, r *http.Re
 	var body openapi.SetApprovalDelegationJSONRequestBody
 	var answer openapi.ApprovalDelegation
 	c.door(w, r, restDoors["setApprovalDelegation"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetBillingRate answers POST /plans/{planId}/billing-rates by the generated mapping.
+func (c *RestController) SetBillingRate(w http.ResponseWriter, r *http.Request, planId openapi.PlanId) {
+	var body openapi.SetBillingRateJSONRequestBody
+	var answer openapi.BillingRate
+	c.door(w, r, restDoors["setBillingRate"], usecase.Input{"plan_id": planId.String()}, nil, &body, &answer)
 }
 
 // SetBudget answers PUT /plans/{planId}/budget by the generated mapping.

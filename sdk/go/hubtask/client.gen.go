@@ -12563,6 +12563,22 @@ type BaselineVariance struct {
 	StartVarianceDays *int `json:"start_variance_days"`
 }
 
+// BillingRate defines model for BillingRate.
+type BillingRate struct {
+	Currency  string              `json:"currency"`
+	From      openapi_types.Date  `json:"from"`
+	HourMinor int64               `json:"hour_minor"`
+	Id        openapi_types.UUID  `json:"id"`
+	PlanId    openapi_types.UUID  `json:"plan_id"`
+	To        *openapi_types.Date `json:"to"`
+	Version   int                 `json:"version"`
+}
+
+// BillingRateList defines model for BillingRateList.
+type BillingRateList struct {
+	Data []BillingRate `json:"data"`
+}
+
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -22805,23 +22821,26 @@ type TermsInForceSetBy string
 type TimeExport struct {
 	Columns []string `json:"columns"`
 	Rows    []struct {
-		AccountId    openapi_types.UUID  `json:"account_id"`
-		Billable     bool                `json:"billable"`
-		CollectionId *openapi_types.UUID `json:"collection_id"`
-		Corrects     *openapi_types.UUID `json:"corrects"`
-		CostMinor    *int64              `json:"cost_minor,omitempty"`
-		Currency     *string             `json:"currency,omitempty"`
-		Day          openapi_types.Date  `json:"day"`
-		EntryId      *openapi_types.UUID `json:"entry_id"`
-		EntryTitle   string              `json:"entry_title"`
-		Hours        float64             `json:"hours"`
-		HubId        *openapi_types.UUID `json:"hub_id"`
-		Minutes      int                 `json:"minutes"`
-		Note         string              `json:"note"`
-		RateMinor    *int64              `json:"rate_minor,omitempty"`
-		RecordId     openapi_types.UUID  `json:"record_id"`
-		Source       string              `json:"source"`
-		WorkType     string              `json:"work_type"`
+		AccountId          openapi_types.UUID  `json:"account_id"`
+		BillCurrency       *string             `json:"bill_currency,omitempty"`
+		BillRateMinor      *int64              `json:"bill_rate_minor,omitempty"`
+		Billable           bool                `json:"billable"`
+		BillableValueMinor *int64              `json:"billable_value_minor,omitempty"`
+		CollectionId       *openapi_types.UUID `json:"collection_id"`
+		Corrects           *openapi_types.UUID `json:"corrects"`
+		CostMinor          *int64              `json:"cost_minor,omitempty"`
+		Currency           *string             `json:"currency,omitempty"`
+		Day                openapi_types.Date  `json:"day"`
+		EntryId            *openapi_types.UUID `json:"entry_id"`
+		EntryTitle         string              `json:"entry_title"`
+		Hours              float64             `json:"hours"`
+		HubId              *openapi_types.UUID `json:"hub_id"`
+		Minutes            int                 `json:"minutes"`
+		Note               string              `json:"note"`
+		RateMinor          *int64              `json:"rate_minor,omitempty"`
+		RecordId           openapi_types.UUID  `json:"record_id"`
+		Source             string              `json:"source"`
+		WorkType           string              `json:"work_type"`
 	} `json:"rows"`
 	Truncated bool `json:"truncated"`
 }
@@ -26383,6 +26402,35 @@ type TakeBaselineJSONBody struct {
 	Name string `json:"name"`
 }
 
+// SetBillingRateJSONBody defines parameters for SetBillingRate.
+type SetBillingRateJSONBody struct {
+	Currency  string              `json:"currency"`
+	From      openapi_types.Date  `json:"from"`
+	HourMinor int                 `json:"hour_minor"`
+	To        *openapi_types.Date `json:"to,omitempty"`
+}
+
+// RemoveBillingRateParams defines parameters for RemoveBillingRate.
+type RemoveBillingRateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeBillingRateJSONBody defines parameters for ChangeBillingRate.
+type ChangeBillingRateJSONBody struct {
+	Currency        string              `json:"currency"`
+	ExpectedVersion *int                `json:"expected_version,omitempty"`
+	From            openapi_types.Date  `json:"from"`
+	HourMinor       int                 `json:"hour_minor"`
+	To              *openapi_types.Date `json:"to,omitempty"`
+}
+
+// ChangeBillingRateParams defines parameters for ChangeBillingRate.
+type ChangeBillingRateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // RemoveBudgetParams defines parameters for RemoveBudget.
 type RemoveBudgetParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -27946,6 +27994,12 @@ type OpenDailyNoteJSONRequestBody = DailyNoteOpen
 
 // TakeBaselineJSONRequestBody defines body for TakeBaseline for application/json ContentType.
 type TakeBaselineJSONRequestBody TakeBaselineJSONBody
+
+// SetBillingRateJSONRequestBody defines body for SetBillingRate for application/json ContentType.
+type SetBillingRateJSONRequestBody SetBillingRateJSONBody
+
+// ChangeBillingRateJSONRequestBody defines body for ChangeBillingRate for application/json ContentType.
+type ChangeBillingRateJSONRequestBody ChangeBillingRateJSONBody
 
 // SetBudgetJSONRequestBody defines body for SetBudget for application/json ContentType.
 type SetBudgetJSONRequestBody SetBudgetJSONBody
@@ -36174,6 +36228,56 @@ type ClientInterface interface {
 	// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
 	TakeBaseline(ctx context.Context, planId PlanId, body TakeBaselineJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListBillingRates A plan's billing rates
+	//
+	// What an hour of billable time on the hub or the collection is charged to its client, in a currency's minor unit, from a day to a day or on. A collection's own rate comes before its hub's. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Corresponds with GET /plans/{planId}/billing-rates (the `ListBillingRates` operationId).
+	ListBillingRates(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetBillingRateWithBody Add a billing rate to a plan
+	//
+	// An hour's charge in a currency's minor unit with its ISO 4217 code, from a day to a day or on; the days of two rates of one plan never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /plans/{planId}/billing-rates (the `SetBillingRate` operationId).
+	SetBillingRateWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetBillingRate Add a billing rate to a plan
+	//
+	// An hour's charge in a currency's minor unit with its ISO 4217 code, from a day to a day or on; the days of two rates of one plan never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /plans/{planId}/billing-rates (the `SetBillingRate` operationId).
+	SetBillingRate(ctx context.Context, planId PlanId, body SetBillingRateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveBillingRate Remove a billing rate
+	//
+	// The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Corresponds with DELETE /plans/{planId}/billing-rates/{rateId} (the `RemoveBillingRate` operationId).
+	RemoveBillingRate(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *RemoveBillingRateParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeBillingRateWithBody Change a billing rate
+	//
+	// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its plan stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /plans/{planId}/billing-rates/{rateId} (the `ChangeBillingRate` operationId).
+	ChangeBillingRateWithBody(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeBillingRate Change a billing rate
+	//
+	// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its plan stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /plans/{planId}/billing-rates/{rateId} (the `ChangeBillingRate` operationId).
+	ChangeBillingRate(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, body ChangeBillingRateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RemoveBudget Remove a plan's budget
 	//
 	// Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
@@ -38213,7 +38317,7 @@ type ClientInterface interface {
 
 	// ExportTimeRecordsWithBody Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted -, and the billing rate of its collection, else of its hub, with its billable value: the record's minutes at that rate where the record is billable, 0 where it is not, empty where no billing rate holds on its day.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -38222,7 +38326,7 @@ type ClientInterface interface {
 
 	// ExportTimeRecords Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted -, and the billing rate of its collection, else of its hub, with its billable value: the record's minutes at that rate where the record is billable, 0 where it is not, empty where no billing rate holds on its day.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -54670,6 +54774,116 @@ func (c *Client) TakeBaseline(ctx context.Context, planId PlanId, body TakeBasel
 	return c.Client.Do(req)
 }
 
+// ListBillingRates A plan's billing rates
+//
+// What an hour of billable time on the hub or the collection is charged to its client, in a currency's minor unit, from a day to a day or on. A collection's own rate comes before its hub's. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Corresponds with GET /plans/{planId}/billing-rates (the `ListBillingRates` operationId).
+func (c *Client) ListBillingRates(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListBillingRatesRequest(c.Server, planId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetBillingRateWithBody Add a billing rate to a plan
+//
+// An hour's charge in a currency's minor unit with its ISO 4217 code, from a day to a day or on; the days of two rates of one plan never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /plans/{planId}/billing-rates (the `SetBillingRate` operationId).
+func (c *Client) SetBillingRateWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetBillingRateRequestWithBody(c.Server, planId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetBillingRate Add a billing rate to a plan
+//
+// An hour's charge in a currency's minor unit with its ISO 4217 code, from a day to a day or on; the days of two rates of one plan never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /plans/{planId}/billing-rates (the `SetBillingRate` operationId).
+func (c *Client) SetBillingRate(ctx context.Context, planId PlanId, body SetBillingRateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetBillingRateRequest(c.Server, planId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveBillingRate Remove a billing rate
+//
+// The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Corresponds with DELETE /plans/{planId}/billing-rates/{rateId} (the `RemoveBillingRate` operationId).
+func (c *Client) RemoveBillingRate(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *RemoveBillingRateParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveBillingRateRequest(c.Server, planId, rateId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeBillingRateWithBody Change a billing rate
+//
+// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its plan stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /plans/{planId}/billing-rates/{rateId} (the `ChangeBillingRate` operationId).
+func (c *Client) ChangeBillingRateWithBody(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeBillingRateRequestWithBody(c.Server, planId, rateId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeBillingRate Change a billing rate
+//
+// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its plan stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /plans/{planId}/billing-rates/{rateId} (the `ChangeBillingRate` operationId).
+func (c *Client) ChangeBillingRate(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, body ChangeBillingRateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeBillingRateRequest(c.Server, planId, rateId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RemoveBudget Remove a plan's budget
 //
 // Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
@@ -58809,7 +59023,7 @@ func (c *Client) CorrectTimeRecord(ctx context.Context, recordId TimeRecordId, b
 
 // ExportTimeRecordsWithBody Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted -, and the billing rate of its collection, else of its hub, with its billable value: the record's minutes at that rate where the record is billable, 0 where it is not, empty where no billing rate holds on its day.
 //
 // Takes any type of body and a specified content type.
 //
@@ -58828,7 +59042,7 @@ func (c *Client) ExportTimeRecordsWithBody(ctx context.Context, contentType stri
 
 // ExportTimeRecords Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted -, and the billing rate of its collection, else of its hub, with its billable value: the record's minutes at that rate where the record is billable, 0 where it is not, empty where no billing rate holds on its day.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -87195,6 +87409,212 @@ func NewTakeBaselineRequestWithBody(server string, planId PlanId, contentType st
 	return req, nil
 }
 
+// NewListBillingRatesRequest constructs an http.Request for the ListBillingRates method
+func NewListBillingRatesRequest(server string, planId PlanId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/billing-rates", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetBillingRateRequest calls the generic SetBillingRate builder with application/json body
+func NewSetBillingRateRequest(server string, planId PlanId, body SetBillingRateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetBillingRateRequestWithBody(server, planId, "application/json", bodyReader)
+}
+
+// NewSetBillingRateRequestWithBody constructs an http.Request for the SetBillingRate method, with any body, and a specified content type
+func NewSetBillingRateRequestWithBody(server string, planId PlanId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/billing-rates", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveBillingRateRequest constructs an http.Request for the RemoveBillingRate method
+func NewRemoveBillingRateRequest(server string, planId PlanId, rateId openapi_types.UUID, params *RemoveBillingRateParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "rateId", rateId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/billing-rates/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewChangeBillingRateRequest calls the generic ChangeBillingRate builder with application/json body
+func NewChangeBillingRateRequest(server string, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, body ChangeBillingRateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeBillingRateRequestWithBody(server, planId, rateId, params, "application/json", bodyReader)
+}
+
+// NewChangeBillingRateRequestWithBody constructs an http.Request for the ChangeBillingRate method, with any body, and a specified content type
+func NewChangeBillingRateRequestWithBody(server string, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "rateId", rateId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/billing-rates/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewRemoveBudgetRequest constructs an http.Request for the RemoveBudget method
 func NewRemoveBudgetRequest(server string, planId PlanId, params *RemoveBudgetParams) (*http.Request, error) {
 	var err error
@@ -104568,6 +104988,60 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
 	TakeBaselineWithResponse(ctx context.Context, planId PlanId, body TakeBaselineJSONRequestBody, reqEditors ...RequestEditorFn) (*TakeBaselineResult, error)
 
+	// ListBillingRatesWithResponse A plan's billing rates
+	//
+	// What an hour of billable time on the hub or the collection is charged to its client, in a currency's minor unit, from a day to a day or on. A collection's own rate comes before its hub's. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /plans/{planId}/billing-rates (the `ListBillingRates` operationId).
+	ListBillingRatesWithResponse(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*ListBillingRatesResult, error)
+
+	// SetBillingRateWithBodyWithResponse Add a billing rate to a plan
+	//
+	// An hour's charge in a currency's minor unit with its ISO 4217 code, from a day to a day or on; the days of two rates of one plan never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /plans/{planId}/billing-rates (the `SetBillingRate` operationId).
+	SetBillingRateWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetBillingRateResult, error)
+
+	// SetBillingRateWithResponse Add a billing rate to a plan
+	//
+	// An hour's charge in a currency's minor unit with its ISO 4217 code, from a day to a day or on; the days of two rates of one plan never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /plans/{planId}/billing-rates (the `SetBillingRate` operationId).
+	SetBillingRateWithResponse(ctx context.Context, planId PlanId, body SetBillingRateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetBillingRateResult, error)
+
+	// RemoveBillingRateWithResponse Remove a billing rate
+	//
+	// The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /plans/{planId}/billing-rates/{rateId} (the `RemoveBillingRate` operationId).
+	RemoveBillingRateWithResponse(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *RemoveBillingRateParams, reqEditors ...RequestEditorFn) (*RemoveBillingRateResult, error)
+
+	// ChangeBillingRateWithBodyWithResponse Change a billing rate
+	//
+	// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its plan stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /plans/{planId}/billing-rates/{rateId} (the `ChangeBillingRate` operationId).
+	ChangeBillingRateWithBodyWithResponse(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeBillingRateResult, error)
+
+	// ChangeBillingRateWithResponse Change a billing rate
+	//
+	// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its plan stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /plans/{planId}/billing-rates/{rateId} (the `ChangeBillingRate` operationId).
+	ChangeBillingRateWithResponse(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, body ChangeBillingRateJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeBillingRateResult, error)
+
 	// RemoveBudgetWithResponse Remove a plan's budget
 	//
 	// Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
@@ -106771,7 +107245,7 @@ type ClientWithResponsesInterface interface {
 
 	// ExportTimeRecordsWithBodyWithResponse Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted -, and the billing rate of its collection, else of its hub, with its billable value: the record's minutes at that rate where the record is billable, 0 where it is not, empty where no billing rate holds on its day.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -106780,7 +107254,7 @@ type ClientWithResponsesInterface interface {
 
 	// ExportTimeRecordsWithResponse Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted -, and the billing rate of its collection, else of its hub, with its billable value: the record's minutes at that rate where the record is billable, 0 where it is not, empty where no billing rate holds on its day.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -135256,6 +135730,191 @@ func (r TakeBaselineResult) ContentType() string {
 	return ""
 }
 
+type ListBillingRatesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BillingRateList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListBillingRatesResult) GetJSON200() *BillingRateList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListBillingRatesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListBillingRatesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListBillingRatesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListBillingRatesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListBillingRatesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetBillingRateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *BillingRate
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r SetBillingRateResult) GetJSON201() *BillingRate {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetBillingRateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetBillingRateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetBillingRateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetBillingRateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetBillingRateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveBillingRateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveBillingRateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveBillingRateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveBillingRateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveBillingRateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveBillingRateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeBillingRateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BillingRate
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeBillingRateResult) GetJSON200() *BillingRate {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeBillingRateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeBillingRateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeBillingRateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeBillingRateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeBillingRateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RemoveBudgetResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -157748,6 +158407,96 @@ func (c *ClientWithResponses) TakeBaselineWithResponse(ctx context.Context, plan
 	return ParseTakeBaselineResult(rsp)
 }
 
+// ListBillingRatesWithResponse A plan's billing rates
+//
+// What an hour of billable time on the hub or the collection is charged to its client, in a currency's minor unit, from a day to a day or on. A collection's own rate comes before its hub's. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /plans/{planId}/billing-rates (the `ListBillingRates` operationId).
+func (c *ClientWithResponses) ListBillingRatesWithResponse(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*ListBillingRatesResult, error) {
+	rsp, err := c.ListBillingRates(ctx, planId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListBillingRatesResult(rsp)
+}
+
+// SetBillingRateWithBodyWithResponse Add a billing rate to a plan
+//
+// An hour's charge in a currency's minor unit with its ISO 4217 code, from a day to a day or on; the days of two rates of one plan never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /plans/{planId}/billing-rates (the `SetBillingRate` operationId).
+func (c *ClientWithResponses) SetBillingRateWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetBillingRateResult, error) {
+	rsp, err := c.SetBillingRateWithBody(ctx, planId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetBillingRateResult(rsp)
+}
+
+// SetBillingRateWithResponse Add a billing rate to a plan
+//
+// An hour's charge in a currency's minor unit with its ISO 4217 code, from a day to a day or on; the days of two rates of one plan never meet (`time.rate_overlaps`). Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /plans/{planId}/billing-rates (the `SetBillingRate` operationId).
+func (c *ClientWithResponses) SetBillingRateWithResponse(ctx context.Context, planId PlanId, body SetBillingRateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetBillingRateResult, error) {
+	rsp, err := c.SetBillingRate(ctx, planId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetBillingRateResult(rsp)
+}
+
+// RemoveBillingRateWithResponse Remove a billing rate
+//
+// The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /plans/{planId}/billing-rates/{rateId} (the `RemoveBillingRate` operationId).
+func (c *ClientWithResponses) RemoveBillingRateWithResponse(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *RemoveBillingRateParams, reqEditors ...RequestEditorFn) (*RemoveBillingRateResult, error) {
+	rsp, err := c.RemoveBillingRate(ctx, planId, rateId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveBillingRateResult(rsp)
+}
+
+// ChangeBillingRateWithBodyWithResponse Change a billing rate
+//
+// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its plan stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /plans/{planId}/billing-rates/{rateId} (the `ChangeBillingRate` operationId).
+func (c *ClientWithResponses) ChangeBillingRateWithBodyWithResponse(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeBillingRateResult, error) {
+	rsp, err := c.ChangeBillingRateWithBody(ctx, planId, rateId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeBillingRateResult(rsp)
+}
+
+// ChangeBillingRateWithResponse Change a billing rate
+//
+// Its amount, currency and days, held to the version read as If-Match or `expected_version`; its plan stays. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /plans/{planId}/billing-rates/{rateId} (the `ChangeBillingRate` operationId).
+func (c *ClientWithResponses) ChangeBillingRateWithResponse(ctx context.Context, planId PlanId, rateId openapi_types.UUID, params *ChangeBillingRateParams, body ChangeBillingRateJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeBillingRateResult, error) {
+	rsp, err := c.ChangeBillingRate(ctx, planId, rateId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeBillingRateResult(rsp)
+}
+
 // RemoveBudgetWithResponse Remove a plan's budget
 //
 // Its burn stays readable. The version read goes as If-Match. Needs MANAGE_COSTS or MANAGE_MEMBERS at the plan.
@@ -161211,7 +161960,7 @@ func (c *ClientWithResponses) CorrectTimeRecordWithResponse(ctx context.Context,
 
 // ExportTimeRecordsWithBodyWithResponse Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted -, and the billing rate of its collection, else of its hub, with its billable value: the record's minutes at that rate where the record is billable, 0 where it is not, empty where no billing rate holds on its day.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -161226,7 +161975,7 @@ func (c *ClientWithResponses) ExportTimeRecordsWithBodyWithResponse(ctx context.
 
 // ExportTimeRecordsWithResponse Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted -, and the billing rate of its collection, else of its hub, with its billable value: the record's minutes at that rate where the record is billable, 0 where it is not, empty where no billing rate holds on its day.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -182086,6 +182835,134 @@ func ParseTakeBaselineResult(rsp *http.Response) (*TakeBaselineResult, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListBillingRatesResult parses an HTTP response from a ListBillingRatesWithResponse call
+func ParseListBillingRatesResult(rsp *http.Response) (*ListBillingRatesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListBillingRatesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingRateList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetBillingRateResult parses an HTTP response from a SetBillingRateWithResponse call
+func ParseSetBillingRateResult(rsp *http.Response) (*SetBillingRateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetBillingRateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingRate
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveBillingRateResult parses an HTTP response from a RemoveBillingRateWithResponse call
+func ParseRemoveBillingRateResult(rsp *http.Response) (*RemoveBillingRateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveBillingRateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeBillingRateResult parses an HTTP response from a ChangeBillingRateWithResponse call
+func ParseChangeBillingRateResult(rsp *http.Response) (*ChangeBillingRateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeBillingRateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingRate
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

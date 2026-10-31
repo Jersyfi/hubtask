@@ -583,6 +583,22 @@ class Client:
         """Remove a plan's budget"""
         return self._call("DELETE", "/plans/{planId}/budget", {"planId": plan_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
+    def list_billing_rates(self, plan_id: str) -> "BillingRateList":
+        """A plan's billing rates"""
+        return self._call("GET", "/plans/{planId}/billing-rates", {"planId": plan_id}, None, {}, None, "none", None, "json")
+
+    def set_billing_rate(self, plan_id: str, body: dict[str, Any]) -> "BillingRate":
+        """Add a billing rate to a plan"""
+        return self._call("POST", "/plans/{planId}/billing-rates", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
+    def change_billing_rate(self, plan_id: str, rate_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "BillingRate":
+        """Change a billing rate"""
+        return self._call("PATCH", "/plans/{planId}/billing-rates/{rateId}", {"planId": plan_id, "rateId": rate_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_billing_rate(self, plan_id: str, rate_id: str, *, if_match: str | None = None) -> None:
+        """Remove a billing rate"""
+        return self._call("DELETE", "/plans/{planId}/billing-rates/{rateId}", {"planId": plan_id, "rateId": rate_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
     def list_capacities(self, *, query: dict[str, Any] | None = None) -> "CapacityList":
         """A person's capacities"""
         return self._call("GET", "/time-capacities", {}, query, {}, None, "none", None, "json")

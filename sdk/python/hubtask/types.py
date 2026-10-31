@@ -1964,6 +1964,19 @@ CostRate = TypedDict("CostRate", {
 class CostRateList(TypedDict, total=False):
     data: Required[list["CostRate"]]
 
+BillingRate = TypedDict("BillingRate", {
+    "id": Required[str],
+    "plan_id": Required[str],
+    "hour_minor": Required[int],
+    "currency": Required[str],
+    "from": Required[str],
+    "to": Required[str | None],
+    "version": Required[int],
+}, total=False)
+
+class BillingRateList(TypedDict, total=False):
+    data: Required[list["BillingRate"]]
+
 class BudgetBurn(TypedDict, total=False):
     plan_id: Required[str]
     budgeted: Required[bool]
