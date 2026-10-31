@@ -47,7 +47,8 @@ lets the search also match by meaning ("heating" finds "boiler"); the words stil
 ## Where it ends
 
 * No search across workspaces ([P-01](../../vision/principles.md)).
-* No search inside attachments' content.
+* No search inside attachments' content: an attachment is found by the name it arrived under,
+  never by its text, because reading a file's text needs an extractor the product does not carry.
 * No saved searches separate from saved views
   ([UC-WRK-17](./UC-WRK-17-filter-sort-and-save-a-view-of-my-work.md)).
 * Rebuilding the index after a language configuration changed is an administrator's action and
