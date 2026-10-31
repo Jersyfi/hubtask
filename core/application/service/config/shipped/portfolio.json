@@ -1,0 +1,184 @@
+{
+  "key": "portfolio",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "goals": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "initiative_sponsor": {
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "initiative_value": {
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "initiative_health": {
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "On track",
+          "At risk",
+          "Off track"
+        ]
+      },
+      "initiative_review_on": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "initiative": {
+        "level": "TASK",
+        "name": "Initiative",
+        "icon": "rocket",
+        "color_token": "violet",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "case",
+              "name": "Case"
+            },
+            {
+              "key": "health",
+              "name": "Health"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "case",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "case"
+            },
+            {
+              "key": "custom_fields.initiative_sponsor",
+              "section": "case"
+            },
+            {
+              "key": "custom_fields.initiative_value",
+              "section": "case"
+            },
+            {
+              "key": "custom_fields.initiative_health",
+              "section": "health"
+            },
+            {
+              "key": "custom_fields.initiative_review_on",
+              "section": "health"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "initiative": {
+        "name": "Initiative",
+        "shape": {
+          "initial": "proposed",
+          "statuses": [
+            {
+              "key": "proposed",
+              "name": "Proposed",
+              "category": "BACKLOG",
+              "color_token": "slate"
+            },
+            {
+              "key": "approved",
+              "name": "Approved",
+              "category": "TODO",
+              "color_token": "teal"
+            },
+            {
+              "key": "in_delivery",
+              "name": "In delivery",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "closed",
+              "name": "Closed",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "stopped",
+              "name": "Stopped",
+              "category": "DONE",
+              "color_token": "slate"
+            }
+          ],
+          "steps": [
+            {
+              "key": "approve",
+              "name": "Approve",
+              "from": [
+                "proposed"
+              ],
+              "to": "approved"
+            },
+            {
+              "key": "start",
+              "name": "Start delivery",
+              "from": [
+                "approved"
+              ],
+              "to": "in_delivery"
+            },
+            {
+              "key": "close",
+              "name": "Close",
+              "from": [
+                "in_delivery"
+              ],
+              "to": "closed"
+            },
+            {
+              "key": "stop",
+              "name": "Stop",
+              "from": [
+                "proposed",
+                "approved",
+                "in_delivery"
+              ],
+              "to": "stopped"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "goals": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "initiative": {
+        "workflow": "initiative"
+      }
+    }
+  }
+}

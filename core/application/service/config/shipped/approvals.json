@@ -1,0 +1,468 @@
+{
+  "key": "approvals",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "roles": {
+      "request_approver": {
+        "name": "Approver",
+        "permissions": [
+          "READ",
+          "COMMENT"
+        ]
+      }
+    },
+    "role_groups": {
+      "request_approver": {
+        "groups": [
+          "answer:approver_group"
+        ]
+      }
+    },
+    "fields": {
+      "purchase_amount": {
+        "kind": "MONEY",
+        "applies_to": [
+          "TASK"
+        ],
+        "currency": "EUR"
+      },
+      "purchase_supplier": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "leave_kind": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Holiday",
+          "Special leave",
+          "Unpaid leave"
+        ]
+      },
+      "leave_from": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "leave_until": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "travel_destination": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "travel_from": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "travel_until": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "travel_cost": {
+        "kind": "MONEY",
+        "applies_to": [
+          "TASK"
+        ],
+        "currency": "EUR"
+      }
+    },
+    "types": {
+      "purchase_request": {
+        "level": "TASK",
+        "name": "Purchase request",
+        "icon": "wallet",
+        "color_token": "green",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.purchase_amount",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.purchase_supplier",
+              "section": "work"
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ],
+          "channels": [
+            {
+              "channel": "PORTAL"
+            }
+          ]
+        }
+      },
+      "leave_request": {
+        "level": "TASK",
+        "name": "Leave request",
+        "icon": "calendar",
+        "color_token": "teal",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.leave_kind",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.leave_from",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.leave_until",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ],
+          "channels": [
+            {
+              "channel": "PORTAL"
+            }
+          ]
+        }
+      },
+      "travel_request": {
+        "level": "TASK",
+        "name": "Travel request",
+        "icon": "globe",
+        "color_token": "blue",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.travel_destination",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.travel_from",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.travel_until",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.travel_cost",
+              "section": "work"
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ],
+          "channels": [
+            {
+              "channel": "PORTAL"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "purchase_request": {
+        "name": "Purchase request",
+        "shape": {
+          "initial": "draft",
+          "statuses": [
+            {
+              "key": "draft",
+              "name": "Draft",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "submitted",
+              "name": "Submitted",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "approved",
+              "name": "Approved",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "declined",
+              "name": "Declined",
+              "category": "DONE",
+              "color_token": "red"
+            }
+          ],
+          "steps": [
+            {
+              "key": "submit",
+              "name": "Submit",
+              "from": [
+                "draft"
+              ],
+              "to": "submitted"
+            },
+            {
+              "key": "approve",
+              "name": "Approve",
+              "from": [
+                "submitted"
+              ],
+              "to": "approved",
+              "approval": {
+                "levels": [
+                  {
+                    "roles": [
+                      "request_approver"
+                    ],
+                    "rule": "ANY"
+                  }
+                ],
+                "decline_to": "declined",
+                "due_hours": 72
+              }
+            },
+            {
+              "key": "revise",
+              "name": "Revise",
+              "from": [
+                "declined"
+              ],
+              "to": "draft"
+            }
+          ]
+        }
+      },
+      "leave_request": {
+        "name": "Leave request",
+        "shape": {
+          "initial": "draft",
+          "statuses": [
+            {
+              "key": "draft",
+              "name": "Draft",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "submitted",
+              "name": "Submitted",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "approved",
+              "name": "Approved",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "declined",
+              "name": "Declined",
+              "category": "DONE",
+              "color_token": "red"
+            }
+          ],
+          "steps": [
+            {
+              "key": "submit",
+              "name": "Submit",
+              "from": [
+                "draft"
+              ],
+              "to": "submitted"
+            },
+            {
+              "key": "approve",
+              "name": "Approve",
+              "from": [
+                "submitted"
+              ],
+              "to": "approved",
+              "approval": {
+                "levels": [
+                  {
+                    "roles": [
+                      "request_approver"
+                    ],
+                    "rule": "ANY"
+                  }
+                ],
+                "decline_to": "declined",
+                "due_hours": 72
+              }
+            },
+            {
+              "key": "revise",
+              "name": "Revise",
+              "from": [
+                "declined"
+              ],
+              "to": "draft"
+            }
+          ]
+        }
+      },
+      "travel_request": {
+        "name": "Travel request",
+        "shape": {
+          "initial": "draft",
+          "statuses": [
+            {
+              "key": "draft",
+              "name": "Draft",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "submitted",
+              "name": "Submitted",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "approved",
+              "name": "Approved",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "declined",
+              "name": "Declined",
+              "category": "DONE",
+              "color_token": "red"
+            }
+          ],
+          "steps": [
+            {
+              "key": "submit",
+              "name": "Submit",
+              "from": [
+                "draft"
+              ],
+              "to": "submitted"
+            },
+            {
+              "key": "approve",
+              "name": "Approve",
+              "from": [
+                "submitted"
+              ],
+              "to": "approved",
+              "approval": {
+                "levels": [
+                  {
+                    "roles": [
+                      "request_approver"
+                    ],
+                    "rule": "ANY"
+                  }
+                ],
+                "decline_to": "declined",
+                "due_hours": 72
+              }
+            },
+            {
+              "key": "revise",
+              "name": "Revise",
+              "from": [
+                "declined"
+              ],
+              "to": "draft"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "purchase_request": {
+        "workflow": "purchase_request"
+      },
+      "leave_request": {
+        "workflow": "leave_request"
+      },
+      "travel_request": {
+        "workflow": "travel_request"
+      }
+    }
+  },
+  "questions": [
+    {
+      "key": "approver_group",
+      "kind": "GROUP"
+    }
+  ]
+}

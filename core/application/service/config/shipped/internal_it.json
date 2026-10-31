@@ -1,0 +1,169 @@
+{
+  "key": "internal_it",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "it_request_category": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Access",
+          "Hardware",
+          "Software",
+          "Network",
+          "Something is broken"
+        ]
+      },
+      "it_request_device": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "it_request": {
+        "level": "TASK",
+        "name": "IT request",
+        "icon": "wrench",
+        "color_token": "blue",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "request",
+              "name": "Request"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "request",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "request"
+            },
+            {
+              "key": "custom_fields.it_request_category",
+              "section": "request"
+            },
+            {
+              "key": "custom_fields.it_request_device",
+              "section": "request"
+            }
+          ],
+          "channels": [
+            {
+              "channel": "PORTAL"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "it_request": {
+        "name": "IT request",
+        "shape": {
+          "initial": "new",
+          "statuses": [
+            {
+              "key": "new",
+              "name": "New",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "waiting",
+              "name": "Waiting",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "resolved",
+              "name": "Resolved",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "new"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "wait",
+              "name": "Wait for requester",
+              "from": [
+                "in_progress"
+              ],
+              "to": "waiting"
+            },
+            {
+              "key": "resume",
+              "name": "Resume",
+              "from": [
+                "waiting"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "resolve",
+              "name": "Resolve",
+              "from": [
+                "new",
+                "in_progress",
+                "waiting"
+              ],
+              "to": "resolved"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "resolved"
+              ],
+              "to": "in_progress"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "it_request": {
+        "workflow": "it_request"
+      }
+    }
+  }
+}

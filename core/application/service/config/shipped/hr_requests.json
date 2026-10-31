@@ -1,0 +1,159 @@
+{
+  "key": "hr_requests",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "hr_request_category": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Certificate",
+          "Payroll",
+          "Leave",
+          "Change of details",
+          "Something else"
+        ]
+      }
+    },
+    "types": {
+      "hr_request": {
+        "level": "TASK",
+        "name": "HR request",
+        "icon": "users",
+        "color_token": "teal",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "request",
+              "name": "Request"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "request",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "request"
+            },
+            {
+              "key": "custom_fields.hr_request_category",
+              "section": "request"
+            }
+          ],
+          "channels": [
+            {
+              "channel": "PORTAL"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "hr_request": {
+        "name": "HR request",
+        "shape": {
+          "initial": "new",
+          "statuses": [
+            {
+              "key": "new",
+              "name": "New",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "waiting",
+              "name": "Waiting",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "resolved",
+              "name": "Resolved",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "new"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "wait",
+              "name": "Wait for requester",
+              "from": [
+                "in_progress"
+              ],
+              "to": "waiting"
+            },
+            {
+              "key": "resume",
+              "name": "Resume",
+              "from": [
+                "waiting"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "resolve",
+              "name": "Resolve",
+              "from": [
+                "new",
+                "in_progress",
+                "waiting"
+              ],
+              "to": "resolved"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "resolved"
+              ],
+              "to": "in_progress"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "hr_request": {
+        "workflow": "hr_request"
+      }
+    }
+  }
+}

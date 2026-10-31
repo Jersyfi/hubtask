@@ -1,0 +1,154 @@
+{
+  "key": "shopping",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "shopping_quantity": {
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "shopping_shop": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Supermarket",
+          "Pharmacy",
+          "Market",
+          "Online",
+          "Elsewhere"
+        ]
+      },
+      "shopping_price": {
+        "kind": "MONEY",
+        "applies_to": [
+          "TASK"
+        ],
+        "currency": "EUR"
+      }
+    },
+    "types": {
+      "shopping_item": {
+        "level": "TASK",
+        "name": "Item to buy",
+        "icon": "shopping-cart",
+        "color_token": "green",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.shopping_quantity",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.shopping_shop",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.shopping_price",
+              "section": "work"
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "shopping_item": {
+        "name": "Item to buy",
+        "shape": {
+          "initial": "needed",
+          "statuses": [
+            {
+              "key": "needed",
+              "name": "Needed",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_cart",
+              "name": "In the cart",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "bought",
+              "name": "Bought",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "take",
+              "name": "Into the cart",
+              "from": [
+                "needed"
+              ],
+              "to": "in_cart"
+            },
+            {
+              "key": "put_back",
+              "name": "Put back",
+              "from": [
+                "in_cart"
+              ],
+              "to": "needed"
+            },
+            {
+              "key": "buy",
+              "name": "Bought",
+              "from": [
+                "needed",
+                "in_cart"
+              ],
+              "to": "bought"
+            },
+            {
+              "key": "again",
+              "name": "Needed again",
+              "from": [
+                "bought"
+              ],
+              "to": "needed"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "shopping_item": {
+        "workflow": "shopping_item"
+      }
+    }
+  }
+}

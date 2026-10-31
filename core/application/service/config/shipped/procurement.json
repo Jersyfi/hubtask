@@ -1,0 +1,228 @@
+{
+  "key": "procurement",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "roles": {
+      "procurement_approver": {
+        "name": "Procurement approver",
+        "permissions": [
+          "READ",
+          "COMMENT"
+        ]
+      }
+    },
+    "role_groups": {
+      "procurement_approver": {
+        "groups": [
+          "answer:procurement_group"
+        ]
+      }
+    },
+    "fields": {
+      "procurement_amount": {
+        "kind": "MONEY",
+        "applies_to": [
+          "TASK"
+        ],
+        "currency": "EUR"
+      },
+      "procurement_needed_by": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "procurement_cost_centre": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "procurement_vendor": {
+        "kind": "REFERENCE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "procurement_order_number": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "procurement_request": {
+        "level": "TASK",
+        "name": "Procurement request",
+        "icon": "shopping-cart",
+        "color_token": "amber",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "need",
+              "name": "Need"
+            },
+            {
+              "key": "order",
+              "name": "Order"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "need",
+              "required": true
+            },
+            {
+              "key": "custom_fields.procurement_amount",
+              "section": "need",
+              "required": true
+            },
+            {
+              "key": "custom_fields.procurement_needed_by",
+              "section": "need"
+            },
+            {
+              "key": "custom_fields.procurement_cost_centre",
+              "section": "need"
+            },
+            {
+              "key": "custom_fields.procurement_vendor",
+              "section": "order"
+            },
+            {
+              "key": "custom_fields.procurement_order_number",
+              "section": "order"
+            },
+            {
+              "key": "notes",
+              "section": "order"
+            }
+          ],
+          "channels": [
+            {
+              "channel": "PORTAL"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "procurement_request": {
+        "name": "Procurement request",
+        "shape": {
+          "initial": "requested",
+          "statuses": [
+            {
+              "key": "requested",
+              "name": "Requested",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "approved",
+              "name": "Approved",
+              "category": "TODO",
+              "color_token": "teal"
+            },
+            {
+              "key": "ordered",
+              "name": "Ordered",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "received",
+              "name": "Received",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "declined",
+              "name": "Declined",
+              "category": "DONE",
+              "color_token": "red"
+            }
+          ],
+          "steps": [
+            {
+              "key": "approve",
+              "name": "Approve",
+              "from": [
+                "requested"
+              ],
+              "to": "approved",
+              "approval": {
+                "levels": [
+                  {
+                    "roles": [
+                      "procurement_approver"
+                    ],
+                    "rule": "ANY"
+                  }
+                ],
+                "decline_to": "declined",
+                "due_hours": 72
+              }
+            },
+            {
+              "key": "order",
+              "name": "Order",
+              "from": [
+                "approved"
+              ],
+              "to": "ordered"
+            },
+            {
+              "key": "receive",
+              "name": "Received",
+              "from": [
+                "ordered"
+              ],
+              "to": "received"
+            },
+            {
+              "key": "revise",
+              "name": "Ask again",
+              "from": [
+                "declined"
+              ],
+              "to": "requested"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "procurement_request": {
+        "workflow": "procurement_request"
+      }
+    }
+  },
+  "questions": [
+    {
+      "key": "procurement_group",
+      "kind": "GROUP"
+    }
+  ]
+}

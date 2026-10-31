@@ -1,0 +1,324 @@
+{
+  "key": "scaled_agile",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "planning": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "feature_business_value": {
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "feature_time_criticality": {
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "feature_risk_reduction": {
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "feature_job_size": {
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "feature_cost_of_delay": {
+        "kind": "CALCULATED",
+        "applies_to": [
+          "TASK"
+        ],
+        "formula": "entry.custom_fields.feature_business_value + entry.custom_fields.feature_time_criticality + entry.custom_fields.feature_risk_reduction"
+      },
+      "roam_status": {
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Resolved",
+          "Owned",
+          "Accepted",
+          "Mitigated"
+        ]
+      },
+      "roam_owner": {
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "feature": {
+        "level": "TASK",
+        "name": "Feature",
+        "icon": "zap",
+        "color_token": "violet",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            },
+            {
+              "key": "wsjf",
+              "name": "WSJF"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.feature_business_value",
+              "section": "wsjf"
+            },
+            {
+              "key": "custom_fields.feature_time_criticality",
+              "section": "wsjf"
+            },
+            {
+              "key": "custom_fields.feature_risk_reduction",
+              "section": "wsjf"
+            },
+            {
+              "key": "custom_fields.feature_job_size",
+              "section": "wsjf"
+            },
+            {
+              "key": "custom_fields.feature_cost_of_delay",
+              "section": "wsjf"
+            }
+          ]
+        }
+      },
+      "train_story": {
+        "level": "TASK",
+        "name": "Story",
+        "icon": "book-open",
+        "color_token": "blue",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      },
+      "roam_risk": {
+        "level": "TASK",
+        "name": "ROAM risk",
+        "icon": "shield",
+        "color_token": "amber",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "risk",
+              "name": "Risk"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "risk",
+              "required": true
+            },
+            {
+              "key": "custom_fields.roam_status",
+              "section": "risk"
+            },
+            {
+              "key": "custom_fields.roam_owner",
+              "section": "risk"
+            },
+            {
+              "key": "notes",
+              "section": "risk"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "feature": {
+        "name": "Feature",
+        "shape": {
+          "initial": "funnel",
+          "statuses": [
+            {
+              "key": "funnel",
+              "name": "Funnel",
+              "category": "BACKLOG",
+              "color_token": "slate"
+            },
+            {
+              "key": "analysing",
+              "name": "Analysing",
+              "category": "TODO",
+              "color_token": "teal"
+            },
+            {
+              "key": "ready",
+              "name": "Ready",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "implementing",
+              "name": "Implementing",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "analyse",
+              "name": "Analyse",
+              "from": [
+                "funnel"
+              ],
+              "to": "analysing"
+            },
+            {
+              "key": "ready",
+              "name": "Ready for a PI",
+              "from": [
+                "analysing"
+              ],
+              "to": "ready"
+            },
+            {
+              "key": "implement",
+              "name": "Implement",
+              "from": [
+                "ready"
+              ],
+              "to": "implementing"
+            },
+            {
+              "key": "finish",
+              "name": "Done",
+              "from": [
+                "implementing"
+              ],
+              "to": "done"
+            }
+          ]
+        }
+      },
+      "train_story": {
+        "name": "Story",
+        "shape": {
+          "initial": "todo",
+          "statuses": [
+            {
+              "key": "todo",
+              "name": "To do",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "todo"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "finish",
+              "name": "Finish",
+              "from": [
+                "in_progress"
+              ],
+              "to": "done"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "done"
+              ],
+              "to": "todo"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "planning": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "feature": {
+        "workflow": "feature"
+      },
+      "train_story": {
+        "workflow": "train_story"
+      }
+    }
+  }
+}

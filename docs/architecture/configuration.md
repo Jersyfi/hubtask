@@ -174,6 +174,13 @@ Grouped by what people come for; each names the standard it follows (`docs/backl
 
 The catalogue is curated: few, good, standard-aligned. Customers build their own world on them.
 
+Each template is one embedded file (`core/application/service/config/shipped/`); *List* and *Tasks*
+are the presets of those names, offered as templates. One test holds the files to this table and to
+what a workspace can take: every block one the applying use cases accept, the configuration check
+(§11) finding no error, an approval waiting only on a role the template brings, and a key two
+templates share - a field, a type, a workflow, a role - defined the same in both, so a workspace may
+take any two. The project templates share one RAID record type (`raid_item`).
+
 ## 10. Tolerances
 
 A place's **time tolerance** (0 to 365 calendar days) is how far a plan's forecast end may lie past

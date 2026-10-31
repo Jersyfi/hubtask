@@ -1,0 +1,201 @@
+{
+  "key": "event_planning",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "event_area": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Venue",
+          "Catering",
+          "Programme",
+          "Speakers",
+          "Marketing",
+          "Logistics"
+        ]
+      },
+      "event_cost": {
+        "kind": "MONEY",
+        "applies_to": [
+          "TASK"
+        ],
+        "currency": "EUR"
+      },
+      "event_guest_email": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "event_guest_organisation": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "event_guest_rsvp": {
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Invited",
+          "Accepted",
+          "Declined"
+        ]
+      }
+    },
+    "types": {
+      "event_task": {
+        "level": "TASK",
+        "name": "Event task",
+        "icon": "calendar",
+        "color_token": "amber",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.event_area",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.event_cost",
+              "section": "work"
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      },
+      "event_guest": {
+        "level": "TASK",
+        "name": "Guest",
+        "icon": "user",
+        "color_token": "teal",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "guest",
+              "name": "Guest"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "guest",
+              "required": true
+            },
+            {
+              "key": "custom_fields.event_guest_email",
+              "section": "guest"
+            },
+            {
+              "key": "custom_fields.event_guest_organisation",
+              "section": "guest"
+            },
+            {
+              "key": "custom_fields.event_guest_rsvp",
+              "section": "guest"
+            },
+            {
+              "key": "notes",
+              "section": "guest"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "event_task": {
+        "name": "Event task",
+        "shape": {
+          "initial": "to_do",
+          "statuses": [
+            {
+              "key": "to_do",
+              "name": "To do",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "to_do"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "finish",
+              "name": "Done",
+              "from": [
+                "to_do",
+                "in_progress"
+              ],
+              "to": "done"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "done"
+              ],
+              "to": "in_progress"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "event_task": {
+        "workflow": "event_task"
+      }
+    }
+  }
+}

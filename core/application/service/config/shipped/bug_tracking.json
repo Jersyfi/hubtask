@@ -1,0 +1,219 @@
+{
+  "key": "bug_tracking",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "defect_severity": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Blocker",
+          "Critical",
+          "Major",
+          "Minor"
+        ]
+      },
+      "defect_steps": {
+        "kind": "RICH_TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "defect_environment": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "defect_version": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "defect_fixed_in": {
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "defect": {
+        "level": "TASK",
+        "name": "Defect",
+        "icon": "triangle-alert",
+        "color_token": "red",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "report",
+              "name": "Report"
+            },
+            {
+              "key": "triage",
+              "name": "Triage"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "report",
+              "required": true
+            },
+            {
+              "key": "custom_fields.defect_steps",
+              "section": "report"
+            },
+            {
+              "key": "custom_fields.defect_environment",
+              "section": "report"
+            },
+            {
+              "key": "custom_fields.defect_version",
+              "section": "report"
+            },
+            {
+              "key": "custom_fields.defect_severity",
+              "section": "triage"
+            },
+            {
+              "key": "custom_fields.defect_fixed_in",
+              "section": "triage"
+            },
+            {
+              "key": "notes",
+              "section": "triage"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "defect": {
+        "name": "Defect",
+        "shape": {
+          "initial": "new",
+          "statuses": [
+            {
+              "key": "new",
+              "name": "New",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "confirmed",
+              "name": "Confirmed",
+              "category": "TODO",
+              "color_token": "amber"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "in_review",
+              "name": "In review",
+              "category": "IN_PROGRESS",
+              "color_token": "violet"
+            },
+            {
+              "key": "fixed",
+              "name": "Fixed",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "not_a_defect",
+              "name": "Not a defect",
+              "category": "DONE",
+              "color_token": "slate"
+            }
+          ],
+          "steps": [
+            {
+              "key": "confirm",
+              "name": "Confirm",
+              "from": [
+                "new"
+              ],
+              "to": "confirmed"
+            },
+            {
+              "key": "reject",
+              "name": "Not a defect",
+              "from": [
+                "new",
+                "confirmed"
+              ],
+              "to": "not_a_defect"
+            },
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "confirmed"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "review",
+              "name": "Ask for review",
+              "from": [
+                "in_progress"
+              ],
+              "to": "in_review"
+            },
+            {
+              "key": "rework",
+              "name": "Rework",
+              "from": [
+                "in_review"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "fix",
+              "name": "Fixed",
+              "from": [
+                "in_review"
+              ],
+              "to": "fixed"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "fixed",
+                "not_a_defect"
+              ],
+              "to": "confirmed"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "defect": {
+        "workflow": "defect"
+      }
+    }
+  }
+}

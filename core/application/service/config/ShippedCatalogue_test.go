@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package config
+
+import (
+	"reflect"
+	"slices"
+	"sort"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/application/service/workflow"
+	automationmodel "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	textport "github.com/Jersyfi/hubtask/core/port/text"
+)
+
+// catalogueKeys is configuration.md §9's catalogue as Hubtask ships it, family by family. *List* and
+// *Tasks* are the presets of the same names, offered as templates by presetTemplates.
+var catalogueKeys = map[string][]string{
+	"personal":   {"household", "shopping", "habits", "travel"},
+	"teams":      {"kanban_team", "scrum_team", "bug_tracking", "content_calendar", "event_planning"},
+	"projects":   {"classic_project", "hybrid_project", "client_project"},
+	"programmes": {"portfolio", "okr", "scaled_agile"},
+	"service":    {"itil_service_desk", "internal_it", "facility_requests", "hr_requests", "customer_support"},
+	"processes":  {"approvals", "onboarding", "procurement", "capa", "risk_controls", "records_of_processing"},
+	"registers":  {"it_asset_register", "risk_register", "contact_register", "vendor_contracts"},
+}
+
+// The whole catalogue is shipped and nothing beside it, and every template in it is one a workspace
+// can take: each block one the use cases that apply it accept, the configuration check finding no
+// error in it (configuration.md §11), and a key two templates share meaning the same thing in both -
+// one workspace may take any two of them.
+func TestEveryShippedTemplateIsOneAWorkspaceCanTake(t *testing.T) {
+	templates, err := bundledTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want, got []string
+	for _, keys := range catalogueKeys {
+		want = append(want, keys...)
+	}
+	for _, template := range templates {
+		got = append(got, template.Key)
+	}
+	sort.Strings(want)
+	sort.Strings(got)
+	if !slices.Equal(want, got) {
+		t.Errorf("shipped %v, the catalogue is %v", got, want)
+	}
+
+	known := map[string]bool{sectionSettings: true}
+	for _, s := range sections() {
+		known[s.name] = true
+	}
+	hubKnown := map[string]bool{}
+	for _, s := range hubSections(lintHub) {
+		hubKnown[s.name] = true
+	}
+	tenant, id := shared.ID("01936f2a-7c1e-7000-8000-000000000001"), shared.ID("01936f2a-7c1e-7000-8000-000000000002")
+	firstSeen := map[string]string{}
+	seen := map[string]domain.Block{}
+
+	for _, template := range templates {
+		key := template.Key
+		if template.Origin != domain.OriginHubtask || template.Version < 1 || !reservedKey(key) {
+			t.Errorf("%s is %v %d", key, template.Origin, template.Version)
+		}
+		if err := checkTemplate(template.Document, template.Hub); err != nil {
+			t.Errorf("%s: the configuration check refuses it: %v", key, err)
+		}
+		for name := range template.Document {
+			if !known[name] {
+				t.Errorf("%s: section %s is not one of the document's", key, name)
+			}
+		}
+		for name := range template.Hub {
+			if !hubKnown[name] {
+				t.Errorf("%s: hub section %s is not one of a hub's document", key, name)
+			}
+		}
+		for _, section := range []string{sectionTypes, sectionFields, sectionWorkflows, sectionRoles} {
+			for blockKey, block := range template.Document[section] {
+				at := section + "." + blockKey
+				if other, taken := seen[at]; taken && !reflect.DeepEqual(other, block) {
+					t.Errorf("%s and %s both bring %s, differently: one workspace may take both", firstSeen[at], key, at)
+				}
+				if _, taken := seen[at]; !taken {
+					seen[at], firstSeen[at] = block, key
+				}
+			}
+		}
+
+		fields := template.Document[sectionFields]
+		for field, block := range fields {
+			if _, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+				ID: id, TenantID: tenant, Key: field, Kind: work.CustomFieldKind(text(block["kind"])),
+				Options: optionTexts(block["options"]), Currency: text(block["currency"]), Formula: text(block["formula"]),
+				AppliesTo: levels(block["applies_to"]), Now: time.Now(), Text: textport.Composing{},
+			}); err != nil {
+				t.Errorf("%s: field %s: %v", key, field, err)
+			}
+			for _, input := range formulaInputs(text(block["formula"])) {
+				if fields[input] == nil || !work.CustomFieldKind(text(fields[input]["kind"])).IsFormulaInput() {
+					t.Errorf("%s: %s's formula reads %s, which is no number of the template", key, field, input)
+				}
+			}
+		}
+
+		for flow, block := range template.Document[sectionWorkflows] {
+			shape, err := workflow.ShapeFromInput(block["shape"])
+			if err == nil {
+				_, err = work.NewWorkflowShape(shape, false, textport.Composing{})
+			}
+			if err != nil {
+				t.Errorf("%s: workflow %s: %v", key, flow, err)
+				continue
+			}
+			for _, step := range shape.Steps {
+				if step.Approval == nil {
+					continue
+				}
+				for _, level := range step.Approval.Levels {
+					for _, role := range level.Roles {
+						if template.Document[sectionRoles][role] == nil {
+							t.Errorf("%s: %s's step %s waits on %s, a role the template does not bring", key, flow, step.Key, role)
+						}
+					}
+				}
+			}
+		}
+		for entryType, block := range template.Document[sectionTypes] {
+			form, err := workflow.FormFromInput(block["form"])
+			if err == nil {
+				_, err = work.NewForm(form, textport.Composing{})
+			}
+			if err != nil {
+				t.Errorf("%s: type %s's form: %v", key, entryType, err)
+				continue
+			}
+			level := work.ItemType(text(block["level"]))
+			for _, placed := range form.Fields {
+				custom, isCustom := strings.CutPrefix(placed.Key, "custom_fields.")
+				if !isCustom {
+					continue
+				}
+				if fields[custom] == nil {
+					t.Errorf("%s: %s's form places %s, which the template does not define", key, entryType, custom)
+				} else if !containsLevel(levels(fields[custom]["applies_to"]), level) {
+					t.Errorf("%s: %s is not carried by %s's level %s", key, custom, entryType, level)
+				}
+			}
+			runs := block["workflow"] == true
+			if runs != (template.Hub[sectionScheme][entryType] != nil) {
+				t.Errorf("%s: %s runs a workflow %v, the hub's scheme names it %v", key, entryType, runs, !runs)
+			}
+			if block["record"] == true && (block["completable"] != false || block["schedulable"] != false || runs) {
+				t.Errorf("%s: the record type %s is done or scheduled: %v", key, entryType, block)
+			}
+		}
+		for entryType, block := range template.Hub[sectionScheme] {
+			if template.Document[sectionTypes][entryType] == nil || template.Document[sectionWorkflows][text(block[workflowAttribute])] == nil {
+				t.Errorf("%s: the scheme's %s names a type or workflow the template does not bring", key, entryType)
+			}
+		}
+		for role, block := range template.Document[sectionRoles] {
+			permissions := []string{}
+			for _, p := range block["permissions"].([]any) {
+				permissions = append(permissions, p.(string))
+			}
+			if _, err := identity.NewCustomRole(id, tenant, role, text(block["name"]), permissions); err != nil {
+				t.Errorf("%s: role %s: %v", key, role, err)
+			}
+		}
+		for rule, block := range template.Document[sectionRules] {
+			trigger, _ := block["trigger"].(map[string]any)
+			if trigger["anchor"] == "FIELD" && text(fields[text(trigger["anchor_field"])]["kind"]) != "DATE" {
+				t.Errorf("%s: rule %s measures from %v, which is no date of the template", key, rule, trigger["anchor_field"])
+			}
+			if _, err := automationmodel.NewRule(automationmodel.NewRuleInput{
+				ID: id, TenantID: tenant, Key: rule, Name: text(block["name"]),
+				Scope: automationmodel.Scope{Type: automationmodel.ScopeTenant}, RunAs: id,
+				Trigger: automationmodel.Trigger{
+					Kind: automationmodel.TriggerKind(text(trigger["kind"])), Anchor: automationmodel.DateAnchor(text(trigger["anchor"])),
+					AnchorField: text(trigger["anchor_field"]), Offset: text(trigger["offset"]),
+				},
+				Conditions: []automationmodel.Condition{{Expr: "item.entry_type != ''"}},
+				Actions:    []automationmodel.Action{{Kind: "ADD_COMMENT", Params: map[string]any{"body": "x"}}},
+				OnError:    automationmodel.OnErrorStop, CreatedBy: id, Now: time.Now(), Text: textport.Composing{},
+			}); err != nil {
+				t.Errorf("%s: rule %s: %v", key, rule, err)
+			}
+		}
+	}
+}

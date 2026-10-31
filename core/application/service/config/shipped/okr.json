@@ -1,0 +1,129 @@
+{
+  "key": "okr",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "goals": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "okr_quarter": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Q1",
+          "Q2",
+          "Q3",
+          "Q4"
+        ]
+      }
+    },
+    "types": {
+      "okr_initiative": {
+        "level": "TASK",
+        "name": "Initiative",
+        "icon": "flag",
+        "color_token": "teal",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.okr_quarter",
+              "section": "work"
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "okr_initiative": {
+        "name": "Initiative",
+        "shape": {
+          "initial": "to_do",
+          "statuses": [
+            {
+              "key": "to_do",
+              "name": "To do",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "to_do"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "finish",
+              "name": "Done",
+              "from": [
+                "in_progress"
+              ],
+              "to": "done"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "done"
+              ],
+              "to": "in_progress"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "goals": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "okr_initiative": {
+        "workflow": "okr_initiative"
+      }
+    }
+  }
+}

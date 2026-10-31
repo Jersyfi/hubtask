@@ -1,0 +1,140 @@
+{
+  "key": "habits",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "habit_rhythm": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Daily",
+          "Weekly",
+          "Monthly"
+        ]
+      },
+      "habit_area": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Health",
+          "Learning",
+          "Home",
+          "Money",
+          "People"
+        ]
+      }
+    },
+    "types": {
+      "habit": {
+        "level": "TASK",
+        "name": "Habit",
+        "icon": "heart",
+        "color_token": "magenta",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.habit_rhythm",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.habit_area",
+              "section": "work"
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "habit": {
+        "name": "Habit",
+        "shape": {
+          "initial": "open",
+          "statuses": [
+            {
+              "key": "open",
+              "name": "Open",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "kept",
+              "name": "Kept",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "skipped",
+              "name": "Skipped",
+              "category": "DONE",
+              "color_token": "amber"
+            }
+          ],
+          "steps": [
+            {
+              "key": "keep",
+              "name": "Kept",
+              "from": [
+                "open"
+              ],
+              "to": "kept"
+            },
+            {
+              "key": "skip",
+              "name": "Skipped",
+              "from": [
+                "open"
+              ],
+              "to": "skipped"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "kept",
+                "skipped"
+              ],
+              "to": "open"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "habit": {
+        "workflow": "habit"
+      }
+    }
+  }
+}

@@ -1,0 +1,340 @@
+{
+  "key": "hybrid_project",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "planning": {
+        "switch": "ON"
+      },
+      "knowledge": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "raid_kind": {
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Risk",
+          "Assumption",
+          "Issue",
+          "Dependency"
+        ]
+      },
+      "raid_owner": {
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "raid_likelihood": {
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "raid_impact": {
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "raid_score": {
+        "kind": "CALCULATED",
+        "applies_to": [
+          "TASK"
+        ],
+        "formula": "entry.custom_fields.raid_likelihood * entry.custom_fields.raid_impact"
+      },
+      "raid_response": {
+        "kind": "RICH_TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "raid_review_on": {
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "raid_status": {
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Open",
+          "In hand",
+          "Closed"
+        ]
+      }
+    },
+    "types": {
+      "hybrid_deliverable": {
+        "level": "TASK",
+        "name": "Deliverable",
+        "icon": "briefcase",
+        "color_token": "blue",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      },
+      "hybrid_story": {
+        "level": "TASK",
+        "name": "Story",
+        "icon": "book-open",
+        "color_token": "teal",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      },
+      "raid_item": {
+        "level": "TASK",
+        "name": "RAID item",
+        "icon": "shield",
+        "color_token": "amber",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "raid",
+              "name": "RAID item"
+            },
+            {
+              "key": "assessment",
+              "name": "Assessment"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "raid",
+              "required": true
+            },
+            {
+              "key": "custom_fields.raid_kind",
+              "section": "raid",
+              "required": true
+            },
+            {
+              "key": "custom_fields.raid_owner",
+              "section": "raid"
+            },
+            {
+              "key": "custom_fields.raid_status",
+              "section": "raid"
+            },
+            {
+              "key": "custom_fields.raid_likelihood",
+              "section": "assessment"
+            },
+            {
+              "key": "custom_fields.raid_impact",
+              "section": "assessment"
+            },
+            {
+              "key": "custom_fields.raid_score",
+              "section": "assessment"
+            },
+            {
+              "key": "custom_fields.raid_response",
+              "section": "assessment"
+            },
+            {
+              "key": "custom_fields.raid_review_on",
+              "section": "assessment"
+            },
+            {
+              "key": "notes",
+              "section": "assessment"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "hybrid_deliverable": {
+        "name": "Deliverable",
+        "shape": {
+          "initial": "planned",
+          "statuses": [
+            {
+              "key": "planned",
+              "name": "Planned",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "accepted",
+              "name": "Accepted",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "planned"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "accept",
+              "name": "Accept",
+              "from": [
+                "in_progress"
+              ],
+              "to": "accepted"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "accepted"
+              ],
+              "to": "in_progress"
+            }
+          ]
+        }
+      },
+      "hybrid_story": {
+        "name": "Story",
+        "shape": {
+          "initial": "backlog",
+          "statuses": [
+            {
+              "key": "backlog",
+              "name": "Backlog",
+              "category": "BACKLOG",
+              "color_token": "slate"
+            },
+            {
+              "key": "todo",
+              "name": "To do",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "plan",
+              "name": "Plan",
+              "from": [
+                "backlog"
+              ],
+              "to": "todo"
+            },
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "todo"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "finish",
+              "name": "Finish",
+              "from": [
+                "in_progress"
+              ],
+              "to": "done"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "done"
+              ],
+              "to": "todo"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "planning": {
+        "switch": "ON"
+      },
+      "knowledge": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "hybrid_deliverable": {
+        "workflow": "hybrid_deliverable"
+      },
+      "hybrid_story": {
+        "workflow": "hybrid_story"
+      }
+    }
+  }
+}
