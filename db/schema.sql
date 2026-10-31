@@ -1378,7 +1378,9 @@ CREATE TABLE custom_field_definition (
   key           text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
   kind          text NOT NULL CONSTRAINT custom_field_definition_kind_check
                   CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL',
-                                  'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT')),
+                                  'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT','CALCULATED',
+                                  'DATE_TIME','GROUP','CASCADING_SELECT','IP_ADDRESS','FILE','LABEL',
+                                  'STATUS')),  -- migrations 0215, 0298
   options       jsonb NOT NULL DEFAULT '[]'::jsonb,
   -- The ISO 4217 code of a MONEY field's amounts, null for every other kind (migration 0211).
   currency      text,
@@ -1410,11 +1412,14 @@ CREATE TABLE entry_field_value (
   definition_id uuid NOT NULL,
   ordinal       integer NOT NULL DEFAULT 0 CHECK (ordinal >= 0),
   num           numeric,          -- NUMBER, MONEY, DURATION, BOOL (1 or 0)
-  ts            timestamptz,      -- DATE, midnight UTC
-  text          text CHECK (text IS NULL OR char_length(text) <= 256),  -- TEXT, SELECT, MULTI_SELECT, URL
-  ref           uuid,             -- USER, USER_SET, REFERENCE
+  ts            timestamptz,      -- DATE (midnight UTC), DATE_TIME
+  text          text CHECK (text IS NULL OR char_length(text) <= 256),  -- TEXT, SELECT, MULTI_SELECT, URL,
+                                  -- CASCADING_SELECT, LABEL, STATUS, IP_ADDRESS (canonical)
+  ref           uuid,             -- USER, USER_SET, REFERENCE, GROUP, FILE
+  addr          inet,             -- IP_ADDRESS beside its text (migration 0298)
   PRIMARY KEY (tenant_id, entry_id, definition_id, ordinal),
   CHECK (num_nonnulls(num, ts, text, ref) = 1),
+  CONSTRAINT entry_field_value_addr_check CHECK (addr IS NULL OR text IS NOT NULL),
   CONSTRAINT entry_field_value_entry_fkey
     FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT entry_field_value_definition_fkey
@@ -1425,6 +1430,7 @@ CREATE INDEX efv_num_idx  ON entry_field_value (tenant_id, definition_id, num)  
 CREATE INDEX efv_ts_idx   ON entry_field_value (tenant_id, definition_id, ts)   WHERE ts IS NOT NULL;
 CREATE INDEX efv_text_idx ON entry_field_value (tenant_id, definition_id, text) WHERE text IS NOT NULL;
 CREATE INDEX efv_ref_idx  ON entry_field_value (tenant_id, definition_id, ref)  WHERE ref IS NOT NULL;
+CREATE INDEX efv_addr_idx ON entry_field_value (tenant_id, definition_id, addr) WHERE addr IS NOT NULL;  -- migration 0299
 CREATE INDEX efv_search_idx ON entry_field_value USING gin (to_tsvector('simple'::regconfig, text)) WHERE text IS NOT NULL;  -- migration 0225
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_field_value TO hubtask_app;
 -- entry_field_values_of(work_item) and the trigger work_item_field_values: migration 0211.

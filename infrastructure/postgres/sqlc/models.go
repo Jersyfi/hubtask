@@ -7,6 +7,7 @@ package sqlc
 import (
 	"database/sql/driver"
 	"fmt"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -1636,6 +1637,7 @@ type EntryFieldValue struct {
 	Ts           pgtype.Timestamptz
 	Text         *string
 	Ref          pgtype.UUID
+	Addr         *netip.Addr
 }
 
 type EntryLink struct {
