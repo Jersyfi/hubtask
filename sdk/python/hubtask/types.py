@@ -2537,7 +2537,7 @@ class EntryTypeCreate(TypedDict, total=False):
 
 class EntryTypeCopy(TypedDict, total=False):
     hub_id: Required[str]
-    key: Required[str]
+    new_key: Required[str]
     name: str
 
 class EntryTypeChange(TypedDict, total=False):

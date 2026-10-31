@@ -16179,11 +16179,11 @@ type EntryTypeCopy struct {
 	// HubId The hub the copy belongs to.
 	HubId openapi_types.UUID `json:"hub_id"`
 
-	// Key The copy's own key, free in the workspace.
-	Key string `json:"key"`
-
 	// Name The copy's name; unset keeps the source's. A system type nobody named has none to keep (`entry_types.name_empty`).
 	Name *string `json:"name,omitempty"`
+
+	// NewKey The copy's own key, free in the workspace.
+	NewKey string `json:"new_key"`
 }
 
 // EntryTypeCreate defines model for EntryTypeCreate.

@@ -75,7 +75,7 @@ class EntryTypes {
    * a shared type is read-only at the hub.
    */
   copyHere(source: string, hubId: string, key: string, name?: string): Promise<EntryType> {
-    return engine.mutate<EntryType>('POST', `${PATH}/${encodeURIComponent(source)}:copy-here`, { hub_id: hubId, key, ...(name ? { name } : {}) }, {
+    return engine.mutate<EntryType>('POST', `${PATH}/${encodeURIComponent(source)}:copy-here`, { hub_id: hubId, new_key: key, ...(name ? { name } : {}) }, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: [PATH, CONFIG_CHECK],
     });

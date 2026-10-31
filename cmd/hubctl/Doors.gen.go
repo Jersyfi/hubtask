@@ -2855,8 +2855,8 @@ var generatedCommands = []door{
 		},
 		Body: []doorParam{
 			{Name: "hub_id", Kind: "uuid", Help: "The hub the copy belongs to", Required: true},
-			{Name: "key", Kind: "string", Help: "The copy's own key, free in the workspace", Required: true},
 			{Name: "name", Kind: "string", Help: "The copy's name; unset keeps the source's", Required: false},
+			{Name: "new_key", Kind: "string", Help: "The copy's own key, free in the workspace", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name", "level", "version"}},
 	{Group: "type", Verb: "form evaluate", OperationID: "evaluateEntryForm", Method: "POST", Path: "/entry-types/{key}/form:evaluate", Summary: "Answer a type's form for a draft",

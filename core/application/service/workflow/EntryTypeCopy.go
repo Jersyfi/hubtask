@@ -95,7 +95,7 @@ func (h CopyEntryTypeHere) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "source_key", Kind: usecase.KindString, Required: true, Description: "The key of the type to copy."},
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub the copy belongs to."},
-			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The copy's own key, free in the workspace."},
+			{Name: "new_key", Kind: usecase.KindString, Required: true, Description: "The copy's own key, free in the workspace."},
 			{Name: "name", Kind: usecase.KindString, Description: "The copy's name; unset keeps the source's."},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -108,7 +108,7 @@ func (h CopyEntryTypeHere) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			copied, err := h.Execute(ctx, actor, CopyEntryTypeHereCommand{
-				SourceKey: in.String("source_key"), HubID: hub, Key: in.String("key"),
+				SourceKey: in.String("source_key"), HubID: hub, Key: in.String("new_key"),
 				Name: in.OptionalString("name"),
 			})
 			if err != nil {

@@ -16701,7 +16701,7 @@ paths:
       summary: Make a copy of a shared entry type at a hub
       description: >
         A type shared from the workspace is read-only at a hub; a hub that needs it different
-        makes a copy of its own, under a new key, with the source's level, icon, colour,
+        makes a copy of its own, under a new key (`new_key`), with the source's level, icon, colour,
         behaviours, allowed children and form, and the source's key in `copied_from`. The copy
         is offered only inside that hub and changes nothing where the source is used. The source
         must be a type of the workspace or of the same hub; another hub's type is
@@ -30003,10 +30003,10 @@ components:
 
     EntryTypeCopy:
       type: object
-      required: [hub_id, key]
+      required: [hub_id, new_key]
       properties:
         hub_id: { type: string, format: uuid, description: "The hub the copy belongs to." }
-        key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$", description: "The copy's own key, free in the workspace." }
+        new_key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$", description: "The copy's own key, free in the workspace." }
         name: { type: string, minLength: 1, maxLength: 120, description: "The copy's name; unset keeps the source's. A system type nobody named has none to keep (`entry_types.name_empty`)." }
 
     EntryTypeChange:

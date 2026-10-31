@@ -16185,11 +16185,11 @@ type EntryTypeCopy struct {
 	// HubId The hub the copy belongs to.
 	HubId openapi_types.UUID `json:"hub_id"`
 
-	// Key The copy's own key, free in the workspace.
-	Key string `json:"key"`
-
 	// Name The copy's name; unset keeps the source's. A system type nobody named has none to keep (`entry_types.name_empty`).
 	Name *string `json:"name,omitempty"`
+
+	// NewKey The copy's own key, free in the workspace.
+	NewKey string `json:"new_key"`
 }
 
 // EntryTypeCreate defines model for EntryTypeCreate.
@@ -34271,7 +34271,7 @@ type ClientInterface interface {
 
 	// CopyEntryTypeHereWithBody Make a copy of a shared entry type at a hub
 	//
-	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key (`new_key`), with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -34280,7 +34280,7 @@ type ClientInterface interface {
 
 	// CopyEntryTypeHere Make a copy of a shared entry type at a hub
 	//
-	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key (`new_key`), with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -49899,7 +49899,7 @@ func (c *Client) EvaluateEntryForm(ctx context.Context, key string, body Evaluat
 
 // CopyEntryTypeHereWithBody Make a copy of a shared entry type at a hub
 //
-// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key (`new_key`), with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -49918,7 +49918,7 @@ func (c *Client) CopyEntryTypeHereWithBody(ctx context.Context, key string, cont
 
 // CopyEntryTypeHere Make a copy of a shared entry type at a hub
 //
-// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key (`new_key`), with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -105911,7 +105911,7 @@ type ClientWithResponsesInterface interface {
 
 	// CopyEntryTypeHereWithBodyWithResponse Make a copy of a shared entry type at a hub
 	//
-	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key (`new_key`), with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -105920,7 +105920,7 @@ type ClientWithResponsesInterface interface {
 
 	// CopyEntryTypeHereWithResponse Make a copy of a shared entry type at a hub
 	//
-	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+	// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key (`new_key`), with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -159661,7 +159661,7 @@ func (c *ClientWithResponses) EvaluateEntryFormWithResponse(ctx context.Context,
 
 // CopyEntryTypeHereWithBodyWithResponse Make a copy of a shared entry type at a hub
 //
-// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key (`new_key`), with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -159676,7 +159676,7 @@ func (c *ClientWithResponses) CopyEntryTypeHereWithBodyWithResponse(ctx context.
 
 // CopyEntryTypeHereWithResponse Make a copy of a shared entry type at a hub
 //
-// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
+// A type shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key (`new_key`), with the source's level, icon, colour, behaviours, allowed children and form, and the source's key in `copied_from`. The copy is offered only inside that hub and changes nothing where the source is used. The source must be a type of the workspace or of the same hub; another hub's type is `entry_types.not_found`. Needs STRUCTURE at the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
