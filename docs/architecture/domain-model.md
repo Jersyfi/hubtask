@@ -60,8 +60,10 @@ narrow them, never widen them beyond the system boundary.
 
 **Entry types** (F-1, UC-FLW-01, migration 0209). A workspace names the kinds of its work as rows of
 `entry_type`: a stable `key`, the *level* it sits on (one of the three above, which a type never
-changes), a name, an icon of the design system's set, a label colour token, and the behaviours of
-its entries - *completable*, *workflow*, *record*, *schedulable*, *estimable* - with the keys of the
+changes), a name, a description, the name and description in further languages by BCP 47 tag
+(`translations`, migration 0311: a reader reads the exact tag's words, then its language's, then the
+default text, field by field - `EntryType.TextIn`, UC-SVC-05 check 7), an icon of the design
+system's set, a label colour token, and the behaviours of its entries - *completable*, *workflow*, *record*, *schedulable*, *estimable* - with the keys of the
 types allowed directly underneath. Each level has a **system type** keyed after it (`task`,
 `work_package`, `activity`), declared in the domain (`work.SystemEntryTypes`) and stored only once a
 workspace changes it; it is never archived, deleted or made a record. An entry names its type by key

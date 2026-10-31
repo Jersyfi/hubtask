@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Portal_test.go, core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/access/EmergencyAccess_test.go, core/application/service/servicedesk/Portal_test.go, core/application/service/work/AddCommentPortal_test.go]
+checked_by: [core/domain/model/servicedesk/Portal_test.go, core/domain/model/work/EntryTypeText_test.go, core/application/service/servicedesk/PortalCatalogue_test.go, core/application/service/workflow/EntryTypes_test.go, test/integration/entry_type_texts_test.go, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/src/lib/data/entrytypes.test.ts, core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/access/EmergencyAccess_test.go, core/application/service/servicedesk/Portal_test.go, core/application/service/work/AddCommentPortal_test.go]
 ---
 
 # Ask the service desk for help and follow my request
@@ -29,7 +29,11 @@ Mehmet holds the requester role on the collection *IT help*. The portal shows hi
 5. They answer on their own request: always a public comment, never under an internal note, never on somebody else's request.
 6. A public reply of the team on their request tells them under their own notification category, `REQUEST_REPLY`, which they may switch off: in the comment's words, with a link to the request in the portal, never to the entry's screen. An internal note tells them nothing, nor do their own words; whether they are a requester is read when the reply is written.
 
+7. The catalogue names and describes each type in the reader's language where the type's texts say it there - the exact language tag first, then its language alone (`de` for `de-AT`), then the type's default name and description, field by field; an administrator writes these texts per language on the type, at most 20 languages, and a tag that is no language is refused as `entry_types.language_malformed`.
+8. The portal's head shows the service it is for: the collection's name, description, icon and colour, as the catalogue answers them; the portal's own words stand where the collection has no description.
+
 ## Where it ends
 
 * The requests of a whole organisation are UC-SVC-11; approvals from the portal are UC-SVC-09.
+* A desk's uploaded logo and its articles per language are not part of it: the desk is drawn by its collection's own icon and colour token, and an article is written in one language.
 
