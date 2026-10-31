@@ -369,12 +369,21 @@
         {/if}
 
         {#if run.refused && run.refused.length > 0}
-          <!-- The rows the converter could not read, by number: the rest of the file landed. -->
+          <!-- The rows that did not land, by number: unreadable, or refused by their type's form
+               with the entries under them - so a row may appear twice. The rest landed. -->
           <p class="quiet">{t('app.import.refused_title', { count: String(run.refused.length) })}</p>
           <ul class="refused">
-            {#each run.refused as refusal (refusal.row)}
+            {#each run.refused as refusal, index (index)}
               <li class="quiet">
-                {t('app.import.refused_row', { row: String(refusal.row), reason: sentence(refusal.code) ?? refusal.code })}
+                {#if refusal.fields && refusal.fields.length > 0}
+                  {t('app.import.refused_row_fields', {
+                    row: String(refusal.row),
+                    reason: sentence(refusal.code) ?? refusal.code,
+                    fields: refusal.fields.join(', '),
+                  })}
+                {:else}
+                  {t('app.import.refused_row', { row: String(refusal.row), reason: sentence(refusal.code) ?? refusal.code })}
+                {/if}
               </li>
             {/each}
           </ul>
