@@ -496,13 +496,20 @@ it, order it and decide who may touch it.
   kind names the place it sits at (a `Locator`), and reading needs READ there, writing WRITE_ITEMS,
   with the token scopes `items:read` and `items:write`. Asked when the connection opens and again,
   without a record, before every catch-up: access ended while connected closes it with `4403`. A
+  connection catches up when its own document's log moves (migration 0296 rings
+  `hubtask_document` with the document's key); any other change of the workspace - a grant taken
+  among them - asks the reader's access again at most every five seconds, and every thirty
+  seconds a connection catches up regardless, should a wake-up have been lost. A
   kind no step registered answers not found. A browser's bearer may arrive as the subprotocol
   `hubtask.bearer.<token>` on the upgrade and nowhere else.
 * **Bounds** (rule 7): a write that takes ten seconds, or ninety seconds without a message, ends the
   connection; a ping every thirty seconds keeps a live one; the connections count against the
   change stream's caps.
 * **Awareness** - a cursor, a selection, a name - is relayed to the document's other connections in
-  the same process and never stored.
+  the same process and, at most every 100 ms per connection with the latest kept, to those on the
+  other processes as a notification on `hubtask_awareness` (`AwarenessBus`, through the
+  transaction wrapper; a message whose notification would pass 7,900 bytes stays in its process).
+  It is never stored. No sticky routing is needed behind a load balancer.
 * **The browser client** is `packages/editor`: a Yjs document per page bound to the block editor,
   its connection in this framing (a reader sends no update; a writer answers `101` with a `100`)
   and a reconnect with a doubling wait up to thirty seconds. The socket comes from the sync engine
@@ -538,5 +545,5 @@ it, order it and decide who may touch it.
 
 | # | Open point | Needed by |
 |---|---|---|
-| SY-E | Awareness across processes: a reader on another replica sees no cursor until the document's connections share one (sticky routing per document, or a bus) | the first installation with more than one API replica and pages |
+| SY-E | Awareness across processes - closed: relayed on `hubtask_awareness` (see *Awareness* above) | - |
 | SY-F | A server-side merge of updates (a CRDT library in Go) would answer a writer's state vector with the difference and compact without a writer; none passes review yet | when the log or reconnect traffic is measured to need it |
