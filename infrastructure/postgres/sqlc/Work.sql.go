@@ -1422,10 +1422,25 @@ func (q *Queries) LastContainerOrderKey(ctx context.Context, parentID pgtype.UUI
 }
 
 const lastWorkItemOrderKey = `-- name: LastWorkItemOrderKey :one
-SELECT order_key
-FROM work_item
-WHERE collection_id = $1::uuid
-  AND parent_id IS NOT DISTINCT FROM $2::uuid
+SELECT order_key FROM (
+  (SELECT wi.order_key
+     FROM work_item wi
+    WHERE wi.collection_id = $1::uuid
+      AND (wi.parent_id = $2::uuid
+           OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
+      AND wi.deleted_at IS NULL
+    ORDER BY wi.order_key COLLATE "C" DESC, wi.id DESC
+    LIMIT 1)
+  UNION ALL
+  (SELECT wi.order_key
+     FROM work_item wi
+    WHERE wi.collection_id = $1::uuid
+      AND (wi.parent_id = $2::uuid
+           OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
+      AND wi.deleted_at IS NOT NULL
+    ORDER BY wi.order_key COLLATE "C" DESC
+    LIMIT 1)
+) siblings
 ORDER BY order_key COLLATE "C" DESC
 LIMIT 1
 `
@@ -1443,6 +1458,12 @@ type LastWorkItemOrderKeyParams struct {
 //
 // COLLATE "C" for the reason migration 0007 gives: a rank key is a fractional index that rests on
 // byte order, and under a linguistic collation "Zz" would sort above "a0".
+//
+// The parent is spelled `= OR IS NULL` rather than IS NOT DISTINCT FROM, which no index answers:
+// the planner folds the absent parent into `parent_id IS NULL`, and the live siblings are read
+// backwards from wi_level_order_idx's end, the trashed ones from wi_trash_idx. Spelled as one
+// comparison, every create read its whole level - tens of milliseconds at tens of thousands of
+// entries (observability-reliability.md §13.2).
 func (q *Queries) LastWorkItemOrderKey(ctx context.Context, arg LastWorkItemOrderKeyParams) (string, error) {
 	row := q.db.QueryRow(ctx, lastWorkItemOrderKey, arg.CollectionID, arg.ParentID)
 	var order_key string
@@ -1855,7 +1876,10 @@ SELECT
   wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
 WHERE wi.collection_id = $1::uuid
-  AND wi.parent_id IS NOT DISTINCT FROM $2::uuid
+  -- ` + "`" + `= OR IS NULL` + "`" + ` rather than IS NOT DISTINCT FROM, as LastWorkItemOrderKey: the page is then
+  -- read in order from the index instead of sorting the whole level for fifty rows.
+  AND (wi.parent_id = $2::uuid
+       OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
   AND wi.deleted_at IS NULL
   AND ($3::boolean OR wi.archived_at IS NULL)
   -- The entries the caller may see, when that is fewer than the level: null is no restriction at
@@ -2108,23 +2132,30 @@ func (q *Queries) NextDueAnnouncement(ctx context.Context, leadSeconds float64) 
 }
 
 const orderKeyNeighbours = `-- name: OrderKeyNeighbours :one
-WITH level AS (
-  SELECT id, order_key
-  FROM work_item
-  WHERE collection_id = $1::uuid
-    AND parent_id IS NOT DISTINCT FROM $2::uuid
-    AND deleted_at IS NULL
-    AND id IS DISTINCT FROM $3::uuid
-), anchor AS (
-  SELECT order_key FROM level WHERE id = $4::uuid
+WITH anchor AS (
+  SELECT wi.order_key
+  FROM work_item wi
+  WHERE wi.id = $4::uuid
+    AND wi.collection_id = $1::uuid
+    AND (wi.parent_id = $2::uuid
+         OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
+    AND wi.deleted_at IS NULL
+    AND wi.id IS DISTINCT FROM $3::uuid
 )
 SELECT
   coalesce((SELECT order_key FROM anchor), '')::text AS next_key,
   coalesce((
-    SELECT max(order_key COLLATE "C")
-    FROM level
-    WHERE (SELECT order_key FROM anchor) IS NULL
-       OR order_key COLLATE "C" < (SELECT order_key FROM anchor) COLLATE "C"
+    SELECT wi.order_key
+    FROM work_item wi
+    WHERE wi.collection_id = $1::uuid
+      AND (wi.parent_id = $2::uuid
+           OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
+      AND wi.deleted_at IS NULL
+      AND wi.id IS DISTINCT FROM $3::uuid
+      AND wi.order_key COLLATE "C"
+          < coalesce((SELECT order_key FROM anchor), chr(1114111)) COLLATE "C"
+    ORDER BY wi.order_key COLLATE "C" DESC, wi.id DESC
+    LIMIT 1
   ), '')::text AS previous_key
 `
 
@@ -2157,6 +2188,9 @@ type OrderKeyNeighboursRow struct {
 // "Exclude nothing" has to be expressible, because a create has no row to leave out: the parameter is
 // nullable and the comparison is IS DISTINCT FROM. With `<>` a NULL there is a predicate that is NULL
 // for every row, which empties this list and reports an anchor that is present as missing.
+// The greatest rank below is the first row read backwards from wi_level_order_idx, bounded by the
+// anchor - or by a bound above every rank, chr(1114111), when there is none - rather than a max over
+// the whole level; the parent is spelled as LastWorkItemOrderKey spells it, for the same reason.
 func (q *Queries) OrderKeyNeighbours(ctx context.Context, arg OrderKeyNeighboursParams) (OrderKeyNeighboursRow, error) {
 	row := q.db.QueryRow(ctx, orderKeyNeighbours,
 		arg.CollectionID,
