@@ -4,10 +4,13 @@
 package notification
 
 import (
+	"context"
 	"errors"
 	"testing"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -318,5 +321,58 @@ func TestAQueueFailureStopsTheBatch(t *testing.T) {
 
 	if err := fixture.consumer.Deliver(t.Context(), assigned(t, anna, bert)); err == nil {
 		t.Fatal("a queue failure was swallowed")
+	}
+}
+
+// requesterBook answers who follows the place as a requester.
+type requesterBook map[shared.ID]bool
+
+func (b requesterBook) Requester(_ context.Context, actor appshared.ActorContext, _ []identity.Scope) (bool, error) {
+	return b[actor.AccountID], nil
+}
+
+// UC-SVC-05 check 9: the team's public answer on a request is told to the requester who raised
+// it in the portal, under their own category; an internal note, their own words and an entry
+// raised by a team member tell them nothing.
+func TestAPublicReplyOnARequestTellsItsRequester(t *testing.T) {
+	cases := map[string]struct {
+		author    shared.ID
+		extra     map[string]any
+		requester bool
+		want      int
+	}{
+		"a public reply":          {author: anna, requester: true, want: 1},
+		"an internal note":        {author: anna, extra: map[string]any{"internal": true}, requester: true},
+		"the requester's words":   {author: carla, requester: true},
+		"filed for by the intake": {author: anna, extra: map[string]any{"by_requester": true}, requester: true},
+		"raised by the team":      {author: anna},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			fixture := consumer(t, shared.ID(""))
+			item := task(shared.ID(""))
+			item.CreatedBy = carla
+			fixture.consumer.Items = newItems(item)
+			fixture.consumer.Requesters = requesterBook{carla: c.requester}
+			envelope := commented(t, c.author)
+			for k, v := range c.extra {
+				envelope.Payload[k] = v
+			}
+			if err := fixture.consumer.Deliver(t.Context(), envelope); err != nil {
+				t.Fatal(err)
+			}
+			var told []domain.Notification
+			for _, record := range fixture.notifications.written() {
+				if record.Category == domain.CategoryRequestReply && record.State != domain.StateSuppressed {
+					told = append(told, record)
+				}
+			}
+			if len(told) != c.want {
+				t.Fatalf("%d replies told, want %d", len(told), c.want)
+			}
+			if c.want == 1 && (told[0].RecipientID != carla || told[0].ItemID != itemID) {
+				t.Errorf("told %+v", told[0])
+			}
+		})
 	}
 }

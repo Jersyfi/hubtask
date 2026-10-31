@@ -92,3 +92,19 @@ func (s Service) Hidden(
 	}
 	return hidden(memberships, at), nil
 }
+
+// Requester answers whether the actor follows the path as a requester - REQUEST without READ
+// (service.IsRequester) -, who learns of work there only through the portal. Nothing is recorded:
+// it is asked about the person a notification would go to, before anything is written for them.
+func (s Service) Requester(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+) (bool, error) {
+	if len(path) == 0 || actor.AccountID.IsZero() {
+		return false, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path, false)
+	if err != nil {
+		return false, err
+	}
+	return service.IsRequester(memberships, at.path, at.privacy), nil
+}

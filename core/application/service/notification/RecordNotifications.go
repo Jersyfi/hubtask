@@ -14,6 +14,7 @@ package notification
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -85,6 +86,15 @@ type RecordNotifications struct {
 	// assignee, somebody on its member list who has since left the hub (D6, ADR-0073 §1): no record,
 	// no mail. Nil only in a build that has no private hubs to keep.
 	Reach PrivateReach
+	// Requesters tells who raised an entry as a requester (UC-SVC-05), who is told of the team's
+	// public answers on it under REQUEST_REPLY. Nil tells no requester.
+	Requesters RequesterReach
+}
+
+// RequesterReach is the authoriser's question whether a person follows a place only through the
+// portal (access.Service.Requester).
+type RequesterReach interface {
+	Requester(ctx context.Context, actor appshared.ActorContext, path []identity.Scope) (bool, error)
 }
 
 // PrivateReach is the authoriser's question about a private hub, asked about each person a
@@ -178,6 +188,9 @@ func (r RecordNotifications) Deliver(ctx context.Context, envelope event.Envelop
 			return err
 		}
 	}
+	if envelope.Type == event.CommentCreated {
+		return r.tellRequester(ctx, envelope, itemID, recipients)
+	}
 	return nil
 }
 
@@ -241,6 +254,35 @@ func (r RecordNotifications) everybodyOn(
 		recipients = append(recipients, candidate)
 	}
 	return recipients, nil
+}
+
+// tellRequester tells the person who raised the entry as a requester of a public comment on it:
+// never of an internal note, which they may not read, nor of their own words the mail intake filed
+// (UC-SVC-12). Whether they are a requester is asked now, at the entry's place, so a requester who
+// has since joined the team hears of it as a team member, by its assignment or member list.
+func (r RecordNotifications) tellRequester(
+	ctx context.Context, envelope event.Envelope, itemID shared.ID, told []shared.ID,
+) error {
+	if r.Requesters == nil || itemID.IsZero() || envelope.Payload["internal"] == true || envelope.Payload["by_requester"] == true {
+		return nil
+	}
+	item, err := r.Items.Find(ctx, itemID)
+	switch {
+	case errors.Is(err, shared.ErrNotFound):
+		return nil
+	case err != nil:
+		return err
+	}
+	if item.CreatedBy.IsZero() || slices.Contains(told, item.CreatedBy) {
+		return nil
+	}
+	requester, err := r.Requesters.Requester(ctx, appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: envelope.TenantID, AccountID: item.CreatedBy,
+	}, condition.PlaceOf(envelope))
+	if err != nil || !requester {
+		return err
+	}
+	return r.record(ctx, envelope, domain.CategoryRequestReply, itemID, item.CreatedBy)
 }
 
 // record writes one person's record and, where it is to be sent, the job that sends it.

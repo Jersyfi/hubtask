@@ -622,3 +622,22 @@ func (w workspaceSlugged) Find(context.Context) (identity.Workspace, error) {
 	workspace.Slug = w.slug
 	return workspace, nil
 }
+
+// UC-SVC-05 check 9: a requester's reply notice reads as a comment and links into the portal,
+// never to the entry's screen, which is the team's.
+func TestARequestReplyLinksIntoThePortal(t *testing.T) {
+	fixture := delivery(t, domain.CategoryRequestReply, true)
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(fixture.mailbox.sent) != 1 {
+		t.Fatalf("%d messages sent, want one", len(fixture.mailbox.sent))
+	}
+	message := fixture.mailbox.sent[0]
+	if !strings.Contains(message.Body, mainBase+"/portal/requests/"+itemID.String()) || strings.Contains(message.Body, "/items/") {
+		t.Errorf("the link is not the portal's: %q", message.Body)
+	}
+	if !strings.Contains(message.Subject, "title=Review the quote") {
+		t.Errorf("the subject does not name the request: %q", message.Subject)
+	}
+}

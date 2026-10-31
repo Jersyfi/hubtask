@@ -4074,7 +4074,7 @@ func run() error {
 	notify := notification.RecordNotifications{
 		Notifications: notifications, Preferences: notificationPreferences, Accounts: accounts,
 		Items: items, ItemMembers: itemMembers, Jobs: jobs,
-		Clock: clockadapter.System{}, IDs: ids, Signals: metrics, Reach: authorizer,
+		Clock: clockadapter.System{}, IDs: ids, Signals: metrics, Reach: authorizer, Requesters: authorizer,
 	}
 
 	// The automation engine. The subscriber turns one event into one job per matching rule;

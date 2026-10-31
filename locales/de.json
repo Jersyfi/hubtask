@@ -7346,6 +7346,7 @@
   "app.profile.category_INTEGRATION": "Etwas, das ich verbunden habe, braucht Aufmerksamkeit",
   "app.profile.category_RETENTION": "Etwas, das ich halte, wird bald entfernt",
   "app.profile.category_EMERGENCY_ACCESS": "Jemand öffnet einen meiner privaten Hubs im Notfall",
+  "app.profile.category_REQUEST_REPLY": "Das Team antwortet auf eine Anfrage von mir",
   "app.nav.profile": "Deine Einstellungen",
   "app.profile.no_locales": "Dieser Arbeitsbereich hat nicht gesagt, welche Sprachen er anbietet, darum gibt es nichts zu wählen. Er spricht die der Installation.",
   "app.profile.notification_saved_announced": "Benachrichtigungseinstellung gespeichert.",

@@ -7349,6 +7349,7 @@
   "app.profile.category_INTEGRATION": "Something I connected needs attention",
   "app.profile.category_RETENTION": "Something I hold is about to be removed",
   "app.profile.category_EMERGENCY_ACCESS": "Somebody opens a private hub of mine in an emergency",
+  "app.profile.category_REQUEST_REPLY": "The team answers a request I raised",
   "app.nav.profile": "Your settings",
   "app.profile.no_locales": "This workspace has not said which languages it serves, so there is nothing to choose between. It speaks the installation’s own.",
   "app.profile.notification_saved_announced": "Notification preference saved.",

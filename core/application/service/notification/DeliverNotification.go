@@ -677,6 +677,9 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 		return subjectRetention, bodyRetention
 	case domain.CategoryEmergencyAccess:
 		return subjectEmergencyAccess, bodyEmergencyAccess
+	case domain.CategoryRequestReply:
+		// The comment's sentence: somebody wrote on the request; only the link differs.
+		return subjectComment, bodyComment
 	}
 	// Not reachable through New, which refuses an unknown category. Answered rather than panicked:
 	// a message with the wrong words is better than a worker that dies on a row.
@@ -693,6 +696,9 @@ func link(base string, record domain.Notification) string {
 	// it is escaped anyway, because a link built by concatenation is the shape of an injection
 	// even when this particular value cannot be one.
 	switch {
+	case record.Category == domain.CategoryRequestReply && !record.ItemID.IsZero():
+		// A requester reads their request in the portal; the entry's own screen is the team's.
+		return base + "/portal/requests/" + url.PathEscape(record.ItemID.String())
 	case !record.RuleID.IsZero():
 		return base + "/administration/rules/" + url.PathEscape(record.RuleID.String())
 	case !record.SubscriptionID.IsZero():
