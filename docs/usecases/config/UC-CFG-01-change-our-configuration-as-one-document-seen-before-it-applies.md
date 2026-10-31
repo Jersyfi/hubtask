@@ -81,7 +81,8 @@ the two versions and rolls the hub's workflow back.
     default (`config.check.required_unfillable`), two fields of one kind offering the same choices
     (`config.check.fields_same_meaning`), one tolerance locked alike in several of a hub's
     collections while the hub leaves it open (`config.check.lock_could_move_up`) - each with its severity, errors first, and the key path of the block to change;
-    a sound configuration answers no finding. *Administration → Overview* lists them, each opening
+    a sound configuration answers no finding; a workspace template the check finds an error in is
+    refused when it is published (`config.template_check_failed`, one refusal per block). *Administration → Overview* lists them, each opening
     its block's page, and each block's page (types, workflows, roles, rules, a hub's structure)
     shows those about its own blocks.
 

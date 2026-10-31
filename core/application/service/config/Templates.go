@@ -255,6 +255,9 @@ func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usec
 		if err != nil {
 			return err
 		}
+		if err := checkTemplate(document, hubPart); err != nil {
+			return err
+		}
 		templates, err := d.Store.ListTemplates(ctx)
 		if err != nil {
 			return err

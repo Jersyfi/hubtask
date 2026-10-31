@@ -78,3 +78,29 @@ func TestTheConfigurationCheckKnowsEveryChannel(t *testing.T) {
 		t.Errorf("a field one channel shows found %v", out["findings"])
 	}
 }
+
+// configuration.md §11, UC-CFG-01 check 10: a workspace template whose blocks the check finds an
+// error in is refused when it is published, each finding naming its block, so a broken template is
+// never offered; a warning alone publishes.
+func TestATemplateTheCheckFindsBrokenIsNotPublished(t *testing.T) {
+	f := newFixture()
+	stranded := map[string]any{"workflows": map[string]any{"service": map[string]any{
+		"name": "Service", "shape": map[string]any{
+			"initial":  "todo",
+			"statuses": []any{map[string]any{"key": "todo", "category": "TODO"}, map[string]any{"key": "done", "category": "DONE"}},
+			"steps":    []any{map[string]any{"key": "finish", "from": []any{"todo"}, "to": "done", "who": map[string]any{"roles": []any{"cab_member"}}}},
+		},
+	}}}
+	_, err := PublishConfigTemplate{f.desk}.Descriptor().Handler.Invoke(t.Context(), person, usecase.Input{
+		"key": "desk", "name": "Desk", "document": stranded,
+	})
+	refusals := refusalsIn(err)
+	if len(refusals) == 0 {
+		t.Fatalf("a template whose workflow strands every entry was published: %v", err)
+	}
+	for _, refusal := range refusals {
+		if refusal.Code != "config.template_check_failed" || refusal.Path != "/document/workflows/service" || refusal.Params["finding"] == "" {
+			t.Errorf("refusal %+v, want config.template_check_failed at the workflow with its finding", refusal)
+		}
+	}
+}

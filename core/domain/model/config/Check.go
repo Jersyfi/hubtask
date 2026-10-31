@@ -45,7 +45,7 @@ type Checked struct {
 
 // CheckDocument answers what the configuration check finds, errors first, each kind in key order.
 //
-// It finds before a person or an import meets the refusal (ui.md A5): a workflow whose entries can
+// It finds before a person or an import meets the refusal (configuration.md §11): a workflow whose entries can
 // never be completed, a status no step leads to, a step only roles that do not exist may take, a
 // rule that answers its own change, a hub's scheme naming a workflow the workspace does not hold,
 // a required field no channel can fill, two fields with one meaning, and a lock stated alike in

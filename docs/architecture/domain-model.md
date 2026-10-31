@@ -388,7 +388,8 @@ Every preset is a template of its structure part, read through `ListPresets` so 
 the presets are: Hubtask's four by key (`list@1` … `flow@1`, origin `HUBTASK`), the installation's,
 the workspace's and a person's own by identifier (`installation_<id>`, `preset_<id>`, `own_<id>` at
 the preset's version); a workspace template may not take one of those keys
-(`config.template_key_shipped`). A **hub template** carries a hub part beside the workspace's
+(`config.template_key_shipped`). A template the configuration check finds an error in is refused too
+(`config.template_check_failed`, `configuration.md` §11). A **hub template** carries a hub part beside the workspace's
 (`config_template.hub_document`, migration 0271): a hub's own document, published from a hub
 (`hub_id`) or named (`hub_document`) and linted as an empty hub would take it. A hub takes it with
 `hub_id` on the plan and the apply, once the workspace took the template

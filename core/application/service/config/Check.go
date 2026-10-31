@@ -6,6 +6,7 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -55,13 +56,7 @@ func (d Desk) checkInForce(ctx context.Context, actor appshared.ActorContext, hu
 	if err := d.authorizeAt(ctx, actor, hub, ReadAction, scopeRead, true); err != nil {
 		return nil, err
 	}
-	in := domain.Checked{}
-	for _, role := range identity.Roles() {
-		in.BuiltInRoles = append(in.BuiltInRoles, string(role))
-	}
-	for _, channel := range workmodel.FormChannels() {
-		in.Channels = append(in.Channels, string(channel))
-	}
+	in := checkedBase()
 	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		workspace, err := d.export(ctx, actor, "")
 		if err != nil {
@@ -93,6 +88,52 @@ func (d Desk) checkInForce(ctx context.Context, actor appshared.ActorContext, hu
 		rows = append(rows, row)
 	}
 	return usecase.Output{"findings": rows}, nil
+}
+
+// checkedBase is what every check knows beside the documents: the built-in roles and the doors.
+func checkedBase() domain.Checked {
+	in := domain.Checked{}
+	for _, role := range identity.Roles() {
+		in.BuiltInRoles = append(in.BuiltInRoles, string(role))
+	}
+	for _, channel := range workmodel.FormChannels() {
+		in.Channels = append(in.Channels, string(channel))
+	}
+	return in
+}
+
+// checkTemplate refuses a template the check finds an error in (configuration.md §11): one refusal
+// per error, at the block it is about, naming the finding - a broken template is never offered.
+// Warnings publish; the template is checked alone, as a workspace taking it would hold it.
+func checkTemplate(document, hubPart domain.Document) error {
+	in := checkedBase()
+	var err error
+	if in.Workspace, err = asJSON(document); err != nil {
+		return err
+	}
+	if hubPart != nil {
+		if in.Hub, err = asJSON(hubPart); err != nil {
+			return err
+		}
+	}
+	var refusals []shared.FieldError
+	for _, finding := range domain.CheckDocument(in) {
+		if finding.Severity != domain.SeverityError {
+			continue
+		}
+		root := "/document/"
+		if in.Hub != nil && strings.HasPrefix(finding.Path, "scheme.") {
+			root = "/hub_document/"
+		}
+		refusals = append(refusals, shared.FieldError{
+			Path: root + strings.ReplaceAll(finding.Path, ".", "/"), Code: "config.template_check_failed",
+			Params: map[string]string{"finding": finding.Code},
+		})
+	}
+	if len(refusals) > 0 {
+		return domain.ErrRefused(refusals)
+	}
+	return nil
 }
 
 // asJSON reads a document as every door hands it on, so that the check sees one shape of value

@@ -8232,6 +8232,7 @@
   "config.section_unknown": "Das Konfigurationsdokument hat keinen solchen Abschnitt.",
   "config.section_withheld": "Diesen Abschnitt kannst du hier nicht ändern: Er ist ausgeschaltet, oder du darfst ihn nicht lesen.",
   "config.template_key_shipped": "Dieser Schlüssel benennt eine Voreinstellung, die als Vorlage angeboten wird. Wähle einen anderen Schlüssel.",
+  "config.template_check_failed": "Eine Vorlage kann nicht veröffentlicht werden, solange die Konfigurationsprüfung in diesem Baustein einen Fehler findet. Ändere zuerst den Baustein.",
   "config.template_not_taken": "Dieser Arbeitsbereich hat diese Vorlage nicht übernommen, es gibt nichts zu aktualisieren.",
   "config.template_unknown": "Diese Vorlage oder Version gibt es nicht.",
   "config.template_version_taken": "Jemand hat diese Version der Vorlage inzwischen veröffentlicht. Veröffentliche erneut.",
