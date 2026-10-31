@@ -884,7 +884,10 @@ own, judged at the page - the writer's own upload, or one a page they may read h
 whoever reads one of the pages holding it, and kept as long as the page, whatever the body does
 with it. A
 person's `personal_space` is a private hub of their own made on first use, and a page with
-`daily_for` is its note of a day, one per day (UC-DOC-07).
+`daily_for` is its note of a day, one per day (UC-DOC-07). A page carries labels (`page_label`,
+UC-DOC-01 check 9): one lower-case word each, at most 20, found rather than defined - a space's
+vocabulary is whatever its pages carry, counted over the pages the reader may read - and no part
+of the page's words, so labelling makes no version.
 
 ### 3.9 Whiteboards (context: Whiteboard, M4)
 

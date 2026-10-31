@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-19]
 state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/data/pages.test.ts, core/application/service/knowledge/Copy_test.go]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/data/pages.test.ts, core/application/service/knowledge/Copy_test.go, core/domain/model/knowledge/Label_test.go, core/application/service/knowledge/Labels_test.go]
 ---
 
 # Write a page in a hub and find it again
@@ -30,9 +30,11 @@ The web team writes "How we release" in its hub and puts "Checklist" and "Rollba
 6. On *Pages* of a hub, a member sees the space's tree, opens a page with its breadcrumb and writes it in place.
 7. REST, MCP and `hubctl page …` write, move, read, find and trash pages the same way; the trail records "page changed" and never the words.
 8. A member copies a page (*Copy* on the page, `POST /pages/{id}:copy`, `hubctl page copy`): a new page of the same space beside it, or where asked, with its body, icon and language and its title or the one given; its versions, comments, restrictions, shares and public links are not copied, the copy is no template, and a page the member may not read is not copied.
+9. A writer labels a page (under its title, `POST /pages/{id}:label`, `hubctl page label`) - lower case, one word each, at most 20 - without a new version; beside the space's search its labels stand with how many pages carry them, counting only pages the reader may read; a search narrows to a label, to the reader's own pages or to those changed recently, and a label or an author finds without words; the trail records the labels as changed, never their words.
 
 ## Where it ends
 
 * A page is not an entry: no level, completion, status or assignee.
 * No public website and no publishing for the portal here - the service desk's knowledge base comes with M5.
 * No import from other wikis here (S-23).
+* A page's labels are read online: the offline copy holds pages, not their labels, and a copied page starts without labels.
