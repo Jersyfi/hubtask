@@ -196,7 +196,7 @@ this list with its row.
 | Third answers | Renamed hubctl flags have no aliases for their old names | open: build it (accepted.md, "The owner's third answers", item 7) |
 | Third answers | POST /items:export embeds the whole ItemQuery instead of its own query schema | open: build it (accepted.md, "The owner's third answers", item 8) |
 | Third answers | Retention sweeps of default-period kinds ignore the workspace's TENANT-scope rule | closed: the sweeps read the workspace's rule within the lower bound, and a rule for such a kind can be written (UC-LIF-04 check 11; accepted.md, "The owner's third answers", item 10) |
-| Third answers | The 10⁷ capacity run has not run | open: run it on the owner's workstation (accepted.md, "The owner's third answers", item 9) and record it in the S-12 State row |
+| Third answers | The 10⁷ capacity run has not run | open, waiting on the owner: [`test/load/PLAN.md`](../../../test/load/PLAN.md) (probes measured, errors collected per message into `errors-<items>.json`) is to be shown to the owner, then the run on the owner's workstation (accepted.md, "The owner's third answers", item 9, and "The owner's word on the performance tests") is recorded in the S-12 State row |
 
 ## State
 
