@@ -284,6 +284,10 @@ export type Article = components['schemas']['Article'];
 /** The service desk (M5): the requester portal, calendars, SLA policies and an entry's goals, canned replies. */
 export type ArticleRating = components['schemas']['ArticleRating'];
 export type RequestCatalogue = components['schemas']['RequestCatalogue'];
+export type PublicForm = components['schemas']['PublicForm'];
+export type PublicFormMinted = components['schemas']['PublicFormMinted'];
+export type PublicFormView = components['schemas']['PublicFormView'];
+export type PublicFormSubmission = components['schemas']['PublicFormSubmission'];
 export type PortalRequest = components['schemas']['PortalRequest'];
 export type PortalRequestPage = components['schemas']['PortalRequestPage'];
 export type PortalRequestDetail = components['schemas']['PortalRequestDetail'];

@@ -33,6 +33,7 @@
   import RedeemView from './views/RedeemView.svelte';
   import ResetView from './views/ResetView.svelte';
   import ConfirmAddressView from './views/ConfirmAddressView.svelte';
+  import PublicFormView from './views/PublicFormView.svelte';
   import SetupView from './views/SetupView.svelte';
   import SignInView from './views/SignInView.svelte';
 
@@ -262,6 +263,10 @@
        second copy of it mounted inside the frame would find the address already cleaned and
        report a refusal for a sign-in that succeeded. -->
   <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
+{:else if route.name === 'public-form'}
+  <!-- A public form, on the card whether or not somebody is signed in (UC-SVC-13): it files as
+       the link's maker, never as the reader of this tab. -->
+  <PublicFormView />
 {:else if !session.isSignedIn || route.name === 'reset' || route.name === 'redeem' || route.name === 'confirm-address'}
   {#if route.name === 'reset'}
     <!-- Before the sign-in screen, exactly as the invitation is: somebody who arrives with a

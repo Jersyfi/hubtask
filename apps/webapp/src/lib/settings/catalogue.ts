@@ -29,6 +29,7 @@ const OWN_CODES: Readonly<Record<string, string>> = {
   'agents.registered_only': 'app.agents.registered_only',
   'config.agent_apply': 'app.changes.agent_apply',
   'planning.time_tolerance_days': 'app.planning.tolerance',
+  'servicedesk.public_forms': 'app.admin.public_forms',
   'time.locked_through': 'app.time_settings.locked_through',
   'time.visibility': 'app.time_settings.visibility',
 };
@@ -68,6 +69,8 @@ const WORKSPACE: Readonly<Record<string, Screen>> = {
   structure: { path: '/administration/presets', code: 'app.presets.title' },
   module: { path: '/administration/modules', code: 'app.modules.title' },
   knowledge: { path: '/administration/workspace', code: 'app.admin.workspace' },
+  // A collection's public form is switched beside a page's public link (PublicFormsSwitch).
+  servicedesk: { path: '/administration/workspace', code: 'app.admin.workspace' },
   config: { path: '/administration/changes', code: 'app.changes.title' },
   agents: { path: '/administration/agents', code: 'app.agents.title' },
   // The workspace's tolerance is drawn beside the modules it belongs to (WorkspaceTolerance).

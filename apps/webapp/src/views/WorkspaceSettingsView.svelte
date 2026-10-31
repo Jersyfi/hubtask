@@ -35,6 +35,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import PublicLinksSwitch from '../lib/pages/PublicLinksSwitch.svelte';
+  import PublicFormsSwitch from '../lib/servicedesk/PublicFormsSwitch.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -262,6 +263,7 @@
           </WriteOnly>
         </form>
         <PublicLinksSwitch />
+        <PublicFormsSwitch />
       </WorkspaceGate>
     {/if}
     </Stack>

@@ -16,6 +16,7 @@
   import type { ApprovalList, PortalRequestPage, RequestCatalogue } from '@hubtask/sync-engine';
 
   import { myApprovalsPath } from '../lib/data/approvals.svelte.ts';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
 
   import { cataloguePath, myRequestsPath, organisationRequestsPath, portal } from '../lib/data/portal.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
@@ -28,6 +29,7 @@
   import { answersOf, askable, deflectionText } from '../lib/portal/portal.ts';
   import { renderProblem } from '../lib/problem.ts';
   import ApprovalCard from '../lib/servicedesk/ApprovalCard.svelte';
+  import PublicFormPanel from '../lib/servicedesk/PublicFormPanel.svelte';
   import { offersOrganisation } from '../lib/servicedesk/organisations.ts';
 
   const { collectionId, onnavigate }: { collectionId: string; onnavigate?: (path: string) => void } = $props();
@@ -149,6 +151,10 @@
       </Stack>
     </section>
   {/if}
+
+  <!-- Asked only of somebody who manages the workspace's members: a requester's portal would
+       otherwise ask, and be refused, at every opening. -->
+  {#if holdsHere('MANAGE_MEMBERS') === true}<PublicFormPanel {collectionId} />{/if}
 
   <section aria-labelledby="portal-mine">
     <Stack gap="100">

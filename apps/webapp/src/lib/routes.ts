@@ -26,6 +26,9 @@ export const ROUTES: readonly Route[] = [
   // Where the mail confirming a managed account's new address links (`SendAddressConfirmation.go`).
   // Signed in or not, like `/reset`: whoever holds the mailbox may open it from any device.
   { name: 'confirm-address', pattern: '/confirm-address' },
+  // A collection's public form (UC-SVC-13): opened by anybody holding its link, signed in or not,
+  // and never in the frame - the visitor is nobody this workspace knows.
+  { name: 'public-form', pattern: '/form' },
   // The redirect URI `cmd/server/main.go` derives and registers with the provider. The address is
   // the server's rather than this table's choice: nothing about where an authorization code comes
   // back may be taken from a request.

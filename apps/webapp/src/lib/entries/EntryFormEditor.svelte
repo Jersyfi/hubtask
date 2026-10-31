@@ -20,7 +20,7 @@
   import { customFields } from '../data/customfields.svelte.ts';
   import { valueFor } from '../data/customfields.ts';
   import {
-    FORM_CHANNELS, addableKeys, channelIn, customKeyOf, draftOfForm, formKeyOfCustom, formOfDraft, moveField, newField,
+    FORM_CHANNELS, OPT_IN_CHANNELS, addableKeys, channelIn, customKeyOf, draftOfForm, formKeyOfCustom, formOfDraft, moveField, newField,
     refusalsByField, removeField, removeSection, type FormDraft,
   } from '../data/entryforms.ts';
   import { entryTypes, keyFrom } from '../data/entrytypes.svelte.ts';
@@ -98,7 +98,11 @@
     return valueFor(kind, listed);
   }
 
-  function toggleHidden(channel: (typeof FORM_CHANNELS)[number], key: string, hidden: boolean) {
+  /** Every door the editor draws: the ones open by default, then the ones a form opens. */
+  const doors = [...FORM_CHANNELS, ...OPT_IN_CHANNELS] as const;
+  const optsIn = (channel: string) => (OPT_IN_CHANNELS as readonly string[]).includes(channel);
+
+  function toggleHidden(channel: (typeof doors)[number], key: string, hidden: boolean) {
     const rule = channelIn(draft, channel);
     rule.hidden = hidden ? [...rule.hidden, key] : rule.hidden.filter((each) => each !== key);
     if (!hidden) delete rule.presets[key];
@@ -218,13 +222,19 @@
     <section class="part" data-form-channels>
       <h3 class="heading">{t('app.entry_forms.channels')}</h3>
       <p class="quiet">{t('app.entry_forms.channels_intro')}</p>
-      {#each FORM_CHANNELS as channel (channel)}
+      {#each doors as channel (channel)}
         {@const rule = draft.channels.find((each) => each.channel === channel)}
         <div class="field" data-form-channel={channel}>
           <Stack gap="100">
             <strong>{t(`app.entry_forms.channel_${channel}`)}</strong>
-            <Switch label={t('app.entry_forms.channel_closed')} checked={rule?.closed ?? false}
-              onchange={(event) => (channelIn(draft, channel).closed = (event.currentTarget as HTMLInputElement).checked)} />
+            {#if optsIn(channel)}
+              <!-- Closed until named: the switch opens it, and turning it off closes it again. -->
+              <Switch label={t('app.entry_forms.channel_opened')} checked={rule !== undefined && !rule.closed}
+                onchange={(event) => (channelIn(draft, channel).closed = !(event.currentTarget as HTMLInputElement).checked)} />
+            {:else}
+              <Switch label={t('app.entry_forms.channel_closed')} checked={rule?.closed ?? false}
+                onchange={(event) => (channelIn(draft, channel).closed = (event.currentTarget as HTMLInputElement).checked)} />
+            {/if}
             {#if draft.fields.some((field) => field.key !== 'title')}
               <Inline gap="150">
                 {#each draft.fields.filter((field) => field.key !== 'title') as field (field.key)}

@@ -304,6 +304,7 @@ async function views() {
     ['redeem', await load('RedeemView'), { onnavigate: noop }],
     ['reset', await load('ResetView'), { onnavigate: noop }],
     ['confirm-address', await load('ConfirmAddressView'), { onnavigate: noop }],
+    ['public-form', await load('PublicFormView'), {}],
     ['consent', await load('ConsentView'), {}],
   ];
 }
@@ -315,7 +316,7 @@ async function views() {
  * page" is kept from the other side - these three must each render exactly one, and every other
  * screen must render none.
  */
-const CARD_SCREENS = new Set(['sign-in', 'redeem', 'reset', 'confirm-address']);
+const CARD_SCREENS = new Set(['sign-in', 'redeem', 'reset', 'confirm-address', 'public-form']);
 
 test('the route table and this test name the same screens', async () => {
   const { ROUTES, movedTo } = await import('../src/lib/routes.ts');
