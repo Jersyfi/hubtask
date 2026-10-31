@@ -319,6 +319,9 @@ reasoning is backup-restore.md §8.4):
   each entry's notes and each comment rebuilds; and the slim entry's side tables
   (`work_item_announcement`, `work_item_flow`, `work_item_retention`, migration 0227), mirrors of
   the entry's own columns that the restore's write of each entry rebuilds.
+* **Kept figures** (`collection_figure`, `collection_figure_touch`, `collection_figure_stamp`,
+  migration 0292): counts kept between reads and the record of when they stop answering; a
+  restore's write of each entry records its change, and the first read counts again.
 * **The status history** (`entry_status_change`, migration 0250): derived from the entries' status
   changes as they happen; a restored entry's history starts with its restore, which records its
   current status at its creation moment, so its cycle time and WIP age count from there.

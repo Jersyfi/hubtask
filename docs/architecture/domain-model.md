@@ -223,7 +223,15 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   applies on the collection's read: it counts the figure (`figure`, in the reader's day and week,
   leaving out trashed and hidden entries, in a read-only transaction of its own so that a figure
   that cannot be counted is marked `unavailable` and never fails the read) and the client draws
-  it. `FLOW` counts the top-level entries completed in the seven days up to the read, the average
+  it. A count is kept between reads with its basis — what the structure offers and the parts of
+  the reader's day the kind reads — and answers a later read with the same basis while the
+  collection's number of changes is the one it was counted at (migration 0292): every write to an
+  entry, a board column or a custom field definition moves that number by trigger in its own
+  transaction, a workspace-wide definition every collection's; `FLOW` and `RHYTHM`, which the clock
+  moves, answer from a kept count for a minute at most. The workspace's `figure.recount` folds the
+  recorded changes, drops what no read can be answered from and recounts the kept counts, writing
+  the fresh count over one a write outside the workspace's context left wrong
+  (`hubtask_figure_drift_total`). `FLOW` counts the top-level entries completed in the seven days up to the read, the average
   time from first to last column of those that took that way — from when one first entered the
   board's first column to when it last entered a done column, the moments
   `work_item.flow_started_at` and `flow_finished_at` that every write changing an entry's column
