@@ -34,6 +34,7 @@
   import ResetView from './views/ResetView.svelte';
   import ConfirmAddressView from './views/ConfirmAddressView.svelte';
   import PublicFormView from './views/PublicFormView.svelte';
+  import RateView from './views/RateView.svelte';
   import SetupView from './views/SetupView.svelte';
   import SignInView from './views/SignInView.svelte';
 
@@ -267,6 +268,10 @@
   <!-- A public form, on the card whether or not somebody is signed in (UC-SVC-13): it files as
        the link's maker, never as the reader of this tab. -->
   <PublicFormView />
+{:else if route.name === 'rate'}
+  <!-- A resolution mail's satisfaction link, on the card whether or not somebody is signed in
+       (UC-SVC-07 check 6): it rates for the requester it was mailed to, never as this tab's reader. -->
+  <RateView />
 {:else if !session.isSignedIn || route.name === 'reset' || route.name === 'redeem' || route.name === 'confirm-address'}
   {#if route.name === 'reset'}
     <!-- Before the sign-in screen, exactly as the invitation is: somebody who arrives with a
