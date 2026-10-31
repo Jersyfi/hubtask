@@ -52,22 +52,30 @@ func (f Format) Binary() bool { return f == FormatDOCX }
 
 // block is one block of a body, as the editor writes it (packages/editor, markdown.ts).
 type block struct {
-	kind    string // heading, paragraph, item, quote, code, rule, reference
+	kind    string // heading, paragraph, item, quote, code, rule, reference, open, close, toc, children, embed
 	level   int    // a heading's level, an item's depth
 	ordered bool
 	number  int
 	task    int // 0 no checkbox, 1 open, 2 done
 	text    string
+	variant string // an opened container's tone, or details
 }
 
 var (
-	headingLine   = regexp.MustCompile(`^(#{1,6})\s+(.*)$`)
-	bulletLine    = regexp.MustCompile(`^(\s*)[-*+]\s+(.*)$`)
-	orderedLine   = regexp.MustCompile(`^(\s*)(\d{1,9})[.)]\s+(.*)$`)
-	taskText      = regexp.MustCompile(`^\[([ xX])\]\s+(.*)$`)
-	fenceLine     = regexp.MustCompile("^(```|~~~)")
-	ruleLine      = regexp.MustCompile(`^(?:-{3,}|\*{3,}|_{3,})\s*$`)
-	blockRefLine  = regexp.MustCompile(`^!\[[^\]]*\]\((hubtask:[a-z]+/[0-9a-fA-F-]{36}(?:#[A-Za-z0-9_-]{1,64})?)\)\s*$`)
+	headingLine  = regexp.MustCompile(`^(#{1,6})\s+(.*)$`)
+	bulletLine   = regexp.MustCompile(`^(\s*)[-*+]\s+(.*)$`)
+	orderedLine  = regexp.MustCompile(`^(\s*)(\d{1,9})[.)]\s+(.*)$`)
+	taskText     = regexp.MustCompile(`^\[([ xX])\]\s+(.*)$`)
+	fenceLine    = regexp.MustCompile("^(```|~~~)")
+	ruleLine     = regexp.MustCompile(`^(?:-{3,}|\*{3,}|_{3,})\s*$`)
+	blockRefLine = regexp.MustCompile(`^!\[[^\]]*\]\((hubtask:[a-z]+/[0-9a-fA-F-]{36}(?:#[A-Za-z0-9_-]{1,64})?)\)\s*$`)
+	// The wiki blocks (packages/editor, markdown.ts): a callout or a toggle holds blocks up to a line
+	// of as many colons; a contents, child-pages or embed block stands on a line of its own.
+	containerLine = regexp.MustCompile(`^(:{3,})(info|warning|success|error|details)(?:\s+(.*?))?\s*$`)
+	closeLine     = regexp.MustCompile(`^:{3,}\s*$`)
+	leafLine      = regexp.MustCompile(`^::(toc|children|embed)(?:\s+(https://\S+))?\s*$`)
+	dayChip       = regexp.MustCompile(`:date\[(\d{4}-\d{2}-\d{2})\]`)
+	statusChip    = regexp.MustCompile(`:status\[([^\]\n]+)\]\{[a-z]+\}`)
 	inlinePattern = regexp.MustCompile("(!?)\\[((?:\\\\.|[^\\]\\\\])*)\\]\\(([^)\\s]+)\\)|\\*\\*([^*]+)\\*\\*|~~([^~]+)~~|\\*([^*]+)\\*|_([^_]+)_|`([^`]+)`|\\\\([\\\\`*_~\\[\\]#])")
 )
 
@@ -93,6 +101,14 @@ func blocks(body string) []block {
 			out = append(out, block{kind: "heading", level: len(m[1]), text: m[2]})
 		case ruleLine.MatchString(line):
 			out = append(out, block{kind: "rule"})
+		case containerLine.MatchString(line):
+			m := containerLine.FindStringSubmatch(line)
+			out = append(out, block{kind: "open", text: m[3], variant: m[2]})
+		case closeLine.MatchString(line):
+			out = append(out, block{kind: "close"})
+		case leafLine.MatchString(line) && (leafLine.FindStringSubmatch(line)[1] != "embed" || leafLine.FindStringSubmatch(line)[2] != ""):
+			m := leafLine.FindStringSubmatch(line)
+			out = append(out, block{kind: m[1], text: m[2]})
 		case blockRefLine.MatchString(line):
 			out = append(out, block{kind: "reference", text: blockRefLine.FindStringSubmatch(line)[1]})
 		case strings.HasPrefix(line, ">"):
@@ -125,7 +141,8 @@ func blocks(body string) []block {
 
 func startsBlock(line string) bool {
 	return headingLine.MatchString(line) || fenceLine.MatchString(strings.TrimSpace(line)) || ruleLine.MatchString(line) ||
-		strings.HasPrefix(line, ">") || bulletLine.MatchString(line) || orderedLine.MatchString(line)
+		strings.HasPrefix(line, ">") || bulletLine.MatchString(line) || orderedLine.MatchString(line) ||
+		containerLine.MatchString(line) || closeLine.MatchString(line) || leafLine.MatchString(line)
 }
 
 // span is a run of inline text with its marks.
@@ -139,6 +156,8 @@ type span struct {
 // export resolves no title, so it shows no name a reader of the file might not be allowed to see.
 func spans(text string) []span {
 	text = strings.ReplaceAll(strings.ReplaceAll(text, "\\\n", "\n"), "  \n", "\n")
+	// A date and a status are their words in a file: the tone is the editor's drawing.
+	text = statusChip.ReplaceAllString(dayChip.ReplaceAllString(text, "$1"), "$1")
 	var out []span
 	at := 0
 	for _, m := range inlinePattern.FindAllStringSubmatchIndex(text, -1) {
@@ -205,11 +224,36 @@ func HTMLFile(page Page) string {
 			list = ""
 		}
 	}
-	for _, b := range blocks(page.Body) {
+	parsed := blocks(page.Body)
+	var open []string
+	for _, b := range parsed {
 		if b.kind != "item" {
 			closeList()
 		}
 		switch b.kind {
+		case "open":
+			if b.variant == "details" {
+				out.WriteString("<details open><summary>" + htmlSpans(spans(b.text)) + "</summary>\n")
+				open = append(open, "</details>\n")
+			} else {
+				out.WriteString("<aside role=\"note\" data-callout=\"" + b.variant + "\">\n")
+				open = append(open, "</aside>\n")
+			}
+		case "close":
+			if len(open) > 0 {
+				out.WriteString(open[len(open)-1])
+				open = open[:len(open)-1]
+			}
+		case "toc":
+			out.WriteString("<nav><ol>\n")
+			for _, heading := range parsed {
+				if heading.kind == "heading" {
+					out.WriteString("<li>" + htmlSpans(spans(heading.text)) + "</li>\n")
+				}
+			}
+			out.WriteString("</ol></nav>\n")
+		case "embed":
+			out.WriteString("<p><a href=\"" + html.EscapeString(b.text) + "\">" + html.EscapeString(b.text) + "</a></p>\n")
 		case "heading":
 			level := strconv.Itoa(min(6, b.level+1))
 			out.WriteString("<h" + level + ">" + htmlSpans(spans(b.text)) + "</h" + level + ">\n")
@@ -244,8 +288,18 @@ func HTMLFile(page Page) string {
 		}
 	}
 	closeList()
+	for i := len(open) - 1; i >= 0; i-- {
+		out.WriteString(open[i])
+	}
 	out.WriteString("</body>\n</html>\n")
 	return out.String()
+}
+
+func boldened(runs []span) []span {
+	for i := range runs {
+		runs[i].bold = true
+	}
+	return runs
 }
 
 func htmlSpans(runs []span) string {
@@ -295,8 +349,21 @@ func DOCXFile(page Page) (string, error) {
 		body.WriteString("</w:p>")
 	}
 	paragraph("Title", "", []span{{text: page.Title}}, 0)
-	for _, b := range blocks(page.Body) {
+	parsed := blocks(page.Body)
+	for _, b := range parsed {
 		switch b.kind {
+		case "open":
+			if b.variant == "details" {
+				paragraph("", "", append([]span{{text: "▸ "}}, boldened(spans(b.text))...), 0)
+			}
+		case "toc":
+			for _, heading := range parsed {
+				if heading.kind == "heading" {
+					paragraph("", "", spans(heading.text), heading.level)
+				}
+			}
+		case "embed":
+			paragraph("", "", []span{{text: b.text, href: b.text}}, 0)
 		case "heading":
 			paragraph("Heading"+strconv.Itoa(min(6, b.level)), "", spans(b.text), 0)
 		case "paragraph":

@@ -85,3 +85,30 @@ func TestAnExportFormatIsOneOfThree(t *testing.T) {
 		t.Errorf("a tree in HTML %+v %v", files, err)
 	}
 }
+
+// UC-DOC-09 check 4, UC-DOC-01 check 10: the wiki blocks export as what they are - a callout as a
+// note, a toggle as a details element with its summary, the contents as the page's headings, an
+// embed as its link, a date and a status as their words - and a container left open is closed.
+func TestTheWikiBlocksExportAsWhatTheyAre(t *testing.T) {
+	body := "::toc\n\n# Rollback\n\n:::warning\nStop **first**.\n:::\n\n::::details Why <now>?\n:::info\nSince :date[2026-10-01], :status[Approved]{success}.\n:::\n::::\n\n" +
+		"::children\n\n::embed https://videos.example.org/v/7\n\n::embed http://plain.example.org/x\n\n:::error\nnever closed\n"
+	out := HTMLFile(newPage(t, "Runbook", body))
+	for _, want := range []string{
+		"<nav><ol>\n<li>Rollback</li>\n</ol></nav>", "<aside role=\"note\" data-callout=\"warning\">\n<p>Stop <strong>first</strong>.</p>\n</aside>",
+		"<details open><summary>Why &lt;now&gt;?</summary>\n<aside role=\"note\" data-callout=\"info\">\n<p>Since 2026-10-01, Approved.</p>\n</aside>\n</details>",
+		`<p><a href="https://videos.example.org/v/7">https://videos.example.org/v/7</a></p>`,
+		"<aside role=\"note\" data-callout=\"error\">\n<p>never closed</p>\n</aside>\n</body>",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the HTML lacks %q:\n%s", want, out)
+		}
+	}
+	for _, unwanted := range []string{":::", "::children", "::toc", `href="http://plain`} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("the HTML carries %q:\n%s", unwanted, out)
+		}
+	}
+	if _, err := DOCXFile(newPage(t, "Runbook", body)); err != nil {
+		t.Fatal(err)
+	}
+}
