@@ -43,6 +43,9 @@ const (
 	TryWorkflowStepName        = "TryWorkflowStep"
 
 	WorkflowTarget = "workflow"
+	// SchemeEntity is the change log's record of the workspace's whole scheme with the shipped
+	// workflow, one per workspace under its own identifier: a device draws a board by it offline.
+	SchemeEntity = "workflow_scheme"
 
 	WorkflowsReadAction     audit.Action = "workflow.read"
 	WorkflowCreatedAction   audit.Action = "workflow.created"
@@ -209,6 +212,31 @@ func (d Desk) announce(ctx context.Context, actor appshared.ActorContext, workfl
 		TenantID: actor.TenantID, Entity: WorkflowTarget, EntityID: workflow.ID, Op: op,
 		ActorID: actor.AccountID, HLC: d.HLC.Next(), Payload: payload,
 	})
+}
+
+// announceScheme records the scheme as it now stands. Inside the transaction.
+func (d Desk) announceScheme(ctx context.Context, actor appshared.ActorContext) error {
+	schemes, err := d.Workflows.Schemes(ctx)
+	if err != nil {
+		return err
+	}
+	return d.Changes.Record(ctx, changelog.Change{
+		TenantID: actor.TenantID, Entity: SchemeEntity, EntityID: actor.TenantID, Op: changelog.Upsert,
+		ActorID: actor.AccountID, HLC: d.HLC.Next(), Payload: map[string]any(SchemeOutput(schemes)),
+	})
+}
+
+// SchemeOutput is the scheme's rows as ListWorkflows answers them, with the shipped workflow as
+// the domain defines it: a device that holds no row of it still knows its statuses.
+func SchemeOutput(schemes []domain.WorkflowScheme) usecase.Output {
+	rows := make([]usecase.Output, 0, len(schemes))
+	for _, scheme := range schemes {
+		rows = append(rows, usecase.Output{
+			"container_id": scheme.ContainerID.String(), "entry_type": stringOrNil(scheme.EntryType),
+			"workflow": scheme.WorkflowKey,
+		})
+	}
+	return usecase.Output{"scheme": rows, "shipped": WorkflowOutput(domain.SystemWorkflow())}
 }
 
 // collectionsUnder answers the collections a container reaches: itself, or a hub's collections.
@@ -562,14 +590,7 @@ func (h ListWorkflows) Descriptor() usecase.Descriptor {
 			for _, w := range set {
 				data = append(data, WorkflowOutput(w))
 			}
-			rows := make([]usecase.Output, 0, len(schemes))
-			for _, scheme := range schemes {
-				rows = append(rows, usecase.Output{
-					"container_id": scheme.ContainerID.String(), "entry_type": stringOrNil(scheme.EntryType),
-					"workflow": scheme.WorkflowKey,
-				})
-			}
-			return usecase.Output{"data": data, "scheme": rows}, nil
+			return usecase.Output{"data": data, "scheme": SchemeOutput(schemes)["scheme"]}, nil
 		})
 }
 
@@ -1137,7 +1158,11 @@ func (h SetWorkflowScheme) Execute(ctx context.Context, actor appshared.ActorCon
 			}
 			if used, _ := set.Find(change.WorkflowKey); !used.Stored() {
 				used.UpdatedAt = now
-				if _, err := h.Desk.store(ctx, actor, domain.Workflow{}, used); err != nil {
+				stored, err := h.Desk.store(ctx, actor, domain.Workflow{}, used)
+				if err != nil {
+					return err
+				}
+				if err := h.Desk.announce(ctx, actor, stored, changelog.Upsert); err != nil {
 					return err
 				}
 			}
@@ -1146,6 +1171,9 @@ func (h SetWorkflowScheme) Execute(ctx context.Context, actor appshared.ActorCon
 			}, now); err != nil {
 				return err
 			}
+		}
+		if err := h.Desk.announceScheme(ctx, actor); err != nil {
+			return err
 		}
 		if moved, err = h.Desk.Mover.Move(ctx, actor, moves, now); err != nil {
 			return err

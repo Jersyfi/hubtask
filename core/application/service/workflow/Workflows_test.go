@@ -9,6 +9,7 @@ import (
 	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/service/workflow"
@@ -291,5 +292,39 @@ func TestPreviewingAShapeAnswersWithoutADraft(t *testing.T) {
 	}
 	if f.workflows.rows[0].Draft != nil || len(f.workflows.moves) != 0 {
 		t.Fatal("previewing a shape saved or moved something")
+	}
+}
+
+// A device draws a board offline from the scheme (offline-sync.md §4.4): using a workflow tells the
+// change log the workspace's whole scheme under its own identifier, with the shipped workflow, and
+// the shipped workflow's first row as a workflow of its own.
+func TestUsingAWorkflowTellsTheChangeLogTheScheme(t *testing.T) {
+	f := newDesk()
+	change := workflow.SchemeChange{ContainerID: hub, WorkflowKey: work.SystemWorkflowKey}
+	if _, err := (workflow.SetWorkflowScheme{Desk: f.desk}).Execute(t.Context(), actor(), change, true); err != nil {
+		t.Fatal(err)
+	}
+	var scheme, stored []changelog.Change
+	for _, c := range f.log.changes {
+		switch c.Entity {
+		case workflow.SchemeEntity:
+			scheme = append(scheme, c)
+		case workflow.WorkflowTarget:
+			stored = append(stored, c)
+		}
+	}
+	if len(scheme) != 1 || scheme[0].EntityID != tenant || !scheme[0].ContainerID.IsZero() {
+		t.Fatalf("the scheme was recorded as %+v", scheme)
+	}
+	rows := scheme[0].Payload["scheme"].([]usecase.Output)
+	if len(rows) != 1 || rows[0]["container_id"] != hub.String() || rows[0]["workflow"] != work.SystemWorkflowKey {
+		t.Fatalf("the scheme's rows %v", rows)
+	}
+	shipped := scheme[0].Payload["shipped"].(usecase.Output)
+	if shipped["key"] != work.SystemWorkflowKey || shipped["system"] != true {
+		t.Fatalf("the shipped workflow %v", shipped)
+	}
+	if len(stored) != 1 || stored[0].Payload["key"] != work.SystemWorkflowKey || stored[0].Payload["version"] != 1 {
+		t.Fatalf("the shipped workflow's first row was recorded as %+v", stored)
 	}
 }
