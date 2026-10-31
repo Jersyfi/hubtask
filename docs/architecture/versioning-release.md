@@ -121,6 +121,22 @@ Rules:
 * The migration runs as the database owner; the application connects as `hubtask_app`, without
   `SUPERUSER` or `BYPASSRLS` ([multi-tenancy.md](./multi-tenancy.md) §2.1).
 
+**Scheduled contract steps.** A drop waits until no binary that can still run names the object, so
+a step that moves its writers lands one release before the drop:
+
+* *The slim entry* (F-10, migrations 0227/0228). This release reads the side tables
+  `work_item_retention` and `work_item_flow` - the retention walk and an entry's marking, every
+  entry read (sqlc and the query compiler), the flow figure - and still writes the eight columns,
+  which the trigger `work_item_side_rows` mirrors (`TestTheMirrorAgreesAfterEveryWritePath`). The
+  due announcements' claim and next moment stay on the columns: their exactly-once guard is the
+  re-check of the row the claiming `UPDATE` locks, and `wi_due_announce_idx` is partial over the
+  columns. The first migration of the release after the suite gives `work_item_announcement` its
+  partial index; that release moves every writer to the side tables (the claim an
+  `INSERT … ON CONFLICT DO NOTHING` on the side row), names the columns nowhere and keeps the
+  trigger for the older binary still rolling out. The first migration of the release after it drops
+  the trigger and `work_item_mirror_side_rows`, the eight columns, `wi_due_announce_idx`,
+  `work_item_retention_idx` and the generated `search_vector`.
+
 ---
 
 ## 5. Support and upgrade policy
