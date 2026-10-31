@@ -497,6 +497,12 @@ const (
 	// digest, deduplicated by its identifier, rescheduling itself to the digest's next moment; the
 	// write that sets the digest seeds it.
 	KindDashboardDigest Kind = "dashboard.digest"
+
+	// KindFigureRecount keeps one workspace's kept figures honest (UC-WRK-29, migration 0292): it
+	// folds the recorded changes, drops what no read can be answered from, and recounts the kept
+	// counts a read may still be answered from, writing the fresh count over one that drifted. One
+	// job per workspace, scheduled by the first count a read keeps and rescheduling itself.
+	KindFigureRecount Kind = "figure.recount"
 	// KindCalendarPush is one calendar push's run (UC-INT-16): one job per push, deduplicated by
 	// its identifier, rescheduling itself every quarter hour; connecting seeds it, a push gone or
 	// refused for good ends it.
@@ -558,6 +564,12 @@ func FieldFill(tenant, definition, collection shared.ID, after string) Request {
 // moves an earlier run.
 func RetentionSweep(tenantID shared.ID, runAt time.Time) Request {
 	return Request{Kind: KindRetentionSweep, TenantID: tenantID, DedupeKey: tenantID.String(), RunAt: runAt}
+}
+
+// FigureRecount is the request for a workspace's recount of its kept figures, the tenant its dedupe
+// key; the enqueue keeps the earlier of a pending job's run-at and this one's.
+func FigureRecount(tenantID shared.ID, runAt time.Time) Request {
+	return Request{Kind: KindFigureRecount, TenantID: tenantID, DedupeKey: tenantID.String(), RunAt: runAt}
 }
 
 // Job is one claimed unit of work, as the runner hands it to a handler.
