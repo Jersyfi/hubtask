@@ -3118,6 +3118,7 @@ type Tenant struct {
 	PurgeStartedAt          pgtype.Timestamptz
 	ExternalReference       *string
 	StarterAnsweredAt       pgtype.Timestamptz
+	ArchiveDownloadedAt     pgtype.Timestamptz
 }
 
 type TenantHost struct {

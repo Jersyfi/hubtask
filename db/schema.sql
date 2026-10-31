@@ -154,6 +154,8 @@ CREATE TABLE tenant (
   password_opened_until     timestamptz,
   password_opened_requester text CHECK (length(password_opened_requester) BETWEEN 1 AND 200),
   password_opened_reason    text CHECK (length(password_opened_reason) BETWEEN 1 AND 500),
+  -- The owner's last whole-archive download, judged once in 24 hours (migration 0315).
+  archive_downloaded_at     timestamptz,
   -- A pending deletion can be called off (0130, multi-tenancy.md §5): where the workspace stood
   -- when it was requested, to return it there, and the grace job's mark, written before the first
   -- byte goes, after which no cancel lands.

@@ -25720,6 +25720,12 @@ type ListBackupsAtTargetParams struct {
 	Refresh *bool `form:"refresh,omitempty" json:"refresh,omitempty"`
 }
 
+// DownloadWorkspaceArchiveParams defines parameters for DownloadWorkspaceArchive.
+type DownloadWorkspaceArchiveParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // DefineBusinessCalendarParams defines parameters for DefineBusinessCalendar.
 type DefineBusinessCalendarParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -32727,6 +32733,27 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /backups/{backupId}:verify (the `VerifyBackup` operationId).
 	VerifyBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DownloadWorkspaceArchive Download the whole workspace as one archive
+	//
+	// The workspace's way out that needs no backup target: the complete archive of the
+	// documented tenant export format - manifest, JSON Lines per kind of record, media and the
+	// trail, every credential left out - streamed into this answer as one ZIP file and stored
+	// nowhere on the way. Unpacked onto a target of another installation, it restores there as a
+	// new workspace, as an export to a target does.
+	//
+	// Only the workspace's owner, with a fresh proof (`auth.step_up_required` otherwise). Once in
+	// 24 hours per workspace: a second request inside the window is refused with
+	// `429 backup.download_window` and a `Retry-After` header naming the seconds left; a download
+	// that fails on the way gives its window back. It counts against the workspace's export
+	// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
+	// `download` as its target in the workspace's trail - never its content.
+	//
+	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
+	// and the ZIP file without its end is one no unpacker accepts.
+	//
+	// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
+	DownloadWorkspaceArchive(ctx context.Context, params *DownloadWorkspaceArchiveParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteBaseline Delete a baseline
 	//
@@ -46383,6 +46410,37 @@ func (c *Client) GetBackupRun(ctx context.Context, backupId openapi_types.UUID, 
 // Corresponds with POST /backups/{backupId}:verify (the `VerifyBackup` operationId).
 func (c *Client) VerifyBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyBackupRequest(c.Server, backupId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DownloadWorkspaceArchive Download the whole workspace as one archive
+//
+// The workspace's way out that needs no backup target: the complete archive of the
+// documented tenant export format - manifest, JSON Lines per kind of record, media and the
+// trail, every credential left out - streamed into this answer as one ZIP file and stored
+// nowhere on the way. Unpacked onto a target of another installation, it restores there as a
+// new workspace, as an export to a target does.
+//
+// Only the workspace's owner, with a fresh proof (`auth.step_up_required` otherwise). Once in
+// 24 hours per workspace: a second request inside the window is refused with
+// `429 backup.download_window` and a `Retry-After` header naming the seconds left; a download
+// that fails on the way gives its window back. It counts against the workspace's export
+// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
+// `download` as its target in the workspace's trail - never its content.
+//
+// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
+// and the ZIP file without its end is one no unpacker accepts.
+//
+// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
+func (c *Client) DownloadWorkspaceArchive(ctx context.Context, params *DownloadWorkspaceArchiveParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDownloadWorkspaceArchiveRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -71613,6 +71671,48 @@ func NewVerifyBackupRequest(server string, backupId openapi_types.UUID) (*http.R
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDownloadWorkspaceArchiveRequest constructs an http.Request for the DownloadWorkspaceArchive method
+func NewDownloadWorkspaceArchiveRequest(server string, params *DownloadWorkspaceArchiveParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/backups:download-workspace")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -103704,6 +103804,29 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /backups/{backupId}:verify (the `VerifyBackup` operationId).
 	VerifyBackupWithResponse(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*VerifyBackupResult, error)
 
+	// DownloadWorkspaceArchiveWithResponse Download the whole workspace as one archive
+	//
+	// The workspace's way out that needs no backup target: the complete archive of the
+	// documented tenant export format - manifest, JSON Lines per kind of record, media and the
+	// trail, every credential left out - streamed into this answer as one ZIP file and stored
+	// nowhere on the way. Unpacked onto a target of another installation, it restores there as a
+	// new workspace, as an export to a target does.
+	//
+	// Only the workspace's owner, with a fresh proof (`auth.step_up_required` otherwise). Once in
+	// 24 hours per workspace: a second request inside the window is refused with
+	// `429 backup.download_window` and a `Retry-After` header naming the seconds left; a download
+	// that fails on the way gives its window back. It counts against the workspace's export
+	// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
+	// `download` as its target in the workspace's trail - never its content.
+	//
+	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
+	// and the ZIP file without its end is one no unpacker accepts.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
+	DownloadWorkspaceArchiveWithResponse(ctx context.Context, params *DownloadWorkspaceArchiveParams, reqEditors ...RequestEditorFn) (*DownloadWorkspaceArchiveResult, error)
+
 	// DeleteBaselineWithResponse Delete a baseline
 	//
 	// Deletes the baseline and the dates it holds; no entry changes. Needs WRITE_ITEMS at the plan.
@@ -121902,6 +122025,47 @@ func (r VerifyBackupResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r VerifyBackupResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DownloadWorkspaceArchiveResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DownloadWorkspaceArchiveResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DownloadWorkspaceArchiveResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DownloadWorkspaceArchiveResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DownloadWorkspaceArchiveResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DownloadWorkspaceArchiveResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -156004,6 +156168,35 @@ func (c *ClientWithResponses) VerifyBackupWithResponse(ctx context.Context, back
 	return ParseVerifyBackupResult(rsp)
 }
 
+// DownloadWorkspaceArchiveWithResponse Download the whole workspace as one archive
+//
+// The workspace's way out that needs no backup target: the complete archive of the
+// documented tenant export format - manifest, JSON Lines per kind of record, media and the
+// trail, every credential left out - streamed into this answer as one ZIP file and stored
+// nowhere on the way. Unpacked onto a target of another installation, it restores there as a
+// new workspace, as an export to a target does.
+//
+// Only the workspace's owner, with a fresh proof (`auth.step_up_required` otherwise). Once in
+// 24 hours per workspace: a second request inside the window is refused with
+// `429 backup.download_window` and a `Retry-After` header naming the seconds left; a download
+// that fails on the way gives its window back. It counts against the workspace's export
+// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
+// `download` as its target in the workspace's trail - never its content.
+//
+// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
+// and the ZIP file without its end is one no unpacker accepts.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
+func (c *ClientWithResponses) DownloadWorkspaceArchiveWithResponse(ctx context.Context, params *DownloadWorkspaceArchiveParams, reqEditors ...RequestEditorFn) (*DownloadWorkspaceArchiveResult, error) {
+	rsp, err := c.DownloadWorkspaceArchive(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDownloadWorkspaceArchiveResult(rsp)
+}
+
 // DeleteBaselineWithResponse Delete a baseline
 //
 // Deletes the baseline and the dates it holds; no entry changes. Needs WRITE_ITEMS at the plan.
@@ -176429,6 +176622,32 @@ func ParseVerifyBackupResult(rsp *http.Response) (*VerifyBackupResult, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDownloadWorkspaceArchiveResult parses an HTTP response from a DownloadWorkspaceArchiveWithResponse call
+func ParseDownloadWorkspaceArchiveResult(rsp *http.Response) (*DownloadWorkspaceArchiveResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DownloadWorkspaceArchiveResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

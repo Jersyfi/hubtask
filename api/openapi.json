@@ -14848,6 +14848,39 @@
         }
       }
     },
+    "/backups:download-workspace": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "operationId": "downloadWorkspaceArchive",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "WorkspaceArchive",
+        "summary": "Download the whole workspace as one archive",
+        "description": "The workspace's way out that needs no backup target: the complete archive of the\ndocumented tenant export format - manifest, JSON Lines per kind of record, media and the\ntrail, every credential left out - streamed into this answer as one ZIP file and stored\nnowhere on the way. Unpacked onto a target of another installation, it restores there as a\nnew workspace, as an export to a target does.\n\nOnly the workspace's owner, with a fresh proof (`auth.step_up_required` otherwise). Once in\n24 hours per workspace: a second request inside the window is refused with\n`429 backup.download_window` and a `Retry-After` header naming the seconds left; a download\nthat fails on the way gives its window back. It counts against the workspace's export\nquota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with\n`download` as its target in the workspace's trail - never its content.\n\nA refusal is a problem document; once the first byte is sent, a failure ends the transfer,\nand the ZIP file without its end is one no unpacker accepts.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The archive, as a ZIP file",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/backups/{backupId}": {
       "get": {
         "tags": [

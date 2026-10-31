@@ -3639,6 +3639,17 @@ func run() error {
 		// stream, which is neither what MCP nor what an automation rule could do with them. On an
 		// object-storage installation they are never reached - the token this server would have to
 		// have minted is one it never mints there.
+		// The owner's way out without a target (UC-BAK-07 check 7): the export's archive, streamed.
+		controller.WorkspaceArchive = &rest.WorkspaceArchiveDoor{Downloads: adminservice.DownloadWorkspaceArchive{
+			Roles: authorizer, StepUp: stepUpVerifier, Downloads: postgres.NewAdminTenantRepository(),
+			Quota: quotaGuard, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Archive: adminservice.TenantExportArchivist{
+				Rows:    postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
+				Objects: mediaStore, Cipher: crypto.NewStream(clockadapter.CryptoRandom{}),
+				Snapshot: unitOfWork, Clock: clockadapter.System{},
+				SchemaVersion: schemaVersion(), ProductVersion: version,
+			},
+		}}
 		controller.Media = &rest.MediaDoor{
 			Content: mediaservice.MediaContent{
 				Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard,

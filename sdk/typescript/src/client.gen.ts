@@ -1805,6 +1805,11 @@ export class HubtaskClient {
     return this.call("POST", "/backups", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Download the whole workspace as one archive */
+  downloadWorkspaceArchive(options: CallOptions & { readonly stepUp?: string } = {}): Promise<Response> {
+    return this.call("POST", "/backups:download-workspace", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "raw", options.signal);
+  }
+
   /** What one backup run did */
   getBackupRun(backupId: string, options: CallOptions = {}): Promise<operations["getBackupRun"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/backups/{backupId}", { "backupId": backupId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

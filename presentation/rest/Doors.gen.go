@@ -2196,6 +2196,15 @@ func (c *RestController) DownloadMediaContent(w http.ResponseWriter, r *http.Req
 	c.Media.DownloadMediaContent(w, r, mediaId, params)
 }
 
+// DownloadWorkspaceArchive answers POST /backups:download-workspace by the adapter in WorkspaceArchive, which holds the connection.
+func (c *RestController) DownloadWorkspaceArchive(w http.ResponseWriter, r *http.Request, params openapi.DownloadWorkspaceArchiveParams) {
+	if c.WorkspaceArchive == nil {
+		c.pending.DownloadWorkspaceArchive(w, r, params)
+		return
+	}
+	c.WorkspaceArchive.DownloadWorkspaceArchive(w, r, params)
+}
+
 // DuplicateWorkItem answers POST /items/{itemId}:duplicate by the generated mapping.
 func (c *RestController) DuplicateWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.DuplicateWorkItemParams) {
 	var body openapi.DuplicateWorkItemJSONRequestBody

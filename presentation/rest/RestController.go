@@ -47,6 +47,8 @@ type RestController struct {
 
 	// Media serves the two content routes (MediaDoor). Nil leaves them answering the pending 404.
 	Media *MediaDoor
+	// WorkspaceArchive streams the owner's download of the whole workspace (UC-BAK-07 check 7).
+	WorkspaceArchive *WorkspaceArchiveDoor
 
 	// BaseURL is this installation's public address, and the only thing this controller composes
 	// rather than maps: a calendar feed is handed to a client as a URL to subscribe to, and a URL

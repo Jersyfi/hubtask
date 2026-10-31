@@ -426,6 +426,13 @@ in a shared installation; a workspace serves itself through its own backups to i
 (`HUBTASK_BACKUP_TENANT_TARGETS`, backup-restore.md §2), and in a single-workspace installation its
 owner is the operator.
 
+**The owner's own way out** needs neither the operator nor a target: `POST
+/backups:download-workspace` streams this archive, the export's own, as one ZIP file (members
+stored, the archive's paths as their names) to the workspace's owner with a fresh proof, stored
+nowhere on the way; once in 24 hours (`tenant.archive_downloaded_at`, left out of the archive),
+within the export quota, audited as `tenant.exported` with `download` as its target, and a failed
+transfer gives its window back (UC-BAK-07 check 7). Unpacked onto a target, it restores as §10 says.
+
 **The rule for what comes:** a new kind of workspace data — a type, a field, a link, a form, a
 workflow, a page, a whiteboard, a record, a time entry, a goal — joins §6 in the step that builds
 it, with its references and its order; configuration is data and is never on the exclusion list of
@@ -438,7 +445,3 @@ it, with its references and its order; configuration is data and is never on the
   and for a wiki space's pages with their attachments ([UC-IMP-05](../usecases/importer/UC-IMP-05-move-a-wiki-space-into-a-hub.md)),
   from its XML export with their history and comments too ([UC-IMP-06](../usecases/importer/UC-IMP-06-move-a-wiki-space-with-its-history.md)),
   through the same archive records (backup-restore.md §9). Not yet: a tracker's screens.
-* A workspace of a shared installation whose operator allows no workspace targets cannot take its
-  data out without the operator; the Data Act asks for no obstacle. Closing it means a self-service
-  export for the workspace's owner, which UC-BAK-07's *Where it ends* (no direct download, the
-  operator's act) rules out today — an owner's decision.

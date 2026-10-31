@@ -1447,6 +1447,10 @@ class Client:
         """Start a backup immediately"""
         return self._call("POST", "/backups", {}, None, {}, body, "json", "application/json", "json")
 
+    def download_workspace_archive(self, *, step_up: str | None = None) -> bytes:
+        """Download the whole workspace as one archive"""
+        return self._call("POST", "/backups:download-workspace", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "raw")
+
     def get_backup_run(self, backup_id: str) -> "BackupRun":
         """What one backup run did"""
         return self._call("GET", "/backups/{backupId}", {"backupId": backup_id}, None, {}, None, "none", None, "json")

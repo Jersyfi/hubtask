@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -807,4 +808,51 @@ func (r TenantQueryRepository) Query(
 		})
 	}
 	return records, page, nil
+}
+
+// ClaimArchiveDownload takes the transaction's tenant's download window at now, where no download
+// fell after windowStart; otherwise it answers the one that did.
+func (AdminTenantRepository) ClaimArchiveDownload(
+	ctx context.Context, now, windowStart time.Time,
+) (bool, time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, time.Time{}, err
+	}
+	claimed, err := queries.ClaimTenantArchiveDownload(ctx, sqlc.ClaimTenantArchiveDownloadParams{
+		Now:         pgtype.Timestamptz{Time: now, Valid: true},
+		WindowStart: pgtype.Timestamptz{Time: windowStart, Valid: true},
+	})
+	if err != nil {
+		return false, time.Time{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("claiming the archive download: %w", err))
+	}
+	if claimed > 0 {
+		return true, now, nil
+	}
+	last, err := queries.TenantArchiveDownloadedAt(ctx)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, time.Time{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+	}
+	if err != nil {
+		return false, time.Time{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the last archive download: %w", err))
+	}
+	return false, last.Time, nil
+}
+
+// ReleaseArchiveDownload gives back the window a failed download claimed at claimed.
+func (AdminTenantRepository) ReleaseArchiveDownload(ctx context.Context, claimed time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := queries.ReleaseTenantArchiveDownload(ctx, pgtype.Timestamptz{Time: claimed, Valid: true}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("releasing the archive download: %w", err))
+	}
+	return nil
 }

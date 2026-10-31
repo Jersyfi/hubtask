@@ -25714,6 +25714,12 @@ type ListBackupsAtTargetParams struct {
 	Refresh *bool `form:"refresh,omitempty" json:"refresh,omitempty"`
 }
 
+// DownloadWorkspaceArchiveParams defines parameters for DownloadWorkspaceArchive.
+type DownloadWorkspaceArchiveParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // DefineBusinessCalendarParams defines parameters for DefineBusinessCalendar.
 type DefineBusinessCalendarParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -30120,6 +30126,9 @@ type ServerInterface interface {
 	// VerifyBackup Verify an archive at the target
 	// (POST /backups/{backupId}:verify)
 	VerifyBackup(w http.ResponseWriter, r *http.Request, backupId openapi_types.UUID)
+	// DownloadWorkspaceArchive Download the whole workspace as one archive
+	// (POST /backups:download-workspace)
+	DownloadWorkspaceArchive(w http.ResponseWriter, r *http.Request, params DownloadWorkspaceArchiveParams)
 	// DeleteBaseline Delete a baseline
 	// (DELETE /baselines/{baselineId})
 	DeleteBaseline(w http.ResponseWriter, r *http.Request, baselineId openapi_types.UUID)
@@ -37839,6 +37848,47 @@ func (siw *ServerInterfaceWrapper) VerifyBackup(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyBackup(w, r, backupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadWorkspaceArchive operation middleware
+func (siw *ServerInterfaceWrapper) DownloadWorkspaceArchive(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DownloadWorkspaceArchiveParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadWorkspaceArchive(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -59211,6 +59261,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/backup-schedules/{scheduleId}", wrapper.DeleteBackupSchedule)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/backup-schedules/{scheduleId}", wrapper.UpdateBackupSchedule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups", wrapper.StartBackup)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups:download-workspace", wrapper.DownloadWorkspaceArchive)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backups/{backupId}", wrapper.GetBackupRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups/{backupId}:verify", wrapper.VerifyBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/restores", wrapper.StartRestore)

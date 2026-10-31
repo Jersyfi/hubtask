@@ -294,12 +294,19 @@ func (a TenantExportArchivist) Write(
 	if err != nil {
 		return archive.Manifest{}, err
 	}
+	return a.WriteInto(ctx, store, in)
+}
 
+// WriteInto writes the archive into a store of the caller's - a target, or the ZIP stream of an
+// owner's download - under the export's name.
+func (a TenantExportArchivist) WriteInto(
+	ctx context.Context, store backupstorage.Store, in ExportArchiveRequest,
+) (archive.Manifest, error) {
 	prefix := ExportArchiveName(in.TenantID, a.Clock.Now())
 	scope := persistence.Scope{TenantID: in.TenantID}
 	var manifest archive.Manifest
 
-	err = a.Snapshot.WithinSnapshot(ctx, scope, func(snapshotCtx context.Context, at time.Time) error {
+	err := a.Snapshot.WithinSnapshot(ctx, scope, func(snapshotCtx context.Context, at time.Time) error {
 		source := backupservice.Redacted(backupservice.ExportSource{Export: a.Rows, SnapshotAt: at})
 		media := backupservice.ExportMedia{Export: a.Rows, Objects: a.Objects}
 

@@ -992,6 +992,10 @@ func (pending) DownloadMediaContent(w http.ResponseWriter, r *http.Request, _ op
 	notAvailable(w, r)
 }
 
+func (pending) DownloadWorkspaceArchive(w http.ResponseWriter, r *http.Request, _ openapi.DownloadWorkspaceArchiveParams) {
+	notAvailable(w, r)
+}
+
 // CompleteWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CompleteWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CompleteWorkItemParams) {
 	notAvailable(w, r)
