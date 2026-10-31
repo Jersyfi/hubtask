@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { backupState, findingsIn, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines } from './overview.ts';
+import { backupState, findingsIn, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines } from './overview.ts';
 
 test('limits: fullest first, reached and near told apart, no line without a ceiling or a count', () => {
   const lines = limitLines([
@@ -96,4 +96,19 @@ test('a page shows the findings about its own sections', () => {
   ];
   assert.deepEqual(findingsIn(findings, ['types']).map((f) => f.path), ['types.incident', 'types.change']);
   assert.deepEqual(findingsIn(findings, ['roles']), []);
+});
+
+test('waiting: the proposals waiting for a person and the templates with an update, each to its page', () => {
+  const waiting = waitingLines(
+    [{ id: 'p1' }, { id: 'p2' }],
+    [
+      { key: 'itil_service_desk', name: 'ITIL service desk', taken_version: 5, update_available: true },
+      { key: 'kanban_team', name: 'Kanban team', taken_version: 1, update_available: false },
+      { key: 'scrum_team', name: 'Scrum team', taken_version: null, update_available: true },
+    ],
+  );
+  assert.equal(waiting.proposals, 2);
+  assert.deepEqual(waiting.updates.map((update) => update.key), ['itil_service_desk']);
+  assert.equal(waiting.needs, true);
+  assert.equal(waitingLines([], []).needs, false);
 });

@@ -183,3 +183,21 @@ export interface FindingAt {
 export function findingsIn<F extends FindingAt>(findings: readonly F[], sections: readonly string[]): F[] {
   return findings.filter((finding) => sections.includes(finding.path.slice(0, Math.max(0, finding.path.indexOf('.'))) || finding.path));
 }
+
+/** A template as `/config/templates` answers it, the part the overview reads. */
+export interface TemplateOffer {
+  readonly key: string;
+  readonly name: string;
+  readonly taken_version?: number | null;
+  readonly update_available: boolean;
+}
+
+/**
+ * What waits for a person's word (configuration.md §3, §8): the configuration plans proposed and
+ * not yet decided, and the templates the workspace took that have a newer version. A template
+ * never taken is an offer, not something waiting.
+ */
+export function waitingLines<T extends TemplateOffer>(proposals: readonly unknown[], templates: readonly T[]): { proposals: number; updates: T[]; needs: boolean } {
+  const updates = templates.filter((template) => template.taken_version !== null && template.taken_version !== undefined && template.update_available);
+  return { proposals: proposals.length, updates, needs: proposals.length > 0 || updates.length > 0 };
+}

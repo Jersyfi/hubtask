@@ -17,9 +17,10 @@
 
   import { Badge, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
-  import type { ConfigCheck } from '@hubtask/sync-engine';
+  import type { ConfigCheck, ConfigProposalList, ConfigTemplateList, ResourceState } from '@hubtask/sync-engine';
 
-  import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, type ArchiveReading } from '../lib/administration/overview.ts';
+  import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines, type ArchiveReading } from '../lib/administration/overview.ts';
+  import { config } from '../lib/data/config.svelte.ts';
   import { backup } from '../lib/data/backup.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -52,6 +53,27 @@
     }));
   });
   const findings = $derived(check.data?.findings ?? []);
+
+  // What waits for a person's word (configuration.md §3, §8): plans an agent proposed and the
+  // templates the workspace took that have a newer version - the same reads *Changes* and
+  // *Templates* make.
+  let proposals = $state<ResourceState<ConfigProposalList> | undefined>(undefined);
+  let offered = $state<ResourceState<ConfigTemplateList> | undefined>(undefined);
+  $effect(() => {
+    if (!mayCheck) return;
+    return untrack(() => {
+      const stopProposals = config.waiting((next) => (proposals = next));
+      const stopTemplates = config.templates((next) => (offered = next));
+      return () => {
+        stopProposals();
+        stopTemplates();
+      };
+    });
+  });
+  const waiting = $derived(waitingLines(
+    proposals?.status === 'ready' ? proposals.data.data : [],
+    offered?.status === 'ready' ? offered.data.data : [],
+  ));
   $effect(() => {
     if (mayReadRules) return untrack(() => rules.open());
   });
@@ -122,6 +144,7 @@
       { id: 'requests', shown: mayReadRequests, needs: owed.length > 0 },
       { id: 'health', shown: true, needs: degraded.length > 0 },
       { id: 'check', shown: mayCheck, needs: findings.length > 0 },
+      { id: 'waiting', shown: mayCheck, needs: waiting.needs },
     ]
       .filter((card) => card.shown)
       .sort((a, b) => Number(b.needs) - Number(a.needs)),
@@ -240,6 +263,23 @@
               {/each}
             </ul>
           {/if}
+        {:else if card.id === 'waiting'}
+          <h2 id="card-waiting">{t('app.admin_overview.waiting')}</h2>
+          {#if reading(proposals?.status ?? 'idle') || reading(offered?.status ?? 'idle')}
+            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
+          {:else if !waiting.needs}
+            <p class="quiet">{t('app.admin_overview.waiting_none')}</p>
+          {:else}
+            <ul class="lines" data-testid="admin-waiting">
+              {#if waiting.proposals > 0}
+                <li><a href="/administration/changes">{t('app.admin_overview.waiting_proposals', { count: waiting.proposals })}</a></li>
+              {/if}
+              {#each waiting.updates.slice(0, 5) as update (update.key)}
+                <li><a href="/administration/presets">{t('app.admin_overview.waiting_update', { name: update.name })}</a></li>
+              {/each}
+            </ul>
+          {/if}
+          <a class="go" href="/administration/changes">{t('app.admin_overview.open_changes')}</a>
         {:else if card.id === 'health'}
           <h2 id="card-health">{t('app.admin_overview.health')}</h2>
           {#if degraded.length === 0}

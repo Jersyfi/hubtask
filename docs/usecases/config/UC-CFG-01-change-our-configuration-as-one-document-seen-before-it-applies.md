@@ -82,9 +82,12 @@ the two versions and rolls the hub's workflow back.
     (`config.check.fields_same_meaning`), one tolerance locked alike in several of a hub's
     collections while the hub leaves it open (`config.check.lock_could_move_up`) - each with its severity, errors first, and the key path of the block to change;
     a sound configuration answers no finding; a workspace template the check finds an error in is
-    refused when it is published (`config.template_check_failed`, one refusal per block). *Administration → Overview* lists them, each opening
+    refused when it is published (`config.template_check_failed`, one refusal per block).
+    *Administration → Overview* lists them, each opening
     its block's page, and each block's page (types, workflows, roles, rules, a hub's structure)
-    shows those about its own blocks.
+    shows those about its own blocks. Beside them the overview shows what waits for a person's word: the
+    plans proposed and not yet decided, opening *Changes*, and each template the workspace took
+    that has a newer version, opening *Templates*.
 
 ## Where it ends
 
