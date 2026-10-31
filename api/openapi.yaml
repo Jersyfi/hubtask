@@ -28831,14 +28831,26 @@ components:
       type: object
       required: [data]
       properties:
+        desk:
+          description: >
+            The service the portal is for, as its team presents it: the collection's name,
+            description, icon and colour. Absent on a public form, which names no collection.
+          type: object
+          required: [name, description, icon, color_token]
+          properties:
+            name: { type: string }
+            description: { type: string, description: "Empty for none." }
+            icon: { type: string, description: "The name of an icon of the design system's set; empty for none." }
+            color_token: { type: string, description: "One of the label colour tokens; empty for none." }
         data:
           type: array
           items:
             type: object
-            required: [key, name, icon, form, questions]
+            required: [key, name, description, icon, form, questions]
             properties:
               key: { type: string }
-              name: { type: string, description: "Empty on a system type nobody named." }
+              name: { type: string, description: "In the reader's language where the type names it there; empty on a system type nobody named." }
+              description: { type: string, description: "What the type is for, in the reader's language where the type says it there; empty for none." }
               icon: { type: string }
               form: { $ref: "#/components/schemas/EntryForm" }
               questions:
@@ -29502,6 +29514,12 @@ components:
           type: [string, "null"]
           maxLength: 120
           description: Null on a system type nobody named; a client shows its own word for the level.
+        description:
+          type: string
+          maxLength: 500
+          description: What the type is for, in the workspace's default words; empty for none. A portal shows it beside the name.
+        translations:
+          $ref: "#/components/schemas/EntryTypeTranslations"
         icon: { type: string, description: "The name of an icon of the design system's set." }
         color_token: { type: string, description: "One of the ten label colour tokens, never a colour value." }
         completable: { type: boolean }
@@ -29619,6 +29637,19 @@ components:
           description: The keys of the validations that do not hold.
         closed: { type: boolean, description: "This door may not create the type." }
 
+    EntryTypeTranslations:
+      type: object
+      description: >
+        The type's name and description in further languages, by BCP 47 tag (`de`, `pt-BR`). A
+        reader in a language named here reads its words; a member left empty, or a language not
+        named, reads the default text. At most 20 languages.
+      maxProperties: 20
+      additionalProperties:
+        type: object
+        properties:
+          name: { type: string, maxLength: 120 }
+          description: { type: string, maxLength: 500 }
+
     EntryTypeList:
       type: object
       required: [data]
@@ -29634,6 +29665,8 @@ components:
         key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
         level: { $ref: "#/components/schemas/ItemType" }
         name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 500 }
+        translations: { $ref: "#/components/schemas/EntryTypeTranslations" }
         icon: { type: string }
         color_token: { type: string }
         completable: { type: boolean, default: true }
@@ -29651,6 +29684,8 @@ components:
       description: JSON Merge Patch; only what is sent changes.
       properties:
         name: { type: string, maxLength: 120 }
+        description: { type: string, maxLength: 500 }
+        translations: { $ref: "#/components/schemas/EntryTypeTranslations" }
         icon: { type: string }
         color_token: { type: string }
         completable: { type: boolean }

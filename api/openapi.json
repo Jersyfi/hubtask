@@ -45595,6 +45595,33 @@
           "data"
         ],
         "properties": {
+          "desk": {
+            "description": "The service the portal is for, as its team presents it: the collection's name, description, icon and colour. Absent on a public form, which names no collection.\n",
+            "type": "object",
+            "required": [
+              "name",
+              "description",
+              "icon",
+              "color_token"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string",
+                "description": "Empty for none."
+              },
+              "icon": {
+                "type": "string",
+                "description": "The name of an icon of the design system's set; empty for none."
+              },
+              "color_token": {
+                "type": "string",
+                "description": "One of the label colour tokens; empty for none."
+              }
+            }
+          },
           "data": {
             "type": "array",
             "items": {
@@ -45602,6 +45629,7 @@
               "required": [
                 "key",
                 "name",
+                "description",
                 "icon",
                 "form",
                 "questions"
@@ -45612,7 +45640,11 @@
                 },
                 "name": {
                   "type": "string",
-                  "description": "Empty on a system type nobody named."
+                  "description": "In the reader's language where the type names it there; empty on a system type nobody named."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "What the type is for, in the reader's language where the type says it there; empty for none."
                 },
                 "icon": {
                   "type": "string"
@@ -47480,6 +47512,14 @@
             "maxLength": 120,
             "description": "Null on a system type nobody named; a client shows its own word for the level."
           },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "What the type is for, in the workspace's default words; empty for none. A portal shows it beside the name."
+          },
+          "translations": {
+            "$ref": "#/components/schemas/EntryTypeTranslations"
+          },
           "icon": {
             "type": "string",
             "description": "The name of an icon of the design system's set."
@@ -47758,6 +47798,24 @@
           }
         }
       },
+      "EntryTypeTranslations": {
+        "type": "object",
+        "description": "The type's name and description in further languages, by BCP 47 tag (`de`, `pt-BR`). A reader in a language named here reads its words; a member left empty, or a language not named, reads the default text. At most 20 languages.\n",
+        "maxProperties": 20,
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      },
       "EntryTypeList": {
         "type": "object",
         "required": [
@@ -47793,6 +47851,13 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "translations": {
+            "$ref": "#/components/schemas/EntryTypeTranslations"
           },
           "icon": {
             "type": "string"
@@ -47839,6 +47904,13 @@
           "name": {
             "type": "string",
             "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "translations": {
+            "$ref": "#/components/schemas/EntryTypeTranslations"
           },
           "icon": {
             "type": "string"

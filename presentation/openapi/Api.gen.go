@@ -16069,7 +16069,10 @@ type EntryType struct {
 	// ColorToken One of the ten label colour tokens, never a colour value.
 	ColorToken  string `json:"color_token"`
 	Completable bool   `json:"completable"`
-	Estimable   bool   `json:"estimable"`
+
+	// Description What the type is for, in the workspace's default words; empty for none. A portal shows it beside the name.
+	Description *string `json:"description,omitempty"`
+	Estimable   bool    `json:"estimable"`
 
 	// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
 	Form *EntryForm `json:"form,omitempty"`
@@ -16096,6 +16099,9 @@ type EntryType struct {
 	// System One of the three types every workspace has; never archived or deleted.
 	System bool `json:"system"`
 
+	// Translations The type's name and description in further languages, by BCP 47 tag (`de`, `pt-BR`). A reader in a language named here reads its words; a member left empty, or a language not named, reads the default text. At most 20 languages.
+	Translations *EntryTypeTranslations `json:"translations,omitempty"`
+
 	// Version The optimistic lock; zero for a system type the workspace never changed.
 	Version  int  `json:"version"`
 	Workflow bool `json:"workflow"`
@@ -16107,13 +16113,17 @@ type EntryTypeChange struct {
 	Archived        *bool     `json:"archived,omitempty"`
 	ColorToken      *string   `json:"color_token,omitempty"`
 	Completable     *bool     `json:"completable,omitempty"`
+	Description     *string   `json:"description,omitempty"`
 	Estimable       *bool     `json:"estimable,omitempty"`
 	Icon            *string   `json:"icon,omitempty"`
 	Name            *string   `json:"name,omitempty"`
 	Position        *int      `json:"position,omitempty"`
 	Record          *bool     `json:"record,omitempty"`
 	Schedulable     *bool     `json:"schedulable,omitempty"`
-	Workflow        *bool     `json:"workflow,omitempty"`
+
+	// Translations The type's name and description in further languages, by BCP 47 tag (`de`, `pt-BR`). A reader in a language named here reads its words; a member left empty, or a language not named, reads the default text. At most 20 languages.
+	Translations *EntryTypeTranslations `json:"translations,omitempty"`
+	Workflow     *bool                  `json:"workflow,omitempty"`
 }
 
 // EntryTypeCreate defines model for EntryTypeCreate.
@@ -16121,6 +16131,7 @@ type EntryTypeCreate struct {
 	AllowedChildren *[]string `json:"allowed_children,omitempty"`
 	ColorToken      string    `json:"color_token"`
 	Completable     *bool     `json:"completable,omitempty"`
+	Description     *string   `json:"description,omitempty"`
 	Estimable       *bool     `json:"estimable,omitempty"`
 	Icon            string    `json:"icon"`
 	Key             string    `json:"key"`
@@ -16131,12 +16142,21 @@ type EntryTypeCreate struct {
 	Position    *int     `json:"position,omitempty"`
 	Record      *bool    `json:"record,omitempty"`
 	Schedulable *bool    `json:"schedulable,omitempty"`
-	Workflow    *bool    `json:"workflow,omitempty"`
+
+	// Translations The type's name and description in further languages, by BCP 47 tag (`de`, `pt-BR`). A reader in a language named here reads its words; a member left empty, or a language not named, reads the default text. At most 20 languages.
+	Translations *EntryTypeTranslations `json:"translations,omitempty"`
+	Workflow     *bool                  `json:"workflow,omitempty"`
 }
 
 // EntryTypeList defines model for EntryTypeList.
 type EntryTypeList struct {
 	Data []EntryType `json:"data"`
+}
+
+// EntryTypeTranslations The type's name and description in further languages, by BCP 47 tag (`de`, `pt-BR`). A reader in a language named here reads its words; a member left empty, or a language not named, reads the default text. At most 20 languages.
+type EntryTypeTranslations map[string]struct {
+	Description *string `json:"description,omitempty"`
+	Name        *string `json:"name,omitempty"`
 }
 
 // ErasureCaseRecord One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.
@@ -20857,12 +20877,15 @@ type PublicFormView struct {
 		Value     string    `json:"value"`
 	} `json:"challenge"`
 	Data []struct {
+		// Description What the type is for, in the reader's language where the type says it there; empty for none.
+		Description string `json:"description"`
+
 		// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
 		Form EntryForm `json:"form"`
 		Icon string    `json:"icon"`
 		Key  string    `json:"key"`
 
-		// Name Empty on a system type nobody named.
+		// Name In the reader's language where the type names it there; empty on a system type nobody named.
 		Name string `json:"name"`
 
 		// Questions The custom fields the form asks, in its order, with what an answer must be.
@@ -20874,6 +20897,19 @@ type PublicFormView struct {
 			Options []string `json:"options"`
 		} `json:"questions"`
 	} `json:"data"`
+
+	// Desk The service the portal is for, as its team presents it: the collection's name, description, icon and colour. Absent on a public form, which names no collection.
+	Desk *struct {
+		// ColorToken One of the label colour tokens; empty for none.
+		ColorToken string `json:"color_token"`
+
+		// Description Empty for none.
+		Description string `json:"description"`
+
+		// Icon The name of an icon of the design system's set; empty for none.
+		Icon string `json:"icon"`
+		Name string `json:"name"`
+	} `json:"desk,omitempty"`
 }
 
 // PublicLinksPolicy defines model for PublicLinksPolicy.
@@ -21207,12 +21243,15 @@ type ReplyTemplateList struct {
 // RequestCatalogue defines model for RequestCatalogue.
 type RequestCatalogue struct {
 	Data []struct {
+		// Description What the type is for, in the reader's language where the type says it there; empty for none.
+		Description string `json:"description"`
+
 		// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
 		Form EntryForm `json:"form"`
 		Icon string    `json:"icon"`
 		Key  string    `json:"key"`
 
-		// Name Empty on a system type nobody named.
+		// Name In the reader's language where the type names it there; empty on a system type nobody named.
 		Name string `json:"name"`
 
 		// Questions The custom fields the form asks, in its order, with what an answer must be.
@@ -21224,6 +21263,19 @@ type RequestCatalogue struct {
 			Options []string `json:"options"`
 		} `json:"questions"`
 	} `json:"data"`
+
+	// Desk The service the portal is for, as its team presents it: the collection's name, description, icon and colour. Absent on a public form, which names no collection.
+	Desk *struct {
+		// ColorToken One of the label colour tokens; empty for none.
+		ColorToken string `json:"color_token"`
+
+		// Description Empty for none.
+		Description string `json:"description"`
+
+		// Icon The name of an icon of the design system's set; empty for none.
+		Icon string `json:"icon"`
+		Name string `json:"name"`
+	} `json:"desk,omitempty"`
 }
 
 // RequestSatisfaction defines model for RequestSatisfaction.

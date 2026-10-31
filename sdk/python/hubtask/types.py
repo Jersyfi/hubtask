@@ -2157,6 +2157,7 @@ ApprovalDelegation = TypedDict("ApprovalDelegation", {
 }, total=False)
 
 class RequestCatalogue(TypedDict, total=False):
+    desk: dict[str, Any]
     data: Required[list[dict[str, Any]]]
 
 class PublicForm(TypedDict, total=False):
@@ -2173,6 +2174,7 @@ class PublicFormMinted(TypedDict, total=False):
 
 class PublicFormView(TypedDict, total=False):
     """What a public form shows, and the challenge a submission answers."""
+    desk: dict[str, Any]
     data: Required[list[dict[str, Any]]]
     challenge: Required[dict[str, Any]]
 
@@ -2450,6 +2452,8 @@ class EntryType(TypedDict, total=False):
     level: Required["ItemType"]
     system: Required[bool]
     name: Required[str | None]
+    description: str
+    translations: "EntryTypeTranslations"
     icon: Required[str]
     color_token: Required[str]
     completable: Required[bool]
@@ -2500,6 +2504,8 @@ class EntryFormState(TypedDict, total=False):
     failed: Required[list[str]]
     closed: Required[bool]
 
+EntryTypeTranslations = dict[str, Any]
+
 class EntryTypeList(TypedDict, total=False):
     data: Required[list["EntryType"]]
 
@@ -2507,6 +2513,8 @@ class EntryTypeCreate(TypedDict, total=False):
     key: Required[str]
     level: Required["ItemType"]
     name: Required[str]
+    description: str
+    translations: "EntryTypeTranslations"
     icon: Required[str]
     color_token: Required[str]
     completable: bool
@@ -2520,6 +2528,8 @@ class EntryTypeCreate(TypedDict, total=False):
 class EntryTypeChange(TypedDict, total=False):
     """JSON Merge Patch; only what is sent changes."""
     name: str
+    description: str
+    translations: "EntryTypeTranslations"
     icon: str
     color_token: str
     completable: bool
