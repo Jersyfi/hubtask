@@ -174,3 +174,44 @@ export function droppedBy(error: unknown): { readonly fields: readonly string[];
   if (fields.length === 0) return undefined;
   return { fields, isConfirmable: fields.every((field) => (DROPPABLE as readonly string[]).includes(field)) };
 }
+
+/** One language's texts of a type as the editor holds them: a row per language. */
+export interface TranslationRow {
+  readonly language: string;
+  readonly name: string;
+  readonly description: string;
+}
+
+/** A type's texts per language as the editor's rows, in the order of their tags. */
+export function translationRowsOf(type: Pick<EntryType, 'translations'> | undefined): TranslationRow[] {
+  return Object.entries(type?.translations ?? {})
+    .map(([language, words]) => ({ language, name: words.name ?? '', description: words.description ?? '' }))
+    .sort((a, b) => a.language.localeCompare(b.language));
+}
+
+/**
+ * The rows as the contract's `translations` (UC-SVC-05 check 7): trimmed, a member left empty
+ * left out, and a language whose texts are all empty dropped - it would read the defaults anyway.
+ */
+export function translationsOf(rows: readonly TranslationRow[]): NonNullable<EntryType['translations']> {
+  const out: Record<string, { name?: string; description?: string }> = {};
+  for (const row of rows) {
+    const name = row.name.trim();
+    const description = row.description.trim();
+    if (!name && !description) continue;
+    out[row.language] = { ...(name ? { name } : {}), ...(description ? { description } : {}) };
+  }
+  return out;
+}
+
+/** Whether two sets of texts per language say the same. */
+export function sameTranslations(a: EntryType['translations'], b: EntryType['translations']): boolean {
+  const canonical = (value: EntryType['translations']) =>
+    JSON.stringify(translationRowsOf({ translations: value ?? {} }).map((row) => [row.language, row.name, row.description]));
+  return canonical(a) === canonical(b);
+}
+
+/** The languages a row may still be added for: the installation's, less those already written. */
+export function languagesLeft(supported: readonly string[], rows: readonly TranslationRow[]): readonly string[] {
+  return supported.filter((language) => !rows.some((row) => row.language === language));
+}

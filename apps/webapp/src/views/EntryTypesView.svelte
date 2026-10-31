@@ -11,20 +11,29 @@
   //
   // **What the reader may never do is not drawn** (P-05): without STRUCTURE at the workspace the
   // page lists the types and offers no control.
+  //
+  // A type's description and its texts per language are what a portal reads (UC-SVC-05 check 7):
+  // one row per language of the installation the workspace writes, the default text for the rest.
 
   import { untrack } from 'svelte';
   import { labelTokens } from '@hubtask/design-system';
   import {
     Banner, Button, CheckboxGroup, Dialog, Icon, IconButton, Inline, Input, LabelChip, PageHeader, Select, Spinner, Stack, Switch,
+    Textarea,
   } from '@hubtask/design-system/components';
   import type { EntryType } from '@hubtask/sync-engine';
 
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
+  import { localesOf } from '../lib/data/preferences.ts';
   import { hasForm } from '../lib/data/entryforms.ts';
   import EntryFormEditor from '../lib/entries/EntryFormEditor.svelte';
   import {
     TYPE_ICONS, TYPE_LEVELS, childTypes, entryTypes, iconOf, keyFrom, levelTypes, reorder,
   } from '../lib/data/entrytypes.svelte.ts';
+  import {
+    type TranslationRow, languagesLeft, sameTranslations, translationRowsOf, translationsOf,
+  } from '../lib/data/entrytypes.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -79,6 +88,8 @@
   interface Draft {
     level: string;
     name: string;
+    description: string;
+    translations: TranslationRow[];
     key: string;
     isKeyTouched: boolean;
     icon: string;
@@ -101,7 +112,7 @@
   function startNew(level: string) {
     editing = undefined;
     draft = {
-      level, name: '', key: '', isKeyTouched: false, icon: 'tag',
+      level, name: '', description: '', translations: [], key: '', isKeyTouched: false, icon: 'tag',
       color: labelTokens[0], completable: true, workflow: false, record: false, schedulable: true, estimable: false,
       allowed: [],
     };
@@ -112,7 +123,8 @@
   function startEdit(type: EntryType) {
     editing = type;
     draft = {
-      level: type.level, name: type.name ?? '', key: type.key, isKeyTouched: true, icon: type.icon,
+      level: type.level, name: type.name ?? '', description: type.description ?? '', translations: translationRowsOf(type),
+      key: type.key, isKeyTouched: true, icon: type.icon,
       color: type.color_token, completable: type.completable, workflow: type.workflow, record: type.record,
       schedulable: type.schedulable, estimable: type.estimable, allowed: [...type.allowed_children],
     };
@@ -140,6 +152,8 @@
         const before = editing;
         const change = {
           ...(d.name.trim() !== (before.name ?? '') && d.name.trim() !== '' ? { name: d.name.trim() } : {}),
+          ...(d.description.trim() !== (before.description ?? '') ? { description: d.description.trim() } : {}),
+          ...(sameTranslations(translationsOf(d.translations), before.translations) ? {} : { translations: translationsOf(d.translations) }),
           ...(d.icon !== before.icon ? { icon: d.icon } : {}),
           ...(d.color !== before.color_token ? { color_token: d.color } : {}),
           ...(Object.fromEntries(
@@ -152,7 +166,7 @@
         const position = levelTypes(entryTypes.all, d.level).filter((each) => !each.system).length + 1;
         await entryTypes.create({
           key: d.key, level: d.level as EntryType['level'], name: d.name.trim(), icon: d.icon, color_token: d.color, position, ...behaviours,
-          allowed_children: d.allowed,
+          allowed_children: d.allowed, description: d.description.trim(), translations: translationsOf(d.translations),
         });
       }
       isEditorOpen = false;
@@ -169,6 +183,31 @@
   const childOptions = $derived(
     draft ? childTypes(entryTypes.all, draft.level, draft.allowed).map((type) => ({ value: type.key, label: nameOf(type) })) : [],
   );
+
+  /** A language's own name in the reader's language. */
+  function languageName(language: string): string {
+    try {
+      return new Intl.DisplayNames([messages.locale], { type: 'language' }).of(language) ?? language;
+    } catch {
+      return language;
+    }
+  }
+
+  const supported = $derived(localesOf(manifest.value).map((each) => each.locale));
+  const addable = $derived(draft ? languagesLeft(supported, draft.translations) : []);
+  let adding = $state('');
+
+  function addLanguage() {
+    const language = adding || addable[0];
+    if (!draft || !language) return;
+    draft.translations = [...draft.translations, { language, name: '', description: '' }];
+    adding = '';
+  }
+
+  function changeRow(language: string, change: Partial<TranslationRow>) {
+    if (!draft) return;
+    draft.translations = draft.translations.map((row) => (row.language === language ? { ...row, ...change } : row));
+  }
 
   const iconOptions = TYPE_ICONS.map((icon) => ({ value: icon, label: icon }));
   const colourOptions = labelTokens.map((token) => ({ value: token, label: t(`app.colour.${token}`) }));
@@ -303,6 +342,47 @@
         placeholder={editing?.system ? levelName(editing.level) : undefined}
         oninput={(event) => rename((event.currentTarget as HTMLInputElement).value)}
       />
+      <Textarea
+        label={t('app.entry_types.description')}
+        hint={t('app.entry_types.description_hint')}
+        rows={2}
+        maxlength={500}
+        bind:value={draft.description}
+      />
+      <fieldset class="languages">
+        <legend>{t('app.entry_types.translations')}</legend>
+        <p class="quiet">{t('app.entry_types.translations_hint')}</p>
+        {#each draft.translations as row (row.language)}
+          <div class="language" data-language={row.language}>
+            <Inline gap="100" align="end">
+              <Input
+                label={t('app.entry_types.translation_name', { language: languageName(row.language) })}
+                value={row.name}
+                maxlength={120}
+                oninput={(event) => changeRow(row.language, { name: (event.currentTarget as HTMLInputElement).value })}
+              />
+              <IconButton icon="trash" label={t('app.entry_types.translation_remove', { language: languageName(row.language) })}
+                onclick={() => { if (draft) draft.translations = draft.translations.filter((each) => each.language !== row.language); }} />
+            </Inline>
+            <Textarea
+              label={t('app.entry_types.translation_description', { language: languageName(row.language) })}
+              rows={2}
+              maxlength={500}
+              value={row.description}
+              oninput={(event) => changeRow(row.language, { description: (event.currentTarget as HTMLTextAreaElement).value })}
+            />
+          </div>
+        {/each}
+        {#if addable.length > 0}
+          <Inline gap="100" align="end">
+            <Select label={t('app.entry_types.translation_language')}
+              options={addable.map((language) => ({ value: language, label: languageName(language) }))}
+              value={adding || addable[0]}
+              onchange={(event: Event) => (adding = (event.currentTarget as HTMLSelectElement).value)} />
+            <Button tone="secondary" icon="plus" onclick={addLanguage}>{t('app.entry_types.translation_add')}</Button>
+          </Inline>
+        {/if}
+      </fieldset>
       {#if !editing}
         <Input
           label={t('app.entry_types.key')}
@@ -372,6 +452,10 @@
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
+
+  .languages { display: grid; gap: var(--sp-150); margin: 0; padding: 0; border: 0; }
+  .languages legend { padding: 0; font-weight: var(--fw-semibold); }
+  .language { display: grid; gap: var(--sp-100); }
 
   .waiting {
     margin: 0;

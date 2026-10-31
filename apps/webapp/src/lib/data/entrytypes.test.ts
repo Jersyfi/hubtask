@@ -12,7 +12,10 @@ import type { Capabilities, EntryType } from '@hubtask/sync-engine';
 
 import { ICON_NAMES } from '@hubtask/design-system/icons';
 
-import { TYPE_ICONS, childTypes, droppedBy, entryTypesOffered, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typeNameOf, typeOrder, typesShown } from './entrytypes.ts';
+import {
+  TYPE_ICONS, childTypes, droppedBy, entryTypesOffered, iconOf, keyFrom, languagesLeft, levelTypes, offeredTypes, reorder, rowMarkOf,
+  sameTranslations, translationRowsOf, translationsOf, typeNameOf, typeOrder, typesShown,
+} from './entrytypes.ts';
 
 const base = {
   completable: true, workflow: false, record: false, schedulable: true, estimable: false,
@@ -114,4 +117,21 @@ test('a type names its allowed children among the level below, none below an act
   assert.deepEqual(childTypes(withArchivedChild, 'TASK', ['gone']).map((type) => type.key), ['work_package', 'subtask', 'gone']);
   assert.deepEqual(childTypes(withArchivedChild, 'ACTIVITY'), []);
   assert.deepEqual(childTypes(withArchivedChild, 'HUB'), []);
+});
+
+// UC-SVC-05 check 7: the editor writes a type's texts per language as the contract holds them -
+// trimmed, an empty member and an empty language left out - and offers only languages not yet written.
+test('a type\'s texts per language are written as the contract holds them', () => {
+  const rows = translationRowsOf({ translations: { fr: { name: 'Panne' }, de: { name: 'Störung', description: 'Etwas ist kaputt' } } });
+  assert.deepEqual(rows.map((row) => row.language), ['de', 'fr']);
+  assert.equal(rows[1]?.description, '');
+  assert.deepEqual(translationsOf([
+    { language: 'de', name: ' Störung ', description: '' },
+    { language: 'fr', name: '  ', description: '' },
+    { language: 'es', name: '', description: 'Algo está roto' },
+  ]), { de: { name: 'Störung' }, es: { description: 'Algo está roto' } });
+  assert.ok(sameTranslations({ de: { name: 'Störung' } }, { de: { name: 'Störung' } }));
+  assert.ok(sameTranslations(undefined, {}));
+  assert.ok(!sameTranslations({ de: { name: 'Störung' } }, { de: { name: 'Fehler' } }));
+  assert.deepEqual(languagesLeft(['en', 'de', 'fr'], rows), ['en']);
 });
