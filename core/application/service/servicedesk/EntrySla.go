@@ -29,7 +29,7 @@ const (
 // RecordOutput is one goal's standing on an entry (api/openapi.yaml, schema EntrySlaGoal).
 func RecordOutput(r domain.EntrySLA) usecase.Output {
 	out := usecase.Output{
-		"goal": string(r.Goal), "policy_key": r.PolicyKey, "standing": string(r.Standing),
+		"goal": string(r.Goal), "kind": "SLA", "policy_key": r.PolicyKey, "assignee_group": nil, "standing": string(r.Standing),
 		"target_seconds": int64(r.Target / time.Second), "armed_at": r.ArmedAt.UTC(),
 		"due_at": nil, "at_risk_at": nil, "met_at": nil, "breached_at": nil,
 	}
@@ -39,6 +39,9 @@ func RecordOutput(r domain.EntrySLA) usecase.Output {
 		if value != nil {
 			out[field] = value.UTC()
 		}
+	}
+	if !r.Group.IsZero() {
+		out["kind"], out["assignee_group"] = "OLA", r.Group.String()
 	}
 	return out
 }
@@ -88,7 +91,13 @@ func (h ReadEntrySla) Execute(ctx context.Context, actor appshared.ActorContext,
 	}
 	err = h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		records, err = h.Desk.Records.OfItem(ctx, itemID)
+		if records, err = h.Desk.Records.OfItem(ctx, itemID); err != nil || h.Desk.OLAs == nil {
+			return err
+		}
+		// The teams' promises beside the requester's (UC-SVC-02 check 12); the portal reads the
+		// requester's alone.
+		olas, err := h.Desk.OLAs.OLAsOf(ctx, itemID)
+		records = append(records, olas...)
 		return err
 	})
 	return records, err
@@ -99,7 +108,8 @@ func (h ReadEntrySla) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadEntrySLAName, Permission: service.PermissionRead,
 		Summary: "How an entry's SLA goals stand: per goal its policy, target in working seconds, whether it " +
-			"runs, stands still, was met or breached, when it falls due and when it was at risk.",
+			"runs, stands still, was met or breached, when it falls due and when it was at risk - the " +
+			"requester's promise and, beside it, each assignee group's OLA.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  deskRead, ReadOnly: true,
 		Input: []usecase.Field{
@@ -156,7 +166,7 @@ func (h ReportSla) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReportSLAName, Permission: service.PermissionStructure,
 		Summary: "Counts the SLA goals armed in a period - at most a year - per policy, goal and standing: met, " +
-			"breached, running, standing still. Names no entry.",
+			"breached, running, standing still; the OLAs' beside the requester's. Names no entry.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  deskRead, ReadOnly: true,
 		Input: []usecase.Field{
@@ -176,8 +186,12 @@ func (h ReportSla) Descriptor() usecase.Descriptor {
 			}
 			data := make([]usecase.Output, 0, len(rows))
 			for _, r := range rows {
+				kind := "SLA"
+				if r.OLA {
+					kind = "OLA"
+				}
 				data = append(data, usecase.Output{
-					"policy_key": r.PolicyKey, "goal": string(r.Goal), "standing": string(r.Standing), "entries": r.Entries,
+					"kind": kind, "policy_key": r.PolicyKey, "goal": string(r.Goal), "standing": string(r.Standing), "entries": r.Entries,
 				})
 			}
 			return usecase.Output{"data": data}, nil

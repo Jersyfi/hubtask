@@ -147,3 +147,92 @@ func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// UC-SVC-02 checks 10 and 12 against the real statements: a policy keeps its assignee group, an
+// entry carries the goals of two groups' OLAs beside its SLA goal, each written whole and found by
+// its record, the report counts them as OLAs - and none of it reaches another workspace.
+func TestOlaRecordsStayInTheirWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	repo := postgres.NewServiceDeskRepository()
+	now := time.Date(2026, 12, 7, 8, 0, 0, 0, time.UTC)
+	group, otherGroup := freshID(t), freshID(t)
+
+	policy, err := servicedesk.NewSLAPolicy(servicedesk.NewSLAPolicyInput{
+		ID: freshID(t), TenantID: tenantA, Key: "ola_" + freshID(t).String()[28:], Name: "Network team",
+		EntryTypes: []string{"incident"}, AssigneeGroup: group, Enabled: true, Now: now, Text: text.Composing{},
+		Goals: []servicedesk.SLAGoal{{Kind: servicedesk.GoalResolution, Minutes: 120}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := seedWorkItemForRules(ctx, t, tenantA)
+	due := now.Add(2 * time.Hour)
+	first := servicedesk.EntrySLA{
+		ID: freshID(t), TenantID: tenantA, ItemID: item, Goal: servicedesk.GoalResolution, PolicyKey: policy.Key,
+		Group: group, Target: 2 * time.Hour, Standing: servicedesk.StandingRunning, ArmedAt: now, DueAt: &due,
+	}
+	second := first
+	second.ID, second.PolicyKey, second.Group = freshID(t), "other_team", otherGroup
+	sla := first
+	sla.ID, sla.Group, sla.PolicyKey = freshID(t), "", "incidents"
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.Policies().Insert(ctx, policy); err != nil {
+			return err
+		}
+		for _, record := range []servicedesk.EntrySLA{first, second} {
+			if err := repo.Records().SaveOLA(ctx, record, now); err != nil {
+				return err
+			}
+		}
+		met := first
+		met.Standing, met.MetAt, met.DueAt = servicedesk.StandingMet, &due, nil
+		if err := repo.Records().SaveOLA(ctx, met, due); err != nil {
+			return err
+		}
+		return repo.Records().Save(ctx, sla, now)
+	}); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		found, err := repo.Policies().Find(ctx, policy.Key)
+		if err != nil || found.AssigneeGroup != group {
+			return errors.Join(err, errors.New("the policy lost its group"))
+		}
+		olas, err := repo.Records().OLAsOf(ctx, item)
+		if err != nil || len(olas) != 2 || olas[0].PolicyKey != policy.Key || olas[0].Standing != servicedesk.StandingMet ||
+			olas[0].Version != 2 || olas[1].Group != otherGroup {
+			return errors.Join(err, fmt.Errorf("the entry's OLAs are %+v", olas))
+		}
+		if one, err := repo.Records().FindOLA(ctx, second.ID); err != nil || one.PolicyKey != "other_team" {
+			return errors.Join(err, errors.New("the record was not found by its id"))
+		}
+		if slas, err := repo.Records().OfItem(ctx, item); err != nil || len(slas) != 1 || !slas[0].Group.IsZero() {
+			return errors.Join(err, errors.New("the OLAs reached the requester's records"))
+		}
+		rows, err := repo.Records().Report(ctx, now.Add(-time.Minute), now.Add(time.Minute))
+		olaRows := 0
+		for _, row := range rows {
+			if row.OLA {
+				olaRows += row.Entries
+			}
+		}
+		if err != nil || olaRows != 2 || len(rows) != 3 {
+			return errors.Join(err, fmt.Errorf("the report is %+v", rows))
+		}
+		return nil
+	}); err != nil {
+		t.Error(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		olas, err := repo.Records().OLAsOf(ctx, item)
+		_, findErr := repo.Records().FindOLA(ctx, first.ID)
+		rows, reportErr := repo.Records().Report(ctx, now.Add(-time.Minute), now.Add(time.Minute))
+		if err != nil || reportErr != nil || len(olas) != 0 || len(rows) != 0 || !errors.Is(findErr, shared.ErrNotFound) {
+			return errors.Join(err, reportErr, errors.New("an OLA record crossed the workspace"))
+		}
+		return nil
+	}); err != nil {
+		t.Error(err)
+	}
+}

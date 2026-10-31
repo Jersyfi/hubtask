@@ -24,10 +24,10 @@ test('a goal’s targets per priority are read and written as pairs (UC-SVC-02 c
 test('the report counts each policy’s goals by standing and the share met (UC-SVC-02 check 7)', () => {
   const rows = reportRows({
     data: [
-      { policy_key: 'incidents', goal: 'RESOLUTION', standing: 'MET', entries: 3 },
-      { policy_key: 'incidents', goal: 'RESOLUTION', standing: 'BREACHED', entries: 1 },
-      { policy_key: 'incidents', goal: 'RESOLUTION', standing: 'RUNNING', entries: 2 },
-      { policy_key: 'incidents', goal: 'FIRST_RESPONSE', standing: 'PAUSED', entries: 1 },
+      { kind: 'SLA', policy_key: 'incidents', goal: 'RESOLUTION', standing: 'MET', entries: 3 },
+      { kind: 'SLA', policy_key: 'incidents', goal: 'RESOLUTION', standing: 'BREACHED', entries: 1 },
+      { kind: 'SLA', policy_key: 'incidents', goal: 'RESOLUTION', standing: 'RUNNING', entries: 2 },
+      { kind: 'SLA', policy_key: 'incidents', goal: 'FIRST_RESPONSE', standing: 'PAUSED', entries: 1 },
     ],
   });
   assert.deepEqual(rows[0], { policy: 'incidents', goal: 'RESOLUTION', met: 3, breached: 1, running: 2, paused: 0, metShare: 75 });

@@ -75,8 +75,12 @@ type Desk struct {
 	Offered  map[string]domain.Calendar
 	Policies repository.Policies
 	Records  repository.Records
-	Replies  repository.ReplyTemplates
-	Ratings  repository.Ratings
+	// OLAs are the teams' goals on an entry, read beside Records; nil reads none.
+	OLAs repository.OLARecords
+	// Groups refuses an OLA for a group the workspace does not hold; nil checks nothing.
+	Groups  GroupMembers
+	Replies repository.ReplyTemplates
+	Ratings repository.Ratings
 	// Organisations groups the portal's requesters by mail domain (UC-SVC-11); nil holds none.
 	Organisations repository.Organisations
 	// HubCalendars and Containers serve a hub's own calendars: the hub is read to ask there.

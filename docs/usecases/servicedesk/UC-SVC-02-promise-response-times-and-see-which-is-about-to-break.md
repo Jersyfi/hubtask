@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/Clocks_test.go, core/application/service/servicedesk/Organisations_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
+checked_by: [core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/Clocks_test.go, core/application/service/servicedesk/OlaClocks_test.go, core/application/service/servicedesk/Organisations_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
 ---
 
 # Promise response times and see which promise is about to break
@@ -31,9 +31,13 @@ Lena's policy *incidents* measures entries of the type *incident*: a first respo
 7. Somebody holding STRUCTURE at the workspace counts the goals armed in a period of at most a year per policy, goal and standing; the count names no entry.
 8. A policy may promise a next response: armed by each public comment of the requester once the first response is met - their words the mail intake filed count as theirs, the administrator's own reply on what the intake filed does not -, met by the next public comment of somebody else or the completion, never by an internal note, and armed again by the requester's next comment; a breached next response stays breached.
 9. A policy may name requester organisations (UC-SVC-11): it then measures only entries raised by a person whose address is at one of their domains, and the next policy by position measures everybody else's; a requester the mail intake filed for belongs to none. A policy naming an organisation the workspace does not hold is refused with `sla_policies.organisation_unknown`.
+10. A policy may name an assignee group: it is then that group's OLA, a first response and a resolution only, never the requester's promise. Every enabled OLA covering an entry's type is armed, beside the requester's promise and without moving it, when the entry is on a member of the group; its first response is met by a comment - public or internal - of a member. A group the workspace does not hold is refused with `sla_policies.group_unknown`, a next response with `sla_policies.ola_goal_unsupported`, organisations with `sla_policies.ola_organisations`.
+11. An OLA's goals stand still in their pause statuses, and are met by the completion or when the entry is handed on to somebody outside the group; handed back later, the entry is not measured by that OLA again.
+12. An OLA's goal at risk or breached is announced as the requester's is, with the group (`assignee_group_id`), so a rule escalates it; the entry's goals and the report carry the OLAs' beside the requester's, each marked `SLA` or `OLA`, and the portal shows the requester's alone.
 
 ## Where it ends
 
-* One policy measures an entry; a policy changed or deleted later moves no clock already running.
+* One policy measures an entry for its requester, and each OLA once for its group; a policy changed or deleted later moves no clock already running.
 * A policy takes effect for entries that appear, or take its type, after it is defined; nothing re-measures older entries.
-* The goals are a first response, a next response and a resolution; OLAs and supplier contracts on the same entry are the next release's.
+* The goals are a first response, a next response and a resolution; an OLA promises a first response and a resolution. Contracts with suppliers (underpinning contracts) on the same entry are the next release's.
+* A queue's order by the next breach, the `sla_standing` condition and the offline copy read the requester's promise; the teams' are read online, on the entry and in the report.

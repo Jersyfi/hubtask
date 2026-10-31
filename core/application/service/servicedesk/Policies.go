@@ -97,6 +97,10 @@ func PolicyOutput(p domain.SLAPolicy) usecase.Output {
 	if p.PriorityField != "" {
 		out["priority_field"] = p.PriorityField
 	}
+	out["assignee_group"] = nil
+	if p.IsOLA() {
+		out["assignee_group"] = p.AssigneeGroup.String()
+	}
 	return out
 }
 
@@ -150,6 +154,7 @@ type DefineSLAPolicyCommand struct {
 	EntryTypes      []string
 	Organisations   []string
 	PriorityField   string
+	AssigneeGroup   shared.ID
 	Goals           []domain.SLAGoal
 	Position        int
 	Enabled         bool
@@ -171,7 +176,8 @@ func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 	input := domain.NewSLAPolicyInput{
 		ID: h.Desk.IDs.NewID(), TenantID: actor.TenantID, Key: cmd.Key, Name: cmd.Name,
 		CalendarKey: cmd.CalendarKey, EntryTypes: cmd.EntryTypes, Organisations: cmd.Organisations,
-		PriorityField: cmd.PriorityField, Goals: cmd.Goals, Position: cmd.Position, Enabled: cmd.Enabled, Now: now, Text: h.Desk.Text,
+		PriorityField: cmd.PriorityField, AssigneeGroup: cmd.AssigneeGroup, Goals: cmd.Goals, Position: cmd.Position,
+		Enabled: cmd.Enabled, Now: now, Text: h.Desk.Text,
 	}
 	var out domain.SLAPolicy
 	err := h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -179,6 +185,9 @@ func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 			return err
 		}
 		if err := h.Desk.organisationsHeld(ctx, cmd.Organisations); err != nil {
+			return err
+		}
+		if err := h.Desk.groupHeld(ctx, cmd.AssigneeGroup); err != nil {
 			return err
 		}
 		current, err := h.Desk.Policies.Find(ctx, strings.TrimSpace(cmd.Key))
@@ -210,6 +219,7 @@ func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 			audit.Change{Field: "calendar", Classification: audit.Open, To: out.CalendarKey},
 			audit.Change{Field: "entry_types", Classification: audit.Open, To: strings.Join(out.EntryTypes, ",")},
 			audit.Change{Field: "organisations", Classification: audit.Open, To: strings.Join(out.Organisations, ",")},
+			audit.Change{Field: "assignee_group", Classification: audit.Open, To: out.AssigneeGroup.String()},
 			audit.Change{Field: "enabled", Classification: audit.Open, To: strconv.FormatBool(out.Enabled)})
 	})
 	return out, err
@@ -223,7 +233,9 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 			"first-response and a resolution goal with targets in working minutes per priority, the statuses " +
 			"that pause a goal, the share of the target at which it is at risk, and the business calendar its " +
 			"time is counted on - around the clock when none is named. An entry is measured by the first " +
-			"enabled policy, by position, that covers its type and, where it names organisations, the requester's.",
+			"enabled policy, by position, that covers its type and, where it names organisations, the requester's. " +
+			"A policy naming an assignee group is that group's OLA, measured beside the requester's while the " +
+			"entry is on one of its members.",
 		SideEffects: "Writes the policy and an audit entry. Entries already measured keep their clocks.",
 		TokenScope:  deskWrite,
 		Input: []usecase.Field{
@@ -233,6 +245,7 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 			{Name: "entry_types", Kind: usecase.KindList, Required: true, Description: "The entry type keys the policy measures."},
 			{Name: "organisations", Kind: usecase.KindList, Description: "The requester organisations' keys whose requests the policy measures; absent or empty measures every requester's."},
 			{Name: "priority_field", Kind: usecase.KindString, Description: "The custom field whose option value picks a goal's target."},
+			{Name: "assignee_group", Kind: usecase.KindID, Description: "Makes the policy an OLA: the group's internal promise, armed while an entry is on one of its members."},
 			{Name: "goals", Kind: usecase.KindList, Required: true, Description: "{kind: FIRST_RESPONSE, NEXT_RESPONSE or RESOLUTION, minutes, by_priority, pause_statuses, warn_percent}, each kind once."},
 			{Name: "position", Kind: usecase.KindInt, Description: "The order in which policies are tried; lower first."},
 			{Name: "enabled", Kind: usecase.KindBool, Description: "Whether the policy measures new entries; true when absent."},
@@ -256,9 +269,16 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 			if in.Present("enabled") {
 				enabled = in.Bool("enabled")
 			}
+			var group shared.ID
+			if in.Present("assignee_group") {
+				if group, err = in.ID("assignee_group"); err != nil {
+					return nil, err
+				}
+			}
 			defined, err := h.Execute(ctx, actor, DefineSLAPolicyCommand{
 				Key: in.String("key"), Name: in.String("name"), CalendarKey: in.String("calendar"),
-				EntryTypes: types, Organisations: organisations, PriorityField: in.String("priority_field"), Goals: goals,
+				EntryTypes: types, Organisations: organisations, PriorityField: in.String("priority_field"),
+				AssigneeGroup: group, Goals: goals,
 				Position: in.Int("position"), Enabled: enabled, ExpectedVersion: in.Int("expected_version"),
 			})
 			if err != nil {
@@ -316,6 +336,20 @@ func (h DeleteSlaPolicy) Descriptor() usecase.Descriptor {
 
 // calendarHeld refuses a policy's calendar that neither the workspace nor the installation holds
 // (UC-SVC-01 check 6); no key counts around the clock.
+// groupHeld refuses an OLA for a group the workspace does not hold: it would measure nobody.
+func (d Desk) groupHeld(ctx context.Context, group shared.ID) error {
+	if group.IsZero() || d.Groups == nil {
+		return nil
+	}
+	if _, err := d.Groups.Members(ctx, group); errors.Is(err, shared.ErrNotFound) {
+		return shared.ErrValidation.WithDetail("sla_policies.group_unknown").
+			WithFields(shared.FieldError{Path: "/assignee_group", Code: "sla_policies.group_unknown"})
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
 // organisationsHeld refuses a policy for an organisation the workspace does not hold: it would
 // measure nobody's requests without saying so.
 func (d Desk) organisationsHeld(ctx context.Context, keys []string) error {

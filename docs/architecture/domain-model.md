@@ -783,6 +783,16 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   breached -, the record the archive carries and a report counts; the timer is only its clock. A
   warning timer running out announces `item.sla_at_risk`, the goal's `item.sla_breached`, once each;
   an escalation is a rule on them.
+* **OLA** (UC-SVC-02 checks 10 to 12): an `SlaPolicy` naming an **assignee group** is that group's
+  internal promise - a first response and a resolution, no organisations. It is never chosen as
+  the requester's promise; every enabled OLA covering the type runs beside it, armed when the
+  entry is on a member of the group (the `OlaClocks` subscriber), its first response met by a
+  comment - public or internal - of a member, every goal met by the completion or when the entry
+  is handed on outside the group, paused like an SLA's. **`EntryOla`** (`entry_ola`, migration
+  0303) is its record, one per entry, policy and goal - apart from `entry_sla`, so an entry
+  carries one requester's promise and any number of teams'; its timers have the purpose `OLA` and
+  the record as subject. An entry is measured by an OLA once. Its moments are announced as the
+  requester's are, with `assignee_group_id`.
 * **Planning** (`core/domain/model/planning`, M2, UC-PLN-02 … 07): a **plan** is a hub or a
   collection, its entries those neither trashed nor archived. A waiting link (`work.EntryLink`)
   carries its **`Timing`** - `FS`, `SS`, `FF` or `SF` and a lag in working days, negative for a lead,

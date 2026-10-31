@@ -2459,6 +2459,7 @@ var generatedCommands = []door{
 			{Name: "policyKey", Kind: "string", Help: "", Required: true},
 		},
 		Body: []doorParam{
+			{Name: "assignee_group", Kind: "uuid", Help: "Makes the policy an OLA: the group's internal promise, armed while an entry is on one of its …", Required: false},
 			{Name: "calendar", Kind: "string", Help: "A business calendar's key; absent counts around the clock", Required: false},
 			{Name: "enabled", Kind: "boolean", Help: "True when absent", Required: false},
 			{Name: "entry_types", Kind: "strings", Help: "", Required: true},
@@ -2476,7 +2477,7 @@ var generatedCommands = []door{
 			{Name: "from", Kind: "string", Help: "", Required: true},
 			{Name: "to", Kind: "string", Help: "", Required: true},
 		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"entries", "goal", "policy_key", "standing"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"kind"}},
 	{Group: "sla", Verb: "rm", OperationID: "deleteSlaPolicy", Method: "DELETE", Path: "/sla-policies/{policyKey}", Summary: "Delete an SLA policy",
 		PathParams: []doorParam{
 			{Name: "policyKey", Kind: "string", Help: "", Required: true},
@@ -2486,7 +2487,7 @@ var generatedCommands = []door{
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"armed_at", "at_risk_at", "breached_at", "due_at", "goal"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"kind"}},
 	{Group: "sprint", Verb: "add", OperationID: "addSprintEntries", Method: "POST", Path: "/sprints/{sprintId}/entries", Summary: "Put entries into a sprint",
 		PathParams: []doorParam{
 			{Name: "sprintId", Kind: "uuid", Help: "", Required: true},

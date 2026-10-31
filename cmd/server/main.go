@@ -1948,6 +1948,7 @@ func run() error {
 	serviceDesk := servicedeskservice.Desk{
 		Calendars: serviceDeskStore.Calendars(), Offered: installationCalendars, Policies: serviceDeskStore.Policies(),
 		Records: slaRecords, Replies: serviceDeskStore.Replies(),
+		OLAs: serviceDeskStore.Records(), Groups: servicedeskservice.HeldGroups{Groups: groups},
 		Ratings:       deskAnnouncer.Ratings(serviceDeskStore.Ratings()),
 		Organisations: serviceDeskStore.Organisations(),
 		HubCalendars:  serviceDeskStore.HubCalendars(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
@@ -4224,6 +4225,15 @@ func run() error {
 				Requesters: postgres.RequesterRepository{IDs: ids},
 				Accounts:   accounts, Organisations: serviceDeskStore.Organisations(),
 			},
+			// The teams' promises beside the requester's (UC-SVC-02 checks 10 to 12).
+			servicedeskservice.OLAClocks{
+				Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+				Policies:     serviceDeskStore.Policies(),
+				HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers,
+				Records: serviceDeskStore.Records(), Groups: servicedeskservice.HeldGroups{Groups: groups},
+				Items: items, IDs: ids,
+				Timers: calendarservice.Clocks{Timers: postgres.NewTimerRepository(), Jobs: jobs, IDs: ids},
+			},
 			// A public reply mailed to the requesters an entry was filed for by mail (UC-SVC-12):
 			// one job per comment, the mail sent outside the dispatcher's transaction.
 			servicedeskservice.RequesterReplies{Requesters: postgres.RequesterRepository{IDs: ids}, Jobs: jobs},
@@ -4718,6 +4728,9 @@ func run() error {
 			Elapsed: map[calendardomain.Purpose]calendarservice.TimerElapsed{
 				calendardomain.PurposeSLA: servicedeskservice.SLAElapsed{
 					Records: slaRecords, Items: items, Events: outbox, IDs: ids,
+				},
+				calendardomain.PurposeOLA: servicedeskservice.OLAElapsed{
+					Records: serviceDeskStore.Records(), Items: items, Events: outbox, IDs: ids,
 				},
 				calendardomain.PurposeApproval: servicedeskservice.ApprovalElapsed{
 					Store: deskApprovals, Notify: approvalMail,
