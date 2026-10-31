@@ -9,19 +9,20 @@
 
   import { untrack } from 'svelte';
   import {
-    Banner, Button, Checkbox, Dialog, EmptyState, Input, Select, Spinner, Stack, Switch, type SelectOption,
+    Banner, Button, Checkbox, Dialog, EmptyState, IconButton, Input, Select, Spinner, Stack, Switch, type SelectOption,
   } from '@hubtask/design-system/components';
   import type { ChatBot, ChatBotList, Container } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
   import {
-    asksServer, chatBotMissing, chatBotsPath, chatIntakeAddress, chatPlatforms, emptyChatBotDraft, postsToIntake, type ChatBotDraft,
+    asksServer, chatBotMissing, chatBotsPath, chatIntakeAddress, chatPlatforms, emptyChatBotDraft, postsToIntake, roomWidgetAddress, type ChatBotDraft,
   } from '../data/chatbots.ts';
   import { chatBots } from '../data/chatbots.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { announcer } from '../announce.svelte.ts';
   import IntakeAddress from '../mail/IntakeAddress.svelte';
   import { renderProblem } from '../problem.ts';
 
@@ -52,6 +53,16 @@
 
   const intake = (bot: ChatBot) =>
     postsToIntake(bot.platform) && workspace.workspace?.id ? chatIntakeAddress(window.location.origin, workspace.workspace.id, bot.id) : undefined;
+  // A Matrix room shows the hub beside its timeline (UC-INT-18 check 5).
+  const widget = $derived(roomWidgetAddress(window.location.origin, hubId));
+  async function copyWidget() {
+    try {
+      await navigator.clipboard.writeText(widget);
+      announcer.say(t('app.mail.copied_announced'));
+    } catch {
+      announcer.say(t('app.mail.copy_failed', { address: widget }));
+    }
+  }
   const platformOptions: SelectOption[] = chatPlatforms.map((p) => ({ value: p, label: t(`app.chatbots.platform_${p.toLowerCase()}`) }));
 
   const fail = (error: unknown) => toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
@@ -130,6 +141,14 @@
               onchange={(event: Event) => void change(bot, { enabled: (event.currentTarget as HTMLInputElement).checked })}
             />
           </div>
+          {#if bot.platform === 'MATRIX' && mayShape}
+            <p class="meta">{t('app.chatbots.widget')}</p>
+            <div class="row-line">
+              <code class="widget">{widget}</code>
+              <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: widget })} onclick={() => void copyWidget()} />
+            </div>
+            <p class="meta">{t('app.chatbots.widget_hint')}</p>
+          {/if}
           {#if at}
             <IntakeAddress address={at} lead={t('app.chatbots.intake')} />
             {#if mayShape}<p class="meta">{t('app.chatbots.intake_hint')}</p>{/if}
@@ -200,4 +219,5 @@
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .failure { color: var(--text-danger); }
+  .widget { font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; }
 </style>

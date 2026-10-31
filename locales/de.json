@@ -1690,6 +1690,8 @@
   "app.chatbots.webhook_token_hint": "Mattermost zeigt es, sobald der ausgehende Webhook gespeichert ist. Wird versiegelt aufbewahrt und nie wieder angezeigt.",
   "app.chatbots.intake": "Die Plattform sendet an",
   "app.chatbots.intake_hint": "Trage diese Adresse in der App ein, die du auf der Plattform registriert hast: bei Slack unter Event Subscriptions und beim Slash-Befehl, bei Teams als Messaging-Endpunkt, bei Mattermost beim Slash-Befehl und beim ausgehenden Webhook.",
+  "app.chatbots.widget": "Der Hub als Widget des Raums",
+  "app.chatbots.widget_hint": "Füge diese Adresse dem Raum als Widget hinzu, damit seine Leute neben dem Gespräch im Hub arbeiten. Alle melden sich selbst an; die Installation muss der Adresse des Chat-Programms erlauben, die Oberfläche in einem Rahmen zu zeigen.",
   "app.code.kind.COMMIT": "Commit",
   "app.code.kind.BRANCH": "Branch",
   "app.code.kind.PULL_REQUEST": "Pull-Request",

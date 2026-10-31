@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { chatBotBody, chatBotMissing, chatBotsPath, chatIntakeAddress, emptyChatBotDraft, postsToIntake } from './chatbots.ts';
+import { chatBotBody, chatBotMissing, chatBotsPath, chatIntakeAddress, emptyChatBotDraft, postsToIntake, roomWidgetAddress } from './chatbots.ts';
 
 const draft = { ...emptyChatBotDraft('c'), homeserver: 'matrix.example.org', room: '!r:example.org', token: ' tok ', capture: false };
 
@@ -49,4 +49,8 @@ test('UC-INT-19: a platform bot shows where its platform posts', () => {
   assert.equal(chatIntakeAddress('https://app.example/', 't-1', 'b-1'), 'https://app.example/api/v1/chat-intake/t-1/b-1');
   assert.equal(postsToIntake('SLACK'), true);
   assert.equal(postsToIntake('MATRIX'), false);
+});
+
+test('UC-INT-18 check 5: a Matrix room shows the hub as its widget, by an address that carries no credential', () => {
+  assert.equal(roomWidgetAddress('https://tasks.example.org/', 'h1'), 'https://tasks.example.org/hubs/h1');
 });

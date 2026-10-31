@@ -109,3 +109,13 @@ export function chatBotMissing(draft: ChatBotDraft): string | undefined {
   if (!draft.collectionId) return 'chatbot.collection_not_in_hub';
   return undefined;
 }
+
+/**
+ * The address a Matrix room shows as a widget beside its timeline (UC-INT-18 check 5): the hub
+ * itself, so the room's people work the hub without leaving it. The installation lets the client's
+ * origin frame it (`HUBTASK_UI_FRAME_ANCESTORS`); nothing in the address is a credential - whoever
+ * opens it signs in as themselves and sees what they may.
+ */
+export function roomWidgetAddress(origin: string, hubId: string): string {
+  return `${origin.replace(/\/+$/u, '')}/hubs/${encodeURIComponent(hubId)}`;
+}

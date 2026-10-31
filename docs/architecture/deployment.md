@@ -307,6 +307,25 @@ breaks: search stays lexical and `/meta/capabilities` answers `semantic_search: 
 The restore drill's variables (`HUBTASK_DRILL_*`) are set by the chart
 ([backup-restore.md](./backup-restore.md) §8.5).
 
+### 6.3 Inside a workplace portal and a Matrix room
+
+A sovereign workplace (openDesk, for one) shows its applications as tiles of one portal and keeps
+its conversations in Matrix rooms. Hubtask joins both without code of the portal's:
+
+* **The portal's tile** is a link with a name and an icon: the name *Hubtask*, the link the
+  installation's `HUBTASK_BASE_URL` (in multi mode a workspace's own address), the icon
+  `/favicon.svg` beside it. Opened in a new tab it needs nothing more. Opened inside the portal's
+  frame, the portal's origin goes into `HUBTASK_UI_FRAME_ANCESTORS`; the API never takes it
+  ([security.md](./security.md) §9).
+* **A room's widget** is the hub itself: the hub's *Settings → Chat* shows, for a Matrix bot, the
+  address a room adds as a widget (UC-INT-18 check 5), and the chat client's origin goes into
+  `HUBTASK_UI_FRAME_ANCESTORS`. The address is no credential: whoever opens the widget signs in as
+  themselves - once inside the frame, which the browser keeps apart from a tab of its own - and sees
+  what they may.
+* A sign-in through the workplace's identity provider inside a frame needs the provider to allow
+  being framed by the installation, or the provider's page opens in its own window; that is the
+  provider's setting.
+
 ---
 
 ## 7. What happens during a release

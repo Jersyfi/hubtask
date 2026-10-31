@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
 state: built
 tasks: []
-checked_by: [core/domain/model/integration/ChatBot_test.go, core/application/service/chatbot/ChatBot_test.go, infrastructure/chatbot/Matrix_test.go, test/integration/chat_bot_test.go, apps/webapp/src/lib/data/chatbots.test.ts]
+checked_by: [core/domain/model/integration/ChatBot_test.go, presentation/webui/Handler_test.go, core/application/service/chatbot/ChatBot_test.go, infrastructure/chatbot/Matrix_test.go, test/integration/chat_bot_test.go, apps/webapp/src/lib/data/chatbots.test.ts]
 ---
 
 # Answer links and capture tasks from a Matrix room
@@ -40,6 +40,10 @@ entry's link.
    bot up while they may, and is answered with the entry's link; each message is answered once.
 4. A bot switched off reads nothing; a token the homeserver no longer takes stops it and says why
    on the hub's settings; removing it forgets the token.
+5. Someone who may shape the hub reads, beside a Matrix bot, the address the room adds as a
+   widget: the hub itself, with no credential in it, so whoever opens it signs in as themselves;
+   the interface lets itself be framed only by the origins `HUBTASK_UI_FRAME_ANCESTORS` names, and
+   the API by none.
 
 ## Where it ends
 
@@ -49,3 +53,5 @@ entry's link.
 * Nothing a room says is stored but a captured title; the sender's Matrix name is not kept.
 * The bot's account is removed from the room in Matrix; the entries it captured stay.
 * No end-to-end encrypted room: the bot reads what the homeserver answers in clear.
+* The widget is added to the room in Matrix by the room's own people; Hubtask writes no widget
+  into a room, and the widget is the whole interface, not a view made for it.
