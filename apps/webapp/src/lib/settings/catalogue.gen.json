@@ -1741,6 +1741,118 @@
           "permission": "STRUCTURE"
         }
       ]
+    },
+    {
+      "key": "notifications.assignment",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
+    },
+    {
+      "key": "notifications.membership",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
+    },
+    {
+      "key": "notifications.comment",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
+    },
+    {
+      "key": "notifications.reminder",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
+    },
+    {
+      "key": "notifications.integration",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
+    },
+    {
+      "key": "notifications.retention",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
+    },
+    {
+      "key": "notifications.request_reply",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
     }
   ]
 }

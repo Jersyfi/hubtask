@@ -43,6 +43,9 @@ const (
 	LevelPerson Level = "PERSON"
 )
 
+// PersonOwnWriter is the writer of a person's own setting at PERSON: the person, and nobody else.
+const PersonOwnWriter = "SELF"
+
 var levels = [...]Level{
 	LevelDefault, LevelInstance, LevelPlan, LevelWorkspace, LevelHub, LevelCollection, LevelPerson,
 }

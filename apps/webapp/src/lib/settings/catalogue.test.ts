@@ -65,6 +65,12 @@ test('a name is the code its own screen draws it with', () => {
   assert.equal(labelCode('sign_in.min_length'), 'app.instance.setting.sign_in.min_length');
   assert.equal(labelCode('structure.views'), 'app.structure.setting.views');
   assert.equal(labelCode('module.service_desk'), 'app.modules.name_service_desk');
+  assert.equal(labelCode('notifications.request_reply'), 'app.profile.category_REQUEST_REPLY');
+});
+
+test('a person\'s notification switch is drawn on their notifications page', () => {
+  assert.equal(screenOf(define('notifications.comment', ['PERSON'], 'FLAG'), 'PERSON')?.path, '/profile/notifications');
+  assert.equal(screenOf(define('localisation.locale', ['WORKSPACE', 'PERSON'], 'LOCALE'), 'PERSON')?.path, '/profile');
 });
 
 test('a level that does not decide a setting has no screen for it', () => {

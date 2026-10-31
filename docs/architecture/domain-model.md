@@ -335,7 +335,11 @@ links (`identity.EffectiveLegal`), a new workspace's language and zone
 operator's exception stays the last word over them), the AI rule above the workspace
 (`integration.EffectiveAi`; a workspace's narrowing to `NONE` under a lock stays its own) and the
 nine structure settings (`work.ResolveStructure`) resolve through it; golden tests hold each to
-the resolution it had before. `setting.Catalogue` in `core/application/service/setting` is the
+the resolution it had before. A person's switch of a notification category
+(`notifications.<category>`, `notification.PreferenceDefinitions`) is a `FLAG` at `PERSON` alone,
+written by the person (`SELF`) and defaulting to `DefaultPreference`'s "on" - the value stays a
+preference row whose absence is the default; the two categories nobody may switch off
+(`INVITATION`, `EMERGENCY_ACCESS`) are not settings. `setting.Catalogue` in `core/application/service/setting` is the
 one registry that assembles every area's declarations; `ReadSettingsCatalogue` (`GET /settings/catalogue`) answers it to a
 signed-in caller, without any place's value, and the client's settings search and *View as file* draw from it. A capability lock (`fields.TASK.DUE_DATE`) stays a refinement inside
 `fields`. Storage is one shape: a dotted key with a JSON value and a lock in `instance_setting` and

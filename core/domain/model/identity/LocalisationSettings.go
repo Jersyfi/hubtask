@@ -37,7 +37,7 @@ func LocalisationDefinition(name string) setting.Definition {
 }
 
 // PersonOwnWriter is the writer of a person's own setting: the person, and nobody else.
-const PersonOwnWriter = "SELF"
+const PersonOwnWriter = setting.PersonOwnWriter
 
 // OwnLocalisation answers a person's language, time zone and week start as the catalogue resolves
 // them (F-5, model.md §4): the person's own, else the workspace's, else the installation's, else

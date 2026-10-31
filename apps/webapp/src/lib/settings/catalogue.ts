@@ -38,6 +38,7 @@ export function labelCode(key: string): string {
   const area = areaOf(key);
   if (area === 'structure') return `app.structure.setting.${nameOf(key)}`;
   if (area === 'module') return `app.modules.name_${nameOf(key)}`;
+  if (area === 'notifications') return `app.profile.category_${nameOf(key).toUpperCase()}`;
   return `app.instance.setting.${key}`;
 }
 
@@ -51,6 +52,10 @@ const INSTANCE: Screen = { path: '/instance/settings', code: 'app.instance.setti
 const PLAN: Screen = { path: '/instance/plans', code: 'app.instance.plans' };
 /** A person's own settings, drawn on their profile (model.md §4); the palette offers them by its own rows (SETTING_ROWS). */
 const PERSON: Screen = { path: '/profile', code: 'app.profile.title' };
+/** A person's own areas drawn on a page of their own rather than the profile itself. */
+const PERSON_AREAS: Readonly<Record<string, Screen>> = {
+  notifications: { path: '/profile/notifications', code: 'app.profile.notifications' },
+};
 
 /** The workspace's screen of each area; an area without one is not decided by the workspace. */
 const WORKSPACE: Readonly<Record<string, Screen>> = {
@@ -89,7 +94,7 @@ export function screenOf(definition: SettingDefinition, level: Level, place?: Pl
   if (level === 'INSTANCE') return INSTANCE;
   if (level === 'PLAN') return PLAN;
   if (level === 'WORKSPACE') return WORKSPACE[areaOf(definition.key)];
-  if (level === 'PERSON') return PERSON;
+  if (level === 'PERSON') return PERSON_AREAS[areaOf(definition.key)] ?? PERSON;
   if (place === undefined || level !== place.level) return undefined;
   const screen = PLACE[areaOf(definition.key)];
   if (!screen) return undefined;

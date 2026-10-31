@@ -11,6 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
+	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -18,7 +19,7 @@ import (
 
 // Catalogue is the one registry of every setting (F-5, P-17): each area's declarations, which live
 // beside the switch they are about, assembled in the order a screen draws the areas - sign-in,
-// legal, localisation, quotas, AI, structure, modules, configuration, agents, pages. A screen, the settings search, the
+// legal, localisation, quotas, AI, structure, modules, configuration, agents, pages, a person's notifications. A screen, the settings search, the
 // configuration file and the parity checks read this; none keeps a list of its own.
 //
 // Assembled here rather than in the domain because the quotas' vocabulary is the quota service's.
@@ -47,5 +48,6 @@ func Catalogue() (domain.Catalogue, error) {
 	definitions = append(definitions, agent.RegisteredOnlyDefinition())
 	definitions = append(definitions, knowledge.PublicLinksDefinition())
 	definitions = append(definitions, planning.TimeToleranceDefinition())
+	definitions = append(definitions, notification.PreferenceDefinitions()...)
 	return domain.NewCatalogue(definitions...)
 }
