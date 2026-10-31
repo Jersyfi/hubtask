@@ -13,17 +13,16 @@ import (
 
 // DraftsKey switches a space from the live document to drafts and publishing (UC-DOC-15): its
 // writers' changes wait in a draft until one of them publishes, and its readers read what was
-// published. Off - the live document - by default; decided by the workspace for every space and
-// by a hub for its own, lockable as every setting.
+// published. Off - the live document - by default; decided by each hub for its own space, which
+// is where its writers and readers meet.
 const DraftsKey setting.Key = "knowledge.drafts"
 
 // DraftsDefinition is the setting's declaration.
 func DraftsDefinition() setting.Definition {
 	return setting.Definition{
 		Key: DraftsKey, Kind: setting.KindFlag,
-		Levels:   []setting.Level{setting.LevelWorkspace, setting.LevelHub},
-		Lockable: true, May: setting.MayReplace, Default: false,
-		Writers: map[setting.Level]string{setting.LevelWorkspace: "STRUCTURE", setting.LevelHub: "STRUCTURE"},
+		Levels: []setting.Level{setting.LevelHub}, May: setting.MayReplace, Default: false,
+		Writers: map[setting.Level]string{setting.LevelHub: "STRUCTURE"},
 	}
 }
 
