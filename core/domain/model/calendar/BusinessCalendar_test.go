@@ -130,3 +130,29 @@ func TestNewRefusesACalendarThatCannotCount(t *testing.T) {
 		})
 	}
 }
+
+// "Five business days after it was resolved": the days counted are the calendar's working days,
+// at the clock time of the start, so a holiday week never closes something earlier than promised.
+func TestAddWorkingDaysSkipsWeekendsAndHolidays(t *testing.T) {
+	cal := officeHours(t)
+	for _, tc := range []struct {
+		name  string
+		start string
+		days  int
+		want  string
+	}{
+		{"within the week", "2026-11-02 15:00", 3, "2026-11-05 15:00"},
+		{"over a weekend", "2026-10-29 15:00", 5, "2026-11-05 15:00"},
+		{"started on a Saturday", "2026-10-31 10:00", 1, "2026-11-02 10:00"},
+		{"over a holiday", "2026-12-22 11:00", 5, "2026-12-30 11:00"},
+		{"backwards over a weekend", "2026-11-02 08:00", -1, "2026-10-30 08:00"},
+		{"none", "2026-10-31 10:00", 0, "2026-10-31 10:00"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := cal.AddWorkingDays(berlin(t, tc.start), tc.days)
+			if want := berlin(t, tc.want); !got.Equal(want) {
+				t.Errorf("AddWorkingDays(%s, %d) = %s, want %s", tc.start, tc.days, got.In(want.Location()), want)
+			}
+		})
+	}
+}

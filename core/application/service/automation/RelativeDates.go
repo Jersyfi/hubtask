@@ -14,6 +14,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/eventbus"
@@ -61,6 +62,15 @@ type RelativeDates struct {
 	Jobs        Queue
 	Clock       clock.Clock
 	IDs         clock.IDGenerator
+	// Calendars finds the business calendar a trigger counts working days on. Nil, or a calendar
+	// that is gone, owes nothing for such a trigger: plain days would come earlier than promised.
+	Calendars BusinessCalendars
+}
+
+// BusinessCalendars answers the calendar of a key as the entry's hub reads it: the hub's own
+// version where it keeps one, the workspace's or the installation's otherwise.
+type BusinessCalendars interface {
+	Find(ctx context.Context, hubID shared.ID, key string) (calendar.BusinessCalendar, error)
 }
 
 var _ eventbus.Subscriber = RelativeDates{}
@@ -122,7 +132,7 @@ func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) err
 		if !covers(rule.Scope, at) {
 			continue
 		}
-		moment, owes, err := d.settle(ctx, rule, item)
+		moment, owes, err := d.settle(ctx, rule, item, at.HubID)
 		if err != nil {
 			return err
 		}
@@ -139,9 +149,23 @@ func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) err
 // settle writes, moves or removes one rule's moment for this entry, and answers the moment when
 // there is one.
 func (d RelativeDates) settle(
-	ctx context.Context, rule domain.Rule, item anchoredItem,
+	ctx context.Context, rule domain.Rule, item anchoredItem, hubID shared.ID,
 ) (time.Time, bool, error) {
-	at, owes, err := domain.OccurrenceAt(rule.Trigger, item.anchor(rule.Trigger))
+	var cal calendar.BusinessCalendar
+	if rule.Trigger.Calendar != "" {
+		if d.Calendars == nil {
+			return time.Time{}, false, d.Occurrences.Forget(ctx, rule.ID, item.ID)
+		}
+		found, err := d.Calendars.Find(ctx, hubID, rule.Trigger.Calendar)
+		if errors.Is(err, shared.ErrNotFound) {
+			return time.Time{}, false, d.Occurrences.Forget(ctx, rule.ID, item.ID)
+		}
+		if err != nil {
+			return time.Time{}, false, err
+		}
+		cal = found
+	}
+	at, owes, err := domain.OccurrenceOn(rule.Trigger, item.anchor(rule.Trigger), cal)
 	if err != nil {
 		// An offset this build cannot read, on a rule that was written when it could. The rule
 		// stops owing rather than firing at the anchor itself, and it stays visible and editable.

@@ -6,6 +6,7 @@ package automation
 import (
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -48,4 +49,22 @@ func OccurrenceAt(trigger Trigger, anchor *time.Time) (time.Time, bool, error) {
 			WithParams(map[string]string{"offset": trigger.Offset})
 	}
 	return anchor.Add(offset).UTC(), true, nil
+}
+
+// OccurrenceOn is OccurrenceAt for a trigger that names a business calendar: its offset counts
+// cal's working days, at the anchor's local clock time. A trigger without one ignores cal.
+func OccurrenceOn(trigger Trigger, anchor *time.Time, cal calendar.BusinessCalendar) (time.Time, bool, error) {
+	if trigger.Calendar == "" {
+		return OccurrenceAt(trigger, anchor)
+	}
+	if trigger.Kind != TriggerRelativeDate || anchor == nil || anchor.IsZero() {
+		return time.Time{}, false, nil
+	}
+	days, err := BusinessDays(trigger.Offset)
+	if err != nil {
+		return time.Time{}, false, shared.ErrValidation.
+			WithDetail("automation.offset_invalid").
+			WithParams(map[string]string{"offset": trigger.Offset})
+	}
+	return cal.AddWorkingDays(*anchor, days).UTC(), true, nil
 }

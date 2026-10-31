@@ -752,3 +752,42 @@ func TestAPersonsRuleActsAsItsOwnerOnEventsOnly(t *testing.T) {
 		t.Errorf("a person's rule reads at %v, want the workspace alone", path)
 	}
 }
+
+// A business calendar on a RELATIVE_DATE trigger counts whole working days, so only an offset of
+// whole days is read on one; it is refused on any other kind.
+func TestABusinessCalendarTakesWholeDays(t *testing.T) {
+	relative := func(offset, cal string) automation.Trigger {
+		return automation.Trigger{Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorCompletedAt, Offset: offset, Calendar: cal}
+	}
+	if kept, err := automation.ValidTrigger(relative("P5D", " office ")); err != nil || kept.Calendar != "office" {
+		t.Errorf("five business days: %v, %v", kept, err)
+	}
+	if _, err := automation.ValidTrigger(relative("-P2D", "office")); err != nil {
+		t.Errorf("two business days before: %v", err)
+	}
+	for offset, code := range map[string]string{"PT36H": "automation.offset_business_days", "P1W": "automation.offset_business_days", "P1DT2H": "automation.offset_business_days"} {
+		_, err := automation.ValidTrigger(relative(offset, "office"))
+		if !hasFieldCode(err, "/trigger/offset", code) {
+			t.Errorf("%s on a calendar: %v", offset, err)
+		}
+	}
+	if _, err := automation.ValidTrigger(relative("P5D", "Office Hours")); !hasFieldCode(err, "/trigger/calendar", "automation.calendar_malformed") {
+		t.Errorf("a malformed calendar key: %v", err)
+	}
+	if _, err := automation.ValidTrigger(automation.Trigger{Kind: automation.TriggerManual, Calendar: "office"}); !hasFieldCode(err, "/trigger/calendar", "automation.trigger_field_not_for_kind") {
+		t.Errorf("a calendar on a manual trigger: %v", err)
+	}
+}
+
+func hasFieldCode(err error, path, code string) bool {
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) {
+		return false
+	}
+	for _, field := range refusal.Fields {
+		if field.Path == path && field.Code == code {
+			return true
+		}
+	}
+	return false
+}

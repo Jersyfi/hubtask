@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
@@ -117,4 +118,38 @@ func TestAPolicyNamesACalendarTheInstallationOffers(t *testing.T) {
 	if len(f.timers.rows) != 0 {
 		t.Fatalf("goals armed on a calendar nobody holds: %+v", f.timers.rows)
 	}
+}
+
+// A RELATIVE_DATE rule's calendar is read as the SLA clocks read a policy's: the hub's own version
+// of the key first, the workspace's or the installation's otherwise.
+func TestARulesCalendarIsTheHubsOwnFirst(t *testing.T) {
+	var week calendar.Week
+	week[1] = []calendar.Span{{From: 9 * 60, To: 17 * 60}}
+	workspace, err := domain.NewInstallationCalendar("office", "Workspace", calendar.Spec{Zone: "UTC", Week: week}, text.Composing{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hubs := &hubCalendarStore{}
+	hubs.rows = append(hubs.rows, domain.Calendar{HubID: deskHub, Key: "office", Name: "Hub", Calendar: mustCalendar(t, afternoons())})
+	rules := RuleCalendars{Calendars: WithInstallation{Calendars: calendarStore{office: workspace}}, HubCalendars: hubs}
+	ctx := context.Background()
+
+	if found, err := rules.Find(ctx, deskHub, "office"); err != nil || !found.WorksOn(2026, time.November, 2) || found.Spec().Week[1][0].From != afternoons().Week[1][0].From {
+		t.Errorf("the hub's own: %+v, %v", found.Spec(), err)
+	}
+	if found, err := rules.Find(ctx, shared.ID("01936f2a-7c1e-7000-8000-0000000000ff"), "office"); err != nil || found.Spec().Week[1][0].From != 9*60 {
+		t.Errorf("the workspace's: %+v, %v", found.Spec(), err)
+	}
+	if _, err := rules.Find(ctx, deskHub, "nowhere"); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("a key nobody holds answered %v", err)
+	}
+}
+
+func mustCalendar(t *testing.T, spec calendar.Spec) calendar.BusinessCalendar {
+	t.Helper()
+	cal, err := calendar.New(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cal
 }

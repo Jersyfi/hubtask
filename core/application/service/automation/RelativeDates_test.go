@@ -11,6 +11,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -461,3 +462,61 @@ func TestAFieldAnchorReadsTheEntrysDateField(t *testing.T) {
 }
 
 func ptrTime(at time.Time) *time.Time { return &at }
+
+// businessCalendars answers a hub's calendars by key.
+type businessCalendars struct {
+	rows  map[string]calendar.BusinessCalendar
+	asked []shared.ID
+}
+
+func (b *businessCalendars) Find(_ context.Context, hub shared.ID, key string) (calendar.BusinessCalendar, error) {
+	b.asked = append(b.asked, hub)
+	found, ok := b.rows[key]
+	if !ok {
+		return calendar.BusinessCalendar{}, shared.ErrNotFound.WithDetail("calendars.not_found")
+	}
+	return found, nil
+}
+
+// "Close resolved incidents after 5 business days" (configuration.md §6): a trigger naming a
+// calendar counts its working days in the entry's hub, and one whose calendar is gone owes
+// nothing rather than counting plain days, which would close earlier than promised.
+func TestABusinessCalendarCountsWorkingDays(t *testing.T) {
+	var week calendar.Week
+	for _, day := range []time.Weekday{time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday} {
+		week[day] = []calendar.Span{{From: 8 * 60, To: 18 * 60}}
+	}
+	office, err := calendar.New(calendar.Spec{Zone: "UTC", Week: week})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := dueItem(nil)
+	done := time.Date(2026, 10, 30, 15, 0, 0, 0, time.UTC) // a Friday
+	item.Completion = work.Completion{IsCompleted: true, CompletedAt: &done}
+	rule := relativeRule(domain.AnchorCompletedAt, "P5D")
+	rule.Trigger.Calendar = "office"
+	h := newDates([]domain.Rule{rule}, item)
+	calendars := &businessCalendars{rows: map[string]calendar.BusinessCalendar{"office": office}}
+	h.subscriber.Calendars = calendars
+
+	completed := itemEvent()
+	completed.Type = event.ItemCompleted
+	if err := h.subscriber.Deliver(context.Background(), completed); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	owed, found := h.owed.rows[owedKey(ruleID, itemID)]
+	if want := time.Date(2026, 11, 6, 15, 0, 0, 0, time.UTC); !found || !owed.FireAt.Equal(want) {
+		t.Fatalf("owes %+v (found %v), want five working days later, %s", owed, found, want)
+	}
+	if len(calendars.asked) != 1 || calendars.asked[0] != hubID {
+		t.Errorf("the calendar was asked of %v, want the entry's hub", calendars.asked)
+	}
+
+	calendars.rows = map[string]calendar.BusinessCalendar{}
+	if err := h.subscriber.Deliver(context.Background(), completed); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if _, found := h.owed.rows[owedKey(ruleID, itemID)]; found {
+		t.Error("a rule whose calendar is gone still owes a moment")
+	}
+}

@@ -171,6 +171,31 @@ func (c BusinessCalendar) Add(start time.Time, work time.Duration) time.Time {
 	return start.Add(remaining)
 }
 
+// AddWorkingDays answers the instant days working days after start - before it when days is
+// negative - at start's local clock time. A day counts when it holds working time (WorksOn), so a
+// weekend or a holiday moves the instant later, never earlier than the same count of plain days.
+func (c BusinessCalendar) AddWorkingDays(start time.Time, days int) time.Time {
+	if days == 0 {
+		return start
+	}
+	step := 1
+	if days < 0 {
+		step, days = -1, -days
+	}
+	local := start.In(c.Zone())
+	year, month, day := local.Date()
+	// Bounded for Add's reason: every week holds working time, so the walk ends long before.
+	for counted, walked := 0, 0; counted < days && walked < 400*366; walked++ {
+		next := time.Date(year, month, day+step, 12, 0, 0, 0, c.Zone())
+		year, month, day = next.Date()
+		if c.WorksOn(year, month, day) {
+			counted++
+		}
+	}
+	hour, minute, second := local.Clock()
+	return time.Date(year, month, day, hour, minute, second, local.Nanosecond(), c.Zone())
+}
+
 // Between answers the working time in [from, to); none when to is not after from.
 func (c BusinessCalendar) Between(from, to time.Time) time.Duration {
 	if !to.After(from) {

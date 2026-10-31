@@ -193,6 +193,9 @@ type Trigger struct {
 	// AnchorField is the custom field's key, required with AnchorField and refused otherwise.
 	AnchorField string
 	Offset      string
+	// Calendar is RELATIVE_DATE's, and optional: the key of a business calendar whose working days
+	// the offset counts, so "P5D" is five business days. Only whole days are read on one.
+	Calendar string
 	// Workflow and Step are STEP_TAKEN's, and both required there: the workflow's key and the
 	// step's, since a step key alone would fire in every workflow that happens to use it.
 	Workflow string
@@ -499,8 +502,18 @@ func ValidTrigger(trigger Trigger) (Trigger, error) {
 		if err != nil {
 			return Trigger{}, err
 		}
+		cal := strings.TrimSpace(trigger.Calendar)
+		if cal != "" {
+			if !fieldKey(cal) {
+				return Trigger{}, fieldError("/trigger/calendar", "automation.calendar_malformed")
+			}
+			if _, err := BusinessDays(offset); err != nil {
+				return Trigger{}, err
+			}
+		}
 		kept := Trigger{
 			Kind: TriggerRelativeDate, Anchor: trigger.Anchor, AnchorField: field, Offset: offset,
+			Calendar: cal,
 		}
 		return kept, foreign(trigger, kept)
 	case TriggerStepTaken:
@@ -549,6 +562,37 @@ func ValidOffset(raw string) (string, error) {
 			WithFields(shared.FieldError{Path: "/trigger/offset", Code: "automation.offset_invalid"})
 	}
 	return offset, nil
+}
+
+// BusinessDays reads an offset on a business calendar: a signed count of whole days, `P5D` or
+// `-P2D`. Weeks and clock parts are refused, since a business week and a business hour are not a
+// fixed number of working days.
+func BusinessDays(offset string) (int, error) {
+	text := strings.TrimSpace(offset)
+	sign := 1
+	switch {
+	case strings.HasPrefix(text, "-"):
+		sign, text = -1, text[1:]
+	case strings.HasPrefix(text, "+"):
+		text = text[1:]
+	}
+	refusal := fieldError("/trigger/offset", "automation.offset_business_days")
+	digits, whole := strings.CutPrefix(text, "P")
+	digits, days := strings.CutSuffix(digits, "D")
+	if !whole || !days || digits == "" || len(digits) > 3 {
+		return 0, refusal
+	}
+	count := 0
+	for _, r := range digits {
+		if r < '0' || r > '9' {
+			return 0, refusal
+		}
+		count = count*10 + int(r-'0')
+	}
+	if time.Duration(count)*24*time.Hour > MaxOffset {
+		return 0, refusal
+	}
+	return sign * count, nil
 }
 
 // MaxOffset is how far from its anchor a RELATIVE_DATE trigger may reach. A year is past any
@@ -679,6 +723,9 @@ func foreign(sent, kept Trigger) error {
 	}
 	if strings.TrimSpace(sent.Offset) != kept.Offset {
 		findings = append(findings, foreignField("offset"))
+	}
+	if strings.TrimSpace(sent.Calendar) != kept.Calendar {
+		findings = append(findings, foreignField("calendar"))
 	}
 	if strings.TrimSpace(sent.Workflow) != kept.Workflow {
 		findings = append(findings, foreignField("workflow"))

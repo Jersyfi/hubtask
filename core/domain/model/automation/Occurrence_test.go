@@ -8,6 +8,7 @@ import (
 	"time"
 
 	automation "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 )
 
 // The arithmetic a RELATIVE_DATE trigger is: an anchor plus a signed offset, or nothing at all.
@@ -85,5 +86,42 @@ func TestAnOffsetThisBuildCannotReadIsAnError(t *testing.T) {
 	}
 	if owes {
 		t.Error("a rule owes a moment it could not work out")
+	}
+}
+
+// A trigger on a business calendar counts the calendar's working days (configuration.md §6, "close
+// resolved incidents after 5 business days"); one without a calendar is the plain arithmetic.
+func TestABusinessDayOffsetCountsTheCalendarsWorkingDays(t *testing.T) {
+	zone, _ := time.LoadLocation("Europe/Berlin")
+	var week calendar.Week
+	for _, day := range []time.Weekday{time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday} {
+		week[day] = []calendar.Span{{From: 8 * 60, To: 18 * 60}}
+	}
+	office, err := calendar.New(calendar.Spec{Zone: "Europe/Berlin", Week: week, Holidays: []calendar.Date{{Year: 2026, Month: time.December, Day: 25}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved := time.Date(2026, 12, 22, 14, 0, 0, 0, zone) // a Tuesday before Christmas
+	trigger := automation.Trigger{
+		Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorCompletedAt, Offset: "P5D", Calendar: "office",
+	}
+	at, owes, err := automation.OccurrenceOn(trigger, &resolved, office)
+	if err != nil || !owes {
+		t.Fatalf("OccurrenceOn = %v, %v, %v", at, owes, err)
+	}
+	if want := time.Date(2026, 12, 30, 14, 0, 0, 0, zone); !at.Equal(want) {
+		t.Errorf("five business days after %s is %s, want %s", resolved, at.In(zone), want)
+	}
+	if !at.After(resolved.Add(7 * 24 * time.Hour)) {
+		t.Errorf("a holiday week closes earlier than seven calendar days: %s", at)
+	}
+
+	calendarDays := trigger
+	calendarDays.Calendar = ""
+	if at, _, _ := automation.OccurrenceOn(calendarDays, &resolved, office); !at.Equal(resolved.Add(5 * 24 * time.Hour).UTC()) {
+		t.Errorf("a trigger without a calendar counts calendar days, got %s", at)
+	}
+	if _, owes, _ := automation.OccurrenceOn(trigger, nil, office); owes {
+		t.Error("a cleared anchor owes nothing on a calendar either")
 	}
 }

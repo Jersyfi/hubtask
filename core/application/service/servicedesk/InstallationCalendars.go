@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	deskrepo "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
@@ -73,4 +74,30 @@ func (w WithInstallation) Find(ctx context.Context, key string) (domain.Calendar
 		}
 	}
 	return found, err
+}
+
+// RuleCalendars is the business calendar a RELATIVE_DATE rule counts working days on, read as
+// the SLA clocks read a policy's: the hub's own version of the key where the hub keeps one, the
+// workspace's or the installation's (WithInstallation) otherwise.
+type RuleCalendars struct {
+	Calendars    deskrepo.Calendars
+	HubCalendars deskrepo.HubCalendars
+}
+
+// Find answers the calendar of a key for an entry of the hub; shared.ErrNotFound when none holds it.
+func (r RuleCalendars) Find(ctx context.Context, hubID shared.ID, key string) (calendar.BusinessCalendar, error) {
+	if r.HubCalendars != nil && !hubID.IsZero() {
+		own, err := r.HubCalendars.Find(ctx, hubID, key)
+		if err == nil {
+			return own.Calendar, nil
+		}
+		if !errors.Is(err, shared.ErrNotFound) {
+			return calendar.BusinessCalendar{}, err
+		}
+	}
+	found, err := r.Calendars.Find(ctx, key)
+	if err != nil {
+		return calendar.BusinessCalendar{}, err
+	}
+	return found.Calendar, nil
 }
