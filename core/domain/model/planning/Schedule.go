@@ -360,7 +360,7 @@ func Schedule(plan Plan) (Result, error) {
 		if err != nil {
 			return Result{}, err
 		}
-		finish := start
+		var finish Day
 		if t.d > 0 {
 			if finish, err = axis.day(t.e - 1); err != nil {
 				return Result{}, err

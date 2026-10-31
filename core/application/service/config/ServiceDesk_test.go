@@ -24,7 +24,7 @@ func TestTheServiceDesksBlocksAreInTheDocument(t *testing.T) {
 			t.Fatalf("%s is not a service desk section", name)
 		}
 	}
-	if !(at[sectionTypes] < at[sectionCalendars] && at[sectionCalendars] < at[sectionPolicies]) {
+	if at[sectionTypes] >= at[sectionCalendars] || at[sectionCalendars] >= at[sectionPolicies] {
 		t.Errorf("the apply order is %v", at)
 	}
 	policies := byName[sectionPolicies]

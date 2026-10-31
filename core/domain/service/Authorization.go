@@ -167,7 +167,7 @@ func EffectiveRole(
 
 // counts is whether one membership takes part in the decision about this path.
 func counts(membership identity.Membership, path []identity.Scope, privacy Privacy) bool {
-	if !(membership.Role.Valid() || membership.IsCustom()) || !onPath(membership.Scope, path) {
+	if !membership.Role.Valid() && !membership.IsCustom() || !onPath(membership.Scope, path) {
 		return false
 	}
 	return privacy == SharedPath || membership.Scope.Type != identity.ScopeTenant

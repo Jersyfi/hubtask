@@ -563,7 +563,7 @@ func newStepWho(who StepWho, at string) (StepWho, error) {
 	people := []string{}
 	for _, field := range who.PersonFields {
 		_, custom := strings.CutPrefix(field, FormCustomPrefix)
-		if field != "assignee" && field != "created_by" && !(custom && validFormFieldKey(field)) {
+		if field != "assignee" && field != "created_by" && (!custom || !validFormFieldKey(field)) {
 			return StepWho{}, workflowInvalid(at+"/person_fields", "workflows.field_unknown", map[string]string{"key": field})
 		}
 		if !slices.Contains(people, field) {

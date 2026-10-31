@@ -458,7 +458,7 @@ func (f Form) Starting(channel FormChannel, sent map[string]any) map[string]any 
 			continue
 		}
 		_, preset := rule.Presets[field.Key]
-		if _, given := sent[key]; given && !(preset && slices.Contains(rule.Hidden, field.Key)) {
+		if _, given := sent[key]; given && (!preset || !slices.Contains(rule.Hidden, field.Key)) {
 			continue
 		}
 		if preset, found := rule.Presets[field.Key]; found {

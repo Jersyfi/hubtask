@@ -22,8 +22,11 @@ const (
 	// PlanImportedAction is a project file brought into a collection; the file's words are content
 	// and stay out of the trail (rule 10), its counts go in.
 	PlanImportedAction audit.Action = "plan.imported"
-	createWorkItemName              = "CreateWorkItem"
-	linkEntriesName                 = "LinkEntries"
+)
+
+const (
+	createWorkItemName = "CreateWorkItem"
+	linkEntriesName    = "LinkEntries"
 )
 
 // ImportPlanCommand is the input, typed.

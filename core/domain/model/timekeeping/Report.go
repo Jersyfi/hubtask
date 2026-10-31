@@ -121,7 +121,7 @@ func Summarise(lines []Line, dims []Dimension, aggregated bool, reader shared.ID
 	if aggregated {
 		kept := report.Groups[:0]
 		for _, g := range report.Groups {
-			if len(g.people) < MinPeoplePerGroup && !(len(g.people) == 1 && g.people[reader]) {
+			if len(g.people) < MinPeoplePerGroup && (len(g.people) != 1 || !g.people[reader]) {
 				report.WithheldMinutes += g.Minutes
 				report.WithheldGroups++
 				continue

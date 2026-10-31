@@ -243,7 +243,7 @@ func (a Affecting) read(ctx context.Context, actor appshared.ActorContext, id sh
 	var candidates []domain.Neighbour
 	for _, n := range neighbours {
 		e, ok := visible[n.ItemID]
-		if !ok || e.Completed || e.Archived || !(own[n.CIID] || reachedOwn[n.CIID]) {
+		if !ok || e.Completed || e.Archived || !own[n.CIID] && !reachedOwn[n.CIID] {
 			continue
 		}
 		candidates = append(candidates, domain.Neighbour{ItemID: e.ID, CIID: n.CIID, Window: domain.Window{Start: e.StartAt, End: e.DueAt}})

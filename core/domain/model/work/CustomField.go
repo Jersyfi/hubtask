@@ -1038,7 +1038,7 @@ func validFieldLabel(label string) bool {
 		return false
 	}
 	for _, r := range label {
-		if !(unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' || r == '.') {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' && r != '_' && r != '.' {
 			return false
 		}
 	}

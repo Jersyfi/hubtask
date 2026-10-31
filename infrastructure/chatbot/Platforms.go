@@ -74,7 +74,7 @@ func markdown(s string) string {
 			b.WriteRune('\\')
 			b.WriteRune(r)
 		case '@':
-			b.WriteString("@​")
+			b.WriteString("@\u200b")
 		case '\n', '\r':
 			b.WriteRune(' ')
 		default:

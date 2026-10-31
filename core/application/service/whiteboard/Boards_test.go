@@ -73,7 +73,7 @@ func (g gate) allows(actor appshared.ActorContext, request access.Request) bool 
 			return false
 		}
 	}
-	return !(g.reader && actor.AccountID == bert && request.Permission == service.PermissionWriteItems)
+	return !g.reader || actor.AccountID != bert || request.Permission != service.PermissionWriteItems
 }
 
 func (g gate) Authorize(_ context.Context, actor appshared.ActorContext, request access.Request) error {

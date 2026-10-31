@@ -37,7 +37,7 @@ type CopyPage struct{ Space Space }
 
 // Execute copies the page.
 func (h CopyPage) Execute(ctx context.Context, actor appshared.ActorContext, cmd CopyPageCommand) (domain.Page, error) {
-	read, err := (ReadPage{Space: h.Space}).Execute(ctx, actor, cmd.PageID)
+	read, err := ReadPage(h).Execute(ctx, actor, cmd.PageID)
 	if err != nil {
 		return domain.Page{}, err
 	}
@@ -56,7 +56,7 @@ func (h CopyPage) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 		title = source.Title
 	}
 	body := source.Body
-	return (CreatePage{Space: h.Space}).Execute(ctx, actor, CreatePageCommand{
+	return CreatePage(h).Execute(ctx, actor, CreatePageCommand{
 		HubID: source.HubID, ParentID: parent, Title: title, Body: &body, Icon: source.Icon,
 		ContentLanguage: source.ContentLanguage,
 	})
