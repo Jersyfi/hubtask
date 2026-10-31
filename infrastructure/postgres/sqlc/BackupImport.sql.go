@@ -5381,16 +5381,16 @@ const importEntryType = `-- name: ImportEntryType :execrows
 INSERT INTO entry_type (
   id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, form, position, archived_at, created_at, updated_at, version,
-  description, translations
+  description, translations, hub_id, copied_from
 )
 SELECT
-  -- An archive from before 0214 carries no form, one from before 0311 no texts: the type then
-  -- has the empty ones.
+  -- An archive from before 0214 carries no form, one from before 0311 no texts, one from before
+  -- 0317 no hub: the type then has the empty ones and is the whole workspace's.
   r.id, r.tenant_id, r.key, r.level, r.system, r.name, r.icon, r.color_token, r.completable,
   r.workflow, r.record, r.schedulable, r.estimable, r.allowed_children, COALESCE(r.form, '{}'::jsonb),
   r.position, r.archived_at,
   r.created_at, r.updated_at, r.version,
-  COALESCE(r.description, ''), COALESCE(r.translations, '{}'::jsonb)
+  COALESCE(r.description, ''), COALESCE(r.translations, '{}'::jsonb), r.hub_id, r.copied_from
 FROM jsonb_populate_record(
   NULL::entry_type,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -5411,7 +5411,9 @@ ON CONFLICT (id) DO UPDATE SET
   position = EXCLUDED.position,
   archived_at = EXCLUDED.archived_at,
   updated_at = EXCLUDED.updated_at,
-  version = EXCLUDED.version
+  version = EXCLUDED.version,
+  hub_id = EXCLUDED.hub_id,
+  copied_from = EXCLUDED.copied_from
 WHERE $2::boolean
 `
 

@@ -1752,6 +1752,8 @@ type EntryType struct {
 	Form            []byte
 	Description     string
 	Translations    []byte
+	HubID           pgtype.UUID
+	CopiedFrom      *string
 }
 
 type ErasureKept struct {

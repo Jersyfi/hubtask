@@ -81,7 +81,12 @@ func (r EntryTypeRepository) Insert(ctx context.Context, entryType work.EntryTyp
 	if err != nil {
 		return err
 	}
+	hub, err := optionalUUID(entryType.HubID)
+	if err != nil {
+		return err
+	}
 	err = queries.InsertEntryType(ctx, sqlc.InsertEntryTypeParams{
+		HubID: hub, CopiedFrom: optionalText(entryType.CopiedFrom),
 		Form: form, Description: entryType.Description, Translations: translations,
 		ID: id, Key: entryType.Key, Level: string(entryType.Level), System: entryType.System,
 		Name: entryType.Name, Icon: entryType.Icon, ColorToken: entryType.ColorToken,
@@ -230,7 +235,12 @@ func entryTypeFrom(row sqlc.EntryType) (work.EntryType, error) {
 	if err != nil {
 		return work.EntryType{}, err
 	}
+	hub, err := optionalID(row.HubID)
+	if err != nil {
+		return work.EntryType{}, err
+	}
 	return work.EntryType{
+		HubID: hub, CopiedFrom: textFrom(row.CopiedFrom),
 		Form: form, Description: row.Description, Translations: translations,
 		ID: id, TenantID: tenantID, Key: row.Key, Level: work.ItemType(row.Level), System: row.System,
 		Name: row.Name, Icon: row.Icon, ColorToken: row.ColorToken,
@@ -247,4 +257,45 @@ func entryTypeFrom(row sqlc.EntryType) (work.EntryType, error) {
 
 func entryTypeReadError(err error, what string) error {
 	return shared.ErrUnavailable.WithDetail("postgres.query_failed").WithCause(fmt.Errorf("%s: %w", what, err))
+}
+
+// OfHubInCollection reports whether an entry of the collection carries a type defined at the hub.
+func (r EntryTypeRepository) OfHubInCollection(ctx context.Context, collection, hub shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	collectionID, err := uuidOf(collection)
+	if err != nil {
+		return false, err
+	}
+	hubID, err := uuidOf(hub)
+	if err != nil {
+		return false, err
+	}
+	bound, err := queries.EntryTypeOfHubInCollection(ctx, sqlc.EntryTypeOfHubInCollectionParams{
+		CollectionID: collectionID, HubID: hubID,
+	})
+	if err != nil {
+		return false, entryTypeReadError(err, "reading the hub's types in the collection")
+	}
+	return bound, nil
+}
+
+// OfHubUnder reports whether the entry at the path, or one below it, carries a type defined at the
+// hub.
+func (r EntryTypeRepository) OfHubUnder(ctx context.Context, path string, hub shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	hubID, err := uuidOf(hub)
+	if err != nil {
+		return false, err
+	}
+	bound, err := queries.EntryTypeOfHubUnder(ctx, sqlc.EntryTypeOfHubUnderParams{Path: path, HubID: hubID})
+	if err != nil {
+		return false, entryTypeReadError(err, "reading the hub's types under the entry")
+	}
+	return bound, nil
 }

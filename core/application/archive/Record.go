@@ -446,6 +446,9 @@ var entities = []Entity{
 		// `level` is the system type's own uniqueness (one per level); the key's skip already
 		// keeps every copy out, a system row included.
 		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}, {Field: "level", Rule: UniqueSkip}},
+		// A hub's own type (migration 0317) follows its hub; `copied_from` is a key kept as a
+		// word, not a reference (it outlives its source).
+		References: []Reference{{Field: "hub_id", Table: "container"}},
 	},
 	{
 		Name: "work_items", Table: "work_item", Keys: []string{"id"}, Duplicable: true,

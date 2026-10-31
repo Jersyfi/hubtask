@@ -43,10 +43,57 @@ func (q *Queries) EntryTypeInUse(ctx context.Context, key string) (bool, error) 
 	return in_use, err
 }
 
+const entryTypeOfHubInCollection = `-- name: EntryTypeOfHubInCollection :one
+SELECT EXISTS (
+  SELECT 1 FROM work_item wi
+  JOIN entry_type t ON t.tenant_id = wi.tenant_id AND t.key = wi.entry_type
+  WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $1::uuid
+    AND t.hub_id = $2::uuid
+)::boolean AS bound
+`
+
+type EntryTypeOfHubInCollectionParams struct {
+	CollectionID pgtype.UUID
+	HubID        pgtype.UUID
+}
+
+// Whether an entry of the collection, trashed ones included, carries a type defined at the hub: a
+// collection moving out of the hub would take a type nothing outside it may use.
+func (q *Queries) EntryTypeOfHubInCollection(ctx context.Context, arg EntryTypeOfHubInCollectionParams) (bool, error) {
+	row := q.db.QueryRow(ctx, entryTypeOfHubInCollection, arg.CollectionID, arg.HubID)
+	var bound bool
+	err := row.Scan(&bound)
+	return bound, err
+}
+
+const entryTypeOfHubUnder = `-- name: EntryTypeOfHubUnder :one
+SELECT EXISTS (
+  SELECT 1 FROM work_item wi
+  JOIN entry_type t ON t.tenant_id = wi.tenant_id AND t.key = wi.entry_type
+  WHERE wi.tenant_id = current_tenant_id() AND wi.path LIKE $1::text || '%'
+    AND t.hub_id = $2::uuid
+)::boolean AS bound
+`
+
+type EntryTypeOfHubUnderParams struct {
+	Path  string
+	HubID pgtype.UUID
+}
+
+// Whether the entry or one below it, trashed ones included, carries a type defined at the hub: a
+// subtree moving out of the hub would take a type nothing outside it may use. The prefix match is
+// MoveWorkItemSubtree's.
+func (q *Queries) EntryTypeOfHubUnder(ctx context.Context, arg EntryTypeOfHubUnderParams) (bool, error) {
+	row := q.db.QueryRow(ctx, entryTypeOfHubUnder, arg.Path, arg.HubID)
+	var bound bool
+	err := row.Scan(&bound)
+	return bound, err
+}
+
 const findEntryType = `-- name: FindEntryType :one
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form,
-  description, translations
+  description, translations, hub_id, copied_from
 FROM entry_type
 WHERE tenant_id = current_tenant_id() AND key = $1::text
 `
@@ -77,6 +124,8 @@ func (q *Queries) FindEntryType(ctx context.Context, key string) (EntryType, err
 		&i.Form,
 		&i.Description,
 		&i.Translations,
+		&i.HubID,
+		&i.CopiedFrom,
 	)
 	return i, err
 }
@@ -85,14 +134,15 @@ const insertEntryType = `-- name: InsertEntryType :exec
 INSERT INTO entry_type (
   id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, form, position, archived_at, created_at, updated_at, version,
-  description, translations
+  description, translations, hub_id, copied_from
 ) VALUES (
   $1, current_tenant_id(), $2, $3, $4,
   normalize($5::text, NFC), $6, $7,
   $8, $9, $10, $11,
   $12, $13::text[], $14::jsonb, $15,
   $16, $17, $17, 1,
-  normalize($18::text, NFC), $19::jsonb
+  normalize($18::text, NFC), $19::jsonb,
+  $20::uuid, $21::text
 )
 `
 
@@ -116,6 +166,8 @@ type InsertEntryTypeParams struct {
 	CreatedAt       pgtype.Timestamptz
 	Description     string
 	Translations    []byte
+	HubID           pgtype.UUID
+	CopiedFrom      *string
 }
 
 func (q *Queries) InsertEntryType(ctx context.Context, arg InsertEntryTypeParams) error {
@@ -139,6 +191,8 @@ func (q *Queries) InsertEntryType(ctx context.Context, arg InsertEntryTypeParams
 		arg.CreatedAt,
 		arg.Description,
 		arg.Translations,
+		arg.HubID,
+		arg.CopiedFrom,
 	)
 	return err
 }
@@ -147,7 +201,7 @@ const listEntryTypes = `-- name: ListEntryTypes :many
 
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form,
-  description, translations
+  description, translations, hub_id, copied_from
 FROM entry_type
 WHERE tenant_id = current_tenant_id()
 ORDER BY level, position, key
@@ -187,6 +241,8 @@ func (q *Queries) ListEntryTypes(ctx context.Context) ([]EntryType, error) {
 			&i.Form,
 			&i.Description,
 			&i.Translations,
+			&i.HubID,
+			&i.CopiedFrom,
 		); err != nil {
 			return nil, err
 		}

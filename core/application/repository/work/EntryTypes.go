@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -32,6 +33,14 @@ type EntryTypes interface {
 
 	// InUse reports whether any entry carries the type.
 	InUse(ctx context.Context, key string) (bool, error)
+
+	// OfHubInCollection reports whether an entry of the collection, trashed ones included,
+	// carries a type defined at the hub.
+	OfHubInCollection(ctx context.Context, collection, hub shared.ID) (bool, error)
+
+	// OfHubUnder reports whether the entry at the path, or one below it, trashed ones included,
+	// carries a type defined at the hub.
+	OfHubUnder(ctx context.Context, path string, hub shared.ID) (bool, error)
 
 	// SetOf writes an entry's type - empty for its level's system type - or reports a version
 	// conflict.

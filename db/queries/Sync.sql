@@ -243,7 +243,7 @@ LIMIT sqlc.arg('batch');
 -- The workspace's type rows (migration 0209); the system types it never changed are the domain's.
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form,
-  description, translations
+  description, translations, hub_id, copied_from
 FROM entry_type
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
 ORDER BY id

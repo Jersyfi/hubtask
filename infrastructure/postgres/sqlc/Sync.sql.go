@@ -2032,7 +2032,7 @@ func (q *Queries) SnapshotEntrySlas(ctx context.Context, arg SnapshotEntrySlasPa
 const snapshotEntryTypes = `-- name: SnapshotEntryTypes :many
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form,
-  description, translations
+  description, translations, hub_id, copied_from
 FROM entry_type
 WHERE tenant_id = current_tenant_id() AND id > $1
 ORDER BY id
@@ -2077,6 +2077,8 @@ func (q *Queries) SnapshotEntryTypes(ctx context.Context, arg SnapshotEntryTypes
 			&i.Form,
 			&i.Description,
 			&i.Translations,
+			&i.HubID,
+			&i.CopiedFrom,
 		); err != nil {
 			return nil, err
 		}

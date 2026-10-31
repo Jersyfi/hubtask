@@ -75,6 +75,12 @@ func (m *memoryTypes) InUse(_ context.Context, key string) (bool, error) { retur
 
 func (m *memoryTypes) SetOf(context.Context, work.WorkItem, int) error { return nil }
 
+func (m *memoryTypes) OfHubInCollection(context.Context, shared.ID, shared.ID) (bool, error) {
+	return false, nil
+}
+
+func (m *memoryTypes) OfHubUnder(context.Context, string, shared.ID) (bool, error) { return false, nil }
+
 type authorizer struct {
 	refuse  bool
 	request access.Request

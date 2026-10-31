@@ -1127,12 +1127,20 @@ CREATE TABLE entry_type (
   created_at       timestamptz NOT NULL,
   updated_at       timestamptz NOT NULL,
   version          integer NOT NULL DEFAULT 1,
+  -- The hub it is defined at and offered in; null is the whole workspace. A copy names the key it
+  -- was copied from (0317, UC-FLW-01 check 11).
+  hub_id           uuid,
+  copied_from      text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
   UNIQUE (tenant_id, id),
   CONSTRAINT entry_type_key_uq UNIQUE (tenant_id, key),
+  CONSTRAINT entry_type_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT entry_type_system_workspace_check CHECK (NOT system OR hub_id IS NULL),
   CHECK (NOT (record AND completable)),
   CHECK (NOT system OR (key = lower(level) AND NOT record AND archived_at IS NULL))
 );
 CREATE UNIQUE INDEX entry_type_system_uq ON entry_type (tenant_id, level) WHERE system;
+CREATE INDEX entry_type_hub_idx ON entry_type (tenant_id, hub_id) WHERE hub_id IS NOT NULL;
 
 -- Workflows and which hub or collection runs which per type (migration 0216, UC-FLW-02 … 05).
 CREATE TABLE workflow (

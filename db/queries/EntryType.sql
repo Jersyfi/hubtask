@@ -4,7 +4,7 @@
 -- name: ListEntryTypes :many
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form,
-  description, translations
+  description, translations, hub_id, copied_from
 FROM entry_type
 WHERE tenant_id = current_tenant_id()
 ORDER BY level, position, key;
@@ -12,7 +12,7 @@ ORDER BY level, position, key;
 -- name: FindEntryType :one
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form,
-  description, translations
+  description, translations, hub_id, copied_from
 FROM entry_type
 WHERE tenant_id = current_tenant_id() AND key = sqlc.arg('key')::text;
 
@@ -20,14 +20,15 @@ WHERE tenant_id = current_tenant_id() AND key = sqlc.arg('key')::text;
 INSERT INTO entry_type (
   id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, form, position, archived_at, created_at, updated_at, version,
-  description, translations
+  description, translations, hub_id, copied_from
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('key'), sqlc.arg('level'), sqlc.arg('system'),
   normalize(sqlc.arg('name')::text, NFC), sqlc.arg('icon'), sqlc.arg('color_token'),
   sqlc.arg('completable'), sqlc.arg('workflow'), sqlc.arg('record'), sqlc.arg('schedulable'),
   sqlc.arg('estimable'), sqlc.arg('allowed_children')::text[], sqlc.arg('form')::jsonb, sqlc.arg('position'),
   sqlc.narg('archived_at'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
-  normalize(sqlc.arg('description')::text, NFC), sqlc.arg('translations')::jsonb
+  normalize(sqlc.arg('description')::text, NFC), sqlc.arg('translations')::jsonb,
+  sqlc.narg('hub_id')::uuid, sqlc.narg('copied_from')::text
 );
 
 -- name: UpdateEntryType :execrows
@@ -76,3 +77,24 @@ UPDATE work_item SET
   updated_at = sqlc.arg('updated_at'),
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: EntryTypeOfHubInCollection :one
+-- Whether an entry of the collection, trashed ones included, carries a type defined at the hub: a
+-- collection moving out of the hub would take a type nothing outside it may use.
+SELECT EXISTS (
+  SELECT 1 FROM work_item wi
+  JOIN entry_type t ON t.tenant_id = wi.tenant_id AND t.key = wi.entry_type
+  WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+    AND t.hub_id = sqlc.arg('hub_id')::uuid
+)::boolean AS bound;
+
+-- name: EntryTypeOfHubUnder :one
+-- Whether the entry or one below it, trashed ones included, carries a type defined at the hub: a
+-- subtree moving out of the hub would take a type nothing outside it may use. The prefix match is
+-- MoveWorkItemSubtree's.
+SELECT EXISTS (
+  SELECT 1 FROM work_item wi
+  JOIN entry_type t ON t.tenant_id = wi.tenant_id AND t.key = wi.entry_type
+  WHERE wi.tenant_id = current_tenant_id() AND wi.path LIKE sqlc.arg('path')::text || '%'
+    AND t.hub_id = sqlc.arg('hub_id')::uuid
+)::boolean AS bound;
