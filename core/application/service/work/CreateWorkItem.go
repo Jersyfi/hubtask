@@ -657,7 +657,7 @@ func (h CreateWorkItem) build(
 	}
 	profile = offer.narrow(profile)
 	entryType, profile, err := chooseEntryType(
-		ctx, h.EntryTypes, cmd.Type, cmd.EntryType, parent, profile, offer.entryTypesOn(cmd.Type),
+		ctx, h.EntryTypes, cmd.Type, cmd.EntryType, parent, profile, offer.entryTypesOn(cmd.Type), hubOf(collection),
 	)
 	if err != nil {
 		return domain.WorkItem{}, err

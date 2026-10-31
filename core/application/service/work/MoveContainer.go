@@ -46,6 +46,9 @@ type MoveContainer struct {
 	// clients are told as its structure in force (offline-sync.md §4.2). A build without it records
 	// the placement alone.
 	Structure StructureResolver
+	// EntryTypes refuses a move out of a hub while an entry of the collection carries a type
+	// defined at that hub (UC-FLW-01 check 11). Nil asks nothing.
+	EntryTypes repository.EntryTypes
 }
 
 // MoveRevoker is the slice of access.Revocations a move needs: who may have lost the collection,
@@ -123,6 +126,15 @@ func (h MoveContainer) Execute(
 		wanted, changes, err := fresh.MovedInto(destination, orderKey, now)
 		if err != nil {
 			return err
+		}
+		if h.EntryTypes != nil && fresh.ParentID != destination.ID {
+			bound, err := h.EntryTypes.OfHubInCollection(ctx, fresh.ID, fresh.ParentID)
+			if err != nil {
+				return err
+			}
+			if bound {
+				return hubBound()
+			}
 		}
 		if len(changes) == 0 {
 			// It already sits where the caller asked for, at the rank it asked for. Nothing is

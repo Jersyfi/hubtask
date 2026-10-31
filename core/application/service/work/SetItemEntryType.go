@@ -137,7 +137,7 @@ func (h SetItemEntryType) Execute(ctx context.Context, actor appshared.ActorCont
 			// Keeping the type an entry has is no choice: a narrowed offer never takes it away.
 			offered = nil
 		}
-		key, narrowed, err := chooseEntryType(ctx, h.EntryTypes, current.Type, cmd.EntryType, parent, profile, offered)
+		key, narrowed, err := chooseEntryType(ctx, h.EntryTypes, current.Type, cmd.EntryType, parent, profile, offered, hubOf(collection))
 		if err != nil {
 			return err
 		}

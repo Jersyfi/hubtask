@@ -7,16 +7,18 @@ import (
 	"context"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // chooseEntryType answers the type key a new entry of the level is written with, and the level's
 // profile narrowed by that type's behaviours (UC-FLW-01 check 3), among the types the
-// collection offers on the level (nil: every one). Without a registry every entry is its
-// level's system type and the profile is unchanged.
+// collection offers on the level (nil: every one) and the entry's hub may use (check 11): another
+// hub's own type is unknown here. Without a registry every entry is its level's system type and
+// the profile is unchanged.
 func chooseEntryType(
 	ctx context.Context, types repository.EntryTypes, level domain.ItemType, key string,
-	parent *domain.WorkItem, profile domain.CapabilityProfile, offered []string,
+	parent *domain.WorkItem, profile domain.CapabilityProfile, offered []string, hub shared.ID,
 ) (string, domain.CapabilityProfile, error) {
 	if types == nil {
 		return "", profile, nil
@@ -31,7 +33,7 @@ func chooseEntryType(
 		of := registry.Of(parent.Type, parent.EntryType)
 		parentType = &of
 	}
-	chosen, err := registry.ChooseAmong(level, key, parentType, offered)
+	chosen, err := registry.Within(hub).ChooseAmong(level, key, parentType, offered)
 	if err != nil {
 		return "", profile, err
 	}
@@ -68,4 +70,31 @@ func (g EntryGate) admitsUnder(ctx context.Context, parent *domain.WorkItem, ent
 		return err
 	}
 	return domain.NewEntryTypes(rows).AdmitsUnder(parent, entry)
+}
+
+// hubOf is the hub a collection sits in (I-C1).
+func hubOf(collection domain.Container) shared.ID { return collection.ParentID }
+
+// keepsHubTypes refuses moving an entry and its subtree out of a hub while one of them carries a
+// type defined at that hub (UC-FLW-01 check 11): outside the hub nothing may use it, and changing
+// it silently would drop what the type's form holds. The entries' types are changed first.
+func keepsHubTypes(
+	ctx context.Context, types repository.EntryTypes, item domain.WorkItem, from, to shared.ID,
+) error {
+	if types == nil || from == to || from.IsZero() {
+		return nil
+	}
+	bound, err := types.OfHubUnder(ctx, item.Path, from)
+	if err != nil {
+		return err
+	}
+	if bound {
+		return hubBound()
+	}
+	return nil
+}
+
+func hubBound() error {
+	return shared.ErrConflict.WithDetail("entry_types.hub_bound").
+		WithFields(shared.FieldError{Path: "/entry_type", Code: "entry_types.hub_bound"})
 }

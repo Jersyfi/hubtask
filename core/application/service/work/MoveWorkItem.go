@@ -398,6 +398,9 @@ func (w PlacementWriter) perform(
 			if err := offer.requireEntryType(fresh.item); err != nil {
 				return err
 			}
+			if err := keepsHubTypes(ctx, w.Gate.EntryTypes, fresh.item, hubOf(fresh.source), hubOf(fresh.destination)); err != nil {
+				return err
+			}
 		}
 
 		if err := w.ensureBucketAt(ctx, fresh, spot, offer); err != nil {
