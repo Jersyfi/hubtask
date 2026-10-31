@@ -31,7 +31,7 @@ const COMMON = [
   'Open', 'Mark as done', 'Change the due date', 'Person', 'Labels',
   'Move up', 'Move down', 'Move to the top', 'Move to the bottom',
   'Move inside', 'Move out one level', 'Move to another collection',
-  'Duplicate', 'Share this entry', 'Copy link', 'Archive', 'Move to the trash',
+  'Duplicate', 'Split a part off', 'Merge into another', 'Share this entry', 'Copy link', 'Archive', 'Move to the trash',
 ];
 
 /** The items' own labels, the reason under an unavailable one left out. */

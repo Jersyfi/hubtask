@@ -260,12 +260,15 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
   assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Settings', 'Import', 'Change position', 'Archive', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
-  // A hub's settings are a page as a collection's are: its general fields, its default, its people.
+  // A hub's settings are a page as a collection's are: its general fields, its default, its modules,
+  // its code and chat connections, its people.
   await openSettings(page, HUB.name);
   await page.waitForURL(new RegExp(`/hubs/${HUB.id}/settings/general$`, 'u'), { timeout: 5_000 });
+  // The page is drawn once its structure is read, a moment after the address lands.
+  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').first().waitFor({ timeout: 5_000 });
   assert.deepEqual(
     (await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').allTextContents()).map((each) => each.trim()),
-    ['General', 'Structure', 'People'],
+    ['General', 'Structure', 'Modules', 'Code', 'Chat', 'People'],
   );
   await page.goBack();
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });

@@ -67,7 +67,7 @@ async function landsOn(page, target) {
 
 const MOVED = [
   ['/administration/groups', '/administration/people?tab=groups', 'Groups'],
-  ['/administration/permissions', '/administration/people?tab=permissions', 'Roles and permissions'],
+  ['/administration/permissions', '/administration/people?tab=permissions', 'Who may do what'],
   ['/administration/service-accounts', '/administration/machines', 'Service accounts'],
   ['/administration/apps', '/administration/machines?tab=apps', 'Third-party apps'],
 ];
@@ -101,7 +101,7 @@ test('chromium: each old address lands on its tab, and a tab chosen is an addres
   const section = page.getByRole('navigation', { name: 'Administration', exact: true });
   assert.equal(await section.getByRole('treeitem', { name: 'Machines and apps', exact: true }).getAttribute('aria-current'), 'page');
   await page.goto(`${served.origin}/administration/people?tab=permissions`);
-  await page.getByRole('tab', { name: 'Roles and permissions', exact: true }).waitFor({ timeout: 15_000 });
+  await page.getByRole('tab', { name: 'Who may do what', exact: true }).waitFor({ timeout: 15_000 });
   assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
 
   assert.deepEqual(failures, []);
@@ -154,7 +154,7 @@ test('chromium: an auditor reads the people, the groups and the roles, and is of
   await page.getByRole('row').filter({ hasText: OTHER.display_name }).waitFor({ timeout: 15_000 });
   assert.equal(await page.getByRole('button', { name: 'Add people', exact: true }).count(), 0, 'an auditor is offered Add people');
   assert.equal(await page.getByRole('button', { name: 'Ways to add somebody' }).count(), 0, 'an auditor is offered the ways');
-  for (const tab of ['Groups', 'Roles and permissions']) {
+  for (const tab of ['Groups', 'Who may do what']) {
     await page.getByRole('tab', { name: tab, exact: true }).click();
     assert.equal(await page.getByRole('tab', { name: tab, exact: true }).getAttribute('aria-selected'), 'true');
   }

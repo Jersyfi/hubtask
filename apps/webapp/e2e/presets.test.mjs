@@ -202,7 +202,7 @@ test("chromium: the workspace's Presets - rename, withdraw, the default kept, th
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/administration/presets`);
-  await page.getByRole('heading', { name: 'Presets', level: 1 }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { name: 'Templates', level: 1 }).first().waitFor({ timeout: 15_000 });
   const shop = page.locator(`[data-preset="${SHOP.id}"]`);
   await shop.waitFor({ timeout: 10_000 });
   assert.equal(await page.locator(`[data-preset="${CLIENT.id}"]`).count(), 0, "a person's own preset is among the workspace's");

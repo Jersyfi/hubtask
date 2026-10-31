@@ -96,7 +96,8 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
   assert.equal(await page.getByRole('navigation', { name: 'Workspace' }).count(), 0, 'the workspace tree is drawn inside the section');
   const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
-  assert.equal(rows.length, 9, `the section holds ${rows.length} rows`);
+  // The way out and ten screens, the calendars pushed to and the file stores among them.
+  assert.equal(rows.length, 11, `the section holds ${rows.length} rows`);
 
   const untrailed = [];
   const unheaded = [];
@@ -405,7 +406,9 @@ test('chromium: 1280 px — the workspace screen has no second-factor switch of 
   await page.goto(`${served.origin}/administration/workspace`);
   await page.waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Acme'), null, { timeout: 15_000 });
   assert.equal(await page.getByText('Administrators need a second factor').count(), 0, 'the second place for the rule is still there');
-  assert.equal(await page.getByRole('switch').count() + await page.locator('input[type="checkbox"]').count(), 0, 'a switch is left on the workspace screen');
+  // The screen holds switches of its own (pages by public link among them); none is the factor's.
+  assert.equal(await page.getByRole('switch', { name: /second factor|two-factor|TOTP/i }).count(), 0, 'a second-factor switch is left on the workspace screen');
+  assert.equal(await page.getByRole('checkbox', { name: /second factor|two-factor|TOTP/i }).count(), 0, 'a second-factor box is left on the workspace screen');
 });
 
 // UC-ID-03 checks 1 and 2 on the profile: the same walk the forced setup during sign-in takes, and

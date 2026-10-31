@@ -321,7 +321,7 @@ test('chromium: each tab saves its own rows, and the legal links are their own p
   await page.getByLabel('Minimum length', { exact: true }).waitFor();
   assert.deepEqual(
     await page.getByRole('tab').allTextContents(),
-    ['Passwords', 'Sessions', 'Ways and providers'],
+    ['Passwords', 'Sessions', 'Ways and providers', 'Directory'],
   );
   // No legal link on the sign-in screen: they are their own page, with their own breadcrumb.
   assert.equal(await page.getByLabel('Imprint', { exact: true }).count(), 0);
@@ -729,6 +729,8 @@ test('chromium: the providers\' configuration has no switch of its own, and its 
 
   await page.goto(`${served.origin}/administration/identity-provider`);
   await page.waitForURL(/\/administration\/sign-in\?tab=ways$/);
+  // The tabs are drawn once the rules are read, a moment after the address lands.
+  await page.getByRole('tab', { name: 'Ways and providers', selected: true }).waitFor();
   assert.equal(await page.getByRole('tab', { name: 'Ways and providers', selected: true }).count(), 1);
   const providers = page.locator('section[aria-labelledby="providers"]');
   await providers.getByText('Contoso Entra ID').first().waitFor();
