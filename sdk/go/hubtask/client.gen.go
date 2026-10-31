@@ -4328,6 +4328,7 @@ const (
 	EntryFormChannelChannelPUBLIC EntryFormChannelChannel = "PUBLIC"
 	EntryFormChannelChannelRULE   EntryFormChannelChannel = "RULE"
 	EntryFormChannelChannelSYNC   EntryFormChannelChannel = "SYNC"
+	EntryFormChannelChannelVOICE  EntryFormChannelChannel = "VOICE"
 )
 
 // Valid indicates whether the value is a known member of the EntryFormChannelChannel enum.
@@ -4348,6 +4349,8 @@ func (e EntryFormChannelChannel) Valid() bool {
 	case EntryFormChannelChannelRULE:
 		return true
 	case EntryFormChannelChannelSYNC:
+		return true
+	case EntryFormChannelChannelVOICE:
 		return true
 	default:
 		return false
@@ -15795,7 +15798,7 @@ type EntryForm struct {
 
 // EntryFormChannel defines model for EntryFormChannel.
 type EntryFormChannel struct {
-	// Channel The door; APP is the REST API the web app and hubctl share, PORTAL the requester portal's request catalogue, PUBLIC a public form opened without signing in - closed unless a form names it and leaves it open.
+	// Channel The door; APP is the REST API the web app and hubctl share, VOICE what a person says to a voice assistant, PORTAL the requester portal's request catalogue, PUBLIC a public form opened without signing in - closed unless a form names it and leaves it open.
 	Channel EntryFormChannelChannel `json:"channel"`
 
 	// Closed No entry of the type is created through this door.
@@ -15808,7 +15811,7 @@ type EntryFormChannel struct {
 	Presets *map[string]interface{} `json:"presets,omitempty"`
 }
 
-// EntryFormChannelChannel The door; APP is the REST API the web app and hubctl share, PORTAL the requester portal's request catalogue, PUBLIC a public form opened without signing in - closed unless a form names it and leaves it open.
+// EntryFormChannelChannel The door; APP is the REST API the web app and hubctl share, VOICE what a person says to a voice assistant, PORTAL the requester portal's request catalogue, PUBLIC a public form opened without signing in - closed unless a form names it and leaves it open.
 type EntryFormChannelChannel string
 
 // EntryFormDraft defines model for EntryFormDraft.

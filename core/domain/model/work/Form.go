@@ -35,10 +35,14 @@ const (
 	// ChannelPublic is a public form, opened without signing in (UC-SVC-13). It is closed unless a
 	// type's form names it and leaves it open: an anonymous stranger reaches no type by default.
 	ChannelPublic FormChannel = "PUBLIC"
+	// ChannelVoice is what a person says to a voice assistant (UC-INT-14): the person's own
+	// permissions, a door of its own so a type can refuse it.
+	ChannelVoice FormChannel = "VOICE"
 )
 
 var formChannels = [...]FormChannel{
 	ChannelApp, ChannelMCP, ChannelRule, ChannelSync, ChannelImport, ChannelMail, ChannelPortal, ChannelPublic,
+	ChannelVoice,
 }
 
 // FormChannels answers every channel, in a fixed order.

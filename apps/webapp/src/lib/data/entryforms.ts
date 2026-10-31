@@ -21,7 +21,7 @@ import type { AccessExplanation, EntryForm, EntryFormChannel, EntryFormDraft, En
 export const OWN_FORM_KEYS = ['title', 'notes', 'due_date', 'start_at'] as const;
 
 /** The doors a form tells apart, in the contract's order. */
-export const FORM_CHANNELS = ['APP', 'MCP', 'RULE', 'SYNC', 'IMPORT', 'MAIL'] as const;
+export const FORM_CHANNELS = ['APP', 'MCP', 'RULE', 'SYNC', 'IMPORT', 'MAIL', 'VOICE'] as const;
 
 /**
  * The doors closed until a form names them: the requester portal and a public form. Their rule

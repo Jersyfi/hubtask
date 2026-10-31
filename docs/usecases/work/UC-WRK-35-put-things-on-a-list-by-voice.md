@@ -48,6 +48,9 @@ At an operator's, the operator publishes the skill; the administrator only switc
    Alexa's three addresses; with the operator's published skill it says to enable and link it.
 7. Only Alexa's signed requests from a known skill are answered; entries are made as the person who
    linked the account, with their rights; an unlinked account is asked to link.
+8. A type whose form closes the *Voice assistants* channel (*Settings → Types → Form*) takes
+   nothing said to an assistant: Alexa says the person may not add to that list, while the app
+   still creates the type.
 
 ## Where it ends
 

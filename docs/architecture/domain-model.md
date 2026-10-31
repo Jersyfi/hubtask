@@ -92,7 +92,8 @@ a channel closes itself for creating the type, hides fields and presets them, an
 field or a rule of its own (`model.md` §6 of the suite plan). The channels are the doors the server
 tells apart - `APP` (the REST door the web app and hubctl share), `MCP`, `RULE`, `SYNC`, `IMPORT`,
 `MAIL`, `PORTAL`, `PUBLIC` (a public form, UC-SVC-13; closed unless a form names it and leaves it
-open, a type without a form included) - and the adapter sets one on the actor (`ActorContext.Channel`); a channel the server could
+open, a type without a form included), `VOICE` (a voice assistant, UC-WRK-35; set by the assistant
+service, not an adapter a caller picks) - and the adapter sets one on the actor (`ActorContext.Channel`); a channel the server could
 not tell apart would be a narrowing anybody could step around. A condition is CEL over `entry`,
 `actor` (`role`, the built-in role; `roles` and `permissions`, every role key - custom ones
 included - and every permission held along the path, a list tested with `in`; `kind`), `channel`

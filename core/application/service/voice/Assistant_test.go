@@ -11,7 +11,9 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/voice"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -32,11 +34,18 @@ type call struct {
 type catalogue struct {
 	calls []call
 	open  []usecase.Output
+	// form is the entry type's form, as CreateWorkItem's gate reads it for the act's door.
+	form work.Form
 }
 
-func (c *catalogue) Invoke(_ context.Context, name string, _ appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+func (c *catalogue) Invoke(_ context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	c.calls = append(c.calls, call{name: name, in: in})
 	switch name {
+	case createWorkItemName:
+		channel := workservice.FormChannelOf(actor)
+		if c.form.Channel(channel).Closed {
+			return nil, shared.ErrForbidden.WithDetail("forms.channel_closed")
+		}
 	case listContainersName:
 		if in.String("type") == "HUB" {
 			return usecase.Output{"data": []usecase.Output{{"id": hub, "name": "Haushalt"}}}, nil
@@ -235,5 +244,22 @@ func TestTheGuideNamesThePersonsOwnLists(t *testing.T) {
 	helper, _ := assistant(domain.Settings{Enabled: true})
 	if places := helper.Places(context.Background(), person); len(places) == 0 {
 		t.Error("the person's places were not read")
+	}
+}
+
+// A type whose form closes the voice door takes nothing said to an assistant, while the app's
+// door stays open (configuration/model.md §2 Channel).
+func TestATypeClosedToVoiceIsRefusedThroughTheAssistant(t *testing.T) {
+	a, calls := assistant(domain.Settings{Enabled: true})
+	calls.form = work.Form{Channels: []work.FormChannelRule{{Channel: work.ChannelVoice, Closed: true}}}
+	answer, err := a.Add(context.Background(), person, "Milch auf die Einkaufsliste", "", domain.German)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer.Code != "voice.not_allowed" {
+		t.Fatalf("answer = %q, want voice.not_allowed", answer.Code)
+	}
+	if calls.form.Channel(workservice.FormChannelOf(person)).Closed {
+		t.Fatal("the app's own door is closed too")
 	}
 }

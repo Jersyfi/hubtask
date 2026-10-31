@@ -29592,8 +29592,8 @@ components:
       properties:
         channel:
           type: string
-          enum: [APP, MCP, RULE, SYNC, IMPORT, MAIL, PORTAL, PUBLIC]
-          description: The door; APP is the REST API the web app and hubctl share, PORTAL the requester portal's request catalogue, PUBLIC a public form opened without signing in - closed unless a form names it and leaves it open.
+          enum: [APP, MCP, RULE, SYNC, IMPORT, MAIL, PORTAL, PUBLIC, VOICE]
+          description: The door; APP is the REST API the web app and hubctl share, VOICE what a person says to a voice assistant, PORTAL the requester portal's request catalogue, PUBLIC a public form opened without signing in - closed unless a form names it and leaves it open.
         closed: { type: boolean, default: false, description: "No entry of the type is created through this door." }
         hidden:
           type: array

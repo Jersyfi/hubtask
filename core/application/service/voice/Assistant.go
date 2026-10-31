@@ -21,6 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/voice"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -36,6 +37,13 @@ const (
 	// pageSize is one level of the tree read at once.
 	pageSize = 200
 )
+
+// invoke performs a use case through the voice door, which a type's form may close or narrow
+// (configuration/model.md §2 Channel).
+func (a Assistant) invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	actor.Channel = string(work.ChannelVoice)
+	return a.Catalogue.Invoke(ctx, name, actor, in)
+}
 
 // Catalogue performs a named use case as an actor.
 type Catalogue interface {
@@ -154,7 +162,7 @@ func (a Assistant) Add(
 		if !meant.Place.LabelID.IsZero() {
 			input["label_ids"] = []any{meant.Place.LabelID.String()}
 		}
-		if _, err := a.Catalogue.Invoke(ctx, createWorkItemName, actor, input); err != nil {
+		if _, err := a.invoke(ctx, createWorkItemName, actor, input); err != nil {
 			if errors.Is(err, shared.ErrForbidden) {
 				return reply("voice.not_allowed", map[string]string{"list": meant.Place.Name}), nil
 			}
@@ -163,7 +171,7 @@ func (a Assistant) Add(
 				delete(input, "amount")
 				title := thing.Amount + " " + thing.Title
 				input["title"] = title
-				if _, err := a.Catalogue.Invoke(ctx, createWorkItemName, actor, input); err != nil {
+				if _, err := a.invoke(ctx, createWorkItemName, actor, input); err != nil {
 					return Reply{}, err
 				}
 				added = append(added, title)
@@ -248,7 +256,7 @@ func (a Assistant) Complete(
 	if match == nil {
 		return reply("voice.not_on_list", map[string]string{"thing": asked.Title, "list": place.Name}), nil
 	}
-	if _, err := a.Catalogue.Invoke(ctx, completeWorkItemName, actor, usecase.Input{"item_id": match.id}); err != nil {
+	if _, err := a.invoke(ctx, completeWorkItemName, actor, usecase.Input{"item_id": match.id}); err != nil {
 		return Reply{}, err
 	}
 	return reply("voice.completed", map[string]string{"thing": match.title, "list": place.Name}), nil
@@ -256,7 +264,7 @@ func (a Assistant) Complete(
 
 // Today says what is due today or overdue on the person.
 func (a Assistant) Today(ctx context.Context, actor appshared.ActorContext, language domain.Language) (Reply, error) {
-	out, err := a.Catalogue.Invoke(ctx, queryItemsName, actor, usecase.Input{
+	out, err := a.invoke(ctx, queryItemsName, actor, usecase.Input{
 		"filter": map[string]any{"op": "AND", "nodes": []any{
 			map[string]any{"field": "is_completed", "op": "EQ", "value": false},
 			map[string]any{"field": "assignee_id", "op": "EQ", "value": "@me"},
@@ -318,7 +326,7 @@ func (a Assistant) open(ctx context.Context, actor appshared.ActorContext, place
 	if !place.LabelID.IsZero() {
 		nodes = append(nodes, map[string]any{"field": "labels", "op": "CONTAINS", "value": place.LabelID.String()})
 	}
-	out, err := a.Catalogue.Invoke(ctx, queryItemsName, actor, usecase.Input{
+	out, err := a.invoke(ctx, queryItemsName, actor, usecase.Input{
 		"scope_container_id": place.CollectionID.String(),
 		"filter":             map[string]any{"op": "AND", "nodes": nodes},
 		"size":               size,
@@ -345,7 +353,7 @@ func (a Assistant) places(ctx context.Context, actor appshared.ActorContext) (do
 	if err != nil {
 		return domain.Settings{}, nil, err
 	}
-	hubs, err := a.Catalogue.Invoke(ctx, listContainersName, actor, usecase.Input{"type": "HUB", "size": pageSize})
+	hubs, err := a.invoke(ctx, listContainersName, actor, usecase.Input{"type": "HUB", "size": pageSize})
 	if err != nil {
 		return domain.Settings{}, nil, err
 	}
@@ -353,7 +361,7 @@ func (a Assistant) places(ctx context.Context, actor appshared.ActorContext) (do
 	collections := map[shared.ID]string{}
 	hubRows, _ := hubs["data"].([]usecase.Output)
 	for _, hub := range hubRows {
-		level, err := a.Catalogue.Invoke(ctx, listContainersName, actor, usecase.Input{
+		level, err := a.invoke(ctx, listContainersName, actor, usecase.Input{
 			"parent_id": hub.String("id"), "type": "COLLECTION", "size": pageSize,
 		})
 		if err != nil {
@@ -368,7 +376,7 @@ func (a Assistant) places(ctx context.Context, actor appshared.ActorContext) (do
 			name := row.String("name")
 			collections[id] = name
 			known = append(known, domain.Known{Place: domain.Place{CollectionID: id, Name: name}, Name: name})
-			labels, err := a.Catalogue.Invoke(ctx, listLabelsName, actor, usecase.Input{"collection_id": id.String()})
+			labels, err := a.invoke(ctx, listLabelsName, actor, usecase.Input{"collection_id": id.String()})
 			if err != nil {
 				continue
 			}
