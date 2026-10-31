@@ -8156,6 +8156,11 @@
   "config.key_invalid": "Ein Schlüssel beginnt mit einem Buchstaben und enthält nur Kleinbuchstaben, Ziffern und Unterstriche.",
   "config.section_too_large": "Dieser Teil der Konfiguration ist zu groß, um ihn ganz zu lesen, und wird darum gar nicht gelesen.",
   "config.key_unknown": "Diesen Schlüssel gibt es in der Konfiguration nicht.",
+  "config.check.done_unreachable": "Kein Eintrag dieses Workflows kann je abgeschlossen werden: Kein Schritt, den jemand gehen darf, führt zu einem erledigten Status.",
+  "config.check.status_unreachable": "Kein Schritt, den jemand gehen darf, führt zum Status {status}.",
+  "config.check.step_nobody": "Niemand darf den Schritt {step} gehen: Er nennt nur Rollen, die es nicht gibt.",
+  "config.check.rule_may_loop": "Diese Regel beantwortet jede Änderung eines Eintrags, indem sie ihn wieder ändert ({action}), ohne Bedingung und ohne genannte Felder; sie läuft, bis die Tiefengrenze sie stoppt.",
+  "config.check.scheme_workflow_unknown": "Dieser Typ läuft mit dem Workflow {workflow}, den der Arbeitsbereich nicht hat.",
   "config.name_invalid": "Ein Name hat 1 bis 120 Zeichen in einer Zeile.",
   "config.not_removable": "Dieser Baustein lässt sich nicht entfernen. Archiviere ihn oder schalte ihn aus.",
   "config.plan_mismatch": "Dieses Dokument ist nicht das geplante. Plane es erneut.",
@@ -10924,5 +10929,10 @@
   "app.planning.import_choose_first": "Wähle zuerst eine Datei.",
   "app.planning.import_too_large": "Die Datei ist größer als 512 KB.",
   "app.planning.imported": "{count} Einträge sind im Plan.",
-  "app.planning.from_copy": "Du bist offline: Der Plan zeigt die eigenen Termine und Abhängigkeiten der Einträge von diesem Gerät. Vorgeschlagene Verschiebungen, Puffer und die kritische Kette kommen mit dem Server zurück."
+  "app.planning.from_copy": "Du bist offline: Der Plan zeigt die eigenen Termine und Abhängigkeiten der Einträge von diesem Gerät. Vorgeschlagene Verschiebungen, Puffer und die kritische Kette kommen mit dem Server zurück.",
+  "app.admin.check_title": "Konfigurationsprüfung",
+  "app.admin.check_none": "Nichts gefunden: Jeder Workflow kann abgeschlossen, jeder Schritt gegangen werden, und keine Regel beantwortet ihre eigene Änderung.",
+  "app.admin.check_error": "Fehler",
+  "app.admin.check_warning": "Warnung",
+  "app.admin.check_open": "{path} öffnen"
 }

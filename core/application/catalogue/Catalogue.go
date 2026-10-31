@@ -72,6 +72,7 @@ func Descriptors() []usecase.Descriptor {
 		configservice.ReadConfigSchema{}.Descriptor(),
 		configservice.ExportConfig{}.Descriptor(),
 		configservice.ExplainConfig{}.Descriptor(),
+		configservice.CheckConfig{}.Descriptor(),
 		configservice.ValidateConfig{}.Descriptor(),
 		configservice.PlanConfig{}.Descriptor(),
 		configservice.ProposeConfig{}.Descriptor(),

@@ -2418,6 +2418,7 @@ func run() error {
 		configservice.ReadConfigSchema{Desk: configDesk}.Descriptor(),
 		configservice.ExportConfig{Desk: configDesk}.Descriptor(),
 		configservice.ExplainConfig{Desk: configDesk}.Descriptor(),
+		configservice.CheckConfig{Desk: configDesk}.Descriptor(),
 		configservice.ValidateConfig{Desk: configDesk}.Descriptor(),
 		configservice.PlanConfig{Desk: configDesk}.Descriptor(),
 		configservice.ProposeConfig{Desk: configDesk}.Descriptor(),

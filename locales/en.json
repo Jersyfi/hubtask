@@ -8159,6 +8159,11 @@
   "config.key_invalid": "A key starts with a letter and holds only lower-case letters, digits and underscores.",
   "config.section_too_large": "This part of the configuration is too large to read whole, so it is not read at all.",
   "config.key_unknown": "There is no such key in the configuration.",
+  "config.check.done_unreachable": "No entry of this workflow can ever be completed: no step somebody may take leads to a done status.",
+  "config.check.status_unreachable": "No step somebody may take leads to the status {status}.",
+  "config.check.step_nobody": "Nobody may take the step {step}: it names only roles that do not exist.",
+  "config.check.rule_may_loop": "This rule answers every change of an entry by changing it again ({action}), with no condition and no fields named; it runs until the depth limit stops it.",
+  "config.check.scheme_workflow_unknown": "This type is run by the workflow {workflow}, which the workspace does not hold.",
   "config.name_invalid": "A name has 1 to 120 characters on one line.",
   "config.not_removable": "This block cannot be removed. Archive it or switch it off instead.",
   "config.plan_mismatch": "This document is not the one that was planned. Plan it again.",
@@ -10927,5 +10932,10 @@
   "app.planning.import_choose_first": "Choose a file first.",
   "app.planning.import_too_large": "The file is larger than 512 KB.",
   "app.planning.imported": "{count} entries are in the plan.",
-  "app.planning.from_copy": "You are offline: the plan shows the entries' own dates and dependencies from this device. Proposed moves, float and the critical chain come back with the server."
+  "app.planning.from_copy": "You are offline: the plan shows the entries' own dates and dependencies from this device. Proposed moves, float and the critical chain come back with the server.",
+  "app.admin.check_title": "Configuration check",
+  "app.admin.check_none": "Nothing found: every workflow can be completed, every step taken, and no rule answers its own change.",
+  "app.admin.check_error": "Error",
+  "app.admin.check_warning": "Warning",
+  "app.admin.check_open": "Open {path}"
 }

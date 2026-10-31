@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package config
+
+import (
+	"testing"
+
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+)
+
+// configuration/ui.md A5, UC-CFG-01 check 10: the check reads the configuration in force, the
+// workspace's and a hub's, and answers what people would meet - errors first, each with the block
+// to change - before anybody meets it.
+func TestTheConfigurationCheckFindsWhatPeopleWouldMeet(t *testing.T) {
+	f := hubFixture()
+	// The workflow has statuses but no step and no done status reached from where it starts.
+	f.world.workflows = map[string]map[string]any{"service": {"key": "service", "name": "Service", "published": map[string]any{
+		"initial":  "todo",
+		"statuses": []any{map[string]any{"key": "todo", "category": "TODO"}, map[string]any{"key": "done", "category": "DONE"}},
+		"steps":    []any{map[string]any{"key": "finish", "from": []any{"todo"}, "to": "done", "who": map[string]any{"roles": []any{"cab_member"}}}},
+	}}}
+	f.world.scheme = []any{map[string]any{"container_id": supportHub, "entry_type": "incident", "workflow": "gone"}}
+
+	out := invoke(t, CheckConfig{f.desk}.Descriptor(), person, usecase.Input{"hub_id": supportHub})
+	findings := out["findings"].([]usecase.Output)
+	var codes []string
+	for _, finding := range findings {
+		codes = append(codes, finding["severity"].(string)+" "+finding["code"].(string)+" "+finding["path"].(string))
+	}
+	want := []string{
+		"ERROR config.check.scheme_workflow_unknown scheme.incident",
+		"ERROR config.check.step_nobody workflows.service",
+		"ERROR config.check.done_unreachable workflows.service",
+		"WARNING config.check.status_unreachable workflows.service",
+	}
+	if len(codes) != len(want) {
+		t.Fatalf("findings %v, want %v", codes, want)
+	}
+	for i := range want {
+		if codes[i] != want[i] {
+			t.Fatalf("findings %v, want %v", codes, want)
+		}
+	}
+
+	f.world.workflows["service"]["published"].(map[string]any)["steps"] = []any{map[string]any{"key": "finish", "from": []any{"todo"}, "to": "done"}}
+	f.world.scheme = []any{map[string]any{"container_id": supportHub, "entry_type": "incident", "workflow": "service"}}
+	if out := invoke(t, CheckConfig{f.desk}.Descriptor(), person, usecase.Input{"hub_id": supportHub}); len(out["findings"].([]usecase.Output)) != 0 {
+		t.Errorf("a sound configuration found %v", out["findings"])
+	}
+}
