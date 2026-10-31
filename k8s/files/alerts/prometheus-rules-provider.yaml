@@ -271,3 +271,21 @@ groups:
             them from GET /admin/events. Redeliver from the installation screen or hubctl once the
             platform answers again.
           runbook: RB-A21-platform-dead-letters.md
+
+      # A-22. Live document awareness does not reach the other replicas: co-editors connected to
+      # different replicas stop seeing each other's cursors and presence, while the document's
+      # own words still arrive (they are stored and woken separately). Awareness is best effort
+      # and never the connection's error, so this counter is the only place it shows.
+      - alert: HubtaskAwarenessRelayFailing
+        expr: sum(rate(hubtask_realtime_awareness_relayed_total{outcome="failed"}[10m])) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-22
+        annotations:
+          summary: "Co-editors on different replicas do not see each other"
+          description: >
+            Awareness - cursors and presence on a live document - could not be handed to the
+            other replicas for a quarter of an hour. Editing still works and every word arrives;
+            people on different replicas only miss each other's cursors.
+          runbook: RB-A22-awareness-relay.md

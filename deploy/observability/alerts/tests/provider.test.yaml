@@ -287,3 +287,35 @@ tests:
       - eval_time: 35m
         alertname: HubtaskPlatformDeadLetters
         exp_alerts: []
+
+  # A-22: awareness keeps failing to reach the other replicas for a quarter of an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_realtime_awareness_relayed_total{outcome="failed"}'
+        values: '0+5x40'
+      - series: 'hubtask_realtime_awareness_relayed_total{outcome="sent"}'
+        values: '0+50x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: HubtaskAwarenessRelayFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-22
+            exp_annotations:
+              summary: "Co-editors on different replicas do not see each other"
+              description: "Awareness - cursors and presence on a live document - could not be handed to the other replicas for a quarter of an hour. Editing still works and every word arrives; people on different replicas only miss each other's cursors.\n"
+              runbook: RB-A22-awareness-relay.md
+
+  # A-22 stays quiet while awareness is only too large or sent: a large state stays on its replica
+  # by design.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_realtime_awareness_relayed_total{outcome="too_large"}'
+        values: '0+5x40'
+      - series: 'hubtask_realtime_awareness_relayed_total{outcome="sent"}'
+        values: '0+50x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: HubtaskAwarenessRelayFailing
+        exp_alerts: []

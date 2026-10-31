@@ -509,7 +509,9 @@ it, order it and decide who may touch it.
   the same process and, at most every 100 ms per connection with the latest kept, to those on the
   other processes as a notification on `hubtask_awareness` (`AwarenessBus`, through the
   transaction wrapper; a message whose notification would pass 7,900 bytes stays in its process).
-  It is never stored. No sticky routing is needed behind a load balancer.
+  It is never stored. No sticky routing is needed behind a load balancer. Each relay is counted
+  in `hubtask_realtime_awareness_relayed_total{outcome}` (`sent`, `too_large`, `failed`); A-22
+  tells the operator when failures persist.
 * **The browser client** is `packages/editor`: a Yjs document per page bound to the block editor,
   its connection in this framing (a reader sends no update; a writer answers `101` with a `100`)
   and a reconnect with a doubling wait up to thirty seconds. The socket comes from the sync engine
