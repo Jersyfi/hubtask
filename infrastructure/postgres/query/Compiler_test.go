@@ -388,7 +388,9 @@ func TestGroupsAreOneWindowedQuery(t *testing.T) {
 	}
 	for _, want := range []string{
 		`row_number() OVER (PARTITION BY wi.bucket_id ORDER BY wi.order_key COLLATE "C" ASC, wi.id) AS rn`,
-		`) g WHERE g.rn <= $2`,
+		// Numbered over the identifiers alone; only the chosen rows are read whole.
+		`FROM work_item wi WHERE wi.id = ANY (ARRAY(SELECT r.id FROM (SELECT wi.id, row_number()`,
+		`) r WHERE r.rn <= $2))) g`,
 		` ORDER BY bucket_id ASC NULLS LAST, order_key COLLATE "C" ASC, id`,
 	} {
 		if !strings.Contains(statement.SQL, want) {

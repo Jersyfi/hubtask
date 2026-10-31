@@ -146,18 +146,24 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 	if customGroup {
 		b.write(`, `)
 		b.customValue(groupField)
-		b.write(` AS `, groupAlias, `, row_number() OVER (PARTITION BY `)
-		b.customValue(groupField)
-		b.write(` ORDER BY `)
-	} else {
-		b.write(`, row_number() OVER (PARTITION BY `, group, ` ORDER BY `)
+		b.write(` AS `, groupAlias)
 	}
+	// The row numbers are drawn over the identifiers alone and only the chosen rows are read
+	// whole: numbering every row of a large collection with all its columns sorted them all,
+	// spilling to disk at tens of thousands of entries (observability-reliability.md §13.2).
+	b.write(` FROM work_item wi WHERE wi.id = ANY (ARRAY(SELECT r.id FROM (SELECT wi.id, row_number() OVER (PARTITION BY `)
+	if customGroup {
+		b.customValue(groupField)
+	} else {
+		b.write(group)
+	}
+	b.write(` ORDER BY `)
 	b.ordering(search.Spec.Sort, itemPrefix)
 	b.write(`, wi.id) AS rn FROM work_item wi WHERE `)
 	b.predicates(search)
-	b.write(`) g WHERE g.rn <= `)
+	b.write(`) r WHERE r.rn <= `)
 	b.param(int64(probe))
-	b.write(` ORDER BY `)
+	b.write(`))) g ORDER BY `)
 
 	// The groups come in the grouping field's own order, and the entries that have no value at all
 	// come last: a board draws that column at the end, and a client that reads the groups in order
