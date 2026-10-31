@@ -354,6 +354,22 @@ func (q Queue) Depth(ctx context.Context) ([]queue.Depth, error) {
 	return depths, nil
 }
 
+// OpenJobs counts the jobs of one kind not yet finished - what hubtask_media_scan_held_workspaces
+// reads (observability-reliability.md §4).
+func (q Queue) OpenJobs(ctx context.Context, kind queue.Kind) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.OpenJobCount(ctx, string(kind))
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the open jobs: %w", err))
+	}
+	return int(count), nil
+}
+
 // ScheduledBacklog counts the jobs of one kind waiting for a future moment - the retry ladders
 // parked on the queue, which is what hubtask_webhook_retry_backlog reads
 // (observability-reliability.md §4).

@@ -289,3 +289,23 @@ groups:
             other replicas for a quarter of an hour. Editing still works and every word arrives;
             people on different replicas only miss each other's cursors.
           runbook: RB-A22-awareness-relay.md
+
+      # A-23. Uploads wait for a malware scan the daemon does not give: a held file can be
+      # attached but nobody can download it until the scan settles it (UC-MED-01 check 10). The
+      # media.scan job retries every five minutes on its own, so a short daemon restart resolves
+      # itself; an hour of it is the scanner down or scanning switched off with files held. Not in
+      # the self-hosting set: the bytes are kept, nothing is lost by waiting. max() reads the one
+      # leader's series.
+      - alert: HubtaskUploadsHeldForScan
+        expr: max(hubtask_media_scan_held_workspaces) > 0
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-23
+        annotations:
+          summary: "Uploads wait for a malware scan"
+          description: >
+            Files confirmed while the scanner did not answer are held and cannot be downloaded
+            until it does. Check the daemon at HUBTASK_CLAMD_ADDRESS; the scan job settles the
+            held files by itself once it answers.
+          runbook: RB-A23-uploads-held-for-scan.md

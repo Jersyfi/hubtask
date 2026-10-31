@@ -93,6 +93,7 @@ type Metrics struct {
 	busPublications   metric.Int64Counter
 	secretReseals     metric.Int64Counter
 	webhookBacklog    metric.Int64Gauge
+	mediaScanHeld     metric.Int64Gauge
 	// The installation's deliveries to a purchase platform (UC-INS-14): settled attempts, and the
 	// dead letters waiting - alert A-21's number.
 	platformDeliveries  metric.Int64Counter
@@ -479,6 +480,13 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"Reported by the scheduler leader only, like the queue depth."),
 	); err != nil {
 		return fmt.Errorf("webhook backlog gauge: %w", err)
+	}
+	if m.mediaScanHeld, err = meter.Int64Gauge(
+		namespace+"_media_scan_held_workspaces",
+		metric.WithDescription("Workspaces holding uploads a malware scan has not settled: nobody can "+
+			"download them until it does. Reported by the scheduler leader only, like the queue depth."),
+	); err != nil {
+		return fmt.Errorf("media scan held gauge: %w", err)
 	}
 	if m.platformDeliveries, err = meter.Int64Counter(
 		namespace+"_platform_deliveries_total",
@@ -1178,6 +1186,11 @@ func (m *Metrics) PlatformDeadLetters(ctx context.Context, waiting int64) {
 // WebhookRetryBacklog publishes how many deliveries wait for their next rung of the ladder.
 func (m *Metrics) WebhookRetryBacklog(ctx context.Context, waiting int64) {
 	m.webhookBacklog.Record(ctx, waiting)
+}
+
+// MediaScanHeldWorkspaces publishes how many workspaces hold uploads waiting for a scan.
+func (m *Metrics) MediaScanHeldWorkspaces(ctx context.Context, workspaces int64) {
+	m.mediaScanHeld.Record(ctx, workspaces)
 }
 
 // PoolConnections publishes one pool's connection states. The max joins in_use and idle as a

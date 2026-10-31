@@ -5014,6 +5014,8 @@ func run() error {
 			PlatformDeliveries: postgres.NewPlatformDeliveryRepository(),
 			Queue:              jobs,
 			Backlog:            jobs,
+			// Alert A-23's number: the workspaces whose uploads wait for a scan (UC-MED-01).
+			Open: jobs,
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,

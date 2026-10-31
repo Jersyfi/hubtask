@@ -173,6 +173,12 @@ GROUP BY kind;
 SELECT count(*) FROM job
 WHERE kind = sqlc.arg('kind') AND state = 'PENDING' AND run_at > sqlc.arg('now');
 
+-- The jobs of one kind not yet finished, due, parked between rounds or running: for a kind with one
+-- job per workspace while there is work (media.scan), the number of workspaces that have it.
+-- name: OpenJobCount :one
+SELECT count(*) FROM job
+WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING');
+
 -- What a caller polls, and the only two statements here that are asked on somebody's behalf
 -- rather than by a worker. They therefore carry the tenant condition themselves - the job table
 -- has no row level security, so there is no policy underneath that would catch a forgotten one,

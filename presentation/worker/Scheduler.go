@@ -38,6 +38,9 @@ type SchedulerSignals interface {
 	// PlatformDeadLetters is the installation's deliveries to a purchase platform waiting to be
 	// redelivered - alert A-21's number (UC-INS-14).
 	PlatformDeadLetters(ctx context.Context, waiting int64)
+	// MediaScanHeldWorkspaces is how many workspaces hold uploads a scan has not settled - alert
+	// A-23's number (UC-MED-01 check 10).
+	MediaScanHeldWorkspaces(ctx context.Context, workspaces int64)
 	// JobsPurged counts the finished jobs the leader removed, by terminal state - never a kind's
 	// payload or a tenant (rule 10).
 	JobsPurged(ctx context.Context, state string, count int64)
@@ -87,6 +90,13 @@ type PlatformDeadLetters interface {
 // where hubtask_webhook_retry_backlog is honestly counted, and no tenant-bounded table is crossed.
 type RetryBacklog interface {
 	ScheduledBacklog(ctx context.Context, kind queue.Kind) (int, error)
+}
+
+// OpenJobs answers how many jobs of one kind are not finished, due, parked or running. A
+// media.scan job is one per workspace and lives exactly while that workspace holds unscanned
+// uploads, so its open count is the held backlog without crossing a tenant-bounded table.
+type OpenJobs interface {
+	OpenJobs(ctx context.Context, kind queue.Kind) (int, error)
 }
 
 // InstanceBackups is the slice of the schedule pass the leader runs: the instance-wide schedules,
@@ -139,6 +149,8 @@ type Scheduler struct {
 	// Backlog is where the webhook retry ladder is counted. Optional, like everything
 	// below: a build without it publishes no backlog series rather than a wrong one.
 	Backlog RetryBacklog
+	// Open is where the workspaces with held uploads are counted. Optional, like Backlog.
+	Open OpenJobs
 
 	// InstanceBackups fires the schedules that belong to no tenant. Optional: an installation
 	// without it simply never has one, which is the state every installation is in today.
@@ -267,6 +279,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 
 	s.sampleQueueDepth(ctx)
 	s.sampleRetryBacklog(ctx)
+	s.sampleHeldScans(ctx)
 	s.samplePlatformDeadLetters(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
@@ -708,6 +721,31 @@ func (s Scheduler) sampleRetryBacklog(ctx context.Context) {
 		return
 	}
 	s.Signals.WebhookRetryBacklog(ctx, int64(waiting))
+}
+
+// sampleHeldScans publishes the workspaces whose uploads wait for a scan. Open jobs rather than
+// parked ones: the job is due for a moment every five minutes, and a gauge falling to zero then
+// would reset A-23's waiting period each time.
+func (s Scheduler) sampleHeldScans(ctx context.Context) {
+	if s.Signals == nil || s.Open == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	var open int
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		open, err = s.Open.OpenJobs(txCtx, queue.KindMediaScan)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the held uploads failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.MediaScanHeldWorkspaces(ctx, int64(open))
 }
 
 // samplePlatformDeadLetters publishes the dead letters waiting for a purchase platform. Sampled

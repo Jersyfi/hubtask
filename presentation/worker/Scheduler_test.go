@@ -70,6 +70,7 @@ type schedulerSignals struct {
 	lags                []float64
 	freshness           map[string]time.Time
 	backlogs            []int64
+	heldScans           []int64
 	purged              map[string]int64
 
 	auditHeld        []int64
@@ -98,6 +99,10 @@ func (s *schedulerSignals) PlatformDeadLetters(_ context.Context, waiting int64)
 
 func (s *schedulerSignals) WebhookRetryBacklog(_ context.Context, waiting int64) {
 	s.backlogs = append(s.backlogs, waiting)
+}
+
+func (s *schedulerSignals) MediaScanHeldWorkspaces(_ context.Context, workspaces int64) {
+	s.heldScans = append(s.heldScans, workspaces)
 }
 
 func (s *schedulerSignals) AuditPartitionsHeld(_ context.Context, months int64) {
@@ -444,6 +449,28 @@ func TestTheLeaderSamplesTheRetryBacklog(t *testing.T) {
 
 	if len(signals.backlogs) != 1 || signals.backlogs[0] != 7 {
 		t.Errorf("the backlog was reported as %v, want [7]", signals.backlogs)
+	}
+}
+
+// openJobs is an OpenJobs with a fixed answer per kind.
+type openJobs map[queue.Kind]int
+
+func (o openJobs) OpenJobs(_ context.Context, kind queue.Kind) (int, error) {
+	return o[kind], nil
+}
+
+// A workspace with uploads held for a scan has exactly one open media.scan job, due or parked
+// between passes; the gauge counts it either way, so alert A-23 does not reset each time the
+// job runs (§4, hubtask_media_scan_held_workspaces).
+func TestTheLeaderSamplesTheWorkspacesWithHeldUploads(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.Open = openJobs{queue.KindMediaScan: 2, queue.KindWebhookDeliver: 9}
+
+	leader.tick(t.Context(), false, now)
+
+	if len(signals.heldScans) != 1 || signals.heldScans[0] != 2 {
+		t.Errorf("the held workspaces were reported as %v, want [2]", signals.heldScans)
 	}
 }
 

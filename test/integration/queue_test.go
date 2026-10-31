@@ -503,3 +503,44 @@ func TestATenantWithJobsRunningWaitsBehindOneWithNone(t *testing.T) {
 	}
 	t.Fatal("neither of this test's jobs was claimed")
 }
+
+// The held-upload gauge counts a kind's unfinished jobs, whatever moment they wait for: due,
+// parked between rounds or running, never finished (alert A-23, hubtask_media_scan_held_workspaces).
+func TestOpenJobsCountsEveryUnfinishedJobOfTheKind(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.open." + freshID(t).String())
+	now := queueClock.Now()
+	ids := make([]shared.ID, 0, 4)
+	for i, runAt := range []time.Time{now, now.Add(time.Hour), now, now} {
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			id, err := jobQueue(t).Enqueue(ctx, queue.Request{
+				Kind: kind, DedupeKey: strconv.Itoa(i), RunAt: runAt,
+			})
+			ids = append(ids, id)
+			return err
+		}); err != nil {
+			t.Fatalf("enqueueing: %v", err)
+		}
+	}
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx, `UPDATE job SET state = 'RUNNING', locked_until = $2 WHERE id = $1`,
+		ids[2].String(), now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, `UPDATE job SET state = 'SUCCEEDED', finished_at = $2 WHERE id = $1`,
+		ids[3].String(), now); err != nil {
+		t.Fatal(err)
+	}
+
+	var open int
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		open, err = jobQueue(t).OpenJobs(ctx, kind)
+		return err
+	}); err != nil {
+		t.Fatalf("counting: %v", err)
+	}
+	if open != 3 {
+		t.Errorf("open jobs = %d, want 3 (due, parked, running; not the finished one)", open)
+	}
+}

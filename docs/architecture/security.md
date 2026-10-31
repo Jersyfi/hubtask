@@ -156,8 +156,8 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   `media.infected` and its bytes removed; a file the daemon cannot answer for - down, timed out, an
   error reply - is held `PENDING_SCAN`: it may be attached, is never downloaded, and the
   `media.scan` job scans it again until it is READY or `INFECTED` (bytes removed at once). A scanner
-  that is down never stops an upload and never lets an unscanned file out. Without a daemon nothing
-  is scanned.
+  that is down never stops an upload and never lets an unscanned file out; files held for an hour
+  raise A-23 (`hubtask_media_scan_held_workspaces`). Without a daemon nothing is scanned.
 * **CEL expressions** run under a time, depth and cost limit (`cel-go` cost budget), with no network
   or time functions beyond the ones provided.
 

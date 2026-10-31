@@ -494,6 +494,20 @@ func (q *Queries) JobQueueDepth(ctx context.Context, now pgtype.Timestamptz) ([]
 	return items, nil
 }
 
+const openJobCount = `-- name: OpenJobCount :one
+SELECT count(*) FROM job
+WHERE kind = $1 AND state IN ('PENDING', 'RUNNING')
+`
+
+// The jobs of one kind not yet finished, due, parked between rounds or running: for a kind with one
+// job per workspace while there is work (media.scan), the number of workspaces that have it.
+func (q *Queries) OpenJobCount(ctx context.Context, kind string) (int64, error) {
+	row := q.db.QueryRow(ctx, openJobCount, kind)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const purgeFinishedJobs = `-- name: PurgeFinishedJobs :many
 DELETE FROM job
 WHERE id IN (
