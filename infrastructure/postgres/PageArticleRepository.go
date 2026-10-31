@@ -106,7 +106,7 @@ func (PageArticleRepository) Published(ctx context.Context, pageID, collectionID
 }
 
 // Search answers the collection's articles a text finds.
-func (PageArticleRepository) Search(ctx context.Context, collectionID shared.ID, text string, limit int) ([]repository.ArticleHit, error) {
+func (PageArticleRepository) Search(ctx context.Context, collectionID shared.ID, text string, languages []string, limit int) ([]repository.ArticleHit, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -116,14 +116,22 @@ func (PageArticleRepository) Search(ctx context.Context, collectionID shared.ID,
 		return nil, err
 	}
 	rows, err := queries.SearchPageArticles(ctx, sqlc.SearchPageArticlesParams{
-		Text: text, CollectionID: key, Batch: int32(limit), //nolint:gosec // bounded by knowledge.MaxArticleSuggestions
+		Text: text, CollectionID: key, Languages: append([]string{}, languages...),
+		Batch: int32(limit), //nolint:gosec // bounded by knowledge.MaxArticleSuggestions
 	})
 	if err != nil {
 		return nil, pageFailed("searching the articles", err)
 	}
 	return mapRows(rows, func(row sqlc.SearchPageArticlesRow) (repository.ArticleHit, error) {
 		id, err := idFrom(row.ID)
-		return repository.ArticleHit{PageID: id, Title: row.Title, Icon: row.Icon, Excerpt: row.Excerpt, UpdatedAt: timeFrom(row.UpdatedAt)}, err
+		var language string
+		if row.ContentLanguage != nil {
+			language = *row.ContentLanguage
+		}
+		return repository.ArticleHit{
+			PageID: id, Title: row.Title, Icon: row.Icon, Excerpt: row.Excerpt, ContentLanguage: language,
+			UpdatedAt: timeFrom(row.UpdatedAt),
+		}, err
 	})
 }
 

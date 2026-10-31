@@ -242,11 +242,12 @@ func (h SuggestArticles) Execute(ctx context.Context, actor appshared.ActorConte
 		return out, nil
 	}
 	err := h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		hits, err := h.Space.Articles.Search(ctx, collectionID, h.Space.Text.NFC(text), domain.MaxArticleSuggestions)
+		hits, err := h.Space.Articles.Search(ctx, collectionID, h.Space.Text.NFC(text),
+			h.Space.languagesOf(actor), domain.MaxArticleSuggestions)
 		for _, hit := range hits {
 			out = append(out, usecase.Output{
 				"page_id": hit.PageID.String(), "title": hit.Title, "icon": hit.Icon,
-				"excerpt": hit.Excerpt, "updated_at": hit.UpdatedAt,
+				"excerpt": hit.Excerpt, "content_language": nilIfEmpty(hit.ContentLanguage), "updated_at": hit.UpdatedAt,
 			})
 		}
 		return err
@@ -259,7 +260,8 @@ func (h SuggestArticles) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: SuggestArticlesName, Permission: service.PermissionRequest,
 		Summary: "Answers at most ten articles of a service's portal that the words a requester " +
-			"has typed find, best first - or, without words, the most read. Only live pages " +
+			"has typed find, best first - or, without words, the most read - each in the " +
+			"requester's language where a variant of its page is written in it. Only live pages " +
 			"published to that service, never one behind a restriction.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  pagesRead, ReadOnly: true,
@@ -312,21 +314,35 @@ func (s Space) article(ctx context.Context, pageID, collectionID shared.ID) (dom
 // ReadArticle opens an article in a service's portal and counts the opening.
 type ReadArticle struct{ Space Space }
 
+// ArticleRead is an article as a requester reads it: the published page, or the variant of it
+// written in their language.
+type ArticleRead struct {
+	// Source is the published page: the article's openings and ratings are its own.
+	Source shared.ID
+	// Page is the page read, Source's own or a variant's.
+	Page domain.Page
+	// Language is the variant's tag, else the page's own content language.
+	Language string
+}
+
 // Execute reads the article.
-func (h ReadArticle) Execute(ctx context.Context, actor appshared.ActorContext, collectionID, pageID shared.ID) (domain.Page, error) {
+func (h ReadArticle) Execute(ctx context.Context, actor appshared.ActorContext, collectionID, pageID shared.ID) (ArticleRead, error) {
 	if err := actor.RequireScope(pagesRead); err != nil {
-		return domain.Page{}, err
+		return ArticleRead{}, err
 	}
 	if _, err := h.Space.service(ctx, actor, collectionID, service.PermissionRequest, ArticleReadAction); err != nil {
-		return domain.Page{}, err
+		return ArticleRead{}, err
 	}
 	if h.Space.Articles == nil {
-		return domain.Page{}, shared.ErrNotFound.WithDetail("pages.article_not_found")
+		return ArticleRead{}, shared.ErrNotFound.WithDetail("pages.article_not_found")
 	}
-	var page domain.Page
+	var read ArticleRead
 	err := h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		if page, err = h.Space.article(ctx, pageID, collectionID); err != nil {
+		page, err := h.Space.article(ctx, pageID, collectionID)
+		if err != nil {
+			return err
+		}
+		if read, err = h.Space.inLanguageOf(ctx, actor, page); err != nil {
 			return err
 		}
 		if err := h.Space.Articles.CountView(ctx, page.ID, collectionID); err != nil {
@@ -334,7 +350,7 @@ func (h ReadArticle) Execute(ctx context.Context, actor appshared.ActorContext, 
 		}
 		return h.Space.record(ctx, actor, ArticleReadAction, articleTarget, page.ID, nil, h.Space.Clock.Now())
 	})
-	return page, err
+	return read, err
 }
 
 // Descriptor is the catalogue entry.
@@ -342,8 +358,8 @@ func (h ReadArticle) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadArticleName, Permission: service.PermissionRequest,
 		Summary: "Opens an article of a service's portal - the page alone, with its Markdown body, " +
-			"as it stands now - and counts the opening. Unpublished, trashed, archived or restricted " +
-			"since, it is not found.",
+			"as it stands now, in the requester's language where a variant of it is written in it " +
+			"- and counts the opening. Unpublished, trashed, archived or restricted since, it is not found.",
 		SideEffects: "Counts one opening, with an audit entry.",
 		TokenScope:  pagesRead,
 		Input: []usecase.Field{
@@ -357,13 +373,18 @@ func (h ReadArticle) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			page, err := h.Execute(ctx, actor, ids[0], ids[1])
+			read, err := h.Execute(ctx, actor, ids[0], ids[1])
 			if err != nil {
 				return nil, err
 			}
+			var variant any
+			if read.Page.ID != read.Source {
+				variant = read.Page.ID.String()
+			}
 			return usecase.Output{
-				"page_id": page.ID.String(), "collection_id": ids[0].String(), "title": page.Title, "icon": page.Icon,
-				"body": page.Body, "content_language": nilIfEmpty(page.ContentLanguage), "updated_at": page.UpdatedAt,
+				"page_id": read.Source.String(), "collection_id": ids[0].String(), "variant_page_id": variant,
+				"title": read.Page.Title, "icon": read.Page.Icon, "body": read.Page.Body,
+				"content_language": nilIfEmpty(read.Language), "updated_at": read.Page.UpdatedAt,
 			}, nil
 		}),
 	})

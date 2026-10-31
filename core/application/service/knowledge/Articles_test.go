@@ -88,7 +88,7 @@ func (s *shelf) Of(_ context.Context, page shared.ID) ([]domain.Article, error) 
 func (s *shelf) Published(_ context.Context, page, collection shared.ID) (bool, error) {
 	return s.articles[[2]shared.ID{page, collection}] != nil, nil
 }
-func (s *shelf) Search(_ context.Context, collection shared.ID, text string, _ int) ([]repository.ArticleHit, error) {
+func (s *shelf) Search(_ context.Context, collection shared.ID, text string, _ []string, _ int) ([]repository.ArticleHit, error) {
 	var out []repository.ArticleHit
 	for key := range s.articles {
 		page := s.pages.pages[key[0]]
@@ -141,7 +141,7 @@ func TestAnArticleReachesTheRequestersOfItsServiceAlone(t *testing.T) {
 		t.Fatalf("a long question answered %v", err)
 	}
 	read, err := (ReadArticle{Space: f.space}).Execute(ctx, as(visitor), desk, page.ID)
-	if err != nil || read.Body != "how to reset the password" {
+	if err != nil || read.Page.Body != "how to reset the password" || read.Source != page.ID {
 		t.Fatalf("ReadArticle: %+v %v", read, err)
 	}
 	if last := f.trail.entries[len(f.trail.entries)-1]; last.Action != ArticleReadAction || last.TargetID != page.ID {

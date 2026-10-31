@@ -208,11 +208,14 @@ type PublicLinks interface {
 
 // ArticleHit is one article a portal's question finds.
 type ArticleHit struct {
-	PageID    shared.ID
-	Title     string
-	Icon      string
-	Excerpt   string
-	UpdatedAt time.Time
+	PageID  shared.ID
+	Title   string
+	Icon    string
+	Excerpt string
+	// ContentLanguage is the language the article is offered in: a variant's tag, else the page's
+	// own content language.
+	ContentLanguage string
+	UpdatedAt       time.Time
 }
 
 // Articles stores the pages published to a service's portal and what requesters said of them
@@ -226,10 +229,25 @@ type Articles interface {
 	Of(ctx context.Context, pageID shared.ID) ([]knowledge.Article, error)
 	// Published answers whether the page is published to the collection.
 	Published(ctx context.Context, pageID, collectionID shared.ID) (bool, error)
-	// Search answers the collection's live, unrestricted articles a text finds; empty text the most read.
-	Search(ctx context.Context, collectionID shared.ID, text string, limit int) ([]ArticleHit, error)
+	// Search answers the collection's live, unrestricted articles a text finds; empty text the most
+	// read. Each is offered, and found, as the first of languages (lower case, preferred first) a
+	// live, unrestricted variant of its page is written in, else as the page itself.
+	Search(ctx context.Context, collectionID shared.ID, text string, languages []string, limit int) ([]ArticleHit, error)
 	// CountView counts one opening in the portal.
 	CountView(ctx context.Context, pageID, collectionID shared.ID) error
 	// Rate keeps one person's "was this helpful?", replacing what they said before.
 	Rate(ctx context.Context, pageID, collectionID, accountID shared.ID, helpful bool, at time.Time) error
+}
+
+// LanguageVariants keeps which page is written in another language for which (UC-DOC-13 check 4).
+type LanguageVariants interface {
+	// SourceOf answers the page a page is a variant of and its tag; a zero ID for none.
+	SourceOf(ctx context.Context, pageID shared.ID) (shared.ID, string, error)
+	// VariantsOf answers a page's variants that are not trashed, by tag.
+	VariantsOf(ctx context.Context, sourceID shared.ID) ([]knowledge.LanguageVariant, error)
+	// Link links the page to its source under the tag, replacing a link it had; a tag another
+	// variant took meanwhile is refused as pages.variant_language_taken.
+	Link(ctx context.Context, link knowledge.LanguageLink) error
+	// Unlink makes the page one of its own again; false when it was no variant.
+	Unlink(ctx context.Context, pageID shared.ID) (bool, error)
 }

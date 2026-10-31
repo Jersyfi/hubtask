@@ -111,6 +111,9 @@ type Space struct {
 	Public PublicLinking
 	// Articles publishes pages to a service's portal (UC-DOC-13); nil offers none.
 	Articles repository.Articles
+	// Variants keeps the pages written in another language for a portal (UC-DOC-13 check 4); nil
+	// keeps every article in its page's own language.
+	Variants repository.LanguageVariants
 	// Media reads the uploads a page holds as its pictures and files (UC-DOC-14); nil attaches none.
 	Media MediaObjects
 	// Drafting keeps a space's changes in drafts until they are published (UC-DOC-15); its zero

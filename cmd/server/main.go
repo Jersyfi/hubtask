@@ -1925,6 +1925,7 @@ func run() error {
 		},
 		// A page published to a service's portal (UC-DOC-13).
 		Articles: postgres.NewPageArticleRepository(),
+		Variants: postgres.PageLanguageVariantRepository{},
 		// A page's pictures and files (UC-DOC-14).
 		Media: mediaObjects,
 		// A space's drafts until they are published (UC-DOC-15).
@@ -2216,6 +2217,9 @@ func run() error {
 		knowledgeservice.SetPublicLinksPolicy{Space: pageSpace}.Descriptor(),
 		knowledgeservice.PublishPageToPortal{Space: pageSpace}.Descriptor(),
 		knowledgeservice.UnpublishPageFromPortal{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPageLanguageVariants{Space: pageSpace}.Descriptor(),
+		knowledgeservice.LinkPageLanguageVariant{Space: pageSpace}.Descriptor(),
+		knowledgeservice.UnlinkPageLanguageVariant{Space: pageSpace}.Descriptor(),
 		knowledgeservice.SuggestArticles{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadArticle{Space: pageSpace}.Descriptor(),
 		knowledgeservice.RateArticle{Space: pageSpace}.Descriptor(),

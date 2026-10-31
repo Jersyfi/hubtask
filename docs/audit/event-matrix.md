@@ -758,6 +758,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.created` | OpenDailyNote | `page` | INFO | Every time |
 | `page.draft_discarded` | DiscardPageDraft | `page` | INFO | Every time |
 | `page.exported` | ExportPage | `page` | INFO | Every time |
+| `page.language_linked` | LinkPageLanguageVariant | `page` | INFO | Every time |
+| `page.language_unlinked` | UnlinkPageLanguageVariant | `page` | INFO | Every time |
 | `page.media_attached` | AttachPageMedia | `page` | INFO | Every time |
 | `page.moved` | MovePage | `page` | INFO | Every time |
 | `page.public_link_created` | CreatePagePublicLink | `page` | NOTICE | Every time |
@@ -766,6 +768,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.read` | ListPageBacklinks | `page` | INFO | When refused |
 | `page.read` | ListPageComments | `page_comment` | INFO | When refused |
 | `page.read` | ListPageLabels | `page` | INFO | When refused |
+| `page.read` | ListPageLanguageVariants | `page` | INFO | When refused |
 | `page.read` | ListPageVersions | `page` | INFO | When refused |
 | `page.read` | ListPages | `page` | INFO | When refused |
 | `page.read` | ListSharedPages | `page` | INFO | When refused |
