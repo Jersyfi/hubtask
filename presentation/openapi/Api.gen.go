@@ -3439,6 +3439,27 @@ func (e ConfigTemplatePlanMode) Valid() bool {
 	}
 }
 
+// Defines values for ConfigTemplateQuestionKind.
+const (
+	ConfigTemplateQuestionKindCHOICE ConfigTemplateQuestionKind = "CHOICE"
+	ConfigTemplateQuestionKindGROUP  ConfigTemplateQuestionKind = "GROUP"
+	ConfigTemplateQuestionKindTEXT   ConfigTemplateQuestionKind = "TEXT"
+)
+
+// Valid indicates whether the value is a known member of the ConfigTemplateQuestionKind enum.
+func (e ConfigTemplateQuestionKind) Valid() bool {
+	switch e {
+	case ConfigTemplateQuestionKindCHOICE:
+		return true
+	case ConfigTemplateQuestionKindGROUP:
+		return true
+	case ConfigTemplateQuestionKindTEXT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConfigUpgradeChangeState.
 const (
 	ConfigUpgradeChangeStateCONFLICT ConfigUpgradeChangeState = "CONFLICT"
@@ -14487,10 +14508,13 @@ type ConfigTemplate struct {
 	Origin ConfigTemplateOrigin `json:"origin"`
 
 	// Provenance key@version
-	Provenance      string `json:"provenance"`
-	TakenVersion    *int   `json:"taken_version,omitempty"`
-	UpdateAvailable bool   `json:"update_available"`
-	Version         int    `json:"version"`
+	Provenance string `json:"provenance"`
+
+	// Questions What taking the template asks. A string value `answer:<key>` of the document is replaced by that question's answer; a block naming a question left open with no default is not taken.
+	Questions       *[]ConfigTemplateQuestion `json:"questions,omitempty"`
+	TakenVersion    *int                      `json:"taken_version,omitempty"`
+	UpdateAvailable bool                      `json:"update_available"`
+	Version         int                       `json:"version"`
 }
 
 // ConfigTemplateOrigin defines model for ConfigTemplate.Origin.
@@ -14541,6 +14565,9 @@ type ConfigTemplatePlanMode string
 
 // ConfigTemplatePlanRequest defines model for ConfigTemplatePlanRequest.
 type ConfigTemplatePlanRequest struct {
+	// Answers The template's questions answered, by key. An open question takes its default; on an upgrade the answers are given again, so an answer that did not change is no change.
+	Answers *map[string]string `json:"answers,omitempty"`
+
 	// HubId A hub taking the template's hub part; omitted is the workspace.
 	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
 	Take    *[]string           `json:"take,omitempty"`
@@ -14560,6 +14587,20 @@ type ConfigTemplatePublish struct {
 	Key   string              `json:"key"`
 	Name  string              `json:"name"`
 }
+
+// ConfigTemplateQuestion defines model for ConfigTemplateQuestion.
+type ConfigTemplateQuestion struct {
+	Default *string `json:"default"`
+	Key     string  `json:"key"`
+
+	// Kind A line of text, one of the workspace's groups by its identifier, or one of the options.
+	Kind     ConfigTemplateQuestionKind `json:"kind"`
+	Options  []string                   `json:"options"`
+	Required bool                       `json:"required"`
+}
+
+// ConfigTemplateQuestionKind A line of text, one of the workspace's groups by its identifier, or one of the options.
+type ConfigTemplateQuestionKind string
 
 // ConfigUpgradeChange defines model for ConfigUpgradeChange.
 type ConfigUpgradeChange struct {

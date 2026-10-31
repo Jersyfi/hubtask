@@ -21,6 +21,15 @@ existing preset is lost.
 | Questions on applying | working hours, time zone, which group answers first |
 | Sample entries (optional, marked) | three incidents to try the flow on, removed in one click |
 
+**Questions** are the template's own (`questions`: a key, `TEXT`, `GROUP` or `CHOICE`, required or
+not, a default). A string value `answer:<key>` anywhere in a block is replaced by the answer
+`PlanConfigTemplate` is given; an open question takes its default, and a block naming one left open
+with no default is not taken - the desk without a first group comes without the P1 escalation. A
+`GROUP` answer is a group of the workspace the person can see, or refused. Answers are not stored:
+an upgrade is planned with them again, and the base it compares with is answered the same way, so
+an unchanged answer is no change. `itil_service_desk@6` asks the first group; working hours and the
+time zone are still the calendar's own values.
+
 Scopes: a **hub template** (most templates), a **collection template**, and a **workspace starter**
 (several hubs, asked once at the first start — UC-WRK-30 check 5's starter set, grown).
 

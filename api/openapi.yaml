@@ -29491,6 +29491,28 @@ components:
           oneOf:
             - $ref: "#/components/schemas/ConfigDocument"
             - type: "null"
+        questions:
+          type: array
+          description: >
+            What taking the template asks. A string value `answer:<key>` of the document is replaced
+            by that question's answer; a block naming a question left open with no default is not
+            taken.
+          items: { $ref: "#/components/schemas/ConfigTemplateQuestion" }
+
+    ConfigTemplateQuestion:
+      type: object
+      required: [key, kind, required, default, options]
+      properties:
+        key: { type: string }
+        kind:
+          type: string
+          enum: [TEXT, GROUP, CHOICE]
+          description: A line of text, one of the workspace's groups by its identifier, or one of the options.
+        required: { type: boolean }
+        default: { type: [string, "null"] }
+        options:
+          type: array
+          items: { type: string }
 
     ConfigTemplateList:
       type: object
@@ -29525,6 +29547,12 @@ components:
         take:
           type: array
           items: { type: string }
+        answers:
+          type: object
+          description: >
+            The template's questions answered, by key. An open question takes its default; on an
+            upgrade the answers are given again, so an answer that did not change is no change.
+          additionalProperties: { type: string }
 
     ConfigUpgradeChange:
       type: object

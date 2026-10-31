@@ -2697,6 +2697,14 @@ class ConfigTemplate(TypedDict, total=False):
     taken_version: int | None
     update_available: Required[bool]
     hub_document: "ConfigDocument" | Any
+    questions: list["ConfigTemplateQuestion"]
+
+class ConfigTemplateQuestion(TypedDict, total=False):
+    key: Required[str]
+    kind: Required[Literal["TEXT", "GROUP", "CHOICE"]]
+    required: Required[bool]
+    default: Required[str | None]
+    options: Required[list[str]]
 
 class ConfigTemplateList(TypedDict, total=False):
     data: Required[list["ConfigTemplate"]]
@@ -2712,6 +2720,7 @@ class ConfigTemplatePlanRequest(TypedDict, total=False):
     hub_id: str
     version: int
     take: list[str]
+    answers: dict[str, Any]
 
 class ConfigUpgradeChange(TypedDict, total=False):
     path: Required[str]

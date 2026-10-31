@@ -85,10 +85,17 @@ var bundled = sync.OnceValues(func() ([]domain.Template, error) {
 			return nil, err
 		}
 		var file struct {
-			Key      string         `json:"key"`
-			Version  int            `json:"version"`
-			Document map[string]any `json:"document"`
-			Hub      map[string]any `json:"hub"`
+			Key       string         `json:"key"`
+			Version   int            `json:"version"`
+			Document  map[string]any `json:"document"`
+			Hub       map[string]any `json:"hub"`
+			Questions []struct {
+				Key      string   `json:"key"`
+				Kind     string   `json:"kind"`
+				Required bool     `json:"required"`
+				Default  string   `json:"default"`
+				Options  []string `json:"options"`
+			} `json:"questions"`
 		}
 		if err := json.Unmarshal(raw, &file); err != nil {
 			return nil, err
@@ -99,6 +106,14 @@ var bundled = sync.OnceValues(func() ([]domain.Template, error) {
 		}
 		if file.Hub != nil {
 			template.Hub = shippedDocument(file.Hub)
+		}
+		for _, q := range file.Questions {
+			template.Questions = append(template.Questions, domain.Question{
+				Key: q.Key, Kind: domain.QuestionKind(q.Kind), Required: q.Required, Default: q.Default, Options: q.Options,
+			})
+		}
+		if err := domain.ValidQuestions(template.Questions); err != nil {
+			return nil, err
 		}
 		out = append(out, template)
 	}

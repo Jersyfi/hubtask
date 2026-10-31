@@ -5,10 +5,12 @@ package config
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
@@ -82,6 +84,21 @@ func TemplateOutput(t domain.Template, taken *domain.TemplateUse) usecase.Output
 	if t.ForHubs() {
 		out["hub_document"] = documentMap(t.Hub)
 	}
+	questions := make([]any, 0, len(t.Questions))
+	for _, q := range t.Questions {
+		options := make([]any, 0, len(q.Options))
+		for _, option := range q.Options {
+			options = append(options, option)
+		}
+		var preset any
+		if q.Default != "" {
+			preset = q.Default
+		}
+		questions = append(questions, map[string]any{
+			"key": q.Key, "kind": string(q.Kind), "required": q.Required, "default": preset, "options": options,
+		})
+	}
+	out["questions"] = questions
 	if taken != nil {
 		out["taken_version"] = taken.Version
 		out["update_available"] = taken.Version < t.Version
@@ -348,6 +365,7 @@ func (h PlanConfigTemplate) Descriptor() usecase.Descriptor {
 			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The template."},
 			{Name: "version", Kind: usecase.KindInt, Description: "The version to take or upgrade to; omitted is the newest."},
 			{Name: "take", Kind: usecase.KindList, Description: "Key paths of the upgrade's changes to take; omitted takes every TAKE and leaves every CONFLICT."},
+			{Name: "answers", Kind: usecase.KindObject, Description: "The template's questions answered, by key: an answer takes the place of its mark, an open question its default; a block naming an open question with no default is left out."},
 		},
 		Audit:    usecase.AuditDeclaration{Action: PlannedAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity: usecase.ActivityDeclaration{Exempt: "a plan changes nothing."},
@@ -363,12 +381,55 @@ func (h PlanConfigTemplate) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			return h.Desk.planTemplate(ctx, actor, hub, in.String("key"), in.Int("version"), take)
+			answers, err := answersOf(in)
+			if err != nil {
+				return nil, err
+			}
+			return h.Desk.planTemplate(ctx, actor, hub, in.String("key"), in.Int("version"), take, answers)
 		}),
 	}
 }
 
-func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hub shared.ID, key string, version int, take []string) (usecase.Output, error) {
+// answersOf reads the answers, each a string by its question's key.
+func answersOf(in usecase.Input) (map[string]string, error) {
+	raw, _ := in["answers"].(map[string]any)
+	answers := make(map[string]string, len(raw))
+	for key, value := range raw {
+		text, ok := value.(string)
+		if !ok {
+			return nil, refused("config.answer_not_text", "answers."+key, nil)
+		}
+		answers[key] = text
+	}
+	return answers, nil
+}
+
+// answered is a template's document with its questions answered, a GROUP answer held to a group
+// of the workspace the reader may see - a group nobody can find is refused, not escalated to.
+func (d Desk) answered(ctx context.Context, actor appshared.ActorContext, t domain.Template, document domain.Document, answers map[string]string) (domain.Document, error) {
+	if len(t.Questions) == 0 && len(answers) == 0 {
+		return document, nil
+	}
+	answered, err := domain.Answer(t.Questions, document, answers)
+	if err != nil {
+		return nil, err
+	}
+	for _, q := range t.Questions {
+		value, given := answers[q.Key]
+		if q.Kind != domain.QuestionGroup || !given {
+			continue
+		}
+		if _, err := d.preview(ctx, identity.GetGroupName, actor, usecase.Input{"group_id": strings.TrimSpace(value)}); err != nil {
+			if errors.Is(err, shared.ErrNotFound) || withheld(err) {
+				return nil, refused("config.answer_group_unknown", "answers."+q.Key, nil)
+			}
+			return nil, err
+		}
+	}
+	return answered, nil
+}
+
+func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hub shared.ID, key string, version int, take []string, answers map[string]string) (usecase.Output, error) {
 	var out usecase.Output
 	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		templates, err := d.Store.ListTemplates(ctx)
@@ -399,6 +460,9 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 				return err
 			}
 		}
+		if document, err = d.answered(ctx, actor, *chosen, document, answers); err != nil {
+			return err
+		}
 		now, err := d.export(ctx, actor, hub)
 		if err != nil {
 			return err
@@ -410,7 +474,13 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 				continue
 			}
 			from = use.Version
-			changes := domain.ThreeWay(use.Document, now.Document, document)
+			// The base is answered as the new version is, so an answer given again is no change
+			// and the template's own edits around it are TAKEs.
+			base, err := domain.Answer(chosen.Questions, use.Document, answers)
+			if err != nil {
+				base = use.Document
+			}
+			changes := domain.ThreeWay(base, now.Document, document)
 			for _, change := range changes {
 				upgrades = append(upgrades, usecase.Output{
 					"path": change.Path(), "state": string(change.State), "removed": change.Removed,

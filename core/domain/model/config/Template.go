@@ -34,7 +34,9 @@ type Template struct {
 	// Hub is the part a hub takes (templates.md §1, a hub template): a hub's own document - its
 	// switches, structure, scheme and calendars - beside the workspace's part; nil for a template
 	// of the workspace only.
-	Hub       Document
+	Hub Document
+	// Questions are what applying the template asks (Answer); only Hubtask's own ask any yet.
+	Questions []Question
 	CreatedBy shared.ID
 	CreatedAt time.Time
 }
