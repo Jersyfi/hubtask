@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-18]
 state: built
 tasks: [S-09]
-checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/e2e/changes.test.mjs]
+checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/e2e/changes.test.mjs]
 ---
 
 # Change our configuration as one document, seen before it applies
@@ -69,6 +69,14 @@ the two versions and rolls the hub's workflow back.
    handle and the block's key - and the hub's own time tolerance; applied to a second hub whose
    collection has the same handle, they are written at that collection, and a handle that names no
    collection of the hub is refused with `config.collection_unknown`.
+10. The configuration check (`GET /config/check`, the MCP tool `check_config`, `hubctl config
+    check`), given a hub or not, answers before anybody meets it what the configuration in force
+    would strand: a workflow no step somebody may take completes (`config.check.done_unreachable`),
+    a status no such step leads to, a step only roles that do not exist may take, a rule answering
+    every change of an entry by changing it again, a hub's scheme naming a workflow the workspace
+    does not hold - each with its severity, errors first, and the key path of the block to change;
+    a sound configuration answers no finding. *Administration → Overview* lists them, each opening
+    its block's page.
 
 ## Where it ends
 
