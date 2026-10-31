@@ -11,9 +11,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
-
-	gooidc "github.com/coreos/go-oidc/v3/oidc"
 
 	port "github.com/Jersyfi/hubtask/core/port/chatbot"
 	httpport "github.com/Jersyfi/hubtask/core/port/httpclient"
@@ -39,12 +36,17 @@ var teamsHosts = []string{".trafficmanager.net", ".botframework.com", ".teams.mi
 type Teams struct {
 	Client httpport.Port
 	// Keys are the Bot Framework's signing keys.
-	Keys gooidc.KeySet
+	Keys Keys
 	// Login is Microsoft's identity platform; MicrosoftLogin when empty.
 	Login string
 }
 
 var _ port.Platform = Teams{}
+
+// NewTeams reads the Bot Framework's published keys through the guarded client.
+func NewTeams(client httpport.Port) Teams {
+	return Teams{Client: client, Keys: &RemoteKeys{Client: client, URL: BotFrameworkKeys}}
+}
 
 func (t Teams) login() string {
 	if t.Login != "" {
@@ -148,20 +150,15 @@ func (t Teams) Read(ctx context.Context, creds port.Credentials, botUser string,
 	if !ok || t.Keys == nil || creds.AppID == "" {
 		return port.Inbound{}, refused("no token")
 	}
-	verifier := gooidc.NewVerifier(BotFrameworkIssuer, t.Keys, &gooidc.Config{ClientID: creds.AppID, Now: func() time.Time { return d.Now }})
-	token, err := verifier.Verify(ctx, raw)
+	service, err := verifyToken(ctx, t.Keys, raw, creds.AppID, d.Now)
 	if err != nil {
 		return port.Inbound{}, refused("a token that does not hold")
 	}
-	var claims struct {
-		ServiceURL string `json:"serviceurl"`
-	}
-	_ = token.Claims(&claims)
 	var a teamsActivity
 	if json.Unmarshal(d.Body, &a) != nil {
 		return port.Inbound{}, refused("no JSON")
 	}
-	if !allowedService(a.ServiceURL) || !sameService(a.ServiceURL, claims.ServiceURL) {
+	if !allowedService(a.ServiceURL) || !sameService(a.ServiceURL, service) {
 		return port.Inbound{}, refused("a service address the token does not name")
 	}
 	reply := map[string]string{"service": a.ServiceURL, "conversation": a.Conversation.ID, "activity": a.ID}

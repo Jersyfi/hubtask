@@ -21,8 +21,6 @@ import (
 	"testing"
 	"time"
 
-	gooidc "github.com/coreos/go-oidc/v3/oidc"
-
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/chatbot"
 	httpport "github.com/Jersyfi/hubtask/core/port/httpclient"
@@ -242,7 +240,7 @@ func TestTeamsHoldsToTheBotFrameworksTokenAndReplies(t *testing.T) {
 		{Status: 201, Body: []byte(`{"id":"1730289600001"}`)},
 		{Status: 400, Body: []byte(`{"error":"invalid_client","error_description":"AADSTS7000215: Invalid client secret provided."}`)},
 	}}
-	teams := Teams{Client: fake, Keys: &gooidc.StaticKeySet{PublicKeys: []crypto.PublicKey{&key.PublicKey}}}
+	teams := Teams{Client: fake, Keys: StaticKeys{"k1": &key.PublicKey}}
 	ctx := context.Background()
 	if who, err := teams.Check(ctx, teamsCreds); err != nil || who != teamsApp {
 		t.Fatalf("check = %q %v", who, err)
@@ -287,7 +285,7 @@ func TestTeamsHoldsToTheBotFrameworksTokenAndReplies(t *testing.T) {
 		"another signer":   botFrameworkToken(t, other, teamsClaims(teamsApp, service)),
 		"another service":  botFrameworkToken(t, key, teamsClaims(teamsApp, "https://smba.trafficmanager.net/amer/")),
 		"another issuer":   botFrameworkToken(t, key, map[string]any{"iss": "https://evil.example", "aud": teamsApp, "serviceurl": service, "exp": arrived.Add(time.Hour).Unix()}),
-		"an expired token": botFrameworkToken(t, key, map[string]any{"iss": BotFrameworkIssuer, "aud": teamsApp, "serviceurl": service, "exp": arrived.Add(-time.Minute).Unix()}),
+		"an expired token": botFrameworkToken(t, key, map[string]any{"iss": BotFrameworkIssuer, "aud": teamsApp, "serviceurl": service, "exp": arrived.Add(-10 * time.Minute).Unix()}),
 		"no token":         "",
 	} {
 		if _, err := teams.Read(ctx, teamsCreds, teamsApp, delivery("teams_message.json", token)); detail(err) != "chatbot.delivery_refused" {
@@ -299,5 +297,31 @@ func TestTeamsHoldsToTheBotFrameworksTokenAndReplies(t *testing.T) {
 	d := port.Delivery{Body: []byte(outside), Now: arrived, Header: map[string][]string{"Authorization": {"Bearer " + botFrameworkToken(t, key, teamsClaims(teamsApp, "https://evil.example/"))}}}
 	if _, err := teams.Read(ctx, teamsCreds, teamsApp, d); detail(err) != "chatbot.delivery_refused" {
 		t.Errorf("a service address outside the Bot Framework: %v", err)
+	}
+}
+
+// UC-INT-19 check 4: the published keys are read once and again only after a while, so tokens
+// naming invented keys are not a stream of calls; a key shorter than 2048 bits is not taken.
+func TestTheBotFrameworksKeysAreReadSparingly(t *testing.T) {
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	short, _ := rsa.GenerateKey(rand.Reader, 1024)
+	jwk := func(id string, k *rsa.PublicKey) map[string]string {
+		return map[string]string{"kty": "RSA", "kid": id, "use": "sig", "n": base64.RawURLEncoding.EncodeToString(k.N.Bytes()), "e": "AQAB"}
+	}
+	set, _ := json.Marshal(map[string]any{"keys": []any{jwk("k1", &key.PublicKey), jwk("short", &short.PublicKey)}})
+	fake := &recorder{answers: []httpport.Response{{Status: 200, Body: set}, {Status: 200, Body: set}}}
+	keys := &RemoteKeys{Client: fake, URL: BotFrameworkKeys}
+	ctx := context.Background()
+	if k, err := keys.Key(ctx, "k1", arrived); err != nil || k.N.Cmp(key.N) != 0 {
+		t.Fatalf("k1 = %v", err)
+	}
+	if _, err := keys.Key(ctx, "short", arrived); err == nil {
+		t.Fatal("a short key was taken")
+	}
+	if _, err := keys.Key(ctx, "invented", arrived.Add(time.Minute)); err == nil || len(fake.requests) != 1 {
+		t.Fatalf("an invented key read the set again: %d", len(fake.requests))
+	}
+	if _, err := keys.Key(ctx, "invented", arrived.Add(6*time.Minute)); err == nil || len(fake.requests) != 2 {
+		t.Fatalf("the set was not read again after a while: %d", len(fake.requests))
 	}
 }

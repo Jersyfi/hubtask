@@ -44,13 +44,14 @@ func (s Slack) api() string {
 	return SlackAPI
 }
 
+// call posts to a Web API method by its path, `/auth.test`.
 func (s Slack) call(ctx context.Context, method string, creds port.Credentials, body any, into any) error {
 	if s.Client == nil {
 		return unreachable(errors.New("chat bot: no outbound client is wired"))
 	}
 	raw, _ := json.Marshal(body)
 	response, err := s.Client.Do(ctx, httpport.Request{
-		Method: http.MethodPost, URL: s.api() + "/" + method, Body: raw, TargetClass: TargetClass,
+		Method: http.MethodPost, URL: s.api() + method, Body: raw, TargetClass: TargetClass,
 		Header: map[string][]string{
 			"Authorization": {"Bearer " + creds.Token.Reveal()}, "Content-Type": {"application/json; charset=utf-8"},
 		},
@@ -86,7 +87,7 @@ func (s Slack) Check(ctx context.Context, creds port.Credentials) (string, error
 	var who struct {
 		UserID string `json:"user_id"`
 	}
-	if err := s.call(ctx, "auth.test", creds, map[string]any{}, &who); err != nil {
+	if err := s.call(ctx, "/auth.test", creds, map[string]any{}, &who); err != nil {
 		return "", err
 	}
 	if who.UserID == "" {
@@ -220,7 +221,7 @@ func (s Slack) Answer(ctx context.Context, creds port.Credentials, in port.Inbou
 		} else {
 			body["channel"], body["ts"] = in.Reply["channel"], in.Reply["ts"]
 		}
-		return port.Response{}, s.call(ctx, "chat.unfurl", creds, body, nil)
+		return port.Response{}, s.call(ctx, "/chat.unfurl", creds, body, nil)
 	}
 	return port.Response{}, nil
 }

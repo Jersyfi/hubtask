@@ -39,6 +39,8 @@ var dialableExceptions = map[string]string{
 	"core/domain/model/mail/Mailbox.go":                    "the mail providers' presets (Fastmail's JMAP session), the values a form fills in when somebody chooses a provider: dialled only once a person connects a mailbox with it",
 	"core/domain/model/integration/CalendarPush.go":        "the OAuth scopes a calendar push asks for, written as addresses by the providers: names in a consent, never dialled",
 	"infrastructure/calendarpush/Calendar.go":              "the two providers' event endpoints: dialled only for a push its owner connected, through an app the operator configured for that provider",
+	"infrastructure/chatbot/Slack.go":                      "Slack's Web API: dialled only for a Slack bot a hub's administrator seated with the app they registered",
+	"infrastructure/chatbot/Teams.go":                      "the Bot Framework's keys and Microsoft's sign-in: dialled only for a Teams bot a hub's administrator seated with the bot they registered",
 	"core/domain/model/filelink/Connection.go":             "the OAuth scopes a file store connection asks Microsoft for, written as addresses: names in a consent, never dialled",
 	"core/domain/model/integration/ChatBot.go":             "the scheme a homeserver's address is held to, never dialled itself: the homeserver arrives as data an administrator entered",
 	"infrastructure/filestore/Store.go":                    "Microsoft Graph's address: dialled only for a connection its owner made, through an app the operator configured",
