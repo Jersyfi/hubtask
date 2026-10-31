@@ -74,8 +74,11 @@ that order, the system type by default where it is among them and the first one 
 and a creation or change of type to another is refused with `entry_types.not_offered`
 (`EntryTypes.ChooseAmong`); an entry keeps the type it has when the list narrows. The registry belongs to the workflows
 module: its operations are refused with `module.off` where the module is off. The `item_type` enum
-and the level CHECKs on `work_item` stay as the level's: dropping the enum is a contract step for the
-release after the one whose statements stop casting to it (`versioning-release.md` §4).
+and the level CHECKs on `work_item` stay as the level's domain: the levels are a closed set of
+three that no workspace configures, and dropping the enum would change `work_item.type`'s column
+type - a rewrite of the largest table under an exclusive lock, which no upgrade without downtime
+may do. What a workspace configures is the type, `entry_type` with its `level` naming one of
+them.
 
 **Forms** (F-4, D-13, P-18, UC-FLW-01 check 2, migration 0214). A type carries its **form**, the one
 layout and logic of every door that creates or edits an entry of it (`work.Form`, stored whole in
@@ -309,12 +312,12 @@ history.
   hidden level and a due date the collection hides. An export keeps everything.
 
 **The rule:** setting a field whose capability is not active for the type produces
-`ErrCapabilityNotSupported` (HTTP 422, code `capability_not_supported`) — never silent ignoring. A
-new type such as `MILESTONE` is **not** configuration today: the types are the Postgres enum
-`item_type`, `work_item` ties the root level and buckets to `TASK` in two CHECKs, and the contract's
-`ItemType` lists the three values — so a type needs a migration and a contract change. The suite's
-type registry (F-1 in [`backlog/suite/foundation.md`](../backlog/suite/foundation.md)) replaces the
-enum with workspace-defined types by expand and contract; this section changes with it.
+`ErrCapabilityNotSupported` (HTTP 422, code `capability_not_supported`) — never silent ignoring. The
+capabilities belong to the level, not to the type: the levels are the Postgres enum `item_type`,
+`work_item` ties the root level and buckets to `TASK` in two CHECKs, and the contract's `ItemType`
+lists the three values. A new type such as `MILESTONE` is configuration - an `entry_type` row on
+one of the levels (F-1, *Types* above) - and has that level's capabilities; a new level would need
+a migration and a contract change.
 
 **The settings catalogue** (F-5, principle P-17; package `core/domain/model/setting`). Every setting
 of every level is one `Definition`: a dotted key (`sign_in.min_length`, `structure.views`,
