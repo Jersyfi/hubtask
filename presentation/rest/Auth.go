@@ -134,6 +134,12 @@ var PublicRoutes = map[string]bool{
 	// Alexa's endpoint (ADR-0093): Amazon's signature and the linked account's token in the body
 	// are its credentials, both checked by the route.
 	http.MethodPost + " " + APIBasePath + "/voice/alexa": true,
+	// A forge's delivery to a code hook and a monitoring or inventory tool's post to a CMDB intake:
+	// no account sends them, and the hook's or the intake's secret - a signature, a forge's token
+	// header, a bearer - is checked by the use case behind the route.
+	http.MethodPost + " " + APIBasePath + "/code-intake/{tenantId}/{hookId}":                true,
+	http.MethodPost + " " + APIBasePath + "/cmdb/alert-intake/{tenantId}/{connectorId}":     true,
+	http.MethodPost + " " + APIBasePath + "/cmdb/inventory-intake/{tenantId}/{connectorId}": true,
 	// The CalDAV discovery address is outside the contract - it is the mount's own path, as
 	// Mounted labels it - and public because RFC 6764 §5 has a client ask it before it has
 	// presented anything: the answer is a redirect into the tree, which asks for the credential
@@ -194,6 +200,10 @@ var OwnCredentialRoutes = map[string]bool{
 	// Alexa signs its requests and carries the linked account's token in the body; the route
 	// checks both (ADR-0093).
 	http.MethodPost + " " + APIBasePath + "/voice/alexa": true,
+	// A CMDB intake's secret may travel as a bearer or a Basic password (presentedSecret); verified
+	// as an account token, it would refuse every post.
+	http.MethodPost + " " + APIBasePath + "/cmdb/alert-intake/{tenantId}/{connectorId}":     true,
+	http.MethodPost + " " + APIBasePath + "/cmdb/inventory-intake/{tenantId}/{connectorId}": true,
 }
 
 func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -62,6 +62,8 @@ func serveAuthenticated(
 	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/meta/capabilities", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/mail/inbound", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/code-intake/{tenantId}/{hookId}", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/cmdb/alert-intake/{tenantId}/{connectorId}", func(http.ResponseWriter, *http.Request) {})
 	// The CalDAV tree beside the routes, as main.go mounts it: the one place Basic is taken.
 	routes := Mounted{Router: mux, Path: calendar.Prefix, Prefix: true,
 		Mount: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}
@@ -454,6 +456,26 @@ func TestTheInboundKeyIsLeftToItsRoute(t *testing.T) {
 
 	response, actor, reached := serveAuthenticated(t, auth, inbound)
 
+	if !reached || auth.calls != 0 || actor.IsAuthenticated() {
+		t.Errorf("reached %t, authentication asked %d times, actor %+v, status %d",
+			reached, auth.calls, actor, response.Code)
+	}
+}
+
+// A forge's delivery and a CMDB intake's post come from no account: served without a bearer, and a
+// CMDB intake's secret presented as one is left to the route rather than verified as a token.
+func TestTheIntakesAreServedWithTheirOwnSecret(t *testing.T) {
+	auth := &authenticator{}
+	forge := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
+		APIBasePath+"/code-intake/"+string(tenantID)+"/0d1e3c3c-4c8e-4b8e-9b1e-0e9f6c1a2b3c", nil)
+	if response, _, reached := serveAuthenticated(t, auth, forge); !reached {
+		t.Errorf("a forge's delivery was refused: %d", response.Code)
+	}
+
+	alert := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
+		APIBasePath+"/cmdb/alert-intake/"+string(tenantID)+"/0d1e3c3c-4c8e-4b8e-9b1e-0e9f6c1a2b3c", nil)
+	alert.Header.Set("Authorization", "Bearer the-intake-secret")
+	response, actor, reached := serveAuthenticated(t, auth, alert)
 	if !reached || auth.calls != 0 || actor.IsAuthenticated() {
 		t.Errorf("reached %t, authentication asked %d times, actor %+v, status %d",
 			reached, auth.calls, actor, response.Code)
