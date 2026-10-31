@@ -7,7 +7,9 @@
   // the team gives them; nothing here reads the team's side of a collection. The approvals waiting
   // for the reader's yes are decided here too (UC-SVC-09 check 5), without a link to the entry.
   // Where the reader's organisation shares its requests, its colleagues' are one choice away
-  // (UC-SVC-11 check 5); the list is asked for only once chosen.
+  // (UC-SVC-11 check 5); the list is asked for only once chosen. The head is the desk's own - its
+  // name, description and mark - and the kinds are named in the reader's language (UC-SVC-05
+  // checks 7 and 8); before the catalogue answers, the portal's own words stand in.
 
   import { untrack } from 'svelte';
   import {
@@ -26,17 +28,19 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import ArticleSuggestions from '../lib/portal/ArticleSuggestions.svelte';
   import Question from '../lib/portal/Question.svelte';
-  import { answersOf, askable, deflectionText } from '../lib/portal/portal.ts';
+  import { answersOf, askable, deflectionText, deskHead } from '../lib/portal/portal.ts';
   import { renderProblem } from '../lib/problem.ts';
   import ApprovalCard from '../lib/servicedesk/ApprovalCard.svelte';
   import PublicFormPanel from '../lib/servicedesk/PublicFormPanel.svelte';
   import { offersOrganisation } from '../lib/servicedesk/organisations.ts';
+  import ContainerMark from '../lib/workspace/ContainerMark.svelte';
 
   const { collectionId, onnavigate }: { collectionId: string; onnavigate?: (path: string) => void } = $props();
 
-  $effect(() => page.entitle(t('app.portal.title')));
-
   const catalogue = untrack(() => resource<RequestCatalogue>(cataloguePath(collectionId)));
+  const desk = $derived(catalogue.state.status === 'ready' ? catalogue.state.data.desk : undefined);
+  const head = $derived(deskHead(desk, { title: t('app.portal.title'), intro: t('app.portal.intro') }));
+  $effect(() => page.entitle(head.title));
   const mine = untrack(() => resource<PortalRequestPage>(myRequestsPath(collectionId)));
   const asked = untrack(() => resource<ApprovalList>(myApprovalsPath));
   const waiting = $derived(asked.state.status === 'ready' ? asked.state.data.data : []);
@@ -105,8 +109,11 @@
   }
 </script>
 
+{#snippet deskMark()}<ContainerMark look={{ type: 'COLLECTION', icon: desk?.icon || null, color_token: desk?.color_token || null }} size="md" />{/snippet}
+
 <Stack gap="300">
-  <PageHeader title={t('app.portal.title')} subtitle={t('app.portal.intro')} isTitleInBar={viewport.isCompact} />
+  <PageHeader title={head.title} subtitle={head.subtitle} isTitleInBar={viewport.isCompact}
+    mark={desk ? deskMark : undefined} />
 
   {#if failure}
     <ErrorState title={failure.message} reference={failure.reference} referenceLabel={t('app.reference')}
@@ -120,7 +127,7 @@
       <Stack gap="150">
         <h2 class="heading" id="portal-ask">{t('app.portal.ask')}</h2>
         <Radio label={t('app.portal.kind')} name="portal-kind" bind:value={kind}
-          options={kinds.map((each) => ({ value: each.key, label: each.name || each.key }))} />
+          options={kinds.map((each) => ({ value: each.key, label: each.name || each.key, hint: each.description || undefined }))} />
         <Input label={t('app.portal.request_title')} hint={t('app.portal.request_title_hint')} isRequired maxlength={500} bind:value={title} />
         {#key typed}
           <ArticleSuggestions {collectionId} text={typed} onopen={(pageId) => onnavigate?.(`/portal/${collectionId}/articles/${pageId}`)} />

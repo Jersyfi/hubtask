@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answersOf, askable, deflectionText, goalTone } from './portal.ts';
+import { answersOf, askable, deflectionText, deskHead, goalTone } from './portal.ts';
 
 const questions = [
   { key: 'room', kind: 'SELECT', options: ['floor_1', 'floor_2'] },
@@ -42,4 +42,15 @@ test('a goal is drawn by how it stands', () => {
 test('articles are asked for the words typed so far, never for two letters', () => {
   assert.equal(deflectionText('pr', ''), '');
   assert.equal(deflectionText('Printer  prints', 'blank\npages'), 'Printer prints blank pages');
+});
+
+// UC-SVC-05 check 8: the portal's head is the desk's own name and description, the portal's own
+// words standing in for what the desk leaves empty or before the catalogue answers.
+test('the head is the desk the portal is for', () => {
+  const words = { title: 'Ask for help', intro: 'Tell the team what you need.' };
+  assert.deepEqual(deskHead({ name: 'IT help', description: 'Printers and laptops', icon: 'printer', color_token: 'blue' }, words),
+    { title: 'IT help', subtitle: 'Printers and laptops' });
+  assert.deepEqual(deskHead({ name: 'HR', description: '', icon: '', color_token: '' }, words),
+    { title: 'HR', subtitle: 'Tell the team what you need.' });
+  assert.deepEqual(deskHead(undefined, words), { title: 'Ask for help', subtitle: 'Tell the team what you need.' });
 });

@@ -105,3 +105,19 @@ export function deflectionText(title: string, notes: string): string {
   const text = `${title} ${notes}`.trim().replace(/\s+/gu, ' ');
   return text.length < 3 ? '' : text.slice(0, 500);
 }
+
+/** The service a portal is for, as the catalogue names it. */
+export interface Desk {
+  readonly name: string;
+  readonly description: string;
+  readonly icon: string;
+  readonly color_token: string;
+}
+
+/**
+ * The portal's head (UC-SVC-05 check 8): the desk's name and description, the portal's own words
+ * where the desk leaves one empty or is not known yet.
+ */
+export function deskHead(desk: Desk | undefined, words: { title: string; intro: string }): { title: string; subtitle: string } {
+  return { title: desk?.name || words.title, subtitle: desk?.description || words.intro };
+}
