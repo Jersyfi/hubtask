@@ -821,7 +821,10 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   (`CORRECTION`, naming what it corrects) in an open week. The workspace's **`Policy`**
   (`time_policy`) is the last locked day and the visibility: `FULL`, or `AGGREGATED`, under which a
   report over other people names nobody and withholds groups of fewer than three people
-  (`Summarise`). Other people's time is read and decided where the reader holds `APPROVE_TIME` (or
+  (`Summarise`). Both parts are entries of the settings catalogue (`time.locked_through`, a `DATE`,
+  and `time.visibility`): the installation and the plan decide above the row and may lock either,
+  the row is the workspace's layer - versioned, synchronised and archived as one record - and every
+  write and read of time is held to the policy in force (`ResolvePolicy`). Other people's time is read and decided where the reader holds `APPROVE_TIME` (or
   `MANAGE_MEMBERS`) at the workspace or at the hub or collection of the entries; nobody approves
   their own week. `Actuals` adds everybody's minutes to an entry's estimate in hours, rolled up its
   parents.

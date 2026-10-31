@@ -133,8 +133,9 @@ from the copy, so an entry's form is drawn offline. A person's time records (`ti
 running timer (`time_timer`, by the account) are walked for that person alone, filed under no
 container and addressed by `account_id` - a removal as well -, so the stream delivers them to that
 account only, as a custom role's grant (§4.3); the workspace's kinds of work (`time_work_types`)
-and its time policy (`time_policy`) are one record each under the workspace's identifier, walked
-once there is something to tell and reaching every member. While the server is away the web app
+and its time policy (`time_policy`, as in force under the installation and the plan) are one
+record each under the workspace's identifier, walked once there is something to tell and reaching
+every member. While the server is away the web app
 answers the timer, its minutes counted on the device, the kinds of work and the policy from the
 copy. A person's weeks (`timesheet`, by the week's row) and capacities (`time_capacities`, one
 record per person) are theirs alone in the same way; the absences (`time_absence`) are the shared
