@@ -24,17 +24,25 @@ const (
 	// GoalFirstResponse is met by the first comment of somebody other than the person who raised
 	// the entry, or by its completion.
 	GoalFirstResponse GoalKind = "FIRST_RESPONSE"
+	// GoalNextResponse waits for the team's answer to the requester's words: armed by a comment of
+	// theirs once the first response is met, met by the next public reply or the completion, and
+	// armed again by their next comment.
+	GoalNextResponse GoalKind = "NEXT_RESPONSE"
 	// GoalResolution is met by the entry's completion.
 	GoalResolution GoalKind = "RESOLUTION"
 )
 
-var goalKinds = [...]GoalKind{GoalFirstResponse, GoalResolution}
+var goalKinds = [...]GoalKind{GoalFirstResponse, GoalNextResponse, GoalResolution}
 
 // GoalKinds answers every kind, in the order a screen draws them.
 func GoalKinds() []GoalKind { return goalKinds[:] }
 
 // Valid reports whether the kind is one of the set.
 func (k GoalKind) Valid() bool { return slices.Contains(goalKinds[:], k) }
+
+// WaitsForRequester reports whether the goal is armed by the requester's words rather than by the
+// entry's appearing.
+func (k GoalKind) WaitsForRequester() bool { return k == GoalNextResponse }
 
 // TimerName is the durable timer that counts down the goal.
 func (k GoalKind) TimerName() string { return strings.ToLower(string(k)) }
@@ -340,6 +348,17 @@ func (r EntrySla) Follow(timer calendar.Timer, now time.Time) EntrySla {
 		r.BreachedAt = &at
 	}
 	return r
+}
+
+// Rearm starts a met goal's next round at now, its marks of the last round cleared; false for one
+// still live or breached - a round is not cut short, and a broken promise stays on the entry.
+func (r EntrySla) Rearm(target time.Duration, now time.Time) (EntrySla, bool) {
+	if r.Standing != StandingMet {
+		return r, false
+	}
+	r.Target, r.ArmedAt, r.Standing = target, now, StandingRunning
+	r.DueAt, r.AtRiskAt, r.MetAt = nil, nil, nil
+	return r, true
 }
 
 // ReportRow counts the goals of one policy and kind in one standing.

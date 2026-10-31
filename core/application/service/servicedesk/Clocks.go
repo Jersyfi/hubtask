@@ -52,6 +52,9 @@ type SlaClocks struct {
 	Items        workrepo.Items
 	Timers       calendarservice.Clocks
 	IDs          clock.IDGenerator
+	// Requesters tells the entries the mail intake filed for a requester without an account; nil
+	// takes who raised an entry for its requester.
+	Requesters RequesterAddresses
 }
 
 var _ eventbus.Subscriber = SlaClocks{}
@@ -126,12 +129,21 @@ func (s SlaClocks) Deliver(ctx context.Context, envelope event.Envelope) error {
 	case event.ItemCompleted:
 		return s.stopAll(ctx, clocks, itemID, records, true, now)
 	case event.CommentCreated:
-		// The requester's own words answer nothing, and neither does a note they never read.
-		if shared.ID(textAt(envelope.Payload, "author_id")) == item.CreatedBy ||
-			envelope.Payload["internal"] == true {
+		// A note the requester never reads answers nothing and asks nothing.
+		if envelope.Payload["internal"] == true {
 			return nil
 		}
-		return s.meet(ctx, clocks, records, domain.GoalFirstResponse, now)
+		requester, err := s.fromRequester(ctx, envelope, item)
+		if err != nil {
+			return err
+		}
+		if requester {
+			return s.awaitNext(ctx, clocks, item, policies, records, now)
+		}
+		if err := s.meet(ctx, clocks, records, domain.GoalFirstResponse, now); err != nil {
+			return err
+		}
+		return s.meet(ctx, clocks, records, domain.GoalNextResponse, now)
 	case event.ItemTrashed:
 		return s.pauseAll(ctx, clocks, records, now)
 	case event.ItemRestored:
@@ -215,35 +227,103 @@ func (s SlaClocks) arm(
 	if err != nil {
 		return err
 	}
-	priority := PriorityOf(item, policy)
 	for _, goal := range policy.Goals {
-		if holds(records, goal.Kind) {
+		if holds(records, goal.Kind) || goal.Kind.WaitsForRequester() {
 			continue
-		}
-		target := goal.Target(priority)
-		timer, err := clocks.Arm(ctx, item.TenantID, calendar.PurposeSLA, item.ID, goal.Kind.TimerName(), cal, target)
-		if err != nil {
-			return err
-		}
-		if warning, ok := goal.Warning(priority); ok {
-			if _, err := clocks.Arm(ctx, item.TenantID, calendar.PurposeSLA, item.ID, goal.Kind.WarnTimerName(), cal, warning); err != nil {
-				return err
-			}
-		}
-		if goal.Pauses(item.Status) {
-			if timer, err = s.pause(ctx, clocks, item.ID, goal.Kind); err != nil {
-				return err
-			}
 		}
 		record := domain.EntrySla{
 			ID: s.IDs.NewID(), TenantID: item.TenantID, ItemID: item.ID, Goal: goal.Kind, PolicyKey: policy.Key,
-			Target: target, ArmedAt: now,
+			Target: goal.Target(PriorityOf(item, policy)), ArmedAt: now,
 		}
-		if err := s.Records.Save(ctx, record.Follow(timer, now), now); err != nil {
+		if err := s.start(ctx, clocks, item, goal, PriorityOf(item, policy), cal, record, now); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// start runs a goal's timers from now and saves its record in step with them.
+func (s SlaClocks) start(
+	ctx context.Context, clocks calendarservice.Clocks, item work.WorkItem, goal domain.SlaGoal, priority string,
+	cal calendar.BusinessCalendar, record domain.EntrySla, now time.Time,
+) error {
+	timer, err := clocks.Arm(ctx, item.TenantID, calendar.PurposeSLA, item.ID, goal.Kind.TimerName(), cal, record.Target)
+	if err != nil {
+		return err
+	}
+	if warning, ok := goal.Warning(priority); ok {
+		if _, err := clocks.Arm(ctx, item.TenantID, calendar.PurposeSLA, item.ID, goal.Kind.WarnTimerName(), cal, warning); err != nil {
+			return err
+		}
+	}
+	if goal.Pauses(item.Status) {
+		if timer, err = s.pause(ctx, clocks, item.ID, goal.Kind); err != nil {
+			return err
+		}
+	}
+	return s.Records.Save(ctx, record.Follow(timer, now), now)
+}
+
+// awaitNext arms the next response on the requester's words (UC-SVC-02 check 8): once the first
+// response is met, and again after each met round.
+func (s SlaClocks) awaitNext(
+	ctx context.Context, clocks calendarservice.Clocks, item work.WorkItem, policies []domain.SlaPolicy,
+	records []domain.EntrySla, now time.Time,
+) error {
+	if item.Completion.IsCompleted || item.DeletedAt != nil {
+		return nil
+	}
+	policy, covered := domain.Choose(policies, item.EntryType)
+	if !covered {
+		return nil
+	}
+	goal, wanted := policy.Goal(domain.GoalNextResponse)
+	if !wanted {
+		return nil
+	}
+	record := domain.EntrySla{
+		ID: s.IDs.NewID(), TenantID: item.TenantID, ItemID: item.ID, Goal: goal.Kind, PolicyKey: policy.Key,
+		Target: goal.Target(PriorityOf(item, policy)), ArmedAt: now,
+	}
+	for _, held := range records {
+		switch {
+		case held.Goal == domain.GoalFirstResponse && live(held):
+			// The first answer is still owed; the next one starts after it.
+			return nil
+		case held.Goal == domain.GoalNextResponse:
+			again, ok := held.Rearm(record.Target, now)
+			if !ok {
+				return nil
+			}
+			again.PolicyKey = policy.Key
+			record = again
+		}
+	}
+	cal, err := s.calendarOf(ctx, policy, item)
+	if errors.Is(err, shared.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return s.start(ctx, clocks, item, goal, PriorityOf(item, policy), cal, record, now)
+}
+
+// fromRequester reports whether a comment is the requester's own words: written by who raised the
+// entry, or filed by the mail intake for a requester without an account. The administrator who
+// opened the intake raised what it filed, so their own comment on it is the team's.
+func (s SlaClocks) fromRequester(ctx context.Context, envelope event.Envelope, item work.WorkItem) (bool, error) {
+	if envelope.Payload["by_requester"] == true {
+		return true, nil
+	}
+	if shared.ID(textAt(envelope.Payload, "author_id")) != item.CreatedBy {
+		return false, nil
+	}
+	if s.Requesters == nil {
+		return true, nil
+	}
+	filed, err := s.Requesters.AddressesOn(ctx, item.ID)
+	return len(filed) == 0, err
 }
 
 func holds(records []domain.EntrySla, kind domain.GoalKind) bool {

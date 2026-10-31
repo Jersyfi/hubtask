@@ -377,3 +377,79 @@ func TestARunOutGoalIsAtRiskThenBreached(t *testing.T) {
 		t.Error("a completion after the breach unmade it")
 	}
 }
+
+func withNextResponse(t *testing.T, f *fixture) {
+	t.Helper()
+	policy, err := domain.NewSlaPolicy(domain.NewSlaPolicyInput{
+		ID: shared.MustParseID("01936f2a-7c1e-7000-8000-0000000005c2"), TenantID: tenantID, Key: "incidents",
+		Name: "Incidents", CalendarKey: "office", EntryTypes: []string{"incident"}, Enabled: true, Now: monday,
+		Text: text.Composing{},
+		Goals: []domain.SlaGoal{
+			{Kind: domain.GoalFirstResponse, Minutes: 60},
+			{Kind: domain.GoalNextResponse, Minutes: 30},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.clocks.Policies = policyStore{rows: []domain.SlaPolicy{policy}}
+}
+
+// UC-SVC-02 check 8: the next response is armed by the requester's words once the first response
+// is met, met by the team's next public reply - never by an internal note - and armed again.
+func TestTheNextResponseWaitsForEachAnswerOfTheRequester(t *testing.T) {
+	f := newFixture(t)
+	withNextResponse(t, &f)
+	reply := func(at time.Duration, author shared.ID, extra map[string]any) {
+		payload := map[string]any{"item_id": itemID.String(), "author_id": author.String()}
+		for k, v := range extra {
+			payload[k] = v
+		}
+		f.deliver(t, event.CommentCreated, monday.Add(at), payload)
+	}
+	f.deliver(t, event.ItemCreated, monday, nil)
+	reply(5*time.Minute, requesterID, nil)
+	if next := f.records.goal(domain.GoalNextResponse); !next.ID.IsZero() {
+		t.Fatalf("the next response ran before the first was met: %+v", next)
+	}
+	reply(10*time.Minute, handlerID, nil)
+	reply(20*time.Minute, requesterID, nil)
+	next := f.records.goal(domain.GoalNextResponse)
+	if next.Standing != domain.StandingRunning || next.DueAt == nil || !next.DueAt.Equal(monday.Add(50*time.Minute)) {
+		t.Fatalf("the next response armed as %+v", next)
+	}
+	reply(25*time.Minute, handlerID, map[string]any{"internal": true})
+	if f.records.goal(domain.GoalNextResponse).Standing != domain.StandingRunning {
+		t.Fatal("an internal note met the next response")
+	}
+	reply(30*time.Minute, handlerID, nil)
+	if met := f.records.goal(domain.GoalNextResponse); met.Standing != domain.StandingMet {
+		t.Fatalf("the team's reply did not meet the next response: %+v", met)
+	}
+	reply(40*time.Minute, requesterID, nil)
+	again := f.records.goal(domain.GoalNextResponse)
+	if again.Standing != domain.StandingRunning || !again.ArmedAt.Equal(monday.Add(40*time.Minute)) || again.MetAt != nil {
+		t.Errorf("the next round armed as %+v", again)
+	}
+}
+
+// An entry the mail intake filed is raised by the administrator who opened it: their own reply
+// answers the requester, and the requester's filed words ask for the next answer.
+func TestOnAnEntryFiledByMailTheOpenersReplyAnswers(t *testing.T) {
+	f := newFixture(t)
+	withNextResponse(t, &f)
+	f.clocks.Requesters = requesterBook{itemID: {{Address: "kunde@shop.test"}}}
+	f.deliver(t, event.ItemCreated, monday, nil)
+	f.deliver(t, event.CommentCreated, monday.Add(10*time.Minute), map[string]any{
+		"item_id": itemID.String(), "author_id": requesterID.String(),
+	})
+	if first := f.records.goal(domain.GoalFirstResponse); first.Standing != domain.StandingMet {
+		t.Fatalf("the opener's reply did not meet the first response: %+v", first)
+	}
+	f.deliver(t, event.CommentCreated, monday.Add(20*time.Minute), map[string]any{
+		"item_id": itemID.String(), "author_id": requesterID.String(), "by_requester": true,
+	})
+	if next := f.records.goal(domain.GoalNextResponse); next.Standing != domain.StandingRunning {
+		t.Errorf("the requester's filed words did not arm the next response: %+v", next)
+	}
+}

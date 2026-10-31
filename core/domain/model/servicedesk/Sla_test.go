@@ -157,3 +157,35 @@ func TestNewCalendar(t *testing.T) {
 		t.Error("a malformed key was taken")
 	}
 }
+
+// UC-SVC-02 check 8: a next response waits for the requester, and a met one is armed again by
+// their next words; a breached one stays breached, a live one keeps its round.
+func TestANextResponseIsArmedAgainOnlyOnceMet(t *testing.T) {
+	if !GoalNextResponse.Valid() || !GoalNextResponse.WaitsForRequester() || GoalFirstResponse.WaitsForRequester() {
+		t.Fatal("NEXT_RESPONSE is not a goal that waits for the requester")
+	}
+	monday := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	met := monday.Add(time.Hour)
+	breached := monday.Add(2 * time.Hour)
+	cases := []struct {
+		name  string
+		was   EntrySla
+		again bool
+	}{
+		{"met", EntrySla{Goal: GoalNextResponse, Standing: StandingMet, MetAt: &met, AtRiskAt: &met}, true},
+		{"breached", EntrySla{Goal: GoalNextResponse, Standing: StandingBreached, BreachedAt: &breached}, false},
+		{"running", EntrySla{Goal: GoalNextResponse, Standing: StandingRunning}, false},
+		{"paused", EntrySla{Goal: GoalNextResponse, Standing: StandingPaused}, false},
+	}
+	for _, c := range cases {
+		next, again := c.was.Rearm(30*time.Minute, breached)
+		if again != c.again {
+			t.Errorf("%s: armed again %v, want %v", c.name, again, c.again)
+			continue
+		}
+		if again && (next.MetAt != nil || next.AtRiskAt != nil || next.Target != 30*time.Minute ||
+			!next.ArmedAt.Equal(breached) || next.Standing != StandingRunning) {
+			t.Errorf("%s: armed again as %+v", c.name, next)
+		}
+	}
+}
