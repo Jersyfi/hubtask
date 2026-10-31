@@ -10,6 +10,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -288,6 +289,42 @@ func PublicFormBucket(perMinute, burst int) func(*http.Request) Bucket {
 		}
 		return Bucket{Key: ClientAddress(r), Limit: perMinute, Burst: burst}
 	}
+}
+
+// publicNetworkShare is how many addresses' budgets one network may spend on the public writes:
+// a household or an office behind one prefix still gets through, a sender rotating its source
+// address inside one /64 or a small IPv4 pool does not buy a fresh budget each time.
+const publicNetworkShare = 4
+
+// PublicFormNetworkBucket counts the same anonymous writes as PublicFormBucket per network origin
+// (/24 for IPv4, /64 for IPv6), beside the per-address bucket, never instead of it.
+func PublicFormNetworkBucket(perMinute, burst int) func(*http.Request) Bucket {
+	perAddress := PublicFormBucket(perMinute, burst)
+	return func(r *http.Request) Bucket {
+		if perAddress(r).Key == "" {
+			return Bucket{}
+		}
+		return Bucket{Key: NetworkOrigin(r), Limit: perMinute * publicNetworkShare, Burst: max(burst, 1) * publicNetworkShare}
+	}
+}
+
+// NetworkOrigin is ClientAddress reduced to its network: the /24 of an IPv4 address and the /64 of
+// an IPv6 one, the smallest block a sender is commonly handed whole.
+func NetworkOrigin(r *http.Request) string {
+	address, err := netip.ParseAddr(ClientAddress(r))
+	if err != nil {
+		return ClientAddress(r)
+	}
+	address = address.Unmap()
+	bits := 64
+	if address.Is4() {
+		bits = 24
+	}
+	prefix, err := address.Prefix(bits)
+	if err != nil {
+		return address.String()
+	}
+	return prefix.String()
 }
 
 // isAuthRoute matches the public credential routes by their literal paths. A string operation on

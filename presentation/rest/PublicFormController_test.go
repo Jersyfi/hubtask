@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -97,5 +98,43 @@ func TestAPublicFormIsCountedPerAddress(t *testing.T) {
 		if got := bucket(other); got.Key != "" {
 			t.Errorf("%s %s counted: %+v", other.Method, other.URL.Path, got)
 		}
+	}
+}
+
+// UC-SVC-13 check 5: an address rotated inside one network does not buy a fresh budget - the
+// network's bucket (/24, /64) refuses with 429 once its own budget is spent.
+func TestAPublicFormIsCountedPerNetwork(t *testing.T) {
+	bucket := PublicFormNetworkBucket(5, 2)
+	for address, want := range map[string]string{
+		"203.0.113.7:4711":              "203.0.113.0/24",
+		"[2001:db8:1:2:aaaa::1]:4711":   "2001:db8:1:2::/64",
+		"[2001:db8:1:2:ffff:1::9]:4711": "2001:db8:1:2::/64",
+	} {
+		post := httptest.NewRequestWithContext(t.Context(), http.MethodPost, APIBasePath+"/public/forms/hbt_form_x", nil)
+		post.RemoteAddr = address
+		if got := bucket(post); got.Key != want || got.Limit != 5*publicNetworkShare || got.Burst != 2*publicNetworkShare {
+			t.Errorf("%s: bucket %+v, want key %s", address, got, want)
+		}
+	}
+	if got := bucket(httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/public/forms/hbt_form_x", nil)); got.Key != "" {
+		t.Errorf("a read counted: %+v", got)
+	}
+
+	limited := Limited{
+		Limiter: NewRateLimiter(), Level: "public_network", Bucket: bucket,
+		Next: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusAccepted) }),
+	}
+	refused := 0
+	for host := range 64 {
+		post := httptest.NewRequestWithContext(t.Context(), http.MethodPost, APIBasePath+"/public/forms/hbt_form_x", nil)
+		post.RemoteAddr = fmt.Sprintf("[2001:db8:1:2::%x]:4711", host+1)
+		answer := httptest.NewRecorder()
+		limited.ServeHTTP(answer, post)
+		if answer.Code == http.StatusTooManyRequests {
+			refused++
+		}
+	}
+	if refused < 64-2*publicNetworkShare {
+		t.Fatalf("64 addresses of one /64 were refused %d times", refused)
 	}
 }

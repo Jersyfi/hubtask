@@ -116,7 +116,8 @@ var PublicRoutes = map[string]bool{
 	// the route validates it itself (UC-DOC-08).
 	http.MethodGet + " " + APIBasePath + "/public/pages/{token}": true,
 	// A collection's public form, the same again (UC-SVC-13): the submission is counted per
-	// client address and carries its proof of work (PublicFormBucket).
+	// client address and per network (PublicFormBucket, PublicFormNetworkBucket) and carries its
+	// proof of work.
 	http.MethodGet + " " + APIBasePath + "/public/forms/{token}":  true,
 	http.MethodPost + " " + APIBasePath + "/public/forms/{token}": true,
 	// A resolution mail's satisfaction link, the same again (UC-SVC-07 check 6): it signs nobody

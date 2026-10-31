@@ -4139,30 +4139,38 @@ func run() error {
 											Level: "public_form",
 											Bucket: rest.PublicFormBucket(
 												cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
-											Next: rest.Localised{
-												Locale: cfg.Locale,
-												// The catalogues present decide what a header lands
-												// on; the renderer is the matcher.
-												Negotiator: renderer,
-												Next: rest.Authenticated{
-													Routes:        apiRoutes,
-													Authenticator: authenticate,
-													Locale:        cfg.Locale,
-													Next: rest.Limited{
-														// The workspace's own per-token ceiling,
-														// engaging only where one is configured.
-														Limiter: limiter, Signals: metrics,
-														Level:  "token",
-														Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
+											// And per network origin, so an address rotated
+											// inside one /64 buys no fresh budget.
+											Next: rest.Limited{
+												Limiter: limiter, Signals: metrics,
+												Level: "public_network",
+												Bucket: rest.PublicFormNetworkBucket(
+													cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
+												Next: rest.Localised{
+													Locale: cfg.Locale,
+													// The catalogues present decide what a header lands
+													// on; the renderer is the matcher.
+													Negotiator: renderer,
+													Next: rest.Authenticated{
+														Routes:        apiRoutes,
+														Authenticator: authenticate,
+														Locale:        cfg.Locale,
 														Next: rest.Limited{
+															// The workspace's own per-token ceiling,
+															// engaging only where one is configured.
 															Limiter: limiter, Signals: metrics,
-															Level: "tenant",
-															Bucket: rest.TenantBucket(
-																cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-															Next: rest.Idempotent{
-																Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-																Routes: apiRoutes,
-																Next:   apiRoutes,
+															Level:  "token",
+															Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
+															Next: rest.Limited{
+																Limiter: limiter, Signals: metrics,
+																Level: "tenant",
+																Bucket: rest.TenantBucket(
+																	cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+																Next: rest.Idempotent{
+																	Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+																	Routes: apiRoutes,
+																	Next:   apiRoutes,
+																},
 															},
 														},
 													},

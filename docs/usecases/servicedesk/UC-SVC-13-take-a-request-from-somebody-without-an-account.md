@@ -49,8 +49,8 @@ that there is no form here.
    another form, a forged or unsolved one is refused `public_forms.work_invalid`, one past its ten
    minutes `public_forms.work_expired`, and one already answered `public_forms.work_spent`; a request
    refused for what it said may be corrected and sent with the same work.
-5. Submissions are counted per client address; past the budget the server answers 429 before
-   anything is read. A submission is answered 202 with nothing else.
+5. Submissions are counted per client address and per network origin (its /24 or /64, four
+   addresses' budget); past either budget the server answers 429 before anything is read. A submission is answered 202 with nothing else.
 6. The request is created through `CreateWorkItem` on the `PUBLIC` door as the link's maker, held to
    the type's form there; a given name and address become the line *From: name <address>* above the
    words and a requester's record (`REQUESTER`), which an erasure by address and the requester's
@@ -65,7 +65,7 @@ that there is no form here.
 * An embedded form inside another site and a guest-only form are not built; the link opens the
   form on Hubtask's own card.
 * The challenges answered are remembered per server process; a replica that never saw a challenge
-  takes it once more, which the per-address budget bounds.
+  takes it once more, which the per-address and per-network budgets bound.
 * Files are not attached through a public form.
 * The panel that makes the link is shown in the portal to a workspace administrator; somebody who
   manages only the collection's members makes it through the API or hubctl.
