@@ -5,6 +5,7 @@ package work_test
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -183,5 +184,33 @@ func TestADependencyReadsWhoWaitsAndWhereALoopWouldClose(t *testing.T) {
 	}
 	if other, outward := link.Other(entryTwo); other != entryOne || outward {
 		t.Errorf("other end %v, outward %v", other, outward)
+	}
+}
+
+func TestMergedIntoAnswersTheSourcesOfAnEntrysIncomingDuplicates(t *testing.T) {
+	into := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a01")
+	first := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a02")
+	second := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a03")
+	other := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a04")
+	for _, tc := range []struct {
+		name  string
+		links []work.EntryLink
+		want  []shared.ID
+	}{
+		{"none", nil, nil},
+		{"two merged in", []work.EntryLink{
+			{Type: work.LinkTypeDuplicates, SourceID: first, TargetID: into},
+			{Type: work.LinkTypeDuplicates, SourceID: second, TargetID: into},
+		}, []shared.ID{first, second}},
+		{"the entry merged away itself, and another type", []work.EntryLink{
+			{Type: work.LinkTypeDuplicates, SourceID: into, TargetID: other},
+			{Type: work.LinkTypeBlocks, SourceID: first, TargetID: into},
+		}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := work.MergedInto(tc.links, into); !slices.Equal(got, tc.want) {
+				t.Fatalf("MergedInto = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

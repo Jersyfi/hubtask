@@ -89,7 +89,18 @@ type RecordNotifications struct {
 	// Requesters tells who raised an entry as a requester (UC-SVC-05), who is told of the team's
 	// public answers on it under REQUEST_REPLY. Nil tells no requester.
 	Requesters RequesterReach
+	// Links finds the requests merged into an entry, whose requesters are told of its replies on
+	// their own request (UC-SVC-03 check 8); nil tells the entry's own requester alone.
+	Links MergeLinks
 }
+
+// MergeLinks answers an entry's links from both ends - the entry links' Of.
+type MergeLinks interface {
+	Of(ctx context.Context, entryID shared.ID, limit int) ([]work.EntryLink, error)
+}
+
+// maxLinksForMerges bounds the links read to find the requests merged into an entry.
+const maxLinksForMerges = 500
 
 // RequesterReach is the authoriser's question whether a person follows a place only through the
 // portal (access.Service.Requester).
@@ -273,6 +284,38 @@ func (r RecordNotifications) tellRequester(
 	case err != nil:
 		return err
 	}
+	if err := r.tellCreator(ctx, envelope, item, told); err != nil {
+		return err
+	}
+	if r.Links == nil {
+		return nil
+	}
+	links, err := r.Links.Of(ctx, itemID, maxLinksForMerges)
+	if err != nil {
+		return err
+	}
+	told = append(told, item.CreatedBy)
+	for _, sourceID := range work.MergedInto(links, itemID) {
+		source, err := r.Items.Find(ctx, sourceID)
+		switch {
+		case errors.Is(err, shared.ErrNotFound):
+			continue
+		case err != nil:
+			return err
+		}
+		if err := r.tellCreator(ctx, envelope, source, told); err != nil {
+			return err
+		}
+		told = append(told, source.CreatedBy)
+	}
+	return nil
+}
+
+// tellCreator records REQUEST_REPLY on the entry for the person who raised it, if they follow the
+// place as a requester and are not told already.
+func (r RecordNotifications) tellCreator(
+	ctx context.Context, envelope event.Envelope, item work.WorkItem, told []shared.ID,
+) error {
 	if item.CreatedBy.IsZero() || slices.Contains(told, item.CreatedBy) {
 		return nil
 	}
@@ -282,7 +325,7 @@ func (r RecordNotifications) tellRequester(
 	if err != nil || !requester {
 		return err
 	}
-	return r.record(ctx, envelope, domain.CategoryRequestReply, itemID, item.CreatedBy)
+	return r.record(ctx, envelope, domain.CategoryRequestReply, item.ID, item.CreatedBy)
 }
 
 // record writes one person's record and, where it is to be sent, the job that sends it.

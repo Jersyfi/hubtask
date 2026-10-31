@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
@@ -374,5 +375,46 @@ func TestAPublicReplyOnARequestTellsItsRequester(t *testing.T) {
 				t.Errorf("told %+v", told[0])
 			}
 		})
+	}
+}
+
+// twoItems answers the request replied on and the one merged into it.
+type twoItems map[shared.ID]work.WorkItem
+
+func (s twoItems) Find(_ context.Context, id shared.ID) (work.WorkItem, error) {
+	item, found := s[id]
+	if !found {
+		return work.WorkItem{}, shared.ErrNotFound
+	}
+	return item, nil
+}
+
+type mergeLinks []work.EntryLink
+
+func (l mergeLinks) Of(context.Context, shared.ID, int) ([]work.EntryLink, error) { return l, nil }
+
+// UC-SVC-03 check 8: the portal requester of a request merged into another is told of the other's
+// public replies, on their own request, which is the one they may read.
+func TestAMergedRequestsRequesterIsToldOfTheOthersReplies(t *testing.T) {
+	merged := shared.ID("01936f2a-7c1e-7000-8000-0000000000a9")
+	fixture := consumer(t, shared.ID(""))
+	target := task(shared.ID(""))
+	target.CreatedBy = anna
+	source := task(shared.ID(""))
+	source.ID, source.CreatedBy = merged, carla
+	fixture.consumer.Items = twoItems{itemID: target, merged: source}
+	fixture.consumer.Requesters = requesterBook{carla: true}
+	fixture.consumer.Links = mergeLinks{{Type: work.LinkTypeDuplicates, SourceID: merged, TargetID: itemID}}
+	if err := fixture.consumer.Deliver(t.Context(), commented(t, anna)); err != nil {
+		t.Fatal(err)
+	}
+	var told []domain.Notification
+	for _, record := range fixture.notifications.written() {
+		if record.Category == domain.CategoryRequestReply && record.State != domain.StateSuppressed {
+			told = append(told, record)
+		}
+	}
+	if len(told) != 1 || told[0].RecipientID != carla || told[0].ItemID != merged {
+		t.Fatalf("told %+v, want carla on her merged request", told)
 	}
 }

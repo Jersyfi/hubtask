@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [infrastructure/postgres/query/Sla_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
+checked_by: [infrastructure/postgres/query/Sla_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, core/application/service/servicedesk/RequesterReplies_test.go, core/application/service/notification/RecordNotifications_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
 ---
 
 # Work the queue by what breaks first
@@ -29,8 +29,9 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
 5. A handler merges a request into another that asks the same (*Merge into another…* in the entry's menu, `POST /items/{id}:merge`): the request is linked as the other's duplicate and archived, nothing is copied or deleted, and repeating the merge draws no second link. A merge into itself is refused as `items.merge_self`, into an archived or trashed entry as `items.merge_target_closed`, and of a request already a duplicate of a third as `links.cardinality`.
 6. A handler splits a part off a request (*Split a part off…*, `POST /items/{id}:split`): a new entry beside it with the title and notes given, whose creator is the request's requester, carrying neither the comments nor the history, and linked from the request by the link type chosen; a link type the workspace does not have is refused as `links.type_unknown` before anything is made.
 7. A handler reading a request sees, beside it, who raised it, the portal organisation of their mail domain and their other open requests the handler may see, newest first; the requester's address is not shown, and somebody who may not read the request is answered not found.
+8. After a merge, a public reply on the request merged into reaches the merged request's requester too: a requester by mail gets the reply's mail with the ticket key of the request merged into, each address once, and a portal requester is told under *The team answers a request I raised* on their own request; an internal note reaches neither.
 
 ## Where it ends
 
-* A merged request's requester is not told of the other request's replies: the portal reads a request by its creator, and the merged one stays theirs to read.
+* A merged request's portal requester is told of a reply on their own request; the reply's words reach them only by mail, since the portal reads a request by its creator and the request merged into stays the team's.
 * A queue is a saved view with a filter and a sort. Handing a request out by round robin, by load or to a group is the collection's assignment policy (UC-WRK-11); canned replies and macros are UC-SVC-06.

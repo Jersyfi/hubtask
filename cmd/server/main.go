@@ -4164,6 +4164,7 @@ func run() error {
 		Notifications: notifications, Preferences: notificationPreferences, Accounts: accounts,
 		Items: items, ItemMembers: itemMembers, Jobs: jobs,
 		Clock: clockadapter.System{}, IDs: ids, Signals: metrics, Reach: authorizer, Requesters: authorizer,
+		Links: entryLinks,
 	}
 
 	// The automation engine. The subscriber turns one event into one job per matching rule;
@@ -4261,7 +4262,7 @@ func run() error {
 			},
 			// A public reply mailed to the requesters an entry was filed for by mail (UC-SVC-12):
 			// one job per comment, the mail sent outside the dispatcher's transaction.
-			servicedeskservice.RequesterReplies{Requesters: postgres.RequesterRepository{IDs: ids}, Jobs: jobs},
+			servicedeskservice.RequesterReplies{Requesters: postgres.RequesterRepository{IDs: ids}, Jobs: jobs, Links: entryLinks},
 			// The satisfaction question of a resolved entry filed for requesters by mail
 			// (UC-SVC-07 check 6): one job per completion.
 			servicedeskservice.SatisfactionQuestions{Requesters: postgres.RequesterRepository{IDs: ids}, Jobs: jobs},
@@ -4895,7 +4896,7 @@ func run() error {
 		// A public reply mailed to an entry's requesters by mail (UC-SVC-12).
 		queueport.KindRequesterReply: worker.RequesterReply{Replies: servicedeskservice.SendRequesterReply{
 			Comments: postgres.NewCommentRepository(cursors), Items: items,
-			Requesters: postgres.RequesterRepository{IDs: ids}, Keys: mailIntake, Accounts: accounts,
+			Requesters: postgres.RequesterRepository{IDs: ids}, Links: entryLinks, Keys: mailIntake, Accounts: accounts,
 			Replies: mailservice.Replies{Writer: mailWriter}, Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			FallbackLocale: cfg.Locale.DefaultLocale, Mail: mailSender, Renderer: renderer, Background: backgroundWork,
 		}},

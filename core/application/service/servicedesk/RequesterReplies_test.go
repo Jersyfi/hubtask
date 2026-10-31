@@ -184,3 +184,62 @@ func TestTheReplyIsMailedToEachRequesterWithItsTicketKey(t *testing.T) {
 		t.Errorf("a comment that is gone sent %+v (%v)", missing.sent, err)
 	}
 }
+
+var mergedID = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000005f7")
+
+// links answers an entry's links from both ends, as workrepo.EntryLinks.Of does.
+type links []work.EntryLink
+
+func (l links) Of(_ context.Context, entryID shared.ID, _ int) ([]work.EntryLink, error) {
+	var out []work.EntryLink
+	for _, link := range l {
+		if link.SourceID == entryID || link.TargetID == entryID {
+			out = append(out, link)
+		}
+	}
+	return out, nil
+}
+
+// UC-SVC-03 check 8: the requester of a request merged into another is mailed the other's public
+// replies, with the other's ticket key, so their answer lands where the work goes on; a request
+// that merely relates to it is not.
+func TestARequestMergedAwayIsToldOfTheOthersReplies(t *testing.T) {
+	related := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000005f8")
+	graph := links{
+		{Type: work.LinkTypeDuplicates, SourceID: mergedID, TargetID: itemID},
+		{Type: work.LinkTypeBlocks, SourceID: related, TargetID: itemID},
+	}
+	book := requesterBook{
+		itemID:   {{Address: "a@shop.test"}},
+		mergedID: {{Address: "m@shop.test"}, {Address: "a@shop.test"}},
+		related:  {{Address: "r@shop.test"}},
+	}
+
+	jobs := &queued{}
+	onlyMerged := requesterBook{mergedID: book[mergedID]}
+	if err := (RequesterReplies{Requesters: onlyMerged, Jobs: jobs, Links: graph}).Deliver(t.Context(),
+		commentEvent(map[string]any{"author_id": handlerID.String()})); err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs.requests) != 1 {
+		t.Fatalf("queued %+v, want the reply's mail for the merged request's requester", jobs.requests)
+	}
+
+	reply := work.Comment{ID: replyID, ItemID: itemID, AuthorID: handlerID, Body: "Replaced the toner.", Kind: work.CommentByUser}
+	sent := &mailbag{}
+	send := sender(reply, book, sent)
+	send.Links = graph
+	if err := send.Send(t.Context(), tenantID, replyID); err != nil {
+		t.Fatal(err)
+	}
+	var to []string
+	for _, each := range sent.sent {
+		to = append(to, each.To)
+		if !strings.Contains(each.Subject, "IT-42") {
+			t.Errorf("%s got %q, want the ticket key of the request merged into", each.To, each.Subject)
+		}
+	}
+	if strings.Join(to, ",") != "a@shop.test,m@shop.test" {
+		t.Fatalf("mailed %v, want each requester once and the related request's none", to)
+	}
+}

@@ -39,6 +39,46 @@ type RequesterAddresses interface {
 	AddressesOn(ctx context.Context, itemID shared.ID) ([]domain.RequesterAddress, error)
 }
 
+// MergeLinks answers an entry's links from both ends - workrepo.EntryLinks.Of.
+type MergeLinks interface {
+	Of(ctx context.Context, entryID shared.ID, limit int) ([]work.EntryLink, error)
+}
+
+// maxLinksForMerges bounds the links read to find the requests merged into an entry.
+const maxLinksForMerges = 500
+
+// addressesWithMerged answers the requesters by mail of an entry and of every request merged into
+// it (UC-SVC-03 check 8), each address once; nil links reads the entry's own alone.
+func addressesWithMerged(
+	ctx context.Context, requesters RequesterAddresses, links MergeLinks, itemID shared.ID,
+) ([]domain.RequesterAddress, error) {
+	addresses, err := requesters.AddressesOn(ctx, itemID)
+	if err != nil || links == nil {
+		return addresses, err
+	}
+	touching, err := links.Of(ctx, itemID, maxLinksForMerges)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]bool, len(addresses))
+	for _, address := range addresses {
+		seen[strings.ToLower(address.Address)] = true
+	}
+	for _, source := range work.MergedInto(touching, itemID) {
+		merged, err := requesters.AddressesOn(ctx, source)
+		if err != nil {
+			return nil, err
+		}
+		for _, address := range merged {
+			if key := strings.ToLower(address.Address); !seen[key] {
+				seen[key] = true
+				addresses = append(addresses, address)
+			}
+		}
+	}
+	return addresses, nil
+}
+
 // ReplyJobs queues the mail of one reply.
 type ReplyJobs interface {
 	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
@@ -51,6 +91,9 @@ type ReplyJobs interface {
 type RequesterReplies struct {
 	Requesters RequesterAddresses
 	Jobs       ReplyJobs
+	// Links finds the requests merged into the entry, whose requesters are mailed too; nil mails
+	// the entry's own alone.
+	Links MergeLinks
 }
 
 var _ eventbus.Subscriber = RequesterReplies{}
@@ -72,9 +115,9 @@ func (r RequesterReplies) Deliver(ctx context.Context, envelope event.Envelope) 
 	if itemID.IsZero() || commentID.IsZero() {
 		return nil
 	}
-	addresses, err := r.Requesters.AddressesOn(ctx, itemID)
+	addresses, err := addressesWithMerged(ctx, r.Requesters, r.Links, itemID)
 	if err != nil || len(addresses) == 0 {
-		// The common case: an entry nobody filed by mail, one indexed read.
+		// The common case: an entry nobody filed by mail, and none merged into it filed so.
 		return err
 	}
 	_, err = r.Jobs.Enqueue(ctx, queue.Request{
@@ -112,7 +155,10 @@ type SendRequesterReply struct {
 	Comments   workrepo.Comments
 	Items      workrepo.Items
 	Requesters RequesterAddresses
-	Keys       TicketKeys
+	// Links finds the requests merged into the entry (UC-SVC-03 check 8); nil mails the entry's
+	// own requesters alone.
+	Links MergeLinks
+	Keys  TicketKeys
 	// Accounts names who wrote the reply; nil leaves the name out.
 	Accounts identityrepo.Accounts
 	// Replies answers the entry's address; nil sends no Reply-To.
@@ -185,7 +231,7 @@ func (s SendRequesterReply) read(ctx context.Context, tenantID, commentID shared
 			read.sendsNone = true
 			return nil
 		}
-		if read.to, err = s.Requesters.AddressesOn(ctx, read.item.ID); err != nil {
+		if read.to, err = addressesWithMerged(ctx, s.Requesters, s.Links, read.item.ID); err != nil {
 			return err
 		}
 		if len(read.to) == 0 {

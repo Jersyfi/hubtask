@@ -342,6 +342,18 @@ type EntryLink struct {
 	Timing planning.Timing
 }
 
+// MergedInto answers the entries merged into `into`: the sources of its incoming duplicates links
+// (UC-SVC-03 check 5), in the order given.
+func MergedInto(links []EntryLink, into shared.ID) []shared.ID {
+	var out []shared.ID
+	for _, link := range links {
+		if link.Type == LinkTypeDuplicates && link.TargetID == into && link.SourceID != into {
+			out = append(out, link.SourceID)
+		}
+	}
+	return out
+}
+
 // NewEntryLinkInput is what a link is made of.
 type NewEntryLinkInput struct {
 	ID        shared.ID
