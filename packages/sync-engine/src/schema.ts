@@ -208,6 +208,9 @@ export type OwnSettings = components['schemas']['OwnSettings'];
 export type ConfigProposalList = components['schemas']['ConfigProposalList'];
 /** The sandbox: a copy of the configuration where changes run nothing, and its promotion's plan. */
 export type ConfigSandbox = components['schemas']['ConfigSandbox'];
+/** A block's draft beside the one in force (ui.md A4): a type with its form, an SLA policy, a role. */
+export type ConfigDraft = components['schemas']['ConfigDraft'];
+export type ConfigDraftList = components['schemas']['ConfigDraftList'];
 /** Templates: bundles of blocks with a version, and the plan of taking or upgrading one (D-17). */
 export type ConfigTemplate = components['schemas']['ConfigTemplate'];
 export type ConfigTemplateList = components['schemas']['ConfigTemplateList'];

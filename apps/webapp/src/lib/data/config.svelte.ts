@@ -9,19 +9,21 @@
  */
 
 import type {
-  ConfigApplyResult, ConfigExport, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigTemplateList, ConfigTemplatePlan, ConfigVersion,
+  ConfigApplyResult, ConfigDraft, ConfigDraftList, ConfigExport, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigTemplateList, ConfigTemplatePlan, ConfigVersion,
   ConfigVersionList, ResourceState,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { etagFor } from './etag.ts';
 
 const VERSIONS = '/config/versions';
 const PROPOSALS = '/config/proposals';
 const DOCUMENT = '/config';
 const TEMPLATES = '/config/templates';
 const SANDBOX = '/config/sandbox';
+const DRAFTS = '/config/drafts';
 // What an apply can change: every block of the document, and what the capabilities answer of it.
-const TOUCHED = ['/config', TEMPLATES, '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
+const TOUCHED = ['/config', DRAFTS, TEMPLATES, '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
 
 /** The templates a hub can take, or the workspace's. */
 function templatesPath(hubId?: string): string {
@@ -153,6 +155,35 @@ class Config {
     });
   }
 
+  /** Reads the drafts saved beside the blocks in force (ui.md A4). **From `untrack`**. */
+  drafts(onNext: (state: ResourceState<ConfigDraftList>) => void): () => void {
+    return engine.subscribe<ConfigDraftList>({ path: DRAFTS }, onNext);
+  }
+
+  /** Saves a block's draft; the block in force stays in force for everybody. */
+  async saveDraft(section: DraftSection, key: string, block: Record<string, unknown>, version?: number): Promise<ConfigDraft> {
+    return engine.mutate<ConfigDraft>('PUT', draftPath(section, key), { block }, {
+      idempotencyKey: crypto.randomUUID(), invalidates: [DRAFTS], ...(version ? { ifMatch: etagFor(version) } : {}),
+    });
+  }
+
+  /** Throws a block's draft away. */
+  async discardDraft(section: DraftSection, key: string): Promise<void> {
+    await engine.mutate<void>('DELETE', draftPath(section, key), undefined, { idempotencyKey: crypto.randomUUID(), invalidates: [DRAFTS] });
+  }
+
+  /** The plan of putting a draft in force: its block merged into the document in force. */
+  async planDraft(section: DraftSection, key: string, block: Record<string, unknown>): Promise<ConfigPlan> {
+    return engine.mutate<ConfigPlan>('POST', '/config:plan', { document: { [section]: { [key]: block } } });
+  }
+
+  /** Publishes a draft by its plan; the apply removes the draft it put in force. */
+  async publishDraft(section: DraftSection, key: string, block: Record<string, unknown>, plan: ConfigPlan, acknowledge: boolean): Promise<ConfigApplyResult> {
+    return engine.mutate<ConfigApplyResult>('POST', '/config:apply', {
+      document: { [section]: { [key]: block } }, plan_hash: plan.plan_hash, base_hash: plan.base_hash, acknowledge,
+    }, { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHED });
+  }
+
   /** Sets what an agent's apply does in the workspace (D-16); a person's decision, never an agent's. */
   async setAgentApply(agentApply: 'ALLOWED' | 'APPROVAL' | 'NEVER'): Promise<{ agent_apply: string }> {
     return engine.mutate<{ agent_apply: string }>('PUT', '/config/policy', { agent_apply: agentApply }, {
@@ -171,6 +202,11 @@ class Config {
 }
 
 export const config = new Config();
+
+/** The sections whose blocks take a draft here; a workflow keeps its own. */
+export type DraftSection = ConfigDraft['section'];
+
+const draftPath = (section: DraftSection, key: string) => `${DRAFTS}/${section}/${encodeURIComponent(key)}`;
 
 /** Whether a plan or a proposal must have its flags acknowledged before it applies. */
 export const needsAcknowledge = (flags: { hides_data: boolean; changes_permissions: boolean }): boolean =>

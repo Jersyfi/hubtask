@@ -87,6 +87,8 @@ export type {
   ConfigProposal,
   ConfigProposalList,
   ConfigSandbox,
+  ConfigDraft,
+  ConfigDraftList,
   ConfigTemplate,
   ConfigTemplateList,
   ConfigTemplatePlan,

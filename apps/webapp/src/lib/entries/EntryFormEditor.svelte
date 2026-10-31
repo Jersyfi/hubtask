@@ -5,10 +5,10 @@
   // fields in order with required, read-only and hidden conditions, defaults and help, the checks
   // that must hold, and the channels that narrow it.
   //
-  // **One save for the whole form.** Unlike a type's own switches, a form is one document the
-  // server checks as a whole - a channel may only hide a field the form holds, a condition may only
-  // name a field the type has - so the editor sends it once and shows the refusal on the field it
-  // names.
+  // **A draft, then one publish for the whole form** (ui.md A4). A form every door of the type is
+  // held to is saved as a draft, which nobody else meets; publishing plans and applies it whole -
+  // a channel may only hide a field the form holds, a condition may only name a field the type
+  // has - and shows a refusal on the field it names.
   //
   // **Conditions are CEL, checked by the server.** No evaluator runs here (`entryforms.ts`); a
   // condition that does not compile comes back as a refusal naming where it sits.
@@ -23,10 +23,9 @@
     FORM_CHANNELS, OPT_IN_CHANNELS, addableKeys, channelIn, customKeyOf, draftOfForm, formKeyOfCustom, formOfDraft, moveField, newField,
     refusalsByField, removeField, removeSection, type FormDraft,
   } from '../data/entryforms.ts';
-  import { entryTypes, keyFrom } from '../data/entrytypes.svelte.ts';
-  import { toast } from '../frame/toasts.svelte.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { renderProblem } from '../problem.ts';
+  import { keyFrom } from '../data/entrytypes.svelte.ts';
+  import { t } from '../i18n/i18n.svelte.ts';
+  import DraftPublish from '../settings/DraftPublish.svelte';
 
   interface Props {
     type: EntryType;
@@ -44,8 +43,6 @@
   let adding = $state('');
   let otherKey = $state('');
   let newSection = $state('');
-  let isSaving = $state(false);
-  let refusal = $state<string | undefined>(undefined);
   let refusals = $state<ReadonlyMap<string, string>>(new Map());
 
   /** A field's name as a reader knows it: the entry's own words, or the custom field's key. */
@@ -108,22 +105,9 @@
     if (!hidden) delete rule.presets[key];
   }
 
-  async function save() {
-    isSaving = true;
-    refusal = undefined;
-    refusals = new Map();
-    try {
-      await entryTypes.setForm(type, formOfDraft(draft, shape));
-      toast.show({ text: t('app.entry_forms.saved', { name }), tone: 'success' });
-      isOpen = false;
-    } catch (error) {
-      const rendered = renderProblem(error as never, messages);
-      refusal = rendered.message;
-      // The use case names its input `form`, the domain the form's own parts: both land the same.
-      refusals = new Map([...refusalsByField(rendered.fields)].map(([key, message]) => [key.replace(/^form\./, ''), message]));
-    } finally {
-      isSaving = false;
-    }
+  /** A refused publish's fields: the use case names its input `form`, the domain the form's own parts. */
+  function showRefusals(fields: Parameters<typeof refusalsByField>[0]) {
+    refusals = new Map([...refusalsByField(fields)].map(([key, message]) => [key.replace(/^form\./, ''), message]));
   }
 
   /** A refusal of a part of the form: the server names `/fields/<n>/<part>` and the like. */
@@ -255,11 +239,12 @@
       {#if channelRefusal}<p class="refusal" role="alert">{channelRefusal}</p>{/if}
     </section>
 
-    {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+    <DraftPublish section="types" key={type.key} block={() => ({ form: formOfDraft(draft, shape) })}
+      onLoad={(saved) => { if (saved.form) draft = draftOfForm(saved.form as EntryType['form']); }}
+      onPublished={() => (isOpen = false)} onProblem={showRefusals} />
   </Stack>
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.entry_types.cancel')}</Button>
-    <Button tone="primary" data-save-form isBusy={isSaving} onclick={save}>{t('app.entry_forms.save')}</Button>
   {/snippet}
 </Dialog>
 
