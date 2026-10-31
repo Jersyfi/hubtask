@@ -121,6 +121,8 @@ type Erased struct {
 	AiDrafts int
 	// Kudos are the acknowledgements the person gave and received.
 	Kudos int
+	// Arrangements are the digests, private dashboards and approval delegations in the person's name.
+	Arrangements int
 	// Time is what the person's time lost of its words, and their running timer; the records,
 	// weeks, capacities, absences and their own cost rate are kept for the sums (accepted.md B).
 	Time        int
@@ -247,6 +249,12 @@ func (e Eraser) erase(
 			return err
 		}
 		erased.Kudos = kudos
+
+		arrangements, err := e.Erasure.DiscardArrangements(ctx, subject)
+		if err != nil {
+			return err
+		}
+		erased.Arrangements = arrangements
 
 		// Time is kept, both modes: what accounting sums stays, under the account's identifier,
 		// which is the pseudonym once the account is anonymised or gone; only the words go.
@@ -505,6 +513,7 @@ func (e Eraser) record(
 		{Field: "notifications", Classification: audit.Open, To: erased.Notifications},
 		{Field: "ai_drafts", Classification: audit.Open, To: erased.AiDrafts},
 		{Field: "kudos", Classification: audit.Open, To: erased.Kudos},
+		{Field: "arrangements", Classification: audit.Open, To: erased.Arrangements},
 		{Field: "time", Classification: audit.Open, To: erased.Time},
 		{Field: "assignments", Classification: audit.Open, To: erased.Assignments},
 		{Field: "comments", Classification: audit.Open, To: erased.Comments},

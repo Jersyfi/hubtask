@@ -262,6 +262,10 @@ type Erasure interface {
 	// people, about both, and evidence of nothing (UC-WRK-29 check 5).
 	DiscardKudos(ctx context.Context, accountID shared.ID) (int, error)
 
+	// DiscardArrangements removes what stands in the person's name alone: the digests mailed to
+	// them, the dashboards only they see and the approval delegations by and to them.
+	DiscardArrangements(ctx context.Context, accountID shared.ID) (int, error)
+
 	// PseudonymiseTime keeps the person's time - records, weeks, capacities, absences and their own
 	// cost rate - so that the sums accounting reads stay (accepted.md B), and removes the words: the
 	// notes on their records and a rejection's reason on their weeks. Their running timer goes. It

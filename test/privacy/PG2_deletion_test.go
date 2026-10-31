@@ -242,7 +242,7 @@ func seedErasableSubject(
 
 	tenant, subject = freshID(), freshID()
 	hub, collection, item := freshID(), freshID(), freshID()
-	rule, subscription, robot := freshID(), freshID(), freshID()
+	rule, subscription, robot, dashboard := freshID(), freshID(), freshID(), freshID()
 	runAs := robot
 	if ruleRunsAsThePerson {
 		runAs = subject
@@ -329,6 +329,20 @@ func seedErasableSubject(
 		{`INSERT INTO webhook_delivery (id, tenant_id, subscription_id, event_id, status)
 		  VALUES ($1, $2, $3, $4, 'SUCCEEDED')`,
 			[]any{freshID().String(), tenant.String(), subscription.String(), freshID().String()}},
+		// Standing arrangements of the person's: a dashboard only they see, a digest of the
+		// workspace's dashboard mailed to them, and approvals delegated by them and to them.
+		{`INSERT INTO dashboard (id, tenant_id, owner_id, name, sharing, created_at, updated_at, updated_by)
+		  VALUES ($1, $2, $3, 'mine', 'PRIVATE', now(), now(), $3),
+		         ($4, $2, $5, 'the team''s', 'SCOPE', now(), now(), $5)`,
+			[]any{freshID().String(), tenant.String(), subject.String(), dashboard.String(), robot.String()}},
+		{`INSERT INTO dashboard_digest (id, tenant_id, dashboard_id, account_id, cadence, hour, time_zone,
+		    next_at, created_at, updated_at)
+		  VALUES ($1, $2, $3, $4, 'DAILY', 8, 'Europe/Berlin', now(), now(), now())`,
+			[]any{freshID().String(), tenant.String(), dashboard.String(), subject.String()}},
+		{`INSERT INTO approval_delegation (tenant_id, account_id, delegate_id, starts_at, ends_at)
+		  VALUES ($1, $2, $3, now(), now() + interval '7 days'),
+		         ($1, $3, $2, now(), now() + interval '7 days')`,
+			[]any{tenant.String(), subject.String(), robot.String()}},
 	}
 
 	for _, statement := range statements {

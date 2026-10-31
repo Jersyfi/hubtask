@@ -343,6 +343,22 @@ DELETE FROM kudos
 WHERE tenant_id = current_tenant_id()
   AND (given_by = sqlc.arg('account_id') OR given_to = sqlc.arg('account_id'));
 
+-- name: DeleteDigestsOfAccount :execrows
+-- A digest is mail about to be sent to the person, like a notification.
+DELETE FROM dashboard_digest WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
+-- name: DeletePrivateDashboardsOfAccount :execrows
+-- A PRIVATE dashboard is seen by its owner alone; a shared one is the workspace's and keeps a bare
+-- owner reference.
+DELETE FROM dashboard
+WHERE tenant_id = current_tenant_id() AND owner_id = sqlc.arg('account_id') AND sharing = 'PRIVATE';
+
+-- name: DeleteDelegationsOfAccount :execrows
+-- Both directions: approvals must neither wait on nor be routed to somebody who is gone.
+DELETE FROM approval_delegation
+WHERE tenant_id = current_tenant_id()
+  AND (account_id = sqlc.arg('account_id') OR delegate_id = sqlc.arg('account_id'));
+
 -- name: KudosOfAccount :many
 -- The kudos the person gave and received, for their own copy of their data, a page at a time in the
 -- key's order. Never kudos between two other people.

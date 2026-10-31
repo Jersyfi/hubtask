@@ -321,12 +321,40 @@ func (q *Queries) DeleteCredentialsOfAccount(ctx context.Context, accountID pgty
 	return result.RowsAffected(), nil
 }
 
+const deleteDelegationsOfAccount = `-- name: DeleteDelegationsOfAccount :execrows
+DELETE FROM approval_delegation
+WHERE tenant_id = current_tenant_id()
+  AND (account_id = $1 OR delegate_id = $1)
+`
+
+// Both directions: approvals must neither wait on nor be routed to somebody who is gone.
+func (q *Queries) DeleteDelegationsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDelegationsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteDevicesOfAccount = `-- name: DeleteDevicesOfAccount :execrows
 DELETE FROM sync_device WHERE account_id = $1
 `
 
 func (q *Queries) DeleteDevicesOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteDevicesOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteDigestsOfAccount = `-- name: DeleteDigestsOfAccount :execrows
+DELETE FROM dashboard_digest WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// A digest is mail about to be sent to the person, like a notification.
+func (q *Queries) DeleteDigestsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDigestsOfAccount, accountID)
 	if err != nil {
 		return 0, err
 	}
@@ -395,6 +423,21 @@ DELETE FROM webauthn_credential WHERE account_id = $1
 // credentials (identity.md §23.5).
 func (q *Queries) DeletePasskeysOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deletePasskeysOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePrivateDashboardsOfAccount = `-- name: DeletePrivateDashboardsOfAccount :execrows
+DELETE FROM dashboard
+WHERE tenant_id = current_tenant_id() AND owner_id = $1 AND sharing = 'PRIVATE'
+`
+
+// A PRIVATE dashboard is seen by its owner alone; a shared one is the workspace's and keeps a bare
+// owner reference.
+func (q *Queries) DeletePrivateDashboardsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePrivateDashboardsOfAccount, accountID)
 	if err != nil {
 		return 0, err
 	}

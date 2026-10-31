@@ -685,6 +685,27 @@ func (r PrivacyRepository) DiscardKudos(ctx context.Context, accountID shared.ID
 	return int(rows), nil
 }
 
+// DiscardArrangements removes the person's digests, private dashboards and delegations.
+func (r PrivacyRepository) DiscardArrangements(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	removed := int64(0)
+	for what, remove := range map[string]func(context.Context, pgtype.UUID) (int64, error){
+		"the digests":            queries.DeleteDigestsOfAccount,
+		"the private dashboards": queries.DeletePrivateDashboardsOfAccount,
+		"the delegations":        queries.DeleteDelegationsOfAccount,
+	} {
+		rows, err := remove(ctx, id)
+		if err != nil {
+			return 0, erasureFailed("removing "+what+" of an account", err)
+		}
+		removed += rows
+	}
+	return int(removed), nil
+}
+
 // PseudonymiseTime clears the words on the person's time and removes their running timer.
 func (r PrivacyRepository) PseudonymiseTime(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
