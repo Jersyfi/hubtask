@@ -202,3 +202,40 @@ export function matrixOf(catalogue: RoleCatalogue, only?: readonly string[]): Ma
 export function grantsOf(catalogue: RoleCatalogue | undefined, key: string): RoleCatalogue['grants'] {
   return (catalogue?.grants ?? []).filter((grant) => grant.role === key);
 }
+
+/** The levels a workspace's roles decide at; above them is the operator, below the person. */
+const WORKSPACE_LEVELS = ['WORKSPACE', 'HUB', 'COLLECTION'] as const;
+
+/** One row of *who may change which setting*: a setting at a level, and who carries its writer. */
+export interface SettingWriterRow {
+  readonly key: string;
+  readonly level: (typeof WORKSPACE_LEVELS)[number];
+  readonly permission: string;
+  /** The shipped roles, then the workspace's own, that carry the permission the writer needs. */
+  readonly roles: readonly string[];
+}
+
+/**
+ * *Who may change which setting* (ui.md A11): the catalogue's writers at the workspace, a hub and
+ * a collection against the roles - a shipped role by what the permission catalogue says it holds,
+ * a custom role by what it was given. Narrowed to `only` - the roles that count for a chosen person
+ * - where it is given.
+ */
+export function settingWritersOf(
+  settings: readonly { key: string; writers?: readonly { level: string; permission: string }[] }[],
+  catalogue: RoleCatalogue,
+  only?: readonly string[],
+): SettingWriterRow[] {
+  const rows: SettingWriterRow[] = [];
+  for (const setting of settings) {
+    for (const writer of setting.writers ?? []) {
+      const level = WORKSPACE_LEVELS.find((each) => each === writer.level);
+      if (!level) continue;
+      const shipped = catalogue.catalogue.find((entry) => entry.permission === writer.permission)?.shipped ?? [];
+      const custom = catalogue.custom.filter((role) => role.permissions.includes(writer.permission)).map((role) => role.key);
+      const holders = [...shipped, ...custom].filter((role) => !only || only.includes(role));
+      rows.push({ key: setting.key, level, permission: writer.permission, roles: holders });
+    }
+  }
+  return rows;
+}

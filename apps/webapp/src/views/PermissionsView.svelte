@@ -16,12 +16,14 @@
   import { untrack } from 'svelte';
 
   import { Banner, PermissionMatrix, Select, Spinner, Stack } from '@hubtask/design-system/components';
-  import type { AccessExplanation, AccessSource } from '@hubtask/sync-engine';
+  import type { AccessExplanation, AccessSource, ResourceState, SettingsCatalogue } from '@hubtask/sync-engine';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { matrixOf, roles, type Place } from '../lib/data/roles.svelte.ts';
+  import { matrixOf, roles, settingWritersOf, type Place } from '../lib/data/roles.svelte.ts';
+  import { settingsCatalogue } from '../lib/data/settingsCatalogue.svelte.ts';
+  import { labelCode } from '../lib/settings/catalogue.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { permissionLabel, roleLabel } from '../lib/people/rolewords.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -106,6 +108,14 @@
   const columns = $derived((matrix?.columns ?? []).map((id) => ({ id, label: permissionLabel(id) })));
   const rows = $derived(
     (matrix?.rows ?? []).map((row) => ({ id: row.id, label: row.isCustom ? (row.name ?? row.id) : roleLabel(row.id), permissions: row.permissions })),
+  );
+
+  // Who may change which setting (A11): the settings catalogue's writers against the same roles,
+  // narrowed with the matrix to the roles that count for a chosen person.
+  let settings = $state<ResourceState<SettingsCatalogue> | undefined>(undefined);
+  $effect(() => untrack(() => settingsCatalogue.read((next) => (settings = next))));
+  const settingRows = $derived(
+    catalogue && settings?.status === 'ready' ? settingWritersOf(settings.data.settings, catalogue, explained?.roles) : [],
   );
 
   const personOptions = $derived(
@@ -203,6 +213,35 @@
     />
     <p class="quiet small">{t('app.access.families_note')}</p>
   {/if}
+
+  {#if settingRows.length > 0}
+    <section class="writers" aria-labelledby="setting-writers">
+      <Stack gap="100">
+        <h3 class="sub" id="setting-writers">{t('app.access.settings_title')}</h3>
+        <p class="quiet small">{t('app.access.settings_intro')}</p>
+        <div class="scroll">
+          <table data-testid="setting-writers">
+            <thead>
+              <tr>
+                <th scope="col">{t('app.access.setting_column')}</th>
+                <th scope="col">{t('app.access.level_column')}</th>
+                <th scope="col">{t('app.access.roles_column')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each settingRows as row (`${row.key}:${row.level}`)}
+                <tr>
+                  <th scope="row">{t(labelCode(row.key))} <span class="mono quiet small">{row.key}</span></th>
+                  <td>{t(`app.access.level_${row.level}`)}</td>
+                  <td>{row.roles.length > 0 ? row.roles.map((role) => roleLabel(role, custom)).join(', ') : t('app.access.no_role_carries')}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </Stack>
+    </section>
+  {/if}
 </Stack>
 
 <style>
@@ -219,6 +258,23 @@
   .filters { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-150); }
 
   .list { margin: 0; padding-inline-start: var(--sp-200); display: grid; gap: var(--sp-050); }
+
+  .mono { font-family: var(--font-mono); }
+
+  .scroll { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-size: var(--fs-075); }
+
+  th, td {
+    padding: var(--sp-050) var(--sp-100);
+    border-bottom: var(--bw-hairline) solid var(--border-subtle);
+    text-align: start;
+    vertical-align: top;
+  }
+
+  thead th { font-weight: var(--fw-semibold); color: var(--text-secondary); }
+
+  tbody th { font-weight: var(--fw-regular); }
 
   .answer {
     padding: var(--sp-200);

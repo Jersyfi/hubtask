@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { AccessExplanation, RoleCatalogue } from '@hubtask/sync-engine';
 
-import { chosen, holds, keyFrom, matrixOf, mayReadField, mayWriteField, offers } from './roles.ts';
+import { chosen, holds, keyFrom, matrixOf, mayReadField, mayWriteField, offers, settingWritersOf } from './roles.ts';
 
 const LUKAS = '22222222-0000-4000-8000-00000000000c';
 
@@ -124,4 +124,29 @@ test('a role editor offers the read permission of each hidden field', () => {
   const offered = offers(catalogue, { restrictedFields: ['cost', 'band'], hiddenFields: ['cost'], steps: [] }, ADMIN)
     .map((offer) => offer.permission);
   assert.deepEqual(offered, ['FIELD_WRITE:cost', 'FIELD_WRITE:band', 'FIELD_READ:cost']);
+});
+
+// ui.md A11: who may change which setting, at the workspace's levels only, by shipped and own roles.
+test('a setting is answered with the roles that carry its writer, at the workspace and below', () => {
+  const settings = [
+    {
+      key: 'structure.views',
+      writers: [
+        { level: 'INSTANCE', permission: 'admin:instance' },
+        { level: 'WORKSPACE', permission: 'STRUCTURE' },
+        { level: 'HUB', permission: 'STRUCTURE' },
+      ],
+    },
+    { key: 'sign_in.min_length', writers: [{ level: 'WORKSPACE', permission: 'MANAGE_MEMBERS' }] },
+    { key: 'localisation.locale', writers: [{ level: 'PERSON', permission: 'SELF' }] },
+  ];
+  assert.deepEqual(settingWritersOf(settings, CATALOGUE), [
+    { key: 'structure.views', level: 'WORKSPACE', permission: 'STRUCTURE', roles: ['OWNER', 'ADMIN', 'service_lead'] },
+    { key: 'structure.views', level: 'HUB', permission: 'STRUCTURE', roles: ['OWNER', 'ADMIN', 'service_lead'] },
+    { key: 'sign_in.min_length', level: 'WORKSPACE', permission: 'MANAGE_MEMBERS', roles: ['OWNER', 'ADMIN'] },
+  ]);
+  assert.deepEqual(
+    settingWritersOf(settings, CATALOGUE, ['service_lead']).map((row) => row.roles),
+    [['service_lead'], ['service_lead'], []],
+  );
 });
