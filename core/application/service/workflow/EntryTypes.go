@@ -9,6 +9,8 @@ package workflow
 
 import (
 	"context"
+	"errors"
+	"slices"
 	"time"
 
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
@@ -66,6 +68,22 @@ type Registry struct {
 	HLC        clock.HLCSource
 	// Text brings the names people type to normal form C (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Hubs answers the hub a type is defined at. Nil refuses a hub's type: a build that cannot
+	// read the hub cannot say the type belongs to one.
+	Hubs HubFinder
+	// Visibility narrows the list to the hubs the caller may read. Nil lists the workspace's
+	// types alone, so a build without it never shows a private hub's words.
+	Visibility Visibility
+}
+
+// HubFinder reads a container.
+type HubFinder interface {
+	Find(ctx context.Context, id shared.ID) (domain.Container, error)
+}
+
+// Visibility answers, per path, whether the caller may read it, without auditing a row left out.
+type Visibility interface {
+	Permitted(ctx context.Context, actor appshared.ActorContext, request access.Request, paths [][]identity.Scope) ([]bool, error)
 }
 
 // Read answers the workspace's registry: the system types as it shaped them and its own.
@@ -77,13 +95,94 @@ func (r Registry) Read(ctx context.Context) (domain.EntryTypes, error) {
 	return domain.NewEntryTypes(rows), nil
 }
 
-// authorizeWrite asks for the workspace's structure permission, before any transaction so that a
-// refusal's audit entry is not rolled back with it (audit.md §7).
-func (r Registry) authorizeWrite(ctx context.Context, actor appshared.ActorContext, action audit.Action) error {
+// authorizeAt asks for the structure permission where the type is defined - the workspace, or
+// the hub a hub's own type belongs to - before any transaction, so that a refusal's audit entry
+// is not rolled back with it (audit.md §7).
+func (r Registry) authorizeAt(ctx context.Context, actor appshared.ActorContext, action audit.Action, hub shared.ID) error {
+	path := []identity.Scope{identity.TenantScope()}
+	if !hub.IsZero() {
+		path = append(path, identity.HubScope(hub))
+	}
 	return r.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionStructure, Path: []identity.Scope{identity.TenantScope()},
+		Permission: service.PermissionStructure, Path: path,
 		Action: action, TokenScope: typesWrite, TargetType: EntryTypeTarget, TargetID: actor.TenantID,
 	})
+}
+
+// authorizeType asks where the existing type of the key is defined. A type's hub never changes,
+// so reading it before the write's transaction decides nothing the write could move.
+func (r Registry) authorizeType(ctx context.Context, actor appshared.ActorContext, action audit.Action, key string) error {
+	var hub shared.ID
+	err := r.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		current, err := r.Types.Find(ctx, key)
+		if errors.Is(err, shared.ErrNotFound) {
+			return nil
+		}
+		hub = current.HubID
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return r.authorizeAt(ctx, actor, action, hub)
+}
+
+// requireHub refuses a hub that is not one of the workspace's living hubs.
+func (r Registry) requireHub(ctx context.Context, hub shared.ID) error {
+	unknown := shared.ErrValidation.WithDetail("entry_types.hub_unknown").
+		WithFields(shared.FieldError{Path: "/hub_id", Code: "entry_types.hub_unknown"})
+	if r.Hubs == nil {
+		return shared.ErrInternal.WithDetail("entry_types.hubs_unavailable")
+	}
+	container, err := r.Hubs.Find(ctx, hub)
+	if errors.Is(err, shared.ErrNotFound) {
+		return unknown
+	}
+	if err != nil {
+		return err
+	}
+	if container.Type != domain.ContainerHub || container.IsTrashed() {
+		return unknown
+	}
+	return nil
+}
+
+// visible leaves out the types of hubs the caller may not read; nothing is audited, a type left
+// out of a list is nobody refused (audit.md §4).
+func (r Registry) visible(ctx context.Context, actor appshared.ActorContext, registry domain.EntryTypes) (domain.EntryTypes, error) {
+	var hubs []shared.ID
+	for _, t := range registry {
+		if !t.HubID.IsZero() && !slices.Contains(hubs, t.HubID) {
+			hubs = append(hubs, t.HubID)
+		}
+	}
+	if len(hubs) == 0 {
+		return registry, nil
+	}
+	readable := map[shared.ID]bool{}
+	if r.Visibility != nil {
+		paths := make([][]identity.Scope, 0, len(hubs))
+		for _, hub := range hubs {
+			paths = append(paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+		}
+		allowed, err := r.Visibility.Permitted(ctx, actor, access.Request{
+			Permission: service.PermissionRead, Action: EntryTypesReadAction,
+			TokenScope: typesRead, TargetType: EntryTypeTarget,
+		}, paths)
+		if err != nil {
+			return nil, err
+		}
+		for i, hub := range hubs {
+			readable[hub] = i < len(allowed) && allowed[i]
+		}
+	}
+	out := make(domain.EntryTypes, 0, len(registry))
+	for _, t := range registry {
+		if t.HubID.IsZero() || readable[t.HubID] {
+			out = append(out, t)
+		}
+	}
+	return out, nil
 }
 
 // record writes the change for offline clients and the evidence, in the write's transaction. A
@@ -99,7 +198,7 @@ func (r Registry) record(
 	}
 	if err := r.Changes.Record(ctx, changelog.Change{
 		TenantID: actor.TenantID, Entity: EntryTypeTarget, EntityID: entryType.ID, Op: op,
-		ActorID: actor.AccountID, HLC: r.HLC.Next(), Payload: payload,
+		ContainerID: entryType.HubID, ActorID: actor.AccountID, HLC: r.HLC.Next(), Payload: payload,
 	}); err != nil {
 		return err
 	}
@@ -143,6 +242,13 @@ func EntryTypeOutput(t domain.EntryType) usecase.Output {
 		"estimable": t.Behaviours.Estimable, "allowed_children": children,
 		"position": t.Position, "archived": t.IsArchived(), "version": t.Version,
 		"form": FormOutput(t.Form),
+	}
+	// Left out for a workspace's type, so its configuration document stays as it was.
+	if !t.HubID.IsZero() {
+		out["hub_id"] = t.HubID.String()
+	}
+	if t.CopiedFrom != "" {
+		out["copied_from"] = t.CopiedFrom
 	}
 	if t.Name != "" {
 		out["name"] = t.Name
@@ -225,7 +331,10 @@ func (h ListEntryTypes) Execute(ctx context.Context, actor appshared.ActorContex
 	var registry domain.EntryTypes
 	err := h.Registry.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		read, err := h.Registry.Read(ctx)
-		registry = read
+		if err != nil {
+			return err
+		}
+		registry, err = h.Registry.visible(ctx, actor, read)
 		return err
 	})
 	return registry, err
@@ -272,6 +381,8 @@ type CreateEntryTypeCommand struct {
 	Behaviours      domain.EntryBehaviours
 	AllowedChildren []string
 	Position        int
+	// HubID defines the type at that hub; zero is the whole workspace.
+	HubID shared.ID
 }
 
 // CreateEntryType adds a type of the workspace's own (UC-FLW-01 check 1).
@@ -279,24 +390,31 @@ type CreateEntryType struct{ Registry Registry }
 
 // Execute creates the type and returns it.
 func (h CreateEntryType) Execute(ctx context.Context, actor appshared.ActorContext, cmd CreateEntryTypeCommand) (domain.EntryType, error) {
-	if err := h.Registry.authorizeWrite(ctx, actor, EntryTypeCreatedAction); err != nil {
+	if err := h.Registry.authorizeAt(ctx, actor, EntryTypeCreatedAction, cmd.HubID); err != nil {
 		return domain.EntryType{}, err
 	}
 	now := h.Registry.Clock.Now()
 	created, err := domain.NewEntryType(domain.NewEntryTypeInput{
 		ID: h.Registry.IDs.NewID(), TenantID: actor.TenantID, Key: cmd.Key, Level: cmd.Level,
 		Name: cmd.Name, Icon: cmd.Icon, ColorToken: cmd.ColorToken, Behaviours: cmd.Behaviours,
-		Description: cmd.Description, Translations: cmd.Translations,
+		Description: cmd.Description, Translations: cmd.Translations, HubID: cmd.HubID,
 		AllowedChildren: cmd.AllowedChildren, Position: cmd.Position, Now: now, Text: h.Registry.Text,
 	})
 	if err != nil {
 		return domain.EntryType{}, err
 	}
 	err = h.Registry.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		registry, err := h.Registry.Read(ctx)
+		if !cmd.HubID.IsZero() {
+			if err := h.Registry.requireHub(ctx, cmd.HubID); err != nil {
+				return err
+			}
+		}
+		read, err := h.Registry.Read(ctx)
 		if err != nil {
 			return err
 		}
+		// A hub's type may name as children only what an entry inside the hub can carry.
+		registry := read.Within(cmd.HubID)
 		if err := requireChildren(registry, created); err != nil {
 			return err
 		}
@@ -357,6 +475,7 @@ func (h CreateEntryType) Descriptor() usecase.Descriptor {
 			{Name: "name", Kind: usecase.KindString, Required: true, Description: "Up to 120 characters, on one line."},
 			{Name: "icon", Kind: usecase.KindString, Required: true, Description: "The name of an icon of the design system's set."},
 			{Name: "color_token", Kind: usecase.KindString, Required: true, Description: "One of the ten label colour tokens."},
+			{Name: "hub_id", Kind: usecase.KindID, Description: "Defines the type at this hub, offered only inside it; unset is the whole workspace."},
 		}, append(textFields(), behaviourFields()...)...),
 		Audit: usecase.AuditDeclaration{
 			Action: EntryTypeCreatedAction, TargetType: EntryTypeTarget, Severity: audit.SeverityInfo, Required: true,
@@ -381,6 +500,10 @@ func (h CreateEntryType) Descriptor() usecase.Descriptor {
 			if in.Bool("record") && !in.Present("completable") {
 				completable = false
 			}
+			hub, err := in.ID("hub_id")
+			if err != nil {
+				return nil, err
+			}
 			created, err := h.Execute(ctx, actor, CreateEntryTypeCommand{
 				Key: in.String("key"), Level: domain.ItemType(in.String("level")), Name: in.String("name"),
 				Icon: in.String("icon"), ColorToken: in.String("color_token"),
@@ -389,7 +512,7 @@ func (h CreateEntryType) Descriptor() usecase.Descriptor {
 					Completable: completable, Workflow: in.Bool("workflow"), Record: in.Bool("record"),
 					Schedulable: schedulable, Estimable: in.Bool("estimable"),
 				},
-				AllowedChildren: children, Position: in.Int("position"),
+				AllowedChildren: children, Position: in.Int("position"), HubID: hub,
 			})
 			if err != nil {
 				return nil, err
@@ -415,16 +538,17 @@ func (h ChangeEntryType) Execute(ctx context.Context, actor appshared.ActorConte
 	if cmd.Key == "" {
 		return domain.EntryType{}, shared.ErrValidation.WithDetail("entry_types.key_required")
 	}
-	if err := h.Registry.authorizeWrite(ctx, actor, EntryTypeChangedAction); err != nil {
+	if err := h.Registry.authorizeType(ctx, actor, EntryTypeChangedAction, cmd.Key); err != nil {
 		return domain.EntryType{}, err
 	}
 	var changed domain.EntryType
 	err := h.Registry.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		registry, err := h.Registry.Read(ctx)
+		read, err := h.Registry.Read(ctx)
 		if err != nil {
 			return err
 		}
-		current, found := registry.Find(cmd.Key)
+		current, found := read.Find(cmd.Key)
+		registry := read.Within(current.HubID)
 		if !found {
 			return shared.ErrNotFound.WithDetail("entry_types.not_found")
 		}
@@ -573,7 +697,7 @@ func (h DeleteEntryType) Execute(ctx context.Context, actor appshared.ActorConte
 	if key == "" {
 		return shared.ErrValidation.WithDetail("entry_types.key_required")
 	}
-	if err := h.Registry.authorizeWrite(ctx, actor, EntryTypeDeletedAction); err != nil {
+	if err := h.Registry.authorizeType(ctx, actor, EntryTypeDeletedAction, key); err != nil {
 		return err
 	}
 	return h.Registry.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {

@@ -1897,6 +1897,7 @@ func run() error {
 	entryTypeRegistry := workflowservice.Registry{
 		Types: entryTypes, Authorizer: authorizer, Changes: changes, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+		Hubs: containers, Visibility: authorizer,
 	}
 	// The workflows' designer, publish and scheme (UC-FLW-02, UC-FLW-04 check 5, UC-FLW-05).
 	workflowDesk := workflowservice.Desk{
@@ -2519,6 +2520,7 @@ func run() error {
 		workflowservice.CreateEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.ChangeEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.DeleteEntryType{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.CopyEntryTypeHere{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.SetEntryTypeForm{Registry: entryTypeRegistry, Desk: workflowservice.FormDesk{
 			Fields: customFields, Compiler: celexpression.New(),
 		}}.Descriptor(),
@@ -3110,7 +3112,7 @@ func run() error {
 		}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
-		work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures}.Descriptor(),
+		work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures, EntryTypes: entryTypes}.Descriptor(),
 		work.ReorderContainer{Writer: containerWriter}.Descriptor(),
 		work.TrashContainer{Writer: containerWriter}.Descriptor(),
 		work.RestoreContainer{Writer: containerWriter}.Descriptor(),

@@ -57,7 +57,7 @@ func (h SetEntryTypeForm) Execute(ctx context.Context, actor appshared.ActorCont
 	if cmd.Key == "" {
 		return domain.EntryType{}, shared.ErrValidation.WithDetail("entry_types.key_required")
 	}
-	if err := h.Registry.authorizeWrite(ctx, actor, EntryTypeFormSetAction); err != nil {
+	if err := h.Registry.authorizeType(ctx, actor, EntryTypeFormSetAction, cmd.Key); err != nil {
 		return domain.EntryType{}, err
 	}
 	form, err := domain.NewForm(cmd.Form, h.Registry.Text)

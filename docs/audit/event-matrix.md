@@ -519,6 +519,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `entry_type.changed` | ChangeEntryType | `entry_type` | INFO | Every time |
+| `entry_type.created` | CopyEntryTypeHere | `entry_type` | INFO | Every time |
 | `entry_type.created` | CreateEntryType | `entry_type` | INFO | Every time |
 | `entry_type.deleted` | DeleteEntryType | `entry_type` | INFO | Every time |
 | `entry_type.form_set` | SetEntryTypeForm | `entry_type` | INFO | Every time |
