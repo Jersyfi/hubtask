@@ -17734,6 +17734,8 @@ paths:
     get:
       tags: [containers]
       operationId: listContainers
+      x-hubtask-cli: "container ls"
+      x-hubtask-cli-columns: [id, type, name, parent_id, archived_at]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: containerResponse
       parameters:
@@ -18288,6 +18290,7 @@ paths:
     delete:
       tags: [items]
       operationId: trashWorkItem
+      x-hubtask-cli: "item rm"
       x-hubtask-rest: generated
       parameters:
         - $ref: "#/components/parameters/IfMatch"
@@ -18504,6 +18507,7 @@ paths:
     post:
       tags: [items]
       operationId: completeWorkItem
+      x-hubtask-cli: "item complete"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: workItemResponse
       parameters:
@@ -18564,6 +18568,7 @@ paths:
     post:
       tags: [items]
       operationId: assignWorkItem
+      x-hubtask-cli: "item assign"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: workItemResponse
       description: >
@@ -18600,6 +18605,7 @@ paths:
     post:
       tags: [items]
       operationId: unassignWorkItem
+      x-hubtask-cli: "item unassign"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: workItemResponse
       description: >
@@ -19826,6 +19832,7 @@ paths:
     delete:
       tags: [items]
       operationId: clearDueDate
+      x-hubtask-cli: "due clear"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: workItemResponse
       description: >
@@ -20099,6 +20106,7 @@ paths:
     put:
       tags: [items]
       operationId: attachMedia
+      x-hubtask-cli: "media attach"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: attachmentsResponse
       description: >

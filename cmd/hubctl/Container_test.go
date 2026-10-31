@@ -166,7 +166,7 @@ func TestAnIdentifierThatIsNotOneIsRefusedBeforeTheCall(t *testing.T) {
 		t.Error("a call was made with an identifier that cannot be one")
 	})
 
-	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "container", "ls", "--parent", "not-a-uuid")
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "container", "ls", "--parent-id", "not-a-uuid")
 	if code != exitUsage {
 		t.Fatalf("exit %d, want %d", code, exitUsage)
 	}

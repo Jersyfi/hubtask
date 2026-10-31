@@ -35,34 +35,10 @@ func itemGroup() group {
 				run:     itemCreate,
 			},
 			{
-				name:    "complete",
-				usage:   "<id> [--cascade]",
-				summary: "mark an entry done",
-				run:     itemComplete,
-			},
-			{
 				name:    "move",
 				usage:   "<id> [--parent <id>] [--collection <id>] [--before <id>]",
 				summary: "move an entry, and its subtree with it",
 				run:     itemMove,
-			},
-			{
-				name:    "assign",
-				usage:   "<id> --account <id>",
-				summary: "hand an entry to an account",
-				run:     itemAssign,
-			},
-			{
-				name:    "unassign",
-				usage:   "<id>",
-				summary: "take the assignee off an entry",
-				run:     itemUnassign,
-			},
-			{
-				name:    "rm",
-				usage:   "<id> [--expect-version <n>]",
-				summary: "move an entry to the trash",
-				run:     itemTrash,
 			},
 		},
 	}
@@ -199,30 +175,6 @@ func itemCreate(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(created, itemTable([]openapi.WorkItem{created}))
 }
 
-func itemComplete(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "item complete <id> [--cascade]"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "item", "complete", "<id> [--cascade]")
-	cascade := flags.Bool("cascade", false, "complete everything under it as well")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var completed openapi.WorkItem
-	body := openapi.CompleteWorkItemJSONBody{CascadeChildren: cascade}
-	if err := client.Post(ctx, itemsPath+"/"+item.String()+":complete", body, &completed); err != nil {
-		return err
-	}
-	return cli.Emit(completed, itemTable([]openapi.WorkItem{completed}))
-}
-
 func itemMove(ctx context.Context, cli *CLI, args []string) error {
 	const usage = "item move <id> [--parent <id>] [--collection <id>] [--before <id>]"
 	item, rest, err := cli.takeID(args, usage)
@@ -284,89 +236,6 @@ func itemMove(ctx context.Context, cli *CLI, args []string) error {
 			printf(cli.Err, "dropped in the destination: %s %s - %s\n", dropped.Kind, dropped.Id, reason)
 		}
 	}
-	return nil
-}
-
-func itemAssign(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "item assign <id> --account <id>"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "item", "assign", "<id> --account <id>")
-	account := flags.String("account", "", "the account to hand the entry to")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	if *account == "" {
-		return usagef("say who to assign: --account <id>")
-	}
-	assignee, err := cli.parseID("--account", *account)
-	if err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var assigned openapi.WorkItem
-	body := openapi.Assignment{AccountId: assignee}
-	if err := client.Post(ctx, itemsPath+"/"+item.String()+":assign", body, &assigned); err != nil {
-		return err
-	}
-	return cli.Emit(assigned, itemTable([]openapi.WorkItem{assigned}))
-}
-
-func itemUnassign(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "item unassign <id>"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "item", "unassign", "<id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var unassigned openapi.WorkItem
-	if err := client.Post(ctx, itemsPath+"/"+item.String()+":unassign", nil, &unassigned); err != nil {
-		return err
-	}
-	return cli.Emit(unassigned, itemTable([]openapi.WorkItem{unassigned}))
-}
-
-func itemTrash(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "item rm <id> [--expect-version <n>]"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "item", "rm", "<id> [--expect-version <n>]")
-	// Named for what it does rather than --version, which is the flag that prints the build.
-	expected := flags.Int("expect-version", 0, "refuse unless the entry is still at this version")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	ifMatch := ""
-	if *expected > 0 {
-		ifMatch = `"` + strconv.Itoa(*expected) + `"`
-	}
-	if err := client.Delete(ctx, itemsPath+"/"+item.String(), ifMatch); err != nil {
-		return err
-	}
-	// A deletion has no payload. The confirmation goes to standard error, so that
-	// `hubctl --json item rm` writes nothing at all to a pipe rather than an invented document.
-	printf(cli.Err, "moved to the trash: %s\n", item)
 	return nil
 }
 

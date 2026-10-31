@@ -862,6 +862,15 @@ var generatedCommands = []door{
 			{Name: "version", Kind: "integer", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
+	{Group: "container", Verb: "ls", OperationID: "listContainers", Method: "GET", Path: "/containers", Summary: "",
+		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "include_archived", Kind: "boolean", Help: "", Required: false},
+			{Name: "parent_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "size", Kind: "integer", Help: "", Required: false},
+			{Name: "type", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "type", "name", "parent_id", "archived_at"}},
 	{Group: "container", Verb: "structure preview", OperationID: "previewContainerStructure", Method: "POST", Path: "/containers/{containerId}/structure:preview", Summary: "Answers what a change of a hub's or collection's own structure would stop showing, before it is …",
 		PathParams: []doorParam{
 			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
@@ -964,6 +973,11 @@ var generatedCommands = []door{
 			{Name: "widgets", Kind: "json", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "version"}},
+	{Group: "due", Verb: "clear", OperationID: "clearDueDate", Method: "DELETE", Path: "/items/{itemId}/due", Summary: "Takes the due date off the entry - the instant, the all-day flag and the zone together, because …",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
 	{Group: "file", Verb: "add", OperationID: "linkEntryFile", Method: "POST", Path: "/items/{itemId}/file-links", Summary: "Link a file in a store on an entry",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -1129,11 +1143,27 @@ var generatedCommands = []door{
 			{Name: "scope", Kind: "json", Help: "Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either …", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"count", "group", "period", "value"}},
+	{Group: "item", Verb: "assign", OperationID: "assignWorkItem", Method: "POST", Path: "/items/{itemId}:assign", Summary: "Gives the entry an assignee",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "account_id", Kind: "uuid", Help: "The account to assign", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
 	{Group: "item", Verb: "cis", OperationID: "listEntryCis", Method: "GET", Path: "/items/{itemId}/cis", Summary: "The configuration items an entry names as affected",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id"}},
+	{Group: "item", Verb: "complete", OperationID: "completeWorkItem", Method: "POST", Path: "/items/{itemId}:complete", Summary: "",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "cascade_children", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
 	{Group: "item", Verb: "estimate", OperationID: "setEntryEstimate", Method: "PUT", Path: "/items/{itemId}/estimate", Summary: "Say how big an entry is",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -1154,6 +1184,11 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
+	{Group: "item", Verb: "rm", OperationID: "trashWorkItem", Method: "DELETE", Path: "/items/{itemId}", Summary: "",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "item", Verb: "step", OperationID: "takeStep", Method: "POST", Path: "/items/{itemId}:step", Summary: "Move an entry on by one step",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -1174,6 +1209,11 @@ var generatedCommands = []door{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id"}},
+	{Group: "item", Verb: "unassign", OperationID: "unassignWorkItem", Method: "POST", Path: "/items/{itemId}:unassign", Summary: "Takes the assignee off the entry",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
 	{Group: "item", Verb: "unestimate", OperationID: "clearEntryEstimate", Method: "DELETE", Path: "/items/{itemId}/estimate", Summary: "Remove an entry's estimate",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -1271,6 +1311,12 @@ var generatedCommands = []door{
 			{Name: "position", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "media", Verb: "attach", OperationID: "attachMedia", Method: "PUT", Path: "/items/{itemId}/attachments/{mediaId}", Summary: "Attaches a media object to the entry",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+			{Name: "mediaId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id"}},
 	{Group: "module", Verb: "reach", OperationID: "previewModuleReach", Method: "GET", Path: "/tenant/modules/{module}/reach", Summary: "How many people switching a module off would leave without it",
 		PathParams: []doorParam{
 			{Name: "module", Kind: "string", Help: "", Required: true},

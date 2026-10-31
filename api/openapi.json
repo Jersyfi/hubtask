@@ -26001,6 +26001,14 @@
           "containers"
         ],
         "operationId": "listContainers",
+        "x-hubtask-cli": "container ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "type",
+          "name",
+          "parent_id",
+          "archived_at"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "containerResponse",
         "parameters": [
@@ -26855,6 +26863,7 @@
           "items"
         ],
         "operationId": "trashWorkItem",
+        "x-hubtask-cli": "item rm",
         "x-hubtask-rest": "generated",
         "parameters": [
           {
@@ -27141,6 +27150,7 @@
           "items"
         ],
         "operationId": "completeWorkItem",
+        "x-hubtask-cli": "item complete",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "workItemResponse",
         "parameters": [
@@ -27242,6 +27252,7 @@
           "items"
         ],
         "operationId": "assignWorkItem",
+        "x-hubtask-cli": "item assign",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "workItemResponse",
         "description": "Gives the entry an assignee. Every type carries one, an activity exactly this and no member list. The account has to be able to see the entry - it has to hold a membership somewhere on the path above it - and one that cannot is refused rather than stored, with the same answer for an account of another tenant and one that does not exist. Idempotent: assigning the person who is already assigned succeeds and announces nothing.\n",
@@ -27298,6 +27309,7 @@
           "items"
         ],
         "operationId": "unassignWorkItem",
+        "x-hubtask-cli": "item unassign",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "workItemResponse",
         "description": "Takes the assignee off the entry. Idempotent: an entry nobody is assigned to succeeds and announces nothing.\n",
@@ -29130,6 +29142,7 @@
           "items"
         ],
         "operationId": "clearDueDate",
+        "x-hubtask-cli": "due clear",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "workItemResponse",
         "description": "Takes the due date off the entry - the instant, the all-day flag and the zone together, because none of them means anything alone. Idempotent: an entry with no due date succeeds and announces nothing.\n",
@@ -29525,6 +29538,7 @@
           "items"
         ],
         "operationId": "attachMedia",
+        "x-hubtask-cli": "media attach",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "attachmentsResponse",
         "description": "Attaches a media object to the entry. Idempotent: an entry that already carries it succeeds. The object has to be READY, of usage ATTACHMENT and of this workspace, and the entry's type has to carry the ATTACHMENTS capability - an activity does not. Attaching raises the object's reference count; the bytes are shared, never copied.\n",
