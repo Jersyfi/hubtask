@@ -12,9 +12,30 @@
  * label is always written empty, as the notes write it: a title in the body would show a reader
  * of the page what the referenced object is called even where they may not see it.
  *
+ * **Wiki blocks** are directives (the generic directive syntax): a callout `:::info` (`warning`,
+ * `success`, `error`) and a toggle `:::details <summary>` hold blocks up to a line of as many
+ * colons - an outer container takes one more colon than the deepest inside it; `::toc`,
+ * `::children` and `::embed <https address>` stand on a line of their own; a date `:date[2026-10-31]`
+ * and a status `:status[In progress]{info}` stand inside a line.
+ *
  * Pure and headless - it works on the editor's JSON, never on a DOM - so the projection has tests
  * without a browser. What it does not know (a table, an image from outside) is written as its text.
  */
+
+/** A callout's tones. */
+export const CALLOUT_TONES = ['info', 'warning', 'success', 'error'] as const;
+/** A status lozenge's tones. */
+export const STATUS_TONES = ['neutral', 'info', 'success', 'warning', 'error'] as const;
+
+/** An embed's address when it is one the page may hold: https, with a host, nothing else. */
+export function embeddable(address: string): string | undefined {
+  try {
+    const url = new URL(address.trim());
+    return url.protocol === 'https:' && url.hostname !== '' && url.username === '' && url.password === '' ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** The editor's document as JSON, the shape ProseMirror's `toJSON` answers. */
 export interface DocNode {
@@ -84,9 +105,44 @@ function block(node: DocNode, indent: string): string {
       return `${indent}---`;
     case 'referenceBlock':
       return `${indent}![](${addressOf(referenceOf(node))})`;
+    case 'callout':
+    case 'details': {
+      const fence = ':'.repeat(3 + containerDepth(node.content ?? []));
+      const head = node.type === 'callout'
+        ? toneOf(node.attrs?.['tone'], CALLOUT_TONES, 'info')
+        : `details${summaryOf(node) === '' ? '' : ` ${summaryOf(node)}`}`;
+      const inner = blocks(node.content ?? [], indent);
+      return [`${indent}${fence}${head}`, ...(inner === '' ? [] : [inner]), `${indent}${fence}`].join('\n');
+    }
+    case 'tableOfContents':
+      return `${indent}::toc`;
+    case 'childPages':
+      return `${indent}::children`;
+    case 'embed': {
+      const address = embeddable(String(node.attrs?.['src'] ?? ''));
+      return address ? `${indent}::embed ${address}` : '';
+    }
     default:
       return node.content ? blocks(node.content, indent) : '';
   }
+}
+
+/** How many containers deep a container's content goes, so its fence outlasts every inner one. */
+function containerDepth(nodes: readonly DocNode[]): number {
+  let deepest = 0;
+  for (const node of nodes) {
+    const own = node.type === 'callout' || node.type === 'details' ? 1 : 0;
+    deepest = Math.max(deepest, own + containerDepth(node.content ?? []));
+  }
+  return deepest;
+}
+
+function toneOf<T extends string>(value: unknown, tones: readonly T[], fallback: T): T {
+  return tones.includes(value as T) ? (value as T) : fallback;
+}
+
+function summaryOf(node: DocNode): string {
+  return String(node.attrs?.['summary'] ?? '').replace(/\s+/gu, ' ').trim();
 }
 
 function list(node: DocNode, indent: string): string {
@@ -126,6 +182,16 @@ function inline(nodes: readonly DocNode[]): string {
       out += `[](${addressOf(referenceOf(node))})`;
       continue;
     }
+    if (node.type === 'date') {
+      const day = String(node.attrs?.['date'] ?? '');
+      if (DAY.test(day)) out += `:date[${day}]`;
+      continue;
+    }
+    if (node.type === 'status') {
+      const label = String(node.attrs?.['label'] ?? '').replace(/[[\]\n]/gu, ' ').trim();
+      if (label !== '') out += `:status[${label}]{${toneOf(node.attrs?.['tone'], STATUS_TONES, 'neutral')}}`;
+      continue;
+    }
     if (node.type !== 'text') continue;
     const marks = node.marks ?? [];
     const isCode = marks.some((mark) => mark.type === 'code');
@@ -150,7 +216,7 @@ function codeSpan(text: string): string {
 function escape(text: string): string {
   return text
     .replace(/([\\`*_~[\]])/gu, '\\$1')
-    .replace(/^(#{1,6} |[-+] |\d+\. |> )/u, '\\$1');
+    .replace(/^(#{1,6} |[-+] |\d+\. |> |:{2,})/u, '\\$1');
 }
 
 function referenceOf(node: DocNode): ReferenceAttrs {
@@ -180,6 +246,9 @@ const TASK = /^\[([ xX])\]\s+(.*)$/u;
 const FENCE = /^(```|~~~)\s*([\w+-]*)\s*$/u;
 const RULE = /^(?:-{3,}|\*{3,}|_{3,})\s*$/u;
 const BLOCK_REFERENCE = /^!\[[^\]]*\]\((hubtask:[^)\s]+)\)\s*$/u;
+const CONTAINER = /^(:{3,})(info|warning|success|error|details)(?:\s+(.*))?\s*$/u;
+const LEAF = /^::(toc|children|embed)(?:\s+(\S+))?\s*$/u;
+const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 
 function parseBlocks(lines: readonly string[]): DocNode[] {
   const out: DocNode[] = [];
@@ -215,6 +284,28 @@ function parseBlocks(lines: readonly string[]): DocNode[] {
       i++;
       continue;
     }
+    const container = CONTAINER.exec(line);
+    if (container) {
+      const fence = container[1] ?? ':::';
+      const inner: string[] = [];
+      i++;
+      while (i < lines.length && (lines[i] ?? '').trim() !== fence) inner.push(lines[i++] ?? '');
+      i++;
+      const content = parseBlocks(inner);
+      const kind = container[2] ?? 'info';
+      out.push(kind === 'details'
+        ? { type: 'details', attrs: { summary: (container[3] ?? '').trim() }, content: content.length > 0 ? content : [{ type: 'paragraph' }] }
+        : { type: 'callout', attrs: { tone: kind }, content: content.length > 0 ? content : [{ type: 'paragraph' }] });
+      continue;
+    }
+    const leaf = LEAF.exec(line);
+    if (leaf && (leaf[1] !== 'embed' || embeddable(leaf[2] ?? ''))) {
+      out.push(leaf[1] === 'toc' ? { type: 'tableOfContents' }
+        : leaf[1] === 'children' ? { type: 'childPages' }
+          : { type: 'embed', attrs: { src: embeddable(leaf[2] ?? '') } });
+      i++;
+      continue;
+    }
     const blockReference = BLOCK_REFERENCE.exec(line);
     const address = blockReference ? parseAddress(blockReference[1] ?? '') : undefined;
     if (address) {
@@ -245,7 +336,8 @@ function parseBlocks(lines: readonly string[]): DocNode[] {
 }
 
 function startsBlock(line: string): boolean {
-  return HEADING.test(line) || FENCE.test(line) || RULE.test(line) || line.startsWith('>') || BULLET.test(line) || ORDERED.test(line);
+  return HEADING.test(line) || FENCE.test(line) || RULE.test(line) || line.startsWith('>') || BULLET.test(line) || ORDERED.test(line) ||
+    CONTAINER.test(line) || LEAF.test(line);
 }
 
 /** Reads one list starting at `start`, with its nested lists, and answers the line after it. */
@@ -357,6 +449,20 @@ function read(text: string, marks: readonly Mark[], out: DocNode[]): void {
         i = end + fence.length;
         continue;
       }
+    }
+    const day = /^:date\[(\d{4}-\d{2}-\d{2})\]/u.exec(rest);
+    if (day) {
+      flush();
+      out.push({ type: 'date', attrs: { date: day[1] } });
+      i += day[0].length;
+      continue;
+    }
+    const status = /^:status\[([^\]\n]+)\]\{([a-z]+)\}/u.exec(rest);
+    if (status) {
+      flush();
+      out.push({ type: 'status', attrs: { label: (status[1] ?? '').trim(), tone: toneOf(status[2], STATUS_TONES, 'neutral') } });
+      i += status[0].length;
+      continue;
     }
     const link = /^(!?)\[((?:\\.|[^\]\\])*)\]\(([^)\s]+)\)/u.exec(rest);
     if (link) {

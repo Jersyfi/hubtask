@@ -20,7 +20,7 @@ import StarterKit from '@tiptap/starter-kit';
 import type * as Y from 'yjs';
 
 import type { LiveDocument } from './live.ts';
-import { fromMarkdown, toMarkdown, type DocNode, type ReferenceAttrs } from './markdown.ts';
+import { CALLOUT_TONES, STATUS_TONES, embeddable, fromMarkdown, toMarkdown, type DocNode, type ReferenceAttrs } from './markdown.ts';
 import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
 import { MIRROR_META, linkLine, mirrorTicks, taskLineAt, tickedEntries, type TaskLine } from './tasks.ts';
 
@@ -38,6 +38,12 @@ export interface ReferenceDrawing {
    * and the block shows its label.
    */
   mount?(ref: ReferenceAttrs, into: HTMLElement): (() => void) | undefined;
+  /** Draws the page's child pages into a child-pages block; answers how to take it down. */
+  children?(into: HTMLElement): (() => void) | undefined;
+  /** A day (`2026-10-31`) in the reader's words; the day as written where it is absent. */
+  day?(iso: string): string;
+  /** The words of the blocks that have no content of their own to show. */
+  words?(key: 'toc_empty' | 'children' | 'embed' | 'details'): string;
 }
 
 const referenceAttributes = {
@@ -106,7 +112,214 @@ export const ReferenceBlock = Node.create<{ drawing?: ReferenceDrawing; fallback
   },
 });
 
-const BLOCK_TYPES = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'bulletList', 'orderedList', 'taskList', 'referenceBlock'];
+type DrawingOptions = { drawing?: ReferenceDrawing };
+
+/** A callout: a tinted panel of blocks, `:::info` … `:::` (and warning, success, error). */
+export const Callout = Node.create<DrawingOptions>({
+  name: 'callout',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+  addOptions: () => ({ drawing: undefined }),
+  addAttributes: () => ({ tone: { default: 'info' } }),
+  parseHTML: () => [{ tag: 'aside[data-callout]', getAttrs: (dom: HTMLElement) => ({ tone: dom.dataset['callout'] ?? 'info' }) }],
+  renderHTML: ({ node, HTMLAttributes }) => {
+    const tone = (CALLOUT_TONES as readonly string[]).includes(String(node.attrs['tone'])) ? String(node.attrs['tone']) : 'info';
+    return ['aside', mergeAttributes(HTMLAttributes, { 'data-callout': tone, class: `page-callout page-callout--${tone}`, role: 'note' }), 0];
+  },
+});
+
+/** A toggle: a summary line that opens the blocks under it, `:::details <summary>` … `:::`. */
+export const Details = Node.create<DrawingOptions>({
+  name: 'details',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+  addOptions: () => ({ drawing: undefined }),
+  addAttributes: () => ({ summary: { default: '' } }),
+  parseHTML: () => [{ tag: 'details', getAttrs: (dom: HTMLElement) => ({ summary: dom.querySelector('summary')?.textContent ?? '' }) }],
+  renderHTML: ({ node, HTMLAttributes }) => [
+    'details', mergeAttributes(HTMLAttributes, { class: 'page-details', open: 'open' }),
+    ['summary', { class: 'page-details__summary', contenteditable: 'false' }, String(node.attrs['summary'] ?? '')],
+    ['div', { class: 'page-details__body' }, 0],
+  ],
+  addNodeView() {
+    const drawing = this.options.drawing;
+    return (({ node, editor, getPos }: { node: { attrs: Record<string, unknown> }; editor: Editor; getPos: () => number | undefined }) => {
+      const dom = document.createElement('details');
+      dom.className = 'page-details';
+      dom.open = true;
+      const summary = document.createElement('summary');
+      summary.className = 'page-details__summary';
+      summary.setAttribute('contenteditable', 'false');
+      const words = () => String(node.attrs['summary'] ?? '') || (drawing?.words?.('details') ?? '');
+      if (editor.isEditable) {
+        // The summary is the block's attribute, typed in place; the blocks under it are the content.
+        const input = document.createElement('input');
+        input.className = 'page-details__input';
+        input.value = String(node.attrs['summary'] ?? '');
+        input.placeholder = drawing?.words?.('details') ?? '';
+        input.addEventListener('keydown', (event) => event.stopPropagation());
+        input.addEventListener('click', (event) => event.preventDefault());
+        input.addEventListener('change', () => {
+          const at = getPos();
+          if (at === undefined) return;
+          editor.view.dispatch(editor.state.tr.setNodeAttribute(at, 'summary', input.value.replace(/\s+/gu, ' ').trim()));
+        });
+        summary.append(input);
+      } else summary.textContent = words();
+      const body = document.createElement('div');
+      body.className = 'page-details__body';
+      dom.append(summary, body);
+      return {
+        dom, contentDOM: body,
+        ignoreMutation: (mutation: { type: string; target: unknown }) => mutation.type === 'attributes' || summary.contains(mutation.target as never),
+        stopEvent: (event: Event) => summary.contains(event.target as never),
+      };
+    }) as never;
+  },
+});
+
+/** The page's headings as a list of links, `::toc`, kept current as the page is written. */
+export const TableOfContents = Node.create<DrawingOptions>({
+  name: 'tableOfContents',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  addOptions: () => ({ drawing: undefined }),
+  parseHTML: () => [{ tag: 'nav[data-toc]' }],
+  renderHTML: ({ HTMLAttributes }) => ['nav', mergeAttributes(HTMLAttributes, { 'data-toc': '', class: 'page-toc' })],
+  addNodeView() {
+    const drawing = this.options.drawing;
+    return (({ editor }: { editor: Editor }) => {
+      const dom = document.createElement('nav');
+      dom.className = 'page-toc';
+      dom.setAttribute('contenteditable', 'false');
+      const draw = () => {
+        const list = document.createElement('ol');
+        list.className = 'page-toc__list';
+        editor.state.doc.forEach((node) => {
+          if (node.type.name !== 'heading' || node.textContent.trim() === '') return;
+          const item = document.createElement('li');
+          item.className = `page-toc__item page-toc__item--${Math.min(6, Number(node.attrs['level'] ?? 1))}`;
+          const link = document.createElement('button');
+          link.type = 'button';
+          link.className = 'page-toc__link';
+          link.textContent = node.textContent;
+          const id = node.attrs['blockId'] as string | null;
+          link.addEventListener('click', () => id && revealBlock(editor, id));
+          item.append(link);
+          list.append(item);
+        });
+        if (list.childElementCount === 0) dom.replaceChildren(drawing?.words?.('toc_empty') ?? '');
+        else dom.replaceChildren(list);
+      };
+      draw();
+      editor.on('update', draw);
+      return { dom, ignoreMutation: () => true, destroy: () => editor.off('update', draw) };
+    }) as never;
+  },
+});
+
+/** The page's child pages, `::children`, drawn by the application from the page tree. */
+export const ChildPages = Node.create<DrawingOptions>({
+  name: 'childPages',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  addOptions: () => ({ drawing: undefined }),
+  parseHTML: () => [{ tag: 'div[data-child-pages]' }],
+  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-child-pages': '', class: 'page-children' })],
+  addNodeView() {
+    const drawing = this.options.drawing;
+    return (() => {
+      const dom = document.createElement('div');
+      dom.className = 'page-children';
+      dom.setAttribute('contenteditable', 'false');
+      const unmount = drawing?.children?.(dom);
+      if (!unmount) dom.textContent = drawing?.words?.('children') ?? '';
+      return { dom, stopEvent: () => Boolean(unmount), ignoreMutation: () => true, destroy: () => unmount?.() };
+    }) as never;
+  },
+});
+
+/**
+ * A video, a recording or another page of the web, `::embed <https address>`. Drawn as a card that
+ * opens it in a new tab: the interface's policy frames no other origin (security.md §9), and a frame
+ * the policy refused would be an empty box.
+ */
+export const Embed = Node.create<DrawingOptions>({
+  name: 'embed',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addOptions: () => ({ drawing: undefined }),
+  addAttributes: () => ({ src: { default: null } }),
+  parseHTML: () => [{ tag: 'div[data-embed]', getAttrs: (dom: HTMLElement) => ({ src: embeddable(dom.dataset['embed'] ?? '') ?? null }) }],
+  renderHTML: ({ node, HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-embed': String(node.attrs['src'] ?? ''), class: 'page-embed' })],
+  addNodeView() {
+    const drawing = this.options.drawing;
+    return (({ node }: { node: { attrs: Record<string, unknown> } }) => {
+      const dom = document.createElement('div');
+      dom.className = 'page-embed';
+      dom.setAttribute('contenteditable', 'false');
+      const address = embeddable(String(node.attrs['src'] ?? ''));
+      if (address) {
+        const link = document.createElement('a');
+        link.className = 'page-embed__link';
+        link.href = address;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer nofollow';
+        const kind = document.createElement('span');
+        kind.className = 'page-embed__kind';
+        kind.textContent = drawing?.words?.('embed') ?? '';
+        const host = document.createElement('span');
+        host.className = 'page-embed__host';
+        host.textContent = new URL(address).hostname;
+        link.append(kind, host);
+        dom.append(link);
+      }
+      return { dom, ignoreMutation: () => true };
+    }) as never;
+  },
+});
+
+/** A day inside a line, `:date[2026-10-31]`, drawn in the reader's words. */
+export const DateChip = Node.create<DrawingOptions>({
+  name: 'date',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  addOptions: () => ({ drawing: undefined }),
+  addAttributes: () => ({ date: { default: '' } }),
+  parseHTML: () => [{ tag: 'time[data-date]', getAttrs: (dom: HTMLElement) => ({ date: dom.getAttribute('datetime') ?? '' }) }],
+  renderHTML({ node, HTMLAttributes }) {
+    const day = String(node.attrs['date'] ?? '');
+    return ['time', mergeAttributes(HTMLAttributes, { 'data-date': '', datetime: day, class: 'page-date' }), this.options.drawing?.day?.(day) ?? day];
+  },
+});
+
+/** A status lozenge inside a line, `:status[In progress]{info}`. */
+export const StatusChip = Node.create({
+  name: 'status',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  addAttributes: () => ({ label: { default: '' }, tone: { default: 'neutral' } }),
+  parseHTML: () => [{ tag: 'span[data-status]', getAttrs: (dom: HTMLElement) => ({ label: dom.textContent ?? '', tone: dom.dataset['status'] ?? 'neutral' }) }],
+  renderHTML: ({ node, HTMLAttributes }) => {
+    const tone = (STATUS_TONES as readonly string[]).includes(String(node.attrs['tone'])) ? String(node.attrs['tone']) : 'neutral';
+    return ['span', mergeAttributes(HTMLAttributes, { 'data-status': tone, class: `page-status page-status--${tone}` }), String(node.attrs['label'] ?? '')];
+  },
+});
+
+const BLOCK_TYPES = [
+  'paragraph', 'heading', 'blockquote', 'codeBlock', 'bulletList', 'orderedList', 'taskList', 'referenceBlock',
+  'callout', 'details', 'tableOfContents', 'childPages', 'embed',
+];
 
 /**
  * Every top block carries an identifier an inline comment stands at (`PageCommentCreate.anchor`).
@@ -199,6 +412,13 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     TaskItem.configure({ nested: true }),
     Reference.configure({ drawing: options.drawing, fallback }),
     ReferenceBlock.configure({ drawing: options.drawing, fallback }),
+    Callout,
+    Details.configure({ drawing: options.drawing }),
+    TableOfContents.configure({ drawing: options.drawing }),
+    ChildPages.configure({ drawing: options.drawing }),
+    Embed.configure({ drawing: options.drawing }),
+    DateChip.configure({ drawing: options.drawing }),
+    StatusChip,
     BlockIds,
     CommentPassages,
   ];
@@ -264,6 +484,51 @@ export function markdownOf(editor: Editor): string {
 export function insertReference(editor: Editor, ref: ReferenceAttrs, inPlace: boolean): void {
   const node = { type: inPlace ? 'referenceBlock' : 'reference', attrs: { ...ref } };
   editor.chain().focus().insertContent(node).run();
+}
+
+/** A wiki block the toolbar inserts. */
+export type WikiBlock =
+  | { kind: 'callout'; tone: (typeof CALLOUT_TONES)[number] }
+  | { kind: 'details'; summary: string }
+  | { kind: 'toc' }
+  | { kind: 'children' }
+  | { kind: 'embed'; src: string }
+  | { kind: 'date'; date: string }
+  | { kind: 'status'; label: string; tone: (typeof STATUS_TONES)[number] };
+
+/** Inserts a wiki block at the selection; an embed whose address is not https inserts nothing. */
+export function insertWikiBlock(editor: Editor, block: WikiBlock): boolean {
+  const empty = [{ type: 'paragraph' }];
+  let node: JSONContent;
+  switch (block.kind) {
+    case 'callout':
+      node = { type: 'callout', attrs: { tone: block.tone }, content: empty };
+      break;
+    case 'details':
+      node = { type: 'details', attrs: { summary: block.summary }, content: empty };
+      break;
+    case 'toc':
+      node = { type: 'tableOfContents' };
+      break;
+    case 'children':
+      node = { type: 'childPages' };
+      break;
+    case 'embed': {
+      const src = embeddable(block.src);
+      if (!src) return false;
+      node = { type: 'embed', attrs: { src } };
+      break;
+    }
+    case 'date':
+      if (!/^\d{4}-\d{2}-\d{2}$/u.test(block.date)) return false;
+      node = { type: 'date', attrs: { date: block.date } };
+      break;
+    case 'status':
+      if (block.label.trim() === '') return false;
+      node = { type: 'status', attrs: { label: block.label.trim(), tone: block.tone } };
+      break;
+  }
+  return editor.chain().focus().insertContent(node).run();
 }
 
 /** Scrolls to the block an inline comment stands at, and marks it for a moment. */

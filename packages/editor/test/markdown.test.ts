@@ -80,3 +80,51 @@ test('two versions compare line by line (UC-DOC-06 check 3)', () => {
   const lines = compareBodies('a\nb\nc\nd', 'a\nB\nc\nd\ne');
   assert.deepEqual(lines.map((each) => `${each.kind[0]}${each.text}`), ['sa', 'rb', 'aB', 'sc', 'sd', 'ae']);
 });
+
+test('the wiki blocks survive the editor: callouts, toggles, contents, child pages, embeds, dates and statuses (UC-DOC-01 check 10)', () => {
+  const body = [
+    '::toc',
+    '',
+    ':::warning',
+    'Read this **first**.',
+    '',
+    '- one',
+    ':::',
+    '',
+    '::::details How do I start?',
+    'Open the hub.',
+    '',
+    ':::success',
+    'Done on :date[2026-10-31], now :status[In progress]{info}.',
+    ':::',
+    '::::',
+    '',
+    '::children',
+    '',
+    '::embed https://videos.example.org/watch?v=42',
+    '',
+  ].join('\n');
+  const doc = fromMarkdown(body);
+  assert.deepEqual(doc.content?.map((node) => node.type), ['tableOfContents', 'callout', 'details', 'childPages', 'embed']);
+  assert.equal(doc.content?.[1]?.attrs?.['tone'], 'warning');
+  assert.equal(doc.content?.[2]?.attrs?.['summary'], 'How do I start?');
+  assert.equal(doc.content?.[2]?.content?.[1]?.type, 'callout');
+  const line = doc.content?.[2]?.content?.[1]?.content?.[0]?.content ?? [];
+  assert.deepEqual(line.filter((node) => node.type !== 'text'), [
+    { type: 'date', attrs: { date: '2026-10-31' } },
+    { type: 'status', attrs: { label: 'In progress', tone: 'info' } },
+  ]);
+  assert.equal(toMarkdown(doc), body);
+});
+
+test('an embed takes an https address alone, and a directive typed as words stays words', () => {
+  for (const address of ['http://videos.example.org/1', 'javascript:alert(1)', 'https://user:pw@videos.example.org/1']) {
+    const doc = fromMarkdown(`::embed ${address}\n`);
+    assert.notEqual(doc.content?.[0]?.type, 'embed', address);
+  }
+  const words = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '::toc and :date[soon]' }] }] };
+  const written = toMarkdown(words);
+  assert.deepEqual(fromMarkdown(written).content?.[0], words.content[0]);
+  const unknownTone = toMarkdown({ type: 'doc', content: [{ type: 'callout', attrs: { tone: 'purple' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }] }] });
+  assert.equal(unknownTone, ':::info\nx\n:::\n');
+});

@@ -7,19 +7,19 @@
  * references; this package knows no address, no token and no screen.
  */
 
-export { addressOf, fromMarkdown, parseAddress, parseInline, textOf, toMarkdown } from './markdown.ts';
+export { CALLOUT_TONES, STATUS_TONES, addressOf, embeddable, fromMarkdown, parseAddress, parseInline, textOf, toMarkdown } from './markdown.ts';
 export type { DocNode, ReferenceAttrs } from './markdown.ts';
 export { CLOSE_ACCESS_ENDED, LiveDocument } from './live.ts';
 export type { LiveDocumentOptions, LiveSocket, LiveStatus } from './live.ts';
 export { compareBodies, MAX_COMPARED_LINES } from './compare.ts';
 export type { CompareLine } from './compare.ts';
 export {
-  createPageEditor, insertReference, linkLineToEntry, markdownOf, mirrorCompletion, passageTops, revealBlock, seedFromMarkdown,
+  createPageEditor, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, passageTops, revealBlock, seedFromMarkdown,
   setPassages, taskLineOf,
 } from './editor.ts';
 export { linkLine, mirrorTicks, taskLineAt, taskLines, tickedEntries } from './tasks.ts';
 export type { TaskLine } from './tasks.ts';
-export type { Editor, PageEditorOptions, ReferenceDrawing, SelectedBlock } from './editor.ts';
+export type { Editor, PageEditorOptions, ReferenceDrawing, SelectedBlock, WikiBlock } from './editor.ts';
 export { findPassage, selectedWords } from './passages.ts';
 export type { Passage, PassageRange } from './passages.ts';
 export { Doc } from 'yjs';
