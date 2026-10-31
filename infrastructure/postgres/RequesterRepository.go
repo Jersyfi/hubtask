@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
@@ -46,6 +47,27 @@ func (r RequesterRepository) RecordContact(
 		return requesterFailed("recording a requester's contact", err)
 	}
 	return nil
+}
+
+// AddressesOn answers who the entry was filed for by mail, by address (UC-SVC-12).
+func (RequesterRepository) AddressesOn(ctx context.Context, itemID shared.ID) ([]servicedesk.RequesterAddress, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	item, err := uuidOf(itemID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListRequesterAddressesOn(ctx, item)
+	if err != nil {
+		return nil, requesterFailed("reading an entry's requesters", err)
+	}
+	out := make([]servicedesk.RequesterAddress, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, servicedesk.RequesterAddress{Address: row.Address, Name: row.DisplayName})
+	}
+	return out, nil
 }
 
 // DeleteExpired removes a batch of requesters past REQUESTER's period.

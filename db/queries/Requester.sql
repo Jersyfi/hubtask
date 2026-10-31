@@ -59,3 +59,12 @@ WHERE tenant_id = current_tenant_id() AND lower(sender) = lower(sqlc.arg('addres
 -- The mail intake's log of the address, in both modes: a receipt is the address and a subject.
 DELETE FROM mail_receipt
 WHERE tenant_id = current_tenant_id() AND lower(sender) = lower(sqlc.arg('address')::text);
+
+-- name: ListRequesterAddressesOn :many
+-- Who an entry was filed for by mail: the addresses a public reply on it is mailed to (UC-SVC-12).
+SELECT r.address, r.display_name
+FROM requester_contact c
+JOIN requester r ON r.tenant_id = c.tenant_id AND r.id = c.requester_id
+WHERE c.tenant_id = current_tenant_id() AND c.item_id = sqlc.arg('item_id')
+ORDER BY r.address
+LIMIT 20;

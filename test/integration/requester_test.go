@@ -24,6 +24,13 @@ func (f freshIDs) NewID() shared.ID { return freshID(f.t) }
 // record and the address's receipts.
 func TestTheRequesterRecordStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
+	// Its own workspaces, so the test holds alone and not only after one that seeds them.
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO tenant (id, slug, display_name, default_locale, default_time_zone)
+		VALUES ($1, 'tenant-a', 'A', 'de', 'Europe/Berlin'), ($2, 'tenant-b', 'B', 'en', 'UTC')
+		ON CONFLICT (id) DO NOTHING`, tenantA.String(), tenantB.String()); err != nil {
+		t.Fatalf("seeding the workspaces: %v", err)
+	}
 	item := seedWorkItemForRules(ctx, t, tenantA)
 	store := postgres.RequesterRepository{IDs: freshIDs{t}}
 	long := time.Now().UTC().AddDate(-3, 0, 0)
@@ -37,6 +44,24 @@ func TestTheRequesterRecordStaysInItsWorkspace(t *testing.T) {
 	}
 	if n := countIn(ctx, t, `SELECT count(*) FROM requester_contact c JOIN requester r ON r.id = c.requester_id WHERE r.address = $1`, address); n != 1 {
 		t.Fatalf("%d contacts after a mail delivered twice, want one", n)
+	}
+	// Who a reply is mailed to (UC-SVC-12): the entry's requesters here, nobody next door.
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		got, err := store.AddressesOn(ctx, item)
+		if err != nil || len(got) != 1 || got[0].Address != address || got[0].Name != "Kunde" {
+			t.Errorf("the entry's requesters are %+v (%v)", got, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if got, err := store.AddressesOn(ctx, item); err != nil || len(got) != 0 {
+			t.Errorf("another workspace read the entry's requesters %+v (%v)", got, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 
 	cutoff := time.Now().UTC().AddDate(0, 0, -730)

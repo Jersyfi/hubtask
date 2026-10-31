@@ -111,6 +111,41 @@ func (q *Queries) DiscardIntakeFrom(ctx context.Context, address string) (int64,
 	return result.RowsAffected(), nil
 }
 
+const listRequesterAddressesOn = `-- name: ListRequesterAddressesOn :many
+SELECT r.address, r.display_name
+FROM requester_contact c
+JOIN requester r ON r.tenant_id = c.tenant_id AND r.id = c.requester_id
+WHERE c.tenant_id = current_tenant_id() AND c.item_id = $1
+ORDER BY r.address
+LIMIT 20
+`
+
+type ListRequesterAddressesOnRow struct {
+	Address     string
+	DisplayName string
+}
+
+// Who an entry was filed for by mail: the addresses a public reply on it is mailed to (UC-SVC-12).
+func (q *Queries) ListRequesterAddressesOn(ctx context.Context, itemID pgtype.UUID) ([]ListRequesterAddressesOnRow, error) {
+	rows, err := q.db.Query(ctx, listRequesterAddressesOn, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRequesterAddressesOnRow{}
+	for rows.Next() {
+		var i ListRequesterAddressesOnRow
+		if err := rows.Scan(&i.Address, &i.DisplayName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordRequesterContact = `-- name: RecordRequesterContact :exec
 
 WITH kept AS (
