@@ -69,6 +69,14 @@ class Pages {
     });
   }
 
+  /** A copy beside the page, titled as the page; the editor renames it (UC-DOC-01 check 8). */
+  copy(page: Page): Promise<Page> {
+    return engine.mutate<Page>('POST', `${pagePath(page.id)}:copy`, {}, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [`/hubs/${page.hub_id}/pages`],
+    });
+  }
+
   trash(page: Page): Promise<PageTrashed> {
     return engine.mutate<PageTrashed>('DELETE', pagePath(page.id), undefined, {
       invalidates: touched(page.hub_id, page.id),

@@ -8651,6 +8651,8 @@
   "app.pages.format.MARKDOWN": "Markdown files",
   "app.pages.format.HTML": "Web pages (HTML)",
   "app.pages.format.DOCX": "Text documents (DOCX)",
+  "app.pages.copy": "Copy",
+  "app.pages.copied": "Copied. The copy is open.",
   "app.whiteboards.title": "Whiteboards",
   "app.whiteboards.loading": "Loading the whiteboards…",
   "app.whiteboards.new": "New whiteboard",

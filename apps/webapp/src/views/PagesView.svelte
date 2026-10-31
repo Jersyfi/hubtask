@@ -176,6 +176,12 @@
     onnavigate(`/hubs/${current.hub_id}/pages`);
   }
 
+  async function copy() {
+    if (!current) return;
+    const made = await act(() => pages.copy(current), t('app.pages.copied'));
+    if (made) onnavigate(`/pages/${made.id}`);
+  }
+
   async function restore(id: string) {
     const answer = await act(() => pages.restore(hubId, id), t('app.pages.restored'));
     if (answer) onnavigate(`/pages/${id}`);
@@ -538,6 +544,7 @@
             <Inline gap="100" isWrapping>
               <Button size="sm" tone="secondary" icon="plus" onclick={() => startCreate(current.id)}>{t('app.pages.new_child')}</Button>
               <Button size="sm" tone="subtle" onclick={() => { moveParent = current.parent_id ?? ''; isMoving = true; }}>{t('app.pages.move')}</Button>
+              <Button size="sm" tone="subtle" data-page-copy onclick={() => void copy()}>{t('app.pages.copy')}</Button>
               <Button size="sm" tone="danger" icon="trash" onclick={trash}>{t('app.pages.to_trash')}</Button>
             </Inline>
           {/if}

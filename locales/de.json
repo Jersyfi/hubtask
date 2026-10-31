@@ -8648,6 +8648,8 @@
   "app.pages.format.MARKDOWN": "Markdown-Dateien",
   "app.pages.format.HTML": "Webseiten (HTML)",
   "app.pages.format.DOCX": "Textdokumente (DOCX)",
+  "app.pages.copy": "Kopieren",
+  "app.pages.copied": "Kopiert. Die Kopie ist geöffnet.",
   "app.whiteboards.title": "Whiteboards",
   "app.whiteboards.loading": "Whiteboards werden geladen …",
   "app.whiteboards.new": "Neues Whiteboard",
