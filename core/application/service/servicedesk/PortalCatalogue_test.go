@@ -56,3 +56,23 @@ func TestTheCatalogueSpeaksTheReadersLanguageAndNamesItsDesk(t *testing.T) {
 		t.Errorf("the desk is %+v", desk)
 	}
 }
+
+// UC-SVC-05 check 9: the catalogue names the desk's logo, or none for a desk drawn by its icon.
+func TestTheCatalogueNamesTheDesksLogo(t *testing.T) {
+	for _, logo := range []shared.ID{logoID, ""} {
+		portal := Portal{
+			Containers: brandedDesk{}, EntryTypes: translatedTypes{},
+			Logos: &logoStore{logos: map[shared.ID]shared.ID{collection: logo}},
+			Desk:  Desk{Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{}},
+		}
+		out, err := ListRequestCatalogue{Portal: portal}.Descriptor().Handler.Invoke(context.Background(), reader(),
+			usecase.Input{"collection_id": collection.String()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		desk, _ := out["desk"].(usecase.Output)
+		if desk["logo_media_id"] != idText(logo) {
+			t.Errorf("the desk's logo reads %v, want %v", desk["logo_media_id"], idText(logo))
+		}
+	}
+}

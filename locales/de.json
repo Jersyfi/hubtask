@@ -1553,6 +1553,8 @@
   "media.object_missing": "Der Objektspeicher hat unter dem Schlüssel {key} keine Bytes.",
   "media.not_ready": "Dieses Medienobjekt ist nicht bereit. Bestätige zuerst seinen Upload.",
   "media.avatar_not_an_image": "Ein Bild von dir muss ein PNG-, JPEG-, GIF- oder WebP-Bild sein.",
+  "media.logo_not_an_image": "Das Logo eines Service Desks muss ein PNG-, JPEG-, GIF- oder WebP-Bild sein.",
+  "servicedesk.logo_needs_a_collection": "Nur eine Sammlung, die als Service dient, zeigt ein Logo; ein Hub nicht.",
   "media.usage_mismatch": "Dieses Medienobjekt wurde für {usage} hochgeladen und lässt sich nicht als {wanted} verwenden.",
   "media.not_found": "Dieses Medienobjekt gibt es nicht.",
   "media.still_referenced": "Dieses Medienobjekt wird noch verwendet. Entferne zuerst den Anhang oder das Titelbild.",

@@ -797,6 +797,8 @@
   "media.not_ready": "That media object is not ready. Confirm its upload first.",
   "media.usage_mismatch": "That media object was staged as {usage} and cannot be used as {wanted}.",
   "media.avatar_not_an_image": "A picture of yourself has to be a PNG, JPEG, GIF or WebP image.",
+  "media.logo_not_an_image": "A desk's logo has to be a PNG, JPEG, GIF or WebP image.",
+  "servicedesk.logo_needs_a_collection": "Only a collection serving as a service shows a logo; a hub does not.",
   "media.not_found": "That media object does not exist.",
   "media.still_referenced": "That media object is still in use. Detach it or clear the cover first.",
   "media.upload_expired": "The upload window has closed. Stage the upload again.",

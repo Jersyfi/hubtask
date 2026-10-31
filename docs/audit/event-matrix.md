@@ -457,6 +457,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `trash.emptied` | EmptyTrash | `trash` | WARNING | Every time |
 | `trash.read` | ListTrash | `trash` | INFO | When refused |
 
+## Desk
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `desk.logo_removed` | RemoveDeskLogo | `desk` | INFO | Every time |
+| `desk.logo_set` | SetDeskLogo | `desk` | INFO | Every time |
+
 ## Directory
 
 | Action | Use case | Target | Severity | Recorded |

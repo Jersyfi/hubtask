@@ -72,6 +72,8 @@ type Portal struct {
 	// Accounts answers the caller's address, whose mail domain names their organisation
 	// (UC-SVC-11); nil leaves everybody in none.
 	Accounts identityrepo.Accounts
+	// Logos answers the desk's own logo (UC-SVC-05 check 9); nil draws every desk by its icon.
+	Logos repository.DeskLogos
 }
 
 // portal marks the act as the portal's door, which the entry use cases read as REQUEST.
@@ -270,7 +272,9 @@ type ListRequestCatalogue struct{ Portal Portal }
 // RequestCatalogueView is the catalogue with the service it belongs to: the collection, whose
 // name, description, icon and colour the portal presents as the desk (UC-SVC-05 check 8).
 type RequestCatalogueView struct {
-	Desk    workdomain.Container
+	Desk workdomain.Container
+	// Logo is the desk's own logo, zero for none (check 9).
+	Logo    shared.ID
 	Entries []domain.CatalogueEntry
 }
 
@@ -281,7 +285,17 @@ func (h ListRequestCatalogue) Execute(ctx context.Context, actor appshared.Actor
 		return RequestCatalogueView{}, err
 	}
 	entries, err := h.Portal.catalogueOf(ctx, actor, collection)
-	return RequestCatalogueView{Desk: collection, Entries: entries}, err
+	if err != nil {
+		return RequestCatalogueView{}, err
+	}
+	view := RequestCatalogueView{Desk: collection, Entries: entries}
+	if h.Portal.Logos != nil {
+		err = h.Portal.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			view.Logo, err = h.Portal.Logos.Find(ctx, collectionID)
+			return err
+		})
+	}
+	return view, err
 }
 
 // CatalogueEntryOutput is one kind of request as the contract names it (schema RequestCatalogue),
@@ -329,6 +343,7 @@ func (h ListRequestCatalogue) Descriptor() usecase.Descriptor {
 			desk := usecase.Output{
 				"name": catalogue.Desk.Name, "description": catalogue.Desk.Description,
 				"icon": catalogue.Desk.Icon, "color_token": catalogue.Desk.ColorToken,
+				"logo_media_id": idText(catalogue.Logo),
 			}
 			return usecase.Output{"desk": desk, "data": data}, nil
 		}),

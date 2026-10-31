@@ -153,6 +153,14 @@ type PublicForms interface {
 	Delete(ctx context.Context, collectionID shared.ID) (bool, error)
 }
 
+// DeskLogos stores the logo a collection's portal draws (UC-SVC-05 check 9).
+type DeskLogos interface {
+	// Find answers the collection's logo, zero for none; not found for a hub or a trashed collection.
+	Find(ctx context.Context, collectionID shared.ID) (shared.ID, error)
+	// Set writes the collection's logo; zero takes it away.
+	Set(ctx context.Context, collectionID, mediaID shared.ID) error
+}
+
 // SatisfactionLinks stores the satisfaction question mailed to a requester without an account
 // (UC-SVC-07 check 6), hashing its token as PublicForms does.
 type SatisfactionLinks interface {
