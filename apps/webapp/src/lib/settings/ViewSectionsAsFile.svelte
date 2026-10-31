@@ -14,6 +14,7 @@
   import { config } from '../data/config.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { pagePartFile } from './asFile.ts';
 
   interface Props {
     /** The document's sections the page configures: `types`, `roles`, … */
@@ -23,9 +24,13 @@
      * shape it, so the page's own gate stands for this one.
      */
     hubId?: string;
+    /** Areas of the `settings` section the page writes: `sign_in`, `time`, … */
+    settings?: readonly string[];
+    /** On a collection's page, its handle: only its blocks of the hub's collection sections. */
+    handle?: string;
   }
 
-  const { sections, hubId }: Props = $props();
+  const { sections, hubId, settings, handle }: Props = $props();
 
   const mayRead = $derived(hubId !== undefined || holdsHere('STRUCTURE') === true || holdsHere('READ_CONFIGURATION') === true);
   let isOpen = $state(false);
@@ -38,8 +43,7 @@
 
   const file = $derived.by(() => {
     if (current?.status !== 'ready') return '';
-    const document = current.data.document as Record<string, unknown>;
-    return JSON.stringify(Object.fromEntries(sections.map((name) => [name, document[name] ?? {}])), null, 2);
+    return pagePartFile(current.data.document as Record<string, unknown>, { sections, settings, handle });
   });
 </script>
 

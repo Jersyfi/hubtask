@@ -40,6 +40,8 @@
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import ViewSectionsAsFile from '../settings/ViewSectionsAsFile.svelte';
+  import { placePart } from '../settings/asFile.ts';
   import {
     SETTINGS,
     changeOf,
@@ -97,6 +99,9 @@
 
   const structure = $derived(container.structure);
   const isHub = $derived(container.type === 'HUB');
+  // A10: the hub's document holds the hub's own blocks and, by handle, its collections'; a
+  // collection without a handle has no blocks there to show.
+  const fileHub = $derived(isHub ? container.id : container.handle ? (container.parent_id ?? undefined) : undefined);
 
   // The presets, the accounts that set a lock, and the number fields a sum may name.
   // From `untrack`: subscribing delivers at once and writes the store this effect would read.
@@ -681,6 +686,7 @@
     </ul>
   </nav>
   <div class="section">
+    {#if fileHub}<div class="file"><ViewSectionsAsFile {...placePart(isHub, container.handle ?? undefined)} hubId={fileHub} /></div>{/if}
     {#if tab === 'structure'}
       {@render settingsBody()}
     {:else}
@@ -776,4 +782,5 @@
     }
     :global([dir='rtl']) .sections a[aria-current='page'] { box-shadow: inset calc(var(--bw-thick) * -1) 0 0 0 var(--accent-primary); }
   }
+  .file { display: flex; justify-content: flex-end; }
 </style>

@@ -83,6 +83,8 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
 
   interface Props {
     /** The sign-in rules in tabs, or the legal links on their own page. */
@@ -543,6 +545,7 @@
       {/if}
     {/snippet}
   </PageHeader>
+  <div class="file"><ViewSectionsAsFile {...pagePart(part === 'legal' ? '/administration/legal' : '/administration/sign-in')} /></div>
 
   {#if unreadable && !policy}
     <!-- Never a spinner for a read that failed (check 8, P-11): the server's sentence, and a way to
@@ -963,4 +966,5 @@
     margin-block-start: var(--sp-100);
   }
 
+  .file { display: flex; justify-content: flex-end; }
 </style>

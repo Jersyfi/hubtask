@@ -47,6 +47,8 @@
   import { eventWords } from '../lib/automation/words.ts';
   import { renderProblem } from '../lib/problem.ts';
   import SectionFindings from '../lib/settings/SectionFindings.svelte';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
 
   interface Props {
     onnavigate?: (path: string) => void;
@@ -186,6 +188,7 @@
         {/if}
       {/snippet}
     </PageHeader>
+    <div class="file"><ViewSectionsAsFile {...pagePart('/administration/rules')} /></div>
 
     <SectionFindings sections={['rules']} />
 
@@ -248,4 +251,5 @@
   .small { font-size: var(--fs-075); }
 
   .row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
+  .file { display: flex; justify-content: flex-end; }
 </style>

@@ -78,6 +78,9 @@ const WORKSPACE: Readonly<Record<string, Screen>> = {
   time: { path: '/administration/time', code: 'app.time_settings.title' },
 };
 
+/** The workspace's screen of each area, for the test that every one shows its part of the file. */
+export const workspaceScreens = (): Readonly<Record<string, Screen>> => WORKSPACE;
+
 /** Where an area is drawn on a hub's or a collection's own pages, below the place's address. */
 const PLACE: Readonly<Record<string, Screen>> = {
   structure: { path: 'settings/structure', code: 'app.settings.section_structure' },

@@ -38,6 +38,8 @@
   import PublicFormsSwitch from '../lib/servicedesk/PublicFormsSwitch.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
 
   let displayName = $state('');
   let locale = $state('');
@@ -152,6 +154,7 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/workspace')} /></div>
 
     <Stack gap="300">
 
@@ -305,4 +308,5 @@
     background: var(--bg-surface);
     box-shadow: var(--shadow-raised);
   }
+  .file { display: flex; justify-content: flex-end; }
 </style>

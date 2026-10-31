@@ -49,6 +49,8 @@
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
 
   interface Props {
     /** The tab the address names (`?tab=`); the source where it names none or one not drawn. */
@@ -305,6 +307,7 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/ai')} /></div>
 
     <Stack gap="300">
     <p class="quiet">{t('app.ai.intro')}</p>
@@ -561,4 +564,5 @@
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .name { margin: 0; font-weight: var(--fw-semibold); }
   .budget { margin: 0; max-inline-size: 52ch; }
+  .file { display: flex; justify-content: flex-end; }
 </style>

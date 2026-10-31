@@ -34,6 +34,8 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
 
   interface Props {
     /** The tab the address names (`?tab=`); the agents where it names none or an unknown one. */
@@ -294,6 +296,7 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/agents')} /></div>
 
   <p class="quiet">{t('app.agents.intro')}</p>
 
@@ -554,4 +557,5 @@
   .preview { margin: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: var(--sp-025) var(--sp-150); }
   .preview dt { color: var(--text-subtle); font-size: var(--fs-075); font-family: var(--font-mono); }
   .preview dd { margin: 0; overflow-wrap: anywhere; }
+  .file { display: flex; justify-content: flex-end; }
 </style>

@@ -32,6 +32,8 @@
   import TemplatesGallery from '../lib/settings/TemplatesGallery.svelte';
   import { SETTINGS } from '../lib/workspace/structureDraft.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
 
   $effect(() => untrack(() => workspace.open()));
   $effect(() => untrack(() => presets.open()));
@@ -128,6 +130,7 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/presets')} /></div>
 
   {#if reading.status === 'loading' || reading.status === 'idle'}
     <p class="quiet">
@@ -230,4 +233,5 @@
   .row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-150); }
   .row :global(> :first-child) { flex: 1 1 auto; }
   .actions { display: flex; gap: var(--sp-100); }
+  .file { display: flex; justify-content: flex-end; }
 </style>

@@ -28,6 +28,8 @@
   import CostRates from '../lib/time/CostRates.svelte';
   import { lockedAbove, partOf, type PolicyPart } from '../lib/time/policy.ts';
   import ValueSource from '../lib/workspace/ValueSource.svelte';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
 
   $effect(() => page.entitle(t('app.time_settings.title')));
 
@@ -157,6 +159,7 @@
     }}
     secondary={mayShape ? [{ label: t('app.time_settings.add_kind'), icon: 'plus', onclick: () => openKind(undefined) }] : []}
   />
+  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/time')} /></div>
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
@@ -228,4 +231,5 @@
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   p { margin: 0; }
+  .file { display: flex; justify-content: flex-end; }
 </style>
