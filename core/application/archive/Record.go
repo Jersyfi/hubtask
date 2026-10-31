@@ -416,7 +416,11 @@ var entities = []Entity{
 			{Field: "name", Rule: UniqueRename, Within: []string{"parent_id"}},
 			{Field: "handle", Rule: UniqueClear},
 		},
-		References: []Reference{{Field: "parent_id", Table: "container"}},
+		References: []Reference{
+			{Field: "parent_id", Table: "container"},
+			// A desk's logo (0313): the hub is itself without it.
+			{Field: "logo_media_id", Table: "media_object", Clearable: true},
+		},
 	},
 	{
 		Name: "buckets", Table: "bucket", Whole: true, Keys: []string{"id"}, Duplicable: true,
@@ -646,6 +650,8 @@ var entities = []Entity{
 			{Field: "hub_id", Table: "container"},
 			{Field: "parent_id", Table: "page"},
 			{Field: "owner_id", Table: "account", Clearable: true},
+			// A language variant's source (0314): the variant stays a page without it.
+			{Field: "language_source_id", Table: "page", Clearable: true},
 		},
 	},
 	{
