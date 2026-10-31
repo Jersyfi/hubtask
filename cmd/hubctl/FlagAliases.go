@@ -15,6 +15,9 @@ type flagAlias struct {
 	// Position, from 0, is the path argument a flag became (`backup ls --target <id>` is
 	// `backup ls <id>`); -1 for a flag.
 	Position int
+	// Words, where set, are the former values and what they stand for today (`--default yes` is
+	// `--is-default=true`); a following argument that is one of them is the flag's value.
+	Words map[string]string
 }
 
 func renamed(old, now string) flagAlias { return flagAlias{Old: old, New: now, Position: -1} }
@@ -22,10 +25,17 @@ func standsFor(old, now, value string) flagAlias {
 	return flagAlias{Old: old, New: now, Value: value, Position: -1}
 }
 func becamePositional(old string, at int) flagAlias { return flagAlias{Old: old, Position: at} }
+func renamedWithWords(old, now string, words map[string]string) flagAlias {
+	return flagAlias{Old: old, New: now, Position: -1, Words: words}
+}
+
+// formerYesNo are the words a hand-written command took where its generated door takes a boolean.
+var formerYesNo = map[string]string{"yes": "true", "no": "false"}
 
 // flagAliases holds the renames of the generated commands that replaced hand-written ones. A
 // former name whose meaning changed is not here: `jumble submit --body` is the request's file now,
-// and a text there would be read as a path.
+// and a text there would be read as a path; such a script fails on the missing file and sends
+// nothing (the old text body is `--raw-body`).
 var flagAliases = map[string][]flagAlias{
 	"rule ls":                {standsFor("disabled", "enabled", "false")},
 	"rule runs":              {renamed("rule", "rule-id")},
@@ -49,7 +59,7 @@ var flagAliases = map[string][]flagAlias{
 	"admin plan create":    {renamed("leave-out", "left-out")},
 	"admin presets create": {renamed("from", "preset"), renamed("default", "is-default"), renamed("lock", "locks")},
 	"admin presets set": {
-		renamed("from", "preset"), renamed("default", "is-default"), renamed("lock", "locks"),
+		renamed("from", "preset"), renamedWithWords("default", "is-default", formerYesNo), renamed("lock", "locks"),
 		renamed("expected-version", "expect-version"),
 	},
 	"backup schedule set": {
@@ -71,6 +81,15 @@ func withFormerNames(command string, args []string) []string {
 	for i := 0; i < len(args); i++ {
 		name, value, hasValue := splitFlag(args[i])
 		alias, found := formerName(aliases, name)
+		if found && alias.Words != nil {
+			if !hasValue && i+1 < len(args) && alias.Words[args[i+1]] != "" {
+				i++
+				value, hasValue = args[i], true
+			}
+			if word, ok := alias.Words[value]; ok && hasValue {
+				value = word
+			}
+		}
 		switch {
 		case !found:
 			out = append(out, args[i])

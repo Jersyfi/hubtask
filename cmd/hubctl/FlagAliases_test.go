@@ -28,6 +28,9 @@ func TestAFormerFlagNameStillWorks(t *testing.T) {
 		{[]string{"item", "complete", aliasID, "--cascade"}, "/items/" + aliasID + ":complete", []string{`"cascade_children":true`}},
 		{[]string{"media", "attach", aliasID, "--media", aliasOtherID}, "/items/" + aliasID + "/attachments/" + aliasOtherID, nil},
 		{[]string{"backup", "ls", "--target", aliasID}, "/backup-targets/" + aliasID + "/backups", nil},
+		// The hand-written command took yes or no; the boolean takes true or false.
+		{[]string{"admin", "presets", "set", aliasID, "--default", "yes"}, "/admin/presets/" + aliasID, []string{`"is_default":true`}},
+		{[]string{"admin", "presets", "set", aliasID, "--default=no"}, "/admin/presets/" + aliasID, []string{`"is_default":false`}},
 	}
 	for _, c := range cases {
 		stub := serveJSON(t, http.StatusOK, `{"data":[],"page":{"next_cursor":null}}`)
