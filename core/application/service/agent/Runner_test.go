@@ -39,6 +39,14 @@ type workspace struct {
 	completed bool
 	performed []call
 	actors    []appshared.ActorContext
+	// The routing's material: who holds the ticket, the CIs it names as affected, what each CI's
+	// impact reaches, the group an offering names, a group's members and their open entries.
+	assignee string
+	affected []string
+	impact   map[string][]usecase.Output
+	support  map[string]string
+	members  map[string][]string
+	open     map[string]int
 }
 
 func (w *workspace) Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -52,10 +60,49 @@ func (w *workspace) Invoke(ctx context.Context, name string, actor appshared.Act
 		}, "next": nil},
 		listCiDuplicatesName: {"data": []usecase.Output{{"id": dupID.String(), "ci_ids": []string{printer.String(), router.String()}}}},
 		readCiName:           nil,
+		listEntryCisName:     nil,
+		readCiImpactName:     nil,
+		getGroupName:         nil,
+		searchItemsName:      nil,
 	}
 	_, read := reads[name]
 	handler := usecase.HandlerFunc(func(_ context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 		w.actors = append(w.actors, actor)
+		switch name {
+		case getWorkItemName:
+			entry := usecase.Output{}
+			for k, v := range reads[name] {
+				entry[k] = v
+			}
+			entry["assignee_id"] = nil
+			if w.assignee != "" {
+				entry["assignee_id"] = w.assignee
+			}
+			return entry, nil
+		case listEntryCisName:
+			var data []usecase.Output
+			for _, ci := range w.affected {
+				data = append(data, usecase.Output{"ci_id": ci})
+			}
+			return usecase.Output{"data": data}, nil
+		case readCiImpactName:
+			var services []string
+			for _, row := range w.impact[in.String("ci_id")] {
+				services = append(services, row.String("ci_id"))
+			}
+			return usecase.Output{"reached": w.impact[in.String("ci_id")], "services": services}, nil
+		case getGroupName:
+			return usecase.Output{"members": w.members[in.String("group_id")]}, nil
+		case searchItemsName:
+			filter, _ := in["filter"].(map[string]any)
+			nodes, _ := filter["nodes"].([]any)
+			who, _ := nodes[0].(map[string]any)["value"].(string)
+			data := make([]usecase.Output, w.open[who])
+			return usecase.Output{"data": data, "page": map[string]any{"has_more": false, "next_cursor": nil}}, nil
+		}
+		if name == readCiName && w.support[in.String("ci_id")] != "" {
+			return usecase.Output{"id": in.String("ci_id"), "attributes": map[string]any{"support_group": w.support[in.String("ci_id")]}}, nil
+		}
 		if name == readCiName {
 			seen := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 			if in.String("ci_id") == router.String() {
@@ -313,5 +360,66 @@ func TestARuleStartsAJobOnTheTicketItIsAbout(t *testing.T) {
 	}
 	if _, err := start(a, usecase.Input{}); code(err) != "agents.target_required" {
 		t.Fatalf("no target = %v", err)
+	}
+}
+
+// UC-AGT-07 check 9: the triage routes a ticket nobody holds by its offering - the one it names,
+// else the nearest one a CI it names affects, none where two are equally near - and proposes
+// AssignWorkItem to the member of the offering's support group with the fewest open entries in
+// the hub, held for a person to approve; a group itself is never proposed.
+func TestTheTriageRoutesATicketByItsOffering(t *testing.T) {
+	printing := "01936f2a-7c1e-7000-8000-000000000201"
+	network := "01936f2a-7c1e-7000-8000-000000000202"
+	printDesk := "01936f2a-7c1e-7000-8000-000000000301"
+	netDesk := "01936f2a-7c1e-7000-8000-000000000302"
+	busy, idle, ben := "01936f2a-7c1e-7000-8000-000000000401", "01936f2a-7c1e-7000-8000-000000000402", "01936f2a-7c1e-7000-8000-000000000403"
+	ws := func() *workspace {
+		return &workspace{
+			support: map[string]string{printing: printDesk, network: netDesk},
+			members: map[string][]string{printDesk: {busy, idle}, netDesk: {ben}},
+			open:    map[string]int{busy: 3, idle: 1},
+		}
+	}
+	cases := []struct {
+		name   string
+		setup  func(*workspace)
+		wanted string
+	}{
+		{"the offering the ticket names", func(w *workspace) { w.affected = []string{printing} }, idle},
+		{"the nearest offering a named CI affects", func(w *workspace) {
+			w.impact = map[string][]usecase.Output{router.String(): {
+				{"ci_id": network, "depth": 1}, {"ci_id": printing, "depth": 2},
+			}}
+		}, ben},
+		{"two offerings equally near", func(w *workspace) {
+			w.impact = map[string][]usecase.Output{router.String(): {
+				{"ci_id": network, "depth": 1}, {"ci_id": printing, "depth": 1},
+			}}
+		}, ""},
+		{"two offerings named", func(w *workspace) { w.affected = []string{printing, network} }, ""},
+		{"a ticket somebody holds", func(w *workspace) { w.affected, w.assignee = []string{printing}, ben }, ""},
+		{"no offering at all", func(*workspace) {}, ""},
+	}
+	for _, c := range cases {
+		f := newFixture()
+		a, q := f.shipped(t, "TICKET_TRIAGE", nil)
+		w := ws()
+		c.setup(w)
+		f.run(t, f.start(t, a, ticket, q), w, nil)
+		assigned := ""
+		for _, r := range f.store.requests {
+			if r.UseCase == assignWorkItemName {
+				if assigned != "" || r.Input["item_id"] != ticket.String() {
+					t.Fatalf("%s: held %+v", c.name, r)
+				}
+				assigned, _ = r.Input["account_id"].(string)
+			}
+		}
+		if assigned != c.wanted {
+			t.Errorf("%s: proposed %q, want %q", c.name, assigned, c.wanted)
+		}
+		if len(w.performed) != 0 {
+			t.Errorf("%s: a shipped agent applied %+v", c.name, w.performed)
+		}
 	}
 }

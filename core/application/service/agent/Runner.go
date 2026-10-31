@@ -102,7 +102,7 @@ func (r Runner) Run(ctx context.Context, tenant, jobID shared.ID) (domain.Job, e
 	case domain.KindTicketTriage:
 		err = work.triage(ctx, job.TargetID)
 	case domain.KindCISuggestion:
-		err = work.suggestCis(ctx, job.TargetID)
+		_, err = work.suggestCis(ctx, job.TargetID)
 	case domain.KindDuplicateReview:
 		err = work.reviewDuplicates(ctx, job.TargetID)
 	case domain.KindKnowledgeDraft:
@@ -212,8 +212,8 @@ func (w *jobWork) entry(ctx context.Context, item shared.ID) (usecase.Output, sh
 	return out, hub, nil
 }
 
-// triage classifies a ticket - labels proposed as a suggestion by the workspace's classifier -
-// and proposes the configuration items its words name (G11).
+// triage classifies a ticket - labels proposed as a suggestion by the workspace's classifier -,
+// proposes the configuration items its words name and routes it by its offering (G11).
 func (w *jobWork) triage(ctx context.Context, item shared.ID) error {
 	if w.runner.Proposer != nil {
 		p, err := w.runner.Proposer.Classify(ctx, w.actor, item)
@@ -225,19 +225,32 @@ func (w *jobWork) triage(ctx context.Context, item shared.ID) error {
 			w.proposals++
 		}
 	}
-	return w.suggestCis(ctx, item)
+	read, err := w.suggestCis(ctx, item)
+	if err != nil {
+		return err
+	}
+	return w.route(ctx, item, read)
+}
+
+// ticketRead is what suggestCis read of a ticket: the entry, its hub and the CIs of the hub its
+// title or notes name or reference.
+type ticketRead struct {
+	entry usecase.Output
+	hub   shared.ID
+	named []string
 }
 
 // suggestCis proposes, as a comment on the entry, the configuration items of its hub whose names
 // its title or notes name and that it does not reference yet - a reference a person keeps by
 // approving it (P-19).
-func (w *jobWork) suggestCis(ctx context.Context, item shared.ID) error {
+func (w *jobWork) suggestCis(ctx context.Context, item shared.ID) (ticketRead, error) {
 	entry, hub, err := w.entry(ctx, item)
 	if err != nil {
-		return err
+		return ticketRead{}, err
 	}
+	read := ticketRead{entry: entry, hub: hub}
 	if hub.IsZero() {
-		return nil
+		return read, nil
 	}
 	text := entry.String("title") + "\n" + entry.String("notes")
 	words := normalised(text)
@@ -250,14 +263,22 @@ func (w *jobWork) suggestCis(ctx context.Context, item shared.ID) error {
 		}
 		out, err := w.invoke(ctx, listCisName, in)
 		if err != nil {
-			return err
+			return ticketRead{}, err
 		}
 		for _, ci := range outputs(out["data"]) {
 			id, name := ci.String("id"), strings.TrimSpace(ci.String("name"))
-			if id == "" || len([]rune(name)) < minCiName || strings.Contains(text, "hubtask:ci/"+id) {
+			if id == "" {
 				continue
 			}
-			if containsWords(words, normalised(name)) && len(lines) < domain.MaxProposalsPerJob {
+			if strings.Contains(text, "hubtask:ci/"+id) {
+				read.named = append(read.named, id)
+				continue
+			}
+			if len([]rune(name)) < minCiName || !containsWords(words, normalised(name)) {
+				continue
+			}
+			read.named = append(read.named, id)
+			if len(lines) < domain.MaxProposalsPerJob {
 				lines = append(lines, "["+markdownText(name)+"](hubtask:ci/"+id+")")
 			}
 		}
@@ -268,9 +289,9 @@ func (w *jobWork) suggestCis(ctx context.Context, item shared.ID) error {
 		after = next
 	}
 	if len(lines) == 0 {
-		return nil
+		return read, nil
 	}
-	return w.propose(ctx, addCommentName, usecase.Input{
+	return read, w.propose(ctx, addCommentName, usecase.Input{
 		"item_id": item.String(), "body": strings.Join(lines, "\n"), "internal": true,
 	})
 }
