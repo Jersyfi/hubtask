@@ -5,11 +5,13 @@ package work
 
 import (
 	"math"
+	"net/netip"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -17,7 +19,7 @@ import (
 )
 
 // CustomFieldKind is what a value for a field looks like: the eight the schema has carried since
-// `0001_init` and the five the suite's field registry adds (domain-model.md §3.5, F-2).
+// `0001_init` and those the suite's field registry adds (domain-model.md §3.5, F-2).
 type CustomFieldKind string
 
 const (
@@ -45,13 +47,31 @@ const (
 	// CustomFieldCalculated is a number the server computes with the definition's formula from the
 	// entry's own fields, whenever they are written. Nobody writes one.
 	CustomFieldCalculated CustomFieldKind = "CALCULATED"
+	// CustomFieldDateTime is a moment, stored in UTC to the second. DATE stays the calendar day.
+	CustomFieldDateTime CustomFieldKind = "DATE_TIME"
+	// CustomFieldGroup is one of the workspace's groups - the team that answers, the owners.
+	CustomFieldGroup CustomFieldKind = "GROUP"
+	// CustomFieldCascadingSelect is a choice of one or two levels: its options are paths written
+	// `Parent` and `Parent/Child`, and a value is one of them.
+	CustomFieldCascadingSelect CustomFieldKind = "CASCADING_SELECT"
+	// CustomFieldIPAddress is one IPv4 or IPv6 address, in its canonical spelling.
+	CustomFieldIPAddress CustomFieldKind = "IP_ADDRESS"
+	// CustomFieldFile is one of the entry's own attachments, by its media identifier.
+	CustomFieldFile CustomFieldKind = "FILE"
+	// CustomFieldLabel is a set of free words nobody defines first, as a page's labels are.
+	CustomFieldLabel CustomFieldKind = "LABEL"
+	// CustomFieldStatus is one state of a record from the options, which are listed in the order a
+	// record passes through them. It drives nothing: a status that moves work is a workflow's.
+	CustomFieldStatus CustomFieldKind = "STATUS"
 )
 
 var customFieldKinds = [...]CustomFieldKind{
 	CustomFieldText, CustomFieldNumber, CustomFieldDate, CustomFieldSelect,
 	CustomFieldMultiSelect, CustomFieldBool, CustomFieldUser, CustomFieldURL,
 	CustomFieldMoney, CustomFieldDuration, CustomFieldReference, CustomFieldUserSet,
-	CustomFieldRichText, CustomFieldCalculated,
+	CustomFieldRichText, CustomFieldCalculated, CustomFieldDateTime, CustomFieldGroup,
+	CustomFieldCascadingSelect, CustomFieldIPAddress, CustomFieldFile, CustomFieldLabel,
+	CustomFieldStatus,
 }
 
 // CustomFieldKinds returns every kind, in the order the contract's enum lists them.
@@ -71,7 +91,8 @@ func ParseCustomFieldKind(value string) (CustomFieldKind, error) {
 
 // TakesOptions reports whether the kind's values are drawn from a list.
 func (k CustomFieldKind) TakesOptions() bool {
-	return k == CustomFieldSelect || k == CustomFieldMultiSelect
+	return k == CustomFieldSelect || k == CustomFieldMultiSelect || k == CustomFieldCascadingSelect ||
+		k == CustomFieldStatus
 }
 
 // TakesFormula reports whether the kind's definition carries a formula.
@@ -89,7 +110,7 @@ func (k CustomFieldKind) TakesCurrency() bool { return k == CustomFieldMoney }
 
 // IsSet reports whether one value of the kind holds several elements.
 func (k CustomFieldKind) IsSet() bool {
-	return k == CustomFieldMultiSelect || k == CustomFieldUserSet
+	return k == CustomFieldMultiSelect || k == CustomFieldUserSet || k == CustomFieldLabel
 }
 
 // The bounds. Code points rather than bytes, for the reason every length in this model is (I-W7):
@@ -130,7 +151,14 @@ const (
 	// MaxCustomFieldsPerItem bounds how many keys one entry may carry. The column is one jsonb
 	// document that every read of the entry carries, so its size is the entry's size.
 	MaxCustomFieldsPerItem = 100
+	// MaxCustomFieldLabelLength and MaxCustomFieldLabels bound a LABEL value as a page's labels
+	// are bounded, so a label is one token in a filter and a facet.
+	MaxCustomFieldLabelLength = 40
+	MaxCustomFieldLabels      = 20
 )
+
+// CascadingSeparator joins a CASCADING_SELECT option's parent and child.
+const CascadingSeparator = "/"
 
 // CustomFieldDefinition is one field a workspace or a collection adds to its entries
 // (domain-model.md §3.5, §6).
@@ -487,7 +515,29 @@ func customFieldOptions(kind CustomFieldKind, raw []string, form text.Normalizer
 		}
 		options = append(options, value)
 	}
+	if kind == CustomFieldCascadingSelect {
+		if err := cascadingOptions(options); err != nil {
+			return nil, err
+		}
+	}
 	return options, nil
+}
+
+// cascadingOptions holds a two-level choice's paths to one or two non-empty parts, each child under
+// a parent the list itself offers - a child whose parent is not offered could be picked only by
+// typing it.
+func cascadingOptions(options []string) error {
+	for _, option := range options {
+		parts := strings.Split(option, CascadingSeparator)
+		if len(parts) > 2 || slices.ContainsFunc(parts, func(part string) bool { return strings.TrimSpace(part) == "" }) {
+			return customFieldError("/options", "fields.option_path_malformed", nil)
+		}
+		if len(parts) == 2 && !slices.Contains(options, parts[0]) {
+			return customFieldError("/options", "fields.option_without_parent",
+				map[string]string{"option": option})
+		}
+	}
+	return nil
 }
 
 // customFieldCurrency insists a MONEY field names its currency and every other kind names none.
@@ -610,7 +660,7 @@ func (d CustomFieldDefinition) ValidateValue(value any, form text.Normalizer) (a
 		return d.validNumber(value)
 	case CustomFieldDate:
 		return d.validDate(value)
-	case CustomFieldSelect:
+	case CustomFieldSelect, CustomFieldCascadingSelect, CustomFieldStatus:
 		return d.validSelect(value, form)
 	case CustomFieldMultiSelect:
 		return d.validMultiSelect(value, form)
@@ -630,6 +680,16 @@ func (d CustomFieldDefinition) ValidateValue(value any, form text.Normalizer) (a
 		return d.validUserSet(value)
 	case CustomFieldRichText:
 		return d.validRichText(value, form)
+	case CustomFieldDateTime:
+		return d.validMoment(value)
+	case CustomFieldGroup:
+		return d.validIdentifier(value, "fields.value_not_a_group")
+	case CustomFieldIPAddress:
+		return d.validAddress(value)
+	case CustomFieldFile:
+		return d.validIdentifier(value, "fields.value_not_an_attachment")
+	case CustomFieldLabel:
+		return d.validLabels(value)
 	default:
 		// A kind no constructor produces. A defect rather than input (security.md §9).
 		return nil, shared.ErrInternal.WithDetail("fields.kind_unhandled")
@@ -893,6 +953,117 @@ func (d CustomFieldDefinition) validRichText(value any, form text.Normalizer) (a
 			map[string]string{"maximum": strconv.Itoa(MaxCustomFieldRichTextLength)})
 	}
 	return body, nil
+}
+
+// validMoment takes an RFC 3339 moment and stores it in UTC to the second, so that one moment has
+// one spelling in the document an equality filter compares.
+func (d CustomFieldDefinition) validMoment(value any) (any, error) {
+	raw, ok := value.(string)
+	if !ok {
+		return nil, d.typeMismatch(value)
+	}
+	moment, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(raw))
+	if err != nil {
+		return nil, d.valueError("fields.value_not_a_moment", nil)
+	}
+	return moment.UTC().Truncate(time.Second).Format(time.RFC3339), nil
+}
+
+// validIdentifier checks the shape of a GROUP's or a FILE's identifier. Whether the group is the
+// workspace's or the attachment the entry's is the application's question, asked as USER's is.
+func (d CustomFieldDefinition) validIdentifier(value any, code string) (any, error) {
+	raw, ok := value.(string)
+	if !ok {
+		return nil, d.typeMismatch(value)
+	}
+	id, err := shared.ParseID(raw)
+	if err != nil {
+		return nil, d.valueError(code, nil)
+	}
+	return id.String(), nil
+}
+
+// validAddress takes one address, IPv4 or IPv6, with no prefix and no zone: a network is a range
+// of addresses and a zone names an interface of one machine, neither of which a register's row
+// for a device holds.
+func (d CustomFieldDefinition) validAddress(value any) (any, error) {
+	raw, ok := value.(string)
+	if !ok {
+		return nil, d.typeMismatch(value)
+	}
+	address, err := netip.ParseAddr(strings.TrimSpace(raw))
+	if err != nil || address.Zone() != "" {
+		return nil, d.valueError("fields.value_not_an_address", nil)
+	}
+	return address.String(), nil
+}
+
+// validLabels takes a set of words in lower case: letters, digits, `-`, `_` and `.`, the rule a
+// page's labels follow, so that a label is one token in a filter.
+func (d CustomFieldDefinition) validLabels(value any) (any, error) {
+	raw, ok := value.([]any)
+	if !ok {
+		return nil, d.typeMismatch(value)
+	}
+	if len(raw) == 0 {
+		return nil, d.emptyOrCleared()
+	}
+	chosen := make([]any, 0, len(raw))
+	seen := make([]string, 0, len(raw))
+	for _, element := range raw {
+		typed, ok := element.(string)
+		if !ok {
+			return nil, d.typeMismatch(element)
+		}
+		label := strings.ToLower(strings.TrimSpace(typed))
+		if !validFieldLabel(label) {
+			return nil, d.valueError("fields.value_not_a_label",
+				map[string]string{"maximum": strconv.Itoa(MaxCustomFieldLabelLength)})
+		}
+		if slices.Contains(seen, label) {
+			continue
+		}
+		seen = append(seen, label)
+		chosen = append(chosen, label)
+	}
+	if len(chosen) > MaxCustomFieldLabels {
+		return nil, d.valueError("fields.value_too_many",
+			map[string]string{"maximum": strconv.Itoa(MaxCustomFieldLabels)})
+	}
+	return chosen, nil
+}
+
+func validFieldLabel(label string) bool {
+	if label == "" || utf8.RuneCountInString(label) > MaxCustomFieldLabelLength {
+		return false
+	}
+	for _, r := range label {
+		if !(unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' || r == '.') {
+			return false
+		}
+	}
+	return true
+}
+
+// GroupOf returns the group a GROUP value names, for the application's check that it is the
+// workspace's. False for every other kind and for a cleared value.
+func (d CustomFieldDefinition) GroupOf(value any) (shared.ID, bool) {
+	return d.identifierOf(CustomFieldGroup, value)
+}
+
+// AttachmentOf returns the media a FILE value names, for the application's check that the entry
+// carries it.
+func (d CustomFieldDefinition) AttachmentOf(value any) (shared.ID, bool) {
+	return d.identifierOf(CustomFieldFile, value)
+}
+
+func (d CustomFieldDefinition) identifierOf(kind CustomFieldKind, value any) (shared.ID, bool) {
+	text, ok := value.(string)
+	if d.Kind != kind || !ok {
+		return "", false
+	}
+	id, err := shared.ParseID(text)
+	return id, err == nil
 }
 
 // Accounts returns the accounts a USER or USER_SET value names, for the application's check that

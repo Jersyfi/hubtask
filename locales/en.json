@@ -10996,5 +10996,12 @@
   "app.admin.check_none": "Nothing found: every workflow can be completed, every step taken, and no rule answers its own change.",
   "app.admin.check_error": "Error",
   "app.admin.check_warning": "Warning",
-  "app.admin.check_open": "Open {path}"
+  "app.admin.check_open": "Open {path}",
+  "fields.option_path_malformed": "An option of a two-level choice is a parent, or a parent and a child joined by /.",
+  "fields.option_without_parent": "The option {option} needs its parent among the options.",
+  "fields.value_not_a_moment": "{key} expects a date with a time.",
+  "fields.value_not_a_group": "{key} expects a group of this workspace.",
+  "fields.value_not_an_address": "{key} expects an IPv4 or IPv6 address.",
+  "fields.value_not_an_attachment": "{key} expects a file attached to this entry.",
+  "fields.value_not_a_label": "{key} expects labels of letters, digits, -, _ and ., at most {maximum} characters each."
 }

@@ -10993,5 +10993,12 @@
   "app.admin.check_none": "Nichts gefunden: Jeder Workflow kann abgeschlossen, jeder Schritt gegangen werden, und keine Regel beantwortet ihre eigene Änderung.",
   "app.admin.check_error": "Fehler",
   "app.admin.check_warning": "Warnung",
-  "app.admin.check_open": "{path} öffnen"
+  "app.admin.check_open": "{path} öffnen",
+  "fields.option_path_malformed": "Eine Option einer zweistufigen Auswahl ist ein Oberbegriff oder ein Oberbegriff und ein Unterbegriff, verbunden durch /.",
+  "fields.option_without_parent": "Die Option {option} braucht ihren Oberbegriff unter den Optionen.",
+  "fields.value_not_a_moment": "{key} erwartet ein Datum mit Uhrzeit.",
+  "fields.value_not_a_group": "{key} erwartet eine Gruppe dieses Arbeitsbereichs.",
+  "fields.value_not_an_address": "{key} erwartet eine IPv4- oder IPv6-Adresse.",
+  "fields.value_not_an_attachment": "{key} erwartet eine Datei, die an diesem Eintrag hängt.",
+  "fields.value_not_a_label": "{key} erwartet Schlagwörter aus Buchstaben, Ziffern, -, _ und ., höchstens {maximum} Zeichen je Wort."
 }
