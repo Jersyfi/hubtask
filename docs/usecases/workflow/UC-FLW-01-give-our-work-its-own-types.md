@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-12, P-17]
 state: built
 tasks: []
-checked_by: [infrastructure/postgres/StructureDocument_test.go, core/application/service/work/StructureInput_test.go, apps/webapp/src/lib/workspace/structureDraft.test.ts, core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go, core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/application/service/workflow/EntryTypeForm_test.go, test/integration/entry_type_form_test.go, infrastructure/expression/CEL_test.go, apps/webapp/src/lib/data/entryforms.test.ts, apps/webapp/src/lib/entries/listview.test.ts, core/application/service/work/MoveWorkItem_test.go, core/application/service/work/DuplicateWorkItem_test.go, test/integration/entry_type_placement_test.go]
+checked_by: [infrastructure/postgres/StructureDocument_test.go, core/application/service/work/StructureInput_test.go, apps/webapp/src/lib/workspace/structureDraft.test.ts, core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go, core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/application/service/workflow/EntryTypeForm_test.go, test/integration/entry_type_form_test.go, infrastructure/expression/CEL_test.go, apps/webapp/src/lib/data/entryforms.test.ts, apps/webapp/src/lib/entries/listview.test.ts, core/application/service/work/MoveWorkItem_test.go, core/application/service/work/DuplicateWorkItem_test.go, test/integration/entry_type_placement_test.go, core/domain/model/work/EntryTypeHub_test.go, core/application/service/workflow/EntryTypeHub_test.go, core/application/service/work/EntryTypeHubGate_test.go, test/integration/entry_type_hub_test.go]
 ---
 
 # Give our work its own types
@@ -41,10 +41,17 @@ works in every view. An agent creating an entry through MCP names the type the s
 8. In a workspace without the workflow module, no type is offered or shown.
 9. A type may name the types allowed directly underneath it; creating, moving or copying an entry
    of another type under it is refused by name, and the type's editor sets the list.
+10. A person who may shape a hub defines types of the hub's own, and makes a copy of a type
+    shared from the workspace there under a key of its own, which names the type it was copied
+    from; a hub's own type is offered and listed only inside that hub, and an entry or a
+    collection carrying it is refused leaving the hub.
 
 ## Where it ends
 
 * Types sit on the existing five levels; no new level is created by a type.
+* A type's key is unique in the workspace, a hub's own included, so an entry's type names one
+  type wherever the entry sits; a copy takes a key of its own. A shared type is never changed
+  from a hub (configuration model §2); a collection defines no types of its own.
 * A type does not change who may see an entry — that is roles and security levels.
 * A type with the *record* behaviour — a configuration item, a risk, a contact — is never
   completed: it has no completion, and completing one is refused.

@@ -74,7 +74,13 @@ offered, still readable - and only an unused one is deleted. Which types a colle
 level is its structure's ninth setting, `entry_types` (below): a level it names offers those keys in
 that order, the system type by default where it is among them and the first one in use otherwise,
 and a creation or change of type to another is refused with `entry_types.not_offered`
-(`EntryTypes.ChooseAmong`); an entry keeps the type it has when the list narrows. The registry belongs to the workflows
+(`EntryTypes.ChooseAmong`); an entry keeps the type it has when the list narrows. A type may be
+**a hub's own** (`hub_id`, migration 0317; UC-FLW-01 check 10): made there with STRUCTURE on the hub,
+or copied there from a shared type (`CopyEntryTypeHere`, under a key of its own, `copied_from`
+naming the source's key). It is offered and listed only inside that hub (`EntryTypes.Within`), an
+entry or collection carrying it is refused leaving the hub (`entry_types.hub_bound`), and it goes
+with the hub. Keys stay unique in the workspace, so an entry's key names one type wherever it sits;
+a shared type is never changed from a hub. The registry belongs to the workflows
 module: its operations are refused with `module.off` where the module is off. The `item_type` enum
 and the level CHECKs on `work_item` stay as the level's domain: the levels are a closed set of
 three that no workspace configures, and dropping the enum would change `work_item.type`'s column
