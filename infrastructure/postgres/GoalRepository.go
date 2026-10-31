@@ -731,7 +731,6 @@ func writeItems(ctx context.Context, queries *sqlc.Queries, p domain.Portfolio) 
 		if err != nil {
 			return err
 		}
-		//nolint:gosec // G115: a position is bounded by MaxPortfolioItems
 		err = queries.InsertPortfolioItem(ctx, sqlc.InsertPortfolioItemParams{
 			PortfolioID: key, ContainerID: container, Position: int32(i),
 			StartOn: optionalDate(item.StartOn), EndOn: optionalDate(item.EndOn), Status: string(item.Status),

@@ -447,3 +447,15 @@ func boundedInt32(value int) int32 {
 		return int32(value)
 	}
 }
+
+// boundedInt16 keeps a value inside a smallint column, as boundedInt32 keeps one inside an integer.
+func boundedInt16(value int) int16 {
+	switch {
+	case value < math.MinInt16:
+		return math.MinInt16
+	case value > math.MaxInt16:
+		return math.MaxInt16
+	default:
+		return int16(value)
+	}
+}

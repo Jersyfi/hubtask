@@ -124,7 +124,7 @@ func (DirectoryRepository) PageAccounts(ctx context.Context, offset, limit int) 
 		return nil, 0, directoryFailed("counting people", err)
 	}
 	rows, err := queries.PageDirectoryAccounts(ctx, sqlc.PageDirectoryAccountsParams{
-		RowOffset: int32(offset), RowLimit: int32(limit),
+		RowOffset: boundedInt32(offset), RowLimit: boundedInt32(limit),
 	})
 	if err != nil {
 		return nil, 0, directoryFailed("paging people", err)
@@ -219,7 +219,7 @@ func (DirectoryRepository) PageGroups(ctx context.Context, offset, limit int) ([
 		return nil, 0, directoryFailed("counting groups", err)
 	}
 	rows, err := queries.PageDirectoryGroups(ctx, sqlc.PageDirectoryGroupsParams{
-		RowOffset: int32(offset), RowLimit: int32(limit),
+		RowOffset: boundedInt32(offset), RowLimit: boundedInt32(limit),
 	})
 	if err != nil {
 		return nil, 0, directoryFailed("paging groups", err)

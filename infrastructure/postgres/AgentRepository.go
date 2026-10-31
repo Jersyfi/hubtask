@@ -64,7 +64,7 @@ func (AgentRepository) ListModels(ctx context.Context, limit int) ([]domain.Mode
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.ListAgentModels(ctx, int32(limit))
+	rows, err := queries.ListAgentModels(ctx, boundedInt32(limit))
 	if err != nil {
 		return nil, agentError(err, "listing agent models")
 	}
@@ -99,7 +99,7 @@ func retention(days *int) *int32 {
 	if days == nil {
 		return nil
 	}
-	d := int32(*days)
+	d := boundedInt32(*days)
 	return &d
 }
 
@@ -136,8 +136,8 @@ func (AgentRepository) UpdateModel(ctx context.Context, m domain.Model, expected
 	n, err := queries.UpdateAgentModel(ctx, sqlc.UpdateAgentModelParams{
 		ID: keys[0], Name: m.Name, Source: string(m.Source), OfferedID: keys[1], Model: m.Model,
 		Region: string(m.Region), RetentionDays: retention(m.RetentionDays), ConsentBy: keys[2],
-		ConsentAt: timestampOf(m.ConsentAt), Revision: int32(m.Revision), Retired: m.Retired,
-		At: timestampOf(at), ExpectedVersion: int32(expected),
+		ConsentAt: timestampOf(m.ConsentAt), Revision: boundedInt32(m.Revision), Retired: m.Retired,
+		At: timestampOf(at), ExpectedVersion: boundedInt32(expected),
 	})
 	if err != nil {
 		return agentError(err, "changing an agent model")
@@ -176,7 +176,7 @@ func (AgentRepository) ListAgents(ctx context.Context, owner, model shared.ID, l
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.ListAgents(ctx, sqlc.ListAgentsParams{OwnerID: keys[0], ModelID: keys[1], Max: int32(limit)})
+	rows, err := queries.ListAgents(ctx, sqlc.ListAgentsParams{OwnerID: keys[0], ModelID: keys[1], Max: boundedInt32(limit)})
 	if err != nil {
 		return nil, agentError(err, "listing agents")
 	}
@@ -236,8 +236,8 @@ func (AgentRepository) InsertAgent(ctx context.Context, a domain.Agent) error {
 		ID: keys[0], AccountID: keys[1], Name: a.Name, Purpose: a.Purpose, Kind: string(a.Kind), OwnerID: keys[2],
 		RiskClass: string(a.RiskClass), Scopes: nonNil(a.Scopes), ModelID: keys[3],
 		PolicyReversible: string(a.Policy.Reversible), PolicyIrreversible: string(a.Policy.Irreversible),
-		TokensPerDay: a.Budget.TokensPerDay, ActionsPerHour: int32(a.Budget.ActionsPerHour),
-		ConcurrentRuns: int32(a.Budget.ConcurrentRuns), MinAccuracy: int16(a.MinAccuracy), Status: string(a.Status),
+		TokensPerDay: a.Budget.TokensPerDay, ActionsPerHour: boundedInt32(a.Budget.ActionsPerHour),
+		ConcurrentRuns: boundedInt32(a.Budget.ConcurrentRuns), MinAccuracy: boundedInt16(a.MinAccuracy), Status: string(a.Status),
 		CreatedBy: keys[4], At: timestampOf(a.CreatedAt),
 	})
 	if isUniqueViolation(err) {
@@ -259,11 +259,11 @@ func (AgentRepository) UpdateAgent(ctx context.Context, a domain.Agent, expected
 		ID: keys[0], Name: a.Name, Purpose: a.Purpose, Kind: string(a.Kind), OwnerID: keys[1],
 		RiskClass: string(a.RiskClass), Scopes: nonNil(a.Scopes), ModelID: keys[2],
 		PolicyReversible: string(a.Policy.Reversible), PolicyIrreversible: string(a.Policy.Irreversible),
-		TokensPerDay: a.Budget.TokensPerDay, ActionsPerHour: int32(a.Budget.ActionsPerHour),
-		ConcurrentRuns: int32(a.Budget.ConcurrentRuns), MinAccuracy: int16(a.MinAccuracy), Status: string(a.Status),
+		TokensPerDay: a.Budget.TokensPerDay, ActionsPerHour: boundedInt32(a.Budget.ActionsPerHour),
+		ConcurrentRuns: boundedInt32(a.Budget.ConcurrentRuns), MinAccuracy: boundedInt16(a.MinAccuracy), Status: string(a.Status),
 		ApprovedBy: keys[3], ApprovedAt: optionalTimestamp(a.ApprovedAt),
-		ApprovedModelRevision: int32(a.ApprovedModelRevision), SuspendedBy: keys[4],
-		SuspendedAt: optionalTimestamp(a.SuspendedAt), At: timestampOf(at), ExpectedVersion: int32(expected),
+		ApprovedModelRevision: boundedInt32(a.ApprovedModelRevision), SuspendedBy: keys[4],
+		SuspendedAt: optionalTimestamp(a.SuspendedAt), At: timestampOf(at), ExpectedVersion: boundedInt32(expected),
 	})
 	if err != nil {
 		return agentError(err, "changing an agent")
@@ -350,7 +350,7 @@ func (AgentRepository) ListActions(ctx context.Context, agent shared.ID, before 
 		return nil, err
 	}
 	rows, err := queries.ListAgentActions(ctx, sqlc.ListAgentActionsParams{
-		AgentID: key, Before: optionalTimestamp(before), Max: int32(limit),
+		AgentID: key, Before: optionalTimestamp(before), Max: boundedInt32(limit),
 	})
 	if err != nil {
 		return nil, agentError(err, "listing an agent's acts")
@@ -378,7 +378,7 @@ func (AgentRepository) Metering(ctx context.Context, agent shared.ID, from time.
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.AgentMetering(ctx, sqlc.AgentMeteringParams{From: timestampOf(from), AgentID: key, Max: int32(limit)})
+	rows, err := queries.AgentMetering(ctx, sqlc.AgentMeteringParams{From: timestampOf(from), AgentID: key, Max: boundedInt32(limit)})
 	if err != nil {
 		return nil, agentError(err, "metering agents")
 	}
@@ -457,7 +457,7 @@ func (AgentRepository) ListRequests(ctx context.Context, status domain.RequestSt
 		return nil, err
 	}
 	rows, err := queries.ListAgentRequests(ctx, sqlc.ListAgentRequestsParams{
-		Status: optionalText(string(status)), AgentID: key, Max: int32(limit),
+		Status: optionalText(string(status)), AgentID: key, Max: boundedInt32(limit),
 	})
 	if err != nil {
 		return nil, agentError(err, "listing held acts")
@@ -484,7 +484,7 @@ func (AgentRepository) DecideRequest(ctx context.Context, r domain.Request, expe
 	}
 	n, err := queries.DecideAgentRequest(ctx, sqlc.DecideAgentRequestParams{
 		Status: string(r.Status), DecidedBy: keys[1], DecidedAt: optionalTimestamp(r.DecidedAt), Code: r.Code,
-		ID: keys[0], ExpectedVersion: int32(expected),
+		ID: keys[0], ExpectedVersion: boundedInt32(expected),
 	})
 	if err != nil {
 		return false, agentError(err, "deciding a held act")
@@ -514,7 +514,7 @@ func (AgentRepository) ListCases(ctx context.Context, agent shared.ID, limit int
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.ListAgentCases(ctx, sqlc.ListAgentCasesParams{AgentID: key, Max: int32(limit)})
+	rows, err := queries.ListAgentCases(ctx, sqlc.ListAgentCasesParams{AgentID: key, Max: boundedInt32(limit)})
 	if err != nil {
 		return nil, agentError(err, "listing an agent's cases")
 	}
@@ -578,8 +578,8 @@ func (AgentRepository) InsertRun(ctx context.Context, r domain.Run) error {
 		return err
 	}
 	return agentError(queries.InsertAgentRun(ctx, sqlc.InsertAgentRunParams{
-		ID: keys[0], AgentID: keys[1], ModelRevision: int32(r.ModelRevision), Cases: int32(r.Cases),
-		Passed: int32(r.Passed), RunBy: keys[2], At: timestampOf(r.At),
+		ID: keys[0], AgentID: keys[1], ModelRevision: boundedInt32(r.ModelRevision), Cases: boundedInt32(r.Cases),
+		Passed: boundedInt32(r.Passed), RunBy: keys[2], At: timestampOf(r.At),
 	}), "writing an evaluation run")
 }
 
@@ -592,7 +592,7 @@ func (AgentRepository) ListRuns(ctx context.Context, agent shared.ID, limit int)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.ListAgentRuns(ctx, sqlc.ListAgentRunsParams{AgentID: key, Max: int32(limit)})
+	rows, err := queries.ListAgentRuns(ctx, sqlc.ListAgentRunsParams{AgentID: key, Max: boundedInt32(limit)})
 	if err != nil {
 		return nil, agentError(err, "listing evaluation runs")
 	}
@@ -635,7 +635,7 @@ func (AgentRepository) ListMarks(ctx context.Context, targetType string, target 
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.ListAiProvenance(ctx, sqlc.ListAiProvenanceParams{TargetType: targetType, TargetID: key, Max: int32(limit)})
+	rows, err := queries.ListAiProvenance(ctx, sqlc.ListAiProvenanceParams{TargetType: targetType, TargetID: key, Max: boundedInt32(limit)})
 	if err != nil {
 		return nil, agentError(err, "listing AI provenance")
 	}
@@ -695,7 +695,7 @@ func (AgentRepository) EndJob(ctx context.Context, j domain.Job) (bool, error) {
 		return false, err
 	}
 	n, err := queries.EndAgentJob(ctx, sqlc.EndAgentJobParams{
-		Status: string(j.Status), Code: j.Code, Proposals: int32(j.Proposals), Tokens: j.Tokens,
+		Status: string(j.Status), Code: j.Code, Proposals: boundedInt32(j.Proposals), Tokens: j.Tokens,
 		EndedAt: optionalTimestamp(j.EndedAt), ID: key,
 	})
 	return n == 1, agentError(err, "ending an agent's job")
@@ -726,7 +726,7 @@ func (AgentRepository) ListJobs(ctx context.Context, agent shared.ID, limit int)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.ListAgentJobs(ctx, sqlc.ListAgentJobsParams{AgentID: key, Max: int32(limit)})
+	rows, err := queries.ListAgentJobs(ctx, sqlc.ListAgentJobsParams{AgentID: key, Max: boundedInt32(limit)})
 	if err != nil {
 		return nil, agentError(err, "listing an agent's jobs")
 	}

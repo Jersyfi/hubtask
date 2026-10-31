@@ -227,7 +227,7 @@ func (KeptFigureRepository) ToVerify(ctx context.Context, kinds []work.Figure, b
 	for _, kind := range kinds {
 		names = append(names, string(kind))
 	}
-	rows, err := queries.KeptFiguresToVerify(ctx, sqlc.KeptFiguresToVerifyParams{Kinds: names, Batch: int32(batch)})
+	rows, err := queries.KeptFiguresToVerify(ctx, sqlc.KeptFiguresToVerifyParams{Kinds: names, Batch: boundedInt32(batch)})
 	if err != nil {
 		return nil, keptFailed("listing", err)
 	}

@@ -92,7 +92,7 @@ func (ConfigRepository) Find(ctx context.Context, version int) (domain.Revision,
 	if err != nil {
 		return domain.Revision{}, err
 	}
-	row, err := queries.FindConfigRevision(ctx, int32(version))
+	row, err := queries.FindConfigRevision(ctx, boundedInt32(version))
 	if err != nil {
 		if IsNoRows(err) {
 			return domain.Revision{}, shared.ErrNotFound.WithDetail("config.version_unknown").
@@ -155,9 +155,9 @@ func (ConfigRepository) List(ctx context.Context, hub shared.ID, before, limit i
 	if err != nil {
 		return nil, err
 	}
-	params := sqlc.ListConfigRevisionsParams{MaxRows: int32(limit), HubID: hubID}
+	params := sqlc.ListConfigRevisionsParams{MaxRows: boundedInt32(limit), HubID: hubID}
 	if before > 0 {
-		b := int32(before)
+		b := boundedInt32(before)
 		params.Before = &b
 	}
 	rows, err := queries.ListConfigRevisions(ctx, params)
@@ -199,14 +199,14 @@ func (ConfigRepository) Insert(ctx context.Context, revision domain.Revision) er
 	}
 	params := sqlc.InsertConfigRevisionParams{
 		HubID:   hub,
-		Version: int32(revision.Version), Document: document, Hash: revision.Hash, PlanHash: revision.PlanHash,
+		Version: boundedInt32(revision.Version), Document: document, Hash: revision.Hash, PlanHash: revision.PlanHash,
 		ActorKind: string(revision.ActorKind), ActorID: actor, ProposedBy: proposer,
-		Template: optionalText(revision.Template), Added: int32(revision.Counts.Added),
-		Changed: int32(revision.Counts.Changed), Removed: int32(revision.Counts.Removed),
+		Template: optionalText(revision.Template), Added: boundedInt32(revision.Counts.Added),
+		Changed: boundedInt32(revision.Counts.Changed), Removed: boundedInt32(revision.Counts.Removed),
 		At: timestampOf(revision.At),
 	}
 	if revision.RolledBackTo > 0 {
-		to := int32(revision.RolledBackTo)
+		to := boundedInt32(revision.RolledBackTo)
 		params.RolledBackTo = &to
 	}
 	err = queries.InsertConfigRevision(ctx, params)
@@ -243,8 +243,8 @@ func (ConfigRepository) InsertProposal(ctx context.Context, p domain.Proposal) e
 	}
 	err = queries.InsertConfigProposal(ctx, sqlc.InsertConfigProposalParams{
 		ID: id, HubID: hub, Document: document, Mode: string(p.Mode), BaseHash: p.BaseHash, PlanHash: p.PlanHash,
-		Template: optionalText(p.Template), Added: int32(p.Counts.Added), Changed: int32(p.Counts.Changed),
-		Removed: int32(p.Counts.Removed), HidesData: p.Flags.HidesData,
+		Template: optionalText(p.Template), Added: boundedInt32(p.Counts.Added), Changed: boundedInt32(p.Counts.Changed),
+		Removed: boundedInt32(p.Counts.Removed), HidesData: p.Flags.HidesData,
 		ChangesPermissions: p.Flags.ChangesPermissions, ProposedBy: proposer, At: timestampOf(p.CreatedAt),
 	})
 	if err != nil {
@@ -299,7 +299,7 @@ func (ConfigRepository) ListProposals(ctx context.Context, state domain.Proposal
 	if err != nil {
 		return nil, err
 	}
-	params := sqlc.ListConfigProposalsParams{MaxRows: int32(limit)}
+	params := sqlc.ListConfigProposalsParams{MaxRows: boundedInt32(limit)}
 	if state != "" {
 		s := string(state)
 		params.State = &s
@@ -367,7 +367,7 @@ func (ConfigRepository) InsertTemplate(ctx context.Context, t domain.Template) e
 		}
 	}
 	err = queries.InsertConfigTemplate(ctx, sqlc.InsertConfigTemplateParams{
-		ID: id, Key: t.Key, Version: int32(t.Version), Name: t.Name, Origin: string(t.Origin),
+		ID: id, Key: t.Key, Version: boundedInt32(t.Version), Name: t.Name, Origin: string(t.Origin),
 		Document: document, CreatedBy: creator, At: timestampOf(t.CreatedAt), HubDocument: hub,
 	})
 	var pgErr *pgconn.PgError
@@ -435,7 +435,7 @@ func (ConfigRepository) FindTemplate(ctx context.Context, key string, version in
 	if err != nil {
 		return domain.Template{}, err
 	}
-	row, err := queries.FindConfigTemplate(ctx, sqlc.FindConfigTemplateParams{Key: key, Version: int32(version)})
+	row, err := queries.FindConfigTemplate(ctx, sqlc.FindConfigTemplateParams{Key: key, Version: boundedInt32(version)})
 	if err != nil {
 		if IsNoRows(err) {
 			return domain.Template{}, domain.ErrTemplateUnknown(key)
@@ -460,14 +460,14 @@ func (ConfigRepository) PutTemplateUse(ctx context.Context, use domain.TemplateU
 			return err
 		}
 		if err := queries.UpsertConfigHubTemplateUse(ctx, sqlc.UpsertConfigHubTemplateUseParams{
-			HubID: hub, TemplateKey: use.TemplateKey, Version: int32(use.Version), Document: document, At: timestampOf(use.At),
+			HubID: hub, TemplateKey: use.TemplateKey, Version: boundedInt32(use.Version), Document: document, At: timestampOf(use.At),
 		}); err != nil {
 			return configError(err, "recording a template a hub took")
 		}
 		return nil
 	}
 	if err := queries.UpsertConfigTemplateUse(ctx, sqlc.UpsertConfigTemplateUseParams{
-		TemplateKey: use.TemplateKey, Version: int32(use.Version), Document: document, At: timestampOf(use.At),
+		TemplateKey: use.TemplateKey, Version: boundedInt32(use.Version), Document: document, At: timestampOf(use.At),
 	}); err != nil {
 		return configError(err, "recording a template taken")
 	}
@@ -566,7 +566,7 @@ func (ConfigRepository) PutSandbox(ctx context.Context, sandbox domain.Sandbox) 
 	}
 	if err := queries.PutConfigSandbox(ctx, sqlc.PutConfigSandboxParams{
 		Document: document, BaseDocument: base, BaseHash: sandbox.BaseHash,
-		BaseVersion: int32(sandbox.BaseVersion), Writes: int32(sandbox.Writes), At: timestampOf(sandbox.UpdatedAt),
+		BaseVersion: boundedInt32(sandbox.BaseVersion), Writes: boundedInt32(sandbox.Writes), At: timestampOf(sandbox.UpdatedAt),
 	}); err != nil {
 		return configError(err, "writing the configuration sandbox")
 	}

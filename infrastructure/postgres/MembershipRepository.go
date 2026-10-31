@@ -141,7 +141,7 @@ func (r MembershipRepository) SharedAcross(
 		return nil, err
 	}
 	rows, err := queries.SharedItemsAcross(ctx, sqlc.SharedItemsAcrossParams{
-		AccountID: account, RowLimit: int32(min(max(limit, 0), 1<<20)), //nolint:gosec // bounded above
+		AccountID: account, RowLimit: int32(min(max(limit, 0), 1<<20)),
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.

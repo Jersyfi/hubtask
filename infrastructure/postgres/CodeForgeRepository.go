@@ -190,7 +190,7 @@ func (CodeForgeRepository) ListLinks(ctx context.Context, itemID shared.ID, limi
 	if err != nil {
 		return nil, err
 	}
-	rows, err := q.ListCodeLinks(ctx, sqlc.ListCodeLinksParams{ItemID: item, MaxRows: int32(limit)})
+	rows, err := q.ListCodeLinks(ctx, sqlc.ListCodeLinksParams{ItemID: item, MaxRows: boundedInt32(limit)})
 	if err != nil {
 		return nil, forgeFailed("listing links", err)
 	}
