@@ -2125,6 +2125,30 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for ChatBotPlatform.
+const (
+	ChatBotPlatformMATRIX     ChatBotPlatform = "MATRIX"
+	ChatBotPlatformMATTERMOST ChatBotPlatform = "MATTERMOST"
+	ChatBotPlatformSLACK      ChatBotPlatform = "SLACK"
+	ChatBotPlatformTEAMS      ChatBotPlatform = "TEAMS"
+)
+
+// Valid indicates whether the value is a known member of the ChatBotPlatform enum.
+func (e ChatBotPlatform) Valid() bool {
+	switch e {
+	case ChatBotPlatformMATRIX:
+		return true
+	case ChatBotPlatformMATTERMOST:
+		return true
+	case ChatBotPlatformSLACK:
+		return true
+	case ChatBotPlatformTEAMS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiAlertStatus.
 const (
 	CiAlertStatusFIRING   CiAlertStatus = "FIRING"
@@ -12956,7 +12980,7 @@ type CapacityList struct {
 
 // ChatBot defines model for ChatBot.
 type ChatBot struct {
-	// BotUser The account's own Matrix identifier.
+	// BotUser The account's own identifier: a Matrix user, a Slack bot user, a Teams bot's application; empty on Mattermost.
 	BotUser string `json:"bot_user"`
 	Capture bool   `json:"capture"`
 
@@ -12966,13 +12990,18 @@ type ChatBot struct {
 	Enabled      bool               `json:"enabled"`
 
 	// Failure The message code of the last read that did not go through.
-	Failure    *string            `json:"failure,omitempty"`
+	Failure *string `json:"failure,omitempty"`
+
+	// Homeserver The Matrix homeserver or the Mattermost server; Slack's and the Bot Framework's own address on those platforms.
 	Homeserver string             `json:"homeserver"`
 	HubId      openapi_types.UUID `json:"hub_id"`
 	Id         openapi_types.UUID `json:"id"`
 	Locale     *string            `json:"locale,omitempty"`
 
-	// Room The room's identifier.
+	// Platform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
+	Platform ChatBotPlatform `json:"platform"`
+
+	// Room The room's identifier: a Matrix room, a Slack or Mattermost channel, a Teams conversation.
 	Room string `json:"room"`
 
 	// RunAs Who the bot reads and writes as.
@@ -12983,24 +13012,48 @@ type ChatBot struct {
 
 // ChatBotCreate defines model for ChatBotCreate.
 type ChatBotCreate struct {
-	// AccessToken The bot account's access token; kept sealed, never answered.
-	AccessToken  *string            `json:"access_token,omitempty"`
-	Capture      *bool              `json:"capture,omitempty"`
-	CollectionId openapi_types.UUID `json:"collection_id"`
+	// AccessToken The Matrix account's access token, or the Slack app's bot token `xoxb-…`; kept sealed, never answered.
+	AccessToken *string `json:"access_token,omitempty"`
 
-	// Homeserver The account's homeserver, its https address.
-	Homeserver string  `json:"homeserver"`
+	// AppId The Teams bot's Microsoft application identifier.
+	AppId *openapi_types.UUID `json:"app_id,omitempty"`
+
+	// AppPassword The Teams bot's client secret; kept sealed, never answered.
+	AppPassword *string `json:"app_password,omitempty"`
+
+	// AppTenant The Entra tenant the Teams bot is registered in.
+	AppTenant    *openapi_types.UUID `json:"app_tenant,omitempty"`
+	Capture      *bool               `json:"capture,omitempty"`
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+
+	// CommandToken The Mattermost slash command's token; kept sealed, never answered.
+	CommandToken *string `json:"command_token,omitempty"`
+
+	// Homeserver The Matrix account's homeserver or the Mattermost server, its https address; not asked on Slack and Teams.
+	Homeserver *string `json:"homeserver,omitempty"`
 	Locale     *string `json:"locale,omitempty"`
 
-	// Room The room's identifier, never an alias.
-	Room   string `json:"room"`
-	Unfurl *bool  `json:"unfurl,omitempty"`
+	// Platform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
+	Platform *ChatBotPlatform `json:"platform,omitempty"`
+
+	// Room The room's identifier, never an alias: a Matrix room `!…:server`, a Slack channel `C…`, a Mattermost channel's 26 characters, a Teams conversation `19:…`.
+	Room string `json:"room"`
+
+	// SigningSecret The Slack app's signing secret; kept sealed, never answered.
+	SigningSecret *string `json:"signing_secret,omitempty"`
+	Unfurl        *bool   `json:"unfurl,omitempty"`
+
+	// WebhookToken The Mattermost outgoing webhook's token; kept sealed, never answered.
+	WebhookToken *string `json:"webhook_token,omitempty"`
 }
 
 // ChatBotList defines model for ChatBotList.
 type ChatBotList struct {
 	Data []ChatBot `json:"data"`
 }
+
+// ChatBotPlatform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
+type ChatBotPlatform string
 
 // ChatBotUpdate defines model for ChatBotUpdate.
 type ChatBotUpdate struct {
@@ -24964,6 +25017,13 @@ type DefineBusinessCalendarParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DeliverChatJSONBody defines parameters for DeliverChat.
+type DeliverChatJSONBody map[string]interface{}
+
+// DeliverChatFormdataBody defines parameters for DeliverChat.
+type DeliverChatFormdataBody struct {
+}
+
 // CloseCiCampaignParams defines parameters for CloseCiCampaign.
 type CloseCiCampaignParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -27389,6 +27449,12 @@ type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
 // UpdateChatBotJSONRequestBody defines body for UpdateChatBot for application/json ContentType.
 type UpdateChatBotJSONRequestBody = ChatBotUpdate
 
+// DeliverChatJSONRequestBody defines body for DeliverChat for application/json ContentType.
+type DeliverChatJSONRequestBody DeliverChatJSONBody
+
+// DeliverChatFormdataRequestBody defines body for DeliverChat for application/x-www-form-urlencoded ContentType.
+type DeliverChatFormdataRequestBody DeliverChatFormdataBody
+
 // AttestCiJSONRequestBody defines body for AttestCi for application/json ContentType.
 type AttestCiJSONRequestBody = CiAttest
 
@@ -29194,12 +29260,15 @@ type ServerInterface interface {
 
 	// (GET /calendar/{token}.ics)
 	GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, token string)
-	// DeleteChatBot Remove a Matrix bot
+	// DeleteChatBot Remove a chat bot
 	// (DELETE /chat-bots/{botId})
 	DeleteChatBot(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID)
-	// UpdateChatBot Change a Matrix bot
+	// UpdateChatBot Change a chat bot
 	// (PATCH /chat-bots/{botId})
 	UpdateChatBot(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID)
+	// DeliverChat A chat platform posts what was said to its bot
+	// (POST /chat-intake/{tenantId}/{botId})
+	DeliverChat(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, botId openapi_types.UUID)
 	// ReadCiCampaign A certification campaign with every CI asked
 	// (GET /ci-campaigns/{campaignId})
 	ReadCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID)
@@ -29587,10 +29656,10 @@ type ServerInterface interface {
 	// DefineHubCalendar Keep a hub's own version of a business calendar
 	// (PUT /hubs/{hubId}/business-calendars/{calendarKey})
 	DefineHubCalendar(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, calendarKey string, params DefineHubCalendarParams)
-	// ListChatBots A hub's Matrix bots
+	// ListChatBots A hub's chat bots
 	// (GET /hubs/{hubId}/chat-bots)
 	ListChatBots(w http.ResponseWriter, r *http.Request, hubId HubId)
-	// CreateChatBot Seat a Matrix bot in a room for the hub
+	// CreateChatBot Seat a chat bot in a room for the hub
 	// (POST /hubs/{hubId}/chat-bots)
 	CreateChatBot(w http.ResponseWriter, r *http.Request, hubId HubId)
 	// ListCiAlerts A hub's alerts
@@ -36987,6 +37056,41 @@ func (siw *ServerInterfaceWrapper) UpdateChatBot(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateChatBot(w, r, botId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeliverChat operation middleware
+func (siw *ServerInterfaceWrapper) DeliverChat(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "botId" -------------
+	var botId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "botId", r.PathValue("botId"), &botId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "botId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeliverChat(w, r, tenantId, botId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -56851,6 +56955,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/file-links", wrapper.ListEntryFileLinks)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/file-links", wrapper.LinkEntryFile)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/file-links/{linkId}", wrapper.UnlinkEntryFile)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/chat-intake/{tenantId}/{botId}", wrapper.DeliverChat)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/code-intake/{tenantId}/{hookId}", wrapper.DeliverCode)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb/inventory-intake/{tenantId}/{connectorId}", wrapper.DeliverCiInventory)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cmdb-health", wrapper.ReadCmdbHealth)

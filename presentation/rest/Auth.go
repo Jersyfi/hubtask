@@ -134,10 +134,11 @@ var PublicRoutes = map[string]bool{
 	// Alexa's endpoint (ADR-0093): Amazon's signature and the linked account's token in the body
 	// are its credentials, both checked by the route.
 	http.MethodPost + " " + APIBasePath + "/voice/alexa": true,
-	// A forge's delivery to a code hook and a monitoring or inventory tool's post to a CMDB intake:
-	// no account sends them, and the hook's or the intake's secret - a signature, a forge's token
-	// header, a bearer - is checked by the use case behind the route.
+	// A forge's delivery to a code hook, a chat platform's post to a bot and a monitoring or
+	// inventory tool's post to a CMDB intake: no account sends them, and the hook's, bot's or
+	// intake's secret - a signature, a token, a bearer - is checked by the use case behind the route.
 	http.MethodPost + " " + APIBasePath + "/code-intake/{tenantId}/{hookId}":                true,
+	http.MethodPost + " " + APIBasePath + "/chat-intake/{tenantId}/{botId}":                 true,
 	http.MethodPost + " " + APIBasePath + "/cmdb/alert-intake/{tenantId}/{connectorId}":     true,
 	http.MethodPost + " " + APIBasePath + "/cmdb/inventory-intake/{tenantId}/{connectorId}": true,
 	// The CalDAV discovery address is outside the contract - it is the mount's own path, as

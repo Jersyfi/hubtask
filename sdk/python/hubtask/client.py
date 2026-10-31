@@ -856,19 +856,19 @@ class Client:
         return self._call("POST", "/hubs/{hubId}/code-hooks", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def list_chat_bots(self, hub_id: str) -> "ChatBotList":
-        """A hub's Matrix bots"""
+        """A hub's chat bots"""
         return self._call("GET", "/hubs/{hubId}/chat-bots", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def create_chat_bot(self, hub_id: str, body: "ChatBotCreate") -> "ChatBot":
-        """Seat a Matrix bot in a room for the hub"""
+        """Seat a chat bot in a room for the hub"""
         return self._call("POST", "/hubs/{hubId}/chat-bots", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def update_chat_bot(self, bot_id: str, body: "ChatBotUpdate") -> "ChatBot":
-        """Change a Matrix bot"""
+        """Change a chat bot"""
         return self._call("PATCH", "/chat-bots/{botId}", {"botId": bot_id}, None, {}, body, "json", "application/json", "json")
 
     def delete_chat_bot(self, bot_id: str) -> None:
-        """Remove a Matrix bot"""
+        """Remove a chat bot"""
         return self._call("DELETE", "/chat-bots/{botId}", {"botId": bot_id}, None, {}, None, "none", None, "void")
 
     def update_code_hook(self, hook_id: str, body: "CodeHookUpdate") -> "CodeHook":
@@ -894,6 +894,10 @@ class Client:
     def unlink_entry_file(self, link_id: str) -> None:
         """Take a file link off its entry"""
         return self._call("DELETE", "/file-links/{linkId}", {"linkId": link_id}, None, {}, None, "none", None, "void")
+
+    def deliver_chat(self, tenant_id: str, bot_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        """A chat platform posts what was said to its bot"""
+        return self._call("POST", "/chat-intake/{tenantId}/{botId}", {"tenantId": tenant_id, "botId": bot_id}, None, {}, body, "json", "application/json", "json")
 
     def deliver_code(self, tenant_id: str, hook_id: str, body: dict[str, Any], *, x_git_hub_event: str | None = None, x_gitlab_event: str | None = None, x_forgejo_event: str | None = None, x_gitea_event: str | None = None, x_hub_signature_256: str | None = None, x_forgejo_signature: str | None = None, x_gitea_signature: str | None = None, x_gitlab_token: str | None = None, x_git_hub_delivery: str | None = None, x_gitlab_event_uuid: str | None = None, x_forgejo_delivery: str | None = None, x_gitea_delivery: str | None = None) -> "CodeDeliveryReceipt":
         """A forge posts its pushes and pull requests"""

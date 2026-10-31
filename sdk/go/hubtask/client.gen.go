@@ -2131,6 +2131,30 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for ChatBotPlatform.
+const (
+	ChatBotPlatformMATRIX     ChatBotPlatform = "MATRIX"
+	ChatBotPlatformMATTERMOST ChatBotPlatform = "MATTERMOST"
+	ChatBotPlatformSLACK      ChatBotPlatform = "SLACK"
+	ChatBotPlatformTEAMS      ChatBotPlatform = "TEAMS"
+)
+
+// Valid indicates whether the value is a known member of the ChatBotPlatform enum.
+func (e ChatBotPlatform) Valid() bool {
+	switch e {
+	case ChatBotPlatformMATRIX:
+		return true
+	case ChatBotPlatformMATTERMOST:
+		return true
+	case ChatBotPlatformSLACK:
+		return true
+	case ChatBotPlatformTEAMS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiAlertStatus.
 const (
 	CiAlertStatusFIRING   CiAlertStatus = "FIRING"
@@ -12962,7 +12986,7 @@ type CapacityList struct {
 
 // ChatBot defines model for ChatBot.
 type ChatBot struct {
-	// BotUser The account's own Matrix identifier.
+	// BotUser The account's own identifier: a Matrix user, a Slack bot user, a Teams bot's application; empty on Mattermost.
 	BotUser string `json:"bot_user"`
 	Capture bool   `json:"capture"`
 
@@ -12972,13 +12996,18 @@ type ChatBot struct {
 	Enabled      bool               `json:"enabled"`
 
 	// Failure The message code of the last read that did not go through.
-	Failure    *string            `json:"failure,omitempty"`
+	Failure *string `json:"failure,omitempty"`
+
+	// Homeserver The Matrix homeserver or the Mattermost server; Slack's and the Bot Framework's own address on those platforms.
 	Homeserver string             `json:"homeserver"`
 	HubId      openapi_types.UUID `json:"hub_id"`
 	Id         openapi_types.UUID `json:"id"`
 	Locale     *string            `json:"locale,omitempty"`
 
-	// Room The room's identifier.
+	// Platform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
+	Platform ChatBotPlatform `json:"platform"`
+
+	// Room The room's identifier: a Matrix room, a Slack or Mattermost channel, a Teams conversation.
 	Room string `json:"room"`
 
 	// RunAs Who the bot reads and writes as.
@@ -12989,24 +13018,48 @@ type ChatBot struct {
 
 // ChatBotCreate defines model for ChatBotCreate.
 type ChatBotCreate struct {
-	// AccessToken The bot account's access token; kept sealed, never answered.
-	AccessToken  *string            `json:"access_token,omitempty"`
-	Capture      *bool              `json:"capture,omitempty"`
-	CollectionId openapi_types.UUID `json:"collection_id"`
+	// AccessToken The Matrix account's access token, or the Slack app's bot token `xoxb-…`; kept sealed, never answered.
+	AccessToken *string `json:"access_token,omitempty"`
 
-	// Homeserver The account's homeserver, its https address.
-	Homeserver string  `json:"homeserver"`
+	// AppId The Teams bot's Microsoft application identifier.
+	AppId *openapi_types.UUID `json:"app_id,omitempty"`
+
+	// AppPassword The Teams bot's client secret; kept sealed, never answered.
+	AppPassword *string `json:"app_password,omitempty"`
+
+	// AppTenant The Entra tenant the Teams bot is registered in.
+	AppTenant    *openapi_types.UUID `json:"app_tenant,omitempty"`
+	Capture      *bool               `json:"capture,omitempty"`
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+
+	// CommandToken The Mattermost slash command's token; kept sealed, never answered.
+	CommandToken *string `json:"command_token,omitempty"`
+
+	// Homeserver The Matrix account's homeserver or the Mattermost server, its https address; not asked on Slack and Teams.
+	Homeserver *string `json:"homeserver,omitempty"`
 	Locale     *string `json:"locale,omitempty"`
 
-	// Room The room's identifier, never an alias.
-	Room   string `json:"room"`
-	Unfurl *bool  `json:"unfurl,omitempty"`
+	// Platform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
+	Platform *ChatBotPlatform `json:"platform,omitempty"`
+
+	// Room The room's identifier, never an alias: a Matrix room `!…:server`, a Slack channel `C…`, a Mattermost channel's 26 characters, a Teams conversation `19:…`.
+	Room string `json:"room"`
+
+	// SigningSecret The Slack app's signing secret; kept sealed, never answered.
+	SigningSecret *string `json:"signing_secret,omitempty"`
+	Unfurl        *bool   `json:"unfurl,omitempty"`
+
+	// WebhookToken The Mattermost outgoing webhook's token; kept sealed, never answered.
+	WebhookToken *string `json:"webhook_token,omitempty"`
 }
 
 // ChatBotList defines model for ChatBotList.
 type ChatBotList struct {
 	Data []ChatBot `json:"data"`
 }
+
+// ChatBotPlatform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
+type ChatBotPlatform string
 
 // ChatBotUpdate defines model for ChatBotUpdate.
 type ChatBotUpdate struct {
@@ -24970,6 +25023,13 @@ type DefineBusinessCalendarParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DeliverChatJSONBody defines parameters for DeliverChat.
+type DeliverChatJSONBody map[string]interface{}
+
+// DeliverChatFormdataBody defines parameters for DeliverChat.
+type DeliverChatFormdataBody struct {
+}
+
 // CloseCiCampaignParams defines parameters for CloseCiCampaign.
 type CloseCiCampaignParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -27394,6 +27454,12 @@ type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
 
 // UpdateChatBotJSONRequestBody defines body for UpdateChatBot for application/json ContentType.
 type UpdateChatBotJSONRequestBody = ChatBotUpdate
+
+// DeliverChatJSONRequestBody defines body for DeliverChat for application/json ContentType.
+type DeliverChatJSONRequestBody DeliverChatJSONBody
+
+// DeliverChatFormdataRequestBody defines body for DeliverChat for application/x-www-form-urlencoded ContentType.
+type DeliverChatFormdataRequestBody DeliverChatFormdataBody
 
 // AttestCiJSONRequestBody defines body for AttestCi for application/json ContentType.
 type AttestCiJSONRequestBody = CiAttest
@@ -31825,14 +31891,14 @@ type ClientInterface interface {
 	// An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner has lost the view all answer the same 404 with the same body. Distinguishing them would answer questions to whoever is trying tokens.
 	GetCalendarFeedDocument(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeleteChatBot Remove a Matrix bot
+	// DeleteChatBot Remove a chat bot
 	//
-	// Its token is forgotten and the room is read no more; the account stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
+	// Its token is forgotten and the room is read no more - a platform's later delivery to its intake answers `404`; the account or app stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
 	//
 	// Corresponds with DELETE /chat-bots/{botId} (the `DeleteChatBot` operationId).
 	DeleteChatBot(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateChatBotWithBody Change a Matrix bot
+	// UpdateChatBotWithBody Change a chat bot
 	//
 	// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
 	//
@@ -31841,7 +31907,7 @@ type ClientInterface interface {
 	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
 	UpdateChatBotWithBody(ctx context.Context, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateChatBot Change a Matrix bot
+	// UpdateChatBot Change a chat bot
 	//
 	// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
 	//
@@ -31849,6 +31915,36 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
 	UpdateChatBot(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverChatWithBody A chat platform posts what was said to its bot
+	//
+	// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+	// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+	DeliverChatWithBody(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverChat A chat platform posts what was said to its bot
+	//
+	// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+	// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+	DeliverChat(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverChatWithFormdataBody A chat platform posts what was said to its bot
+	//
+	// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+	// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+	//
+	// Takes a body of the `application/x-www-form-urlencoded` content type.
+	//
+	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+	DeliverChatWithFormdataBody(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadCiCampaign A certification campaign with every CI asked
 	//
@@ -33377,25 +33473,25 @@ type ClientInterface interface {
 	// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
 	DefineHubCalendar(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListChatBots A hub's Matrix bots
+	// ListChatBots A hub's chat bots
 	//
-	// The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never its token. Needs READ on the hub.
+	// The bots seated in the hub's rooms - Matrix accounts, and Slack, Microsoft Teams and Mattermost apps - each with its platform, address, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never a token or a secret. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/chat-bots (the `ListChatBots` operationId).
 	ListChatBots(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateChatBotWithBody Seat a Matrix bot in a room for the hub
+	// CreateChatBotWithBody Seat a chat bot in a room for the hub
 	//
-	// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+	// On Matrix (`platform` MATRIX, the default) the account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. On Slack, Microsoft Teams and Mattermost the platform posts to the bot's intake, `/chat-intake/{tenantId}/{botId}`, which the app registered on the platform names as its address: Slack with the app's bot token and signing secret (a shared link is unfurled through `chat.unfurl`, the slash command captures), Teams with the bot's application identifier, its Entra tenant and its password (a link pasted into a message is unfurled by the messaging extension, `task <title>` said to the bot captures), Mattermost with the slash command's and the outgoing webhook's tokens (the webhook unfurls, the slash command captures); a delivery for another room than the bot's is acknowledged and not answered. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
 	CreateChatBotWithBody(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateChatBot Seat a Matrix bot in a room for the hub
+	// CreateChatBot Seat a chat bot in a room for the hub
 	//
-	// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+	// On Matrix (`platform` MATRIX, the default) the account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. On Slack, Microsoft Teams and Mattermost the platform posts to the bot's intake, `/chat-intake/{tenantId}/{botId}`, which the app registered on the platform names as its address: Slack with the app's bot token and signing secret (a shared link is unfurled through `chat.unfurl`, the slash command captures), Teams with the bot's application identifier, its Entra tenant and its password (a link pasted into a message is unfurled by the messaging extension, `task <title>` said to the bot captures), Mattermost with the slash command's and the outgoing webhook's tokens (the webhook unfurls, the slash command captures); a delivery for another room than the bot's is acknowledged and not answered. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -45061,9 +45157,9 @@ func (c *Client) GetCalendarFeedDocument(ctx context.Context, token string, reqE
 	return c.Client.Do(req)
 }
 
-// DeleteChatBot Remove a Matrix bot
+// DeleteChatBot Remove a chat bot
 //
-// Its token is forgotten and the room is read no more; the account stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
+// Its token is forgotten and the room is read no more - a platform's later delivery to its intake answers `404`; the account or app stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
 //
 // Corresponds with DELETE /chat-bots/{botId} (the `DeleteChatBot` operationId).
 func (c *Client) DeleteChatBot(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -45078,7 +45174,7 @@ func (c *Client) DeleteChatBot(ctx context.Context, botId openapi_types.UUID, re
 	return c.Client.Do(req)
 }
 
-// UpdateChatBotWithBody Change a Matrix bot
+// UpdateChatBotWithBody Change a chat bot
 //
 // Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
 //
@@ -45097,7 +45193,7 @@ func (c *Client) UpdateChatBotWithBody(ctx context.Context, botId openapi_types.
 	return c.Client.Do(req)
 }
 
-// UpdateChatBot Change a Matrix bot
+// UpdateChatBot Change a chat bot
 //
 // Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
 //
@@ -45106,6 +45202,66 @@ func (c *Client) UpdateChatBotWithBody(ctx context.Context, botId openapi_types.
 // Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
 func (c *Client) UpdateChatBot(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateChatBotRequest(c.Server, botId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverChatWithBody A chat platform posts what was said to its bot
+//
+// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+func (c *Client) DeliverChatWithBody(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverChatRequestWithBody(c.Server, tenantId, botId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverChat A chat platform posts what was said to its bot
+//
+// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+func (c *Client) DeliverChat(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverChatRequest(c.Server, tenantId, botId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverChatWithFormdataBody A chat platform posts what was said to its bot
+//
+// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+//
+// Takes a body of the `application/x-www-form-urlencoded` content type.
+//
+// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+func (c *Client) DeliverChatWithFormdataBody(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverChatRequestWithFormdataBody(c.Server, tenantId, botId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -48593,9 +48749,9 @@ func (c *Client) DefineHubCalendar(ctx context.Context, hubId openapi_types.UUID
 	return c.Client.Do(req)
 }
 
-// ListChatBots A hub's Matrix bots
+// ListChatBots A hub's chat bots
 //
-// The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never its token. Needs READ on the hub.
+// The bots seated in the hub's rooms - Matrix accounts, and Slack, Microsoft Teams and Mattermost apps - each with its platform, address, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never a token or a secret. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/chat-bots (the `ListChatBots` operationId).
 func (c *Client) ListChatBots(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -48610,9 +48766,9 @@ func (c *Client) ListChatBots(ctx context.Context, hubId HubId, reqEditors ...Re
 	return c.Client.Do(req)
 }
 
-// CreateChatBotWithBody Seat a Matrix bot in a room for the hub
+// CreateChatBotWithBody Seat a chat bot in a room for the hub
 //
-// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+// On Matrix (`platform` MATRIX, the default) the account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. On Slack, Microsoft Teams and Mattermost the platform posts to the bot's intake, `/chat-intake/{tenantId}/{botId}`, which the app registered on the platform names as its address: Slack with the app's bot token and signing secret (a shared link is unfurled through `chat.unfurl`, the slash command captures), Teams with the bot's application identifier, its Entra tenant and its password (a link pasted into a message is unfurled by the messaging extension, `task <title>` said to the bot captures), Mattermost with the slash command's and the outgoing webhook's tokens (the webhook unfurls, the slash command captures); a delivery for another room than the bot's is acknowledged and not answered. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -48629,9 +48785,9 @@ func (c *Client) CreateChatBotWithBody(ctx context.Context, hubId HubId, content
 	return c.Client.Do(req)
 }
 
-// CreateChatBot Seat a Matrix bot in a room for the hub
+// CreateChatBot Seat a chat bot in a room for the hub
 //
-// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+// On Matrix (`platform` MATRIX, the default) the account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. On Slack, Microsoft Teams and Mattermost the platform posts to the bot's intake, `/chat-intake/{tenantId}/{botId}`, which the app registered on the platform names as its address: Slack with the app's bot token and signing secret (a shared link is unfurled through `chat.unfurl`, the slash command captures), Teams with the bot's application identifier, its Entra tenant and its password (a link pasted into a message is unfurled by the messaging extension, `task <title>` said to the bot captures), Mattermost with the slash command's and the outgoing webhook's tokens (the webhook unfurls, the slash command captures); a delivery for another room than the bot's is acknowledged and not answered. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -69409,6 +69565,71 @@ func NewUpdateChatBotRequestWithBody(server string, botId openapi_types.UUID, co
 	}
 
 	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeliverChatRequest calls the generic DeliverChat builder with application/json body
+func NewDeliverChatRequest(server string, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDeliverChatRequestWithBody(server, tenantId, botId, "application/json", bodyReader)
+}
+
+// NewDeliverChatRequestWithFormdataBody calls the generic DeliverChat builder with application/x-www-form-urlencoded body
+func NewDeliverChatRequestWithFormdataBody(server string, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewDeliverChatRequestWithBody(server, tenantId, botId, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewDeliverChatRequestWithBody constructs an http.Request for the DeliverChat method, with any body, and a specified content type
+func NewDeliverChatRequestWithBody(server string, tenantId openapi_types.UUID, botId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "botId", botId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/chat-intake/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -99600,16 +99821,16 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetCalendarFeedDocumentWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetCalendarFeedDocumentResult, error)
 
-	// DeleteChatBotWithResponse Remove a Matrix bot
+	// DeleteChatBotWithResponse Remove a chat bot
 	//
-	// Its token is forgotten and the room is read no more; the account stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
+	// Its token is forgotten and the room is read no more - a platform's later delivery to its intake answers `404`; the account or app stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with DELETE /chat-bots/{botId} (the `DeleteChatBot` operationId).
 	DeleteChatBotWithResponse(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteChatBotResult, error)
 
-	// UpdateChatBotWithBodyWithResponse Change a Matrix bot
+	// UpdateChatBotWithBodyWithResponse Change a chat bot
 	//
 	// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
 	//
@@ -99618,7 +99839,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
 	UpdateChatBotWithBodyWithResponse(ctx context.Context, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateChatBotResult, error)
 
-	// UpdateChatBotWithResponse Change a Matrix bot
+	// UpdateChatBotWithResponse Change a chat bot
 	//
 	// Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
 	//
@@ -99626,6 +99847,36 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
 	UpdateChatBotWithResponse(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateChatBotResult, error)
+
+	// DeliverChatWithBodyWithResponse A chat platform posts what was said to its bot
+	//
+	// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+	// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+	DeliverChatWithBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverChatResult, error)
+
+	// DeliverChatWithResponse A chat platform posts what was said to its bot
+	//
+	// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+	// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+	DeliverChatWithResponse(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverChatResult, error)
+
+	// DeliverChatWithFormdataBodyWithResponse A chat platform posts what was said to its bot
+	//
+	// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+	// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+	//
+	// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+	DeliverChatWithFormdataBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatFormdataRequestBody, reqEditors ...RequestEditorFn) (*DeliverChatResult, error)
 
 	// ReadCiCampaignWithResponse A certification campaign with every CI asked
 	//
@@ -101310,27 +101561,27 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /hubs/{hubId}/business-calendars/{calendarKey} (the `DefineHubCalendar` operationId).
 	DefineHubCalendarWithResponse(ctx context.Context, hubId openapi_types.UUID, calendarKey string, params *DefineHubCalendarParams, body DefineHubCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineHubCalendarResult, error)
 
-	// ListChatBotsWithResponse A hub's Matrix bots
+	// ListChatBotsWithResponse A hub's chat bots
 	//
-	// The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never its token. Needs READ on the hub.
+	// The bots seated in the hub's rooms - Matrix accounts, and Slack, Microsoft Teams and Mattermost apps - each with its platform, address, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never a token or a secret. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /hubs/{hubId}/chat-bots (the `ListChatBots` operationId).
 	ListChatBotsWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListChatBotsResult, error)
 
-	// CreateChatBotWithBodyWithResponse Seat a Matrix bot in a room for the hub
+	// CreateChatBotWithBodyWithResponse Seat a chat bot in a room for the hub
 	//
-	// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+	// On Matrix (`platform` MATRIX, the default) the account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. On Slack, Microsoft Teams and Mattermost the platform posts to the bot's intake, `/chat-intake/{tenantId}/{botId}`, which the app registered on the platform names as its address: Slack with the app's bot token and signing secret (a shared link is unfurled through `chat.unfurl`, the slash command captures), Teams with the bot's application identifier, its Entra tenant and its password (a link pasted into a message is unfurled by the messaging extension, `task <title>` said to the bot captures), Mattermost with the slash command's and the outgoing webhook's tokens (the webhook unfurls, the slash command captures); a delivery for another room than the bot's is acknowledged and not answered. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /hubs/{hubId}/chat-bots (the `CreateChatBot` operationId).
 	CreateChatBotWithBodyWithResponse(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateChatBotResult, error)
 
-	// CreateChatBotWithResponse Seat a Matrix bot in a room for the hub
+	// CreateChatBotWithResponse Seat a chat bot in a room for the hub
 	//
-	// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+	// On Matrix (`platform` MATRIX, the default) the account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. On Slack, Microsoft Teams and Mattermost the platform posts to the bot's intake, `/chat-intake/{tenantId}/{botId}`, which the app registered on the platform names as its address: Slack with the app's bot token and signing secret (a shared link is unfurled through `chat.unfurl`, the slash command captures), Teams with the bot's application identifier, its Entra tenant and its password (a link pasted into a message is unfurled by the messaging extension, `task <title>` said to the bot captures), Mattermost with the slash command's and the outgoing webhook's tokens (the webhook unfurls, the slash command captures); a delivery for another room than the bot's is acknowledged and not answered. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -117525,6 +117776,54 @@ func (r UpdateChatBotResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateChatBotResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeliverChatResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *map[string]interface{}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DeliverChatResult) GetJSON200() *map[string]interface{} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeliverChatResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeliverChatResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeliverChatResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeliverChatResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeliverChatResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -149564,9 +149863,9 @@ func (c *ClientWithResponses) GetCalendarFeedDocumentWithResponse(ctx context.Co
 	return ParseGetCalendarFeedDocumentResult(rsp)
 }
 
-// DeleteChatBotWithResponse Remove a Matrix bot
+// DeleteChatBotWithResponse Remove a chat bot
 //
-// Its token is forgotten and the room is read no more; the account stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
+// Its token is forgotten and the room is read no more - a platform's later delivery to its intake answers `404`; the account or app stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -149579,7 +149878,7 @@ func (c *ClientWithResponses) DeleteChatBotWithResponse(ctx context.Context, bot
 	return ParseDeleteChatBotResult(rsp)
 }
 
-// UpdateChatBotWithBodyWithResponse Change a Matrix bot
+// UpdateChatBotWithBodyWithResponse Change a chat bot
 //
 // Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
 //
@@ -149594,7 +149893,7 @@ func (c *ClientWithResponses) UpdateChatBotWithBodyWithResponse(ctx context.Cont
 	return ParseUpdateChatBotResult(rsp)
 }
 
-// UpdateChatBotWithResponse Change a Matrix bot
+// UpdateChatBotWithResponse Change a chat bot
 //
 // Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.
 //
@@ -149607,6 +149906,54 @@ func (c *ClientWithResponses) UpdateChatBotWithResponse(ctx context.Context, bot
 		return nil, err
 	}
 	return ParseUpdateChatBotResult(rsp)
+}
+
+// DeliverChatWithBodyWithResponse A chat platform posts what was said to its bot
+//
+// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+func (c *ClientWithResponses) DeliverChatWithBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverChatResult, error) {
+	rsp, err := c.DeliverChatWithBody(ctx, tenantId, botId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverChatResult(rsp)
+}
+
+// DeliverChatWithResponse A chat platform posts what was said to its bot
+//
+// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+func (c *ClientWithResponses) DeliverChatWithResponse(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverChatResult, error) {
+	rsp, err := c.DeliverChat(ctx, tenantId, botId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverChatResult(rsp)
+}
+
+// DeliverChatWithFormdataBodyWithResponse A chat platform posts what was said to its bot
+//
+// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
+// Every reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.
+//
+// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
+func (c *ClientWithResponses) DeliverChatWithFormdataBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatFormdataRequestBody, reqEditors ...RequestEditorFn) (*DeliverChatResult, error) {
+	rsp, err := c.DeliverChatWithFormdataBody(ctx, tenantId, botId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverChatResult(rsp)
 }
 
 // ReadCiCampaignWithResponse A certification campaign with every CI asked
@@ -152462,9 +152809,9 @@ func (c *ClientWithResponses) DefineHubCalendarWithResponse(ctx context.Context,
 	return ParseDefineHubCalendarResult(rsp)
 }
 
-// ListChatBotsWithResponse A hub's Matrix bots
+// ListChatBotsWithResponse A hub's chat bots
 //
-// The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never its token. Needs READ on the hub.
+// The bots seated in the hub's rooms - Matrix accounts, and Slack, Microsoft Teams and Mattermost apps - each with its platform, address, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never a token or a secret. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -152477,9 +152824,9 @@ func (c *ClientWithResponses) ListChatBotsWithResponse(ctx context.Context, hubI
 	return ParseListChatBotsResult(rsp)
 }
 
-// CreateChatBotWithBodyWithResponse Seat a Matrix bot in a room for the hub
+// CreateChatBotWithBodyWithResponse Seat a chat bot in a room for the hub
 //
-// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+// On Matrix (`platform` MATRIX, the default) the account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. On Slack, Microsoft Teams and Mattermost the platform posts to the bot's intake, `/chat-intake/{tenantId}/{botId}`, which the app registered on the platform names as its address: Slack with the app's bot token and signing secret (a shared link is unfurled through `chat.unfurl`, the slash command captures), Teams with the bot's application identifier, its Entra tenant and its password (a link pasted into a message is unfurled by the messaging extension, `task <title>` said to the bot captures), Mattermost with the slash command's and the outgoing webhook's tokens (the webhook unfurls, the slash command captures); a delivery for another room than the bot's is acknowledged and not answered. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -152492,9 +152839,9 @@ func (c *ClientWithResponses) CreateChatBotWithBodyWithResponse(ctx context.Cont
 	return ParseCreateChatBotResult(rsp)
 }
 
-// CreateChatBotWithResponse Seat a Matrix bot in a room for the hub
+// CreateChatBotWithResponse Seat a chat bot in a room for the hub
 //
-// The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
+// On Matrix (`platform` MATRIX, the default) the account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. On Slack, Microsoft Teams and Mattermost the platform posts to the bot's intake, `/chat-intake/{tenantId}/{botId}`, which the app registered on the platform names as its address: Slack with the app's bot token and signing secret (a shared link is unfurled through `chat.unfurl`, the slash command captures), Teams with the bot's application identifier, its Entra tenant and its password (a link pasted into a message is unfurled by the messaging extension, `task <title>` said to the bot captures), Mattermost with the slash command's and the outgoing webhook's tokens (the webhook unfurls, the slash command captures); a delivery for another room than the bot's is acknowledged and not answered. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -169237,6 +169584,39 @@ func ParseUpdateChatBotResult(rsp *http.Response) (*UpdateChatBotResult, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ChatBot
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeliverChatResult parses an HTTP response from a DeliverChatWithResponse call
+func ParseDeliverChatResult(rsp *http.Response) (*DeliverChatResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeliverChatResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -5920,6 +5920,7 @@ class ChatBot(TypedDict, total=False):
     id: Required[str]
     hub_id: Required[str]
     collection_id: Required[str]
+    platform: Required["ChatBotPlatform"]
     homeserver: Required[str]
     room: Required[str]
     bot_user: Required[str]
@@ -5935,11 +5936,20 @@ class ChatBot(TypedDict, total=False):
 class ChatBotList(TypedDict, total=False):
     data: Required[list["ChatBot"]]
 
+ChatBotPlatform = Literal["MATRIX", "SLACK", "TEAMS", "MATTERMOST"]
+
 class ChatBotCreate(TypedDict, total=False):
     collection_id: Required[str]
-    homeserver: Required[str]
+    platform: "ChatBotPlatform"
+    homeserver: str
     room: Required[str]
-    access_token: Required[str]
+    access_token: str
+    signing_secret: str
+    app_id: str
+    app_tenant: str
+    app_password: str
+    command_token: str
+    webhook_token: str
     locale: str
     unfurl: bool
     capture: bool

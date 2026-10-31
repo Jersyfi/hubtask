@@ -1052,22 +1052,22 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/code-hooks", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** A hub's Matrix bots */
+  /** A hub's chat bots */
   listChatBots(hubId: string, options: CallOptions = {}): Promise<operations["listChatBots"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/chat-bots", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Seat a Matrix bot in a room for the hub */
+  /** Seat a chat bot in a room for the hub */
   createChatBot(hubId: string, body: NonNullable<operations["createChatBot"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createChatBot"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/chat-bots", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Change a Matrix bot */
+  /** Change a chat bot */
   updateChatBot(botId: string, body: NonNullable<operations["updateChatBot"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["updateChatBot"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/chat-bots/{botId}", { "botId": botId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Remove a Matrix bot */
+  /** Remove a chat bot */
   deleteChatBot(botId: string, options: CallOptions = {}): Promise<void> {
     return this.call("DELETE", "/chat-bots/{botId}", { "botId": botId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
@@ -1100,6 +1100,12 @@ export class HubtaskClient {
   /** Take a file link off its entry */
   unlinkEntryFile(linkId: string, options: CallOptions = {}): Promise<void> {
     return this.call("DELETE", "/file-links/{linkId}", { "linkId": linkId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** A chat platform posts what was said to its bot
+   * Public: sent without a bearer where the client holds none. */
+  deliverChat(tenantId: string, botId: string, body: NonNullable<operations["deliverChat"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["deliverChat"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/chat-intake/{tenantId}/{botId}", { "tenantId": tenantId, "botId": botId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** A forge posts its pushes and pull requests

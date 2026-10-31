@@ -2874,6 +2874,10 @@ func (pending) DeliverCode(w http.ResponseWriter, r *http.Request, _, _ openapi_
 	notAvailable(w, r)
 }
 
+func (pending) DeliverChat(w http.ResponseWriter, r *http.Request, _, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) ListEntryFileLinks(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }

@@ -1990,6 +1990,15 @@ func (c *RestController) DeliverAddressedMail(w http.ResponseWriter, r *http.Req
 	c.Intake.DeliverAddressedMail(w, r, params)
 }
 
+// DeliverChat answers POST /chat-intake/{tenantId}/{botId} by the adapter in Intake, which holds the connection.
+func (c *RestController) DeliverChat(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, botId openapi_types.UUID) {
+	if c.Intake == nil {
+		c.pending.DeliverChat(w, r, tenantId, botId)
+		return
+	}
+	c.Intake.DeliverChat(w, r, tenantId, botId)
+}
+
 // DeliverCiAlerts answers POST /cmdb/alert-intake/{tenantId}/{connectorId} by the adapter in Intake, which holds the connection.
 func (c *RestController) DeliverCiAlerts(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params openapi.DeliverCiAlertsParams) {
 	if c.Intake == nil {

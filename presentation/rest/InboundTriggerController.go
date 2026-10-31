@@ -46,6 +46,9 @@ type IntakeDoor struct {
 	// CodeIntake serves the forge hooks: GitHub, GitLab, Forgejo and Gitea post their pushes and
 	// pull requests. Nil leaves the route answering the pending 404.
 	CodeIntake CodeDeliverer
+	// ChatIntake serves the chat bots' intake: Slack, Teams and Mattermost post what was said to a
+	// bot. Nil leaves the route answering the pending 404.
+	ChatIntake ChatDeliverer
 	// CmdbAlerts serves the CMDB's alert intakes, for the same reasons: a monitoring program holds
 	// the credential, not a person. Nil leaves the route answering the pending 404.
 	CmdbAlerts CmdbAlertDeliverer

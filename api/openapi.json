@@ -148,7 +148,7 @@
     "whiteboard": "a hub's whiteboards: make, draw on, trash and export them",
     "code": "a hub's forge hooks and an entry's commits, branches and pull requests",
     "file": "an entry's files and folders in a file store: Nextcloud, SharePoint, OneDrive, WebDAV",
-    "chat": "a hub's Matrix bots, which answer links to entries and make tasks of messages",
+    "chat": "a hub's chat bots on Matrix, Slack, Teams and Mattermost, which answer links to entries and make tasks of messages",
     "cmdb": "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
     "ci": "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
     "business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
@@ -8375,8 +8375,8 @@
         "operationId": "listChatBots",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "chat bot ls",
-        "summary": "A hub's Matrix bots",
-        "description": "The Matrix accounts seated in the hub's rooms, each with its homeserver, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never its token. Needs READ on the hub.\n",
+        "summary": "A hub's chat bots",
+        "description": "The bots seated in the hub's rooms - Matrix accounts, and Slack, Microsoft Teams and Mattermost apps - each with its platform, address, room, account, the collection it captures into, what it does, who it acts as and its last refusal - never a token or a secret. Needs READ on the hub.\n",
         "responses": {
           "200": {
             "description": "The bots",
@@ -8399,8 +8399,8 @@
         ],
         "operationId": "createChatBot",
         "x-hubtask-rest": "generated",
-        "summary": "Seat a Matrix bot in a room for the hub",
-        "description": "The account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.\n",
+        "summary": "Seat a chat bot in a room for the hub",
+        "description": "On Matrix (`platform` MATRIX, the default) the account named by its access token joins the room by its identifier; every minute it then reads the room through the client-server API's sync. On Slack, Microsoft Teams and Mattermost the platform posts to the bot's intake, `/chat-intake/{tenantId}/{botId}`, which the app registered on the platform names as its address: Slack with the app's bot token and signing secret (a shared link is unfurled through `chat.unfurl`, the slash command captures), Teams with the bot's application identifier, its Entra tenant and its password (a link pasted into a message is unfurled by the messaging extension, `task <title>` said to the bot captures), Mattermost with the slash command's and the outgoing webhook's tokens (the webhook unfurls, the slash command captures); a delivery for another room than the bot's is acknowledged and not answered. A link to one of the hub's entries is answered with a notice of the entry's title, status and link - never its notes, and nothing for another hub's entry; a message `!task <title>` becomes an entry in the collection, answered with its link. It reads and writes as whoever last defined it, while they may. The room's history before it was seated is never answered. At most ten bots per hub (`chatbot.too_many`), one per room (`chatbot.room_taken`). Needs STRUCTURE on the hub.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -8447,7 +8447,7 @@
         "operationId": "updateChatBot",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "chat bot set",
-        "summary": "Change a Matrix bot",
+        "summary": "Change a chat bot",
         "description": "Switches it on or off, changes what it does, its collection or its language. Whoever changes it is who it acts as from then on. Needs STRUCTURE on the hub.\n",
         "requestBody": {
           "required": true,
@@ -8482,8 +8482,8 @@
         "operationId": "deleteChatBot",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "chat bot rm",
-        "summary": "Remove a Matrix bot",
-        "description": "Its token is forgotten and the room is read no more; the account stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.\n",
+        "summary": "Remove a chat bot",
+        "description": "Its token is forgotten and the room is read no more - a platform's later delivery to its intake answers `404`; the account or app stays in the room until someone removes it there, and the entries it captured stay. Needs STRUCTURE on the hub.\n",
         "responses": {
           "204": {
             "description": "Removed"
@@ -8703,6 +8703,73 @@
         "responses": {
           "204": {
             "description": "Taken off"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/chat-intake/{tenantId}/{botId}": {
+      "parameters": [
+        {
+          "name": "tenantId",
+          "in": "path",
+          "required": true,
+          "description": "The workspace the bot belongs to, which the lookup needs before it can happen.",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "botId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "operationId": "deliverChat",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Intake",
+        "security": [],
+        "summary": "A chat platform posts what was said to its bot",
+        "description": "Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.\nEvery reason not to serve answers the same `404` - an unknown bot, one switched off, a Matrix bot, a wrong signature or token, a stale timestamp.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Answered in the platform's format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -63681,6 +63748,7 @@
           "id",
           "hub_id",
           "collection_id",
+          "platform",
           "homeserver",
           "room",
           "bot_user",
@@ -63705,17 +63773,21 @@
             "format": "uuid",
             "description": "Where captured tasks land."
           },
+          "platform": {
+            "$ref": "#/components/schemas/ChatBotPlatform"
+          },
           "homeserver": {
             "type": "string",
-            "format": "uri"
+            "format": "uri",
+            "description": "The Matrix homeserver or the Mattermost server; Slack's and the Bot Framework's own address on those platforms."
           },
           "room": {
             "type": "string",
-            "description": "The room's identifier."
+            "description": "The room's identifier: a Matrix room, a Slack or Mattermost channel, a Teams conversation."
           },
           "bot_user": {
             "type": "string",
-            "description": "The account's own Matrix identifier."
+            "description": "The account's own identifier: a Matrix user, a Slack bot user, a Teams bot's application; empty on Mattermost."
           },
           "locale": {
             "type": "string"
@@ -63762,33 +63834,78 @@
           }
         }
       },
+      "ChatBotPlatform": {
+        "type": "string",
+        "enum": [
+          "MATRIX",
+          "SLACK",
+          "TEAMS",
+          "MATTERMOST"
+        ],
+        "description": "Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.\n"
+      },
       "ChatBotCreate": {
         "type": "object",
         "required": [
           "collection_id",
-          "homeserver",
-          "room",
-          "access_token"
+          "room"
         ],
         "properties": {
           "collection_id": {
             "type": "string",
             "format": "uuid"
           },
+          "platform": {
+            "$ref": "#/components/schemas/ChatBotPlatform"
+          },
           "homeserver": {
             "type": "string",
             "maxLength": 512,
-            "description": "The account's homeserver, its https address."
+            "description": "The Matrix account's homeserver or the Mattermost server, its https address; not asked on Slack and Teams."
           },
           "room": {
             "type": "string",
             "maxLength": 255,
-            "description": "The room's identifier, never an alias."
+            "description": "The room's identifier, never an alias: a Matrix room `!…:server`, a Slack channel `C…`, a Mattermost channel's 26 characters, a Teams conversation `19:…`."
           },
           "access_token": {
             "type": "string",
             "writeOnly": true,
-            "description": "The bot account's access token; kept sealed, never answered."
+            "description": "The Matrix account's access token, or the Slack app's bot token `xoxb-…`; kept sealed, never answered."
+          },
+          "signing_secret": {
+            "type": "string",
+            "writeOnly": true,
+            "maxLength": 256,
+            "description": "The Slack app's signing secret; kept sealed, never answered."
+          },
+          "app_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The Teams bot's Microsoft application identifier."
+          },
+          "app_tenant": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The Entra tenant the Teams bot is registered in."
+          },
+          "app_password": {
+            "type": "string",
+            "writeOnly": true,
+            "maxLength": 256,
+            "description": "The Teams bot's client secret; kept sealed, never answered."
+          },
+          "command_token": {
+            "type": "string",
+            "writeOnly": true,
+            "maxLength": 256,
+            "description": "The Mattermost slash command's token; kept sealed, never answered."
+          },
+          "webhook_token": {
+            "type": "string",
+            "writeOnly": true,
+            "maxLength": 256,
+            "description": "The Mattermost outgoing webhook's token; kept sealed, never answered."
           },
           "locale": {
             "type": "string",
