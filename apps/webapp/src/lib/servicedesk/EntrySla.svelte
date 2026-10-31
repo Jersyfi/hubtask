@@ -2,14 +2,15 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // An entry's SLA goals as chips (UC-SVC-02 check 6): each goal's standing and its moment - due,
-  // met, breached or standing still - toned as the requester's portal tones them. Absent where no
-  // policy measures the entry.
+  // met, breached or standing still - toned as the requester's portal tones them, the teams' OLAs
+  // (check 12) named by their policy beside the requester's. Absent where no policy measures it.
 
   import { untrack } from 'svelte';
   import { Badge } from '@hubtask/design-system/components';
   import type { EntrySlaList } from '@hubtask/sync-engine';
 
   import { entrySlaPath } from '../data/desk.svelte.ts';
+  import { goalKey } from './desk.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -26,9 +27,10 @@
 
 {#if goals.length > 0}
   <ul class="goals" aria-label={t('app.desk.sla_label')} data-entry-sla>
-    {#each goals as goal (goal.goal)}
+    {#each goals as goal (goalKey(goal))}
       <li>
         <Badge tone={goalTone(goal, now)} size="sm">
+          {#if goal.kind === 'OLA'}{t('app.desk.ola_of', { policy: goal.policy_key })} · {/if}
           {t(`app.portal.goal.${goal.goal}`)} ·
           {#if goal.standing === 'MET'}{t('app.portal.goal_met', { at: at(goal.met_at) })}
           {:else if goal.standing === 'BREACHED'}{t('app.portal.goal_breached', { at: at(goal.breached_at) })}

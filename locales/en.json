@@ -10931,6 +10931,7 @@
   "app.desk.met_share": "{share}% met",
   "app.desk.sla_label": "Promised times",
   "app.desk.goal_paused": "standing still",
+  "app.desk.ola_of": "Team {policy}",
   "app.desk.internal": "Internal note",
   "app.desk.internal_hint": "For the team only; the requester never reads it.",
   "app.desk.internal_mark": "Internal",

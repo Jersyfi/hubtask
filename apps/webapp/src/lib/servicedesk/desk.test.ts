@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, hubCalendarRows, reportRows } from './desk.ts';
+import { byPriorityOf, byPriorityText, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, reportRows } from './desk.ts';
 
 test('a calendar is written from its days and one span, and read back the same (UC-SVC-01 check 1)', () => {
   const hours = hoursOf(['FRIDAY', 'MONDAY'], '08:00', '18:00');
@@ -52,4 +52,15 @@ test('a requester panel lists their other open requests, newest first, the reque
   assert.equal(asked.page.size, REQUESTER_OPEN + 1);
   const rows = ['a', 'self', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id }));
   assert.deepEqual(otherRequests(rows, 'self').map((row) => row.id), ['a', 'b', 'c', 'd', 'e']);
+});
+
+test('an entry\'s goals keep apart the requester\'s and each team\'s (UC-SVC-02 check 12)', () => {
+  const keys = [
+    { kind: 'SLA', policy_key: 'incidents', goal: 'RESOLUTION' },
+    { kind: 'OLA', policy_key: 'network_team', goal: 'RESOLUTION' },
+    { kind: 'OLA', policy_key: 'database_team', goal: 'RESOLUTION' },
+    { policy_key: 'incidents', goal: 'FIRST_RESPONSE' },
+  ].map(goalKey);
+  assert.equal(new Set(keys).size, keys.length);
+  assert.equal(keys[3], 'SLA:incidents:FIRST_RESPONSE');
 });

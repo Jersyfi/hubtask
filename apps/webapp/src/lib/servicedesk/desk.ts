@@ -113,3 +113,12 @@ export function requesterRequests(accountId: string) {
 export function otherRequests<T extends { id: string }>(rows: readonly T[], selfId: string): T[] {
   return rows.filter((row) => row.id !== selfId).slice(0, REQUESTER_OPEN);
 }
+
+/**
+ * An entry's goal as one chip's key: the requester's promise holds each goal once, but every team's
+ * OLA holds its own (UC-SVC-02 check 12), so the goal alone repeats. A record copied offline before
+ * OLAs existed carries no kind and is the requester's.
+ */
+export function goalKey(goal: { kind?: string; policy_key: string; goal: string }): string {
+  return `${goal.kind ?? 'SLA'}:${goal.policy_key}:${goal.goal}`;
+}

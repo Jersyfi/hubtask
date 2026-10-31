@@ -10931,6 +10931,7 @@
   "app.desk.met_share": "{share} % erfüllt",
   "app.desk.sla_label": "Zugesagte Zeiten",
   "app.desk.goal_paused": "steht still",
+  "app.desk.ola_of": "Team {policy}",
   "app.desk.internal": "Interne Notiz",
   "app.desk.internal_hint": "Nur fürs Team; wer angefragt hat, liest sie nie.",
   "app.desk.internal_mark": "Intern",
