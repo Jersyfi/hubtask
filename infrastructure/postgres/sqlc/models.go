@@ -2384,6 +2384,12 @@ type PageComment struct {
 	Version    int32
 }
 
+type PageLabel struct {
+	TenantID pgtype.UUID
+	PageID   pgtype.UUID
+	Label    string
+}
+
 type PageMedium struct {
 	TenantID pgtype.UUID
 	PageID   pgtype.UUID

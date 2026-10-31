@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -63,7 +64,7 @@ func TestASpaceIsReadAsItWasWritten(t *testing.T) {
 		if err != nil || len(ancestors) != 1 || ancestors[0].ID != root {
 			t.Errorf("ancestors %+v, %v", ancestors, err)
 		}
-		hits, err := repo.Search(ctx, "budget", []shared.ID{hub}, 10)
+		hits, err := repo.Search(ctx, repository.PageQuery{Text: "budget", HubIDs: []shared.ID{hub}, Limit: 10})
 		if err != nil || len(hits) != 1 || hits[0].ID != root {
 			t.Errorf("hits %+v, %v", hits, err)
 		}
@@ -126,7 +127,7 @@ func TestAPageIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 		if n, _ := repo.Restore(ctx, root, authorB, at, at); n != 0 {
 			t.Error("the workspace next door restored the page")
 		}
-		if hits, _ := repo.Search(ctx, "budget", []shared.ID{hub}, 10); len(hits) != 0 {
+		if hits, _ := repo.Search(ctx, repository.PageQuery{Text: "budget", HubIDs: []shared.ID{hub}, Limit: 10}); len(hits) != 0 {
 			t.Error("the workspace next door searched the page")
 		}
 		if summaries, _ := repo.Summaries(ctx, []shared.ID{root}); len(summaries) != 0 {
@@ -431,6 +432,71 @@ func TestAPagesPicturesStayInItsWorkspace(t *testing.T) {
 	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
 		if pages, _ := media.ReferencingPages(ctx, picture); len(pages) != 0 {
 			t.Error("the workspace next door found the page holding the picture")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A page's labels are written as a set, narrow a search - alone, with a text, by first author and
+// by the moment of the last change - and count in the space's facet; the workspace next door
+// neither writes, reads, counts nor finds them (migration 0297, UC-DOC-01 check 9).
+func TestAPagesLabelsNarrowASearchInItsWorkspaceAlone(t *testing.T) {
+	ctx := context.Background()
+	hub, root, child := seedSpace(ctx, t)
+	repo := postgres.NewPageRepository()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.SetLabels(ctx, root, []string{"hr", "how-to"}); err != nil {
+			return err
+		}
+		if err := repo.SetLabels(ctx, root, []string{"hr", "policy"}); err != nil {
+			return err
+		}
+		if err := repo.SetLabels(ctx, child, []string{"hr"}); err != nil {
+			return err
+		}
+		labels, err := repo.Labels(ctx, []shared.ID{root, child})
+		if err != nil || len(labels[root]) != 2 || labels[root][0] != "hr" || labels[root][1] != "policy" || len(labels[child]) != 1 {
+			t.Errorf("labels %v, %v", labels, err)
+		}
+		rows, err := repo.SpaceLabels(ctx, hub, 100)
+		if err != nil || len(rows) != 3 {
+			t.Errorf("the space's labels %v, %v", rows, err)
+		}
+		if hits, err := repo.Search(ctx, repository.PageQuery{HubIDs: []shared.ID{hub}, Label: "policy", Limit: 10}); err != nil ||
+			len(hits) != 1 || hits[0].ID != root || hits[0].Excerpt != "" {
+			t.Errorf("by label alone %+v, %v", hits, err)
+		}
+		if hits, _ := repo.Search(ctx, repository.PageQuery{Text: "budget", HubIDs: []shared.ID{hub}, Label: "hr", AuthorID: authorA, Limit: 10}); len(hits) != 1 {
+			t.Errorf("by text, label and author %+v", hits)
+		}
+		later := time.Date(2026, 10, 29, 10, 0, 0, 0, time.UTC)
+		if hits, _ := repo.Search(ctx, repository.PageQuery{HubIDs: []shared.ID{hub}, Label: "hr", UpdatedFrom: &later, Limit: 10}); len(hits) != 0 {
+			t.Errorf("changed after the window opened %+v", hits)
+		}
+		if hits, _ := repo.Search(ctx, repository.PageQuery{HubIDs: []shared.ID{hub}, AuthorID: authorB, Limit: 10}); len(hits) != 0 {
+			t.Errorf("another author's pages %+v", hits)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The page's key is deferred to the commit, so the refusal arrives there.
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.SetLabels(ctx, root, []string{"stolen"})
+	}); err == nil {
+		t.Error("the workspace next door labelled the page")
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if labels, _ := repo.Labels(ctx, []shared.ID{root}); len(labels) != 0 {
+			t.Errorf("the workspace next door read the labels %v", labels)
+		}
+		if rows, _ := repo.SpaceLabels(ctx, hub, 100); len(rows) != 0 {
+			t.Errorf("the workspace next door counted the labels %v", rows)
+		}
+		if hits, _ := repo.Search(ctx, repository.PageQuery{HubIDs: []shared.ID{hub}, Label: "hr", Limit: 10}); len(hits) != 0 {
+			t.Errorf("the workspace next door found %+v", hits)
 		}
 		return nil
 	}); err != nil {

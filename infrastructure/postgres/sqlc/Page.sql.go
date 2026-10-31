@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addPageLabels = `-- name: AddPageLabels :execrows
+INSERT INTO page_label (tenant_id, page_id, label)
+SELECT current_tenant_id(), $1::uuid, l
+FROM unnest($2::text[]) AS l
+ON CONFLICT (tenant_id, page_id, label) DO NOTHING
+`
+
+type AddPageLabelsParams struct {
+	PageID pgtype.UUID
+	Labels []string
+}
+
+func (q *Queries) AddPageLabels(ctx context.Context, arg AddPageLabelsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, addPageLabels, arg.PageID, arg.Labels)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const attachPageMedia = `-- name: AttachPageMedia :exec
 INSERT INTO page_media (tenant_id, page_id, media_id)
 VALUES (current_tenant_id(), $1, $2)
@@ -52,6 +72,18 @@ func (q *Queries) ClaimPersonalSpace(ctx context.Context, arg ClaimPersonalSpace
 	var hub_id pgtype.UUID
 	err := row.Scan(&hub_id)
 	return hub_id, err
+}
+
+const clearPageLabels = `-- name: ClearPageLabels :execrows
+DELETE FROM page_label WHERE tenant_id = current_tenant_id() AND page_id = $1
+`
+
+func (q *Queries) ClearPageLabels(ctx context.Context, pageID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageLabels, pageID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const countHubPages = `-- name: CountHubPages :one
@@ -1176,6 +1208,38 @@ func (q *Queries) PageChainRestrictions(ctx context.Context, ids []pgtype.UUID) 
 	return items, nil
 }
 
+const pageLabels = `-- name: PageLabels :many
+SELECT page_id, label FROM page_label
+WHERE tenant_id = current_tenant_id() AND page_id = ANY($1::uuid[])
+ORDER BY page_id, label
+`
+
+type PageLabelsRow struct {
+	PageID pgtype.UUID
+	Label  string
+}
+
+// The labels of the pages among the identifiers, alphabetical within each page.
+func (q *Queries) PageLabels(ctx context.Context, pageIds []pgtype.UUID) ([]PageLabelsRow, error) {
+	rows, err := q.db.Query(ctx, pageLabels, pageIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PageLabelsRow{}
+	for rows.Next() {
+		var i PageLabelsRow
+		if err := rows.Scan(&i.PageID, &i.Label); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pageRestrictedTo = `-- name: PageRestrictedTo :many
 SELECT account_id FROM page_restriction
 WHERE tenant_id = current_tenant_id() AND page_id = $1
@@ -1609,23 +1673,35 @@ func (q *Queries) SearchPageArticles(ctx context.Context, arg SearchPageArticles
 
 const searchPages = `-- name: SearchPages :many
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at,
-       ts_rank_cd(p.search_document, q.query)::float8 AS rank,
-       ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
-         'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»')::text AS excerpt
+       (CASE WHEN $1::text = '' THEN 0
+             ELSE ts_rank_cd(p.search_document, q.query) END)::float8 AS rank,
+       (CASE WHEN $1::text = '' THEN ''
+             ELSE ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
+                    'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»') END)::text AS excerpt
 FROM page p,
      LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(p.content_language), $1::text)
                   || websearch_to_tsquery('simple', $1::text) AS query) q
 WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY($2::uuid[])
   AND p.deleted_at IS NULL AND p.archived_at IS NULL
-  AND p.search_document @@ q.query
+  AND ($1::text = '' OR p.search_document @@ q.query)
+  AND ($3::text IS NULL OR EXISTS (
+        SELECT 1 FROM page_label l
+         WHERE l.tenant_id = p.tenant_id AND l.page_id = p.id AND l.label = $3::text))
+  AND ($4::uuid IS NULL OR p.created_by = $4::uuid)
+  AND ($5::timestamptz IS NULL OR p.updated_at >= $5::timestamptz)
+  AND ($6::timestamptz IS NULL OR p.updated_at < $6::timestamptz)
 ORDER BY rank DESC, p.updated_at DESC, p.id
-LIMIT $3
+LIMIT $7
 `
 
 type SearchPagesParams struct {
-	Text   string
-	HubIds []pgtype.UUID
-	Batch  int32
+	Text        string
+	HubIds      []pgtype.UUID
+	Label       *string
+	AuthorID    pgtype.UUID
+	UpdatedFrom pgtype.Timestamptz
+	UpdatedTo   pgtype.Timestamptz
+	Batch       int32
 }
 
 type SearchPagesRow struct {
@@ -1639,9 +1715,19 @@ type SearchPagesRow struct {
 	Excerpt   string
 }
 
-// The pages a text finds in the spaces named, ranked; archived and trashed pages stay out.
+// The pages a text finds in the spaces named, ranked, narrowed to a label, the person who wrote a
+// page first and a window of its last change; without a text, the pages the label or the author
+// names, newest first, with no passage. Archived and trashed pages stay out.
 func (q *Queries) SearchPages(ctx context.Context, arg SearchPagesParams) ([]SearchPagesRow, error) {
-	rows, err := q.db.Query(ctx, searchPages, arg.Text, arg.HubIds, arg.Batch)
+	rows, err := q.db.Query(ctx, searchPages,
+		arg.Text,
+		arg.HubIds,
+		arg.Label,
+		arg.AuthorID,
+		arg.UpdatedFrom,
+		arg.UpdatedTo,
+		arg.Batch,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1696,6 +1782,47 @@ func (q *Queries) SetPageRestricted(ctx context.Context, arg SetPageRestrictedPa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const spaceLabels = `-- name: SpaceLabels :many
+SELECT l.page_id, l.label
+FROM page_label l JOIN page p ON p.tenant_id = l.tenant_id AND p.id = l.page_id
+WHERE l.tenant_id = current_tenant_id() AND p.hub_id = $1
+  AND p.deleted_at IS NULL AND p.archived_at IS NULL
+ORDER BY l.page_id, l.label
+LIMIT $2
+`
+
+type SpaceLabelsParams struct {
+	HubID pgtype.UUID
+	Batch int32
+}
+
+type SpaceLabelsRow struct {
+	PageID pgtype.UUID
+	Label  string
+}
+
+// Each live page's labels in a space, for its facet; which of the pages the reader may read is the
+// use case's question (rule 2), so the rows name their page.
+func (q *Queries) SpaceLabels(ctx context.Context, arg SpaceLabelsParams) ([]SpaceLabelsRow, error) {
+	rows, err := q.db.Query(ctx, spaceLabels, arg.HubID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SpaceLabelsRow{}
+	for rows.Next() {
+		var i SpaceLabelsRow
+		if err := rows.Scan(&i.PageID, &i.Label); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const trashPageSubtree = `-- name: TrashPageSubtree :execrows

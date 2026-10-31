@@ -280,18 +280,28 @@ func (PageRepository) Restore(ctx context.Context, id, by shared.ID, trashedAt, 
 	return int(rows), nil
 }
 
-// Search answers the pages a text finds in the spaces named.
-func (PageRepository) Search(ctx context.Context, text string, hubIDs []shared.ID, limit int) ([]repository.Hit, error) {
+// Search answers the pages a query finds in the spaces named.
+func (PageRepository) Search(ctx context.Context, query repository.PageQuery) ([]repository.Hit, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	hubs, err := pageUUIDs(hubIDs...)
+	hubs, err := pageUUIDs(query.HubIDs...)
 	if err != nil {
 		return nil, err
 	}
+	author, err := optionalUUID(query.AuthorID)
+	if err != nil {
+		return nil, err
+	}
+	var label *string
+	if query.Label != "" {
+		label = &query.Label
+	}
 	rows, err := queries.SearchPages(ctx, sqlc.SearchPagesParams{
-		Text: text, HubIds: hubs, Batch: int32(limit), //nolint:gosec // bounded by the use case
+		Text: query.Text, HubIds: hubs, Label: label, AuthorID: author,
+		UpdatedFrom: optionalTimestamp(query.UpdatedFrom), UpdatedTo: optionalTimestamp(query.UpdatedTo),
+		Batch: int32(query.Limit), //nolint:gosec // bounded by the use case
 	})
 	if err != nil {
 		return nil, pageFailed("searching the pages", err)
@@ -306,6 +316,75 @@ func (PageRepository) Search(ctx context.Context, text string, hubIDs []shared.I
 			ID: ids[0], HubID: ids[1], ParentID: parent, Title: row.Title, Icon: row.Icon,
 			Excerpt: row.Excerpt, Rank: row.Rank, UpdatedAt: timeFrom(row.UpdatedAt),
 		}, err
+	})
+}
+
+// Labels answers the labels of each page among the identifiers, alphabetical.
+func (PageRepository) Labels(ctx context.Context, ids []shared.ID) (map[shared.ID][]string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := pageUUIDs(ids...)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PageLabels(ctx, keys)
+	if err != nil {
+		return nil, pageFailed("reading the page labels", err)
+	}
+	out := make(map[shared.ID][]string, len(ids))
+	for _, row := range rows {
+		id, err := idFrom(row.PageID)
+		if err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], row.Label)
+	}
+	return out, nil
+}
+
+// SetLabels replaces a page's labels.
+func (PageRepository) SetLabels(ctx context.Context, pageID shared.ID, labels []string) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	ids, err := pageUUIDs(pageID)
+	if err != nil {
+		return err
+	}
+	if _, err := queries.ClearPageLabels(ctx, ids[0]); err != nil {
+		return pageFailed("clearing the page labels", err)
+	}
+	if len(labels) == 0 {
+		return nil
+	}
+	if _, err := queries.AddPageLabels(ctx, sqlc.AddPageLabelsParams{PageID: ids[0], Labels: labels}); err != nil {
+		return pageFailed("writing the page labels", err)
+	}
+	return nil
+}
+
+// SpaceLabels answers the labels of a space's live pages, by page.
+func (PageRepository) SpaceLabels(ctx context.Context, hubID shared.ID, limit int) ([]repository.PageLabel, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hubs, err := pageUUIDs(hubID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SpaceLabels(ctx, sqlc.SpaceLabelsParams{
+		HubID: hubs[0], Batch: int32(limit), //nolint:gosec // bounded by the use case
+	})
+	if err != nil {
+		return nil, pageFailed("reading the space's labels", err)
+	}
+	return mapRows(rows, func(row sqlc.SpaceLabelsRow) (repository.PageLabel, error) {
+		id, err := idFrom(row.PageID)
+		return repository.PageLabel{PageID: id, Label: row.Label}, err
 	})
 }
 

@@ -15,8 +15,8 @@ import (
 // searcher is an index other than the page store, recording the spaces it was handed.
 type searcher struct{ spaces []shared.ID }
 
-func (s *searcher) Search(_ context.Context, _ string, hubIDs []shared.ID, _ int) ([]repository.Hit, error) {
-	s.spaces = hubIDs
+func (s *searcher) Search(_ context.Context, q repository.PageQuery) ([]repository.Hit, error) {
+	s.spaces = q.HubIDs
 	return []repository.Hit{{ID: "0192f000-0000-7000-8000-0000000009aa"}}, nil
 }
 
@@ -24,7 +24,7 @@ func (s *searcher) Search(_ context.Context, _ string, hubIDs []shared.ID, _ int
 func TestAPageSearchAsksTheSearchPortWithTheReadableSpaces(t *testing.T) {
 	f := newFixture()
 	index := &searcher{}
-	hits, err := (SearchPages{Space: f.space, Searcher: index}).Execute(context.Background(), as(bert), "budget", "", 0)
+	hits, err := (SearchPages{Space: f.space, Searcher: index}).Execute(context.Background(), as(bert), SearchPagesQuery{Text: "budget"})
 	if err != nil || len(hits) != 1 {
 		t.Fatalf("the search answered %+v, %v", hits, err)
 	}

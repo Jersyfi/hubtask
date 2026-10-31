@@ -721,6 +721,11 @@ var entities = []Entity{
 			{Field: "media_id", Table: "media_object"},
 		},
 	},
+	// The labels a page carries (migration 0297), after the pages.
+	{
+		Name: "page_labels", Table: "page_label", Whole: true, Later: true, Keys: []string{"page_id", "label"},
+		References: []Reference{{Field: "page_id", Table: "page"}},
+	},
 	// The whiteboard module's boards (migration 0233, M4). Whole and unmarked, as a page is: a
 	// board leaves without a marker when its hub is purged. Its scene is JSON in the contract's
 	// shape; where it points is rebuilt by the trigger.

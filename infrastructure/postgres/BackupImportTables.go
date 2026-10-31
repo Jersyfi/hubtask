@@ -832,6 +832,17 @@ var importers = map[string]importer{
 			return queries.ClearRequesterContact(ctx)
 		},
 	},
+	"page_label": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportPageLabel(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPageLabel(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPageLabel(ctx)
+		},
+	},
 	"page_media": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
 			return queries.ImportPageMedia(ctx, payload)

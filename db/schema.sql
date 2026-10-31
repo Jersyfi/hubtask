@@ -2180,6 +2180,21 @@ ALTER TABLE page_media FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON page_media
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON page_media TO hubtask_app;
+-- The labels a page carries (migration 0297, UC-DOC-01 check 9).
+CREATE TABLE page_label (
+  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id   uuid NOT NULL,
+  label     text NOT NULL CHECK (char_length(label) BETWEEN 1 AND 40 AND label = lower(label)),
+  PRIMARY KEY (tenant_id, page_id, label),
+  CONSTRAINT page_label_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+CREATE INDEX page_label_label_idx ON page_label (tenant_id, label);
+ALTER TABLE page_label ENABLE ROW LEVEL SECURITY;
+ALTER TABLE page_label FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON page_label
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON page_label TO hubtask_app;
 -- Cleared rather than refused when the picture goes: a replace-restore and an erasure both remove
 -- media before the account row is done with (migration 0199).
 ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey

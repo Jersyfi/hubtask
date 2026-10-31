@@ -126,18 +126,53 @@ WHERE t.tenant_id = current_tenant_id() AND t.id IN (SELECT id FROM down)
   AND t.deleted_at = sqlc.arg('trashed_at')::timestamptz;
 
 -- name: SearchPages :many
--- The pages a text finds in the spaces named, ranked; archived and trashed pages stay out.
+-- The pages a text finds in the spaces named, ranked, narrowed to a label, the person who wrote a
+-- page first and a window of its last change; without a text, the pages the label or the author
+-- names, newest first, with no passage. Archived and trashed pages stay out.
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at,
-       ts_rank_cd(p.search_document, q.query)::float8 AS rank,
-       ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
-         'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»')::text AS excerpt
+       (CASE WHEN sqlc.arg('text')::text = '' THEN 0
+             ELSE ts_rank_cd(p.search_document, q.query) END)::float8 AS rank,
+       (CASE WHEN sqlc.arg('text')::text = '' THEN ''
+             ELSE ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
+                    'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»') END)::text AS excerpt
 FROM page p,
      LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(p.content_language), sqlc.arg('text')::text)
                   || websearch_to_tsquery('simple', sqlc.arg('text')::text) AS query) q
 WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY(sqlc.arg('hub_ids')::uuid[])
   AND p.deleted_at IS NULL AND p.archived_at IS NULL
-  AND p.search_document @@ q.query
+  AND (sqlc.arg('text')::text = '' OR p.search_document @@ q.query)
+  AND (sqlc.narg('label')::text IS NULL OR EXISTS (
+        SELECT 1 FROM page_label l
+         WHERE l.tenant_id = p.tenant_id AND l.page_id = p.id AND l.label = sqlc.narg('label')::text))
+  AND (sqlc.narg('author_id')::uuid IS NULL OR p.created_by = sqlc.narg('author_id')::uuid)
+  AND (sqlc.narg('updated_from')::timestamptz IS NULL OR p.updated_at >= sqlc.narg('updated_from')::timestamptz)
+  AND (sqlc.narg('updated_to')::timestamptz IS NULL OR p.updated_at < sqlc.narg('updated_to')::timestamptz)
 ORDER BY rank DESC, p.updated_at DESC, p.id
+LIMIT sqlc.arg('batch');
+
+-- name: PageLabels :many
+-- The labels of the pages among the identifiers, alphabetical within each page.
+SELECT page_id, label FROM page_label
+WHERE tenant_id = current_tenant_id() AND page_id = ANY(sqlc.arg('page_ids')::uuid[])
+ORDER BY page_id, label;
+
+-- name: ClearPageLabels :execrows
+DELETE FROM page_label WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
+
+-- name: AddPageLabels :execrows
+INSERT INTO page_label (tenant_id, page_id, label)
+SELECT current_tenant_id(), sqlc.arg('page_id')::uuid, l
+FROM unnest(sqlc.arg('labels')::text[]) AS l
+ON CONFLICT (tenant_id, page_id, label) DO NOTHING;
+
+-- name: SpaceLabels :many
+-- Each live page's labels in a space, for its facet; which of the pages the reader may read is the
+-- use case's question (rule 2), so the rows name their page.
+SELECT l.page_id, l.label
+FROM page_label l JOIN page p ON p.tenant_id = l.tenant_id AND p.id = l.page_id
+WHERE l.tenant_id = current_tenant_id() AND p.hub_id = sqlc.arg('hub_id')
+  AND p.deleted_at IS NULL AND p.archived_at IS NULL
+ORDER BY l.page_id, l.label
 LIMIT sqlc.arg('batch');
 
 -- name: PageSummaries :many

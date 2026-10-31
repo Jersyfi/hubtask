@@ -963,6 +963,18 @@ func (q *Queries) ClearPageComment(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPageLabel = `-- name: ClearPageLabel :execrows
+DELETE FROM page_label
+`
+
+func (q *Queries) ClearPageLabel(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageLabel)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPageMedia = `-- name: ClearPageMedia :execrows
 DELETE FROM page_media
 `
@@ -2464,6 +2476,21 @@ SELECT EXISTS (SELECT 1 FROM page_comment WHERE id = ($1::jsonb->>'id')::uuid) A
 
 func (q *Queries) HoldsPageComment(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPageComment, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPageLabel = `-- name: HoldsPageLabel :one
+SELECT EXISTS (
+  SELECT 1 FROM page_label
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND label = $1::jsonb->>'label'
+) AS held
+`
+
+func (q *Queries) HoldsPageLabel(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPageLabel, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -5935,6 +5962,24 @@ type ImportPageCommentParams struct {
 
 func (q *Queries) ImportPageComment(ctx context.Context, arg ImportPageCommentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPageComment, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPageLabel = `-- name: ImportPageLabel :execrows
+INSERT INTO page_label (tenant_id, page_id, label)
+SELECT r.tenant_id, r.page_id, r.label
+FROM jsonb_populate_record(
+  NULL::page_label,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, label) DO NOTHING
+`
+
+func (q *Queries) ImportPageLabel(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPageLabel, payload)
 	if err != nil {
 		return 0, err
 	}

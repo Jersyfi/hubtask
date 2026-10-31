@@ -3788,3 +3788,22 @@ SELECT EXISTS (SELECT 1 FROM requester_organisation WHERE id = (sqlc.arg('payloa
 
 -- name: ClearRequesterOrganisation :execrows
 DELETE FROM requester_organisation;
+
+-- name: ImportPageLabel :execrows
+INSERT INTO page_label (tenant_id, page_id, label)
+SELECT r.tenant_id, r.page_id, r.label
+FROM jsonb_populate_record(
+  NULL::page_label,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, label) DO NOTHING;
+
+-- name: HoldsPageLabel :one
+SELECT EXISTS (
+  SELECT 1 FROM page_label
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND label = sqlc.arg('payload')::jsonb->>'label'
+) AS held;
+
+-- name: ClearPageLabel :execrows
+DELETE FROM page_label;

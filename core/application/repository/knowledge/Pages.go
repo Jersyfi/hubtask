@@ -71,8 +71,29 @@ type VersionRow struct {
 // in the spaces it is handed - which spaces the reader may read stays with the use case (rule 2) -
 // and for the one workspace the transaction is bound to.
 type PageSearcher interface {
-	// Search answers the pages of the spaces named that a text finds, best first.
-	Search(ctx context.Context, text string, hubIDs []shared.ID, limit int) ([]Hit, error)
+	// Search answers the pages of the spaces named that a query finds, best first.
+	Search(ctx context.Context, query PageQuery) ([]Hit, error)
+}
+
+// PageQuery is what a page search asks: a text, narrowed to a label, the person who wrote a page
+// first and a window of its last change. An empty text with a label or an author answers the
+// pages they name, newest first, without a passage.
+type PageQuery struct {
+	Text   string
+	HubIDs []shared.ID
+	// Label is in its written form (knowledge.Label); empty does not narrow.
+	Label    string
+	AuthorID shared.ID
+	// UpdatedFrom is inclusive, UpdatedTo exclusive; nil does not narrow.
+	UpdatedFrom *time.Time
+	UpdatedTo   *time.Time
+	Limit       int
+}
+
+// PageLabel is one label one page carries.
+type PageLabel struct {
+	PageID shared.ID
+	Label  string
 }
 
 // Pages stores pages, their versions and their comments.
@@ -101,6 +122,12 @@ type Pages interface {
 	Trash(ctx context.Context, id, by shared.ID, at time.Time) (int, error)
 	Restore(ctx context.Context, id, by shared.ID, trashedAt, at time.Time) (int, error)
 	PageSearcher
+	// Labels answers the labels of each page among the identifiers, alphabetical.
+	Labels(ctx context.Context, ids []shared.ID) (map[shared.ID][]string, error)
+	// SetLabels replaces a page's labels with the ones given, in their written form.
+	SetLabels(ctx context.Context, pageID shared.ID, labels []string) error
+	// SpaceLabels answers the labels of a space's live pages, by page, at most limit.
+	SpaceLabels(ctx context.Context, hubID shared.ID, limit int) ([]PageLabel, error)
 	// Summaries answers the pages among the identifiers that are not trashed.
 	Summaries(ctx context.Context, ids []shared.ID) ([]Summary, error)
 	// Backlinks answers the texts pointing at an object, at most limit.

@@ -245,6 +245,7 @@ re-mints identities must rewrite exactly these).
 | 125 | `code_links` | `code_link` | `id` | `item_id`→work_items, `hub_id`→containers, `hook_id`→code_hooks (an entry's commit, branch or pull request as its forge last told it) |
 | 130 | `requesters` | `requester` | `id` | — (a requester without an account, migration 0283) |
 | 131 | `requester_contacts` | `requester_contact` | `requester_id/item_id` | `requester_id`→requesters, `item_id`→work_items (an entry a requester wrote on) |
+| 132 | `page_labels` | `page_label` | `page_id/label` | `page_id`→pages (the labels a page carries, migration 0297, UC-DOC-01 check 9) |
 | 126 | `file_links` | `file_link` | `id` | `item_id`→work_items, `added_by`→accounts (an entry's file or folder in a file store by its address, migration 0276; the file itself stays in its store) |
 | 127 | `requester_organisations` | `requester_organisation` | `id` | none (a portal's organisation: its key, name, mail domains and whether its members see each other's requests, migration 0287) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |

@@ -118,12 +118,15 @@ type store struct {
 	personal     map[shared.ID]shared.ID
 	// media is what AttachMedia keeps, by page.
 	media map[shared.ID][]shared.ID
+	// labels is what SetLabels keeps, by page.
+	labels map[shared.ID][]string
 }
 
 func newStore() *store {
 	return &store{
 		pages: map[shared.ID]domain.Page{}, versions: map[shared.ID][]domain.Version{}, comments: map[shared.ID]domain.Comment{},
 		restrictedTo: map[shared.ID][]shared.ID{}, shares: map[shared.ID][]domain.Share{}, personal: map[shared.ID]shared.ID{},
+		labels: map[shared.ID][]string{},
 	}
 }
 
@@ -203,13 +206,42 @@ func (s *store) Restore(_ context.Context, id, _ shared.ID, _, _ time.Time) (int
 	s.pages[id] = page
 	return 1, nil
 }
-func (s *store) Search(_ context.Context, text string, hubIDs []shared.ID, _ int) ([]repository.Hit, error) {
+func (s *store) Search(_ context.Context, q repository.PageQuery) ([]repository.Hit, error) {
 	var out []repository.Hit
 	for _, page := range s.pages {
-		if slices.Contains(hubIDs, page.HubID) && strings.Contains(page.Body, text) {
+		if slices.Contains(q.HubIDs, page.HubID) && strings.Contains(page.Body, q.Text) &&
+			(q.Label == "" || slices.Contains(s.labels[page.ID], q.Label)) &&
+			(q.AuthorID.IsZero() || page.CreatedBy == q.AuthorID) &&
+			(q.UpdatedFrom == nil || !page.UpdatedAt.Before(*q.UpdatedFrom)) &&
+			(q.UpdatedTo == nil || page.UpdatedAt.Before(*q.UpdatedTo)) {
 			out = append(out, repository.Hit{ID: page.ID, HubID: page.HubID, Title: page.Title})
 		}
 	}
+	return out, nil
+}
+func (s *store) Labels(_ context.Context, ids []shared.ID) (map[shared.ID][]string, error) {
+	out := map[shared.ID][]string{}
+	for _, id := range ids {
+		if labels := s.labels[id]; len(labels) > 0 {
+			out[id] = slices.Clone(labels)
+		}
+	}
+	return out, nil
+}
+func (s *store) SetLabels(_ context.Context, id shared.ID, labels []string) error {
+	s.labels[id] = slices.Clone(labels)
+	return nil
+}
+func (s *store) SpaceLabels(_ context.Context, hubID shared.ID, _ int) ([]repository.PageLabel, error) {
+	var out []repository.PageLabel
+	for id, labels := range s.labels {
+		if page := s.pages[id]; page.HubID == hubID && !page.IsTrashed() && !page.IsArchived() {
+			for _, label := range labels {
+				out = append(out, repository.PageLabel{PageID: id, Label: label})
+			}
+		}
+	}
+	slices.SortFunc(out, func(a, b repository.PageLabel) int { return strings.Compare(string(a.PageID), string(b.PageID)) })
 	return out, nil
 }
 func (s *store) Summaries(context.Context, []shared.ID) ([]repository.Summary, error) {
@@ -309,14 +341,14 @@ func TestAPageWrittenInAHubIsFoundAgain(t *testing.T) {
 	f := newFixture()
 	page := f.create(t, anna, hub, "", "Handbook", "Our travel budget")
 	hidden := f.create(t, anna, private, "", "Notes", "my own budget")
-	hits, err := (SearchPages{Space: f.space}).Execute(context.Background(), as(bert), "budget", "", 0)
+	hits, err := (SearchPages{Space: f.space}).Execute(context.Background(), as(bert), SearchPagesQuery{Text: "budget"})
 	if err != nil || len(hits) != 1 || hits[0].ID != page.ID {
 		t.Fatalf("Bert found %+v, %v; want only the shared page", hits, err)
 	}
 	if _, err := (ReadPage{Space: f.space}).Execute(context.Background(), as(bert), hidden.ID); err == nil {
 		t.Fatal("Bert read a page of Anna's private hub")
 	}
-	own, _ := (SearchPages{Space: f.space}).Execute(context.Background(), as(anna), "budget", "", 0)
+	own, _ := (SearchPages{Space: f.space}).Execute(context.Background(), as(anna), SearchPagesQuery{Text: "budget"})
 	if len(own) != 2 {
 		t.Fatalf("Anna found %d pages; want both", len(own))
 	}

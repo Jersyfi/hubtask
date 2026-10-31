@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
@@ -61,7 +62,21 @@ func (s Space) readableHubs(ctx context.Context, actor appshared.ActorContext, h
 	return out, nil
 }
 
-// SearchPages finds pages by their words in the spaces the reader may read (UC-DOC-01).
+// SearchPagesQuery is what a reader looks for (UC-DOC-01 checks 2 and 9).
+type SearchPagesQuery struct {
+	Text string
+	// HubID is one space; zero for every readable one.
+	HubID    shared.ID
+	Label    string
+	AuthorID shared.ID
+	// UpdatedFrom is inclusive, UpdatedTo exclusive; nil does not narrow.
+	UpdatedFrom *time.Time
+	UpdatedTo   *time.Time
+	Limit       int
+}
+
+// SearchPages finds pages by their words, labels, first author and last change in the spaces the
+// reader may read (UC-DOC-01).
 type SearchPages struct {
 	Space Space
 	// Searcher is the search port; unwired, the page store answers as the PostgreSQL index.
@@ -69,26 +84,17 @@ type SearchPages struct {
 }
 
 // Execute searches.
-func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, text string, hubID shared.ID, limit int) ([]repository.Hit, error) {
+func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, q SearchPagesQuery) ([]repository.Hit, error) {
 	if err := actor.RequireScope(pagesRead); err != nil {
 		return nil, err
 	}
-	text = strings.TrimSpace(text)
-	switch {
-	case text == "":
-		return nil, shared.ErrValidation.WithDetail("pages.search_empty").
-			WithFields(shared.FieldError{Path: "/text", Code: "pages.search_empty"})
-	case utf8.RuneCountInString(text) > maxSearchText:
-		return nil, shared.ErrValidation.WithDetail("pages.search_too_long").
-			WithParams(map[string]string{"maximum": "200"}).
-			WithFields(shared.FieldError{Path: "/text", Code: "pages.search_too_long"})
-	}
-	if limit <= 0 || limit > maxSearchHits {
-		limit = maxSearchHits
+	query, err := searchQuery(q)
+	if err != nil {
+		return nil, err
 	}
 	var hubs []shared.ID
-	if !hubID.IsZero() {
-		hubs = []shared.ID{hubID}
+	if !q.HubID.IsZero() {
+		hubs = []shared.ID{q.HubID}
 	} else {
 		err := h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 			listed, err := h.Space.Containers.List(ctx, workrepo.ContainerQuery{
@@ -107,6 +113,7 @@ func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, 
 	if err != nil || len(readable) == 0 {
 		return []repository.Hit{}, err
 	}
+	query.HubIDs = readable
 	var hits []repository.Hit
 	err = h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
@@ -114,7 +121,7 @@ func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, 
 		if searcher == nil {
 			searcher = h.Space.Pages
 		}
-		if hits, err = searcher.Search(ctx, text, readable, limit); err != nil || len(hits) == 0 {
+		if hits, err = searcher.Search(ctx, query); err != nil || len(hits) == 0 {
 			return err
 		}
 		ids := make([]shared.ID, 0, len(hits))
@@ -137,20 +144,72 @@ func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, 
 	return hits, err
 }
 
+// searchQuery checks a search: a text, a label or an author at least - a window of moments alone
+// would be every page of every readable space.
+func searchQuery(q SearchPagesQuery) (repository.PageQuery, error) {
+	text := strings.TrimSpace(q.Text)
+	if utf8.RuneCountInString(text) > maxSearchText {
+		return repository.PageQuery{}, shared.ErrValidation.WithDetail("pages.search_too_long").
+			WithParams(map[string]string{"maximum": "200"}).
+			WithFields(shared.FieldError{Path: "/text", Code: "pages.search_too_long"})
+	}
+	label := ""
+	if strings.TrimSpace(q.Label) != "" {
+		var err error
+		if label, err = domain.Label(q.Label); err != nil {
+			return repository.PageQuery{}, shared.ErrValidation.WithDetail("pages.label_malformed").
+				WithFields(shared.FieldError{Path: "/label", Code: "pages.label_malformed"})
+		}
+	}
+	if text == "" && label == "" && q.AuthorID.IsZero() {
+		return repository.PageQuery{}, shared.ErrValidation.WithDetail("pages.search_empty").
+			WithFields(shared.FieldError{Path: "/text", Code: "pages.search_empty"})
+	}
+	if q.UpdatedFrom != nil && q.UpdatedTo != nil && !q.UpdatedFrom.Before(*q.UpdatedTo) {
+		return repository.PageQuery{}, shared.ErrValidation.WithDetail("pages.search_window_empty").
+			WithFields(shared.FieldError{Path: "/updated_to", Code: "pages.search_window_empty"})
+	}
+	limit := q.Limit
+	if limit <= 0 || limit > maxSearchHits {
+		limit = maxSearchHits
+	}
+	return repository.PageQuery{
+		Text: text, Label: label, AuthorID: q.AuthorID, UpdatedFrom: q.UpdatedFrom, UpdatedTo: q.UpdatedTo, Limit: limit,
+	}, nil
+}
+
+// optionalMoment reads an RFC 3339 moment; absent is nil.
+func optionalMoment(in usecase.Input, field string) (*time.Time, error) {
+	if in.String(field) == "" {
+		return nil, nil
+	}
+	at, err := time.Parse(time.RFC3339, in.String(field))
+	if err != nil {
+		return nil, shared.ErrValidation.WithDetail("pages.search_moment_malformed").
+			WithFields(shared.FieldError{Path: "/" + field, Code: "pages.search_moment_malformed"})
+	}
+	return &at, nil
+}
+
 // Descriptor is the catalogue entry.
 func (h SearchPages) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: SearchPagesName, Permission: service.PermissionRead,
 		Summary: "Finds pages by their title and body, stemmed in each page's language, in one hub's space " +
-			"or in every space the reader may read, best first, each with the passage that matched. " +
-			"Archived and trashed pages are left out.",
+			"or in every space the reader may read, best first, each with the passage that matched - " +
+			"narrowed to a label, the person who wrote a page first and when it last changed. Without a " +
+			"text, the pages a label or an author names, newest first. Archived and trashed pages are left out.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  pagesRead,
 		ReadOnly:    true,
 		Input: []usecase.Field{
-			{Name: "text", Kind: usecase.KindString, Required: true, Description: "What to look for, in web search syntax."},
+			{Name: "text", Kind: usecase.KindString, Description: "What to look for, in web search syntax; may be empty with a label or an author."},
 			{Name: "hub_id", Kind: usecase.KindID, Description: "One hub's space; empty for every readable space."},
 			{Name: "limit", Kind: usecase.KindInt, Description: "At most this many, up to 50."},
+			{Name: "label", Kind: usecase.KindString, Description: "Only pages carrying this label."},
+			{Name: "author_id", Kind: usecase.KindID, Description: "Only pages this person wrote first."},
+			{Name: "updated_from", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "Only pages changed at or after this moment (RFC 3339)."},
+			{Name: "updated_to", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "Only pages changed before this moment (RFC 3339)."},
 		},
 		Audit: usecase.AuditDeclaration{Action: PageReadAction, TargetType: pageTarget, Severity: audit.SeverityInfo},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -158,7 +217,22 @@ func (h SearchPages) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			hits, err := h.Execute(ctx, actor, in.String("text"), hubID, in.Int("limit"))
+			author, err := optionalID(in, "author_id")
+			if err != nil {
+				return nil, err
+			}
+			from, err := optionalMoment(in, "updated_from")
+			if err != nil {
+				return nil, err
+			}
+			to, err := optionalMoment(in, "updated_to")
+			if err != nil {
+				return nil, err
+			}
+			hits, err := h.Execute(ctx, actor, SearchPagesQuery{
+				Text: in.String("text"), HubID: hubID, Label: in.String("label"), AuthorID: author,
+				UpdatedFrom: from, UpdatedTo: to, Limit: in.Int("limit"),
+			})
 			if err != nil {
 				return nil, err
 			}

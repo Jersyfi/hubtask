@@ -164,7 +164,7 @@ func TestARestrictedPageIsReadOnlyByThePeopleItNames(t *testing.T) {
 	if err != nil || len(tree) != 0 {
 		t.Errorf("Bert's tree holds %d pages, %v", len(tree), err)
 	}
-	hits, err := (SearchPages{Space: f.space}).Execute(ctx, as(bert), "budget", "", 10)
+	hits, err := (SearchPages{Space: f.space}).Execute(ctx, as(bert), SearchPagesQuery{Text: "budget", Limit: 10})
 	if err != nil || len(hits) != 0 {
 		t.Errorf("Bert found %d restricted pages, %v", len(hits), err)
 	}
