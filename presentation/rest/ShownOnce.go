@@ -38,12 +38,15 @@ var ShownOnceRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/automation/rules/{ruleId}:rotate-inbound-token": true,
 	http.MethodPost + " " + APIBasePath + "/jumble/intake:rotate-token":                     true,
 	http.MethodPost + " " + APIBasePath + "/integrations/calendar-feeds":                    true,
+	http.MethodPost + " " + APIBasePath + "/pages/{pageId}/public-link":                     true,
 	// Secrets and second-factor material.
 	http.MethodPost + " " + APIBasePath + "/integrations/webhooks":                              true,
 	http.MethodPost + " " + APIBasePath + "/integrations/webhooks/{webhookId}:rotate-secret":    true,
 	http.MethodPost + " " + APIBasePath + "/admin/subscriptions":                                true,
 	http.MethodPost + " " + APIBasePath + "/admin/subscriptions/{subscriptionId}:rotate-secret": true,
 	http.MethodPost + " " + APIBasePath + "/oauth/clients":                                      true,
+	http.MethodPost + " " + APIBasePath + "/hubs/{hubId}/code-hooks":                            true,
+	http.MethodPost + " " + APIBasePath + "/code-hooks/{hookId}/secret":                         true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":                               true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:replace":                              true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp/replacement:confirm":                  true,
@@ -69,4 +72,13 @@ var ShownOnceByHandler = map[string]string{
 // copy works once, and the copy goes with the record (the IDEMPOTENCY_KEY sweep).
 var ShownOnceKept = map[string]string{
 	http.MethodPost + " " + APIBasePath + "/admin/tenants": "a repeat answers the same workspace (UC-INS-06 check 3)",
+	// A connector's answer declares `secret`, and only setting an alert intake's credential draws
+	// one - by a PUT, which keeps no replay record; a run's and the reads' answers never carry it.
+	http.MethodPost + " " + APIBasePath + "/cmdb-connectors/{connectorId}:run":          "a run draws no secret",
+	http.MethodGet + " " + APIBasePath + "/hubs/{hubId}/cmdb-connectors":                "a read keeps no replay record and draws no secret",
+	http.MethodPut + " " + APIBasePath + "/hubs/{hubId}/cmdb-connectors/{connectorKey}": "a PUT keeps no replay record, and a definition draws no secret",
+	http.MethodPut + " " + APIBasePath + "/cmdb-connectors/{connectorId}/credential":    "a PUT keeps no replay record",
+	// `code` at the top is how a job or a held act ended - a message code, no credential.
+	http.MethodPost + " " + APIBasePath + "/agents/{agentId}/jobs":             "its code is a message code",
+	http.MethodPost + " " + APIBasePath + "/agent-requests/{requestId}:decide": "its code is a refusal's message code",
 }
