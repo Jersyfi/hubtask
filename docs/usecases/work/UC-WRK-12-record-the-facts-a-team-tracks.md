@@ -29,8 +29,10 @@ the list by `priority = high`.
 
 1. A person who may change the collection's shape defines a field with a key, one of the kinds
    text, number, date, pick one, pick several, yes/no, person and link, amount of money,
-   duration, reference to another entry, several people, formatted text and calculated, the options
-   for the two pick kinds, the currency of an amount (and of no other kind), the formula of a
+   duration, reference to another entry, several people, formatted text, calculated, date and
+   time, group, two-level pick, IP address, one of the entry's files, labels and state, the options
+   for the pick kinds (a two-level pick's children written `Parent/Child` under a parent it
+   offers, `fields.option_without_parent` otherwise), the currency of an amount (and of no other kind), the formula of a
    calculated field (and of no other kind), whether it is required, and which entry types carry it.
    A calculated field shows the number its formula gives over the entry's own fields, recomputed
    whenever they are written, and nobody fills it in.
@@ -39,8 +41,10 @@ the list by `priority = high`.
 3. An entry of a type the field applies to shows one row per field and saves each value on its own;
    numbers are read and shown in the reader's own number format.
 4. A value of the wrong kind, a pick outside the options, an amount finer than four decimal places,
-   a duration that is not whole minutes, a person who cannot see the entry, or a reference to an
-   entry the writer cannot see is refused with a code naming the field.
+   a duration that is not whole minutes, a person who cannot see the entry, a reference to an
+   entry the writer cannot see, a group that is not the workspace's, a file the entry does not
+   carry, an address with a prefix or a zone, or a label with a space is refused with a code naming
+   the field.
 5. A required field cannot be cleared once set (`fields.value_required`); making a field required
    does not make older entries invalid.
 6. The key and the kind of a field cannot be changed after it is defined; deleting a field stops
@@ -59,4 +63,6 @@ the list by `priority = high`.
 * No display name separate from the key; the key is what people read.
 * Workspace-wide fields are defined through the API; the collection's dialog shows them read-only.
 * A field that decides behaviour (a status that drives a workflow) is an automation rule's job,
-  not a field's.
+  not a field's; a state field records where a record stands and moves nothing.
+* A two-level pick has two levels, no more; a file field names an attachment the entry already
+  carries and uploads nothing itself.
