@@ -256,6 +256,7 @@ func stamp(at time.Time) string { return at.UTC().Format(time.RFC3339) }
 func write(advisories []Advisory, out, base string) error {
 	// Every file is written through a root opened on the output directory, so an advisory whose
 	// path climbs out of it is refused rather than written elsewhere.
+	//nolint:gosec // G703: the output directory is the caller's own argument; what is written below it goes through the root
 	if err := os.MkdirAll(out, 0o750); err != nil {
 		return err
 	}

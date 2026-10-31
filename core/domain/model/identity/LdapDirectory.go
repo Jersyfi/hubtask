@@ -322,8 +322,8 @@ type LdapPerson struct {
 
 // LdapGroup is a group as the directory answers it, its members by their entries' names.
 type LdapGroup struct {
-	MemberNames, Name  string
-	MemberDNs []string
+	ID, Name    string
+	MemberNames []string
 }
 
 // LdapAnswer is what one read of the directory answered.
@@ -508,7 +508,7 @@ func planGroups(plan *LdapPlan, in LdapPlanInput, kept map[string]string) {
 	}
 	answered := map[string]bool{}
 	for _, group := range in.Answer.Groups {
-		external := LdapExternalID(group.MemberNames)
+		external := LdapExternalID(group.ID)
 		name := strings.TrimSpace(group.Name)
 		if external == "" || name == "" || answered[external] {
 			continue
@@ -516,7 +516,7 @@ func planGroups(plan *LdapPlan, in LdapPlanInput, kept map[string]string) {
 		answered[external] = true
 		members := []string{}
 		seen := map[string]bool{}
-		for _, dn := range group.MemberDNs {
+		for _, dn := range group.MemberNames {
 			if member, ok := kept[normalDN(dn)]; ok && !seen[member] {
 				seen[member] = true
 				members = append(members, member)

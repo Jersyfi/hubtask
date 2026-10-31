@@ -30,8 +30,8 @@ func TestTheQueueSortsByTheNextBreach(t *testing.T) {
 
 	now := time.Now().UTC().Truncate(time.Second)
 	repo := postgres.NewServiceDeskRepository()
-	record := func(item shared.ID, standing servicedesk.Standing, due time.Time) servicedesk.EntrySla {
-		r := servicedesk.EntrySla{
+	record := func(item shared.ID, standing servicedesk.Standing, due time.Time) servicedesk.EntrySLA {
+		r := servicedesk.EntrySLA{
 			ID: freshID(t), TenantID: tenantA, ItemID: item, Goal: servicedesk.GoalResolution,
 			PolicyKey: "incidents", Target: time.Hour, Standing: standing, ArmedAt: now, DueAt: &due,
 		}
@@ -41,7 +41,7 @@ func TestTheQueueSortsByTheNextBreach(t *testing.T) {
 		return r
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		for _, r := range []servicedesk.EntrySla{
+		for _, r := range []servicedesk.EntrySLA{
 			record(later, servicedesk.StandingRunning, now.Add(5*time.Hour)),
 			record(sooner, servicedesk.StandingRunning, now.Add(time.Hour)),
 			record(breached, servicedesk.StandingBreached, now.Add(-time.Hour)),

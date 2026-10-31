@@ -120,7 +120,7 @@ func TestTheDirectorysAnswerIsReadAsTheDomainReadsIt(t *testing.T) {
 	groups := groupsOf([]*goldap.Entry{goldap.NewEntry("cn=eng,ou=groups", map[string][]string{
 		"objectGUID": {"g1"}, "cn": {"Engineering"}, "member": {"uid=lena,ou=people", "uid=text,ou=people"},
 	})}, d)
-	if groups[0].MemberNames != "g1" || groups[0].Name != "Engineering" || len(groups[0].MemberDNs) != 2 {
+	if groups[0].ID != "g1" || groups[0].Name != "Engineering" || len(groups[0].MemberNames) != 2 {
 		t.Fatalf("a group: %+v", groups[0])
 	}
 }

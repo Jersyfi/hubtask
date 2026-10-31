@@ -8,12 +8,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	lifecycle "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // DocumentTrash is the pages' and boards' trash the retention pass removes (TRASH); the statements

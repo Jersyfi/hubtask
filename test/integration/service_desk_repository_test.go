@@ -36,10 +36,10 @@ func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policy, err := servicedesk.NewSlaPolicy(servicedesk.NewSlaPolicyInput{
+	policy, err := servicedesk.NewSLAPolicy(servicedesk.NewSLAPolicyInput{
 		ID: freshID(t), TenantID: tenantA, Key: "incidents", Name: "Incidents", CalendarKey: "office",
 		EntryTypes: []string{"incident"}, Enabled: true, Now: now, Text: text.Composing{},
-		Goals: []servicedesk.SlaGoal{{Kind: servicedesk.GoalResolution, Minutes: 240, PauseStatuses: []string{"waiting"}}},
+		Goals: []servicedesk.SLAGoal{{Kind: servicedesk.GoalResolution, Minutes: 240, PauseStatuses: []string{"waiting"}}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +100,7 @@ func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 
 	item := seedWorkItemForRules(ctx, t, tenantA)
 	due := now.Add(4 * time.Hour)
-	record := servicedesk.EntrySla{
+	record := servicedesk.EntrySLA{
 		ID: freshID(t), TenantID: tenantA, ItemID: item, Goal: servicedesk.GoalResolution, PolicyKey: "incidents",
 		Target: 4 * time.Hour, Standing: servicedesk.StandingRunning, ArmedAt: now, DueAt: &due,
 	}

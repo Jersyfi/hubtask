@@ -116,7 +116,7 @@ func raisers(node *view.Node) []shared.ID {
 	return out
 }
 
-func organisationPortal(t *testing.T, shares bool) (Portal, *queriedItems, *organisationStore) {
+func organisationPortal(ctx context.Context, t *testing.T, shares bool) (Portal, *queriedItems, *organisationStore) {
 	t.Helper()
 	store := &organisationStore{rows: map[string]domain.Organisation{}, members: map[string][]shared.ID{
 		"acme.example": {requesterID, colleagueID},
@@ -125,7 +125,7 @@ func organisationPortal(t *testing.T, shares bool) (Portal, *queriedItems, *orga
 		Organisations: store, Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{},
 		Clock: at(monday), IDs: &seqIDs{}, Text: text.Composing{},
 	}}
-	if _, err := define.Execute(t.Context(), reader(), DefineRequesterOrganisationCommand{
+	if _, err := define.Execute(ctx, reader(), DefineRequesterOrganisationCommand{
 		Key: "acme", Name: "Acme", Domains: []string{"Acme.Example"}, SharesRequests: shares,
 	}); err != nil {
 		t.Fatal(err)
@@ -146,7 +146,7 @@ func organisationPortal(t *testing.T, shares bool) (Portal, *queriedItems, *orga
 // UC-SVC-11 check 1: an organisation is defined by its mail domains, sharing off unless set, and a
 // domain another organisation holds is refused.
 func TestAnOrganisationIsDefinedByItsMailDomains(t *testing.T) {
-	_, _, store := organisationPortal(t, false)
+	_, _, store := organisationPortal(t.Context(), t, false)
 	if got := store.rows["acme"]; got.SharesRequests || !slices.Equal(got.Domains, []string{"acme.example"}) {
 		t.Fatalf("defined %+v", got)
 	}
@@ -169,7 +169,7 @@ func TestAnOrganisationIsDefinedByItsMailDomains(t *testing.T) {
 func TestAnOrganisationsRequestsAreSeenWhereItSharesThem(t *testing.T) {
 	ctx := context.Background()
 	t.Run("shared", func(t *testing.T) {
-		portal, items, _ := organisationPortal(t, true)
+		portal, items, _ := organisationPortal(ctx, t, true)
 		listed, err := ListMyRequests{Portal: portal}.Execute(ctx, requester(), itemID, RequestsOrganisation, "", 0)
 		if err != nil {
 			t.Fatal(err)
@@ -193,7 +193,7 @@ func TestAnOrganisationsRequestsAreSeenWhereItSharesThem(t *testing.T) {
 		}
 	})
 	t.Run("not shared", func(t *testing.T) {
-		portal, items, _ := organisationPortal(t, false)
+		portal, items, _ := organisationPortal(ctx, t, false)
 		_, err := ListMyRequests{Portal: portal}.Execute(ctx, requester(), itemID, RequestsOrganisation, "", 0)
 		var refusal *shared.Error
 		if !errors.As(err, &refusal) || refusal.DetailCode != "requests.organisation_not_shared" {
@@ -208,7 +208,7 @@ func TestAnOrganisationsRequestsAreSeenWhereItSharesThem(t *testing.T) {
 		}
 	})
 	t.Run("moved on", func(t *testing.T) {
-		portal, _, _ := organisationPortal(t, true)
+		portal, _, _ := organisationPortal(ctx, t, true)
 		portal.Accounts.(addressBook).emails[colleagueID] = "jonas@elsewhere.example"
 		if _, err := (ReadMyRequest{Portal: portal}).Execute(ctx, requester(), itemID); !errors.Is(err, shared.ErrNotFound) {
 			t.Errorf("the request of somebody whose address moved on was read: %v", err)
