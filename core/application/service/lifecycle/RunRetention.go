@@ -994,11 +994,44 @@ func (h RunRetention) sweepWebhookDeliveries(ctx context.Context, started time.T
 func (h RunRetention) sweepHeldByTenant(
 	ctx context.Context, started time.Time, kind domain.DataKind, rows ExpiringRows,
 ) (Outcome, error) {
-	policy, err := h.Policies.Find(ctx, kind)
-	if err != nil {
+	cutoff, sweep, err := h.tenantCutoff(ctx, started, kind)
+	if err != nil || !sweep {
 		return Outcome{}, err
 	}
-	return h.sweepHeldUntil(ctx, started, kind, policy.Cutoff(started), rows)
+	return h.sweepHeldUntil(ctx, started, kind, cutoff, rows)
+}
+
+// tenantCutoff is the cutoff of a kind with a default period: the workspace's TENANT-scope rule
+// where it has one, raised to the kind's lower bound, else the shipped default (data-retention.md
+// §4.3, third answers 10). A workspace rule that only announces, or one switched off, removes
+// nothing: the workspace decided, and the default is not a fallback past its decision.
+func (h RunRetention) tenantCutoff(
+	ctx context.Context, started time.Time, kind domain.DataKind,
+) (time.Time, bool, error) {
+	rules := h.Rules
+	if rules == nil {
+		rules = h.Documents.Rules
+	}
+	if rules != nil {
+		all, err := rules.List(ctx)
+		if err != nil {
+			return time.Time{}, false, err
+		}
+		for _, rule := range all {
+			if rule.DataKind != kind || rule.Scope.Kind != domain.ScopeTenant {
+				continue
+			}
+			if !rule.Enabled || rule.Action != domain.ActionHardDelete {
+				return time.Time{}, false, nil
+			}
+			return domain.Policy{DataKind: kind, RetainDays: rule.RetainDays}.Cutoff(started), true, nil
+		}
+	}
+	policy, err := h.Policies.Find(ctx, kind)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	return policy.Cutoff(started), true, nil
 }
 
 // sweepHeldUntil is sweepHeldByTenant past the period's reading: one batch of rows older than the

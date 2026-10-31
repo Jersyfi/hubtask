@@ -129,6 +129,16 @@ type Kind struct {
 	Blockable []string
 }
 
+// OfEntries reports whether the kind's rows are entries, the only rows a rule's preview counts and
+// weighs against its scope; every other kind is a workspace's bookkeeping beside them.
+func (k Kind) OfEntries() bool {
+	switch k.Name {
+	case KindCompletedItem, KindArchivedItem, KindTrash:
+		return true
+	}
+	return false
+}
+
 // Swept reports whether this build has something that removes this kind.
 func (k Kind) Swept() bool { return len(k.Actions) > 0 }
 

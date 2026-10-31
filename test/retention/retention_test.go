@@ -1467,3 +1467,45 @@ func TestRE10AConditionNamingTheActorIsRefused(t *testing.T) {
 		t.Fatal("a retention condition named the actor and was stored")
 	}
 }
+
+// Third answers 10 (UC-LIF-04): REQUESTER, a kind with a default period, is swept at the
+// workspace's TENANT-scope rule rather than at the shipped 730 days; another workspace without a
+// rule keeps the default.
+func TestTheRequesterSweepReadsTheWorkspacesRule(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	other := newSuite(t, 24*time.Hour)
+	seed := func(s *suite, address string, daysAgo int) {
+		t.Helper()
+		at := now.AddDate(0, 0, -daysAgo)
+		if _, err := s.admin.Exec(s.ctx, `
+			INSERT INTO requester (id, tenant_id, address, first_contact_at, last_contact_at)
+			VALUES ($1, $2, $3, $4, $4)`, freshID(t).String(), s.tenant.String(), address, at); err != nil {
+			t.Fatalf("seeding a requester: %v", err)
+		}
+	}
+	for _, each := range []*suite{s, other} {
+		seed(each, "kept@example.org", 800)
+		seed(each, "gone@example.org", 1100)
+	}
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindRequester, RetainDays: 1000,
+		Action: lifecycleDomain.ActionHardDelete,
+	})
+
+	for _, each := range []*suite{s, other} {
+		each.run.Requesters = postgres.RequesterRepository{IDs: ids}
+		each.sweep(t)
+	}
+
+	left := func(s *suite) int {
+		return s.count(t, `SELECT count(*) FROM requester WHERE tenant_id = $1`, s.tenant.String())
+	}
+	if got := s.count(t, `SELECT count(*) FROM requester WHERE tenant_id = $1 AND address = 'kept@example.org'`,
+		s.tenant.String()); got != 1 || left(s) != 1 {
+		t.Errorf("the workspace with a 1000-day rule kept %d requesters, want only the one at 800 days", left(s))
+	}
+	if left(other) != 0 {
+		t.Errorf("the workspace without a rule kept %d requesters past the 730-day default", left(other))
+	}
+}

@@ -146,7 +146,12 @@ Evaluated in this order; the first that applies wins:
    emptying the trash or purging an entry is not stopped: a restriction is not a lock
    ([UC-PRV-04](../usecases/privacy/UC-PRV-04-restrict-the-processing-of-a-persons-data.md)).
 3. **Lower bounds per data kind** (`min_days`) → no accidental immediate deletion; trash at least 7
-   days.
+   days. A kind outside the entries with a default period — `MAIL_RECEIPT`, `DOCUMENT_HISTORY`,
+   `AGENT_*`, `PAGE_VERSION`, `REQUESTER`, the jumble and the webhook deliveries — is swept at the
+   workspace's `TENANT`-scope rule where one exists, raised to the bound; a rule that only announces
+   or is switched off removes nothing, and without a rule the default above holds. Such a rule's
+   preview counts nothing and never calls it broad: the counting is of entries, and the bound is
+   what guards these kinds.
 4. **Upper bounds per data kind** (`max_days`, where the operator set one) → exceeding it requires a
    `justification` and writes an audit entry.
 5. **The minimum tombstone period** → an object disappears for good only once every known offline

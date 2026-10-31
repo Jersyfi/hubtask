@@ -365,6 +365,11 @@ func (r Rules) assess(ctx context.Context, rule domain.Rule, now time.Time) (Pre
 	if !known {
 		return Preview{}, shared.Internalf("lifecycle: a stored rule for the unknown kind %q", rule.DataKind)
 	}
+	if !kind.OfEntries() {
+		// Requesters, receipts, a board's history: no entry count to preview or call broad; the
+		// kind's lower bound is what guards them.
+		return Preview{Blocked: map[string]int{}}, nil
+	}
 	anchor, ok := rule.StageAnchor(kind, false)
 	if !ok {
 		return Preview{}, shared.Internalf("lifecycle: %q has no anchor", rule.DataKind)
