@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Portal_test.go, core/application/service/servicedesk/Portal_test.go, core/application/service/work/AddCommentPortal_test.go]
+checked_by: [core/domain/model/servicedesk/Portal_test.go, core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/access/EmergencyAccess_test.go, core/application/service/servicedesk/Portal_test.go, core/application/service/work/AddCommentPortal_test.go]
 ---
 
 # Ask the service desk for help and follow my request
@@ -27,6 +27,7 @@ Mehmet holds the requester role on the collection *IT help*. The portal shows hi
 3. They list the requests they raised in the collection, newest first, each with its title, notes, type, status and completion - never the team's fields, assignee or labels.
 4. They read one of their requests with its public replies and how its SLA goals stand; an internal note is never in it, and a request somebody else raised is not found.
 5. They answer on their own request: always a public comment, never under an internal note, never on somebody else's request.
+6. A public reply of the team on their request tells them under their own notification category, `REQUEST_REPLY`, which they may switch off: in the comment's words, with a link to the request in the portal, never to the entry's screen. An internal note tells them nothing, nor do their own words; whether they are a requester is read when the reply is written.
 
 ## Where it ends
 
