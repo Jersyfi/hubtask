@@ -144,7 +144,7 @@ func (k Keeper) workTypesChanged(ctx context.Context, actor appshared.ActorConte
 }
 
 // policyChanged records the workspace's time policy.
-func (k Keeper) policyChanged(ctx context.Context, actor appshared.ActorContext, p domain.Policy) error {
+func (k Keeper) policyChanged(ctx context.Context, actor appshared.ActorContext, p domain.ResolvedPolicy) error {
 	return k.changed(ctx, actor, PolicyEntity, actor.TenantID, changelog.Upsert, PolicyOutput(p))
 }
 

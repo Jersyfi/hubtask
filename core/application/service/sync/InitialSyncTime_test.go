@@ -7,8 +7,11 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
+	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	settingmodel "github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
 )
@@ -111,4 +114,40 @@ func TestTheDeltaDeliversTimeToItsPersonAlone(t *testing.T) {
 	if !slices.Equal(seqs, []int64{1, 4}) {
 		t.Errorf("the delta delivered %v, want the reader's record and their timer's removal", seqs)
 	}
+}
+
+// planLock is a plan that locks aggregated visibility for every workspace on it.
+type planLock struct{}
+
+func (planLock) Above(context.Context, string) (settingmodel.Layer, settingmodel.Layer, error) {
+	return settingmodel.Layer{Level: settingmodel.LevelInstance}, settingmodel.Layer{Level: settingmodel.LevelPlan, Entries: map[settingmodel.Key]settingmodel.Entry{
+		timekeeping.VisibilityKey: {Value: "AGGREGATED", Hold: settingmodel.HoldLock},
+	}}, nil
+}
+func (planLock) At(context.Context, []settingrepo.Place, string) ([]settingrepo.Stored, error) {
+	return nil, nil
+}
+func (planLock) Put(context.Context, shared.ID, settingrepo.Place, settingmodel.Key, settingmodel.Entry, time.Time) error {
+	return nil
+}
+func (planLock) Remove(context.Context, settingrepo.Place, settingmodel.Key) (bool, error) {
+	return false, nil
+}
+
+// UC-TIM-03 offline: a device holds the policy in force - here the plan's locked aggregated
+// visibility over a workspace that set nothing - not the default it would assume without a record.
+func TestTheWalkCarriesThePolicyInForce(t *testing.T) {
+	pull, _, _ := walking(t)
+	pull.Settings = planLock{}
+	records, _ := wholeWalk(t, pull, 100)
+	for _, record := range records {
+		if record.Entity != entityTimePolicy {
+			continue
+		}
+		if record.Payload["visibility"] != "AGGREGATED" {
+			t.Fatalf("the policy record = %+v, want the plan's visibility", record.Payload)
+		}
+		return
+	}
+	t.Fatal("the walk handed out no policy, so the device assumes full visibility")
 }

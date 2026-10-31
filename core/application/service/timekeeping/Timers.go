@@ -187,7 +187,7 @@ func (h StopTimer) ExecuteAt(ctx context.Context, actor appshared.ActorContext, 
 			return err
 		}
 		record.CreatedAt, record.UpdatedAt = now, now
-		policy, err := h.Keeper.Store.Policy(ctx)
+		policy, err := h.Keeper.inForce(ctx)
 		if err != nil {
 			return err
 		}

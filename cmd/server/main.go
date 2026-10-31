@@ -1988,6 +1988,8 @@ func run() error {
 		Plans: planningStore, Estimates: planningStore.Sprints(), Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Changes: changes, HLC: hybrid,
+		// The installation and the plan decide the time policy above the workspace's row.
+		Settings: postgres.SettingRepository{},
 	}
 	// The goals and insight module (M8): every number it shows is POST /items:aggregate's or a
 	// saved view's summary, run as the reader.
@@ -3737,6 +3739,8 @@ func run() error {
 				Snapshot: postgres.NewSnapshotRepository(),
 				// A container's structure in force rides on its record, as on every read of it.
 				Structure: structures,
+				// The time policy rides as it is in force, under the installation and the plan.
+				Settings: postgres.SettingRepository{},
 			},
 			Signals: metrics,
 			// The push applies a device's queue through the catalogue as the pushing person:

@@ -315,7 +315,7 @@ func TestTheWorkloadShowsWhoHasRoom(t *testing.T) {
 			t.Fatalf("ana is over allocated: %+v", c)
 		}
 	}
-	f.store.policy.Visibility = domain.VisibilityAggregated
+	f.store.policy.Visibility, f.store.policy.Version = domain.VisibilityAggregated, 1
 	w, err = ReadWorkload{Keeper: f.keeper}.Execute(ctx, as(ben), WorkloadQuery{PlanID: listID, From: day(t, "2026-11-02"), Weeks: 1})
 	if err != nil || !w.Aggregated || len(w.Cells) != 0 || len(w.Team) != 1 || w.Team[0].People != 2 {
 		t.Fatalf("aggregated for a reader: %+v %v", w, err)

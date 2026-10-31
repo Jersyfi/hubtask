@@ -20,6 +20,7 @@ import (
 
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
 	deskrepo "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
+	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	timerepo "github.com/Jersyfi/hubtask/core/application/repository/timekeeping"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -126,6 +127,9 @@ type Keeper struct {
 	// the kinds of work and the policy; nil records nothing.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
+	// Settings answers the installation's and the plan's say over the time policy; nil leaves the
+	// workspace's row alone in force.
+	Settings settingrepo.Settings
 }
 
 func (k Keeper) record(
@@ -241,14 +245,50 @@ func (k Keeper) refuseAsApprover(ctx context.Context, actor appshared.ActorConte
 }
 
 func (k Keeper) policy(ctx context.Context, actor appshared.ActorContext) (domain.Policy, error) {
-	var policy domain.Policy
+	r, err := k.resolvedPolicy(ctx, actor)
+	return r.Policy, err
+}
+
+func (k Keeper) resolvedPolicy(ctx context.Context, actor appshared.ActorContext) (domain.ResolvedPolicy, error) {
+	var r domain.ResolvedPolicy
 	err := k.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		policy, err = k.Store.Policy(ctx)
+		r, err = k.resolved(ctx)
 		return err
 	})
-	return policy, err
+	return r, err
 }
+
+// resolved reads the workspace's policy under the levels above, inside the caller's transaction.
+func (k Keeper) resolved(ctx context.Context) (domain.ResolvedPolicy, error) {
+	stored, err := k.Store.Policy(ctx)
+	if err != nil {
+		return domain.ResolvedPolicy{}, err
+	}
+	return ResolvePolicy(ctx, k.Settings, stored)
+}
+
+// inForce is the policy every write and read of time is held to, inside the caller's transaction.
+func (k Keeper) inForce(ctx context.Context) (domain.Policy, error) {
+	r, err := k.resolved(ctx)
+	return r.Policy, err
+}
+
+// ResolvePolicy resolves a workspace's stored policy under the installation's and its plan's
+// layers, inside the caller's transaction; without settings the row alone is in force.
+func ResolvePolicy(ctx context.Context, settings settingrepo.Settings, stored domain.Policy) (domain.ResolvedPolicy, error) {
+	if settings == nil {
+		return domain.ResolvePolicy(stored), nil
+	}
+	instance, plan, err := settings.Above(ctx, policyPrefix)
+	if err != nil {
+		return domain.ResolvedPolicy{}, err
+	}
+	return domain.ResolvePolicy(stored, instance, plan), nil
+}
+
+// policyPrefix is the catalogue's area of the time policy.
+const policyPrefix = "time."
 
 // weekState answers the state of a person's week holding a day.
 func (k Keeper) weekState(ctx context.Context, account shared.ID, day domain.Day) (domain.SheetState, error) {

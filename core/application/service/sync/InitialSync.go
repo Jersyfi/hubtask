@@ -386,9 +386,13 @@ func (p PullChanges) time(ctx context.Context, actor appshared.ActorContext, kin
 		if after != "" {
 			return nil, nil
 		}
-		policy, err := p.Snapshot.TimePolicy(ctx)
-		if err != nil || policy.Version == 0 {
-			// Never set: a device without the record holds the default policy.
+		stored, err := p.Snapshot.TimePolicy(ctx)
+		if err != nil {
+			return nil, err
+		}
+		policy, err := timeservice.ResolvePolicy(ctx, p.Settings, stored)
+		if err != nil || !policy.Decided() {
+			// Nobody decided anything: a device without the record holds the default policy.
 			return nil, err
 		}
 		return []walkRow{{entity: entityTimePolicy, entityID: actor.TenantID, payload: timeservice.PolicyOutput(policy), key: actor.TenantID.String()}}, nil

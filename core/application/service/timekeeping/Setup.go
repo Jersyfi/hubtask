@@ -12,6 +12,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -145,61 +146,78 @@ func (h DefineWorkType) Descriptor() usecase.Descriptor {
 }
 
 // ReadTimePolicy answers the workspace's locked period and what a lead sees of other people's
-// time: to everybody who records time, because both decide what they may write and who reads it.
+// time in force - the workspace's own under what the installation and its plan decided -: to
+// everybody who records time, because both decide what they may write and who reads it.
 type ReadTimePolicy struct{ Keeper Keeper }
 
 // Execute reads it.
-func (h ReadTimePolicy) Execute(ctx context.Context, actor appshared.ActorContext) (domain.Policy, error) {
+func (h ReadTimePolicy) Execute(ctx context.Context, actor appshared.ActorContext) (domain.ResolvedPolicy, error) {
 	if err := person(actor); err != nil {
-		return domain.Policy{}, err
+		return domain.ResolvedPolicy{}, err
 	}
-	return h.Keeper.policy(ctx, actor)
+	return h.Keeper.resolvedPolicy(ctx, actor)
 }
 
-// PolicyOutput is the policy on the wire.
-func PolicyOutput(p domain.Policy) usecase.Output {
+// PolicyOutput is the policy on the wire: what is in force, and under `settings` where each part
+// comes from and who locked it.
+func PolicyOutput(r domain.ResolvedPolicy) usecase.Output {
+	p := r.Policy
 	out := usecase.Output{"locked_through": nil, "visibility": string(p.Visibility), "version": p.Version}
 	if p.LockedThrough != nil {
 		out["locked_through"] = p.LockedThrough.String()
 	}
+	out["settings"] = usecase.Output{
+		string(domain.LockedThroughKey): settingOutput(out["locked_through"], r.LockedThrough),
+		string(domain.VisibilityKey):    settingOutput(out["visibility"], r.Visibility),
+	}
 	return out
+}
+
+func settingOutput(value any, r setting.Resolution) usecase.Output {
+	var locked any
+	if r.Locked() {
+		locked = string(r.LockedBy)
+	}
+	return usecase.Output{"value": value, "source": string(r.Source), "locked_by": locked}
 }
 
 // Descriptor is the catalogue entry.
 func (h ReadTimePolicy) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadTimePolicyName,
-		Summary: "Answers the workspace's time policy: the last locked day, before and on which no record changes, " +
-			"and whether other people's time is seen in FULL or only AGGREGATED into sums of at least three people.",
+		Summary: "Answers the workspace's time policy in force: the last locked day, before and on which no record " +
+			"changes, and whether other people's time is seen in FULL or only AGGREGATED into sums of at least three " +
+			"people - each with the level it comes from and the level that locked it.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  itemsRead, ReadOnly: true,
 		Audit: usecase.AuditDeclaration{Action: PolicyReadAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
-			p, err := h.Execute(ctx, actor)
+			r, err := h.Execute(ctx, actor)
 			if err != nil {
 				return nil, err
 			}
-			return PolicyOutput(p), nil
+			return PolicyOutput(r), nil
 		}),
 	}, policyTarget)
 }
 
 // SetTimePolicy locks a period for everybody and chooses what a lead sees (UC-TIM-03): whoever
-// approves time at the workspace sets it.
+// approves time at the workspace sets it, inside what the installation and the plan locked.
 type SetTimePolicy struct{ Keeper Keeper }
 
-// Execute writes the policy held to the version read.
-func (h SetTimePolicy) Execute(ctx context.Context, actor appshared.ActorContext, p domain.Policy, expected int) (domain.Policy, error) {
+// Execute writes the policy held to the version read; a part locked above may only be restated.
+func (h SetTimePolicy) Execute(ctx context.Context, actor appshared.ActorContext, p domain.Policy, expected int) (domain.ResolvedPolicy, error) {
 	if !p.Visibility.Valid() {
-		return domain.Policy{}, invalid("/visibility", "time.visibility_unknown")
+		return domain.ResolvedPolicy{}, invalid("/visibility", "time.visibility_unknown")
 	}
 	request := approverRequest(PolicySetAction, workspaceManage)
 	request.Path, request.TargetType = []identity.Scope{identity.TenantScope()}, policyTarget
 	if err := h.Keeper.Authorizer.Authorize(ctx, actor, request); err != nil {
-		return domain.Policy{}, err
+		return domain.ResolvedPolicy{}, err
 	}
 	now := h.Keeper.Clock.Now()
 	p.UpdatedAt, p.UpdatedBy = now, actor.AccountID
+	var after domain.ResolvedPolicy
 	err := h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		before, err := h.Keeper.Store.Policy(ctx)
 		if err != nil {
@@ -209,18 +227,28 @@ func (h SetTimePolicy) Execute(ctx context.Context, actor appshared.ActorContext
 			return shared.ErrVersionConflict.WithDetail("time.policy_version_conflict").
 				WithParams(map[string]string{"expected_version": strconv.Itoa(expected)})
 		}
+		inForce, err := ResolvePolicy(ctx, h.Keeper.Settings, before)
+		if err != nil {
+			return err
+		}
+		if err := inForce.Admits(p); err != nil {
+			return err
+		}
 		if err := h.Keeper.Store.PutPolicy(ctx, h.Keeper.IDs.NewID(), p, expected); err != nil {
 			return err
 		}
 		p.Version = expected + 1
-		if err := h.Keeper.policyChanged(ctx, actor, p); err != nil {
+		if after, err = ResolvePolicy(ctx, h.Keeper.Settings, p); err != nil {
+			return err
+		}
+		if err := h.Keeper.policyChanged(ctx, actor, after); err != nil {
 			return err
 		}
 		return h.Keeper.record(ctx, actor, PolicySetAction, policyTarget, "", now,
 			audit.Change{Field: "locked_through", Classification: audit.Open, From: dayText(before.LockedThrough), To: dayText(p.LockedThrough)},
 			audit.Change{Field: "visibility", Classification: audit.Open, From: string(before.Visibility), To: string(p.Visibility)})
 	})
-	return p, err
+	return after, err
 }
 
 func dayText(d *domain.Day) string {
@@ -236,7 +264,8 @@ func (h SetTimePolicy) Descriptor() usecase.Descriptor {
 		Name: SetTimePolicyName, Permission: service.PermissionApproveTime,
 		Summary: "Sets the workspace's time policy: the last locked day (none unlocks every day), before and on " +
 			"which nobody writes, changes or removes a record, and FULL or AGGREGATED visibility of other people's " +
-			"time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace.",
+			"time. Needs APPROVE_TIME or MANAGE_MEMBERS at the workspace. A part the installation or the plan locked " +
+			"is sent as it stands; a different value is refused (setting.locked).",
 		SideEffects: "Writes the policy and an audit entry.",
 		TokenScope:  workspaceManage,
 		Input: []usecase.Field{
@@ -258,11 +287,11 @@ func (h SetTimePolicy) Descriptor() usecase.Descriptor {
 				}
 				p.LockedThrough = &d
 			}
-			out, err := h.Execute(ctx, actor, p, expected)
+			r, err := h.Execute(ctx, actor, p, expected)
 			if err != nil {
 				return nil, err
 			}
-			return PolicyOutput(out), nil
+			return PolicyOutput(r), nil
 		}),
 	}, policyTarget)
 }

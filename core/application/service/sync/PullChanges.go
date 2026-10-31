@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -120,6 +121,9 @@ type PullChanges struct {
 	// Structure resolves each container's structure in force onto its record in the initial
 	// synchronisation, as every read of a container answers it (domain-model.md §2).
 	Structure workservice.StructureResolver
+	// Settings answers the installation's and the plan's say over the time policy; nil sends the
+	// workspace's row alone.
+	Settings settingrepo.Settings
 }
 
 // Pull answers one page.

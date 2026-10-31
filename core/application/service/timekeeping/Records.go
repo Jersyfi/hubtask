@@ -92,7 +92,7 @@ func (h LogTime) Execute(ctx context.Context, actor appshared.ActorContext, f Re
 		if err := record.Check(); err != nil {
 			return err
 		}
-		policy, err := h.Keeper.Store.Policy(ctx)
+		policy, err := h.Keeper.inForce(ctx)
 		if err != nil {
 			return err
 		}
@@ -264,7 +264,7 @@ func (h UpdateTimeRecord) Execute(
 		if err := after.Check(); err != nil {
 			return err
 		}
-		policy, err := h.Keeper.Store.Policy(ctx)
+		policy, err := h.Keeper.inForce(ctx)
 		if err != nil {
 			return err
 		}
@@ -333,7 +333,7 @@ func (h DeleteTimeRecord) Execute(ctx context.Context, actor appshared.ActorCont
 	}
 	now := h.Keeper.Clock.Now()
 	return h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		policy, err := h.Keeper.Store.Policy(ctx)
+		policy, err := h.Keeper.inForce(ctx)
 		if err != nil {
 			return err
 		}
@@ -401,7 +401,7 @@ func (h CorrectTimeRecord) Execute(
 		return domain.Record{}, err
 	}
 	err = h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		policy, err := h.Keeper.Store.Policy(ctx)
+		policy, err := h.Keeper.inForce(ctx)
 		if err != nil {
 			return err
 		}

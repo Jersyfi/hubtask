@@ -581,7 +581,7 @@ func TestAReportSumsWhatItsReaderMaySee(t *testing.T) {
 	if err != nil || team.Minutes != 90 || len(team.Groups) != 2 {
 		t.Fatalf("the lead's hub %+v %v", team, err)
 	}
-	f.store.policy.Visibility = domain.VisibilityAggregated
+	f.store.policy.Visibility, f.store.policy.Version = domain.VisibilityAggregated, 1
 	if _, err := (ReadTimeReport{Keeper: f.keeper}).Execute(ctx, as(lead), week, false, []domain.Dimension{domain.ByPerson}); detail(err) != "time.aggregated_only" {
 		t.Fatalf("a person named in an aggregated report: %v", err)
 	}
@@ -617,7 +617,7 @@ func TestTimeIsHandedToAccounting(t *testing.T) {
 	if err != nil || len(rows) != 1 || rows[0].AccountID != ana {
 		t.Fatalf("the lead's export %+v %v", rows, err)
 	}
-	f.store.policy.Visibility = domain.VisibilityAggregated
+	f.store.policy.Visibility, f.store.policy.Version = domain.VisibilityAggregated, 1
 	if _, _, _, err := (ExportTimeRecords{Keeper: f.keeper}).Execute(ctx, as(lead), week, false, false); detail(err) != "time.aggregated_only" {
 		t.Fatalf("others exported in aggregated mode: %v", err)
 	}

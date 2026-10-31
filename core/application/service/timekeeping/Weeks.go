@@ -94,7 +94,7 @@ func (h ReadTimesheet) Execute(ctx context.Context, actor appshared.ActorContext
 	)
 	if err := h.Keeper.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		if policy, err = h.Keeper.Store.Policy(ctx); err != nil {
+		if policy, err = h.Keeper.inForce(ctx); err != nil {
 			return err
 		}
 		w, err = h.Keeper.week(ctx, account, day, policy)
@@ -197,7 +197,7 @@ func (h CopyTimesheetWeek) Execute(ctx context.Context, actor appshared.ActorCon
 	now := h.Keeper.Clock.Now()
 	copied := 0
 	err := h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		policy, err := h.Keeper.Store.Policy(ctx)
+		policy, err := h.Keeper.inForce(ctx)
 		if err != nil {
 			return err
 		}
