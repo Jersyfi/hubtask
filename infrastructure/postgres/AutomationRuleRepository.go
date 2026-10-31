@@ -575,11 +575,6 @@ func documentsOf(rule domain.Rule) (ruleDocuments, error) {
 	return documents, nil
 }
 
-// automationRuleFrom reads a row back.
-//
-// Defensively, although every document in the column was written by a validated aggregate: the row
-// outlives the release that wrote it, and a shape this build cannot read has to be an error a log
-// names rather than a zero value that quietly changes what a rule does.
 // Due answers this tenant's rules whose moment has come.
 //
 // The tenant is the transaction's, never a parameter: the pass is opened under one tenant's scope
@@ -670,6 +665,11 @@ func scheduleMoment(at time.Time) pgtype.Timestamptz {
 	return timestampOf(at)
 }
 
+// automationRuleFrom reads a row back.
+//
+// Defensively, although every document in the column was written by a validated aggregate: the row
+// outlives the release that wrote it, and a shape this build cannot read has to be an error a log
+// names rather than a zero value that quietly changes what a rule does.
 func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
