@@ -1895,6 +1895,7 @@
   "bulk.deadline_exceeded": "Dem Sammelauftrag ist die Zeit ausgegangen. Lies die Einträge neu, um zu sehen, was angewendet wurde, und sende den Rest noch einmal.",
   "automation.run_as_missing": "Diese Regel hat kein Konto, in dessen Namen sie läuft. Lege eins fest, bevor du sie einschaltest.",
   "automation.action_unknown": "Diese Installation hat keine Automatisierungsaktion namens {action}.",
+  "automation.recipients_unavailable": "Diese Installation kann nicht prüfen, wen ein Benachrichtigungsschritt benachrichtigt.",
   "automation.rule_incomplete": "Diese Installation konnte die Regel nicht schreiben.",
   "automation.rule_not_found": "Diese Regel gibt es nicht.",
   "automation.rule_unreadable": "Diese Regel wurde in einer Form gespeichert, die diese Version nicht lesen kann.",

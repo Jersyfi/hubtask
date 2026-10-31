@@ -709,6 +709,9 @@ func run() error {
 		Schedules: postgres.NewAutomationRuleRepository(cursors),
 		Accounts:  accounts,
 		Catalogue: ruleCatalogue,
+		// Whom a notification step names, resolved at the save (UC-AUT-09 check 4).
+		References:  postgres.NewAutomationReferenceRepository(),
+		CustomRoles: postgres.NewCustomRoleRepository(),
 		// The one place the expression engine is constructed. A rule's conditions are compiled
 		// when it is written, so a mistake reaches its author rather than a log (ADR-0009).
 		Conditions: celexpression.New(),

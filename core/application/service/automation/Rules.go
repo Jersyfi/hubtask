@@ -110,6 +110,10 @@ type Writer struct {
 	IDs        clock.IDGenerator
 	// Text brings the name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// References and CustomRoles resolve whom a notification step names, so an unknown recipient
+	// is refused at the save (UC-AUT-09 check 4).
+	References  repository.References
+	CustomRoles RoleKeys
 }
 
 // schedule works out a rule's next moment and puts it on the rule.
@@ -617,6 +621,9 @@ func (w Writer) authorizeWrite(
 	}
 	checked, err := checkActions(w.Catalogue, rule.Actions)
 	if err != nil {
+		return err
+	}
+	if err := w.checkRecipients(ctx, actor, rule.Actions); err != nil {
 		return err
 	}
 	for _, scope := range requiredScopes(checked) {

@@ -1418,6 +1418,7 @@
   "bulk.deadline_exceeded": "The bulk ran out of time. Read the entries back to see what was applied, and send the rest again.",
   "automation.run_as_missing": "This rule has no account to run as. Set one before enabling it.",
   "automation.action_unknown": "This installation has no automation action called {action}.",
+  "automation.recipients_unavailable": "This installation cannot check whom a notification step tells.",
   "automation.rule_incomplete": "This installation could not write that rule.",
   "automation.rule_not_found": "That rule does not exist.",
   "automation.rule_unreadable": "That rule was stored in a shape this version cannot read.",
