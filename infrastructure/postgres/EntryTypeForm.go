@@ -99,3 +99,42 @@ func formFrom(raw []byte) (work.Form, error) {
 	}
 	return form, nil
 }
+
+// translationDocument is one language's texts as the `entry_type.translations` column holds them
+// (migration 0311), under the contract's names (EntryTypeTranslations).
+type translationDocument struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// translationsColumn is a type's texts per language as the column holds them; none is `{}`.
+func translationsColumn(translations map[string]work.EntryTypeText) ([]byte, error) {
+	document := make(map[string]translationDocument, len(translations))
+	for tag, words := range translations {
+		document[tag] = translationDocument(words)
+	}
+	raw, err := json.Marshal(document)
+	if err != nil {
+		return nil, shared.ErrInternal.WithDetail("entry_types.translations_unwritable").WithCause(fmt.Errorf("encoding translations: %w", err))
+	}
+	return raw, nil
+}
+
+// translationsFrom reads the column back; an empty one names no language.
+func translationsFrom(raw []byte) (map[string]work.EntryTypeText, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var document map[string]translationDocument
+	if err := json.Unmarshal(raw, &document); err != nil {
+		return nil, shared.ErrInternal.WithDetail("entry_types.translations_unreadable").WithCause(fmt.Errorf("decoding translations: %w", err))
+	}
+	if len(document) == 0 {
+		return nil, nil
+	}
+	out := make(map[string]work.EntryTypeText, len(document))
+	for tag, words := range document {
+		out[tag] = work.EntryTypeText(words)
+	}
+	return out, nil
+}

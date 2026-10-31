@@ -1114,6 +1114,10 @@ CREATE TABLE entry_type (
   -- The type's form (0214): one document, read and written whole.
   form             jsonb NOT NULL DEFAULT '{}'::jsonb
                      CHECK (jsonb_typeof(form) = 'object' AND pg_column_size(form) <= 262144),
+  -- What it is for, and its name and description per language (0311, UC-SVC-05 check 7).
+  description      text NOT NULL DEFAULT '' CHECK (char_length(description) <= 500),
+  translations     jsonb NOT NULL DEFAULT '{}'::jsonb
+                     CHECK (jsonb_typeof(translations) = 'object' AND pg_column_size(translations) <= 65536),
   position         integer NOT NULL DEFAULT 0,
   archived_at      timestamptz,
   created_at       timestamptz NOT NULL,

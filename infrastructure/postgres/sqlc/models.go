@@ -1749,6 +1749,8 @@ type EntryType struct {
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
 	Form            []byte
+	Description     string
+	Translations    []byte
 }
 
 type ErasureKept struct {

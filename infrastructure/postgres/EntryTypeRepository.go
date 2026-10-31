@@ -77,8 +77,12 @@ func (r EntryTypeRepository) Insert(ctx context.Context, entryType work.EntryTyp
 	if err != nil {
 		return err
 	}
+	translations, err := translationsColumn(entryType.Translations)
+	if err != nil {
+		return err
+	}
 	err = queries.InsertEntryType(ctx, sqlc.InsertEntryTypeParams{
-		Form: form,
+		Form: form, Description: entryType.Description, Translations: translations,
 		ID:   id, Key: entryType.Key, Level: string(entryType.Level), System: entryType.System,
 		Name: entryType.Name, Icon: entryType.Icon, ColorToken: entryType.ColorToken,
 		Completable: entryType.Behaviours.Completable, Workflow: entryType.Behaviours.Workflow,
@@ -110,8 +114,12 @@ func (r EntryTypeRepository) Update(ctx context.Context, entryType work.EntryTyp
 	if err != nil {
 		return err
 	}
+	translations, err := translationsColumn(entryType.Translations)
+	if err != nil {
+		return err
+	}
 	affected, err := queries.UpdateEntryType(ctx, sqlc.UpdateEntryTypeParams{
-		Form: form,
+		Form: form, Description: entryType.Description, Translations: translations,
 		Name: entryType.Name, Icon: entryType.Icon, ColorToken: entryType.ColorToken,
 		Completable: entryType.Behaviours.Completable, Workflow: entryType.Behaviours.Workflow,
 		Record: entryType.Behaviours.Record, Schedulable: entryType.Behaviours.Schedulable,
@@ -218,8 +226,12 @@ func entryTypeFrom(row sqlc.EntryType) (work.EntryType, error) {
 	if err != nil {
 		return work.EntryType{}, err
 	}
+	translations, err := translationsFrom(row.Translations)
+	if err != nil {
+		return work.EntryType{}, err
+	}
 	return work.EntryType{
-		Form: form,
+		Form: form, Description: row.Description, Translations: translations,
 		ID:   id, TenantID: tenantID, Key: row.Key, Level: work.ItemType(row.Level), System: row.System,
 		Name: row.Name, Icon: row.Icon, ColorToken: row.ColorToken,
 		Behaviours: work.EntryBehaviours{
