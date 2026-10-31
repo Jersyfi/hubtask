@@ -12,7 +12,7 @@
  */
 
 import type {
-  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageLabels, PageSearch, PageArticle, PageMove, PagePublicLinkMinted, PageShare, PublicLinksPolicy, PageTrashed, PageVersionNamed,
+  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageLabels, PageSearch, PageArticle, PageMove, PagePublicLinkMinted, PageShare, PageSpaceDrafts, PublicLinksPolicy, PageTrashed, PageVersionNamed,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -31,6 +31,7 @@ export const backlinksPath = (pageId: string) => `/pages/${pageId}/backlinks`;
 export const accessPath = (pageId: string) => `/pages/${pageId}/access`;
 export const labelsPath = (pageId: string) => `/pages/${pageId}/labels`;
 export const spaceLabelsPath = (hubId: string) => `/hubs/${hubId}/page-labels`;
+export const spaceDraftsPath = (hubId: string) => `/hubs/${hubId}/page-drafts`;
 export const sharedPagesPath = '/pages:shared';
 export const personalSpacePath = '/pages:personal';
 export const publicLinksPolicyPath = '/pages:public-links';
@@ -63,9 +64,31 @@ class Pages {
    * being typed.
    */
   saveBody(page: Page, body: string): Promise<Page> {
+    // The first save into a space's draft is read again once, so the screen says a draft waits.
+    const firstDraft = page.drafts && !page.draft && !page.unpublished;
     return engine.mutate<Page>('PATCH', pagePath(page.id), { body }, {
-      invalidates: [versionsPath(page.id), backlinksPath(page.id)],
+      invalidates: [versionsPath(page.id), backlinksPath(page.id), ...(firstDraft ? [pagePath(page.id), spaceDraftsPath(page.hub_id)] : [])],
     });
+  }
+
+  /** Publishes what waits on a page of a space with drafts (UC-DOC-15). */
+  release(page: Page): Promise<Page> {
+    return engine.mutate<Page>('POST', `${pagePath(page.id)}:publish`, undefined, {
+      ifMatch: `"${page.version}"`,
+      invalidates: [...touched(page.hub_id, page.id), spaceDraftsPath(page.hub_id)],
+    });
+  }
+
+  /** Throws a page's draft away; the page stays as published. */
+  discardDraft(page: Page): Promise<unknown> {
+    return engine.mutate<unknown>('DELETE', `${pagePath(page.id)}/draft`, undefined, {
+      invalidates: [pagePath(page.id), spaceDraftsPath(page.hub_id)],
+    });
+  }
+
+  /** Switches a hub's space between the live document and drafts with publishing. */
+  setDrafts(hubId: string, drafts: boolean): Promise<PageSpaceDrafts> {
+    return engine.mutate<PageSpaceDrafts>('PUT', spaceDraftsPath(hubId), { drafts }, { invalidates: [spaceDraftsPath(hubId)] });
   }
 
   move(page: Page, to: PageMove): Promise<Page> {

@@ -124,6 +124,8 @@ export type {
   PageList,
   PageCreate,
   PageSubpage,
+  PageSpaceDrafts,
+  PageDraft,
   PageChange,
   PageMove,
   PageVerify,

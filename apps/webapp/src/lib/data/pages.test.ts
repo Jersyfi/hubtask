@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Page } from '@hubtask/sync-engine';
 
-import { SHIPPED_SPACES, SHIPPED_TEMPLATES, ancestorsOf, hasSubpages, shippedSpace, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
+import { SHIPPED_SPACES, SHIPPED_TEMPLATES, ancestorsOf, draftStateOf, hasSubpages, shippedSpace, writtenBody, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
 
 const page = (id: string, parent: string | null, position: string, title = id): Page => ({
   id, hub_id: 'hub', parent_id: parent, title, icon: null, position, template: false, content_language: null, owner_id: null,
@@ -58,6 +58,17 @@ test("Hubtask's space templates write several pages at once in the reader's word
 test("a space's own template offers its subpages only when it has any (UC-DOC-05 check 5)", () => {
   assert.equal(hasSubpages(rows, 'a'), true);
   assert.equal(hasSubpages(rows, 'b'), false);
+});
+
+test("a writer edits a space's draft; a page tells whether it waits to be published (UC-DOC-15)", () => {
+  const base = { ...page('p', null, 'a'), body: 'v1' };
+  assert.equal(writtenBody(base), 'v1');
+  assert.equal(draftStateOf(base), 'live');
+  const drafted = { ...base, drafts: true, draft: { title: 'p', body: 'v2', updated_by: 'a', updated_at: '' } };
+  assert.equal(writtenBody(drafted), 'v2');
+  assert.equal(draftStateOf(drafted), 'draft');
+  assert.equal(draftStateOf({ ...base, drafts: true, unpublished: true }), 'unpublished');
+  assert.equal(draftStateOf({ ...base, drafts: true, draft: null }), 'published');
 });
 
 test('a verification runs whole days from now; a caret colour is the same for a person everywhere', () => {

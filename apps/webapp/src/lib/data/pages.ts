@@ -150,6 +150,23 @@ export function hasSubpages(rows: readonly Pick<Page, 'parent_id'>[], id: string
   return rows.some((row) => row.parent_id === id);
 }
 
+/**
+ * Where a page stands in its space's way of writing (UC-DOC-15): a live document, never published,
+ * with a draft waiting, or published with nothing waiting.
+ */
+export type DraftState = 'live' | 'unpublished' | 'draft' | 'published';
+
+export function draftStateOf(page: Pick<Page, 'drafts' | 'unpublished' | 'draft'>): DraftState {
+  if (!page.drafts) return page.unpublished ? 'unpublished' : 'live';
+  if (page.unpublished) return 'unpublished';
+  return page.draft ? 'draft' : 'published';
+}
+
+/** The body a writer edits: the draft waiting, else the page as published. */
+export function writtenBody(page: Pick<Page, 'body' | 'draft'>): string {
+  return page.draft?.body ?? page.body ?? '';
+}
+
 /** How long a verification runs from today, the choices the screen offers (UC-DOC-12). */
 export const VERIFY_DAYS = [30, 90, 180, 365] as const;
 

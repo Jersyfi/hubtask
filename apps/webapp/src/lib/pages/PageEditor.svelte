@@ -20,7 +20,7 @@
   import { Button, Inline, Toolbar } from '@hubtask/design-system/components';
   import {
     Doc, LiveDocument, createPageEditor, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
-    revealBlock, seedFromMarkdown, setPassages, taskLineOf, type Editor, type LiveSocket, type LiveStatus, type Passage,
+    replaceFromMarkdown, revealBlock, seedFromMarkdown, setPassages, taskLineOf, type Editor, type LiveSocket, type LiveStatus, type Passage,
     type ReferenceAttrs, type ReferenceDrawing, type SelectedBlock, type TaskLine, type WikiBlock,
   } from '@hubtask/editor';
   import type { PageRead, ReferenceTarget } from '@hubtask/sync-engine';
@@ -30,7 +30,7 @@
   import { referencesIn, resolveRequest, targetLabel } from '../data/links.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { media } from '../data/media.svelte.ts';
-  import { caretOf, pages } from '../data/pages.svelte.ts';
+  import { caretOf, pages, writtenBody } from '../data/pages.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
   import BoardView from '../whiteboards/BoardView.svelte';
@@ -49,6 +49,8 @@
     onnavigate: (path: string) => void;
     /** The block the caret stands in and the words selected in it, for an inline comment. */
     onblock?: (block: SelectedBlock | undefined) => void;
+    /** A body to put in place of the document's, once per object: a draft thrown away (UC-DOC-15). */
+    replaceWith?: { body: string };
     /** A block to scroll to, set by the comment margin. */
     reveal?: string;
     /** The open threads' passages, marked in the page (UC-DOC-11 check 4). */
@@ -59,7 +61,7 @@
     collections?: readonly { id: string; name: string }[];
   }
 
-  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [] }: Props = $props();
+  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [], replaceWith }: Props = $props();
 
   const SAVE_AFTER_MS = 1_500;
 
@@ -184,7 +186,7 @@
 
   // --- Saving the Markdown beside the live document ----------------------------------------------
 
-  let lastSaved = untrack(() => page.body ?? '');
+  let lastSaved = untrack(() => writtenBody(page));
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   function changed(markdown: string) {
@@ -207,13 +209,24 @@
     }
   }
 
+  $effect(() => {
+    const next = replaceWith;
+    if (!next) return;
+    untrack(() => {
+      if (!editor || !isLive || !replaceFromMarkdown(editor, next.body)) return;
+      // The page as published is what stands now; nothing waits to be saved.
+      lastSaved = next.body;
+    });
+  });
+
   // --- The editor and its live document ------------------------------------------------------------
 
   $effect(() => {
     const element = host;
     if (!element) return;
     return untrack(() => {
-      const body = page.body ?? '';
+      // A writer of a space with drafts edits the draft waiting; a reader reads what was published.
+      const body = page.writable ? writtenBody(page) : (page.body ?? '');
       void resolve(body);
       const blockSeen = (block: SelectedBlock | undefined) => {
         onblock?.(block);

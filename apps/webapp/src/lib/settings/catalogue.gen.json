@@ -1718,17 +1718,12 @@
       "key": "knowledge.drafts",
       "kind": "FLAG",
       "levels": [
-        "WORKSPACE",
         "HUB"
       ],
-      "lockable": true,
+      "lockable": false,
       "may": "REPLACE",
       "restrictable": false,
       "writers": [
-        {
-          "level": "WORKSPACE",
-          "permission": "STRUCTURE"
-        },
         {
           "level": "HUB",
           "permission": "STRUCTURE"

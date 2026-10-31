@@ -83,6 +83,8 @@ const PLACE: Readonly<Record<string, Screen>> = {
   structure: { path: 'settings/structure', code: 'app.settings.section_structure' },
   module: { path: 'settings/modules', code: 'app.modules.title' },
   planning: { path: 'plan', code: 'app.planning.title' },
+  // A space's drafts are switched beside its tree (UC-DOC-15).
+  knowledge: { path: 'pages', code: 'app.pages.title' },
 };
 
 /** The hub or collection the reader is at and may shape, whose own settings the palette offers. */

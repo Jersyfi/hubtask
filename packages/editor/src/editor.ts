@@ -475,6 +475,16 @@ export function seedFromMarkdown(editor: Editor, body: string): boolean {
   return true;
 }
 
+/**
+ * Puts a body in place of the document's: a draft thrown away brings the live document back to
+ * the page as published (UC-DOC-15). Every writer's editor follows through the live document.
+ */
+export function replaceFromMarkdown(editor: Editor, body: string): boolean {
+  if (!editor.isEditable) return false;
+  editor.commands.setContent(fromMarkdown(body) as JSONContent);
+  return true;
+}
+
 /** The document's Markdown, as the page saves it. */
 export function markdownOf(editor: Editor): string {
   return toMarkdown(editor.getJSON() as DocNode);

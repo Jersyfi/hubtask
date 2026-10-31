@@ -18,7 +18,8 @@
   } from '@hubtask/design-system/components';
   import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
   import type {
-    Page, PageBacklinkList, PageComment, PageCommentList, PageHitList, PageLabelCounts, PageList, PageRead, PageVersionList, PageVersionRead,
+    Page, PageBacklinkList, PageComment, PageCommentList, PageHitList, PageLabelCounts, PageList, PageRead, PageSpaceDrafts, PageVersionList,
+    PageVersionRead,
   } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -27,7 +28,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    CHANGED_WITHIN, EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, hasSubpages, shippedSpace, VERIFY_DAYS, ancestorsOf, changedFrom, spaceLabelsPath, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
+    CHANGED_WITHIN, EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, shippedSpace, spaceDraftsPath, VERIFY_DAYS, ancestorsOf, changedFrom, spaceLabelsPath, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
     pagesPath, shippedTemplate, subtreeOf, templatesPath, trashedPagesPath, verifiedUntil, versionPath, versionsPath, visibleRows,
     type ChangedWithin, type ShippedSpace, type ShippedTemplate,
   } from '../lib/data/pages.svelte.ts';
@@ -434,6 +435,42 @@
     { label: t('app.pages.start_space'), options: SHIPPED_SPACES.map((key) => ({ value: `space:${key}`, label: t(`app.pages.space.${key}.title`) })) },
   ]);
 
+  // --- A space with drafts (UC-DOC-15) -----------------------------------------------------------
+
+  const mayShape = $derived(
+    hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted' : false,
+  );
+  let spaceDrafts = $state<PageSpaceDrafts | undefined>(undefined);
+  $effect(() => {
+    if (!hubId) return;
+    const at = hubId;
+    return untrack(() =>
+      engine.subscribe<PageSpaceDrafts>({ path: spaceDraftsPath(at) }, (next) => {
+        if (next.status === 'ready') spaceDrafts = next.data;
+      }),
+    );
+  });
+  const pageDraft = $derived(current ? draftStateOf(current) : 'live');
+  let discarded = $state<{ body: string } | undefined>(undefined);
+
+  async function switchDrafts(on: boolean) {
+    if (!hubId) return;
+    await act(() => pages.setDrafts(hubId, on), t(on ? 'app.pages.drafts_on' : 'app.pages.drafts_off'));
+  }
+
+  async function release() {
+    if (!current) return;
+    await act(() => pages.release(current), t('app.pages.released'));
+  }
+
+  async function discard() {
+    if (!current) return;
+    const published = current.body ?? '';
+    // A thrown-away draft answers nothing; a refusal is what says it failed.
+    await act(() => pages.discardDraft(current), t('app.pages.draft_discarded'));
+    if (refusal === undefined) discarded = { body: published };
+  }
+
   let showsTrash = $state(false);
   $effect(() => {
     if (!showsTrash || !hubId) return;
@@ -525,6 +562,14 @@
         </ul>
       {/if}
 
+      {#if mayShape && spaceDrafts}
+        <Switch
+          label={t('app.pages.drafts_switch')}
+          hint={t('app.pages.drafts_switch_hint')}
+          checked={spaceDrafts.drafts}
+          onchange={(event: Event) => void switchDrafts((event.currentTarget as HTMLInputElement).checked)}
+        />
+      {/if}
       {#if mayWrite}
         <Button size="sm" tone="subtle" icon="trash" onclick={() => (showsTrash = !showsTrash)}>{t('app.pages.trash')}</Button>
         {#if showsTrash}
@@ -592,6 +637,19 @@
             {/if}
           </Inline>
           {#key current.id}<PageLabels page={current} onchoose={(label) => { chosenLabel = label; }} />{/key}
+          {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
+            <Banner tone="info">
+              {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_hint' : 'app.pages.draft_hint')}
+              {#snippet action()}
+                <Inline gap="050">
+                  <Button size="sm" tone="primary" onclick={release}>{t('app.pages.release')}</Button>
+                  {#if pageDraft === 'draft'}<Button size="sm" tone="subtle" onclick={discard}>{t('app.pages.discard_draft')}</Button>{/if}
+                </Inline>
+              {/snippet}
+            </Banner>
+          {:else if current.writable && pageDraft === 'published'}
+            <p class="quiet">{t('app.pages.published_hint')}</p>
+          {/if}
           {#if current.writable}
             <Inline gap="100" isWrapping>
               <Button size="sm" tone="secondary" icon="plus" onclick={() => startCreate(current.id)}>{t('app.pages.new_child')}</Button>
@@ -610,6 +668,7 @@
                 collections={hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name })) : []}
                 {onnavigate}
                 {reveal}
+                replaceWith={discarded}
                 passages={side === 'comments' ? passages : []}
                 onpassages={passagesMoved}
                 onblock={(seen) => {
