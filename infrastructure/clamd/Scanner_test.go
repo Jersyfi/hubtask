@@ -91,7 +91,7 @@ func TestNoVerdictIsUnavailable(t *testing.T) {
 // a host off the allowlist - is never connected, so no byte of the file leaves, and the refusal
 // is unavailable, which holds the file.
 func TestARefusedAddressIsNeverDialled(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestARefusedAddressIsNeverDialled(t *testing.T) {
 
 // An allowed daemon on the operator's own network is dialled through the guard and scans.
 func TestAnAllowedDaemonIsDialledThroughTheGuard(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

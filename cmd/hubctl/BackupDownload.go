@@ -64,13 +64,13 @@ var errArchiveIncomplete = errors.New("the archive arrived incomplete; nothing w
 
 // writeWhole copies the body to the file and answers its size once the file reads as a ZIP.
 func writeWhole(name string, body io.Reader) (int64, error) {
-	file, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	file, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) //nolint:gosec // G304: the file the person named
 	if err != nil {
 		return 0, fmt.Errorf("opening %s: %w", name, err)
 	}
 	size, copyErr := io.Copy(file, body)
 	if err := errors.Join(copyErr, file.Sync(), file.Close()); err != nil {
-		return 0, fmt.Errorf("%w (%v)", errArchiveIncomplete, err)
+		return 0, fmt.Errorf("%w: %w", errArchiveIncomplete, err)
 	}
 	reader, err := zip.OpenReader(name)
 	if err != nil {
