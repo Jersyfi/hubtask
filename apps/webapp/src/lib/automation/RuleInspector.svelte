@@ -311,12 +311,25 @@
           { value: 'DUE_DATE', label: t('app.flow.anchor_due_date') },
           { value: 'CREATED_AT', label: t('app.flow.anchor_created_at') },
           { value: 'COMPLETED_AT', label: t('app.flow.anchor_completed_at') },
+          { value: 'FIELD', label: t('app.flow.anchor_field') },
         ]}
         onchange={(event: Event) => {
           const anchor = value(event);
           onupdate((current) => ({ ...current, trigger: { ...current.trigger, anchor } }));
         }}
       />
+      {#if draft.trigger.anchor === 'FIELD'}
+        <Input
+          label={t('app.flow.anchor_field_key')}
+          hint={t('app.flow.anchor_field_key_hint')}
+          error={errors.get('/trigger/anchor_field')}
+          value={draft.trigger.anchor_field ?? ''}
+          oninput={(event: Event) => {
+            const anchor_field = value(event);
+            onupdate((current) => ({ ...current, trigger: { ...current.trigger, anchor_field } }));
+          }}
+        />
+      {/if}
       <Callout>{t('app.flow.relative_hint')}</Callout>
     {:else if draft.trigger.kind === 'STEP_TAKEN'}
       <Select

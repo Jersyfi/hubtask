@@ -35,6 +35,7 @@ export interface TriggerDraft {
   rrule?: string;
   timezone?: string;
   anchor?: string;
+  anchor_field?: string;
   offset?: string;
   workflow?: string;
   step?: string;
@@ -119,6 +120,7 @@ export function fromRule(rule: Rule): Draft {
       ...(rule.trigger.rrule ? { rrule: rule.trigger.rrule } : {}),
       ...(rule.trigger.timezone ? { timezone: rule.trigger.timezone } : {}),
       ...(rule.trigger.anchor ? { anchor: rule.trigger.anchor } : {}),
+      ...(rule.trigger.anchor_field ? { anchor_field: rule.trigger.anchor_field } : {}),
       ...(rule.trigger.offset ? { offset: rule.trigger.offset } : {}),
       ...(rule.trigger.workflow ? { workflow: rule.trigger.workflow } : {}),
       ...(rule.trigger.step ? { step: rule.trigger.step } : {}),
@@ -224,7 +226,12 @@ export function toRuleDraft(draft: Draft, name: string): RuleDraft {
       : t.kind === 'SCHEDULE'
         ? { kind: t.kind, ...(t.rrule ? { rrule: t.rrule } : {}), ...(t.timezone ? { timezone: t.timezone } : {}) }
         : t.kind === 'RELATIVE_DATE'
-          ? { kind: t.kind, ...(t.anchor ? { anchor: t.anchor } : {}), ...(t.offset ? { offset: t.offset } : {}) }
+          ? {
+              kind: t.kind,
+              ...(t.anchor ? { anchor: t.anchor } : {}),
+              ...(t.anchor === 'FIELD' && t.anchor_field ? { anchor_field: t.anchor_field } : {}),
+              ...(t.offset ? { offset: t.offset } : {}),
+            }
           : t.kind === 'STEP_TAKEN'
             ? { kind: t.kind, ...(t.workflow ? { workflow: t.workflow } : {}), ...(t.step ? { step: t.step } : {}) }
             : { kind: t.kind };

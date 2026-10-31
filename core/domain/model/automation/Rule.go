@@ -145,6 +145,9 @@ const (
 	// AnchorCompletedAt is the moment the entry was done; an open entry has none, so a reopened
 	// one owes nothing ("close resolved incidents after a while", templates.md §1).
 	AnchorCompletedAt DateAnchor = "COMPLETED_AT"
+	// AnchorField is a DATE or DATE_TIME custom field the trigger names by key, a contract's notice
+	// date: an entry whose field is empty, or holds no date, owes nothing.
+	AnchorField DateAnchor = "FIELD"
 )
 
 // OnError is what a failing action does to the rest of the run (automation.md §2).
@@ -181,7 +184,9 @@ type Trigger struct {
 	Timezone string
 	// Anchor and Offset are RELATIVE_DATE's, and both required there.
 	Anchor DateAnchor
-	Offset string
+	// AnchorField is the custom field's key, required with AnchorField and refused otherwise.
+	AnchorField string
+	Offset      string
 	// Workflow and Step are STEP_TAKEN's, and both required there: the workflow's key and the
 	// step's, since a step key alone would fire in every workflow that happens to use it.
 	Workflow string
@@ -458,8 +463,17 @@ func ValidTrigger(trigger Trigger) (Trigger, error) {
 		}
 		return kept, foreign(trigger, kept)
 	case TriggerRelativeDate:
+		field := strings.TrimSpace(trigger.AnchorField)
 		switch trigger.Anchor {
 		case AnchorDueDate, AnchorCreatedAt, AnchorCompletedAt:
+			field = ""
+		case AnchorField:
+			if field == "" {
+				return Trigger{}, fieldError("/trigger/anchor_field", "automation.anchor_field_required")
+			}
+			if !fieldKey(field) {
+				return Trigger{}, fieldError("/trigger/anchor_field", "automation.anchor_field_malformed")
+			}
 		case "":
 			return Trigger{}, fieldError("/trigger/anchor", "automation.anchor_required")
 		default:
@@ -469,7 +483,9 @@ func ValidTrigger(trigger Trigger) (Trigger, error) {
 		if err != nil {
 			return Trigger{}, err
 		}
-		kept := Trigger{Kind: TriggerRelativeDate, Anchor: trigger.Anchor, Offset: offset}
+		kept := Trigger{
+			Kind: TriggerRelativeDate, Anchor: trigger.Anchor, AnchorField: field, Offset: offset,
+		}
 		return kept, foreign(trigger, kept)
 	case TriggerStepTaken:
 		workflow := strings.TrimSpace(trigger.Workflow)
@@ -602,6 +618,20 @@ func cutComponent(text string) (count int, unit byte, rest string, err error) {
 	return count, text[digits], text[digits+1:], nil
 }
 
+// fieldKey is a custom field's key, `^[a-z][a-z0-9_]{0,49}$` - the work domain's rule, restated
+// because this package does not reach into another aggregate's.
+func fieldKey(key string) bool {
+	if len(key) == 0 || len(key) > 50 || key[0] < 'a' || key[0] > 'z' {
+		return false
+	}
+	for _, r := range key {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '_' {
+			return false
+		}
+	}
+	return true
+}
+
 // errOffsetMalformed never leaves this package: ValidOffset turns it into the coded refusal, so the
 // caller is told which field and which code rather than a sentence about a grammar.
 var errOffsetMalformed = shared.ErrValidation.WithDetail("automation.offset_invalid")
@@ -627,6 +657,9 @@ func foreign(sent, kept Trigger) error {
 	}
 	if sent.Anchor != kept.Anchor {
 		findings = append(findings, foreignField("anchor"))
+	}
+	if strings.TrimSpace(sent.AnchorField) != kept.AnchorField {
+		findings = append(findings, foreignField("anchor_field"))
 	}
 	if strings.TrimSpace(sent.Offset) != kept.Offset {
 		findings = append(findings, foreignField("offset"))

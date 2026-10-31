@@ -496,6 +496,7 @@ type triggerDocument struct {
 	RRule         string   `json:"rrule,omitempty"`
 	Timezone      string   `json:"timezone,omitempty"`
 	Anchor        string   `json:"anchor,omitempty"`
+	AnchorField   string   `json:"anchor_field,omitempty"`
 	Offset        string   `json:"offset,omitempty"`
 	Workflow      string   `json:"workflow,omitempty"`
 	Step          string   `json:"step,omitempty"`
@@ -528,7 +529,8 @@ func documentsOf(rule domain.Rule) (ruleDocuments, error) {
 		Kind: string(rule.Trigger.Kind), EventType: rule.Trigger.EventType.String(),
 		ChangedFields: rule.Trigger.ChangedFields,
 		RRule:         rule.Trigger.RRule, Timezone: rule.Trigger.Timezone,
-		Anchor: string(rule.Trigger.Anchor), Offset: rule.Trigger.Offset,
+		Anchor: string(rule.Trigger.Anchor), AnchorField: rule.Trigger.AnchorField,
+		Offset:   rule.Trigger.Offset,
 		Workflow: rule.Trigger.Workflow, Step: rule.Trigger.Step,
 	}
 
@@ -731,7 +733,8 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 			Kind: domain.TriggerKind(trigger.Kind), EventType: event.Type(trigger.EventType),
 			ChangedFields: trigger.ChangedFields,
 			RRule:         trigger.RRule, Timezone: trigger.Timezone,
-			Anchor: domain.DateAnchor(trigger.Anchor), Offset: trigger.Offset,
+			Anchor: domain.DateAnchor(trigger.Anchor), AnchorField: trigger.AnchorField,
+			Offset:   trigger.Offset,
 			Workflow: trigger.Workflow, Step: trigger.Step,
 		},
 		Conditions: make([]domain.Condition, 0, len(conditions)),

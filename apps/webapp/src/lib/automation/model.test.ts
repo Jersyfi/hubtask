@@ -111,6 +111,19 @@ test('a trigger sends the fields of its kind and no others, and an empty paramet
   assert.equal('throttle' in sent, false);
 });
 
+test('a relative date sends its date field only when it is measured from one', () => {
+  const draft = fromRule(STORED);
+  draft.trigger = { kind: 'RELATIVE_DATE', anchor: 'FIELD', anchor_field: 'contract_notice_by', offset: '-P30D' };
+  assert.deepEqual(toRuleDraft(draft, 'n').trigger, {
+    kind: 'RELATIVE_DATE',
+    anchor: 'FIELD',
+    anchor_field: 'contract_notice_by',
+    offset: '-P30D',
+  });
+  draft.trigger = { ...draft.trigger, anchor: 'DUE_DATE' };
+  assert.deepEqual(toRuleDraft(draft, 'n').trigger, { kind: 'RELATIVE_DATE', anchor: 'DUE_DATE', offset: '-P30D' });
+});
+
 test('a path names one step through the arms, and translates to the pointer a refusal carries', () => {
   const { actions } = fromRule(STORED);
   assert.equal(stepAt(actions, '1/then/0')?.kind, 'NOTIFY_GROUP');

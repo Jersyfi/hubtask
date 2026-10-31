@@ -418,3 +418,46 @@ func TestTheCompletionAnchorFollowsCompletingAndReopening(t *testing.T) {
 		t.Error("a reopened entry still owes the moment measured from its completion")
 	}
 }
+
+// A contract's renewal reminder measures from the register's notice date, a custom field: a day is
+// read from its start in UTC, a moment as it is, and an empty field or one holding no date owes
+// nothing.
+func TestAFieldAnchorReadsTheEntrysDateField(t *testing.T) {
+	cases := map[string]struct {
+		value any
+		want  *time.Time
+	}{
+		"a day":      {value: "2027-03-31", want: ptrTime(time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC))},
+		"a moment":   {value: "2027-03-31T09:15:00Z", want: ptrTime(time.Date(2027, 3, 1, 9, 15, 0, 0, time.UTC))},
+		"empty":      {value: nil},
+		"not a date": {value: "next spring"},
+		"a number":   {value: 12.0},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			item := dueItem(nil)
+			if tc.value != nil {
+				item.CustomFields = map[string]any{"contract_notice_by": tc.value}
+			}
+			rule := relativeRule(domain.AnchorField, "-P30D")
+			rule.Trigger.AnchorField = "contract_notice_by"
+			h := newDates([]domain.Rule{rule}, item)
+
+			if err := h.subscriber.Deliver(context.Background(), itemEvent()); err != nil {
+				t.Fatalf("delivering: %v", err)
+			}
+			owed, found := h.owed.rows[owedKey(ruleID, itemID)]
+			if tc.want == nil {
+				if found {
+					t.Fatalf("owes %+v, want nothing", owed)
+				}
+				return
+			}
+			if !found || !owed.FireAt.Equal(*tc.want) {
+				t.Fatalf("owes %+v (found %v), want %v", owed, found, *tc.want)
+			}
+		})
+	}
+}
+
+func ptrTime(at time.Time) *time.Time { return &at }

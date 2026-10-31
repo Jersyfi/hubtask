@@ -3650,7 +3650,8 @@ class RuleTrigger(TypedDict, total=False):
     changed_fields: list[str]
     rrule: str
     timezone: str
-    anchor: Literal["DUE_DATE", "CREATED_AT", "COMPLETED_AT"]
+    anchor: Literal["DUE_DATE", "CREATED_AT", "COMPLETED_AT", "FIELD"]
+    anchor_field: str
     offset: str
     workflow: str
     step: str

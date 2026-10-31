@@ -44,6 +44,8 @@ export interface RuleTrigger {
   readonly rrule?: string;
   readonly timezone?: string;
   readonly anchor?: string;
+  /** A `FIELD` anchor's custom field key. */
+  readonly anchor_field?: string;
   readonly offset?: string;
   /** `STEP_TAKEN`'s: the workflow's key and the step's (UC-FLW-04 check 4). */
   readonly workflow?: string;

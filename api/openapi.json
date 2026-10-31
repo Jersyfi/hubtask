@@ -52692,9 +52692,15 @@
             "enum": [
               "DUE_DATE",
               "CREATED_AT",
-              "COMPLETED_AT"
+              "COMPLETED_AT",
+              "FIELD"
             ],
-            "description": "`RELATIVE_DATE` only, and required there: which instant the offset is from. An entry that has none - no due date, or open for `COMPLETED_AT` - owes nothing, and one reopened stops owing.\n"
+            "description": "`RELATIVE_DATE` only, and required there: which instant the offset is from. An entry that has none - no due date, open for `COMPLETED_AT`, an empty field for `FIELD` - owes nothing, and one reopened stops owing.\n"
+          },
+          "anchor_field": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$",
+            "description": "`FIELD` anchors only, and required there: the key of a `DATE` or `DATE_TIME` custom field. A day is measured from its start in UTC; a value that is no date owes nothing.\n"
           },
           "offset": {
             "type": "string",

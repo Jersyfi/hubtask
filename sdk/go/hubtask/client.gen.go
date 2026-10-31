@@ -6894,19 +6894,19 @@ func (e PasskeyTransport) Valid() bool {
 
 // Defines values for PermissionEntryKind.
 const (
-	BASE  PermissionEntryKind = "BASE"
-	FIELD PermissionEntryKind = "FIELD"
-	STEP  PermissionEntryKind = "STEP"
+	PermissionEntryKindBASE  PermissionEntryKind = "BASE"
+	PermissionEntryKindFIELD PermissionEntryKind = "FIELD"
+	PermissionEntryKindSTEP  PermissionEntryKind = "STEP"
 )
 
 // Valid indicates whether the value is a known member of the PermissionEntryKind enum.
 func (e PermissionEntryKind) Valid() bool {
 	switch e {
-	case BASE:
+	case PermissionEntryKindBASE:
 		return true
-	case FIELD:
+	case PermissionEntryKindFIELD:
 		return true
-	case STEP:
+	case PermissionEntryKindSTEP:
 		return true
 	default:
 		return false
@@ -8184,6 +8184,7 @@ const (
 	RuleTriggerAnchorCOMPLETEDAT RuleTriggerAnchor = "COMPLETED_AT"
 	RuleTriggerAnchorCREATEDAT   RuleTriggerAnchor = "CREATED_AT"
 	RuleTriggerAnchorDUEDATE     RuleTriggerAnchor = "DUE_DATE"
+	RuleTriggerAnchorFIELD       RuleTriggerAnchor = "FIELD"
 )
 
 // Valid indicates whether the value is a known member of the RuleTriggerAnchor enum.
@@ -8194,6 +8195,8 @@ func (e RuleTriggerAnchor) Valid() bool {
 	case RuleTriggerAnchorCREATEDAT:
 		return true
 	case RuleTriggerAnchorDUEDATE:
+		return true
+	case RuleTriggerAnchorFIELD:
 		return true
 	default:
 		return false
@@ -21372,8 +21375,11 @@ type RuleThrottle struct {
 
 // RuleTrigger What starts a run. Seven kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
 type RuleTrigger struct {
-	// Anchor `RELATIVE_DATE` only, and required there: which instant the offset is from. An entry that has none - no due date, or open for `COMPLETED_AT` - owes nothing, and one reopened stops owing.
+	// Anchor `RELATIVE_DATE` only, and required there: which instant the offset is from. An entry that has none - no due date, open for `COMPLETED_AT`, an empty field for `FIELD` - owes nothing, and one reopened stops owing.
 	Anchor *RuleTriggerAnchor `json:"anchor,omitempty"`
+
+	// AnchorField `FIELD` anchors only, and required there: the key of a `DATE` or `DATE_TIME` custom field. A day is measured from its start in UTC; a value that is no date owes nothing.
+	AnchorField *string `json:"anchor_field,omitempty"`
 
 	// ChangedFields `EVENT` only, optional. Narrows an `item.updated` trigger to the fields that moved, so that a rule about deadlines does not fire on a rename.
 	ChangedFields *[]string `json:"changed_fields,omitempty"`
@@ -21398,7 +21404,7 @@ type RuleTrigger struct {
 	Workflow *string `json:"workflow,omitempty"`
 }
 
-// RuleTriggerAnchor `RELATIVE_DATE` only, and required there: which instant the offset is from. An entry that has none - no due date, or open for `COMPLETED_AT` - owes nothing, and one reopened stops owing.
+// RuleTriggerAnchor `RELATIVE_DATE` only, and required there: which instant the offset is from. An entry that has none - no due date, open for `COMPLETED_AT`, an empty field for `FIELD` - owes nothing, and one reopened stops owing.
 type RuleTriggerAnchor string
 
 // RuleTriggerKind defines model for RuleTrigger.Kind.

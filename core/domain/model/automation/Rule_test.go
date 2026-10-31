@@ -236,6 +236,21 @@ func TestTheTriggerIsCheckedPerKind(t *testing.T) {
 			path:    "/trigger/anchor", code: "automation.anchor_required",
 		},
 		{
+			name: "a field anchor naming no field",
+			trigger: automation.Trigger{
+				Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorField, Offset: "-P30D",
+			},
+			path: "/trigger/anchor_field", code: "automation.anchor_field_required",
+		},
+		{
+			name: "a field anchor naming no field key",
+			trigger: automation.Trigger{
+				Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorField,
+				AnchorField: "Notice By", Offset: "-P30D",
+			},
+			path: "/trigger/anchor_field", code: "automation.anchor_field_malformed",
+		},
+		{
 			name: "a relative date with no offset",
 			trigger: automation.Trigger{
 				Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorDueDate,
@@ -304,6 +319,13 @@ func TestAFieldOfAnotherKindIsRefused(t *testing.T) {
 			trigger: automation.Trigger{Kind: automation.TriggerManual, Offset: "-PT24H"},
 			path:    "/trigger/offset",
 		},
+		"a field key on a due-date anchor": {
+			trigger: automation.Trigger{
+				Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorDueDate,
+				AnchorField: "contract_notice_by", Offset: "-P1D",
+			},
+			path: "/trigger/anchor_field",
+		},
 		"changed fields on a jumble trigger": {
 			trigger: automation.Trigger{
 				Kind: automation.TriggerJumbleEntry, ChangedFields: []string{"title"},
@@ -324,6 +346,24 @@ func TestAFieldOfAnotherKindIsRefused(t *testing.T) {
 				t.Errorf("%s says %q, want automation.trigger_field_not_for_kind", tc.path, code)
 			}
 		})
+	}
+}
+
+// A contract's notice date is a field of the register, not the entry's due date: the rule names the
+// field by its key.
+func TestARelativeDateMeasuresFromAFieldNamedByItsKey(t *testing.T) {
+	in := validInput()
+	in.Trigger = automation.Trigger{
+		Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorField,
+		AnchorField: " contract_notice_by ", Offset: "-P30D",
+	}
+
+	rule, err := automation.NewRule(in)
+	if err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+	if rule.Trigger.AnchorField != "contract_notice_by" {
+		t.Errorf("anchor field %q, want contract_notice_by", rule.Trigger.AnchorField)
 	}
 }
 

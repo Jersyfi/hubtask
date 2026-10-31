@@ -102,12 +102,13 @@ func triggerResponse(value any) openapi.RuleTrigger {
 	trigger := openapi.RuleTrigger{Kind: openapi.RuleTriggerKind(textField(document, "kind"))}
 
 	for name, into := range map[string]**string{
-		"event_type": &trigger.EventType,
-		"rrule":      &trigger.Rrule,
-		"timezone":   &trigger.Timezone,
-		"offset":     &trigger.Offset,
-		"step":       &trigger.Step,
-		"workflow":   &trigger.Workflow,
+		"event_type":   &trigger.EventType,
+		"rrule":        &trigger.Rrule,
+		"timezone":     &trigger.Timezone,
+		"offset":       &trigger.Offset,
+		"anchor_field": &trigger.AnchorField,
+		"step":         &trigger.Step,
+		"workflow":     &trigger.Workflow,
 	} {
 		if text := textField(document, name); text != "" {
 			value := text

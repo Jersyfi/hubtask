@@ -70,8 +70,9 @@ func (d RelativeDates) Name() string { return RelativeDatesConsumer }
 
 // Wants reports whether an event can have moved an anchor.
 //
-// The anchors are the due date, the creation and the completion instant, so what matters is an
-// entry appearing, its deadline moving, its completing or reopening, and an entry ending. A narrow list rather than every type, because unlike
+// The anchors are the due date, the creation and the completion instant and a date field, so what
+// matters is an entry appearing, its deadline or a field moving (`item.updated` carries a field's
+// change), its completing or reopening, and an entry ending. A narrow list rather than every type, because unlike
 // MatchRules this subscriber does a read per event and a rule's existence cannot make an unrelated
 // event relevant - `comment.created` moves no anchor whatever anybody has written.
 func (d RelativeDates) Wants(eventType event.Type) bool {
@@ -140,7 +141,7 @@ func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) err
 func (d RelativeDates) settle(
 	ctx context.Context, rule domain.Rule, item anchoredItem,
 ) (time.Time, bool, error) {
-	at, owes, err := domain.OccurrenceAt(rule.Trigger, item.anchor(rule.Trigger.Anchor))
+	at, owes, err := domain.OccurrenceAt(rule.Trigger, item.anchor(rule.Trigger))
 	if err != nil {
 		// An offset this build cannot read, on a rule that was written when it could. The rule
 		// stops owing rather than firing at the anchor itself, and it stays visible and editable.
@@ -182,6 +183,8 @@ type anchoredItem struct {
 	DueAt        *time.Time
 	// CompletedAt is when the entry was done, nil while it is open.
 	CompletedAt *time.Time
+	// Fields is the entry's custom field values, read for a FIELD anchor.
+	Fields map[string]any
 	// Trashed marks an entry in the trash. It has both anchors still and owes nothing: a rule that
 	// escalated a deleted entry's deadline would act on something its author had thrown away.
 	Trashed bool
@@ -190,11 +193,11 @@ type anchoredItem struct {
 // anchor answers the instant the trigger names, and nil when there is none. A cleared due date and
 // an entry in the trash are both "none", which is what makes "does not fire for an anchor that was
 // cleared" a property of this type rather than of a caller that remembered.
-func (i anchoredItem) anchor(kind domain.DateAnchor) *time.Time {
+func (i anchoredItem) anchor(trigger domain.Trigger) *time.Time {
 	if i.Trashed {
 		return nil
 	}
-	switch kind {
+	switch trigger.Anchor {
 	case domain.AnchorDueDate:
 		return i.DueAt
 	case domain.AnchorCreatedAt:
@@ -202,9 +205,28 @@ func (i anchoredItem) anchor(kind domain.DateAnchor) *time.Time {
 		return &created
 	case domain.AnchorCompletedAt:
 		return i.CompletedAt
+	case domain.AnchorField:
+		return dateValue(i.Fields[trigger.AnchorField])
 	default:
 		return nil
 	}
+}
+
+// dateValue reads a DATE field's day from its start in UTC - a day carries no zone, and the
+// offset is what places the reminder - and a DATE_TIME field's moment as it is. Anything else is
+// no anchor: a field redefined to another kind leaves values that measure nothing.
+func dateValue(value any) *time.Time {
+	text, ok := value.(string)
+	if !ok {
+		return nil
+	}
+	for _, layout := range []string{time.DateOnly, time.RFC3339} {
+		if at, err := time.Parse(layout, text); err == nil {
+			at = at.UTC()
+			return &at
+		}
+	}
+	return nil
 }
 
 func (d RelativeDates) entry(
@@ -224,7 +246,7 @@ func (d RelativeDates) entry(
 
 	anchored := anchoredItem{
 		ID: item.ID, CollectionID: item.CollectionID,
-		CreatedAt: item.CreatedAt, Trashed: item.DeletedAt != nil,
+		CreatedAt: item.CreatedAt, Trashed: item.DeletedAt != nil, Fields: item.CustomFields,
 	}
 	if item.Due != nil {
 		due := item.Due.At

@@ -505,13 +505,14 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 func triggerOutput(trigger domain.Trigger) map[string]any {
 	out := map[string]any{"kind": string(trigger.Kind)}
 	for name, value := range map[string]string{
-		"event_type": trigger.EventType.String(),
-		"rrule":      trigger.RRule,
-		"timezone":   trigger.Timezone,
-		"anchor":     string(trigger.Anchor),
-		"offset":     trigger.Offset,
-		"workflow":   trigger.Workflow,
-		"step":       trigger.Step,
+		"event_type":   trigger.EventType.String(),
+		"rrule":        trigger.RRule,
+		"timezone":     trigger.Timezone,
+		"anchor":       string(trigger.Anchor),
+		"anchor_field": trigger.AnchorField,
+		"offset":       trigger.Offset,
+		"workflow":     trigger.Workflow,
+		"step":         trigger.Step,
 	} {
 		if value != "" {
 			out[name] = value
@@ -566,7 +567,8 @@ func triggerFrom(value any) (domain.Trigger, error) {
 		EventType: event.Type(textOf(document["event_type"])),
 		RRule:     textOf(document["rrule"]), Timezone: textOf(document["timezone"]),
 		Anchor: domain.DateAnchor(textOf(document["anchor"])), Offset: textOf(document["offset"]),
-		Workflow: textOf(document["workflow"]), Step: textOf(document["step"]),
+		AnchorField: textOf(document["anchor_field"]),
+		Workflow:    textOf(document["workflow"]), Step: textOf(document["step"]),
 	}
 	for _, field := range listOf(document["changed_fields"]) {
 		if name := textOf(field); name != "" {
