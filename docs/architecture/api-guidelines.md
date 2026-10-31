@@ -77,8 +77,7 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    `time_zone`), which stay out of the input - and is chosen before the use case runs, so a
    format or a zone it cannot write is refused before anything is read or audited (the exports);
    a bulk's writer renders each refusal inside it with the request's own id.
-   `x-hubtask-rest-drop` may name a nested member by its dotted path (an export's `query.page`,
-   which a walk decides for itself). `x-hubtask-rest-cache:
+   `x-hubtask-rest-drop` may name a nested member by its dotted path. `x-hubtask-rest-cache:
    no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be
    stored. `x-hubtask-cli` names
    the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`
@@ -86,7 +85,9 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    the member that holds a page's rows where it is not `data`, as the suggestions' `items`); a
    boolean parameter is a switch, a missing or malformed identifier and a word the command does not
    take are refused before the call, an answer of no body says what was done on standard error, a
-   dry run says that nothing changed, and a page names its `--cursor`, a feed's last one too. A hand-written command
+   dry run says that nothing changed, and a page names its `--cursor`, a feed's last one too. A
+   flag a generated command renamed to the contract's member name keeps its former name as an
+   unadvertised alias (`cmd/hubctl/FlagAliases.go`; one whose meaning changed, none). A hand-written command
    of the same name is kept, and every hand-written command names why it does more than its
    operation - a prompt, a file, a followed job, a shown-once warning, a table a person reads
    better - in `cmd/hubctl/HandWritten_test.go`, whose test fails for one that does not.
