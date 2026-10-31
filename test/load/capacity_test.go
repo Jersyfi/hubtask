@@ -7,9 +7,12 @@ package load
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"testing"
@@ -169,7 +172,47 @@ func TestCapacityAtScale(t *testing.T) {
 	finding.PeakResident, finding.MemoryObserved = peak.read()
 	finding.MemoryLimit = memoryLimitBytes
 	writeEvidence(t, fmt.Sprintf("capacity-%d.json", items), finding)
-	writeEvidence(t, fmt.Sprintf("errors-%d.json", items), collectErrors(t, stack))
+	collected := collectErrors(t, stack)
+	if os.Getenv(envWalk) != "" {
+		// After the measuring, so the browser's requests are not in its figures.
+		for rank := range seen {
+			collected = append(collected, walk(t, stack, stack.tenants[rank])...)
+		}
+	}
+	writeEvidence(t, fmt.Sprintf("errors-%d.json", items), collected)
+}
+
+// envWalk adds run R3 (test/load/PLAN.md): the built web app walked against the dataset per
+// measured workspace, its console errors, failed requests and 5xx answers collected beside the
+// server's. It needs `pnpm --filter @hubtask/webapp build` and Playwright's Chromium first.
+const envWalk = "HUBTASK_LOAD_WALK"
+
+// walk runs apps/webapp/e2e/scalewalk.mjs over one workspace's start, hub and collection and
+// answers its rows. A walk that cannot run is the run's error, never an empty list.
+func walk(t *testing.T, stack *stack, as tenant) []harness.LogError {
+	t.Helper()
+	out := filepath.Join(t.TempDir(), "walk.json")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "node", "e2e/scalewalk.mjs", stack.baseURL, as.token, out,
+		"/", "/hubs/"+as.hub, "/collections/"+as.collection)
+	cmd.Dir = filepath.Join(repositoryRoot(), "apps", "webapp")
+	output, err := cmd.CombinedOutput()
+	t.Logf("walk of %s:\n%s", as.id, output)
+	if err != nil {
+		t.Errorf("walking %s: %v", as.id, err)
+		return nil
+	}
+	raw, err := os.ReadFile(out) //nolint:gosec // the walk's own file in the test's directory
+	if err != nil {
+		t.Errorf("reading the walk of %s: %v", as.id, err)
+		return nil
+	}
+	var rows []harness.LogError
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		t.Errorf("reading the walk of %s: %v", as.id, err)
+	}
+	return rows
 }
 
 // collectErrors is every warning and error the server and PostgreSQL logged during the run, one

@@ -73,6 +73,13 @@ HUBTASK_LOAD_EVIDENCE_DIR=$PWD/load-evidence \
   make capacity ITEMS=10000000 TENANTS=2000
 ```
 
+Run R3 of [PLAN.md](./PLAN.md) is the same run with `HUBTASK_LOAD_WALK=1`: after the measuring,
+the built web app (`corepack pnpm --filter @hubtask/webapp build`, and Playwright's Chromium) is
+walked per measured workspace - its start, its hub and its collection - by
+`apps/webapp/e2e/scalewalk.mjs`, and every console error and warning, uncaught error, failed
+request and 5xx answer is added to `errors-<items>.json` as a `browser` row, deduplicated the way
+the server's are.
+
 ## The release tier, step by step
 
 ```bash

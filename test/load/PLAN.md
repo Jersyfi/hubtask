@@ -63,7 +63,9 @@ same list. **Browser console errors** are not part of R1: the capacity run drive
 browser. A walk of the web app against the 10⁷ dataset, with every console error and failed
 request of the page counted the same way (`page.on('console')` and `page.on('requestfailed')`, as
 `apps/webapp/e2e/fixture.mjs` already records `pageerror`), is run R3, accepted by the owner (fourth answers 13; about the seed's 40 minutes plus the walk).
-It is not built yet: nothing records `console` or `requestfailed` today.
+It is `HUBTASK_LOAD_WALK=1` on R1's command ([README.md](./README.md)): `apps/webapp/e2e/scalewalk.mjs`
+records `console`, `pageerror`, `requestfailed` and every 5xx, folded into `browser` rows of
+`errors-<items>.json` (`scalewalk-errors.test.mjs`).
 
 ## What happens with what was collected
 
