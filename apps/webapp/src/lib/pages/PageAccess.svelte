@@ -9,12 +9,12 @@
 
   import { untrack } from 'svelte';
   import { Badge, Button, CheckboxGroup, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
-  import type { PageAccess, PageRead } from '@hubtask/sync-engine';
+  import type { PageAccess, PageLanguageVariants, PageList, PageRead } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
-  import { accessPath, pages, publicLinkAddress } from '../data/pages.svelte.ts';
+  import { accessPath, languagesPath, pages, pagesPath, publicLinkAddress } from '../data/pages.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -127,6 +127,28 @@
     publishTo = '';
   }
 
+  // --- Written in other languages for a portal (UC-DOC-13 check 4) -------------------------------
+
+  const languages = untrack(() => resource<PageLanguageVariants>(languagesPath(page.id)));
+  const spoken = $derived(languages.state.status === 'ready' ? languages.state.data : undefined);
+  const space = untrack(() => resource<PageList>(pagesPath(hubId)));
+  const spacePages = $derived(space.state.status === 'ready' ? space.state.data.data : []);
+  const titleOf = (id: string) => spacePages.find((candidate) => candidate.id === id)?.title || t('app.pages.untitled');
+  let sourceId = $state('');
+  let language = $state(untrack(() => page.content_language ?? ''));
+  const sourceOptions = $derived([
+    { value: '', label: t('app.pages.access_language_choose') },
+    ...spacePages.filter((candidate) => candidate.id !== page.id).map((candidate) => ({ value: candidate.id, label: candidate.title || t('app.pages.untitled') })),
+  ]);
+
+  async function linkLanguage() {
+    if (!sourceId || language.trim() === '') return;
+    const source = sourceId;
+    const tag = language.trim();
+    await act(() => pages.linkLanguage(page.id, source, tag), t('app.pages.access_language_linked', { language: tag, title: titleOf(source) }));
+    sourceId = '';
+  }
+
   async function removeLink() {
     madeAddress = undefined;
     await act(() => pages.unlink(page.id), t('app.pages.access_link_removed'));
@@ -222,6 +244,39 @@
             <Button size="sm" tone="secondary" onclick={publish}>{t('app.pages.access_article_publish')}</Button>
           </Inline>
           <p class="quiet">{t('app.pages.access_article_hint')}</p>
+        {/if}
+      {/if}
+
+      {#if spoken && (spoken.source_page_id || spoken.variants.length > 0 || info.may_share)}
+        <h4 class="sub">{t('app.pages.access_languages')}</h4>
+        {#if spoken.source_page_id}
+          {@const source = spoken.source_page_id}
+          <ul class="shares">
+            <li>
+              <span>{t('app.pages.access_language_of', { language: spoken.language ?? '', title: titleOf(source) })}</span>
+              {#if info.may_share}
+                <Button size="sm" tone="subtle" onclick={() => act(() => pages.unlinkLanguage(page.id, source), t('app.pages.access_language_unlinked'))}>
+                  {t('app.pages.access_language_unlink')}
+                </Button>
+              {/if}
+            </li>
+          </ul>
+        {:else}
+          <ul class="shares">
+            {#each spoken.variants as variant (variant.page_id)}
+              <li><span>{variant.language} <span class="meta">{titleOf(variant.page_id)}</span></span></li>
+            {:else}
+              <li class="quiet">{t('app.pages.access_no_languages')}</li>
+            {/each}
+          </ul>
+          {#if info.may_share && spoken.variants.length === 0 && sourceOptions.length > 1}
+            <Inline gap="100" align="end" isWrapping>
+              <Select label={t('app.pages.access_language_source')} size="sm" options={sourceOptions} bind:value={sourceId} />
+              <Input label={t('app.pages.access_language_tag')} size="sm" bind:value={language} />
+              <Button size="sm" tone="secondary" onclick={linkLanguage}>{t('app.pages.access_language_link')}</Button>
+            </Inline>
+            <p class="quiet">{t('app.pages.access_language_hint')}</p>
+          {/if}
         {/if}
       {/if}
 

@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // An article a service publishes, read in its portal (UC-DOC-13 checks 4 and 5): the page as
-  // it stands now, and whether it helped - one answer per reader, which the publisher counts and
-  // never names. The Markdown is shown as written, never as markup a page could inject.
+  // An article a service publishes, read in its portal (UC-DOC-13 checks 2 to 4): the page as
+  // it stands now, in the reader's language where the server found a variant of it, and whether
+  // it helped - one answer per reader, which the publisher counts and never names. The Markdown is shown as written, never as markup a page could inject.
 
   import { untrack } from 'svelte';
   import { Button, ErrorState, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';

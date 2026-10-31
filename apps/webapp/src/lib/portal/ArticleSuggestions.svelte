@@ -26,8 +26,8 @@
       {#each rows as row (row.page_id)}
         <ListRow href={`/portal/${collectionId}/articles/${row.page_id}`} onactivate={() => onopen(row.page_id)}>
           {#if row.icon}<span aria-hidden="true">{row.icon}</span>{/if}
-          {row.title}
-          {#if row.excerpt}<span class="excerpt">{row.excerpt}</span>{/if}
+          <span lang={row.content_language ?? undefined}>{row.title}
+          {#if row.excerpt}<span class="excerpt">{row.excerpt}</span>{/if}</span>
         </ListRow>
       {/each}
     </Stack>

@@ -12,7 +12,7 @@
  */
 
 import type {
-  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageLabels, PageSearch, PageArticle, PageMove, PagePublicLinkMinted, PageShare, PageSpaceDrafts, PublicLinksPolicy, PageTrashed, PageVersionNamed,
+  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageLabels, PageSearch, PageArticle, PageLanguageVariant, PageMove, PagePublicLinkMinted, PageShare, PageSpaceDrafts, PublicLinksPolicy, PageTrashed, PageVersionNamed,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -29,6 +29,7 @@ export const versionPath = (pageId: string, seq: number) => `/pages/${pageId}/ve
 export const pageCommentsPath = (pageId: string) => `/pages/${pageId}/comments`;
 export const backlinksPath = (pageId: string) => `/pages/${pageId}/backlinks`;
 export const accessPath = (pageId: string) => `/pages/${pageId}/access`;
+export const languagesPath = (pageId: string) => `/pages/${pageId}/language-variants`;
 export const labelsPath = (pageId: string) => `/pages/${pageId}/labels`;
 export const spaceLabelsPath = (hubId: string) => `/hubs/${hubId}/page-labels`;
 export const spaceDraftsPath = (hubId: string) => `/hubs/${hubId}/page-drafts`;
@@ -225,6 +226,22 @@ class Pages {
 
   unpublish(pageId: string, collectionId: string): Promise<unknown> {
     return engine.mutate<unknown>('DELETE', `${pagePath(pageId)}/articles/${collectionId}`, undefined, { invalidates: [accessPath(pageId)] });
+  }
+
+  /**
+   * Makes the page the variant of another of its space in one language: a portal answers it in
+   * the source's place to a requester of that language (UC-DOC-13 check 4).
+   */
+  linkLanguage(pageId: string, sourceId: string, language: string): Promise<PageLanguageVariant> {
+    return engine.mutate<PageLanguageVariant>('PUT', `${pagePath(pageId)}/language-source`, { source_page_id: sourceId, language }, {
+      invalidates: [languagesPath(pageId), languagesPath(sourceId)],
+    });
+  }
+
+  unlinkLanguage(pageId: string, sourceId: string): Promise<unknown> {
+    return engine.mutate<unknown>('DELETE', `${pagePath(pageId)}/language-source`, undefined, {
+      invalidates: [languagesPath(pageId), languagesPath(sourceId)],
+    });
   }
 
   /** Allows or forbids public links in the workspace, inside what the plan leaves. */

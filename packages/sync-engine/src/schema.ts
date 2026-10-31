@@ -285,6 +285,9 @@ export type PagePublicLink = components['schemas']['PagePublicLink'];
 export type PagePublicLinkMinted = components['schemas']['PagePublicLinkMinted'];
 export type PublicLinksPolicy = components['schemas']['PublicLinksPolicy'];
 export type PageArticle = components['schemas']['PageArticle'];
+export type PageLanguageLink = components['schemas']['PageLanguageLink'];
+export type PageLanguageVariant = components['schemas']['PageLanguageVariant'];
+export type PageLanguageVariants = components['schemas']['PageLanguageVariants'];
 export type ArticleSuggestionList = components['schemas']['ArticleSuggestionList'];
 export type Article = components['schemas']['Article'];
 /** The service desk (M5): the requester portal, calendars, SLA policies and an entry's goals, canned replies. */
