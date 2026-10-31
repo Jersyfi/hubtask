@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 8,
+  "version": 9,
   "questions": [
     {
       "key": "first_group",
@@ -17,6 +17,9 @@
         "switch": "ON"
       },
       "service_desk": {
+        "switch": "ON"
+      },
+      "knowledge": {
         "switch": "ON"
       }
     },
@@ -702,6 +705,9 @@
       },
       "service_desk": {
         "switch": "ON"
+      },
+      "knowledge": {
+        "switch": "ON"
       }
     },
     "scheme": {
@@ -1028,6 +1034,30 @@
       "mail_delayed": {
         "title": "Mail to customers arrives an hour late",
         "entry_type": "incident"
+      }
+    },
+    "template_pages": {
+      "how_we_work": {
+        "title": "How we work with this desk",
+        "icon": "🧭",
+        "body": "This desk follows the ITIL 4 practices of incident management, service request management, problem management and change enablement. This page says how this hub carries them, and what your organisation still decides itself.\n\n## The four kinds of entry\n\n- **Incident** - something that worked stops working. New → In progress → Waiting → Resolved → Closed.\n- **Service request** - somebody asks for something the desk offers. New → In progress → Waiting → Fulfilled.\n- **Problem** - the cause behind one or more incidents. New → Investigating → Known error → Resolved.\n- **Change** - a change to a service, assessed before it is made. Draft → Assessment → Approved → Implementing → Done, or Declined.\n\n## Priority and promises\n\nAn incident's priority (P1 to P4) follows from its impact and its urgency. The SLA policy *Incidents* promises a first response within 15 minutes for P1, 1 hour for P2, 4 hours for P3 and 8 hours for P4, and a resolution within 4 hours, 8 hours, 1 day and 2 days, counted in office hours. Time spent waiting for the requester does not count.\n\n## Queues\n\n- **Mine** - what you answer for.\n- **Unassigned** - what nobody has taken yet; take the oldest first.\n- **About to breach** - what is close to missing its promise.\n\n## What your organisation decides itself\n\n- The office hours and the time zone of the calendar *Office hours*.\n- Which group answers first, and who sits on the change advisory board (*CAB member*).\n- The promises themselves: change the policy *Incidents* to what you agreed with your customers.\n- When a change needs the board, and when it is a standard change.\n\nChange this page as your way of working changes: it is yours now, and a newer version of the template never rewrites it."
+      },
+      "knowledge_base": {
+        "title": "Knowledge base",
+        "icon": "📚",
+        "body": "Answers the desk gives again and again live here, one page each, so that a requester's question is answered from what we already know. Keep a page right: mark it as verified and give it a review date.",
+        "subpages": [
+          {
+            "title": "Known errors",
+            "icon": "🐞",
+            "body": "A problem recorded as a known error gets a page here: its symptoms, its cause as far as known, and the workaround until it is resolved."
+          },
+          {
+            "title": "How to write an answer",
+            "icon": "✍️",
+            "body": "- One question per page, its title the question as a requester asks it.\n- The answer first, the steps after it.\n- A screenshot where words are not enough."
+          }
+        ]
       }
     }
   }
