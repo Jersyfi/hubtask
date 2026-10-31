@@ -31976,8 +31976,11 @@ components:
             that means something different in summer.
         anchor:
           type: string
-          enum: [DUE_DATE, CREATED_AT]
-          description: "`RELATIVE_DATE` only, and required there: which instant the offset is from."
+          enum: [DUE_DATE, CREATED_AT, COMPLETED_AT]
+          description: >
+            `RELATIVE_DATE` only, and required there: which instant the offset is from. An entry
+            that has none - no due date, or open for `COMPLETED_AT` - owes nothing, and one reopened
+            stops owing.
         offset:
           type: string
           description: >
