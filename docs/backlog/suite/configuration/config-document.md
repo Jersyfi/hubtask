@@ -11,7 +11,11 @@ too. One mechanism serves all three.
 * **Scopes:** installation (the instance file, as today, with a plan - `POST /admin/settings:plan` -
   and its history in the journal; applying stays the file's or `PUT /admin/settings`'s, ADR-0070
   §5), workspace, hub. A workspace document
-  contains its hubs' and collections' configuration; a hub document its own.
+  contains its hubs' and collections' configuration; a hub document its own. A hub's and its
+  collections' blocks are read and applied as the hub's document (`hub_id`): a collection's own
+  structure settings, time tolerance, shared views and rules in the `collection_*` sections, each
+  block under the collection's handle, a dot and the block's key (`collection_views.network.open`);
+  a handle that names no collection of the hub is refused (`config.collection_unknown`).
 * **Contents:** every catalogue setting and every building block (`model.md` §2) — never content
   (entries, comments, pages' text; templates' sample entries excepted and marked), never a secret
   (a sealed secret is referenced by name).

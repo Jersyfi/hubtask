@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-18]
 state: built
 tasks: [S-09]
-checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/e2e/changes.test.mjs]
+checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/e2e/changes.test.mjs]
 ---
 
 # Change our configuration as one document, seen before it applies
@@ -64,6 +64,11 @@ the two versions and rolls the hub's workflow back.
    and nothing runs; a document the workspace would refuse is refused there with the same
    refusals; promoting it plans and applies only what it changed since its copy - a change made in
    force meanwhile is kept - and an agent's promotion waits for a person like any apply.
+9. A hub's document holds its collections' own configuration too - each collection's structure
+   settings, time tolerance, shared views (a queue is one) and rules, under the collection's
+   handle and the block's key - and the hub's own time tolerance; applied to a second hub whose
+   collection has the same handle, they are written at that collection, and a handle that names no
+   collection of the hub is refused with `config.collection_unknown`.
 
 ## Where it ends
 
