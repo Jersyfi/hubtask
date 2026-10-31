@@ -152,6 +152,8 @@ issue when the fix is clearly bigger than a step ([AGENTS.md](../../AGENTS.md), 
 | No `N+1`: batch queries (`IN`) | A board loads hundreds of items |
 | A total only with `?count=exact` | A second scan nobody asked for |
 | `statement_timeout` per role (short for the API, longer for workers) | A runaway query |
+| `jit = off` on every connection | A generic plan's JIT compilation costs more than the statement (§13.2 of observability-reliability.md) |
+| No `IS NOT DISTINCT FROM` on an indexed column of a large table - `= OR IS NULL` | No index answers it; the planner folds the second form |
 | Cursors instead of offsets | Stable performance on deep pages |
 | The write path: one transaction, no external calls | Short latency and locks |
 | External effects through the outbox | Independent of third parties |

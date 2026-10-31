@@ -48,14 +48,10 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role, opts ...PoolOpt
 	// once and hand the database a thundering herd on the hour.
 	poolCfg.MaxConnLifetimeJitter = cfg.Database.MaxConnLifetime / 10
 
-	statementTimeout := cfg.StatementTimeoutFor(role)
 	if poolCfg.ConnConfig.RuntimeParams == nil {
 		poolCfg.ConnConfig.RuntimeParams = map[string]string{}
 	}
-	poolCfg.ConnConfig.RuntimeParams["statement_timeout"] = strconv.FormatInt(statementTimeout.Milliseconds(), 10)
-	// Visible in pg_stat_activity, which is where an operator looks first when one role is
-	// holding connections.
-	poolCfg.ConnConfig.RuntimeParams["application_name"] = "hubtask/" + string(role)
+	sessionParams(poolCfg.ConnConfig.RuntimeParams, cfg.StatementTimeoutFor(role), role)
 
 	// The schema's own enum types are registered per connection, before the connection is handed
 	// to anybody. Doing it here rather than at the first failing query means a database whose
@@ -140,4 +136,17 @@ func Stats(pool *pgxpool.Pool) PoolStats {
 		AcquireCount: s.AcquireCount(),
 		AcquireWait:  s.AcquireDuration(),
 	}
+}
+
+// sessionParams sets what every connection of a role's pool runs with.
+//
+// JIT is off: on a generic plan whose row estimates are large, PostgreSQL compiles the statement
+// for some 200 ms before it runs it in 30 - the capacity run at 10⁶ entries saw a hub's figures
+// jump to that tail (observability-reliability.md §13.2). Short statements never repay it.
+func sessionParams(params map[string]string, statementTimeout time.Duration, role env.Role) {
+	params["statement_timeout"] = strconv.FormatInt(statementTimeout.Milliseconds(), 10)
+	// Visible in pg_stat_activity, which is where an operator looks first when one role is
+	// holding connections.
+	params["application_name"] = "hubtask/" + string(role)
+	params["jit"] = "off"
 }
