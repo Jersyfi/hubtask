@@ -5,6 +5,7 @@ package identity
 
 import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
@@ -37,8 +38,9 @@ func (h ShowLdapDirectory) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h ConfigureLdapDirectory) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name:       ConfigureLdapDirectoryName,
-		Permission: service.PermissionManageMembers,
+		Name:        ConfigureLdapDirectoryName,
+		Permission:  service.PermissionManageMembers,
+		Entitlement: entitlement.OwnSignInProviders,
 		Summary: "Sets the LDAP directory the workspace synchronises its people and groups from, whole. It is " +
 			"bound to once before anything is stored, over ldaps or StartTLS only; the password is sealed and " +
 			"omitting it keeps the sealed one. The run acts as the named service account, which needs to manage " +
@@ -94,8 +96,9 @@ func (h RemoveLdapDirectory) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h SyncLdapDirectory) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name:       SyncLdapDirectoryName,
-		Permission: service.PermissionManageMembers,
+		Name:        SyncLdapDirectoryName,
+		Permission:  service.PermissionManageMembers,
+		Entitlement: entitlement.OwnSignInProviders,
 		Summary: "Synchronises from the LDAP directory now, as its service account: invites who is new, renames, " +
 			"switches off who left - never erases, never an owner - and on who returned, and keeps the groups' " +
 			"members. Refused, changing nothing, when the directory answers nobody or would switch off more " +

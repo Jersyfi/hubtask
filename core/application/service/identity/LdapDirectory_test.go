@@ -12,6 +12,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
@@ -393,5 +394,46 @@ func TestAnLdapRunKeepsTheGroupsMembers(t *testing.T) {
 	out = f.sync(t, usecase.Input{})
 	if out["counts"].(usecase.Output)["groups_changed"] != 0 {
 		t.Fatalf("an unchanged group was written: %+v", out)
+	}
+}
+
+type leftOut entitlement.LeftOut
+
+func (l leftOut) LeftOut(context.Context) (entitlement.LeftOut, error) {
+	return entitlement.LeftOut(l), nil
+}
+
+// UC-INS-13 checks 4 and 5: LDAP synchronisation is the workspace's own sign-in provider. A plan
+// leaving that out refuses configuring and running it through every door, and the scheduled run
+// reads nothing while it stays scheduled, so an upgrade brings it back.
+func TestAPlanWithoutOwnSignInProvidersStopsTheLdapRun(t *testing.T) {
+	for _, d := range []usecase.Descriptor{
+		ConfigureLdapDirectory{}.Descriptor(), SyncLdapDirectory{}.Descriptor(),
+	} {
+		if d.Entitlement != entitlement.OwnSignInProviders {
+			t.Errorf("%s declares %q", d.Name, d.Entitlement)
+		}
+	}
+	for _, d := range []usecase.Descriptor{
+		ShowLdapDirectory{}.Descriptor(), RemoveLdapDirectory{}.Descriptor(),
+	} {
+		if d.Entitlement != "" {
+			t.Errorf("%s, a read or a removal, declares %q", d.Name, d.Entitlement)
+		}
+	}
+
+	f := newLdap()
+	f.configure(t)
+	f.ldap.Entitlements = leftOut{entitlement.OwnSignInProviders}
+	job := LdapSyncJob{Directories: f.ldap}
+	result, err := job.Run(t.Context(), queue.Job{TenantID: tenant, Kind: queue.KindLdapSync})
+	if err != nil || !result.Repeat || result.Outcome != "not_included" || f.reader.reads != 0 {
+		t.Fatalf("a run the plan leaves out: %+v, %v, %d reads", result, err, f.reader.reads)
+	}
+
+	f.ldap.Entitlements = leftOut{}
+	job = LdapSyncJob{Directories: f.ldap}
+	if _, err := job.Run(t.Context(), queue.Job{TenantID: tenant, Kind: queue.KindLdapSync}); err != nil || f.reader.reads == 0 {
+		t.Fatalf("included again, the run did not read: %v", err)
 	}
 }

@@ -11,10 +11,12 @@ import (
 	"strings"
 	"time"
 
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -83,6 +85,9 @@ type LdapDirectories struct {
 	// the directory decides who is in the workspace. Nil demands nothing, on a build without it.
 	StepUp stepupport.Verifier
 	Jobs   LdapJobs
+	// Entitlements is what the workspace's plan leaves out: the scheduled run passes no use case
+	// door, so it asks itself (multi-tenancy.md §4.2). Nil includes every feature.
+	Entitlements adminrepo.Entitlements
 }
 
 // ShowLdapDirectory answers the directory and its last run.
@@ -367,6 +372,15 @@ func (j LdapSyncJob) Run(ctx context.Context, job queue.Job) (queue.Result, erro
 	if !d.Due(now) {
 		return queue.Result{Repeat: true, RepeatAfter: d.NextRunAt.Sub(now), Outcome: "waiting"}, nil
 	}
+	included, err := l.included(ctx, scope)
+	if err != nil {
+		return queue.Result{}, err
+	}
+	if !included {
+		// Stopped, not removed: the run stays scheduled and reads nothing, so including the
+		// feature again brings it back without anybody configuring it anew.
+		return queue.Result{Repeat: true, RepeatAfter: time.Hour, Outcome: "not_included"}, nil
+	}
 	run := l.run(ctx, d, sealed, false, nil)
 	ran := d.Ran(l.Directory.Clock.Now(), run.outcome, run.code, run.counts)
 	err = l.Directory.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
@@ -385,6 +399,20 @@ func (j LdapSyncJob) Run(ctx context.Context, job queue.Job) (queue.Result, erro
 		Repeat: true, RepeatAfter: max(time.Minute, ran.NextRunAt.Sub(l.Directory.Clock.Now())),
 		Outcome: "directory." + strings.ToLower(string(run.outcome)), Counts: countsMap(run.counts),
 	}, nil
+}
+
+// included reports whether the workspace's plan includes its own sign-in providers.
+func (l LdapDirectories) included(ctx context.Context, scope persistence.Scope) (bool, error) {
+	if l.Entitlements == nil {
+		return true, nil
+	}
+	var leftOut entitlement.LeftOut
+	err := l.Directory.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		var err error
+		leftOut, err = l.Entitlements.LeftOut(ctx)
+		return err
+	})
+	return leftOut.Includes(entitlement.OwnSignInProviders), err
 }
 
 var _ queue.Detached = LdapSyncJob{}

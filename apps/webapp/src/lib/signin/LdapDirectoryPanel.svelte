@@ -17,6 +17,7 @@
   import type { LdapDirectory, LdapDirectoryConfiguration, LdapSyncRun } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
+  import { includedHere } from '../data/capability.svelte.ts';
   import { ldapDirectory } from '../data/ldapdirectory.svelte.ts';
   import { serviceAccounts } from '../data/serviceaccounts.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
@@ -64,6 +65,9 @@
   let confirmingRemoval = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let saved = $state(false);
+  // The plan leaves the workspace's own sign-in providers out, and the directory is one: it
+  // neither runs nor changes, and removing it stays (multi-tenancy.md §4.2).
+  const resting = $derived(includedHere('OWN_SIGN_IN_PROVIDERS') === false);
   let run = $state<LdapSyncRun | undefined>(undefined);
 
   $effect(() => untrack(() => ldapDirectory.open()));
@@ -218,10 +222,14 @@
           {/if}
           <WorkspaceGate permission="MANAGE_MEMBERS">
             {#snippet actions()}
-              <div class="row">
-                <Button tone="primary" isBusy={isWorking} onclick={() => sync(false)}>{t('app.ldap.run_now')}</Button>
-                <Button tone="subtle" onclick={() => sync(true)}>{t('app.ldap.dry_run')}</Button>
-              </div>
+              {#if resting}
+                <p class="row"><Badge tone="neutral">{t('app.plan.not_included')}</Badge></p>
+              {:else}
+                <div class="row">
+                  <Button tone="primary" isBusy={isWorking} onclick={() => sync(false)}>{t('app.ldap.run_now')}</Button>
+                  <Button tone="subtle" onclick={() => sync(true)}>{t('app.ldap.dry_run')}</Button>
+                </div>
+              {/if}
             {/snippet}
           </WorkspaceGate>
           {#if run}
@@ -282,7 +290,9 @@
               onchange={(event) => (draft.enabled = (event.currentTarget as HTMLInputElement).checked)}
             />
             <div class="row">
-              <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.ldap.saving')}>{t('app.ldap.save')}</Button>
+              {#if !resting}
+                <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.ldap.saving')}>{t('app.ldap.save')}</Button>
+              {/if}
               {#if directory && !confirmingRemoval}
                 <Button tone="subtle" onclick={() => (confirmingRemoval = true)}>{t('app.ldap.remove')}</Button>
               {/if}

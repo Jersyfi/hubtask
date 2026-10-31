@@ -409,7 +409,7 @@ otherwise:
 |---|---|---|
 | Automation rules | no rule runs, by event or schedule; rules stay readable and cannot be created or switched on | they run from then on; a schedule without the occurrences it missed |
 | Webhooks | nothing is delivered and no subscription is added; subscriptions and secrets stay | deliveries resume for events from then on |
-| The workspace's own sign-in providers | they sign nobody in; connections and sealed secrets stay; offered providers are untouched; where no way in is left the password opens ([identity.md](./identity.md) §17.1) | they sign people in again |
+| The workspace's own sign-in providers | they sign nobody in; connections and sealed secrets stay; offered providers are untouched; where no way in is left the password opens ([identity.md](./identity.md) §17.1); the LDAP directory (UC-ID-31) is neither changed nor run, on demand or by its schedule, and stays configured | they sign people in again; the directory's next scheduled run synchronises |
 
 A screen shows "Not included in your plan" where the person would otherwise have met the control
 (P-05); `/meta/capabilities` answers the set as `not_included` to everybody signed in to the

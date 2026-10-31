@@ -1722,7 +1722,7 @@ func run() error {
 	ldapDirectories := identity.LdapDirectories{
 		Store: postgres.NewLdapDirectoryRepository(), Reader: ldapadapter.Directory{Guard: outboundGuard},
 		Encryptor: encryptor, Directory: directory, StepUp: stepUpVerifier,
-		Jobs: jobs,
+		Jobs: jobs, Entitlements: postgres.NewPlanRepository(),
 	}
 	instanceProviderWriter.Configure = identityProviderWriter
 	passwordWriter.StepUp = stepUpVerifier

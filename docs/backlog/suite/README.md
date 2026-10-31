@@ -192,7 +192,7 @@ this list with its row.
 | Third answers | Board versions are not thinned like page versions | open: build it (accepted.md, "The owner's third answers", item 1) |
 | Third answers | A requester's erasure and REQUESTER expiry leave the intake's "From:" line in notes and comments | closed: the line goes through the ordinary edits (UC-PRV-01 check 11, UC-JUM-12 check 8; accepted.md, "The owner's third answers", item 2) |
 | Third answers | UC-PRV-01 and the mail intake use case name no check for the erasure by address | closed: UC-PRV-01 check 11, UC-JUM-12 check 8 (accepted.md, "The owner's third answers", item 3) |
-| Third answers | LDAP synchronisation is not under the OWN_SIGN_IN_PROVIDERS entitlement | open: build it (accepted.md, "The owner's third answers", item 6) |
+| Third answers | LDAP synchronisation is not under the OWN_SIGN_IN_PROVIDERS entitlement | closed: `ConfigureLdapDirectory` and `SyncLdapDirectory` declare it, the scheduled run reads nothing while the plan leaves it out and stays scheduled, the panel says *Not included in your plan* (UC-INS-13 check 4, multi-tenancy.md §4.2; accepted.md, "The owner's third answers", item 6) |
 | Third answers | Renamed hubctl flags have no aliases for their old names | open: build it (accepted.md, "The owner's third answers", item 7) |
 | Third answers | POST /items:export embeds the whole ItemQuery instead of its own query schema | open: build it (accepted.md, "The owner's third answers", item 8) |
 | Third answers | Retention sweeps of default-period kinds ignore the workspace's TENANT-scope rule | closed: the sweeps read the workspace's rule within the lower bound, and a rule for such a kind can be written (UC-LIF-04 check 11; accepted.md, "The owner's third answers", item 10) |
