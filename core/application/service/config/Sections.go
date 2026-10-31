@@ -199,10 +199,11 @@ func sections() []section {
 		},
 		{
 			name: sectionPolicies, module: module.ServiceDesk, list: "ListSlaPolicies", rows: "data", key: "key",
-			attributes: []string{"name", "calendar", "entry_types", "priority_field", "goals", "position", "enabled"},
+			// Defined whole: an attribute left out here would be cleared by any apply touching the policy.
+			attributes: []string{"name", "calendar", "entry_types", "organisations", "assignee_group", "priority_field", "goals", "position", "enabled"},
 			create:     "DefineSlaPolicy", change: "DefineSlaPolicy", remove: "DeleteSlaPolicy",
 			locate: "key", locateFrom: "key",
-			changeable: []string{"name", "calendar", "entry_types", "priority_field", "goals", "position", "enabled"}, whole: true,
+			changeable: []string{"name", "calendar", "entry_types", "organisations", "assignee_group", "priority_field", "goals", "position", "enabled"}, whole: true,
 		},
 		{
 			name: sectionReplies, module: module.ServiceDesk, list: "ListReplyTemplates", rows: "data", key: "key",

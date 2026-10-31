@@ -96,3 +96,34 @@ func TestATemplateLeavesTheOrganisationsOut(t *testing.T) {
 		t.Fatalf("the template keeps %v", kept)
 	}
 }
+
+// A policy's requester organisations and an OLA's assignee group are attributes of its block: a
+// policy is defined whole, so a block without them would clear them on any apply that touches the
+// policy - a rollback, a template's upgrade, a draft published.
+func TestAPolicysOrganisationsAndGroupSurviveAnApply(t *testing.T) {
+	var policies section
+	for _, s := range sections() {
+		if s.name == sectionPolicies {
+			policies = s
+		}
+	}
+	group := "0192f000-0000-7000-8000-00000000000a"
+	key, block := policies.read(map[string]any{
+		"key": "network", "name": "Network team", "entry_types": []any{"incident"}, "goals": []any{},
+		"organisations": []any{"acme"}, "assignee_group": group, "position": 1, "enabled": true,
+	})
+	if key != "network" || block["assignee_group"] != group || block["organisations"] == nil {
+		t.Fatalf("the block %q leaves out what the policy holds: %v", key, block)
+	}
+	renamed := domain.Block{}
+	for attribute, value := range block {
+		renamed[attribute] = value
+	}
+	renamed["name"] = "Network"
+	ops, err := policies.operations(domain.BlockChange{
+		Section: sectionPolicies, Key: "network", Op: domain.OpChange, Fields: []string{"name"}, Before: block, After: renamed,
+	}, map[string]any{"key": "network"})
+	if err != nil || len(ops) != 1 || ops[0].Input["assignee_group"] != group || ops[0].Input["organisations"] == nil {
+		t.Fatalf("a renamed policy is defined as %+v, %v", ops, err)
+	}
+}
