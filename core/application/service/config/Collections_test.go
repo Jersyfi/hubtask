@@ -198,3 +198,67 @@ func TestACollectionBlockOfAnotherPlaceIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// UC-CFG-01 check 9: a rule's condition naming a place by its identifier - a literal in its
+// expression - is exported by the place's handle and applied to the place of that handle in the
+// second hub, so the rule does not stay bound to the first hub's collection.
+func TestARuleConditionNamesItsPlaceByHandle(t *testing.T) {
+	f, _ := collectionsFixture()
+	f.world.rules["triage"]["conditions"] = []any{
+		map[string]any{"expr": "collection.id == '" + networkQueue + "' && hub.id == \"" + deskHub + "\" && item.title != 'network'"},
+	}
+	exported := invoke(t, ExportConfig{f.desk}.Descriptor(), person, usecase.Input{"hub_id": deskHub})["document"].(map[string]any)
+	raw, err := json.Marshal(exported)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+	rule := document["collection_rules"].(map[string]any)["network.triage"].(map[string]any)
+	want := "collection.id == 'place:network' && hub.id == \"place:@hub\" && item.title != 'network'"
+	if got := rule["conditions"].([]any)[0].(map[string]any)["expr"]; got != want {
+		t.Fatalf("exported %q, want %q", got, want)
+	}
+
+	second, c := collectionsFixture()
+	second.world.hub = secondHub
+	second.world.containers = []any{
+		map[string]any{"id": secondHub, "type": "HUB", "handle": "desk"},
+		map[string]any{"id": secondNetwork, "type": "COLLECTION", "parent_id": secondHub, "handle": "network"},
+	}
+	second.world.views, second.world.rules = map[string]map[string]any{}, map[string]map[string]any{}
+	c.structure, c.tolerance = map[string]map[string]any{}, map[string]map[string]any{}
+	second.desk.Catalogue = c
+	in := usecase.Input{"document": document, "mode": "MERGE", "hub_id": secondHub}
+	plan := invoke(t, PlanConfig{second.desk}.Descriptor(), person, in)
+	in["plan_hash"], in["acknowledge"] = plan["plan_hash"], true
+	if applied := invoke(t, ApplyConfig{second.desk}.Descriptor(), person, in); applied["state"] != "APPLIED" {
+		t.Fatalf("not applied: %v", applied)
+	}
+	rules := second.world.inputs["CreateRule"]
+	if len(rules) != 1 {
+		t.Fatalf("rules written %v", rules)
+	}
+	applied := "collection.id == '" + secondNetwork + "' && hub.id == \"" + secondHub + "\" && item.title != 'network'"
+	if got := rules[0]["conditions"].([]any)[0].(map[string]any)["expr"]; got != applied {
+		t.Errorf("applied %q, want %q", got, applied)
+	}
+}
+
+// Refusal instead of corruption: a condition naming a place no handle of the workspace holds is
+// refused at the plan, never written as a condition that is silently never true.
+func TestARuleConditionNamingAnUnknownPlaceIsRefused(t *testing.T) {
+	f, _ := collectionsFixture()
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"hub_id": deskHub, "mode": "MERGE",
+		"document": map[string]any{"collection_rules": map[string]any{"network.watch": map[string]any{
+			"name": "Watch", "trigger": map[string]any{"kind": "MANUAL"}, "on_error": "STOP",
+			"conditions": []any{map[string]any{"expr": "collection.id == 'place:nowhere'"}},
+			"actions":    []any{map[string]any{"kind": "ADD_COMMENT", "params": map[string]any{"body": "Seen"}}},
+		}}}})
+	refusals, _ := plan["refusals"].([]usecase.Output)
+	if plan["plan_hash"] != nil || len(refusals) != 1 || refusals[0]["code"] != "config.place_unknown" {
+		t.Fatalf("planned as %v", plan)
+	}
+}

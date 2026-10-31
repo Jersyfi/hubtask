@@ -412,6 +412,9 @@ the rules scoped to it), authorised as
 hub's document applies to another unchanged. A view's anchor, a `collection_id` it filters on and a
 rule step's `…collection_id`, `…container_id` or `…hub_id` name a place by its handle - a hub has one
 as a collection has since migration 0286 - and an identifier no handle is known for stays as it is;
+a string literal in a rule condition's expression that is a place's identifier is written
+`'place:<handle>'` (`'place:@hub'` for the hub itself) and applied as the identifier of the place
+holding that handle, a marked handle no place holds refused at the plan (`config.place_unknown`);
 a rule a document brings acts as whoever applies it unless it names `run_as`, is written switched
 off and then switched on where its block says `enabled`; a rule listing longer than an export walks
 (fifty pages of 200) refuses the document (`config.section_too_large`) rather than leaving rules out

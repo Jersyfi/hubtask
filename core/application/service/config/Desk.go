@@ -371,7 +371,10 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 				p.Refusals = append(p.Refusals, domain.Refusal("config.section_withheld", name, nil))
 			}
 		}
-		for key := range desired[name] {
+		for key, block := range desired[name] {
+			if name == sectionRules || name == sectionCollectionRules {
+				p.Refusals = append(p.Refusals, now.Places.placeRefusals(name+"."+key, block)...)
+			}
 			if s := known[name]; s.collection {
 				if refusal := now.Places.collectionKeyRefusal(name, key); refusal != nil {
 					p.Refusals = append(p.Refusals, *refusal)

@@ -8179,6 +8179,7 @@
   "config.document_unwritable": "The configuration could not be stored.",
   "config.hub_unknown": "There is no such hub, or you cannot reach it.",
   "config.collection_unknown": "No collection of this hub has this handle.",
+  "config.place_unknown": "A rule condition names a place by a handle no hub or collection you can reach holds.",
   "config.sandbox_alone": "A sandbox is promoted on its own: name neither a document nor a hub with it.",
   "config.sandbox_discard_alone": "Discarding the sandbox takes nothing else.",
   "config.sandbox_none": "This workspace has no sandbox. Copy the configuration into one first.",

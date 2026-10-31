@@ -5,6 +5,7 @@ package config
 
 import (
 	"context"
+	"maps"
 	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -25,6 +26,9 @@ const (
 	sectionRules = "rules"
 	// placeHub is the hub whose own document this is.
 	placeHub = "@hub"
+	// placeLiteral marks a place named inside a rule condition's expression, where nothing but
+	// the mark tells a place from text: `collection.id == 'place:network'`.
+	placeLiteral = "place:"
 	// chained is the identifier an operation takes from the one before it in the same apply - a
 	// rule switched on right after it was written.
 	chained = "00000000-0000-0000-0000-000000000000"
@@ -132,6 +136,7 @@ func furnitureSections(hub shared.ID) []section {
 			locate: "rule_id", locateFrom: "id",
 			present: func(p places, block domain.Block) domain.Block {
 				block["actions"] = mapActions(block["actions"], p.out)
+				block["conditions"] = mapConditions(block["conditions"], p.literalOut)
 				return block
 			},
 			opsAt: func(now current, change domain.BlockChange, row map[string]any) ([]operation, error) {
@@ -199,6 +204,9 @@ func ruleOps(now current, change domain.BlockChange, row map[string]any, key, sc
 	}
 	if actions, held := after["actions"]; held {
 		after["actions"] = mapActions(actions, now.Places.in)
+	}
+	if conditions, held := after["conditions"]; held {
+		after["conditions"] = mapConditions(conditions, now.Places.literalIn)
 	}
 	enabled, _ := after["enabled"].(bool)
 	if change.Op == domain.OpAdd {
@@ -293,6 +301,90 @@ func mapFilter(raw any, name func(any) any) any {
 		}
 	}
 	return out
+}
+
+// literalOut is a condition's string literal as the document holds it: a place's identifier as
+// its marked handle, anything else as it is.
+func (p places) literalOut(literal string) string {
+	if named, _ := p.out(literal).(string); named != literal {
+		return placeLiteral + named
+	}
+	return literal
+}
+
+// literalIn is a condition's string literal as the rule holds it: a marked handle as the place's
+// identifier. A handle no place holds is left marked; the plan refuses it (placeRefusals).
+func (p places) literalIn(literal string) string {
+	if handle, marked := strings.CutPrefix(literal, placeLiteral); marked {
+		if id, _ := p.in(handle).(string); id != handle {
+			return id
+		}
+	}
+	return literal
+}
+
+// placeRefusals are the marked handles a rule block's conditions name that no place holds.
+func (p places) placeRefusals(path string, block map[string]any) []shared.FieldError {
+	var refusals []shared.FieldError
+	mapConditions(block["conditions"], func(literal string) string {
+		if handle, marked := strings.CutPrefix(literal, placeLiteral); marked && p.literalIn(literal) == literal {
+			refusals = append(refusals, domain.Refusal("config.place_unknown", path, map[string]string{"handle": handle}))
+		}
+		return literal
+	})
+	return refusals
+}
+
+// mapConditions renames the string literals of a rule's condition expressions through name.
+func mapConditions(raw any, name func(string) string) any {
+	conditions, isList := raw.([]any)
+	if !isList {
+		return raw
+	}
+	out := make([]any, len(conditions))
+	for i, item := range conditions {
+		condition, isObject := item.(map[string]any)
+		expr, isText := condition["expr"].(string)
+		if !isObject || !isText {
+			out[i] = item
+			continue
+		}
+		copied := maps.Clone(condition)
+		copied["expr"] = mapLiterals(expr, name)
+		out[i] = copied
+	}
+	return out
+}
+
+// mapLiterals hands each quoted string literal of a CEL expression to name, the quotes and
+// everything outside them kept. A literal holding an escape is passed as written, so it never
+// equals an identifier or a marked handle; an unclosed quote ends the scan unchanged.
+func mapLiterals(expr string, name func(string) string) string {
+	var b strings.Builder
+	for i := 0; i < len(expr); {
+		quote := expr[i]
+		if quote != '\'' && quote != '"' {
+			b.WriteByte(quote)
+			i++
+			continue
+		}
+		end := i + 1
+		for end < len(expr) && expr[end] != quote {
+			if expr[end] == '\\' {
+				end++
+			}
+			end++
+		}
+		if end >= len(expr) {
+			b.WriteString(expr[i:])
+			break
+		}
+		b.WriteByte(quote)
+		b.WriteString(name(expr[i+1 : end]))
+		b.WriteByte(quote)
+		i = end + 1
+	}
+	return b.String()
 }
 
 // mapActions names the places a rule's steps name: a parameter for a collection, a container or

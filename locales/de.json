@@ -8176,6 +8176,7 @@
   "config.document_unwritable": "Die Konfiguration konnte nicht gespeichert werden.",
   "config.hub_unknown": "Diesen Hub gibt es nicht, oder du erreichst ihn nicht.",
   "config.collection_unknown": "Keine Sammlung dieses Hubs hat dieses Kürzel.",
+  "config.place_unknown": "Eine Bedingung einer Regel nennt einen Ort mit einem Kürzel, das kein für dich erreichbarer Hub und keine Sammlung trägt.",
   "config.sandbox_alone": "Eine Sandbox wird für sich übernommen: Nenne dazu weder ein Dokument noch einen Hub.",
   "config.sandbox_discard_alone": "Das Verwerfen der Sandbox nimmt nichts weiter.",
   "config.sandbox_none": "Dieser Arbeitsbereich hat keine Sandbox. Kopiere die Konfiguration zuerst in eine.",

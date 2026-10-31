@@ -133,6 +133,7 @@ func collectionSections() []section {
 			create: "CreateRule", change: "UpdateRule", remove: "DeleteRule", locateFrom: "id",
 			present: func(p places, block domain.Block) domain.Block {
 				block["actions"] = mapActions(block["actions"], p.out)
+				block["conditions"] = mapConditions(block["conditions"], p.literalOut)
 				return block
 			},
 			opsAt: func(now current, change domain.BlockChange, row map[string]any) ([]operation, error) {

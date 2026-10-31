@@ -68,7 +68,10 @@ the two versions and rolls the hub's workflow back.
    settings, time tolerance, shared views (a queue is one) and rules, under the collection's
    handle and the block's key - and the hub's own time tolerance; applied to a second hub whose
    collection has the same handle, they are written at that collection, and a handle that names no
-   collection of the hub is refused with `config.collection_unknown`.
+   collection of the hub is refused with `config.collection_unknown`. A rule condition naming a
+   hub or collection by its identifier names it by its handle (`'place:network'`) and is applied
+   to the second hub's place of that handle; a handle no place holds is refused with
+   `config.place_unknown`.
 10. The configuration check (`GET /config/check`, the MCP tool `check_config`, `hubctl config
     check`), given a hub or not, answers before anybody meets it what the configuration in force
     would strand: a workflow no step somebody may take completes (`config.check.done_unreachable`),
