@@ -70,3 +70,28 @@ test('a name is the code its own screen draws it with', () => {
 test('a level that does not decide a setting has no screen for it', () => {
   assert.equal(screenOf(define('quotas.items', ['INSTANCE', 'PLAN']), 'WORKSPACE'), undefined);
 });
+
+// The server's own catalogue, as `make generate` writes it: a setting the server declares without
+// a screen or a name here fails, rather than the fixture above, which a new setting never reaches.
+test('every setting the server declares has a screen at each level a reader sets it, and a name', async () => {
+  const { default: generated } = await import('./catalogue.gen.json', { with: { type: 'json' } });
+  const { default: english } = await import('../../../../../locales/en.json', { with: { type: 'json' } });
+  const settings = generated.settings as unknown as SettingDefinition[];
+  const named = settings.filter((definition) => definition.kind !== 'STRUCTURE' || definition.key.startsWith('structure.'));
+  const missing: string[] = [];
+  for (const definition of named) {
+    if (!(labelCode(definition.key) in english)) missing.push(`name ${definition.key}`);
+    for (const level of definition.levels) {
+      const place = level === 'HUB' || level === 'COLLECTION' ? { level, id: 'p1' } as const : undefined;
+      if (!screenOf(definition, level, place)) missing.push(`${level} ${definition.key}`);
+    }
+  }
+  assert.deepEqual(missing, []);
+});
+
+test('a hub\'s own settings are offered at the hub, opening its own settings', () => {
+  const offers = catalogueOffers(CATALOGUE, { isAdministrationReachable: false, isInstanceReachable: false }, t, { level: 'HUB', id: 'h1' });
+  assert.deepEqual(offers.map((offer) => offer.id), ['HUB:module.planning', 'HUB:structure.views']);
+  assert.deepEqual(offers[0]?.target, { kind: 'setting', path: '/hubs/h1/settings/modules', row: 'module.planning' });
+  assert.equal(screenOf(define('module.planning', ['WORKSPACE', 'HUB']), 'COLLECTION', { level: 'COLLECTION', id: 'c1' }), undefined);
+});

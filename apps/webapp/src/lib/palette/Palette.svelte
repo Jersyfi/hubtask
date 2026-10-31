@@ -34,7 +34,7 @@
   import { collectionOffers, containerOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
   import { frameActionOffers, recentOffers, settingOffers } from './registry.ts';
   import { land } from './landing.ts';
-  import { catalogueOffers } from '../settings/catalogue.ts';
+  import { catalogueOffers, type Place } from '../settings/catalogue.ts';
   import { settingsCatalogue } from '../data/settingsCatalogue.svelte.ts';
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
@@ -202,14 +202,22 @@
    */
   let catalogue = $state<readonly SettingDefinition[]>([]);
   $effect(() => {
-    if (!isOpen || (!reach.isAdministrationReachable && !reach.isInstanceReachable)) return;
+    if (!isOpen || (!reach.isAdministrationReachable && !reach.isInstanceReachable && !shapedPlace)) return;
     return untrack(() =>
       settingsCatalogue.read((next) => {
         if (next.status === 'ready') catalogue = next.data.settings;
       }),
     );
   });
-  const catalogueRows = $derived(catalogueOffers(catalogue, reach, t));
+  /** The hub or collection the reader is at, where their role there may shape it (A7). */
+  const shapedPlace = $derived.by((): Place | undefined => {
+    const at = here.collection && hereCollection ? hereCollection : here.hub && hereHub ? hereHub : undefined;
+    if (!at) return undefined;
+    const path = at.type === 'COLLECTION' ? pathOf(at) : { hubId: at.id };
+    const role = people.roleOf(path, actor.account?.id, roleOrder()) ?? undefined;
+    return holds(role, 'STRUCTURE').status === 'permitted' ? { level: at.type === 'COLLECTION' ? 'COLLECTION' : 'HUB', id: at.id } : undefined;
+  });
+  const catalogueRows = $derived(catalogueOffers(catalogue, reach, t, shapedPlace));
 
   /** What may be offered, each with what pressing it does. */
   const offers = $derived<readonly (Offer | (Candidate & { readonly run: () => void }))[]>([
