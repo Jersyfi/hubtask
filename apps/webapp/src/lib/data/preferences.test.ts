@@ -11,6 +11,7 @@ import {
   channelsOf,
   clearedOr,
   inForce,
+  languageInForce,
   isAlwaysOn,
   knownZones,
   zoneOptions,
@@ -130,4 +131,12 @@ test('a setting in force is the server\'s value and its source', () => {
   assert.deepEqual(inForce(rows, 'localisation.week_start'), { source: 'DEFAULT' });
   assert.equal(inForce(rows, 'localisation.time_zone'), undefined);
   assert.equal(inForce(undefined, 'localisation.locale'), undefined);
+});
+
+// i18n-l10n.md §2: the browser's language goes before the workspace's where the person chose none.
+test('a language the browser asks for is named as the browser\'s', () => {
+  assert.deepEqual(languageInForce({ value: 'en', source: 'WORKSPACE' }, 'de'), { value: 'de', source: 'REQUEST' });
+  assert.deepEqual(languageInForce({ value: 'de-AT', source: 'WORKSPACE' }, 'de'), { value: 'de-AT', source: 'WORKSPACE' });
+  assert.deepEqual(languageInForce({ value: 'fr', source: 'PERSON' }, 'de'), { value: 'fr', source: 'PERSON' });
+  assert.equal(languageInForce(undefined, 'de'), undefined);
 });

@@ -52,7 +52,7 @@
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
-  import { WEEK_STARTS, clearedOr, inForce, zoneOptions, localesOf, withWorkspaceChoice } from '../lib/data/preferences.ts';
+  import { WEEK_STARTS, clearedOr, inForce, languageInForce, zoneOptions, localesOf, withWorkspaceChoice } from '../lib/data/preferences.ts';
   import { engine } from '../lib/data/engine.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -69,7 +69,8 @@
     settings = next.status === 'ready' ? next.data : settings;
   })));
   const sourceOf = (key: string, label: (value: string) => string) => {
-    const held = inForce(settings?.data, `localisation.${key}`);
+    const resolved = inForce(settings?.data, `localisation.${key}`);
+    const held = key === 'locale' ? languageInForce(resolved, messages.locale) : resolved;
     if (!held) return undefined;
     return { source: held.source, value: held.value === undefined ? t('app.profile.source_default_value') : label(held.value) };
   };

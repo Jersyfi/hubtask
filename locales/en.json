@@ -7310,6 +7310,7 @@
   "app.profile.source_workspace": "The workspace's",
   "app.profile.source_instance": "The installation's",
   "app.profile.source_default": "Hubtask",
+  "app.profile.source_request": "This browser's",
   "app.profile.cleared": "Cleared. The workspace's own is used again.",
   "app.profile.falls_back_to": "The workspace uses {value}.",
   "app.profile.falls_back_unknown": "The workspace has not said, so the installation's own is used.",

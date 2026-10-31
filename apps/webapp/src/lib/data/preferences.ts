@@ -44,6 +44,18 @@ export function inForce(
 }
 
 /**
+ * The language in force: where the person chose none, the language the browser asks for goes
+ * before the workspace's (i18n-l10n.md §2), and the catalogue has no level for a request - so a
+ * language spoken other than the resolved one is the browser's, named `REQUEST`.
+ */
+export function languageInForce(held: InForce | undefined, spoken: string): InForce | undefined {
+  const base = (tag: string | undefined) => tag?.split('-')[0];
+  // The catalogue speaks `de` for a workspace set to `de-AT`: one language, not the browser's.
+  if (!held || held.source === 'PERSON' || spoken === '' || base(held.value) === base(spoken)) return held;
+  return { value: spoken, source: 'REQUEST' };
+}
+
+/**
  * What a `PATCH` sends for a field somebody cleared: **the empty string**.
  *
  * Not `null`, and the difference is not cosmetic. A server before 0.9.0 read an explicit JSON
