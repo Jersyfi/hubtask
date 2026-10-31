@@ -8,8 +8,10 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"maps"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -27,12 +29,17 @@ import (
 // picture of a file in it the page's file; anything else stays as written.
 //
 // Identities derive from each file's path, so a fresh export of the same files into the same hub
-// lands on the pages the first one made.
+// lands on the pages the first one made. HTMLFiles and DOCX land their files the same way, each
+// file read into Markdown first.
 type Markdown struct{}
 
 var _ service.Converter = Markdown{}
 
 func (Markdown) Kind() domain.Kind { return domain.KindMarkdown }
+
+func (Markdown) Convert(_ context.Context, source service.Source) (service.Result, error) {
+	return convertFiles(source, markdownFiles)
+}
 
 var (
 	// A notes app's export names a page "Title 0123456789abcdef0123456789abcdef.md".
@@ -49,41 +56,83 @@ type markdownPage struct {
 	depth  int
 }
 
-func (Markdown) Convert(_ context.Context, source service.Source) (service.Result, error) {
+// fileFormat is how one kind of file becomes a page: the extensions it is known by (the first
+// names a folder's page), how one file reads into Markdown - with the files it carries inside,
+// a document's pictures, keyed by their path in the export - and whether an upload is one such
+// file rather than a ZIP of them.
+type fileFormat struct {
+	identity   string
+	extensions []string
+	read       func(member string, content []byte, total *int64) (*markdownPage, map[string][]byte, error)
+	single     func(raw []byte) bool
+}
+
+var markdownFiles = fileFormat{
+	identity: "markdown", extensions: []string{".md", ".markdown"},
+	read: func(member string, content []byte, _ *int64) (*markdownPage, map[string][]byte, error) {
+		return readMarkdownPage(member, content), nil, nil
+	},
+}
+
+func (f fileFormat) takes(member string) bool {
+	return slices.Contains(f.extensions, strings.ToLower(path.Ext(member)))
+}
+
+func convertFiles(source service.Source, format fileFormat) (service.Result, error) {
 	raw, err := io.ReadAll(source.Content)
 	if err != nil {
 		return service.Result{}, err
 	}
-	if !bytes.HasPrefix(raw, []byte("PK\x03\x04")) {
-		return service.Result{}, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
-	}
-	reader, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
-	if err != nil {
-		return service.Result{}, shared.ErrValidation.WithDetail(domain.CodeArchiveUnreadable)
-	}
 	pages := map[string]*markdownPage{}
 	files := map[string][]byte{}
 	var total int64
-	for _, member := range reader.File {
-		name := path.Clean(strings.ReplaceAll(member.Name, "\\", "/"))
-		if member.FileInfo().IsDir() || strings.HasPrefix(name, "../") || strings.HasPrefix(path.Base(name), ".") ||
-			strings.HasPrefix(name, "__MACOSX/") {
-			continue
+	take := func(name string, content []byte) error {
+		if !format.takes(name) {
+			files[name] = content
+			return nil
 		}
-		content, err := readMember(member, &total)
+		page, held, err := format.read(name, content, &total)
 		if err != nil {
+			return err
+		}
+		if page != nil {
+			pages[name] = page
+		}
+		maps.Copy(files, held)
+		return nil
+	}
+	switch {
+	case format.single != nil && format.single(raw):
+		name := strings.TrimSpace(source.Name)
+		if name == "" || strings.ContainsAny(name, "/\\") {
+			name = "document"
+		}
+		if err := take(name+format.extensions[0], raw); err != nil {
 			return service.Result{}, err
 		}
-		if ext := strings.ToLower(path.Ext(name)); ext == ".md" || ext == ".markdown" {
-			pages[name] = readMarkdownPage(name, content)
-			continue
-		}
-		files[name] = content
-	}
-	if len(pages) == 0 {
+	case !bytes.HasPrefix(raw, []byte("PK\x03\x04")):
 		return service.Result{}, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
+	default:
+		reader, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
+		if err != nil {
+			return service.Result{}, shared.ErrValidation.WithDetail(domain.CodeArchiveUnreadable)
+		}
+		for _, member := range reader.File {
+			name := path.Clean(strings.ReplaceAll(member.Name, "\\", "/"))
+			if member.FileInfo().IsDir() || strings.HasPrefix(name, "../") || strings.HasPrefix(path.Base(name), ".") ||
+				strings.HasPrefix(name, "__MACOSX/") {
+				continue
+			}
+			content, err := readMember(member, &total)
+			if err != nil {
+				return service.Result{}, err
+			}
+			if err := take(name, content); err != nil {
+				return service.Result{}, err
+			}
+		}
 	}
-	if len(pages) > knowledge.MaxPagesPerHub {
+	if len(pages) == 0 || len(pages) > knowledge.MaxPagesPerHub {
 		return service.Result{}, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
 	}
 
@@ -93,7 +142,7 @@ func (Markdown) Convert(_ context.Context, source service.Source) (service.Resul
 	}
 	sort.Strings(members)
 	for _, member := range members {
-		pages[member].parent = folderPageOf(pages, member)
+		pages[member].parent = folderPageOf(pages, member, format.extensions)
 	}
 	for _, member := range members {
 		page := pages[member]
@@ -104,7 +153,7 @@ func (Markdown) Convert(_ context.Context, source service.Source) (service.Resul
 	}
 	sort.SliceStable(members, func(i, j int) bool { return pages[members[i]].depth < pages[members[j]].depth })
 
-	b := newBuilder(source, "markdown")
+	b := newBuilder(source, format.identity)
 	ids := map[string]shared.ID{}
 	for _, member := range members {
 		ids[member] = b.id("pages", "page:"+member)
@@ -141,11 +190,16 @@ func (Markdown) Convert(_ context.Context, source service.Source) (service.Resul
 	return b.result(refused), nil
 }
 
+// titleOfFile is a page's title from its file's name, a notes app's identifier suffix dropped.
+func titleOfFile(member string) string {
+	return exportSuffix.ReplaceAllString(strings.TrimSuffix(path.Base(member), path.Ext(member)), "")
+}
+
 // readMarkdownPage reads a file's title - its first line's heading, else its name - and its body
 // without that heading.
 func readMarkdownPage(member string, content []byte) *markdownPage {
 	text := strings.ReplaceAll(strings.TrimPrefix(string(content), "\ufeff"), "\r\n", "\n")
-	title := exportSuffix.ReplaceAllString(strings.TrimSuffix(path.Base(member), path.Ext(member)), "")
+	title := titleOfFile(member)
 	lines := strings.SplitN(strings.TrimLeft(text, "\n"), "\n", 2)
 	if match := markdownHeader.FindStringSubmatch(lines[0]); match != nil {
 		title = match[1]
@@ -158,19 +212,23 @@ func readMarkdownPage(member string, content []byte) *markdownPage {
 }
 
 // folderPageOf answers the page of the nearest folder above the file that has one: the file of
-// the folder's name beside it, or the folder's index.md or README.md. A folder's own index or README starts above its folder, so a parent is always higher up.
-func folderPageOf(pages map[string]*markdownPage, member string) string {
+// the folder's name beside it, or the folder's index or README in one of the format's extensions.
+// A folder's own index or README starts above its folder, so a parent is always higher up.
+func folderPageOf(pages map[string]*markdownPage, member string, extensions []string) string {
 	start := path.Dir(member)
-	if base := strings.ToLower(path.Base(member)); base == "index.md" || base == "readme.md" {
+	base := strings.ToLower(strings.TrimSuffix(path.Base(member), path.Ext(member)))
+	if base == "index" || base == "readme" {
 		start = path.Dir(start)
 	}
 	for dir := start; dir != "." && dir != "/"; dir = path.Dir(dir) {
 		above := path.Dir(dir)
-		for _, candidate := range []string{
-			path.Join(dir, "index.md"), path.Join(dir, "README.md"), path.Join(above, path.Base(dir)+".md"),
-		} {
-			if _, ok := pages[candidate]; ok && candidate != member {
-				return candidate
+		for _, extension := range extensions {
+			for _, candidate := range []string{
+				path.Join(dir, "index"+extension), path.Join(dir, "README"+extension), path.Join(above, path.Base(dir)+extension),
+			} {
+				if _, ok := pages[candidate]; ok && candidate != member {
+					return candidate
+				}
 			}
 		}
 	}

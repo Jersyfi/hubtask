@@ -298,7 +298,8 @@ func (h ImportEntries) Descriptor() usecase.Descriptor {
 				Name: "kind", Kind: usecase.KindString, Required: true,
 				Enum: []string{
 					string(domain.KindCSV), string(domain.KindTrello), string(domain.KindGoogleTasks), string(domain.KindMicrosoftTodo),
-					string(domain.KindIssueTracker), string(domain.KindWiki), string(domain.KindMarkdown),
+					string(domain.KindIssueTracker), string(domain.KindWiki), string(domain.KindMarkdown), string(domain.KindHTML),
+					string(domain.KindDOCX),
 				},
 				Description: "The system the file came from.",
 			},

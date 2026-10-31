@@ -811,6 +811,8 @@ func run() error {
 		importdomain.KindIssueTracker:  importadapter.IssueTracker{},
 		importdomain.KindWiki:          importadapter.Wiki{},
 		importdomain.KindMarkdown:      importadapter.Markdown{},
+		importdomain.KindHTML:          importadapter.HTMLFiles{},
+		importdomain.KindDOCX:          importadapter.DOCX{},
 	}
 	importKinds := make([]importdomain.Kind, 0, len(importConverters))
 	for kind := range importConverters {

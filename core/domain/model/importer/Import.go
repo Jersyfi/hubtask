@@ -29,18 +29,24 @@ const (
 	KindWiki Kind = "CONFLUENCE"
 	// KindMarkdown is a ZIP of Markdown files, folders as the tree; it lands pages.
 	KindMarkdown Kind = "MARKDOWN"
+	// KindHTML is one HTML file or a ZIP of them, a notes app's HTML export included; it lands pages.
+	KindHTML Kind = "HTML"
+	// KindDOCX is one word-processor document or a ZIP of them; it lands pages.
+	KindDOCX Kind = "DOCX"
 )
 
 // LandsPages reports whether the kind brings pages into the hub rather than entries into
 // collections - such a kind takes no target collection.
-func (k Kind) LandsPages() bool { return k == KindWiki || k == KindMarkdown }
+func (k Kind) LandsPages() bool {
+	return k == KindWiki || k == KindMarkdown || k == KindHTML || k == KindDOCX
+}
 
 // ParseKind reads a submitted kind. The contract's enum is the whole list; which of them this
 // build converts is the converters' business and refused by name there.
 func ParseKind(value string) (Kind, error) {
 	kind := Kind(value)
 	switch kind {
-	case KindCSV, KindTrello, KindGoogleTasks, KindMicrosoftTodo, KindIssueTracker, KindWiki, KindMarkdown:
+	case KindCSV, KindTrello, KindGoogleTasks, KindMicrosoftTodo, KindIssueTracker, KindWiki, KindMarkdown, KindHTML, KindDOCX:
 		return kind, nil
 	}
 	return "", shared.ErrValidation.
