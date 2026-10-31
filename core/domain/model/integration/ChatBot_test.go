@@ -82,3 +82,51 @@ func TestLinkedEntriesFindsThisWorkspacesEntries(t *testing.T) {
 		t.Fatal("no base, no links")
 	}
 }
+
+// UC-INT-19 check 1: a bot on Slack, Teams or Mattermost sits in one channel by its identifier;
+// the platforms with a fixed address need none typed, Mattermost names its server.
+func TestCheckChatBotOnReadsEachPlatformsRoom(t *testing.T) {
+	for _, c := range []struct {
+		platform     DeliveryFormat
+		hs, room     string
+		wantHS, code string
+		wantRoom     string
+	}{
+		{FormatSlack, "", "C0123ABCD", SlackOrigin, "", "C0123ABCD"},
+		{FormatSlack, "https://evil.example", " C0123ABCD ", SlackOrigin, "", "C0123ABCD"},
+		{FormatSlack, "", "#general", "", "webhooks.room_malformed", ""},
+		{FormatTeams, "", "19:abc@thread.tacv2", TeamsOrigin, "", "19:abc@thread.tacv2"},
+		{FormatTeams, "", "19:abc@thread.tacv2;messageid=1", "", "webhooks.room_malformed", ""},
+		{FormatMattermost, "https://Chat.Example.org/", "abcdefghijklmnopqrstuvwxyz", "https://chat.example.org", "", "abcdefghijklmnopqrstuvwxyz"},
+		{FormatMattermost, "", "abcdefghijklmnopqrstuvwxyz", "", "chatbot.homeserver_invalid", ""},
+		{FormatMattermost, "https://chat.example.org", "town-square", "", "webhooks.room_malformed", ""},
+		{FormatCloudEvents, "https://x.example", "C0123ABCD", "", "chatbot.platform_unknown", ""},
+	} {
+		hs, room, _, err := CheckChatBotOn(c.platform, c.hs, c.room, "", true, false)
+		if botCode(err) != c.code || hs != c.wantHS || room != c.wantRoom {
+			t.Errorf("%+v: %q %q %v", c, hs, room, err)
+		}
+	}
+	if _, _, _, err := CheckChatBotOn(FormatSlack, "", "C0123ABCD", "english", true, true); botCode(err) != "webhooks.locale_malformed" {
+		t.Fatalf("a malformed language was taken: %v", err)
+	}
+	if p, err := ParseChatPlatform(""); err != nil || p != FormatMatrix {
+		t.Fatalf("an empty platform is %q %v", p, err)
+	}
+	if _, err := ParseChatPlatform("CLOUDEVENTS"); botCode(err) != "chatbot.platform_unknown" {
+		t.Fatalf("CloudEvents was taken as a chat: %v", err)
+	}
+}
+
+// UC-INT-19 check 4: a delivery from another channel is not the bot's; a Teams thread names its
+// conversation before `;messageid=`.
+func TestSameRoomReadsATeamsThreadAsItsConversation(t *testing.T) {
+	teams := ChatBot{Platform: FormatTeams, Room: "19:abc@thread.tacv2"}
+	if !teams.SameRoom("19:abc@thread.tacv2;messageid=1700") || teams.SameRoom("19:other@thread.tacv2") {
+		t.Fatal("a Teams thread was not read as its conversation")
+	}
+	slack := ChatBot{Platform: FormatSlack, Room: "C0123ABCD"}
+	if slack.SameRoom("C0123ABCD;x") || slack.SameRoom("") || !slack.SameRoom("C0123ABCD") {
+		t.Fatal("a Slack channel was read loosely")
+	}
+}
