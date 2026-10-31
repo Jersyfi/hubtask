@@ -209,7 +209,7 @@ this list with its row.
 | Fourth answers | Anonymous public intake form behind a switch, rate limit and proof of work | open: build it (accepted.md, "The owner's fourth answers", item 3) |
 | Fourth answers | Upload scan port (no-op, clamd through a guarded dialer), files held until scanned | closed: `clamd.Scanner` dials a TCP daemon through `httpclient.Guard` (allowlist, resolution, `CheckControl`, connect timeout; `ForOperatorService` opens private networks only for it), configured by the instance file's `upload_scanner` with `HUBTASK_CLAMD_ADDRESS` as override; `TestARefusedAddressIsNeverDialled` |
 | Fourth answers | A relative-date trigger counts business days; the ITIL auto-close after 5 business days | open: build it (accepted.md, "The owner's fourth answers", item 5) |
-| Fourth answers | The automation action NOTIFY_ROLE | open: build it (accepted.md, "The owner's fourth answers", item 6) |
+| Fourth answers | The automation action NOTIFY_ROLE | closed: `NOTIFY_ACCOUNT`, `NOTIFY_GROUP`, `NOTIFY_ROLE` (UC-AUT-09 built, `NotifyPeople_test.go`, `Recipients_test.go`, `role_holders_test.go`); `itil_service_desk@11` tells `ADMIN` on a breach and the first group on a P1 (`TestTheItilTemplateIsAWholeDesk`) |
 | Fourth answers | A merged portal request read through its duplicates link, with replies told | open: build it (accepted.md, "The owner's fourth answers", item 7) |
 | Fourth answers | The two read endpoints for a Nextcloud widget and search provider | open: build it (accepted.md, "The owner's fourth answers", item 8) |
 | Fourth answers | A public, revocable roadmap link per portfolio behind a setting | open: build it (accepted.md, "The owner's fourth answers", item 9) |

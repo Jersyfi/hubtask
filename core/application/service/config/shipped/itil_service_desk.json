@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 10,
+  "version": 11,
   "questions": [
     {
       "key": "first_group",
@@ -938,6 +938,12 @@
             }
           },
           {
+            "kind": "NOTIFY_ROLE",
+            "params": {
+              "role": "ADMIN"
+            }
+          },
+          {
             "kind": "BRANCH",
             "params": {
               "condition": "item.custom_fields.priority == 'P2'",
@@ -1018,6 +1024,12 @@
             "params": {
               "body": "This incident is P1: the first responding group takes it now.",
               "internal": true
+            }
+          },
+          {
+            "kind": "NOTIFY_GROUP",
+            "params": {
+              "group_id": "answer:first_group"
             }
           }
         ]

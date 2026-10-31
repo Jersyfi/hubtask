@@ -133,6 +133,9 @@ with no default is not taken - the desk without a first group comes without the 
 an upgrade is planned with them again, and the base it compares with is answered the same way, so
 an unchanged answer is no change. `itil_service_desk@9` asks the first group and the group that
 holds *CAB member*; working hours and the time zone are still the calendar's own values.
+`itil_service_desk@11` tells by the notification path (UC-AUT-09), not by a comment only: a
+breached SLA goal tells the administrators along the entry's path (`NOTIFY_ROLE` `ADMIN`), a P1
+the first responding group (`NOTIFY_GROUP`).
 
 **Roles mapped to groups** are the document's `role_groups` section: a block per custom role, its
 `groups` the groups holding it at the whole workspace. Applying adds a `GrantRole` for each group

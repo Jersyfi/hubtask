@@ -41,7 +41,7 @@ func itilTemplate(t *testing.T) domain.Template {
 // every block one the use cases that apply it accept, and every section one the document has.
 func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	template := itilTemplate(t)
-	if template.Origin != domain.OriginHubtask || template.Version != 10 || !reservedKey(template.Key) {
+	if template.Origin != domain.OriginHubtask || template.Version != 11 || !reservedKey(template.Key) {
 		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
 	}
 	// Its hub part (configuration.md §6): the hub's switches and which of the template's workflows
@@ -160,6 +160,14 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	}
 	if !strings.Contains(domain.Canonical(template.Hub[sectionRules]["sla_breached"]), `"value":"P1"`) {
 		t.Error("a breached P2 is not raised to P1")
+	}
+	// UC-AUT-09 by the notification path, not by a comment only: a breach tells the desk's
+	// administrators along the entry's path, a P1 the group that answers first.
+	if !strings.Contains(domain.Canonical(template.Hub[sectionRules]["sla_breached"]), `{"kind":"NOTIFY_ROLE","params":{"role":"ADMIN"}}`) {
+		t.Error("a breached SLA goal tells no role's holders")
+	}
+	if !strings.Contains(domain.Canonical(template.Hub[sectionRules]["p1_escalation"]), `{"kind":"NOTIFY_GROUP","params":{"group_id":"answer:first_group"}}`) {
+		t.Error("a P1 incident tells the first responding group nothing")
 	}
 	known := map[string]bool{sectionSettings: true}
 	for _, s := range sections() {
