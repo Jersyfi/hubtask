@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const advisory = `
@@ -121,5 +122,19 @@ func TestAMalformedAdvisoryIsRefused(t *testing.T) {
 		if _, err := read(dirWith(t, map[string]string{"a.yaml": body})); err == nil {
 			t.Errorf("%s: a malformed advisory was read", name)
 		}
+	}
+}
+
+// An advisory whose identifier climbs out of the output directory is refused, and nothing is
+// written beside it.
+func TestAnAdvisoryWhosePathClimbsOutIsRefused(t *testing.T) {
+	parent := t.TempDir()
+	out := filepath.Join(parent, "csaf")
+	advisories := []Advisory{{ID: "../../escaped", InitialRelease: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)}}
+	if err := write(advisories, out, "https://example.test/.well-known/csaf"); err == nil {
+		t.Fatal("an advisory outside the directory was written")
+	}
+	if _, err := os.Stat(filepath.Join(parent, "escaped.json")); !os.IsNotExist(err) {
+		t.Fatalf("a file was written outside the directory: %v", err)
 	}
 }

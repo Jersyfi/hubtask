@@ -254,6 +254,16 @@ func stamp(at time.Time) string { return at.UTC().Format(time.RFC3339) }
 // write lays the directory out: the documents with their hashes, index.txt, changes.csv (newest
 // first) and provider-metadata.json.
 func write(advisories []Advisory, out, base string) error {
+	// Every file is written through a root opened on the output directory, so an advisory whose
+	// path climbs out of it is refused rather than written elsewhere.
+	if err := os.MkdirAll(out, 0o750); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(out)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
 	var index, changes []string
 	latest := time.Time{}
 	byDate := slices.Clone(advisories)
@@ -263,20 +273,21 @@ func write(advisories []Advisory, out, base string) error {
 		if err != nil {
 			return err
 		}
-		path := filepath.Join(out, filepath.FromSlash(advisory.Path()))
-		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		encoded = append(encoded, '\n')
+		path := filepath.FromSlash(advisory.Path())
+		if err := root.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			return err
 		}
-		if err := os.WriteFile(path, append(encoded, '\n'), 0o600); err != nil {
+		if err := root.WriteFile(path, encoded, 0o600); err != nil {
 			return err
 		}
 		name := filepath.Base(path)
-		sum256 := sha256.Sum256(append(encoded, '\n'))
-		sum512 := sha512.Sum512(append(encoded, '\n'))
-		if err := os.WriteFile(path+".sha256", []byte(hex.EncodeToString(sum256[:])+"  "+name+"\n"), 0o600); err != nil {
+		sum256 := sha256.Sum256(encoded)
+		sum512 := sha512.Sum512(encoded)
+		if err := root.WriteFile(path+".sha256", []byte(hex.EncodeToString(sum256[:])+"  "+name+"\n"), 0o600); err != nil {
 			return err
 		}
-		if err := os.WriteFile(path+".sha512", []byte(hex.EncodeToString(sum512[:])+"  "+name+"\n"), 0o600); err != nil {
+		if err := root.WriteFile(path+".sha512", []byte(hex.EncodeToString(sum512[:])+"  "+name+"\n"), 0o600); err != nil {
 			return err
 		}
 		index = append(index, advisory.Path())
@@ -287,10 +298,10 @@ func write(advisories []Advisory, out, base string) error {
 	for _, advisory := range byDate {
 		changes = append(changes, fmt.Sprintf("%q,%q", advisory.Path(), stamp(advisory.current())))
 	}
-	if err := os.WriteFile(filepath.Join(out, "index.txt"), []byte(strings.Join(index, "\n")+"\n"), 0o600); err != nil {
+	if err := root.WriteFile("index.txt", []byte(strings.Join(index, "\n")+"\n"), 0o600); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(out, "changes.csv"), []byte(strings.Join(changes, "\n")+"\n"), 0o600); err != nil {
+	if err := root.WriteFile("changes.csv", []byte(strings.Join(changes, "\n")+"\n"), 0o600); err != nil {
 		return err
 	}
 	metadata, err := json.MarshalIndent(map[string]any{
@@ -306,5 +317,5 @@ func write(advisories []Advisory, out, base string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(out, "provider-metadata.json"), append(metadata, '\n'), 0o600)
+	return root.WriteFile("provider-metadata.json", append(metadata, '\n'), 0o600)
 }
