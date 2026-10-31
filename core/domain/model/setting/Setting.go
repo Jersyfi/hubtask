@@ -62,8 +62,8 @@ func (l Level) Below(other Level) bool {
 }
 
 // Kind is the shape of a setting's value. The first eight are the installation's (identity.ValueKind
-// spells them the same); STRUCTURE is a value whose shape its own package owns - a collection's
-// levels, its views - and which this package only carries.
+// spells them the same); DATE is a calendar day, `YYYY-MM-DD`; STRUCTURE is a value whose shape its
+// own package owns - a collection's levels, its views - and which this package only carries.
 type Kind string
 
 const (
@@ -75,6 +75,7 @@ const (
 	KindText      Kind = "TEXT"
 	KindLocale    Kind = "LOCALE"
 	KindTimeZone  Kind = "TIME_ZONE"
+	KindDate      Kind = "DATE"
 	KindStructure Kind = "STRUCTURE"
 )
 
@@ -194,7 +195,7 @@ func (d Definition) Validate() error {
 
 var kinds = [...]Kind{
 	KindCount, KindFlag, KindChoice, KindChoices, KindLink, KindText, KindLocale, KindTimeZone,
-	KindStructure,
+	KindDate, KindStructure,
 }
 
 // Entry is what one level stores about one setting. A nil Value with HoldLock locks whatever the
