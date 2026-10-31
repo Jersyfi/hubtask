@@ -155,3 +155,24 @@ For the rest of the coverage runs and every step after them: stick to the plan; 
 hallucinate; never invent or fake information. A worker reports only what it checked in the code
 or measured, says plainly what it did not run or could not verify, and records a gap as open
 rather than closed when it is not proven by a test or a measurement.
+
+## The owner's word on the user experience — 2026-10-31
+
+The owner walked a snapshot of the suite (391f55fae) and found it hard to use: not friendly, no
+clear place to find things, hard to understand how each product works, the layout not fitting how
+a person or an administrator thinks, and many bugs that stopped clicking through. A person new to
+Hubtask would be overwhelmed by what must be set up before a product can be used.
+
+The bar for the role reviews and the UI/UX run:
+
+- Not a plain, conventional interface: Hubtask sets a standard — modern, lively, quick to
+  understand, pleasant to use. Inert, dull or complex screens are defects.
+- The same patterns in every product (navigation, creating, finding, configuring, empty states,
+  details, settings), so that people and administrators recognise them everywhere and want to
+  work with it. The leading work-management suites are the reference for this consistency; their
+  limited flexibility is not — Hubtask keeps the customer's freedom of use.
+- Starting is easy: a product works with sensible defaults and templates on its first use, and a
+  newcomer is guided rather than handed every setting at once (progressive disclosure).
+- Every bug found by clicking through is fixed.
+- A workspace pre-filled with realistic data in every product, so the owner can see what exists,
+  and a design direction with mockups shown to the owner before the screens are rebuilt.
