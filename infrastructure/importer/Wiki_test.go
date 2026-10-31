@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/net/html"
+
 	domain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -232,4 +234,25 @@ func emptyZip(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	return buffer.Bytes()
+}
+
+// UC-IMP-05 check 8: the macros as a wiki's HTML export draws them land as the editor's blocks.
+func TestARenderedWikiMacroLandsAsTheEditorsBlock(t *testing.T) {
+	page := `<div class="toc-macro"><ul><li>First day</li></ul></div>` +
+		`<div class="confluence-information-macro confluence-information-macro-warning"><span class="aui-icon"></span>` +
+		`<div class="confluence-information-macro-body"><p>Never on <strong>Friday</strong>.</p></div></div>` +
+		`<div class="expand-container"><div class="expand-control"><span class="expand-control-text">Details</span></div>` +
+		`<div class="expand-content"><p>State <span class="status-macro aui-lozenge aui-lozenge-success">Done</span>.</p></div></div>`
+	document, err := html.Parse(strings.NewReader("<html><body>" + page + "</body></html>"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pictures := 0
+	writer := &markdownWriter{resolve: func(string) (string, bool) { return "", false }, pictures: &pictures}
+	body := find(document, func(n *html.Node) bool { return n.Data == "body" })
+	got := strings.TrimSpace(markdownOf(body, writer))
+	want := "::toc\n\n:::error\nNever on **Friday**.\n:::\n\n:::details Details\nState :status[Done]{success}.\n:::"
+	if got != want {
+		t.Errorf("the macros landed as\n%s\nwant\n%s", got, want)
+	}
 }

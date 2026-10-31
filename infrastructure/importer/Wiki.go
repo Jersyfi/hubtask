@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -477,13 +478,141 @@ func (w *markdownWriter) block(n *html.Node, indent string) {
 		w.out.WriteString("\n")
 	case atom.Table:
 		w.table(n)
+	case atom.Aside, atom.Details:
+		w.container(n, indent)
+	case atom.Nav:
+		if hasAttr(n, "data-toc") {
+			w.out.WriteString("\n\n" + indent + "::toc\n\n")
+		} else {
+			w.children(n, indent)
+		}
 	case atom.Div, atom.Span, atom.Section, atom.Article, atom.Tbody, atom.Thead:
+		if canonicalMacro(n) {
+			w.block(n, indent)
+			return
+		}
+		if hasAttr(n, "data-child-pages") {
+			w.out.WriteString("\n\n" + indent + "::children\n\n")
+			return
+		}
+		if hasAttr(n, "data-embed") {
+			if address, err := url.Parse(attr(n, "data-embed")); err == nil && address.Scheme == "https" && address.Host != "" && address.User == nil {
+				w.out.WriteString("\n\n" + indent + "::embed " + address.String() + "\n\n")
+			}
+			return
+		}
+		if n.DataAtom == atom.Span && hasAttr(n, "data-status") {
+			w.out.WriteString(w.inlineNode(n))
+			return
+		}
 		w.children(n, indent)
 	case atom.Img:
 		w.image(n)
 	default:
 		w.out.WriteString(w.inline(n))
 	}
+}
+
+// container writes a callout (an aside naming its tone) or a toggle (details with its summary) as
+// the editor's directive, its fence a colon longer than any container inside it.
+func (w *markdownWriter) container(n *html.Node, indent string) {
+	head := "info"
+	if n.DataAtom == atom.Details {
+		head = "details"
+		if summary := find(n, func(c *html.Node) bool { return c.DataAtom == atom.Summary }); summary != nil {
+			if words := strings.TrimSpace(w.inline(summary)); words != "" {
+				head += " " + words
+			}
+			summary.Parent.RemoveChild(summary)
+		}
+	} else if tone := attr(n, "data-callout"); tone == "warning" || tone == "success" || tone == "error" {
+		head = tone
+	}
+	inner := strings.TrimSpace(markdownOf(n, w))
+	fence := strings.Repeat(":", 3+innerFence(inner))
+	w.out.WriteString("\n\n" + indent + fence + head + "\n")
+	if inner != "" {
+		w.out.WriteString(inner + "\n")
+	}
+	w.out.WriteString(indent + fence + "\n\n")
+}
+
+// innerFence is how many colons past three the longest container fence inside a body has, plus one.
+func innerFence(body string) int {
+	longest := -1
+	for _, line := range strings.Split(body, "\n") {
+		trimmed := strings.TrimSpace(line)
+		count := len(trimmed) - len(strings.TrimLeft(trimmed, ":"))
+		if count >= 3 && count-3 > longest {
+			longest = count - 3
+		}
+	}
+	return longest + 1
+}
+
+// renderedCallouts are the classes a wiki's HTML export draws its panels with, by the editor's tone.
+var renderedCallouts = map[string]string{
+	"confluence-information-macro-information": "info", "confluence-information-macro-note": "warning",
+	"confluence-information-macro-warning": "error", "confluence-information-macro-tip": "success",
+}
+
+// renderedStatuses are its status lozenges' classes, by the editor's tone.
+var renderedStatuses = map[string]string{
+	"aui-lozenge-success": "success", "aui-lozenge-error": "error", "aui-lozenge-current": "warning",
+	"aui-lozenge-complete": "info", "aui-lozenge-moved": "warning",
+}
+
+// canonicalMacro rewrites a macro as the wiki's HTML export draws it - a panel, an expand, a table
+// of contents, a status - into the element the writer reads as the editor's block, and reports
+// whether it did (UC-IMP-05 check 8).
+func canonicalMacro(n *html.Node) bool {
+	classes := strings.Fields(attr(n, "class"))
+	has := func(name string) bool { return slices.Contains(classes, name) }
+	for _, class := range classes {
+		if tone, ok := renderedCallouts[class]; ok && n.DataAtom == atom.Div {
+			n.Data, n.DataAtom, n.Attr = "aside", atom.Aside, []html.Attribute{{Key: "data-callout", Val: tone}}
+			return true
+		}
+		if tone, ok := renderedStatuses[class]; ok && n.DataAtom == atom.Span && has("status-macro") {
+			n.Attr = []html.Attribute{{Key: "data-status", Val: tone}}
+			return false
+		}
+	}
+	switch {
+	case n.DataAtom == atom.Div && has("toc-macro"):
+		n.Data, n.DataAtom, n.Attr = "nav", atom.Nav, []html.Attribute{{Key: "data-toc"}}
+		for n.FirstChild != nil {
+			n.RemoveChild(n.FirstChild)
+		}
+		return true
+	case n.DataAtom == atom.Div && has("expand-container"):
+		title := ""
+		if control := find(n, func(c *html.Node) bool {
+			return slices.Contains(strings.Fields(attr(c, "class")), "expand-control-text")
+		}); control != nil {
+			title = strings.TrimSpace(textOf(control))
+			if control.Parent != nil {
+				control.Parent.RemoveChild(control)
+			}
+		}
+		summary := &html.Node{Type: html.ElementNode, Data: "summary", DataAtom: atom.Summary}
+		summary.AppendChild(&html.Node{Type: html.TextNode, Data: title})
+		n.Data, n.DataAtom, n.Attr = "details", atom.Details, nil
+		n.InsertBefore(summary, n.FirstChild)
+		return true
+	case n.DataAtom == atom.Span && has("status-macro"):
+		n.Attr = []html.Attribute{{Key: "data-status", Val: "neutral"}}
+	}
+	return false
+}
+
+func hasAttr(n *html.Node, name string) bool {
+	for _, a := range n.Attr {
+		if a.Key == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (w *markdownWriter) list(n *html.Node, indent string) {
@@ -612,9 +741,23 @@ func (w *markdownWriter) inlineNode(n *html.Node) string {
 		return inner
 	case atom.Script, atom.Style:
 		return ""
+	case atom.Time:
+		if day := attr(n, "datetime"); len(day) >= 10 && dayPattern.MatchString(day[:10]) {
+			return ":date[" + day[:10] + "]"
+		}
+	case atom.Span:
+		canonicalMacro(n)
+		if tone := attr(n, "data-status"); statusTones[tone] && strings.TrimSpace(inner) != "" {
+			return ":status[" + strings.NewReplacer("[", " ", "]", " ").Replace(strings.TrimSpace(inner)) + "]{" + tone + "}"
+		}
 	}
 	return inner
 }
+
+var (
+	dayPattern  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+	statusTones = map[string]bool{"neutral": true, "info": true, "success": true, "warning": true, "error": true}
+)
 
 // external reports whether a link leaves the space for the web or a mail address, which a page keeps
 // as written; any other link the space could not resolve becomes its text.

@@ -396,6 +396,7 @@ func (b *builder) pageKnown(id shared.ID) bool {
 var (
 	storageCDATA     = regexp.MustCompile(`(?s)<!\[CDATA\[(.*?)\]\]>`)
 	storageSelfClose = regexp.MustCompile(`<((?:ac|ri):[A-Za-z-]+)([^<>]*?)/>`)
+	timeSelfClose    = regexp.MustCompile(`<time([^<>]*?)/>`)
 )
 
 // storageDocument parses a body in the wiki's storage format - XHTML with its own elements for
@@ -407,6 +408,8 @@ func storageDocument(storage string) *html.Node {
 		return stdhtml.EscapeString(storageCDATA.FindStringSubmatch(section)[1])
 	})
 	storage = storageSelfClose.ReplaceAllString(storage, "<$1$2></$1>")
+	// A date is written <time datetime="…" />, which HTML would read as opening an element.
+	storage = timeSelfClose.ReplaceAllString(storage, "<time$1></time>")
 	root := &html.Node{Type: html.ElementNode, Data: "div", DataAtom: atom.Div}
 	nodes, err := html.ParseFragment(strings.NewReader(storage), root)
 	if err != nil {
@@ -435,6 +438,65 @@ func rewriteStorage(n *html.Node) {
 		}
 		child = next
 	}
+}
+
+// calloutOf is the editor's callout tone for a wiki's panel macro.
+var calloutOf = map[string]string{"info": "info", "panel": "info", "note": "warning", "warning": "error", "tip": "success"}
+
+// statusOf is the editor's status tone for a wiki's status colour.
+var statusOf = map[string]string{"grey": "neutral", "blue": "info", "green": "success", "yellow": "warning", "red": "error"}
+
+// wikiMacro turns a wiki's panels, expands, contents, child lists, statuses and media into the
+// elements the Markdown writer draws as the editor's blocks (UC-IMP-05 check 8); ok is false for
+// any other macro.
+func wikiMacro(n *html.Node, name string, element func(atom.Atom, ...html.Attribute) *html.Node, textNode func(string) *html.Node) (*html.Node, bool) {
+	parameter := func(key string) string {
+		found := find(n, func(c *html.Node) bool { return c.Data == "ac:parameter" && attr(c, "ac:name") == key })
+		if found == nil {
+			return ""
+		}
+		if address := find(found, func(c *html.Node) bool { return c.Data == "ri:url" }); address != nil {
+			return attr(address, "ri:value")
+		}
+		return strings.TrimSpace(textOf(found))
+	}
+	body := func(into *html.Node) *html.Node {
+		if rich := find(n, func(c *html.Node) bool { return c != n && c.Data == "ac:rich-text-body" }); rich != nil {
+			for c := rich.FirstChild; c != nil; {
+				next := c.NextSibling
+				rich.RemoveChild(c)
+				into.AppendChild(c)
+				c = next
+			}
+			rewriteStorage(into)
+		}
+		return into
+	}
+	switch name {
+	case "info", "panel", "note", "warning", "tip":
+		return body(element(atom.Aside, html.Attribute{Key: "data-callout", Val: calloutOf[name]})), true
+	case "expand":
+		details := element(atom.Details)
+		summary := element(atom.Summary)
+		summary.AppendChild(textNode(parameter("title")))
+		details.AppendChild(summary)
+		return body(details), true
+	case "toc":
+		return element(atom.Nav, html.Attribute{Key: "data-toc", Val: ""}), true
+	case "children":
+		return element(atom.Div, html.Attribute{Key: "data-child-pages", Val: ""}), true
+	case "status":
+		tone := statusOf[strings.ToLower(parameter("colour"))]
+		if tone == "" {
+			tone = "neutral"
+		}
+		chip := element(atom.Span, html.Attribute{Key: "data-status", Val: tone})
+		chip.AppendChild(textNode(parameter("title")))
+		return chip, true
+	case "multimedia", "widget":
+		return element(atom.Div, html.Attribute{Key: "data-embed", Val: parameter("url")}), true
+	}
+	return nil, false
 }
 
 // storageElement answers what a storage element becomes: itself when it is plain HTML, a new
@@ -484,6 +546,9 @@ func storageElement(n *html.Node) *html.Node {
 			if a.Key == "ac:name" {
 				name = a.Val
 			}
+		}
+		if converted, ok := wikiMacro(n, name, element, textNode); ok {
+			return converted
 		}
 		if name == "code" || name == "noformat" {
 			pre := element(atom.Pre)

@@ -206,3 +206,30 @@ func TestASpacesXMLExportCarriesTheNewestAttachments(t *testing.T) {
 		t.Error("the same export lands on the same pages")
 	}
 }
+
+// UC-IMP-05 check 8: a wiki's panels, expands, contents, child lists, statuses, dates and media
+// land as the editor's blocks rather than as their plain text.
+func TestAWikisMacrosLandAsTheEditorsBlocks(t *testing.T) {
+	storage := `<ac:structured-macro ac:name="toc"></ac:structured-macro>` +
+		`<ac:structured-macro ac:name="note"><ac:rich-text-body><p>Back up <strong>first</strong>.</p></ac:rich-text-body></ac:structured-macro>` +
+		`<ac:structured-macro ac:name="expand"><ac:parameter ac:name="title">Why?</ac:parameter><ac:rich-text-body>` +
+		`<ac:structured-macro ac:name="tip"><ac:rich-text-body><p>Since <time datetime="2026-10-01" /> it is ` +
+		`<ac:structured-macro ac:name="status"><ac:parameter ac:name="colour">Green</ac:parameter><ac:parameter ac:name="title">Done</ac:parameter></ac:structured-macro>.</p>` +
+		`</ac:rich-text-body></ac:structured-macro></ac:rich-text-body></ac:structured-macro>` +
+		`<ac:structured-macro ac:name="children"></ac:structured-macro>` +
+		`<ac:structured-macro ac:name="widget"><ac:parameter ac:name="url"><ri:url ri:value="https://videos.example.org/v/7" /></ac:parameter></ac:structured-macro>` +
+		`<ac:structured-macro ac:name="widget"><ac:parameter ac:name="url"><ri:url ri:value="javascript:alert(1)" /></ac:parameter></ac:structured-macro>`
+	pictures := 0
+	writer := &markdownWriter{resolve: func(string) (string, bool) { return "", false }, pictures: &pictures}
+	got := strings.TrimSpace(markdownOf(storageDocument(storage), writer))
+	want := strings.Join([]string{
+		"::toc", "",
+		":::warning", "Back up **first**.", ":::", "",
+		"::::details Why?", ":::success", "Since :date[2026-10-01] it is :status[Done]{success}.", ":::", "::::", "",
+		"::children", "",
+		"::embed https://videos.example.org/v/7",
+	}, "\n")
+	if got != want {
+		t.Errorf("the macros landed as\n%s\nwant\n%s", got, want)
+	}
+}
