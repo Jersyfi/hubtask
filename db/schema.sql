@@ -770,7 +770,7 @@ CREATE TABLE identity_provider (
   -- The preset it was configured from, which decides the mark that is drawn (ADR-0069). GENERIC
   -- is the letter tile.
   kind                  text NOT NULL DEFAULT 'GENERIC'
-                          CHECK (kind IN ('GENERIC', 'GOOGLE', 'MICROSOFT')),
+                          CHECK (kind IN ('GENERIC', 'GOOGLE', 'MICROSOFT', 'SAML')),
   -- Who gets an account on a first arrival. A public provider may only be INVITED_ONLY, which the
   -- application enforces: "public" is a property of the preset, not of anything a CHECK can see.
   provisioning          text NOT NULL DEFAULT 'DOMAINS'
@@ -791,6 +791,14 @@ CREATE TABLE identity_provider (
   -- one group of it, or nothing (both NULL). Never on the installation's rows, never OWNER.
   newcomer_role         membership_role,
   newcomer_group_id     uuid,
+  -- A SAML provider's sign-in address and signing certificate, both or neither, and only a
+  -- workspace's own (migration 0284, UC-ID-30).
+  saml_sso_url          text CHECK (length(saml_sso_url) <= 2000),
+  saml_certificate      text CHECK (length(saml_certificate) <= 20000),
+  CONSTRAINT identity_provider_saml_whole CHECK (
+    (kind = 'SAML') = (saml_sso_url IS NOT NULL AND saml_certificate IS NOT NULL)
+    AND (kind <> 'SAML' OR tenant_id IS NOT NULL)
+  ),
   CONSTRAINT identity_provider_newcomers_check CHECK (
     (newcomer_role IS NULL OR newcomer_group_id IS NULL)
     AND (tenant_id IS NOT NULL OR (newcomer_role IS NULL AND newcomer_group_id IS NULL))
@@ -915,6 +923,9 @@ CREATE TABLE oidc_flow (
   -- migration 0140); the arrival that activates the invited account stores them.
   terms_url     text CONSTRAINT oidc_flow_terms_url_check CHECK (char_length(terms_url) <= 2000),
   terms_version text CONSTRAINT oidc_flow_terms_version_check CHECK (char_length(terms_version) <= 64),
+  -- A SAML answer kept for the handoff, and its hash (migration 0284).
+  saml_response     text CHECK (length(saml_response) <= 350000),
+  saml_handoff_hash bytea,
   CONSTRAINT oidc_flow_session_fkey FOREIGN KEY (tenant_id, session_id)
     REFERENCES session (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT oidc_flow_invited_account_fkey FOREIGN KEY (tenant_id, invited_account_id)
@@ -1217,6 +1228,9 @@ CREATE TABLE work_item (
   CHECK (is_completed = (completed_at IS NOT NULL)),
   CHECK ((type = 'TASK') = (parent_id IS NULL)),
   CHECK (bucket_id IS NULL OR type = 'TASK'),
+  -- A due date's qualifiers only beside a due date (migration 0023).
+  CONSTRAINT wi_due_qualifiers_check
+    CHECK (due_at IS NOT NULL OR (due_time_zone IS NULL AND NOT due_date_only)),
   -- The cover's integrity (migration 0013). No TASK tie: which types carry COVER is the
   -- capability matrix, which is data per tenant.
   CONSTRAINT work_item_cover_consistent CHECK (
@@ -1387,6 +1401,10 @@ CREATE TABLE custom_field_definition (
   is_required   boolean NOT NULL DEFAULT false,
   -- Written only by holders of FIELD_WRITE:<key> (migration 0219, UC-ID-27).
   restricted    boolean NOT NULL DEFAULT false,
+  -- Read only by holders of FIELD_READ:<key>; only a write-restricted field (migration 0220).
+  read_restricted boolean NOT NULL DEFAULT false,
+  -- A CALCULATED field's expression, null for every other kind (migration 0215).
+  formula       text,
   applies_to    item_type[] NOT NULL DEFAULT '{TASK}',
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),
@@ -1395,7 +1413,10 @@ CREATE TABLE custom_field_definition (
   CONSTRAINT custom_field_definition_collection_id_fkey
     FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT custom_field_definition_currency_check
-    CHECK ((kind = 'MONEY') = (currency IS NOT NULL) AND (currency IS NULL OR currency ~ '^[A-Z]{3}$'))
+    CHECK ((kind = 'MONEY') = (currency IS NOT NULL) AND (currency IS NULL OR currency ~ '^[A-Z]{3}$')),
+  CONSTRAINT custom_field_definition_formula_check
+    CHECK ((kind = 'CALCULATED') = (formula IS NOT NULL) AND (formula IS NULL OR length(formula) <= 2000)),
+  CONSTRAINT cfd_read_restricted_ck CHECK (NOT read_restricted OR restricted)
 );
 CREATE UNIQUE INDEX custom_field_definition_tenant_id_uq ON custom_field_definition (tenant_id, id);
 CREATE INDEX cfd_scope_idx ON custom_field_definition (tenant_id, collection_id) WHERE deleted_at IS NULL;
@@ -1661,7 +1682,7 @@ CREATE TABLE page_reference (
   tenant_id   uuid NOT NULL,
   page_id     uuid NOT NULL,
   target_kind text NOT NULL CHECK (target_kind IN
-                ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT')),
+                ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT', 'CI')),
   target_id   uuid NOT NULL,
   anchor      text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
   strength    text NOT NULL CHECK (strength IN ('MENTION', 'CARD', 'EMBED')),
@@ -1824,7 +1845,7 @@ CREATE TABLE whiteboard_reference (
   tenant_id     uuid NOT NULL,
   whiteboard_id uuid NOT NULL,
   target_kind   text NOT NULL CHECK (target_kind IN
-                  ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT')),
+                  ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT', 'CI')),
   target_id     uuid NOT NULL,
   anchor        text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
   strength      text NOT NULL CHECK (strength IN ('MENTION', 'CARD', 'EMBED')),
@@ -1959,7 +1980,7 @@ CREATE TABLE entry_reference (
   source_id   uuid NOT NULL,
   entry_id    uuid NOT NULL,
   target_kind text NOT NULL CHECK (target_kind IN
-                ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT')),
+                ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT', 'CI')),
   target_id   uuid NOT NULL,
   anchor      text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
   strength    text NOT NULL CHECK (strength IN ('MENTION', 'CARD', 'EMBED')),
@@ -1982,7 +2003,8 @@ CREATE TABLE comment (
   -- rather than hiding it - while a living comment carries 1 to 20000 characters. A tombstone a
   -- legal hold covers keeps its text until the retention pass clears it once no hold covers it
   -- (data-retention.md §4); no read serves it (Comment.sql).
-  body              text NOT NULL CHECK (deleted_at IS NOT NULL OR length(body) BETWEEN 1 AND 20000),
+  body              text NOT NULL CONSTRAINT comment_body_check
+                      CHECK (deleted_at IS NOT NULL OR length(body) BETWEEN 1 AND 20000),
   created_at        timestamptz NOT NULL DEFAULT now(),
   edited_at         timestamptz,
   deleted_at        timestamptz,
@@ -1993,6 +2015,8 @@ CREATE TABLE comment (
   kind              text NOT NULL DEFAULT 'USER' CONSTRAINT comment_kind_known CHECK (kind IN ('USER', 'SYSTEM')),
   system_code       text,
   system_params     jsonb,
+  -- A note for the team beside the public replies (migration 0241, UC-SVC-04).
+  internal          boolean NOT NULL DEFAULT false,
   CONSTRAINT comment_item_id_fkey
     FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
@@ -2592,7 +2616,7 @@ CREATE TABLE rule_run_history (
   CONSTRAINT rule_run_rule_id_fkey
     FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT rule_run_trigger_check
-    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY'))
+    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY','STEP_TAKEN'))
 );
 CREATE INDEX rule_run_idx ON rule_run_history (tenant_id, rule_id, started_at DESC);
 CREATE INDEX rule_run_trigger_idx ON rule_run_history (tenant_id, trigger, id DESC);
@@ -2619,7 +2643,7 @@ CREATE TABLE rule_run (
   CONSTRAINT rule_run_rule_id_fkey
     FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT rule_run_trigger_check
-    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY'))
+    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY','STEP_TAKEN'))
 ) PARTITION BY RANGE (started_at);
 CREATE INDEX rule_run_rule_idx ON rule_run (tenant_id, rule_id, started_at DESC);
 -- What the run listing's trigger filter asks: this tenant's runs of one kind, newest first.
@@ -2934,7 +2958,9 @@ CREATE TABLE job (
   -- How far along, between 0 and 1, or NULL from a job that cannot say (migration 0032).
   progress     real,
   -- The parameters of the refusal a job ended with, beside its code (migration 0151).
-  last_error_params jsonb
+  last_error_params jsonb,
+  -- How a job that succeeded ended, where its kind says more: a message code only (migration 0171).
+  outcome      text
 );
 CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
 CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)
@@ -3548,9 +3574,11 @@ CREATE TABLE import_run (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   requested_by  uuid NOT NULL,
-  kind          text NOT NULL CHECK (kind IN ('CSV','TRELLO','GOOGLE_TASKS','MICROSOFT_TODO')),
+  kind          text NOT NULL CHECK (kind IN ('CSV','TRELLO','GOOGLE_TASKS','MICROSOFT_TODO','JIRA','CONFLUENCE')),
   media_id      uuid NOT NULL,
   hub_id        uuid NOT NULL,
+  -- The existing collection an import writes into, held to its types' forms (migration 0200).
+  collection_id uuid,
   mapping       jsonb,
   -- The requester's zone and language at the request, for a source that writes dates without a
   -- zone and entries without a language: what the rows are read in.
@@ -5973,7 +6001,7 @@ CREATE TABLE time_cost_rate (
   -- a billing rate's hub or collection (migration 0290): the subject is a person, a role or a plan
   plan_id    uuid,
   CONSTRAINT time_cost_rate_subject_check CHECK (num_nonnulls(account_id, role, plan_id) = 1),
-  CHECK (to_day IS NULL OR to_day >= from_day),
+  CONSTRAINT time_cost_rate_check1 CHECK (to_day IS NULL OR to_day >= from_day),
   CONSTRAINT time_cost_rate_plan_fkey
     FOREIGN KEY (tenant_id, plan_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
@@ -6167,12 +6195,14 @@ CREATE TABLE dashboard (
   hub_id     uuid,
   owner_id   uuid,
   name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
-  sharing    text NOT NULL CHECK (sharing IN ('PRIVATE', 'SCOPE')),
+  sharing    text NOT NULL CHECK (sharing IN ('PRIVATE', 'SCOPE', 'GROUPS')),
   widgets    jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(widgets) = 'array'),
   created_at timestamptz NOT NULL,
   updated_at timestamptz NOT NULL,
   updated_by uuid,
   version    integer NOT NULL DEFAULT 1,
+  -- The groups a GROUPS dashboard is shared with (migration 0274).
+  group_ids  uuid[] NOT NULL DEFAULT '{}' CHECK (cardinality(group_ids) <= 20),
   CONSTRAINT dashboard_hub_fkey
     FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
