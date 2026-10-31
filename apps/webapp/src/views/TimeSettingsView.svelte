@@ -26,6 +26,8 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import CostRates from '../lib/time/CostRates.svelte';
+  import { lockedAbove, partOf, type PolicyPart } from '../lib/time/policy.ts';
+  import ValueSource from '../lib/workspace/ValueSource.svelte';
 
   $effect(() => page.entitle(t('app.time_settings.title')));
 
@@ -68,6 +70,18 @@
     if (!read) return;
     untrack(() => { draft.lockedThrough = read.locked_through ?? ''; draft.visibility = read.visibility; });
   });
+  // A part the installation or the plan locked is drawn unavailable with who decides it; the mark
+  // beside a part names its source only where a level above decided it.
+  const lockedDay = $derived(lockedAbove(policy, 'time.locked_through'));
+  const lockedVisibility = $derived(lockedAbove(policy, 'time.visibility'));
+  function lockReason(level: 'INSTANCE' | 'PLAN' | undefined): string | undefined {
+    if (level === undefined) return undefined;
+    return t(level === 'PLAN' ? 'app.source.locked_sentence_plan' : 'app.source.locked_sentence_instance');
+  }
+  function sourceOf(part: PolicyPart): { source?: string; lock?: string | null } {
+    const held = partOf(policy, part);
+    return held.source === 'INSTANCE' || held.source === 'PLAN' || held.locked_by ? { source: held.source, lock: held.locked_by } : {};
+  }
   const isPolicyChanged = $derived(policy !== undefined && ((policy.locked_through ?? '') !== draft.lockedThrough || policy.visibility !== draft.visibility));
   // A press with nothing changed writes nothing (UC-WRK-32 check 3: the save is never unavailable for it).
   function savePolicy() {
@@ -154,11 +168,13 @@
     <section class="block" aria-labelledby="time-policy">
       <h2 id="time-policy" class="heading">{t('app.time_settings.policy')}</h2>
       {#if mayLock}
-        <Input label={t('app.time_settings.locked_through')} hint={t('app.time_settings.locked_hint')} type="date" bind:value={draft.lockedThrough} />
-        <Radio label={t('app.time_settings.visibility')} name="visibility" bind:value={draft.visibility} options={[
+        <Input label={t('app.time_settings.locked_through')} hint={t('app.time_settings.locked_hint')} type="date" bind:value={draft.lockedThrough} disabledReason={lockReason(lockedDay)} />
+        <ValueSource {...sourceOf('time.locked_through')} value={policy.locked_through ?? t('app.time_settings.nothing_locked')} />
+        <Radio label={t('app.time_settings.visibility')} name="visibility" bind:value={draft.visibility} disabledReason={lockReason(lockedVisibility)} options={[
           { value: 'FULL', label: t('app.time_settings.visibility_FULL'), hint: t('app.time_settings.visibility_FULL_hint') },
           { value: 'AGGREGATED', label: t('app.time_settings.visibility_AGGREGATED'), hint: t('app.time_settings.visibility_AGGREGATED_hint') },
         ]} />
+        <ValueSource {...sourceOf('time.visibility')} value={t(`app.time_settings.visibility_${policy.visibility}`)} />
         <Inline justify="end"><Button onclick={savePolicy}>{t('app.time_settings.save')}</Button></Inline>
       {:else}
         <p>{policy.locked_through ? t('app.time_settings.locked_until', { day: policy.locked_through }) : t('app.time_settings.nothing_locked')}</p>

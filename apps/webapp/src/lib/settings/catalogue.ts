@@ -29,6 +29,8 @@ const OWN_CODES: Readonly<Record<string, string>> = {
   'agents.registered_only': 'app.agents.registered_only',
   'config.agent_apply': 'app.changes.agent_apply',
   'planning.time_tolerance_days': 'app.planning.tolerance',
+  'time.locked_through': 'app.time_settings.locked_through',
+  'time.visibility': 'app.time_settings.visibility',
 };
 
 /** The message code of a setting's name, from the codes its own screen already draws it with. */
@@ -70,6 +72,7 @@ const WORKSPACE: Readonly<Record<string, Screen>> = {
   agents: { path: '/administration/agents', code: 'app.agents.title' },
   // The workspace's tolerance is drawn beside the modules it belongs to (WorkspaceTolerance).
   planning: { path: '/administration/modules', code: 'app.modules.title' },
+  time: { path: '/administration/time', code: 'app.time_settings.title' },
 };
 
 /** Where an area is drawn on a hub's or a collection's own pages, below the place's address. */
