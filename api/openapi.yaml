@@ -36335,7 +36335,11 @@ components:
         data_kind: { type: string, example: COMPLETED_ITEM }
         default_days:
           type: integer
-          description: The period a workspace starts with. Zero means the kind is off by default.
+          description: >
+            The period a workspace starts with. Zero means no rule applies until the workspace
+            writes one. WHITEBOARD_HISTORY is zero although its unnamed versions are thinned after
+            90 days without a rule (named versions and each day's newest stay); its resolved
+            threads are kept until a rule says otherwise.
         min_days: { type: integer, description: What no rule may undercut. }
         max_days:
           type: [integer, "null"]

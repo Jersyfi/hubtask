@@ -21123,7 +21123,7 @@ type RetentionDataKind struct {
 	Actions  *[]string `json:"actions,omitempty"`
 	DataKind *string   `json:"data_kind,omitempty"`
 
-	// DefaultDays The period a workspace starts with. Zero means the kind is off by default.
+	// DefaultDays The period a workspace starts with. Zero means no rule applies until the workspace writes one. WHITEBOARD_HISTORY is zero although its unnamed versions are thinned after 90 days without a rule (named versions and each day's newest stay); its resolved threads are kept until a rule says otherwise.
 	DefaultDays *int `json:"default_days,omitempty"`
 
 	// MaxDays The upper bound where the operator has set one, and null where there is none. Exceeding it needs a `justification`.
