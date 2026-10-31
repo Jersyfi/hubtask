@@ -97,6 +97,7 @@
   import AffectedCis from '../lib/entries/AffectedCis.svelte';
   import EntryApprovals from '../lib/servicedesk/EntryApprovals.svelte';
   import EntrySla from '../lib/servicedesk/EntrySla.svelte';
+  import RequesterPanel from '../lib/servicedesk/RequesterPanel.svelte';
   import EntryProvenance from '../lib/entries/EntryProvenance.svelte';
   import EntryCode from '../lib/code/EntryCode.svelte';
   import EntryFiles from '../lib/files/EntryFiles.svelte';
@@ -1363,6 +1364,8 @@
         {#if manifest.value?.modules_on?.includes('SERVICE_DESK')}
           <!-- Its promised times (UC-SVC-02 check 6). -->
           {#key item.id}<EntrySla itemId={item.id} />{/key}
+          <!-- Who raised it, their organisation and their other open requests (UC-SVC-03 check 7). -->
+          {#key item.id}<RequesterPanel {item} onnavigate={(path) => onnavigate?.(path)} />{/key}
           {#key item.id}<EntryApprovals itemId={item.id} />{/key}
         {/if}
         <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so

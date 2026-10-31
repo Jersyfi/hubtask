@@ -87,3 +87,29 @@ export function hubCalendarRows(workspace: readonly BusinessCalendar[], own: rea
     .sort((a, b) => a.key.localeCompare(b.key))
     .map((row) => ({ key: row.key, workspace: row, own: byKey.get(row.key) }));
 }
+
+/** How many of a requester's other open requests the side panel lists (UC-SVC-03 check 7). */
+export const REQUESTER_OPEN = 5;
+
+/**
+ * The requester's other open requests, as the search reads them: by creator, open, newest first -
+ * answering only what the reader may see. Asked one larger, since the request itself is among them.
+ */
+export function requesterRequests(accountId: string) {
+  return {
+    filter: {
+      op: 'AND',
+      nodes: [
+        { op: 'EQ', field: 'created_by', value: accountId },
+        { op: 'EQ', field: 'is_completed', value: false },
+      ],
+    },
+    sort: [{ field: 'created_at', dir: 'DESC' }],
+    page: { size: REQUESTER_OPEN + 1 },
+  };
+}
+
+/** The others of a requester's open requests, the one being read left out. */
+export function otherRequests<T extends { id: string }>(rows: readonly T[], selfId: string): T[] {
+  return rows.filter((row) => row.id !== selfId).slice(0, REQUESTER_OPEN);
+}

@@ -43,3 +43,13 @@ test('a hub\'s own calendar stands beside the workspace\'s of its key (UC-SVC-01
   assert.equal(rows[0]!.own, undefined);
   assert.equal(rows[1]!.own?.name, 'Office (Munich)');
 });
+
+test('a requester panel lists their other open requests, newest first, the request itself left out (UC-SVC-03 check 7)', async () => {
+  const { otherRequests, requesterRequests, REQUESTER_OPEN } = await import('./desk.ts');
+  const asked = requesterRequests('kim');
+  assert.deepEqual(asked.filter.nodes[0], { op: 'EQ', field: 'created_by', value: 'kim' });
+  assert.deepEqual(asked.filter.nodes[1], { op: 'EQ', field: 'is_completed', value: false });
+  assert.equal(asked.page.size, REQUESTER_OPEN + 1);
+  const rows = ['a', 'self', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id }));
+  assert.deepEqual(otherRequests(rows, 'self').map((row) => row.id), ['a', 'b', 'c', 'd', 'e']);
+});
