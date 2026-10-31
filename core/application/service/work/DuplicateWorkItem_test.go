@@ -6,6 +6,7 @@ package work
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
@@ -644,5 +645,30 @@ func TestACopyByAnAssignedOnlyRoleIsRefusedForATypeThatCannotBeOwned(t *testing.
 	}
 	if len(h.items.copies) != 0 {
 		t.Error("something was copied all the same")
+	}
+}
+
+// A copy's title is a title like any other: one line, at most 500 code points, trimmed. The MCP
+// and CLI doors bring it in without the REST schema's bounds, so the use case holds them.
+func TestACopysTitleIsCheckedAsAnyTitleIs(t *testing.T) {
+	for _, testCase := range []struct{ title, detail string }{
+		{"two\nlines", "items.title_malformed"},
+		{strings.Repeat("x", 501), "items.title_too_long"},
+	} {
+		h := newDuplicateHarness(t)
+		original := h.withTask()
+		_, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{ItemID: original.ID, Title: testCase.title})
+		if !errors.Is(err, shared.ErrValidation) || shared.AsError(err).DetailCode != testCase.detail {
+			t.Errorf("a copy titled %.20q answered %v, want %s", testCase.title, err, testCase.detail)
+		}
+		if len(h.items.copies) != 0 {
+			t.Error("something was copied all the same")
+		}
+	}
+	h := newDuplicateHarness(t)
+	original := h.withTask()
+	result, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{ItemID: original.ID, Title: "  Plan again  "})
+	if err != nil || result.Item.Title != "Plan again" {
+		t.Errorf("a padded title gave %q, %v; want it trimmed", result.Item.Title, err)
 	}
 }

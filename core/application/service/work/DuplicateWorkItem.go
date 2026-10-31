@@ -132,6 +132,13 @@ func (h DuplicateWorkItem) Execute(
 	if cmd.ItemID.IsZero() {
 		return DuplicateResult{}, itemIDRequired()
 	}
+	if cmd.Title != "" {
+		title, err := domain.ItemTitle(cmd.Title, h.Text)
+		if err != nil {
+			return DuplicateResult{}, err
+		}
+		cmd.Title = title
+	}
 
 	plan, err := h.plan(ctx, actor, cmd)
 	if err != nil {

@@ -502,6 +502,15 @@ func checkPlacement(id, parentID shared.ID, path string, depth int) error {
 	return nil
 }
 
+// ItemTitle is the rule every title of an entry is held to, for a path that writes one without
+// building the entry anew - a copy's or a split's title.
+func ItemTitle(raw string, form text.Normalizer) (string, error) { return itemTitle(raw, form) }
+
+// ItemNotes is the form every entry's notes are kept in: normal form C, trimmed.
+func ItemNotes(raw string, form text.Normalizer) (string, error) {
+	return shared.NFC(strings.TrimSpace(raw), form)
+}
+
 // itemTitle normalises, trims and checks the title. One line, like a container's name and for
 // the same reason: it survives every layer and then breaks the one that renders it - an export,
 // a log line, a calendar summary. Anything with newlines in it belongs in the notes.
