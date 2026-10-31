@@ -121,3 +121,40 @@ func TestASettingLeftToTheLevelAboveIsExplained(t *testing.T) {
 		t.Errorf("explained as %v", out)
 	}
 }
+
+// The time policy is two blocks of the document where the workspace decided them (UC-TIM-03):
+// a part the plan decides stays out, and a change of both is one write held to the version read.
+func TestTheTimePolicyIsInTheDocumentAndWrittenOnce(t *testing.T) {
+	f := newFixture()
+	signedInWorkspace(f)
+	f.world.timePolicy = map[string]any{
+		"locked_through": "2026-09-30", "visibility": "AGGREGATED", "version": float64(4),
+		"settings": map[string]any{
+			"time.locked_through": map[string]any{"value": "2026-09-30", "source": "WORKSPACE", "locked_by": nil},
+			"time.visibility":     map[string]any{"value": "AGGREGATED", "source": "PLAN", "locked_by": "PLAN"},
+		},
+	}
+	document := invoke(t, ExportConfig{f.desk}.Descriptor(), person, nil)["document"].(map[string]any)
+	settings := document["settings"].(map[string]any)
+	if block, _ := settings["time.locked_through"].(map[string]any); block["value"] != "2026-09-30" {
+		t.Fatalf("the workspace's locked day is not in the document: %v", settings)
+	}
+	if _, held := settings["time.visibility"]; held {
+		t.Fatal("the plan's visibility is in the workspace's document")
+	}
+
+	f.world.timePolicy["settings"].(map[string]any)["time.visibility"] = map[string]any{"value": "AGGREGATED", "source": "WORKSPACE", "locked_by": nil}
+	desired := map[string]any{"settings": map[string]any{
+		"time.locked_through": map[string]any{"value": "2026-10-31"},
+		"time.visibility":     map[string]any{"value": "FULL"},
+	}}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": desired})
+	invoke(t, ApplyConfig{f.desk}.Descriptor(), person, usecase.Input{"document": desired, "plan_hash": plan["plan_hash"]})
+	calls := f.world.inputs["SetTimePolicy"]
+	if len(calls) != 1 {
+		t.Fatalf("SetTimePolicy ran %d times, want once: %v", len(calls), calls)
+	}
+	if in := calls[0]; in["locked_through"] != "2026-10-31" || in["visibility"] != "FULL" || in["expected_version"] != float64(4) {
+		t.Errorf("SetTimePolicy got %v", in)
+	}
+}

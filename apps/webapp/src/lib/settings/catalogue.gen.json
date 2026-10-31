@@ -1743,6 +1743,62 @@
       ]
     },
     {
+      "key": "time.locked_through",
+      "kind": "DATE",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "APPROVE_TIME"
+        }
+      ]
+    },
+    {
+      "key": "time.visibility",
+      "kind": "CHOICE",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "options": [
+        "FULL",
+        "AGGREGATED"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "APPROVE_TIME"
+        }
+      ]
+    },
+    {
       "key": "notifications.assignment",
       "kind": "FLAG",
       "levels": [

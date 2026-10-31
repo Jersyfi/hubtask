@@ -201,6 +201,8 @@ func valueSchema(definition setting.Definition) map[string]any {
 		}
 	case setting.KindFlag:
 		out["type"] = "boolean"
+	case setting.KindDate:
+		out["type"], out["format"] = "string", "date"
 	case setting.KindChoices:
 		items := map[string]any{"type": "string"}
 		if len(definition.Options) > 0 {

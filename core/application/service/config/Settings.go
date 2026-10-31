@@ -48,7 +48,56 @@ func settingAreas() []settingArea {
 		{read: "ReadAgentPolicy", prefixes: []string{agentPolicyPrefix}, rows: agentPolicyRows, write: agentPolicyOp},
 		{read: "ReadWorkspaceTolerance", prefixes: []string{planningPrefix}, rows: toleranceRows, write: toleranceOp},
 		{read: "ReadPublicLinksPolicy", prefixes: []string{publicLinksKey}, rows: publicLinksRows, write: publicLinksOp},
+		{read: "ReadTimePolicy", prefixes: []string{timePrefix}, rows: timePolicyRows, write: timePolicyOp},
 	}
+}
+
+// timePrefix is the workspace's time policy (UC-TIM-03): the locked period and the visibility.
+const (
+	timePrefix        = "time."
+	setTimePolicy     = "SetTimePolicy"
+	timeVisibilityKey = "time.visibility"
+)
+
+// timePolicyRows reads ReadTimePolicy's `settings`, keyed by the catalogue's keys; each row
+// carries the whole policy and its version besides, since the one write takes both parts.
+func timePolicyRows(answer map[string]any) map[string]map[string]any {
+	var settings map[string]any
+	switch held := answer["settings"].(type) {
+	case usecase.Output:
+		settings = held
+	case map[string]any:
+		settings = held
+	}
+	out := agentPolicyRows(settings)
+	for _, row := range out {
+		row["version"] = answer["version"]
+		row["policy_locked_through"] = answer["locked_through"]
+		row["policy_visibility"] = answer["visibility"]
+	}
+	return out
+}
+
+// timePolicyOp writes the policy with the part changed and the other as it stands, held to the
+// version read; a removed locked day is none, a removed visibility Hubtask's FULL.
+func timePolicyOp(change domain.BlockChange, row map[string]any) (operation, error) {
+	in := usecase.Input{
+		"expected_version": row["version"], "locked_through": row["policy_locked_through"],
+		"visibility": row["policy_visibility"],
+	}
+	field := strings.TrimPrefix(change.Key, timePrefix)
+	switch {
+	case change.Op == domain.OpRemove && change.Key == timeVisibilityKey:
+		in[field] = "FULL"
+	case change.Op == domain.OpRemove:
+		in[field] = nil
+	default:
+		in[field] = change.After[settingValueField]
+	}
+	if in["expected_version"] == nil {
+		in["expected_version"] = 0
+	}
+	return operation{UseCase: setTimePolicy, Path: change.Path(), Input: in}, nil
 }
 
 // publicLinksKey is the knowledge module's switch for a page's public link (UC-DOC-08 check 4).
@@ -360,7 +409,7 @@ func settingBlock(key string, row map[string]any) domain.Block {
 func settingsOps(changes []domain.BlockChange, rows map[string]map[string]any) ([]operation, []shared.FieldError) {
 	var ops []operation
 	var refusals []shared.FieldError
-	merged := -1
+	merged, timed := -1, -1
 	for _, change := range changes {
 		for attribute := range change.After {
 			if !contains(settingAttributes(change.Key), attribute) {
@@ -384,6 +433,18 @@ func settingsOps(changes []domain.BlockChange, rows map[string]map[string]any) (
 		op, err := area.write(change, rows[change.Key])
 		if err != nil {
 			refusals = append(refusals, fieldsOf(err, change.Path())...)
+			continue
+		}
+		if op.UseCase == setTimePolicy {
+			// Both parts in one write: a second write would be refused on the version the first moved.
+			if timed < 0 {
+				timed = len(ops)
+				ops = append(ops, op)
+				continue
+			}
+			field := strings.TrimPrefix(change.Key, timePrefix)
+			ops[timed].Input[field] = op.Input[field]
+			ops[timed].Path = sectionSettings
 			continue
 		}
 		if op.UseCase != updateWorkspace {

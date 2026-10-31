@@ -34,6 +34,8 @@ type world struct {
 	// nil withholding it. inputs records what each writing use case was given.
 	workspace map[string]any
 	ai        map[string]any
+	// timePolicy is what ReadTimePolicy answers, nil withholding it.
+	timePolicy map[string]any
 	// locks and defaultPreset are the workspace structure's locks and the preset a new hub starts from.
 	locks         map[string]any
 	defaultPreset string
@@ -69,7 +71,7 @@ type world struct {
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
-		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants,
+		workspace: w.workspace, ai: w.ai, timePolicy: w.timePolicy, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants,
 		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, hubCalendars: w.hubCalendars, fields: w.fields, fieldReach: w.fieldReach, containers: w.containers}
 	if w.views != nil {
 		out.views = map[string]map[string]any{}
@@ -244,7 +246,12 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 			return nil, shared.ErrForbidden
 		}
 		return usecase.Output(maps.Clone(w.ai)), nil
-	case "UpdateWorkspace", "ChooseAiSource", "SetAiPersonOptOut", "DefineCustomField", "UpdateCustomField", "DeleteCustomField":
+	case "ReadTimePolicy":
+		if w.timePolicy == nil {
+			return nil, shared.ErrForbidden
+		}
+		return usecase.Output(maps.Clone(w.timePolicy)), nil
+	case "UpdateWorkspace", "ChooseAiSource", "SetAiPersonOptOut", "SetTimePolicy", "DefineCustomField", "UpdateCustomField", "DeleteCustomField":
 		if w.inputs == nil {
 			w.inputs = map[string][]usecase.Input{}
 		}

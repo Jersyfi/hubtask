@@ -208,6 +208,12 @@ one workspace, by person and place.
 | `planning.time_tolerance_days` | WORKSPACE | `STRUCTURE` | OWNER, ADMIN |
 | `planning.time_tolerance_days` | HUB | `STRUCTURE` | OWNER, ADMIN |
 | `planning.time_tolerance_days` | COLLECTION | `STRUCTURE` | OWNER, ADMIN |
+| `time.locked_through` | INSTANCE | `admin:instance` | the installation's operators |
+| `time.locked_through` | PLAN | `admin:instance` | the installation's operators |
+| `time.locked_through` | WORKSPACE | `APPROVE_TIME` | - |
+| `time.visibility` | INSTANCE | `admin:instance` | the installation's operators |
+| `time.visibility` | PLAN | `admin:instance` | the installation's operators |
+| `time.visibility` | WORKSPACE | `APPROVE_TIME` | - |
 | `notifications.assignment` | PERSON | `SELF` | the person |
 | `notifications.membership` | PERSON | `SELF` | the person |
 | `notifications.comment` | PERSON | `SELF` | the person |
