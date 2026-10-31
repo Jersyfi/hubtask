@@ -1293,6 +1293,8 @@
   "email.comment.subject": "{actor} commented on “{title}”",
   "email.comment.subject.withheld": "There is a new comment",
   "email.comment.body": "{actor} wrote a comment on “{title}”. Follow the link to read it.\n\n{link}",
+  "email.requester_reply.subject": "[{key}] {title}",
+  "email.requester_reply.body": "{author} answered your request {key} “{title}”:\n\n{reply}\n\nAnswer this mail to reply; keep [{key}] in the subject.",
   "email.comment.body.withheld": "{actor} wrote a comment. Follow the link to read it.\n\n{link}",
   "email.reminder.subject": "Reminder: “{title}”",
   "email.reminder.subject.withheld": "A reminder from Hubtask",

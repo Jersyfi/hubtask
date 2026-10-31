@@ -169,6 +169,8 @@
   "email.comment.subject": "{actor} hat „{title}“ kommentiert",
   "email.comment.subject.withheld": "Es gibt einen neuen Kommentar",
   "email.comment.body": "{actor} hat einen Kommentar zu „{title}“ geschrieben. Folge dem Link, um ihn zu lesen.\n\n{link}",
+  "email.requester_reply.subject": "[{key}] {title}",
+  "email.requester_reply.body": "{author} hat auf deine Anfrage {key} „{title}“ geantwortet:\n\n{reply}\n\nAntworte auf diese Mail, um zu antworten; lass [{key}] im Betreff stehen.",
   "email.comment.body.withheld": "{actor} hat einen Kommentar geschrieben. Folge dem Link, um ihn zu lesen.\n\n{link}",
   "email.reminder.subject": "Erinnerung: „{title}“",
   "email.reminder.subject.withheld": "Eine Erinnerung von Hubtask",

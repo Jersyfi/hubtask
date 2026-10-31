@@ -515,6 +515,10 @@ const (
 	// KindAgentJob is one job of a shipped agent on its target (G11), deduplicated by the job's
 	// identifier; StartAgentJob stores the job and seeds it.
 	KindAgentJob Kind = "agents.job"
+
+	// KindRequesterReply mails one public reply to the requesters an entry was filed for by mail
+	// (UC-SVC-12), deduplicated by the comment's identifier.
+	KindRequesterReply Kind = "servicedesk.requester_reply"
 )
 
 func (k Kind) String() string { return string(k) }

@@ -4156,6 +4156,9 @@ func run() error {
 				Records: slaRecords, Items: items, IDs: ids,
 				Timers: calendarservice.Clocks{Timers: postgres.NewTimerRepository(), Jobs: jobs, IDs: ids},
 			},
+			// A public reply mailed to the requesters an entry was filed for by mail (UC-SVC-12):
+			// one job per comment, the mail sent outside the dispatcher's transaction.
+			servicedeskservice.RequesterReplies{Requesters: postgres.RequesterRepository{IDs: ids}, Jobs: jobs},
 			// The check a deletion seeds (ADR-0060): one job per workspace, never the check itself
 			// inside the dispatcher's transaction.
 			automationservice.CheckOnDeletion{Jobs: jobs},
@@ -4772,6 +4775,13 @@ func run() error {
 			Steward: steward, Accounts: accounts, Preferences: notificationPreferences,
 			Addresses: workspaceAddress(cfg), Mail: mailSender, Renderer: renderer, Decimals: renderer,
 			Background: backgroundWork, FallbackLocale: cfg.Locale.DefaultLocale,
+		}},
+		// A public reply mailed to an entry's requesters by mail (UC-SVC-12).
+		queueport.KindRequesterReply: worker.RequesterReply{Replies: servicedeskservice.SendRequesterReply{
+			Comments: postgres.NewCommentRepository(cursors), Items: items,
+			Requesters: postgres.RequesterRepository{IDs: ids}, Keys: mailIntake, Accounts: accounts,
+			Replies: mailservice.Replies{Writer: mailWriter}, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			FallbackLocale: cfg.Locale.DefaultLocale, Mail: mailSender, Renderer: renderer, Background: backgroundWork,
 		}},
 		// A calendar push's run every quarter hour (UC-INT-16).
 		queueport.KindCalendarPush: worker.CalendarPush{Pushes: calendarPushes},
