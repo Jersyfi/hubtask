@@ -40,6 +40,14 @@ type Question struct {
 // definitions are the custom fields in force at the collection; a field of the form that none
 // defines is asked of nobody.
 func RequestCatalogue(types []work.EntryType, offered []string, definitions []work.CustomFieldDefinition) []CatalogueEntry {
+	return CatalogueThrough(work.ChannelPortal, types, offered, definitions)
+}
+
+// CatalogueThrough is RequestCatalogue for another opt-in door: a public form offers the types
+// whose form names PUBLIC and leaves it open (UC-SVC-13).
+func CatalogueThrough(
+	channel work.FormChannel, types []work.EntryType, offered []string, definitions []work.CustomFieldDefinition,
+) []CatalogueEntry {
 	out := []CatalogueEntry{}
 	for _, entryType := range types {
 		if entryType.Level != work.ItemTask || entryType.ArchivedAt != nil {
@@ -48,7 +56,7 @@ func RequestCatalogue(types []work.EntryType, offered []string, definitions []wo
 		if offered != nil && !slices.Contains(offered, entryType.Key) {
 			continue
 		}
-		rule, named := portalRule(entryType.Form)
+		rule, named := channelRule(entryType.Form, channel)
 		if !named || rule.Closed {
 			continue
 		}
@@ -66,9 +74,9 @@ func InCatalogue(catalogue []CatalogueEntry, key string) bool {
 	return slices.ContainsFunc(catalogue, func(entry CatalogueEntry) bool { return entry.Key == key })
 }
 
-func portalRule(form work.Form) (work.FormChannelRule, bool) {
+func channelRule(form work.Form, channel work.FormChannel) (work.FormChannelRule, bool) {
 	for _, rule := range form.Channels {
-		if rule.Channel == work.ChannelPortal {
+		if rule.Channel == channel {
 			return rule, true
 		}
 	}
