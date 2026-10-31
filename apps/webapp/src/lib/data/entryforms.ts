@@ -23,6 +23,14 @@ export const OWN_FORM_KEYS = ['title', 'notes', 'due_date', 'start_at'] as const
 /** The doors a form tells apart, in the contract's order. */
 export const FORM_CHANNELS = ['APP', 'MCP', 'RULE', 'SYNC', 'IMPORT', 'MAIL'] as const;
 
+/**
+ * The doors closed until a form names them: the requester portal and a public form. Their rule
+ * opens them by being there, so it is kept even when it narrows nothing.
+ */
+export const OPT_IN_CHANNELS = ['PORTAL', 'PUBLIC'] as const;
+
+const isOptIn = (channel: string) => (OPT_IN_CHANNELS as readonly string[]).includes(channel);
+
 const CUSTOM = 'custom_fields.';
 
 /** The custom key a form key names, or undefined for one of the entry's own. */
@@ -257,7 +265,8 @@ export function removeSection(draft: FormDraft, key: string): void {
 export function channelIn(draft: FormDraft, channel: EntryFormChannel['channel']): ChannelDraft {
   let rule = draft.channels.find((each) => each.channel === channel);
   if (!rule) {
-    rule = { channel, closed: false, hidden: [], presets: {} };
+    // A door a form opens starts closed: hiding a field there must not open it.
+    rule = { channel, closed: isOptIn(channel), hidden: [], presets: {} };
     draft.channels.push(rule);
   }
   return rule;
@@ -302,7 +311,7 @@ export function formOfDraft(draft: FormDraft, shape: Shape = asTyped): EntryForm
           ...(presets.length > 0 ? { presets: Object.fromEntries(presets.map(([key, typed]) => [key, shape(key, typed)])) } : {}),
         };
       })
-      .filter((channel) => channel.closed || Object.keys(channel).length > 2),
+      .filter((channel) => channel.closed || isOptIn(channel.channel) || Object.keys(channel).length > 2),
   };
 }
 

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import type { EntryForm, EntryFormState } from '@hubtask/sync-engine';
 
 import {
-  addableKeys, channelIn, panelRows, draftOfForm, formOfDraft, groupsOf, hasForm, moveField, refusalsByField, removeField,
+  OPT_IN_CHANNELS, addableKeys, channelIn, panelRows, draftOfForm, formOfDraft, groupsOf, hasForm, moveField, refusalsByField, removeField,
   removeSection, standingOf, unfilled, unfoldedIn, validationWords,
 } from './entryforms.ts';
 
@@ -158,4 +158,20 @@ test('offline, the actor holds the custom roles its replica grants along the pat
   assert.deepEqual([...(actor.roles ?? [])].sort(), ['MEMBER', 'auditor', 'triage']);
   assert.deepEqual([...(actor.permissions ?? [])].sort(), ['READ', 'READ_CONFIGURATION', 'WRITE']);
   assert.equal(actor.role, 'MEMBER');
+});
+
+// UC-SVC-05 check 1, UC-SVC-13 check 2: the portal and a public form are opened by a rule that
+// narrows nothing; saving the form again keeps that rule, or the type would leave both unseen.
+test('a door opened by its rule alone stays open when the form is saved', () => {
+  const opened: EntryForm = { fields: [{ key: 'title', required: true }], channels: [{ channel: 'PORTAL', closed: false }, { channel: 'PUBLIC', closed: false }, { channel: 'MAIL', closed: false }] };
+  const sent = formOfDraft(draftOfForm(opened));
+  assert.deepEqual(sent.channels, [{ channel: 'PORTAL', closed: false }, { channel: 'PUBLIC', closed: false }]);
+  assert.ok(OPT_IN_CHANNELS.includes('PUBLIC') && OPT_IN_CHANNELS.includes('PORTAL'));
+});
+
+test('hiding a field on a door a form opens does not open it', () => {
+  const draft = draftOfForm({ fields: [{ key: 'title', required: true }, { key: 'notes', required: false }] });
+  channelIn(draft, 'PUBLIC').hidden.push('notes');
+  assert.equal(channelIn(draft, 'PUBLIC').closed, true);
+  assert.equal(channelIn(draft, 'MAIL').closed, false);
 });
