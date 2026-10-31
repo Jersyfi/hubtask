@@ -1334,6 +1334,30 @@ type CodeLink struct {
 	UpdatedAt  pgtype.Timestamptz
 }
 
+type CollectionFigure struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	Kind         string
+	BasisKey     string
+	Basis        []byte
+	Changes      int64
+	Counts       []byte
+	CountedAt    pgtype.Timestamptz
+	VerifiedAt   pgtype.Timestamptz
+}
+
+type CollectionFigureStamp struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	Folded       int64
+}
+
+type CollectionFigureTouch struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	Token        int64
+}
+
 type Comment struct {
 	ID              pgtype.UUID
 	TenantID        pgtype.UUID

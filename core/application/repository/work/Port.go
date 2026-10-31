@@ -1463,6 +1463,53 @@ type Figures interface {
 	Count(ctx context.Context, requests []work.FigureRequest, window work.FigureWindow) (map[shared.ID]work.FigureCounts, error)
 }
 
+// KeptFigureKey names one kept count: a collection's figure of a kind on one basis.
+type KeptFigureKey struct {
+	CollectionID shared.ID
+	Kind         work.Figure
+	BasisKey     string
+}
+
+// KeptFigure is a count kept between reads (migration 0292) with the collection's number of
+// changes it was counted at. Present is false where nothing is kept for the key.
+type KeptFigure struct {
+	Key       KeptFigureKey
+	Basis     work.FigureBasis
+	Changes   int64
+	Counts    work.FigureCounts
+	CountedAt time.Time
+	Present   bool
+}
+
+// KeptFigureState is what a read learns about one wanted figure: the collection's number of changes
+// now, and what is kept, if anything.
+type KeptFigureState struct {
+	Changes int64
+	Kept    KeptFigure
+}
+
+// KeptFigures keeps collections' counts between reads (UC-WRK-29, migration 0292). A kept count is
+// answered only while its collection's number of changes is the one it was counted at; every write
+// to an entry, a column or a definition moves that number in its own transaction, by trigger.
+type KeptFigures interface {
+	// States answers each wanted figure's number of changes now and what is kept for it. Read
+	// before counting, so that a write committed in between can only make the count newer.
+	States(ctx context.Context, wanted []KeptFigureKey) (map[KeptFigureKey]KeptFigureState, error)
+	// Keep stores counts; one already kept at a later number of changes stays.
+	Keep(ctx context.Context, figures []KeptFigure) error
+	// Fold moves the recorded changes into each collection's stamp without moving any number.
+	Fold(ctx context.Context) (int64, error)
+	// Prune drops what no read can be answered from: counts older than before or than their
+	// collection's last change, a trashed collection's, and a purged collection's stamp.
+	Prune(ctx context.Context, before time.Time) (int64, error)
+	// ToVerify answers up to batch kept counts of the kinds that a read may still be answered
+	// from, the longest unverified first.
+	ToVerify(ctx context.Context, kinds []work.Figure, batch int) ([]KeptFigure, error)
+	// Verify writes a recount over a kept count at the same number of changes, and reports whether
+	// the row was still that one.
+	Verify(ctx context.Context, figure KeptFigure, at time.Time) (bool, error)
+}
+
 // Milestones records and reads the last moment a collection or hub was left with nothing open
 // (UC-WRK-29 check 4). Nothing open counts every entry neither archived nor trashed, at any level.
 type Milestones interface {

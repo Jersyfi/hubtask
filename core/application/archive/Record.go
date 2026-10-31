@@ -1459,10 +1459,16 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"entry_field_value": "a typed projection of the custom fields the entries carry, rebuilt by the trigger as each entry is restored",
 	// Mirrored by the trigger of migration 0227 from the entry's own columns, which the archive
 	// carries: the restore's write of each entry rebuilds them.
-	"work_item_announcement":      "a mirror of the entry's announcement moments, rebuilt by the trigger as each entry is restored",
-	"work_item_flow":              "a mirror of the entry's flow moments, rebuilt by the trigger as each entry is restored",
-	"entry_status_change":         "a history of status changes as they happened; a restored entry's starts at its restore, recorded by the trigger",
-	"work_item_retention":         "a mirror of what a retention run marked on the entry, rebuilt by the trigger as each entry is restored",
+	"work_item_announcement": "a mirror of the entry's announcement moments, rebuilt by the trigger as each entry is restored",
+	"work_item_flow":         "a mirror of the entry's flow moments, rebuilt by the trigger as each entry is restored",
+	"entry_status_change":    "a history of status changes as they happened; a restored entry's starts at its restore, recorded by the trigger",
+	"work_item_retention":    "a mirror of what a retention run marked on the entry, rebuilt by the trigger as each entry is restored",
+	// Migration 0292: counts kept between reads and the bookkeeping that says when they stop
+	// answering. A restore writes its entries, every write records itself, and the first read
+	// counts again.
+	"collection_figure":           "a collection's count kept between reads, counted again by the first read after a restore",
+	"collection_figure_touch":     "the record that a collection changed, written by the trigger as each entry is restored",
+	"collection_figure_stamp":     "the folded records of a collection's changes, which only order kept counts within one installation",
 	"item_embedding":              "a derived vector, re-computed from the entries the archive does carry, and not comparable across models",
 	"sync_device":                 "a device registration carries a push token, and §8.4's reasoning covers it",
 	"jumble_intake":               "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
