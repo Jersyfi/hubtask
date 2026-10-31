@@ -139,7 +139,7 @@ func TestOnlyWhatThePatchSentReachesTheCatalogue(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != updateWorkspaceUseCase {
+	if registry.name != "UpdateWorkspace" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if registry.in["display_name"] != "Acme GmbH" {
@@ -175,9 +175,19 @@ func TestSwitchingEnforcementOffIsNotTheSameAsNotMentioningIt(t *testing.T) {
 	if value != false {
 		t.Errorf("the switch reached the catalogue as %v", value)
 	}
-	// It is a change to the sign-in rule (UC-ID-12 check 2), so the proof travels with it.
-	if _, held := registry.in["step_up_token"]; !held {
-		t.Error("the old switch reached the catalogue without the step-up it now demands")
+	// It is a change to the sign-in rule (UC-ID-12 check 2): the use case demands the proof, and
+	// the door hands on the one sent.
+	controller := NewRestController()
+	controller.UseCases = registry
+	request := httptest.NewRequestWithContext(appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID(signedInAccount),
+	}), http.MethodPatch, APIBasePath+"/tenant", strings.NewReader(`{"require_admin_totp": false}`))
+	request.Header.Set("Content-Type", "application/merge-patch+json")
+	request.Header.Set(stepUpHeader, "proof")
+	controller.Routes().ServeHTTP(httptest.NewRecorder(), request)
+	if registry.in["step_up_token"] != "proof" {
+		t.Errorf("the old switch reached the catalogue with the step-up %v", registry.in["step_up_token"])
 	}
 }
 

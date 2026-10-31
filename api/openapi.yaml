@@ -13239,6 +13239,8 @@ paths:
     patch:
       tags: [meta]
       operationId: updateWorkspace
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workspaceResponse
       summary: Change how the workspace is set up
       description: >
         Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs

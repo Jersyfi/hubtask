@@ -718,6 +718,7 @@ var restDoors = map[string]restDoor{
 	"updateTimeRecord":                  {UseCase: "UpdateTimeRecord", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version", "minutes"}},
 	"updateWebhookSubscription":         {UseCase: "UpdateWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateWhiteboard":                  {UseCase: "UpdateWhiteboard", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateWorkspace":                   {UseCase: "UpdateWorkspace", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"validateConfig":                    {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"verifyAuditChain":                  {UseCase: "VerifyAuditChain", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), UTC: []string{"from", "to"}},
 	"verifyBackup":                      {UseCase: "VerifyBackup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -5266,6 +5267,12 @@ func (c *RestController) UpdateWhiteboard(w http.ResponseWriter, r *http.Request
 	var body openapi.UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.WhiteboardRead
 	c.door(w, r, restDoors["updateWhiteboard"], usecase.Input{"whiteboard_id": whiteboardId.String()}, params, &body, &answer)
+}
+
+// UpdateWorkspace answers PATCH /tenant by the generated mapping.
+func (c *RestController) UpdateWorkspace(w http.ResponseWriter, r *http.Request, params openapi.UpdateWorkspaceParams) {
+	var body openapi.UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody
+	c.door(w, r, restDoors["updateWorkspace"], usecase.Input{}, params, &body, answerBy(workspaceResponse))
 }
 
 // UploadMediaContent answers PUT /media/{mediaId}:content by the adapter in Media, which holds the connection.
