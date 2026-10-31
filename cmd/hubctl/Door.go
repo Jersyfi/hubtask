@@ -84,8 +84,12 @@ func (d door) usage() string {
 
 func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 	positional := make([]string, 0, len(d.PathParams))
-	for range d.PathParams {
+	for _, p := range d.PathParams {
 		if len(args) == 0 || strings.HasPrefix(args[0], "-") || strings.TrimSpace(args[0]) == "" {
+			if p.Kind == "uuid" {
+				return usagef("hubctl %s %s needs <%s>, an identifier: hubctl %s %s %s",
+					d.Group, d.Verb, flagName(p.Name), d.Group, d.Verb, d.usage())
+			}
 			return usagef("usage: hubctl %s %s %s", d.Group, d.Verb, d.usage())
 		}
 		positional = append(positional, args[0])
@@ -129,6 +133,11 @@ func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 	query := url.Values{}
 	for _, p := range d.Query {
 		if named[flagName(p.Name)] {
+			if p.Kind == "uuid" {
+				if _, err := cli.parseID("--"+flagName(p.Name), *queryValues[p.Name]); err != nil {
+					return err
+				}
+			}
 			query.Set(p.Name, *queryValues[p.Name])
 		} else if p.Required {
 			return usagef("hubctl %s %s needs --%s", d.Group, d.Verb, flagName(p.Name))
@@ -197,7 +206,27 @@ func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 		printf(cli.Err, "done: %s %s\n", strings.ToLower(d.Summary), strings.Join(positional, " "))
 		return nil
 	}
-	return cli.Emit(answer, d.table(answer))
+	if err := cli.Emit(answer, d.table(answer)); err != nil {
+		return err
+	}
+	d.reportMore(cli, answer)
+	return nil
+}
+
+// reportMore says how a paged list goes on, on standard error so a pipe holds the page alone.
+func (d door) reportMore(cli *CLI, answer any) {
+	object, _ := answer.(map[string]any)
+	page, _ := object["page"].(map[string]any)
+	next, _ := page["next_cursor"].(string)
+	if cli.JSON || next == "" || page["has_more"] == false {
+		return
+	}
+	for _, p := range d.Query {
+		if p.Name == "cursor" {
+			printf(cli.Err, "more entries follow; continue with --cursor %s\n", next)
+			return
+		}
+	}
 }
 
 // declare makes a parameter's flag. A boolean one stands alone as a switch (`--refresh`) and still
