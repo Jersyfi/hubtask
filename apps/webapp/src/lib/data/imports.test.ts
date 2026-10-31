@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { IMPORT_KINDS, acceptFor, contentTypeFor, importIdOf, kindsFor, mappingFor, parseHeader, prefill } from './imports.ts';
 
 test('the nine kinds are offered, CSV as text, a ZIP as a ZIP and the rest as JSON', () => {
-  assert.deepEqual([...IMPORT_KINDS], ['CSV', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX']);
+  assert.deepEqual([...IMPORT_KINDS], ['CSV', 'XLSX', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX']);
   assert.equal(contentTypeFor('CSV'), 'text/csv');
   assert.equal(contentTypeFor('TRELLO'), 'application/json');
   assert.equal(contentTypeFor('JIRA', 'search.json'), 'application/json');
@@ -21,6 +21,9 @@ test('the nine kinds are offered, CSV as text, a ZIP as a ZIP and the rest as JS
   // media.type_mismatch: the claim is the ZIP the bytes are.
   assert.equal(contentTypeFor('DOCX', 'plan.docx'), 'application/zip');
   assert.match(acceptFor('DOCX'), /\.docx/);
+  assert.equal(contentTypeFor('XLSX', 'assets.xlsx'), 'application/zip');
+  assert.match(acceptFor('XLSX'), /\.xlsx/);
+  assert.ok(kindsFor(true).includes('XLSX'), 'a workbook lands entries, so a collection offers it');
   assert.match(acceptFor('CSV'), /csv/);
   assert.match(acceptFor('GOOGLE_TASKS'), /json/);
   assert.match(acceptFor('JIRA'), /zip/);

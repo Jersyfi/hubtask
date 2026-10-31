@@ -33,6 +33,8 @@ const (
 	KindHTML Kind = "HTML"
 	// KindDOCX is one word-processor document or a ZIP of them; it lands pages.
 	KindDOCX Kind = "DOCX"
+	// KindXLSX is a workbook whose first sheet is read as a CSV file is; it lands entries.
+	KindXLSX Kind = "XLSX"
 )
 
 // LandsPages reports whether the kind brings pages into the hub rather than entries into
@@ -46,7 +48,7 @@ func (k Kind) LandsPages() bool {
 func ParseKind(value string) (Kind, error) {
 	kind := Kind(value)
 	switch kind {
-	case KindCSV, KindTrello, KindGoogleTasks, KindMicrosoftTodo, KindIssueTracker, KindWiki, KindMarkdown, KindHTML, KindDOCX:
+	case KindCSV, KindTrello, KindGoogleTasks, KindMicrosoftTodo, KindIssueTracker, KindWiki, KindMarkdown, KindHTML, KindDOCX, KindXLSX:
 		return kind, nil
 	}
 	return "", shared.ErrValidation.

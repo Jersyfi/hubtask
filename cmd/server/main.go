@@ -823,6 +823,7 @@ func run() error {
 		importdomain.KindMarkdown:      importadapter.Markdown{},
 		importdomain.KindHTML:          importadapter.HTMLFiles{},
 		importdomain.KindDOCX:          importadapter.DOCX{},
+		importdomain.KindXLSX:          importadapter.XLSX{},
 	}
 	importKinds := make([]importdomain.Kind, 0, len(importConverters))
 	for kind := range importConverters {

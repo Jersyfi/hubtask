@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-09, P-12]
 state: built
 tasks: [P-08, F6-09]
-checked_by: [core/application/service/importer/Import_test.go, infrastructure/importer/Csv_test.go, test/integration/import_test.go, apps/webapp/src/lib/data/imports.test.ts, core/application/service/importer/Into_test.go, infrastructure/importer/Into_test.go, test/integration/import_into_test.go, apps/webapp/e2e/importinto.test.mjs]
+checked_by: [core/application/service/importer/Import_test.go, infrastructure/importer/Csv_test.go, test/integration/import_test.go, apps/webapp/src/lib/data/imports.test.ts, core/application/service/importer/Into_test.go, infrastructure/importer/Into_test.go, test/integration/import_into_test.go, apps/webapp/e2e/importinto.test.mjs, infrastructure/importer/Xlsx_test.go, core/shared/spreadsheet/Xlsx_test.go]
 ---
 
 # Import entries from a spreadsheet
@@ -48,10 +48,16 @@ could not be read and why. A new collection named after the file holds the entri
    person's own, uploaded for an import and confirmed.
 9. The uploaded file is deleted once the import has run, and the import is in the trail as
    `import.requested`.
+10. An `.xlsx` workbook (kind `XLSX`) lands exactly as its first sheet saved as CSV would - the same
+    collection, entries, columns and mapping, and the same refusals by row number - with a cell
+    styled as a date read as that date and a number as stored, never in a locale's format; a file
+    that is no workbook is refused as `imports.file_not_kind`, and the reader is fuzzed to refuse
+    rather than fail on any bytes.
 
 ## Where it ends
 
 * No export to CSV here; exporting a view is the work context's.
 * No custom fields, assignees or comments from a CSV.
 * No continuous synchronisation with a spreadsheet; an import is a one-time copy.
+* A workbook's first sheet only; the others, formatting and comments are not read.
 * An import is not offered offline.

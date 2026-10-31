@@ -24,7 +24,7 @@ export type { ImportKind, ImportRequest, ImportRun };
 
 /** The kinds, in the order they are offered. Every value of the contract's enum, and nothing else. */
 export const IMPORT_KINDS = [
-  'CSV', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX',
+  'CSV', 'XLSX', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX',
 ] as const satisfies readonly ImportKind[];
 
 /** The kinds that land pages in the hub: offered on a hub only, never into a collection. */
@@ -57,7 +57,7 @@ export function contentTypeFor(kind: ImportKind, fileName = ''): string {
   if (kind === 'HTML' && (name.endsWith('.html') || name.endsWith('.htm'))) return 'text/html';
   // A wiki's export is a ZIP, and so is an issue tracker's answer with its attachments. An Office
   // document is one too, to the server's sniff, which refuses a sharper claim over it.
-  if (LANDS_PAGES.has(kind) || name.endsWith('.zip')) return 'application/zip';
+  if (LANDS_PAGES.has(kind) || kind === 'XLSX' || name.endsWith('.zip')) return 'application/zip';
   return 'application/json';
 }
 
@@ -66,6 +66,7 @@ export function acceptFor(kind: ImportKind): string {
   if (kind === 'CSV') return '.csv,text/csv';
   if (kind === 'HTML') return '.html,.htm,.zip,text/html,application/zip';
   if (kind === 'DOCX') return '.docx,.zip,application/zip';
+  if (kind === 'XLSX') return '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   if (LANDS_PAGES.has(kind)) return '.zip,application/zip';
   if (kind === 'JIRA') return '.json,.zip,application/json,application/zip';
   return '.json,application/json';

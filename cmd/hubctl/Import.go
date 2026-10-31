@@ -34,6 +34,7 @@ func importGroup() group {
 
 var importKinds = map[string]openapi.ImportKind{
 	"csv":            openapi.ImportKindCSV,
+	"xlsx":           openapi.ImportKindXLSX,
 	"trello":         openapi.ImportKindTRELLO,
 	"google-tasks":   openapi.ImportKindGOOGLETASKS,
 	"microsoft-todo": openapi.ImportKindMICROSOFTTODO,

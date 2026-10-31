@@ -36872,9 +36872,11 @@ components:
 
     ImportKind:
       type: string
-      enum: [CSV, TRELLO, GOOGLE_TASKS, MICROSOFT_TODO, JIRA, CONFLUENCE, MARKDOWN, HTML, DOCX]
+      enum: [CSV, TRELLO, GOOGLE_TASKS, MICROSOFT_TODO, JIRA, CONFLUENCE, MARKDOWN, HTML, DOCX, XLSX]
       description: >
-        The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is
+        The system the file came from. `CSV` is a header row and one entry per line; `XLSX` is a
+        workbook whose first sheet is read as `CSV` is, with the same mapping, its dates as dates
+        and its numbers as stored; `TRELLO` is
         a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the
         Graph API's JSON for the lists and their tasks. `JIRA` is the issue search's JSON
         answer with its names, schema and change log expanded, or a ZIP of such answers with

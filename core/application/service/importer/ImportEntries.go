@@ -299,7 +299,7 @@ func (h ImportEntries) Descriptor() usecase.Descriptor {
 				Enum: []string{
 					string(domain.KindCSV), string(domain.KindTrello), string(domain.KindGoogleTasks), string(domain.KindMicrosoftTodo),
 					string(domain.KindIssueTracker), string(domain.KindWiki), string(domain.KindMarkdown), string(domain.KindHTML),
-					string(domain.KindDOCX),
+					string(domain.KindDOCX), string(domain.KindXLSX),
 				},
 				Description: "The system the file came from.",
 			},
@@ -307,7 +307,7 @@ func (h ImportEntries) Descriptor() usecase.Descriptor {
 			{Name: "collection_id", Kind: usecase.KindID, Description: "A collection of that hub to land the entries in, instead of new collections under the hub."},
 			{
 				Name: "mapping", Kind: usecase.KindObject,
-				Description: "For CSV: which column carries which field, by header name, where the header does not already say.",
+				Description: "For CSV and XLSX: which column carries which field, by header name, where the header does not already say.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{

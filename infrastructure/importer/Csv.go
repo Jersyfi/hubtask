@@ -74,6 +74,13 @@ func (CSV) Convert(_ context.Context, source service.Source) (service.Result, er
 	if err != nil {
 		return service.Result{}, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
 	}
+	return convertTable(source, header, reader.Read)
+}
+
+// convertTable is a header and its rows, however the file held them: a CSV's lines or a
+// workbook's first sheet. next answers io.EOF after the last row; a row it cannot read is
+// refused by its number and the rest go on.
+func convertTable(source service.Source, header []string, next func() ([]string, error)) (service.Result, error) {
 	columns, err := csvColumns(header, source.Mapping)
 	if err != nil {
 		return service.Result{}, err
@@ -91,7 +98,7 @@ func (CSV) Convert(_ context.Context, source service.Source) (service.Result, er
 	zone := zoneOf(source.Zone)
 	rowNumber := 1
 	for {
-		record, err := reader.Read()
+		record, err := next()
 		rowNumber++
 		if errors.Is(err, io.EOF) {
 			break

@@ -10921,6 +10921,8 @@
   "app.import.kind_HTML_hint": "One HTML file, or a ZIP of them, as a notes app exports them as HTML. Each file becomes a page of this hub, its folders the tree; links between the files and pictures in the ZIP come along.",
   "app.import.kind_DOCX": "Word documents",
   "app.import.kind_DOCX_hint": "One .docx document, or a ZIP of them. Each document becomes a page of this hub with its headings, lists, tables, links and pictures; a ZIP's folders become the tree.",
+  "app.import.kind_XLSX": "A spreadsheet (Excel workbook)",
+  "app.import.kind_XLSX_hint": "An .xlsx workbook: its first sheet is read as a CSV file is - a header row and one entry per row, the same column names. Dates stay dates and numbers stay numbers, whatever the spreadsheet's language.",
   "app.nav.approvals": "Waiting for my yes",
   "app.approvals.mine_title": "Waiting for my yes",
   "app.approvals.mine_subtitle": "Approvals whose current level counts you, oldest first.",

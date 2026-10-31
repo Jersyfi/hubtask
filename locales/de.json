@@ -10921,6 +10921,8 @@
   "app.import.kind_HTML_hint": "Eine HTML-Datei oder ein ZIP davon, wie eine Notiz-App sie als HTML exportiert. Jede Datei wird eine Seite dieses Hubs, ihre Ordner der Baum; Links zwischen den Dateien und Bilder im ZIP kommen mit.",
   "app.import.kind_DOCX": "Word-Dokumente",
   "app.import.kind_DOCX_hint": "Ein .docx-Dokument oder ein ZIP davon. Jedes Dokument wird eine Seite dieses Hubs mit Überschriften, Listen, Tabellen, Links und Bildern; die Ordner eines ZIPs werden der Baum.",
+  "app.import.kind_XLSX": "Eine Tabelle (Excel-Arbeitsmappe)",
+  "app.import.kind_XLSX_hint": "Eine .xlsx-Arbeitsmappe: ihr erstes Blatt wird wie eine CSV-Datei gelesen - eine Kopfzeile und ein Eintrag je Zeile, dieselben Spaltennamen. Datumswerte bleiben Datumswerte und Zahlen Zahlen, gleich in welcher Sprache die Tabelle angelegt ist.",
   "app.nav.approvals": "Wartet auf mein Ja",
   "app.approvals.mine_title": "Wartet auf mein Ja",
   "app.approvals.mine_subtitle": "Freigaben, deren aktuelle Stufe dich zählt, die älteste zuerst.",
