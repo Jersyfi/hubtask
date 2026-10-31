@@ -18784,6 +18784,21 @@ type OwnAiPosition struct {
 	Since *time.Time `json:"since,omitempty"`
 }
 
+// OwnSettings defines model for OwnSettings.
+type OwnSettings struct {
+	// Data One row per setting a person decides, in the catalogue's order.
+	Data []struct {
+		// Setting The catalogue's key - `localisation.locale`.
+		Setting string `json:"setting"`
+
+		// Source The level a value in force comes from; `DEFAULT` is Hubtask's own.
+		Source SettingSource `json:"source"`
+
+		// Value The value in force; null or absent where Hubtask's own default applies.
+		Value interface{} `json:"value,omitempty"`
+	} `json:"data"`
+}
+
 // Page A page of a hub's space. Its body is Markdown: a link to `hubtask:<kind>/<id>` is a mention, an image of one (`![](…)`) a card or a live view. The body is left out of a tree's rows.
 type Page struct {
 	Archived bool `json:"archived"`
@@ -28795,6 +28810,9 @@ type ServerInterface interface {
 	// StartPasskeyRegistration Begin adding a passkey or a security key to the caller's account
 	// (POST /accounts/me/passkeys:start)
 	StartPasskeyRegistration(w http.ResponseWriter, r *http.Request, params StartPasskeyRegistrationParams)
+	// ReadOwnSettings The caller's own settings and where each comes from
+	// (GET /accounts/me/settings)
+	ReadOwnSettings(w http.ResponseWriter, r *http.Request)
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -31427,6 +31445,20 @@ func (siw *ServerInterfaceWrapper) StartPasskeyRegistration(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StartPasskeyRegistration(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadOwnSettings operation middleware
+func (siw *ServerInterfaceWrapper) ReadOwnSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadOwnSettings(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -57481,6 +57513,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:create-managed", wrapper.CreateManagedAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/me", wrapper.UpdateOwnAccount)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/settings", wrapper.ReadOwnSettings)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/avatar", wrapper.RemoveOwnAvatar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/me/avatar", wrapper.SetOwnAvatar)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)

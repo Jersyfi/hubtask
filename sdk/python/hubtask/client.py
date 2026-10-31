@@ -1559,6 +1559,10 @@ class Client:
         """Change what the caller is called"""
         return self._call("PATCH", "/accounts/me", {}, None, {}, body, "json", "application/merge-patch+json", "json")
 
+    def read_own_settings(self) -> "OwnSettings":
+        """The caller's own settings and where each comes from"""
+        return self._call("GET", "/accounts/me/settings", {}, None, {}, None, "none", None, "json")
+
     def set_own_avatar(self, body: "AvatarInput") -> "Account":
         """Show a picture of one's own beside one's name"""
         return self._call("PUT", "/accounts/me/avatar", {}, None, {}, body, "json", "application/json", "json")

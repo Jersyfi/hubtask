@@ -1945,6 +1945,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/accounts/me", {  }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** The caller's own settings and where each comes from */
+  readOwnSettings(options: CallOptions = {}): Promise<operations["readOwnSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/me/settings", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Show a picture of one's own beside one's name */
   setOwnAvatar(body: NonNullable<operations["setOwnAvatar"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setOwnAvatar"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/accounts/me/avatar", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

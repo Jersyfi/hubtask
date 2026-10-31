@@ -487,6 +487,7 @@ var restDoors = map[string]restDoor{
 	"readMyRequest":                     {UseCase: "ReadMyRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readOauthClient":                   {UseCase: "ReadOauthClient", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readOwnAiPosition":                 {UseCase: "ReadOwnAiPosition", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readOwnSettings":                   {UseCase: "ReadOwnSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPage":                          {UseCase: "ReadPage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPageAccess":                    {UseCase: "ReadPageAccess", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPageVersion":                   {UseCase: "ReadPageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3821,6 +3822,12 @@ func (c *RestController) ReadOauthClient(w http.ResponseWriter, r *http.Request,
 // ReadOwnAiPosition answers GET /privacy/ai-objection by the generated mapping.
 func (c *RestController) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["readOwnAiPosition"], usecase.Input{}, nil, nil, answerBy(ownAiPositionOf))
+}
+
+// ReadOwnSettings answers GET /accounts/me/settings by the generated mapping.
+func (c *RestController) ReadOwnSettings(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.OwnSettings
+	c.door(w, r, restDoors["readOwnSettings"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ReadPage answers GET /pages/{pageId} by the generated mapping.

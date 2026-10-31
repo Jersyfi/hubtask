@@ -1171,6 +1171,9 @@ class ResealAccepted(TypedDict, total=False):
 
 Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"]
 
+class OwnSettings(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
 SettingSource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE", "HUB", "COLLECTION", "PERSON"]
 
 class PermissionEntry(TypedDict, total=False):

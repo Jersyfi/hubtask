@@ -9852,6 +9852,30 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/me/settings:
+    get:
+      tags: [identity]
+      operationId: readOwnSettings
+      x-hubtask-rest: generated
+      summary: The caller's own settings and where each comes from
+      description: |
+        Every setting a person decides for themselves - the language, the time zone, the first day
+        of the week - as it is in force for the caller, with the level its value comes from:
+        `PERSON` where they chose it, else `WORKSPACE`, `INSTANCE` or Hubtask's own `DEFAULT`. The
+        same resolution every other level's settings answer, so a preferences screen says "the
+        workspace's" from the server's answer rather than its own guess. A value is written through
+        `/accounts/{accountId}/preferences`. Needs a signed-in caller of their own; nothing beyond
+        that is asked.
+      responses:
+        "200":
+          description: The caller's settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnSettings"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/me/avatar:
     put:
       tags: [identity]
@@ -26235,6 +26259,24 @@ components:
       type: string
       description: A module of the suite - a family of building blocks switched on for a place.
       enum: [WORKFLOWS, PLANNING, KNOWLEDGE, WHITEBOARD, SERVICE_DESK, ASSETS, TIME, GOALS, AGENTS]
+
+    OwnSettings:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          description: One row per setting a person decides, in the catalogue's order.
+          items:
+            type: object
+            required: [setting, source]
+            properties:
+              setting:
+                type: string
+                description: The catalogue's key - `localisation.locale`.
+              value:
+                description: The value in force; null or absent where Hubtask's own default applies.
+              source: { $ref: "#/components/schemas/SettingSource" }
 
     SettingSource:
       type: string

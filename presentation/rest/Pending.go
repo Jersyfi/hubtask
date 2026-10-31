@@ -1714,6 +1714,8 @@ func (pending) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+func (pending) ReadOwnSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) ListEntryTypes(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) CreateEntryType(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

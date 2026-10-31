@@ -18790,6 +18790,21 @@ type OwnAiPosition struct {
 	Since *time.Time `json:"since,omitempty"`
 }
 
+// OwnSettings defines model for OwnSettings.
+type OwnSettings struct {
+	// Data One row per setting a person decides, in the catalogue's order.
+	Data []struct {
+		// Setting The catalogue's key - `localisation.locale`.
+		Setting string `json:"setting"`
+
+		// Source The level a value in force comes from; `DEFAULT` is Hubtask's own.
+		Source SettingSource `json:"source"`
+
+		// Value The value in force; null or absent where Hubtask's own default applies.
+		Value interface{} `json:"value,omitempty"`
+	} `json:"data"`
+}
+
 // Page A page of a hub's space. Its body is Markdown: a link to `hubtask:<kind>/<id>` is a mention, an image of one (`![](…)`) a card or a live view. The body is left out of a tree's rows.
 type Page struct {
 	Archived bool `json:"archived"`
@@ -29135,6 +29150,19 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /accounts/me/passkeys:start (the `StartPasskeyRegistration` operationId).
 	StartPasskeyRegistration(ctx context.Context, params *StartPasskeyRegistrationParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadOwnSettings The caller's own settings and where each comes from
+	//
+	// Every setting a person decides for themselves - the language, the time zone, the first day
+	// of the week - as it is in force for the caller, with the level its value comes from:
+	// `PERSON` where they chose it, else `WORKSPACE`, `INSTANCE` or Hubtask's own `DEFAULT`. The
+	// same resolution every other level's settings answer, so a preferences screen says "the
+	// workspace's" from the server's answer rather than its own guess. A value is written through
+	// `/accounts/{accountId}/preferences`. Needs a signed-in caller of their own; nothing beyond
+	// that is asked.
+	//
+	// Corresponds with GET /accounts/me/settings (the `ReadOwnSettings` operationId).
+	ReadOwnSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetAccount The name behind an account identifier
 	//
@@ -39529,6 +39557,29 @@ func (c *Client) CompletePasskeyRegistration(ctx context.Context, body CompleteP
 // Corresponds with POST /accounts/me/passkeys:start (the `StartPasskeyRegistration` operationId).
 func (c *Client) StartPasskeyRegistration(ctx context.Context, params *StartPasskeyRegistrationParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStartPasskeyRegistrationRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadOwnSettings The caller's own settings and where each comes from
+//
+// Every setting a person decides for themselves - the language, the time zone, the first day
+// of the week - as it is in force for the caller, with the level its value comes from:
+// `PERSON` where they chose it, else `WORKSPACE`, `INSTANCE` or Hubtask's own `DEFAULT`. The
+// same resolution every other level's settings answer, so a preferences screen says "the
+// workspace's" from the server's answer rather than its own guess. A value is written through
+// `/accounts/{accountId}/preferences`. Needs a signed-in caller of their own; nothing beyond
+// that is asked.
+//
+// Corresponds with GET /accounts/me/settings (the `ReadOwnSettings` operationId).
+func (c *Client) ReadOwnSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadOwnSettingsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -61125,6 +61176,33 @@ func NewStartPasskeyRegistrationRequest(server string, params *StartPasskeyRegis
 			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewReadOwnSettingsRequest constructs an http.Request for the ReadOwnSettings method
+func NewReadOwnSettingsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -97314,6 +97392,21 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts/me/passkeys:start (the `StartPasskeyRegistration` operationId).
 	StartPasskeyRegistrationWithResponse(ctx context.Context, params *StartPasskeyRegistrationParams, reqEditors ...RequestEditorFn) (*StartPasskeyRegistrationResult, error)
 
+	// ReadOwnSettingsWithResponse The caller's own settings and where each comes from
+	//
+	// Every setting a person decides for themselves - the language, the time zone, the first day
+	// of the week - as it is in force for the caller, with the level its value comes from:
+	// `PERSON` where they chose it, else `WORKSPACE`, `INSTANCE` or Hubtask's own `DEFAULT`. The
+	// same resolution every other level's settings answer, so a preferences screen says "the
+	// workspace's" from the server's answer rather than its own guess. A value is written through
+	// `/accounts/{accountId}/preferences`. Needs a signed-in caller of their own; nothing beyond
+	// that is asked.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /accounts/me/settings (the `ReadOwnSettings` operationId).
+	ReadOwnSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadOwnSettingsResult, error)
+
 	// GetAccountWithResponse The name behind an account identifier
 	//
 	// Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -108773,6 +108866,54 @@ func (r StartPasskeyRegistrationResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StartPasskeyRegistrationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadOwnSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OwnSettings
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadOwnSettingsResult) GetJSON200() *OwnSettings {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadOwnSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadOwnSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadOwnSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadOwnSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadOwnSettingsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -145900,6 +146041,27 @@ func (c *ClientWithResponses) StartPasskeyRegistrationWithResponse(ctx context.C
 	return ParseStartPasskeyRegistrationResult(rsp)
 }
 
+// ReadOwnSettingsWithResponse The caller's own settings and where each comes from
+//
+// Every setting a person decides for themselves - the language, the time zone, the first day
+// of the week - as it is in force for the caller, with the level its value comes from:
+// `PERSON` where they chose it, else `WORKSPACE`, `INSTANCE` or Hubtask's own `DEFAULT`. The
+// same resolution every other level's settings answer, so a preferences screen says "the
+// workspace's" from the server's answer rather than its own guess. A value is written through
+// `/accounts/{accountId}/preferences`. Needs a signed-in caller of their own; nothing beyond
+// that is asked.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /accounts/me/settings (the `ReadOwnSettings` operationId).
+func (c *ClientWithResponses) ReadOwnSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadOwnSettingsResult, error) {
+	rsp, err := c.ReadOwnSettings(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadOwnSettingsResult(rsp)
+}
+
 // GetAccountWithResponse The name behind an account identifier
 //
 // Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -163812,6 +163974,39 @@ func ParseStartPasskeyRegistrationResult(rsp *http.Response) (*StartPasskeyRegis
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PasskeyRegistrationOptions
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadOwnSettingsResult parses an HTTP response from a ReadOwnSettingsWithResponse call
+func ParseReadOwnSettingsResult(rsp *http.Response) (*ReadOwnSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadOwnSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OwnSettings
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
