@@ -152,8 +152,10 @@ re-mints identities must rewrite exactly these).
 | 34 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
 | 35 | `structure_presets` | `structure_preset` | `id` | `owner_id`→accounts (the workspace's presets and each person's own; an own preset whose account is not restored is skipped) |
 | 36 | `setting_values` | `setting_value` | `id` | — (the settings catalogue's entries of the workspace, its hubs, collections and people, the module switches among them; `scope_id` names the workspace, a container or an account by `level`, and a workspace's own entries follow the workspace written into) |
+| 128 | `workflows` | `workflow` | `id` | `published_by`→accounts (the workspace's workflows, migration 0216; a scheme names one by `key`, so they precede the schemes; a duplicate skips a key the workspace holds) |
+| 129 | `workflow_schemes` | `workflow_scheme` | `container_id/entry_type` | `container_id`→containers (which workflow a hub or collection runs for an entry type; `workflow_key` names one of `workflows` by key) |
 | 37 | `link_types` | `link_type` | `id` | — (the workspace's own link types, migration 0213; the six shipped ones have no row; a link names one by `key`, so they precede the links; a duplicate skips a key the workspace holds) |
-| 38 | `entry_links` | `entry_link` | `id` | `source_id`→work_items, `target_id`→work_items, `created_by`→accounts (`link_type` names a shipped type or one of `link_types` by key; a waiting link carries its `dependency_kind` and `lag_days`, migration 0244) |
+| 38 | `entry_links` | `entry_link` | `id` | `source_id`→work_items, `target_id`→work_items, `created_by`→accounts (`link_type` names a shipped type or one of `link_types` by key, held by the generated `own_type`, which is null for a shipped type; a waiting link carries its `dependency_kind` and `lag_days`, migration 0244) |
 | 39 | `custom_roles` | `custom_role` | `id` | — (the workspace's own roles from the permission catalogue, migration 0219; restored right after `memberships`, before their grants; the seven built-in roles have no row) |
 | 40 | `custom_role_grants` | `custom_role_grant` | `id` | `account_id`→accounts, `group_id`→account_groups, `role_id`→custom_roles (`scope_id` names the workspace's container as a membership's does) |
 | 41 | `config_revisions` | `config_revision` | `version` | — (the configuration document's versions, migration 0221, a hub's with its `hub_id` since 0223; written once, so a version the workspace holds is kept) |
@@ -161,8 +163,8 @@ re-mints identities must rewrite exactly these).
 | 43 | `config_templates` | `config_template` | `id` | — (the workspace's template versions; one the workspace holds by identity or by key and version is kept) |
 | 44 | `config_template_uses` | `config_template_use` | `template_key` | — (the template version a workspace took, the base of a three-way upgrade) |
 | 45 | `realtime_documents` | `realtime_document` | `document_id/kind` | — (a live document's head, migration 0230; `document_id` names what its `kind` belongs to - a page, a whiteboard - without a foreign key) |
-| 46 | `realtime_updates` | `realtime_update` | `document_id/kind/seq` | `author_id`→accounts (the editor's CRDT updates as sent, `data` as hex; what retention removed after a snapshot is not there) |
-| 47 | `realtime_snapshots` | `realtime_snapshot` | `document_id/kind/up_to_seq` | — (a writer's merged state up to an update, `state` as hex) |
+| 46 | `realtime_updates` | `realtime_update` | `document_id/kind/seq` | `author_id`→accounts (`document_id` and `kind` name the head in `realtime_documents` by its key; the editor's CRDT updates as sent, `data` as hex; what retention removed after a snapshot is not there) |
+| 47 | `realtime_snapshots` | `realtime_snapshot` | `document_id/kind/up_to_seq` | — (`document_id` and `kind` name the head in `realtime_documents` by its key; a writer's merged state up to an update, `state` as hex) |
 | 48 | `pages` | `page` | `id` | `hub_id`→containers, `parent_id`→pages, `owner_id`→accounts (a hub's pages, migration 0231; `body` is Markdown with `hubtask:` references; the search document and the references are rebuilt on import; `parent_id` may point forward, a moved page coming before a newer parent, and the schema checks it at the commit) |
 | 49 | `page_versions` | `page_version` | `page_id/seq` | `page_id`→pages, `author_id`→accounts (a page's history, one row per editing session) |
 | 50 | `page_comments` | `page_comment` | `id` | `page_id`→pages, `parent_id`→page_comments, `author_id`→accounts |
@@ -181,7 +183,7 @@ re-mints identities must rewrite exactly these).
 | 63 | `cmdb_connectors` | `cmdb_connector` | `id` | `hub_id`→containers, `collection_id`→containers (cleared when absent), `run_as`→accounts (a hub's connectors with their settings, schedule, cursor and last run, migration 0238; the sealed credential is a backup's only) |
 | 64 | `cmdb_alerts` | `cmdb_alert` | `id` | `connector_id`→cmdb_connectors (the alerts an intake took in, bound to a CI and an entry by identifier, without a foreign key) |
 | 65 | `business_calendars` | `business_calendar` | `id` | — (the workspace's business calendars: weekly working spans, holidays and a zone under a key, migration 0240) |
-| 66 | `sla_policies` | `sla_policy` | `id` | — (the workspace's SLA policies: goals with targets per priority, pause statuses and a warning share; the calendar named by key) |
+| 66 | `sla_policies` | `sla_policy` | `id` | — (the workspace's SLA policies: goals with targets per priority, pause statuses and a warning share; `calendar_key` names one of `business_calendars` by key) |
 | 67 | `entry_slas` | `entry_sla` | `id` | `item_id`→work_items (what became of each goal on an entry: target, at risk, met, breached; the clock is a timer, not archived) |
 | 68 | `reply_templates` | `reply_template` | `id` | — (the workspace's canned replies under a key, with their placeholders, migration 0242) |
 | 69 | `satisfaction_ratings` | `satisfaction_rating` | `id` | `item_id`→work_items (how satisfied the requester was with a resolved request, one score from 1 to 5, migration 0243) |
@@ -235,7 +237,7 @@ re-mints identities must rewrite exactly these).
 | 117 | `approvals` | `approval` | `id` | `item_id`→work_items, `requested_by`→accounts (a step waiting for people's yes: its levels as they opened with the people counted then, the level deciding, its state; migration 0268) |
 | 118 | `approval_decisions` | `approval_decision` | `id` | `approval_id`→approvals, `approver_id`→accounts, `on_behalf_of`→accounts (one answer at one level with its reason and the entry's version, the approval's trail) |
 | 119 | `approval_delegations` | `approval_delegation` | `account_id` | `account_id`→accounts, `delegate_id`→accounts (who decides a person's approvals while they are away, from when until when) |
-| 120 | `hub_business_calendars` | `hub_business_calendar` | `id` | `hub_id`→containers (a hub's own version of a workspace calendar under its key: working spans, holidays and a zone, migration 0270) |
+| 120 | `hub_business_calendars` | `hub_business_calendar` | `id` | `hub_id`→containers (a hub's own version of a workspace calendar under its `key`, which names one of `business_calendars`: working spans, holidays and a zone, migration 0270) |
 | 121 | `config_hub_template_uses` | `config_hub_template_use` | `hub_id`, `template_key` | `hub_id`→containers (the hub template part a hub took and that part then, the base of the hub's three-way upgrade, migration 0271) |
 | 122 | `releases` | `release` | `id` | `hub_id`→containers, `notes_page_id`→pages, `created_by`→accounts (a version a hub ships, its day, and once out the page its notes went to, migration 0272) |
 | 123 | `release_entries` | `release_entry` | `release_id`, `entry_id` | `release_id`→releases, `entry_id`→work_items (an entry in a release; one release per entry) |
@@ -247,6 +249,13 @@ re-mints identities must rewrite exactly these).
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.
+
+**Some fields name their target by key, not by identity** - an entry's type, a link's own type, a
+scheme's workflow, a policy's or a hub's calendar, a live document's head. They are no references
+in the sense above: an importer that re-mints identities carries them unchanged, and the target
+keeps its key in the copy or is one the destination already holds under that key. Hubtask's own
+restore declares them apart from the references for that reason (`archive.Entity.ByKey`), and an
+integration test holds both lists to the foreign keys the schema has.
 
 **Three references point forward.** In `work_items`, `cover_media_id` (#17), `recurrence_rule_id`
 (#19) and `origin_jumble_id` (#23) name rows of later files; an importer that enforces them sets

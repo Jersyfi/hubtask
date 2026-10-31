@@ -254,6 +254,15 @@ type Entity struct {
 	// the copies pointing at each other rather than at the originals - and they are kept honest
 	// by a test that compares them against the foreign keys the database actually has.
 	References []Reference
+	// ByKey are the fields that name another entity's row by a key of its own rather than by its
+	// identity - an entry's type, a link's own type, a policy's calendar. A restore keeps them as
+	// they are and never remaps them: what they hold is a word, not an identifier, and a word put
+	// through the identity remap would be a reference to nothing. A DUPLICATE keeps the copy
+	// naming the same key, which either the copied target carries unchanged or a target the
+	// workspace already holds answers to (its own Unique rule skips the copy). Apart from
+	// References so that no loop over those can treat one of these as an identifier; kept honest
+	// by the same test that compares References with the database's foreign keys.
+	ByKey []KeyReference
 	// Duplicable says whether a collision in this entity may be settled by making a copy.
 	//
 	// Not everything may. An account is who somebody is, a media object is the same bytes under a
@@ -330,6 +339,24 @@ type Reference struct {
 	// reference instead of withholding the row; a reference the row's identity rests on (a join
 	// row, an attachment) keeps the row out with what it points at (backup-restore.md §7).
 	Clearable bool
+}
+
+// KeyReference is one field naming another entity's row by a key that row keeps.
+type KeyReference struct {
+	// Field is the column in this entity's data.
+	Field string
+	// Table is the entity it names, in the schema's vocabulary.
+	Table string
+	// Key is the column of Table the value is compared with: one of its Keys or a column it
+	// declares Unique, so that the value names one row and survives the target's restore.
+	Key string
+}
+
+// realtimeHead is how the update log and the snapshots name their document's head: by the
+// document's own identity and kind, which no restore remaps.
+var realtimeHead = []KeyReference{
+	{Field: "document_id", Table: "realtime_document", Key: "document_id"},
+	{Field: "kind", Table: "realtime_document", Key: "kind"},
 }
 
 // entities is the archive's content, in restore order: a row's parents come before it, so that a
@@ -412,11 +439,14 @@ var entities = []Entity{
 	// skips a key the workspace already holds, and its entries then name that type.
 	{
 		Name: "entry_types", Table: "entry_type", Whole: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
-		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+		// `level` is the system type's own uniqueness (one per level); the key's skip already
+		// keeps every copy out, a system row included.
+		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}, {Field: "level", Rule: UniqueSkip}},
 	},
 	{
 		Name: "work_items", Table: "work_item", Keys: []string{"id"}, Duplicable: true,
 		Unique: []UniqueField{{Field: "calendar_uid", Rule: UniqueClear}},
+		ByKey:  []KeyReference{{Field: "entry_type", Table: "entry_type", Key: "key"}},
 		References: []Reference{
 			{Field: "collection_id", Table: "container"},
 			{Field: "parent_id", Table: "work_item"},
@@ -555,6 +585,7 @@ var entities = []Entity{
 		Name: "workflow_schemes", Table: "workflow_scheme", Whole: true, Later: true, Duplicable: true,
 		Keys:       []string{"container_id", "entry_type"},
 		References: []Reference{{Field: "container_id", Table: "container"}},
+		ByKey:      []KeyReference{{Field: "workflow_key", Table: "workflow", Key: "key"}},
 	},
 	// The workspace's own link types and the links between entries (migration 0213, F-3). Whole:
 	// a link is removed without a marker. The types precede the links that name them by key; a
@@ -570,6 +601,10 @@ var entities = []Entity{
 			{Field: "target_id", Table: "work_item"},
 			{Field: "created_by", Table: "account", Clearable: true},
 		},
+		// The generated `own_type` is what the foreign key holds; a shipped type leaves it null.
+		ByKey: []KeyReference{{Field: "own_type", Table: "link_type", Key: "key"}},
+		// A copy whose ends both stayed the originals' would be the same link twice.
+		Unique: []UniqueField{{Field: "link_type", Rule: UniqueSkip, Within: []string{"source_id", "target_id"}}},
 	},
 	// The configuration document's versions, agents' proposals, templates and the templates the
 	// workspace took (migration 0221, F-6). Whole: none says when it changed. A version and a
@@ -595,10 +630,12 @@ var entities = []Entity{
 		Name: "realtime_updates", Table: "realtime_update", Whole: true, Later: true,
 		Keys:       []string{"document_id", "kind", "seq"},
 		References: []Reference{{Field: "author_id", Table: "account", Clearable: true}},
+		ByKey:      realtimeHead,
 	},
 	{
 		Name: "realtime_snapshots", Table: "realtime_snapshot", Whole: true, Later: true,
-		Keys: []string{"document_id", "kind", "up_to_seq"},
+		Keys:  []string{"document_id", "kind", "up_to_seq"},
+		ByKey: realtimeHead,
 	},
 	// The knowledge module's pages, their versions and comments (migration 0231, M3). Whole: a
 	// version carries no change stamp, and a page and a comment leave without a marker when their
@@ -841,10 +878,14 @@ var entities = []Entity{
 		Name: "hub_business_calendars", Table: "hub_business_calendar", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{{Field: "hub_id", Table: "container"}},
+		ByKey:      []KeyReference{{Field: "key", Table: "business_calendar", Key: "key"}},
+		// One version per calendar and hub: a copy lands only under the hub's copy.
+		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip, Within: []string{"hub_id"}}},
 	},
 	{
 		Name: "sla_policies", Table: "sla_policy", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+		ByKey: []KeyReference{{Field: "calendar_key", Table: "business_calendar", Key: "key"}},
 	},
 	// The planning module (migration 0244, M2): an entry's scheduling mode, and a plan's baselines
 	// with the dates they hold. Whole: a mode is removed with its entry without a marker, and a
@@ -1073,17 +1114,17 @@ var entities = []Entity{
 	},
 	// The governed agents (migration 0251): the models registered for them, the agents with their
 	// policy and budget, the workspace's kill switch, the acts held for a person, the ledger of
-	// acts, the evaluation sets and runs - and the provenance of accepted AI values (AI-2).
+	// acts, the evaluation sets and runs - and the provenance of accepted AI values (AI-2). A model
+	// and an agent are not duplicable, so they declare no Unique: a registration copied is a second
+	// consent nobody gave, an agent copied a second budget on one account. A DUPLICATE skips both.
 	{
 		Name: "agent_models", Table: "agent_model", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: false,
-		Unique:     []UniqueField{{Field: "key", Rule: UniqueSkip}},
 		References: []Reference{{Field: "consent_by", Table: "account", Clearable: true}},
 	},
 	{
 		Name: "agents", Table: "agent", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: false,
-		Unique: []UniqueField{{Field: "account_id", Rule: UniqueSkip}},
 		References: []Reference{
 			{Field: "account_id", Table: "account"},
 			{Field: "owner_id", Table: "account"},
@@ -1153,6 +1194,8 @@ var entities = []Entity{
 	{
 		Name: "approval_decisions", Table: "approval_decision", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
+		// One answer per level and approver: a copy lands only under the approval's copy.
+		Unique: []UniqueField{{Field: "level", Rule: UniqueSkip, Within: []string{"approval_id"}}},
 		References: []Reference{
 			{Field: "approval_id", Table: "approval"},
 			{Field: "approver_id", Table: "account", Clearable: true},

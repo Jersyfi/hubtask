@@ -301,31 +301,38 @@ func TestClearEmptiesTheTenantAndAnswersHowMuchWent(t *testing.T) {
 
 // The reference graph the DUPLICATE rule remaps through has to be the one the database actually
 // has. A foreign key nobody declared is a duplicate that keeps pointing at the original; a
-// declaration with no foreign key behind it is a remap of a column that means something else.
+// declaration with no foreign key behind it is a remap of a column that means something else; a
+// key declared as an identifier is a word the remap turns into a reference to nothing.
 func TestEveryForeignKeyBetweenArchivedEntitiesIsDeclared(t *testing.T) {
 	ctx := context.Background()
 
 	rows, err := adminPool(ctx, t).Query(ctx, `
-		SELECT c.conrelid::regclass::text, a.attname, c.confrelid::regclass::text
+		SELECT c.conrelid::regclass::text, a.attname, c.confrelid::regclass::text, fa.attname
 		FROM pg_constraint c
-		JOIN unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord) ON true
+		JOIN unnest(c.conkey, c.confkey) AS k(attnum, fattnum) ON true
 		JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum
+		JOIN pg_attribute fa ON fa.attrelid = c.confrelid AND fa.attnum = k.fattnum
 		WHERE c.contype = 'f'`)
 	if err != nil {
 		t.Fatalf("reading the foreign keys: %v", err)
 	}
 	defer rows.Close()
 
-	declared := map[string]bool{}
+	// What each column is declared as: an identifier the remap follows, or a key it carries.
+	byIdentity := map[string]bool{}
+	byKey := map[string]string{}
 	for _, entity := range archive.Entities() {
 		for _, reference := range entity.References {
-			declared[entity.Table+"."+reference.Field] = true
+			byIdentity[entity.Table+"."+reference.Field] = true
+		}
+		for _, named := range entity.ByKey {
+			byKey[entity.Table+"."+named.Field] = named.Table + "." + named.Key
 		}
 	}
 
 	for rows.Next() {
-		var source, column, target string
-		if err := rows.Scan(&source, &column, &target); err != nil {
+		var source, column, target, targetColumn string
+		if err := rows.Scan(&source, &column, &target, &targetColumn); err != nil {
 			t.Fatalf("reading a foreign key: %v", err)
 		}
 		// The tenant is not a reference a restore remaps: it comes from the scope.
@@ -338,9 +345,20 @@ func TestEveryForeignKeyBetweenArchivedEntitiesIsDeclared(t *testing.T) {
 		if _, archived := archive.FindEntityByTable(target); !archived {
 			continue
 		}
-		if !declared[source+"."+column] {
-			t.Errorf("%s.%s points at %s and is not declared in the archive's entity list",
-				source, column, target)
+		field := source + "." + column
+		// An identifier is the target's own `id`, or a column of a key made of references
+		// (`page_article` is keyed by its page and collection) - both move with the remap.
+		identifier := targetColumn == "id" || byIdentity[target+"."+targetColumn]
+		switch {
+		case identifier && !byIdentity[field]:
+			t.Errorf("%s points at %s and is not declared a reference in the archive's entity list",
+				field, target)
+		case !identifier && byIdentity[field]:
+			t.Errorf("%s names %s.%s by key and is declared a reference, which the DUPLICATE "+
+				"remap would rewrite as an identifier", field, target, targetColumn)
+		case !identifier && byKey[field] != target+"."+targetColumn:
+			t.Errorf("%s names %s.%s by key and is not declared so in the archive's entity list",
+				field, target, targetColumn)
 		}
 	}
 	if err := rows.Err(); err != nil {

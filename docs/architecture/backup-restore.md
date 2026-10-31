@@ -274,6 +274,11 @@ still asked because the archive is read through the caller's own workspace's tar
   to a row the workspace held before the restore; one to a row the restore wrote new, or left
   alone, keeps pointing at it - in a resumed attempt too, which reads whether the earlier one wrote
   the copy.
+* **A field that names its target by key is carried, never remapped** - an entry's type, a link's
+  own type, a scheme's workflow, a policy's or a hub's calendar, a live document's head
+  ([tenant-export.md](./tenant-export.md) §6). The target with that key is either copied keeping
+  it or one the workspace already holds, which its own rule keeps from being copied. A target the
+  journal says was deleted keeps out what names it, as an identity reference does (§7).
 * **A copy also changes what the schema insists is unique.** Each entity declares the columns a copy
   may not carry unchanged; an integration test compares that with the unique indexes. Today:
   * **A name is suffixed** at the top of the duplicated tree where it is not free:
@@ -282,6 +287,14 @@ still asked because the archive is read through the caller's own workspace's tar
   * **A calendar UID is dropped** (`wi_calendar_uid_uq`): the copy is not the entry the client made.
   * **A tenant-wide custom field definition is not copied** (`skip`): `work_item.custom_fields` is
     keyed by it. One inside a collection moves with the collection.
+  * **A row unique within what it belongs to is copied only with it** (`skip` otherwise): a link
+    (`entry_link_uq`) whose ends both stayed the originals, an approval's decision
+    (`approval_decision_once`) whose approval was not copied, a hub's calendar
+    (`hub_business_calendar_key_uq`) whose hub was not - each would be the same row twice. A key
+    the workspace holds (`entry_type`, `link_type`, `workflow`, `business_calendar`, the system
+    type's `entry_type_system_uq`) is never copied; what names it names the living one.
+  * **What is not duplicable declares nothing to settle**: an agent and its model fall back to
+    `skip` as a whole.
 * **`SELECTIVE`'s closure comes from the archive's reference graph**; containers need a pass of
   their own, because a sub-collection can be written before its hub.
 * **`INSTANCE` is refused**: no archive this build writes has an instance-wide scope. The scope
@@ -535,7 +548,7 @@ Rules:
   the run with `imports.not_in_hub`.
 * **A different file whose collection meets a name the hub already holds** is refused with
   `imports.collection_exists` and lands nothing; the applier answers a unique index as a conflict
-  (`containers.name_taken`, `backup.row_conflicts`), never as a database error the queue would retry.
+  (`containers.name_taken`, `backup.row_conflicts`),, never as a database error the queue would retry.
 * **A ZIP is bounded by what it yields, not what it declares**: 256 MiB a member and 1 GiB in all,
   beyond which it is `imports.archive_unreadable`; attachments travel into the in-memory archive by
   digest and the applier stores them as a restore does, one object per content.

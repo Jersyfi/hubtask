@@ -667,6 +667,10 @@ type state struct {
 	// grows: a record that references a withheld object is withheld too, or the restore would
 	// write a row pointing at something it deliberately did not create.
 	withheld map[string]map[string]bool
+	// withheldKeys is the same for what other rows name by key (archive.Entity.ByKey), by table
+	// and "column=value": a link type the journal keeps out keeps out the links naming it, which
+	// its identity alone cannot do.
+	withheldKeys map[string]map[string]bool
 	// selected is a SELECTIVE restore's closure, by table. Nil when everything is selected, which
 	// is every other mode - a nil map answers "not selected" for everything, so the check has to
 	// ask whether the map exists at all rather than what it says.
@@ -725,6 +729,8 @@ func (a Applier) prepare(ctx context.Context, p plan) (*state, error) {
 		landed:   map[string]map[string]bool{},
 		deferred: map[string][]staged{},
 		passed:   map[string]int{},
+
+		withheldKeys: map[string]map[string]bool{},
 		// What an earlier attempt got through, and the report it had counted by then. A resumed
 		// restore continues both rather than starting either again (BK-7).
 		resumeFrom: p.restore.Progress,
@@ -880,6 +886,35 @@ func (s *state) withhold(table, id string) {
 	s.withheld[table][id] = true
 }
 
+// withholdRecord keeps a record out that is gone since the archive, by its identity and by every
+// key another entity names it by.
+func (s *state) withholdRecord(entity archive.Entity, record archive.Record) {
+	s.withhold(entity.Table, record.ID)
+	for _, column := range namedByKey[entity.Table] {
+		value, named := record.Data[column].(string)
+		if !named || value == "" {
+			continue
+		}
+		if s.withheldKeys[entity.Table] == nil {
+			s.withheldKeys[entity.Table] = map[string]bool{}
+		}
+		s.withheldKeys[entity.Table][column+"="+value] = true
+	}
+}
+
+// namedByKey is, by table, the columns some entity names that table's rows by.
+var namedByKey = func() map[string][]string {
+	out := map[string][]string{}
+	for _, entity := range archive.Entities() {
+		for _, named := range entity.ByKey {
+			if !slices.Contains(out[named.Table], named.Key) {
+				out[named.Table] = append(out[named.Table], named.Key)
+			}
+		}
+	}
+	return out
+}()
+
 // stage decides one record and puts it in the batch.
 //
 // A record an earlier attempt already decided is skipped rather than decided again. The archive is
@@ -888,6 +923,12 @@ func (s *state) withhold(table, id string) {
 // would meet the rows the first one wrote and duplicate them (BK-7).
 func (s *state) stage(ctx context.Context, entity archive.Entity, record archive.Record) error {
 	if s.skip(entity) {
+		// Decided and counted by an earlier attempt, but what it kept out still keeps out what
+		// points at it: the journal names only the deleted rows themselves.
+		if _, out := s.keptOut(entity, record); out {
+			s.withholdRecord(entity, record)
+			return nil
+		}
 		return s.recallIdentity(ctx, entity, record.ID)
 	}
 	s.decided[entity.Name]++
@@ -895,7 +936,7 @@ func (s *state) stage(ctx context.Context, entity archive.Entity, record archive
 	// §7 first, before anything else is asked. An object deleted after the archive was taken does
 	// not come back, and neither does anything that would point at it.
 	if reason, out := s.keptOut(entity, record); out {
-		s.withhold(entity.Table, record.ID)
+		s.withholdRecord(entity, record)
 		s.report.Withhold(reason)
 		return nil
 	}
@@ -1042,6 +1083,14 @@ func (s *state) keptOut(entity archive.Entity, record archive.Record) (string, b
 	for _, reference := range entity.References {
 		id, named := record.Data[reference.Field].(string)
 		if named && !reference.Clearable && s.withheld[reference.Table][id] {
+			return domain.WithheldDeleted, true
+		}
+	}
+	// A key names the row as surely as an identity does. Every one of them is a reference the
+	// row cannot lose and stay itself - an entry's type, a link's kind, a policy's calendar.
+	for _, named := range entity.ByKey {
+		value, given := record.Data[named.Field].(string)
+		if given && s.withheldKeys[named.Table][named.Key+"="+value] {
 			return domain.WithheldDeleted, true
 		}
 	}

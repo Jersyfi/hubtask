@@ -438,3 +438,36 @@ func TestAnEntityWithItsOwnIdentitySaysSo(t *testing.T) {
 		}
 	}
 }
+
+// A field that names its target by key is a word a restore carries unchanged, so it has to name a
+// column that picks one row of an entity written before it - and it may not also be declared a
+// Reference, where the DUPLICATE remap would put a key through the identity derivation.
+func TestAReferenceByKeyNamesOneRowOfAnEarlierEntity(t *testing.T) {
+	position := map[string]int{}
+	for i, entity := range RestoredEntities() {
+		position[entity.Table] = i
+	}
+
+	for _, entity := range Entities() {
+		for _, named := range entity.ByKey {
+			target, known := FindEntityByTable(named.Table)
+			if !known {
+				t.Errorf("%s.%s names %s, which the archive does not hold", entity.Table, named.Field, named.Table)
+				continue
+			}
+			if position[named.Table] >= position[entity.Table] {
+				t.Errorf("%s.%s names %s, which a restore writes after it", entity.Table, named.Field, named.Table)
+			}
+			picksOne := slices.Contains(target.Keys, named.Key) ||
+				slices.ContainsFunc(target.Unique, func(u UniqueField) bool { return u.Field == named.Key })
+			if !picksOne {
+				t.Errorf("%s.%s compares with %s.%s, which is neither a key nor a declared uniqueness",
+					entity.Table, named.Field, named.Table, named.Key)
+			}
+			if slices.ContainsFunc(entity.References, func(r Reference) bool { return r.Field == named.Field }) {
+				t.Errorf("%s.%s is declared both by key and as a reference the remap rewrites",
+					entity.Table, named.Field)
+			}
+		}
+	}
+}
