@@ -239,3 +239,25 @@ func TestTokenNamedMapsTrellosColoursOntoTheTen(t *testing.T) {
 		}
 	}
 }
+
+// A checklist and its items have no row of their own: they are reported by their card's.
+func TestAChecklistIsReportedByItsCardsRow(t *testing.T) {
+	result, err := Trello{}.Convert(context.Background(), boardSource(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := map[string]map[string]any{}
+	for _, record := range result.Records["work_items"] {
+		byID[record.ID] = record.Data
+		if result.Rows[record.ID] == 0 {
+			t.Errorf("%v has no row", record.Data["title"])
+		}
+	}
+	for _, record := range result.Records["work_items"] {
+		if parent, ok := record.Data["parent_id"].(string); ok && parent != "" {
+			if result.Rows[record.ID] != result.Rows[parent] {
+				t.Errorf("%v reports row %d, its parent %d", record.Data["title"], result.Rows[record.ID], result.Rows[parent])
+			}
+		}
+	}
+}

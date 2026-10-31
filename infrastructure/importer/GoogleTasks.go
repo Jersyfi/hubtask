@@ -104,7 +104,7 @@ func (GoogleTasks) Convert(_ context.Context, source service.Source) (service.Re
 				refused = append(refused, refusal{row: row, code: domain.CodeRowTitleMissing})
 				continue
 			}
-			item := Item{Key: "task:" + task.ID, Collection: collection, Title: task.Title, Notes: googleNotes(task)}
+			item := Item{Key: "task:" + task.ID, Collection: collection, Title: task.Title, Notes: googleNotes(task), Row: row}
 			if task.Parent != "" {
 				if _, known := b.entries["task:"+task.Parent]; known {
 					// A subtask is the work under its task: Google nests one level, and a `TASK`

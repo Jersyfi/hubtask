@@ -128,7 +128,7 @@ func (CSV) Convert(_ context.Context, source service.Source) (service.Result, er
 			collections[collectionName] = collection
 		}
 
-		item := Item{Key: "row:" + itoa(rowNumber), Collection: collection, Title: title, Notes: cell("notes")}
+		item := Item{Key: "row:" + itoa(rowNumber), Collection: collection, Title: title, Notes: cell("notes"), Row: rowNumber}
 		if bucketName := cell("bucket"); bucketName != "" {
 			key := collectionName + "/" + bucketName
 			bucket, ok := buckets[key]

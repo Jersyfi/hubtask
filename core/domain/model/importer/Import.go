@@ -57,10 +57,14 @@ const (
 	StatusFailed    Status = "FAILED"
 )
 
-// Refusal is one row of the source the converter could not read, while the rest landed.
+// Refusal is one row of the source that did not land, while the rest did: one the converter could
+// not read, or an entry its type's form refuses.
 type Refusal struct {
 	Row  int
 	Code string
+	// Fields are the form keys a refused entry left short (`title`, `custom_fields.<key>`), or the
+	// validations it failed; empty for a refusal of the converter's.
+	Fields []string
 }
 
 // Run is one import.
@@ -131,6 +135,13 @@ const (
 	CodeCollectionExists = "imports.collection_exists"
 	// CodeKindTakesNoCollection is a target collection named for a kind that lands pages.
 	CodeKindTakesNoCollection = "imports.kind_takes_no_collection"
+	// CodeRowFormRefused is an entry an import into a collection would create that its type's
+	// form refuses: a required field empty, a check that does not hold, a restricted field.
+	CodeRowFormRefused = "imports.row_form_refused"
+	// CodeRowChannelClosed is an entry of a type whose form takes no entry through an import.
+	CodeRowChannelClosed = "imports.row_channel_closed"
+	// CodeRowParentRefused is an entry under one that was refused: it has nowhere to land.
+	CodeRowParentRefused = "imports.row_parent_refused"
 	// CodeArchiveUnreadable is a ZIP the converter cannot open, or one holding no document it reads.
 	CodeArchiveUnreadable = "imports.archive_unreadable"
 )

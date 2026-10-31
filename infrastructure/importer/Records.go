@@ -52,12 +52,15 @@ type builder struct {
 	// media is the attachments' bytes by digest, and mediaRows their records.
 	media     map[string][]byte
 	mediaRows map[string]map[string]any
+	// rows is each entry's row in the source, by its identity.
+	rows map[string]int
 }
 
 type entry struct {
 	id    shared.ID
 	path  string
 	depth int
+	row   int
 }
 
 // newBuilder starts a builder salted by the hub and the source's identity: the digest of the
@@ -225,19 +228,25 @@ type Item struct {
 	CompletedAt *time.Time
 	ArchivedAt  *time.Time
 	CreatedAt   *time.Time
+	// Row is the entry's place in the source, for a refusal of it after conversion; zero takes
+	// the parent's, so that a card's checklist is reported by the card's row.
+	Row int
 }
 
 // item adds an entry. The parent, where the source names one, must have been added before it -
 // the archive is applied in order and the path is materialised here from the parent's.
 func (b *builder) item(in Item) (shared.ID, bool) {
 	id := b.id("work_items", in.Key)
-	path, depth := "/"+id.String()+"/", 0
+	path, depth, row := "/"+id.String()+"/", 0, in.Row
 	if in.ParentKey != "" {
 		parent, ok := b.entries[in.ParentKey]
 		if !ok {
 			return shared.ID(""), false
 		}
 		path, depth = parent.path+id.String()+"/", parent.depth+1
+		if row == 0 {
+			row = parent.row
+		}
 	}
 	title := clip(strings.TrimSpace(in.Title), 500)
 	if title == "" {
@@ -277,7 +286,13 @@ func (b *builder) item(in Item) (shared.ID, bool) {
 	}
 	b.add("work_items", id, data)
 	b.itemData[id.String()] = data
-	b.entries[in.Key] = entry{id: id, path: path, depth: depth}
+	b.entries[in.Key] = entry{id: id, path: path, depth: depth, row: row}
+	if row > 0 {
+		if b.rows == nil {
+			b.rows = map[string]int{}
+		}
+		b.rows[id.String()] = row
+	}
 	return id, true
 }
 
@@ -342,7 +357,7 @@ func (b *builder) reminder(key string, item shared.ID, at time.Time) {
 }
 
 func (b *builder) result(refused []refusal) service.Result {
-	out := service.Result{Records: b.records, Media: b.media}
+	out := service.Result{Records: b.records, Media: b.media, Rows: b.rows}
 	for _, r := range refused {
 		out.Refused = append(out.Refused, r.refusal())
 	}

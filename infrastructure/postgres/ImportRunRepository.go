@@ -183,14 +183,15 @@ func (r ImportRunRepository) Finish(ctx context.Context, outcome domain.Outcome)
 }
 
 type refusalRow struct {
-	Row  int    `json:"row"`
-	Code string `json:"code"`
+	Row    int      `json:"row"`
+	Code   string   `json:"code"`
+	Fields []string `json:"fields,omitempty"`
 }
 
 func refusalRows(refused []domain.Refusal) []refusalRow {
 	rows := make([]refusalRow, 0, len(refused))
 	for _, r := range refused {
-		rows = append(rows, refusalRow{Row: r.Row, Code: r.Code})
+		rows = append(rows, refusalRow{Row: r.Row, Code: r.Code, Fields: r.Fields})
 	}
 	return rows
 }
@@ -254,7 +255,7 @@ func importRunFrom(row sqlc.ImportRun) (domain.Run, error) {
 			return domain.Run{}, shared.Internalf("postgres: an import's refusals could not be read: %w", err)
 		}
 		for _, r := range rows {
-			run.Refused = append(run.Refused, domain.Refusal{Row: r.Row, Code: r.Code})
+			run.Refused = append(run.Refused, domain.Refusal{Row: r.Row, Code: r.Code, Fields: r.Fields})
 		}
 	}
 	return run, nil

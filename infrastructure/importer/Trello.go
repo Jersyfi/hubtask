@@ -189,7 +189,7 @@ func (Trello) Convert(_ context.Context, source service.Source) (service.Result,
 			refused = append(refused, refusal{row: index + 1, code: domain.CodeRowTitleMissing})
 			continue
 		}
-		item := Item{Key: "card:" + card.ID, Collection: collection, Title: card.Name, Notes: trelloNotes(card)}
+		item := Item{Key: "card:" + card.ID, Collection: collection, Title: card.Name, Notes: trelloNotes(card), Row: index + 1}
 		if bucket, ok := buckets[card.IDList]; ok {
 			item.Bucket = bucket
 		}

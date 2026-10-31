@@ -697,7 +697,7 @@ func (r *trackerRun) issue(index int, collection shared.ID, statusKeys map[strin
 	_ = json.Unmarshal(issue.Fields["summary"], &summary)
 	kind := r.issueType(index)
 
-	item := Item{Key: "issue:" + issue.Key, Collection: collection, Title: summary, Notes: richText(issue.Fields["description"])}
+	item := Item{Key: "issue:" + issue.Key, Collection: collection, Title: summary, Notes: richText(issue.Fields["description"]), Row: row}
 	if created, ok := r.instant(issue.Fields["created"]); ok {
 		item.CreatedAt = &created
 	}

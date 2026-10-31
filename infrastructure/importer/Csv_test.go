@@ -163,3 +163,19 @@ func TestTheMappingAndTheHeaderAndTheRefusals(t *testing.T) {
 		t.Error("a file that is not UTF-8 is refused")
 	}
 }
+
+// Every entry carries its row in the source, so that a refusal after the conversion - an entry
+// its form refuses (UC-IMP-04 check 8) - names the line a person looks up; the header is row 1.
+func TestEveryEntryKnowsItsRow(t *testing.T) {
+	result, err := CSV{}.Convert(context.Background(), source(t, sample, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := map[string]int{}
+	for _, record := range result.Records["work_items"] {
+		rows[record.Data["title"].(string)] = result.Rows[record.ID]
+	}
+	if rows["Write the reference"] != 2 || rows["Draw the diagram"] != 3 || rows["Ship it"] != 4 {
+		t.Errorf("rows = %v", rows)
+	}
+}

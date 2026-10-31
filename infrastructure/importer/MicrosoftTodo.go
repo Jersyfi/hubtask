@@ -141,7 +141,7 @@ func (MicrosoftTodo) Convert(_ context.Context, source service.Source) (service.
 				refused = append(refused, refusal{row: row, code: domain.CodeRowTitleMissing})
 				continue
 			}
-			item := Item{Key: "task:" + task.ID, Collection: collection, Title: task.Title, Notes: graphNotes(task)}
+			item := Item{Key: "task:" + task.ID, Collection: collection, Title: task.Title, Notes: graphNotes(task), Row: row}
 			if task.DueDateTime != nil && task.DueDateTime.DateTime != "" {
 				at, midnight, err := task.DueDateTime.instant()
 				if err != nil {
