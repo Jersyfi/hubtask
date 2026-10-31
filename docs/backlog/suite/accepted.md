@@ -177,3 +177,46 @@ The bar for the role reviews and the UI/UX run:
 - A workspace pre-filled with realistic data in every product, so the owner can see what exists,
   and a design direction with mockups written into the repository and then built. The owner
   said the same day that the direction is not presented for approval but built as planned.
+
+## The owner's fourth answers — 2026-10-31
+
+The coverage runs raised further owner items. The owner asked the orchestrating session for
+sensible proposals and accepted them (2026-10-31). Each takes the option that keeps data safest
+and changes least for people who do not use it.
+
+1. **Leaving a shared installation.** A workspace owner can always download the workspace's full
+   encrypted archive, streamed and never stored on a target, independent of backup targets:
+   once per 24 hours, bounded by the workspace's quota, audited. UC-BAK-07's *Where it ends*
+   changes by this decision.
+2. **Editor blocks.** New MIT dependencies, each through the licence gate and loaded lazily in its
+   own chunk: `@tiptap/extension-table` and `@tiptap/extension-details` at the TipTap core's
+   version, `katex`, `mermaid`, `lowlight`, and `emojibase-data` for an emoji picker. Every block
+   round-trips through Markdown; the wiki import maps tables and details onto them.
+3. **Anonymous public intake form.** A catalogue switch, off by default; a rate limit per address
+   and per network origin; a proof-of-work challenge (no CAPTCHA); the requester recorded as in B.
+4. **Upload scanning.** An optional scan port: a no-op by default, a clamd adapter configured in
+   the instance file and dialled through a guarded dialer with the same allowlist and timeouts as
+   `GuardedClient`. A file is held back until scanned; an alert fires when files stay unscanned.
+   UC-MED-01's *Where it ends* becomes "scanning only where an operator configures one".
+5. **ITIL auto-close.** A relative-date trigger may name a business calendar; the ITIL template
+   then closes after 5 business days, as templates.md says.
+6. **Notifying a role.** An automation action `NOTIFY_ROLE` (a role key; the role's holders along
+   the entry's path; category SLA, mutable like any other category).
+7. **Merged portal requests.** A requester whose request was merged reads the surviving one
+   through the `duplicates` link and is told of its replies (UC-SVC-05 by this decision).
+8. **Nextcloud.** Hubtask serves the two read endpoints a Nextcloud dashboard widget and unified
+   search provider need, through the registry with the reader's own permissions. The PHP app goes
+   into its own repository after the suite; this repository gets no new language.
+9. **Public roadmap link.** A share token per portfolio, read-only, revocable, audited, opened
+   without an account, behind a workspace setting off by default (as UC-DOC-08); a check in
+   UC-GOL-03.
+10. **Publishing the n8n node and the Zapier app.** A release job that publishes on a version tag
+    when `NPM_TOKEN` and `ZAPIER_DEPLOY_KEY` exist and is skipped otherwise. The owner creates the
+    accounts and secrets; UC-INT-11 check 4 is met once the first listing is live.
+11. **`hubctl jumble submit --body <text>`.** The old text form is refused, not guessed; the
+    release notes name `--raw-body`.
+12. **Embeds.** `HUBTASK_UI_FRAME_SOURCES`, complete https origins, empty by default, on the user
+    interface's policy only; only those origins are framed (sandboxed), others stay a link card.
+13. **The performance plan** (`test/load/PLAN.md`) as written, with R3 (the browser walk counting
+    console errors) added: P2 at 10⁶ (about 14 minutes), R1 at 10⁷ (about 50 to 60 minutes), R3
+    (about 40 minutes plus the walk), R2 only after a fix.
