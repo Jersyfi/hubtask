@@ -238,8 +238,7 @@ func (ServiceDeskPolicies) Insert(ctx context.Context, policy servicedesk.SLAPol
 		return err
 	}
 	if err := queries.InsertSlaPolicy(ctx, sqlc.InsertSlaPolicyParams{
-		AssigneeGroupID: group,
-		ID: id, TenantID: tenant, Key: policy.Key, Name: policy.Name, CalendarKey: optionalKey(policy.CalendarKey),
+		AssigneeGroupID: group, ID: id, TenantID: tenant, Key: policy.Key, Name: policy.Name, CalendarKey: optionalKey(policy.CalendarKey),
 		EntryTypes: policy.EntryTypes, Organisations: keysOrEmpty(policy.Organisations), PriorityField: policy.PriorityField,
 		Goals: goals, Position: int32(policy.Position), //nolint:gosec // a position is small
 		Enabled: policy.Enabled, Now: timestampOf(policy.CreatedAt),
@@ -263,8 +262,7 @@ func (ServiceDeskPolicies) Update(ctx context.Context, policy servicedesk.SLAPol
 		return err
 	}
 	affected, err := queries.UpdateSlaPolicy(ctx, sqlc.UpdateSlaPolicyParams{
-		AssigneeGroupID: group,
-		Name: policy.Name, CalendarKey: optionalKey(policy.CalendarKey), EntryTypes: policy.EntryTypes,
+		AssigneeGroupID: group, Name: policy.Name, CalendarKey: optionalKey(policy.CalendarKey), EntryTypes: policy.EntryTypes,
 		Organisations: keysOrEmpty(policy.Organisations), PriorityField: policy.PriorityField, Goals: goals,
 		Position: int32(policy.Position), //nolint:gosec // a position is small
 		Enabled:  policy.Enabled, Now: timestampOf(policy.UpdatedAt), Key: policy.Key,
