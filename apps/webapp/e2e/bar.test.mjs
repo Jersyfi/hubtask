@@ -57,6 +57,7 @@ async function stub(route) {
   if (path === '/containers') return route.fulfill({ json: { ...PAGE, data: [COLLECTION] } });
   if (path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: COLLECTION });
   if (path === `/containers/${HUB.id}`) return route.fulfill({ json: HUB });
+  if (path === '/config/templates' || path === '/config/proposals') return route.fulfill({ json: { data: [] } });
   if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
   // The frame's own reads, in the shapes the API answers them, and a record of anything this
   // walk never prepared: a guess nobody notices is what `fallback` exists to prevent.

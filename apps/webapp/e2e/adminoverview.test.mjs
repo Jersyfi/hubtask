@@ -130,9 +130,11 @@ test('chromium: the administration opens on an overview of what needs attention,
   });
   assert.deepEqual(colours.links, [colours.brand]);
 
-  // What needs somebody first: the backup opened, so it is the one card that waits below.
+  // What needs somebody first: the backup opened, so it waits below them with the cards that
+  // report nothing (the check and what waits for a word read empty here).
   const order = await page.locator('[data-card]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-card')));
-  assert.equal(order.at(-1), 'backup', order.join(' '));
+  assert.deepEqual(order.slice(0, 4), ['limits', 'rules', 'requests', 'health'], order.join(' '));
+  assert.ok(order.slice(4).includes('backup'), order.join(' '));
 
   // The column marks the overview current.
   assert.equal(await page.locator('nav [aria-current="page"]').first().textContent().then((text) => text?.trim()), 'Overview');
