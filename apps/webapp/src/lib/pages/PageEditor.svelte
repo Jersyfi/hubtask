@@ -19,9 +19,9 @@
   import { mount, unmount, untrack } from 'svelte';
   import { Button, Inline, Toolbar } from '@hubtask/design-system/components';
   import {
-    Doc, LiveDocument, createPageEditor, insertReference, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
+    Doc, LiveDocument, createPageEditor, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
     revealBlock, seedFromMarkdown, setPassages, taskLineOf, type Editor, type LiveSocket, type LiveStatus, type Passage,
-    type ReferenceAttrs, type ReferenceDrawing, type SelectedBlock, type TaskLine,
+    type ReferenceAttrs, type ReferenceDrawing, type SelectedBlock, type TaskLine, type WikiBlock,
   } from '@hubtask/editor';
   import type { PageRead, ReferenceTarget } from '@hubtask/sync-engine';
 
@@ -36,13 +36,14 @@
   import BoardView from '../whiteboards/BoardView.svelte';
   import PagePicture from './PagePicture.svelte';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { formatDay } from '../i18n/datetime.ts';
   import { renderProblem } from '../problem.ts';
   import { messages } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     page: PageRead;
     /** The pages of the space, offered as links to a page. */
-    spacePages: readonly { id: string; title: string }[];
+    spacePages: readonly { id: string; title: string; parent_id?: string | null }[];
     /** The views along the hub, offered as live views. */
     views: readonly { id: string; name: string }[];
     onnavigate: (path: string) => void;
@@ -71,6 +72,9 @@
   let isMentioning = $state(false);
   let isLinkingPage = $state(false);
   let isEmbedding = $state(false);
+  let isAddingBlock = $state(false);
+  let embedAddress = $state('');
+  let statusLabel = $state('');
   let isMakingTask = $state(false);
   let taskLine = $state<TaskLine | undefined>(undefined);
 
@@ -113,6 +117,27 @@
       const view = mount(BoardView, { target: into, props: { boardId: ref.id, frame: ref.anchor, onopen: onnavigate } });
       return () => void unmount(view);
     },
+    // A child-pages block lists the pages under this one in the space, as the tree holds them.
+    children: (into: HTMLElement) => {
+      const below = spacePages.filter((each) => each.parent_id === page.id);
+      if (below.length === 0) return undefined;
+      const list = document.createElement('ul');
+      list.className = 'page-children__list';
+      for (const each of below) {
+        const item = document.createElement('li');
+        const link = document.createElement('button');
+        link.type = 'button';
+        link.className = 'page-children__link';
+        link.textContent = each.title;
+        link.addEventListener('click', () => onnavigate(`/pages/${each.id}`));
+        item.append(link);
+        list.append(item);
+      }
+      into.append(list);
+      return () => list.remove();
+    },
+    day: (iso: string) => formatDay(`${iso}T12:00:00Z`, messages.locale),
+    words: (key) => t(`app.pages.block_${key}`),
   };
 
   let resolving = 0;
@@ -304,6 +329,21 @@
     }
   }
 
+  /** A wiki block at the caret (UC-DOC-01 check 10). */
+  function addBlock(block: WikiBlock) {
+    if (!editor) return;
+    if (!insertWikiBlock(editor, block)) {
+      toast.show({ text: t('app.pages.block_refused'), tone: 'danger' });
+      return;
+    }
+    isAddingBlock = false;
+    embedAddress = '';
+    statusLabel = '';
+    changed(markdownOf(editor));
+  }
+
+  const today = () => new Date().toISOString().slice(0, 10);
+
   function embedView(id: string) {
     if (!editor) return;
     insertReference(editor, { kind: 'view', id, anchor: null }, true);
@@ -334,6 +374,7 @@
       <Button size="sm" tone="subtle" icon="link" onclick={() => (isMentioning = true)}>{t('app.pages.tool_mention')}</Button>
       <Button size="sm" tone="subtle" icon="file-text" onclick={() => (isLinkingPage = !isLinkingPage)}>{t('app.pages.tool_page')}</Button>
       <Button size="sm" tone="subtle" icon="layout-template" onclick={() => (isEmbedding = !isEmbedding)}>{t('app.pages.tool_view')}</Button>
+      <Button size="sm" tone="subtle" icon="plus" onclick={() => (isAddingBlock = !isAddingBlock)}>{t('app.pages.tool_block')}</Button>
       <label class="upload">
         <span>{isUploading ? t('app.pages.uploading') : t('app.pages.tool_file')}</span>
         <input type="file" disabled={isUploading} onchange={(event) => void putFile(event)} />
@@ -353,6 +394,27 @@
       <li class="quiet">{t('app.pages.no_other_pages')}</li>
     {/each}
   </ul>
+{/if}
+{#if isAddingBlock}
+  <div class="blocks" data-page-blocks>
+    <ul class="choices" aria-label={t('app.pages.tool_block')}>
+      {#each ['info', 'warning', 'success', 'error'] as const as tone (tone)}
+        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'callout', tone })}>{t(`app.pages.block_callout_${tone}`)}</button></li>
+      {/each}
+      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'details', summary: '' })}>{t('app.pages.block_toggle')}</button></li>
+      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'toc' })}>{t('app.pages.block_toc')}</button></li>
+      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'children' })}>{t('app.pages.block_child_pages')}</button></li>
+      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'date', date: today() })}>{t('app.pages.block_date')}</button></li>
+    </ul>
+    <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'status', label: statusLabel, tone: 'info' }); }}>
+      <input type="text" bind:value={statusLabel} maxlength="40" placeholder={t('app.pages.block_status_label')} aria-label={t('app.pages.block_status_label')} />
+      <Button size="sm" tone="subtle" type="submit" disabledReason={statusLabel.trim() === '' ? t('app.pages.block_status_label') : undefined}>{t('app.pages.block_status')}</Button>
+    </form>
+    <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'embed', src: embedAddress }); }}>
+      <input type="url" bind:value={embedAddress} placeholder="https://" aria-label={t('app.pages.block_embed_address')} />
+      <Button size="sm" tone="subtle" type="submit" disabledReason={embedAddress.trim() === '' ? t('app.pages.block_embed_address') : undefined}>{t('app.pages.block_embed_add')}</Button>
+    </form>
+  </div>
 {/if}
 {#if isMakingTask}
   <ul class="choices" aria-label={t('app.pages.task_in')}>
@@ -467,6 +529,88 @@
   .editor :global(.page-card[data-kind='dashboard']),
   .editor :global(.page-card[data-kind='whiteboard']) { min-block-size: var(--sp-1000); }
   .editor :global(.page-card--live) { padding: 0; border: none; background: none; cursor: default; }
+  .blocks { display: grid; gap: var(--sp-100); }
+  .block-form { display: flex; gap: var(--sp-100); align-items: center; }
+  .block-form input {
+    flex: 1;
+    min-inline-size: 0;
+    padding: var(--sp-050) var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-sm);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+  }
+  .editor :global(.page-callout) {
+    margin-block: var(--sp-100);
+    padding: var(--sp-100) var(--sp-150);
+    border-inline-start: var(--bw-thick) solid var(--status-info-accent);
+    border-radius: var(--r-sm);
+    background: var(--status-info-surface);
+  }
+  .editor :global(.page-callout--warning) { border-inline-start-color: var(--status-warning-accent); background: var(--status-warning-surface); }
+  .editor :global(.page-callout--success) { border-inline-start-color: var(--status-success-accent); background: var(--status-success-surface); }
+  .editor :global(.page-callout--error) { border-inline-start-color: var(--status-danger-accent); background: var(--status-danger-surface); }
+  .editor :global(.page-details) {
+    margin-block: var(--sp-100);
+    padding: var(--sp-050) var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-md);
+  }
+  .editor :global(.page-details__summary) { font-weight: var(--fw-medium); cursor: pointer; }
+  .editor :global(.page-details__input) {
+    inline-size: calc(100% - var(--sp-300));
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+  }
+  .editor :global(.page-toc),
+  .editor :global(.page-children) {
+    margin-block: var(--sp-100);
+    padding: var(--sp-100) var(--sp-150);
+    border-radius: var(--r-md);
+    background: var(--bg-surface-sunken);
+    color: var(--text-secondary);
+  }
+  .editor :global(.page-toc__list),
+  .editor :global(.page-children__list) { margin: 0; padding-inline-start: var(--sp-200); }
+  .editor :global(.page-toc__item--3),
+  .editor :global(.page-toc__item--4),
+  .editor :global(.page-toc__item--5),
+  .editor :global(.page-toc__item--6) { margin-inline-start: var(--sp-200); }
+  .editor :global(.page-toc__link),
+  .editor :global(.page-children__link) {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-brand);
+    font: inherit;
+    cursor: pointer;
+  }
+  .editor :global(.page-embed__link) {
+    display: flex;
+    gap: var(--sp-100);
+    margin-block: var(--sp-100);
+    padding: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-md);
+    background: var(--bg-surface-sunken);
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .editor :global(.page-embed__host) { color: var(--text-secondary); }
+  .editor :global(.page-date),
+  .editor :global(.page-status) {
+    padding-inline: var(--sp-050);
+    border-radius: var(--r-xs);
+    background: var(--bg-surface-sunken);
+    font-size: var(--fs-075);
+  }
+  .editor :global(.page-status) { font-weight: var(--fw-medium); text-transform: uppercase; }
+  .editor :global(.page-status--info) { background: var(--status-info-surface); color: var(--status-info-text); }
+  .editor :global(.page-status--success) { background: var(--status-success-surface); color: var(--status-success-text); }
+  .editor :global(.page-status--warning) { background: var(--status-warning-surface); color: var(--status-warning-text); }
+  .editor :global(.page-status--error) { background: var(--status-danger-surface); color: var(--status-danger-text); }
   .editor :global(.page-passage) {
     background: var(--label-amber-bg);
     border-block-end: var(--bw-thick) solid var(--label-amber-fg);

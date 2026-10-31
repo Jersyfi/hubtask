@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-12]
 state: built
 tasks: []
-checked_by: [infrastructure/importer/Wiki_test.go, infrastructure/importer/Markdown_test.go, infrastructure/importer/HtmlFiles_test.go, infrastructure/importer/Docx_test.go, core/domain/model/importer/Import_test.go, test/integration/import_tracker_test.go, core/application/service/importer/Import_test.go, apps/webapp/src/lib/data/imports.test.ts]
+checked_by: [infrastructure/importer/Wiki_test.go, infrastructure/importer/WikiXml_test.go, infrastructure/importer/Markdown_test.go, infrastructure/importer/HtmlFiles_test.go, infrastructure/importer/Docx_test.go, core/domain/model/importer/Import_test.go, test/integration/import_tracker_test.go, core/application/service/importer/Import_test.go, apps/webapp/src/lib/data/imports.test.ts]
 ---
 
 # Move a wiki space into a hub's pages
@@ -50,6 +50,10 @@ page reference that follows the page wherever it moves.
    properties, else a paragraph styled as the title, else its name, with its headings (by their
    style's name), paragraphs, lists, tables, emphasis, outside links and pictures. A picture from
    outside the export is left out; a file of neither kind is refused with `imports.file_not_kind`.
+8. A wiki's panels (info, note, warning, tip), expands, table of contents, child-page lists, status
+   lozenges, dates and media widgets land as the editor's blocks (UC-DOC-01 check 10) - from the
+   HTML export as it draws them, and the XML export's macros the same way (UC-IMP-06) - rather
+   than as their text; a media widget whose address is not `https` is left out.
 
 ## Where it ends
 

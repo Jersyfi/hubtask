@@ -414,7 +414,7 @@
     { id: 'details', label: t('app.pages.side_details') },
   ]);
 
-  const spacePages = $derived(rows.map((row) => ({ id: row.id, title: row.title })));
+  const spacePages = $derived(rows.map((row) => ({ id: row.id, title: row.title, parent_id: row.parent_id })));
   const hubViews = $derived(views.of(hubId).map((view) => ({ id: view.id, name: view.name })));
 
   const templateOptions = $derived([
