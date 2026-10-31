@@ -15,11 +15,11 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-func policyInput() NewSlaPolicyInput {
-	return NewSlaPolicyInput{
+func policyInput() NewSLAPolicyInput {
+	return NewSLAPolicyInput{
 		ID: shared.MustParseID("0192f000-0000-7000-8000-0000000005a1"), TenantID: shared.MustParseID("0192f000-0000-7000-8000-0000000005a2"), Key: "incidents", Name: " Incidents ",
 		CalendarKey: "office", EntryTypes: []string{"incident", "incident"}, PriorityField: "priority",
-		Goals: []SlaGoal{
+		Goals: []SLAGoal{
 			{Kind: GoalResolution, Minutes: 480, ByPriority: map[string]int{"p1": 240}, PauseStatuses: []string{"waiting"}, WarnPercent: 75},
 			{Kind: GoalFirstResponse, Minutes: 60, ByPriority: map[string]int{"p1": 15}},
 		},
@@ -29,7 +29,7 @@ func policyInput() NewSlaPolicyInput {
 
 // UC-SVC-02 check 1: a policy promises a first response and a resolution per priority.
 func TestNewSlaPolicy(t *testing.T) {
-	policy, err := NewSlaPolicy(policyInput())
+	policy, err := NewSLAPolicy(policyInput())
 	if err != nil {
 		t.Fatalf("a sound policy was refused: %v", err)
 	}
@@ -53,27 +53,27 @@ func TestNewSlaPolicy(t *testing.T) {
 
 	cases := []struct {
 		name string
-		edit func(*NewSlaPolicyInput)
+		edit func(*NewSLAPolicyInput)
 		code string
 	}{
-		{"a malformed key", func(in *NewSlaPolicyInput) { in.Key = "Bad Key" }, "sla_policies.key_malformed"},
-		{"no name", func(in *NewSlaPolicyInput) { in.Name = " " }, "sla_policies.name_required"},
-		{"no type", func(in *NewSlaPolicyInput) { in.EntryTypes = nil }, "sla_policies.entry_types_required"},
-		{"no goal", func(in *NewSlaPolicyInput) { in.Goals = nil }, "sla_policies.goals_required"},
-		{"a goal twice", func(in *NewSlaPolicyInput) { in.Goals[1].Kind = GoalResolution }, "sla_policies.goal_twice"},
-		{"an unknown goal", func(in *NewSlaPolicyInput) { in.Goals[0].Kind = "LUNCH" }, "sla_policies.goal_kind_unknown"},
-		{"no target", func(in *NewSlaPolicyInput) { in.Goals[0].Minutes = 0 }, "sla_policies.target_invalid"},
-		{"a target past a year", func(in *NewSlaPolicyInput) { in.Goals[0].Minutes = MaxTargetMinutes + 1 }, "sla_policies.target_invalid"},
-		{"a priority target of nothing", func(in *NewSlaPolicyInput) { in.Goals[0].ByPriority = map[string]int{"p1": -1} }, "sla_policies.target_invalid"},
-		{"a share of all", func(in *NewSlaPolicyInput) { in.Goals[0].WarnPercent = 100 }, "sla_policies.warn_percent_invalid"},
-		{"a malformed status", func(in *NewSlaPolicyInput) { in.Goals[0].PauseStatuses = []string{"Waiting!"} }, "sla_policies.key_malformed"},
-		{"a malformed calendar", func(in *NewSlaPolicyInput) { in.CalendarKey = "Office" }, "sla_policies.calendar_malformed"},
+		{"a malformed key", func(in *NewSLAPolicyInput) { in.Key = "Bad Key" }, "sla_policies.key_malformed"},
+		{"no name", func(in *NewSLAPolicyInput) { in.Name = " " }, "sla_policies.name_required"},
+		{"no type", func(in *NewSLAPolicyInput) { in.EntryTypes = nil }, "sla_policies.entry_types_required"},
+		{"no goal", func(in *NewSLAPolicyInput) { in.Goals = nil }, "sla_policies.goals_required"},
+		{"a goal twice", func(in *NewSLAPolicyInput) { in.Goals[1].Kind = GoalResolution }, "sla_policies.goal_twice"},
+		{"an unknown goal", func(in *NewSLAPolicyInput) { in.Goals[0].Kind = "LUNCH" }, "sla_policies.goal_kind_unknown"},
+		{"no target", func(in *NewSLAPolicyInput) { in.Goals[0].Minutes = 0 }, "sla_policies.target_invalid"},
+		{"a target past a year", func(in *NewSLAPolicyInput) { in.Goals[0].Minutes = MaxTargetMinutes + 1 }, "sla_policies.target_invalid"},
+		{"a priority target of nothing", func(in *NewSLAPolicyInput) { in.Goals[0].ByPriority = map[string]int{"p1": -1} }, "sla_policies.target_invalid"},
+		{"a share of all", func(in *NewSLAPolicyInput) { in.Goals[0].WarnPercent = 100 }, "sla_policies.warn_percent_invalid"},
+		{"a malformed status", func(in *NewSLAPolicyInput) { in.Goals[0].PauseStatuses = []string{"Waiting!"} }, "sla_policies.key_malformed"},
+		{"a malformed calendar", func(in *NewSLAPolicyInput) { in.CalendarKey = "Office" }, "sla_policies.calendar_malformed"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			in := policyInput()
 			c.edit(&in)
-			_, err := NewSlaPolicy(in)
+			_, err := NewSLAPolicy(in)
 			var domainErr *shared.Error
 			if !errors.As(err, &domainErr) || domainErr.DetailCode != c.code {
 				t.Errorf("want %s, got %v", c.code, err)
@@ -84,16 +84,16 @@ func TestNewSlaPolicy(t *testing.T) {
 
 // UC-SVC-02 check 1: one policy per entry - the first enabled one covering its type.
 func TestChoose(t *testing.T) {
-	first, _ := NewSlaPolicy(policyInput())
+	first, _ := NewSLAPolicy(policyInput())
 	second := first
 	second.Key, second.Position = "all_incidents", 1
 	disabled := first
 	disabled.Key, disabled.Position, disabled.Enabled = "aaa", -1, false
-	chosen, ok := Choose([]SlaPolicy{second, disabled, first}, "incident", "")
+	chosen, ok := Choose([]SLAPolicy{second, disabled, first}, "incident", "")
 	if !ok || chosen.Key != "incidents" {
 		t.Errorf("want incidents, got %q", chosen.Key)
 	}
-	if _, ok := Choose([]SlaPolicy{first}, "task", ""); ok {
+	if _, ok := Choose([]SLAPolicy{first}, "task", ""); ok {
 		t.Error("a type no policy covers is measured by none")
 	}
 }
@@ -103,17 +103,17 @@ func TestChoose(t *testing.T) {
 func TestAPolicyForOrganisationsMeasuresOnlyTheirRequests(t *testing.T) {
 	in := policyInput()
 	in.Key, in.Organisations = "key_accounts", []string{"acme", " acme", "globex"}
-	vip, err := NewSlaPolicy(in)
+	vip, err := NewSLAPolicy(in)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(vip.Organisations, []string{"acme", "globex"}) {
 		t.Errorf("organisations %v", vip.Organisations)
 	}
-	everyone, _ := NewSlaPolicy(policyInput())
+	everyone, _ := NewSLAPolicy(policyInput())
 	everyone.Position = 1
 	for organisation, want := range map[string]string{"acme": "key_accounts", "globex": "key_accounts", "initech": "incidents", "": "incidents"} {
-		if chosen, _ := Choose([]SlaPolicy{everyone, vip}, "incident", organisation); chosen.Key != want {
+		if chosen, _ := Choose([]SLAPolicy{everyone, vip}, "incident", organisation); chosen.Key != want {
 			t.Errorf("a requester of %q is measured by %q, want %q", organisation, chosen.Key, want)
 		}
 	}
@@ -121,7 +121,7 @@ func TestAPolicyForOrganisationsMeasuresOnlyTheirRequests(t *testing.T) {
 	for i := range in.Organisations {
 		in.Organisations[i] = "org_" + strconv.Itoa(i)
 	}
-	if _, err := NewSlaPolicy(in); shared.AsError(err).DetailCode != "sla_policies.too_many" {
+	if _, err := NewSLAPolicy(in); shared.AsError(err).DetailCode != "sla_policies.too_many" {
 		t.Errorf("too many organisations: %v", err)
 	}
 }
@@ -199,13 +199,13 @@ func TestANextResponseIsArmedAgainOnlyOnceMet(t *testing.T) {
 	breached := monday.Add(2 * time.Hour)
 	cases := []struct {
 		name  string
-		was   EntrySla
+		was   EntrySLA
 		again bool
 	}{
-		{"met", EntrySla{Goal: GoalNextResponse, Standing: StandingMet, MetAt: &met, AtRiskAt: &met}, true},
-		{"breached", EntrySla{Goal: GoalNextResponse, Standing: StandingBreached, BreachedAt: &breached}, false},
-		{"running", EntrySla{Goal: GoalNextResponse, Standing: StandingRunning}, false},
-		{"paused", EntrySla{Goal: GoalNextResponse, Standing: StandingPaused}, false},
+		{"met", EntrySLA{Goal: GoalNextResponse, Standing: StandingMet, MetAt: &met, AtRiskAt: &met}, true},
+		{"breached", EntrySLA{Goal: GoalNextResponse, Standing: StandingBreached, BreachedAt: &breached}, false},
+		{"running", EntrySLA{Goal: GoalNextResponse, Standing: StandingRunning}, false},
+		{"paused", EntrySLA{Goal: GoalNextResponse, Standing: StandingPaused}, false},
 	}
 	for _, c := range cases {
 		next, again := c.was.Rearm(30*time.Minute, breached)

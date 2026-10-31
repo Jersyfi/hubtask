@@ -234,13 +234,13 @@ func column(field view.Field, prefix string) (string, bool) {
 		return prefix + `archived_at`, true
 	case view.FieldAssigneeID:
 		return prefix + `assignee_id`, true
-	case view.FieldSlaDue:
+	case view.FieldSLADue:
 		// Questions about the entry's SLA records, so only inside the query where wi is in scope;
 		// a grouped query's outer select orders by the alias its inner one carries (sortAlias).
 		if prefix == itemPrefix {
 			return slaDue, true
 		}
-	case view.FieldSlaStanding:
+	case view.FieldSLAStanding:
 		if prefix == itemPrefix {
 			return slaStanding, true
 		}
@@ -271,7 +271,7 @@ const satisfactionScore = `(SELECT sr.score::bigint FROM satisfaction_rating sr 
 
 // Derived reports a sort field whose value is not a column of the row, so the adapter reads the
 // cursor's key of it beside the page (DerivedKey).
-func Derived(field view.Field) bool { return field.Name == view.FieldSlaDue }
+func Derived(field view.Field) bool { return field.Name == view.FieldSLADue }
 
 // DerivedKey renders a derived sort field's value the way Key renders a column's.
 func DerivedKey(moment *time.Time) string { return optionalTimeKey(moment) }

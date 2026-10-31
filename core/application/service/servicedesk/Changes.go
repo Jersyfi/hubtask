@@ -22,7 +22,7 @@ import (
 // §3.1).
 const (
 	ApprovalEntity     = "approval"
-	EntrySlaEntity     = "entry_sla"
+	EntrySLAEntity     = "entry_sla"
 	SatisfactionEntity = "satisfaction_rating"
 )
 
@@ -32,8 +32,8 @@ func ApprovalRecord(approval domain.Approval, decisions []domain.Decision) useca
 	return ApprovalOutput(approval, decisions, false)
 }
 
-// SlaRecord is one goal's standing on an entry as the change log carries it.
-func SlaRecord(record domain.EntrySla) usecase.Output {
+// SLARecord is one goal's standing on an entry as the change log carries it.
+func SLARecord(record domain.EntrySLA) usecase.Output {
 	out := RecordOutput(record)
 	out["id"], out["item_id"] = record.ID.String(), record.ItemID.String()
 	return out
@@ -92,17 +92,17 @@ type announcedRecords struct {
 }
 
 // Save announces the record as the store now holds it - by its goal, since a goal is armed once.
-func (r announcedRecords) Save(ctx context.Context, record domain.EntrySla, now time.Time) error {
+func (r announcedRecords) Save(ctx context.Context, record domain.EntrySLA, now time.Time) error {
 	if err := r.Records.Save(ctx, record, now); err != nil {
 		return err
 	}
-	held, err := r.Records.OfItem(ctx, record.ItemID)
+	held, err := r.OfItem(ctx, record.ItemID)
 	if err != nil {
 		return err
 	}
 	for _, stored := range held {
 		if stored.Goal == record.Goal {
-			return r.announcer.announce(ctx, stored.TenantID, stored.ItemID, EntrySlaEntity, stored.ID, SlaRecord(stored))
+			return r.announcer.announce(ctx, stored.TenantID, stored.ItemID, EntrySLAEntity, stored.ID, SLARecord(stored))
 		}
 	}
 	return nil
@@ -142,11 +142,11 @@ func (r announcedApprovals) Update(ctx context.Context, approval domain.Approval
 }
 
 func (r announcedApprovals) again(ctx context.Context, id shared.ID) error {
-	stored, err := r.Approvals.Find(ctx, id)
+	stored, err := r.Find(ctx, id)
 	if err != nil {
 		return err
 	}
-	decisions, err := r.Approvals.Decisions(ctx, id)
+	decisions, err := r.Decisions(ctx, id)
 	if err != nil {
 		return err
 	}

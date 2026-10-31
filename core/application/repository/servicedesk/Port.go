@@ -43,20 +43,20 @@ type HubCalendars interface {
 type Policies interface {
 	// Insert writes a new policy; a key the workspace holds is `sla_policies.key_taken`. The
 	// calendar's key is the use case's to check: the installation's calendars are no rows.
-	Insert(ctx context.Context, policy servicedesk.SlaPolicy) error
-	Update(ctx context.Context, policy servicedesk.SlaPolicy, expectedVersion int) error
-	Find(ctx context.Context, key string) (servicedesk.SlaPolicy, error)
+	Insert(ctx context.Context, policy servicedesk.SLAPolicy) error
+	Update(ctx context.Context, policy servicedesk.SLAPolicy, expectedVersion int) error
+	Find(ctx context.Context, key string) (servicedesk.SLAPolicy, error)
 	// List answers every policy by position and key.
-	List(ctx context.Context) ([]servicedesk.SlaPolicy, error)
+	List(ctx context.Context) ([]servicedesk.SLAPolicy, error)
 	Delete(ctx context.Context, key string) error
 }
 
 // Records stores what became of each goal on an entry.
 type Records interface {
 	// Save writes the goal's record whole, one per entry and goal.
-	Save(ctx context.Context, record servicedesk.EntrySla, now time.Time) error
+	Save(ctx context.Context, record servicedesk.EntrySLA, now time.Time) error
 	// OfItem answers the entry's records, by goal.
-	OfItem(ctx context.Context, itemID shared.ID) ([]servicedesk.EntrySla, error)
+	OfItem(ctx context.Context, itemID shared.ID) ([]servicedesk.EntrySLA, error)
 	// Report counts the goals armed in [from, to) per policy, goal and standing.
 	Report(ctx context.Context, from, to time.Time) ([]servicedesk.ReportRow, error)
 }

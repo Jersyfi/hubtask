@@ -18,8 +18,8 @@ func (s *snapshotStore) Approvals(_ context.Context, after shared.ID, batch int)
 	return pageAfter(s.approvals, func(r repository.ApprovalOf) string { return r.Approval.ID.String() }, after.String(), batch), nil
 }
 
-func (s *snapshotStore) EntrySlas(_ context.Context, after shared.ID, batch int) ([]repository.EntrySlaOf, error) {
-	return pageAfter(s.slas, func(r repository.EntrySlaOf) string { return r.Record.ID.String() }, after.String(), batch), nil
+func (s *snapshotStore) EntrySlas(_ context.Context, after shared.ID, batch int) ([]repository.EntrySLAOf, error) {
+	return pageAfter(s.slas, func(r repository.EntrySLAOf) string { return r.Record.ID.String() }, after.String(), batch), nil
 }
 
 func (s *snapshotStore) SatisfactionRatings(_ context.Context, after shared.ID, batch int) ([]repository.RatingOf, error) {
@@ -51,9 +51,9 @@ func TestTheWalkCarriesAnEntrysApprovalsGoalsAndScoreWhereTheCollectionIsRead(t 
 		{Approval: servicedesk.Approval{ID: idAt('b', 2), ItemID: hidden, Step: "approve", State: servicedesk.ApprovalPending, RequestedAt: at},
 			CollectionID: collectionB},
 	}
-	store.slas = []repository.EntrySlaOf{
-		{Record: servicedesk.EntrySla{ID: idAt('d', 1), ItemID: seen, Goal: servicedesk.GoalResolution, Standing: servicedesk.StandingRunning, Target: time.Hour, ArmedAt: at}, CollectionID: collectionA},
-		{Record: servicedesk.EntrySla{ID: idAt('d', 2), ItemID: hidden, Goal: servicedesk.GoalResolution, Standing: servicedesk.StandingRunning, Target: time.Hour, ArmedAt: at}, CollectionID: collectionB},
+	store.slas = []repository.EntrySLAOf{
+		{Record: servicedesk.EntrySLA{ID: idAt('d', 1), ItemID: seen, Goal: servicedesk.GoalResolution, Standing: servicedesk.StandingRunning, Target: time.Hour, ArmedAt: at}, CollectionID: collectionA},
+		{Record: servicedesk.EntrySLA{ID: idAt('d', 2), ItemID: hidden, Goal: servicedesk.GoalResolution, Standing: servicedesk.StandingRunning, Target: time.Hour, ArmedAt: at}, CollectionID: collectionB},
 	}
 	store.ratings = []repository.RatingOf{
 		{Rating: servicedesk.Rating{ID: idAt('e', 1), ItemID: seen, Score: 4, RatedAt: at}, CollectionID: collectionA},

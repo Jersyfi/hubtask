@@ -18,16 +18,16 @@ import (
 )
 
 const (
-	ReadEntrySlaName = "ReadEntrySla"
-	ReportSlaName    = "ReportSla"
+	ReadEntrySLAName = "ReadEntrySla"
+	ReportSLAName    = "ReportSla"
 
-	entrySlaTarget = "entry_sla"
+	entrySLATarget = "entry_sla"
 	// MaxReportSpan bounds a report's period, so that it stays one indexed scan.
 	MaxReportSpan = 366 * 24 * time.Hour
 )
 
 // RecordOutput is one goal's standing on an entry (api/openapi.yaml, schema EntrySlaGoal).
-func RecordOutput(r domain.EntrySla) usecase.Output {
+func RecordOutput(r domain.EntrySLA) usecase.Output {
 	out := usecase.Output{
 		"goal": string(r.Goal), "policy_key": r.PolicyKey, "standing": string(r.Standing),
 		"target_seconds": int64(r.Target / time.Second), "armed_at": r.ArmedAt.UTC(),
@@ -43,23 +43,23 @@ func RecordOutput(r domain.EntrySla) usecase.Output {
 	return out
 }
 
-// ReadEntrySla answers how an entry's goals stand (UC-SVC-02 check 6): for whoever may read the
+// ReadEntrySLA answers how an entry's goals stand (UC-SVC-02 check 6): for whoever may read the
 // entry, so the handler and the requester see the same clock (P-11).
-type ReadEntrySla struct {
+type ReadEntrySLA struct {
 	Desk       Desk
 	Items      workrepo.Items
 	Containers workrepo.Containers
 }
 
 // Execute answers the entry's goals, by kind; none when no policy measures it.
-func (h ReadEntrySla) Execute(ctx context.Context, actor appshared.ActorContext, itemID shared.ID) ([]domain.EntrySla, error) {
+func (h ReadEntrySLA) Execute(ctx context.Context, actor appshared.ActorContext, itemID shared.ID) ([]domain.EntrySLA, error) {
 	if err := actor.RequireScope(deskRead); err != nil {
 		return nil, err
 	}
 	var (
 		item       = struct{ assignee, collection shared.ID }{}
 		collection []identity.Scope
-		records    []domain.EntrySla
+		records    []domain.EntrySLA
 	)
 	err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		found, err := h.Items.Find(ctx, itemID)
@@ -78,8 +78,8 @@ func (h ReadEntrySla) Execute(ctx context.Context, actor appshared.ActorContext,
 		return nil, err
 	}
 	if err := h.Desk.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionRead, Path: collection, Action: EntrySlaReadAction,
-		TokenScope: deskRead, TargetType: entrySlaTarget, TargetID: itemID,
+		Permission: service.PermissionRead, Path: collection, Action: EntrySLAReadAction,
+		TokenScope: deskRead, TargetType: entrySLATarget, TargetID: itemID,
 		On: access.ItemSubject{Does: service.ItemRead, ID: itemID, Assignee: item.assignee},
 	}); err != nil {
 		return nil, err
@@ -93,9 +93,9 @@ func (h ReadEntrySla) Execute(ctx context.Context, actor appshared.ActorContext,
 }
 
 // Descriptor is the catalogue entry.
-func (h ReadEntrySla) Descriptor() usecase.Descriptor {
+func (h ReadEntrySLA) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name: ReadEntrySlaName, Permission: service.PermissionRead,
+		Name: ReadEntrySLAName, Permission: service.PermissionRead,
 		Summary: "How an entry's SLA goals stand: per goal its policy, target in working seconds, whether it " +
 			"runs, stands still, was met or breached, when it falls due and when it was at risk.",
 		SideEffects: "None. Reads only.",
@@ -103,7 +103,7 @@ func (h ReadEntrySla) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The entry."},
 		},
-		Audit: usecase.AuditDeclaration{Action: EntrySlaReadAction},
+		Audit: usecase.AuditDeclaration{Action: EntrySLAReadAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			itemID, err := in.ID("item_id")
 			if err != nil {
@@ -119,22 +119,22 @@ func (h ReadEntrySla) Descriptor() usecase.Descriptor {
 			}
 			return usecase.Output{"data": data}, nil
 		}),
-	}, entrySlaTarget)
+	}, entrySLATarget)
 }
 
-// ReportSla counts how the goals armed in a period stand, per policy and goal (UC-SVC-02 check 7).
+// ReportSLA counts how the goals armed in a period stand, per policy and goal (UC-SVC-02 check 7).
 // The workspace's configurers read it: it counts entries across every hub, private ones included,
 // and names none of them.
-type ReportSla struct{ Desk Desk }
+type ReportSLA struct{ Desk Desk }
 
 // Execute counts the goals armed in [from, to).
-func (h ReportSla) Execute(ctx context.Context, actor appshared.ActorContext, from, to time.Time) ([]domain.ReportRow, error) {
+func (h ReportSLA) Execute(ctx context.Context, actor appshared.ActorContext, from, to time.Time) ([]domain.ReportRow, error) {
 	if !to.After(from) || to.Sub(from) > MaxReportSpan {
 		return nil, malformed("/to", "sla_reports.period_invalid")
 	}
 	if err := h.Desk.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure, Path: []identity.Scope{identity.TenantScope()},
-		Action: SlaReportReadAction, TokenScope: deskRead, TargetType: entrySlaTarget, TargetID: actor.TenantID,
+		Action: SLAReportReadAction, TokenScope: deskRead, TargetType: entrySLATarget, TargetID: actor.TenantID,
 	}); err != nil {
 		return nil, err
 	}
@@ -148,9 +148,9 @@ func (h ReportSla) Execute(ctx context.Context, actor appshared.ActorContext, fr
 }
 
 // Descriptor is the catalogue entry.
-func (h ReportSla) Descriptor() usecase.Descriptor {
+func (h ReportSLA) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name: ReportSlaName, Permission: service.PermissionStructure,
+		Name: ReportSLAName, Permission: service.PermissionStructure,
 		Summary: "Counts the SLA goals armed in a period - at most a year - per policy, goal and standing: met, " +
 			"breached, running, standing still. Names no entry.",
 		SideEffects: "None. Reads only.",
@@ -159,7 +159,7 @@ func (h ReportSla) Descriptor() usecase.Descriptor {
 			{Name: "from", Kind: usecase.KindString, Required: true, Format: usecase.FormatDateTime, Description: "The period's start, inclusive."},
 			{Name: "to", Kind: usecase.KindString, Required: true, Format: usecase.FormatDateTime, Description: "The period's end, exclusive."},
 		},
-		Audit: usecase.AuditDeclaration{Action: SlaReportReadAction},
+		Audit: usecase.AuditDeclaration{Action: SLAReportReadAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			from, errFrom := time.Parse(time.RFC3339, in.String("from"))
 			to, errTo := time.Parse(time.RFC3339, in.String("to"))
@@ -178,5 +178,5 @@ func (h ReportSla) Descriptor() usecase.Descriptor {
 			}
 			return usecase.Output{"data": data}, nil
 		}),
-	}, entrySlaTarget)
+	}, entrySLATarget)
 }

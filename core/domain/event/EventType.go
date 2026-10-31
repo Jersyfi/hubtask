@@ -152,12 +152,12 @@ const (
 	// looked at it would escalate it forever, so the announcement is bookkeeping on the entry and
 	// a date that moves is a new deadline that may be missed again.
 	ItemOverdue Type = "de.hubtask.work.item.overdue.v1"
-	// ItemSlaAtRisk announces that a goal of an entry's SLA passed its warning share with the goal
+	// ItemSLAAtRisk announces that a goal of an entry's SLA passed its warning share with the goal
 	// not met: once per goal. Consumers: automation (an escalation is a rule), webhooks.
-	ItemSlaAtRisk Type = "de.hubtask.work.item.sla_at_risk.v1"
-	// ItemSlaBreached announces that a goal of an entry's SLA ran out of working time unmet: once
+	ItemSLAAtRisk Type = "de.hubtask.work.item.sla_at_risk.v1"
+	// ItemSLABreached announces that a goal of an entry's SLA ran out of working time unmet: once
 	// per goal. Consumers: automation, webhooks.
-	ItemSlaBreached Type = "de.hubtask.work.item.sla_breached.v1"
+	ItemSLABreached Type = "de.hubtask.work.item.sla_breached.v1"
 	// ItemArchived announces that an entry is kept and read-only. Consumers: automation, search
 	// (an archived entry drops out of the default index), SSE.
 	//
@@ -337,7 +337,7 @@ var types = [...]Type{
 	ContainerArchived, ContainerUnarchived, ContainerDeleted, ContainerRestored,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved, ItemDueChanged,
-	ItemDueSoon, ItemOverdue, ItemSlaAtRisk, ItemSlaBreached, RecurrenceOccurrenceCreated, TemplateInstantiated,
+	ItemDueSoon, ItemOverdue, ItemSLAAtRisk, ItemSLABreached, RecurrenceOccurrenceCreated, TemplateInstantiated,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemPurged,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted, LabelRestored,

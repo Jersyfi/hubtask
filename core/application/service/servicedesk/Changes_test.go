@@ -42,11 +42,11 @@ func TestEveryDeskRecordOfAnEntryReachesTheChangeLog(t *testing.T) {
 	at := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
 
 	records := announcer.Records(&recordStore{})
-	record := domain.EntrySla{ID: "s-1", TenantID: tenant, ItemID: entry.ID, Goal: domain.GoalResolution, Standing: domain.StandingRunning, Target: time.Hour, ArmedAt: at}
+	record := domain.EntrySLA{ID: "s-1", TenantID: tenant, ItemID: entry.ID, Goal: domain.GoalResolution, Standing: domain.StandingRunning, Target: time.Hour, ArmedAt: at}
 	if err := records.Save(ctx, record, at); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	if err := records.Save(ctx, domain.EntrySla{ID: "s-2", TenantID: tenant, ItemID: "gone", Goal: domain.GoalResolution, Target: time.Hour, ArmedAt: at}, at); err != nil {
+	if err := records.Save(ctx, domain.EntrySLA{ID: "s-2", TenantID: tenant, ItemID: "gone", Goal: domain.GoalResolution, Target: time.Hour, ArmedAt: at}, at); err != nil {
 		t.Fatalf("Save of an entry gone: %v", err)
 	}
 
@@ -73,7 +73,7 @@ func TestEveryDeskRecordOfAnEntryReachesTheChangeLog(t *testing.T) {
 	want := []struct {
 		entity string
 		id     shared.ID
-	}{{EntrySlaEntity, "s-1"}, {SatisfactionEntity, "r-1"}, {ApprovalEntity, "a-1"}, {ApprovalEntity, "a-1"}}
+	}{{EntrySLAEntity, "s-1"}, {SatisfactionEntity, "r-1"}, {ApprovalEntity, "a-1"}, {ApprovalEntity, "a-1"}}
 	if len(log.changes) != len(want) {
 		t.Fatalf("%d changes recorded, want %d: %+v", len(log.changes), len(want), log.changes)
 	}

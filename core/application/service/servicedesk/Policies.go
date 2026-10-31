@@ -18,18 +18,18 @@ import (
 )
 
 const (
-	ListSlaPoliciesName = "ListSlaPolicies"
-	DefineSlaPolicyName = "DefineSlaPolicy"
-	DeleteSlaPolicyName = "DeleteSlaPolicy"
+	ListSLAPoliciesName = "ListSlaPolicies"
+	DefineSLAPolicyName = "DefineSlaPolicy"
+	DeleteSLAPolicyName = "DeleteSlaPolicy"
 )
 
 // GoalsFromInput reads a policy's goals from a door's input (schema SlaGoal).
-func GoalsFromInput(raw any) ([]domain.SlaGoal, error) {
+func GoalsFromInput(raw any) ([]domain.SLAGoal, error) {
 	list, ok := raw.([]any)
 	if !ok {
 		return nil, malformed("/goals", "sla_policies.goals_malformed")
 	}
-	goals := make([]domain.SlaGoal, 0, len(list))
+	goals := make([]domain.SLAGoal, 0, len(list))
 	for i, entry := range list {
 		at := "/goals/" + strconv.Itoa(i)
 		member, ok := entry.(map[string]any)
@@ -37,7 +37,7 @@ func GoalsFromInput(raw any) ([]domain.SlaGoal, error) {
 			return nil, malformed(at, "sla_policies.goals_malformed")
 		}
 		kind, _ := member["kind"].(string)
-		goal := domain.SlaGoal{
+		goal := domain.SLAGoal{
 			Kind: domain.GoalKind(kind), Minutes: intOf(member["minutes"]), WarnPercent: intOf(member["warn_percent"]),
 		}
 		if targets, ok := member["by_priority"].(map[string]any); ok {
@@ -70,7 +70,7 @@ func intOf(raw any) int {
 }
 
 // PolicyOutput is the shape every door returns (api/openapi.yaml, schema SlaPolicy).
-func PolicyOutput(p domain.SlaPolicy) usecase.Output {
+func PolicyOutput(p domain.SLAPolicy) usecase.Output {
 	goals := make([]usecase.Output, 0, len(p.Goals))
 	for _, goal := range p.Goals {
 		byPriority := usecase.Output{}
@@ -100,15 +100,15 @@ func PolicyOutput(p domain.SlaPolicy) usecase.Output {
 	return out
 }
 
-// ListSlaPolicies reads the workspace's SLA policies (UC-SVC-02).
-type ListSlaPolicies struct{ Desk Desk }
+// ListSLAPolicies reads the workspace's SLA policies (UC-SVC-02).
+type ListSLAPolicies struct{ Desk Desk }
 
 // Execute answers every policy by position and key, to any member of the workspace.
-func (h ListSlaPolicies) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.SlaPolicy, error) {
+func (h ListSLAPolicies) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.SLAPolicy, error) {
 	if err := h.Desk.authorizeRead(ctx, actor, PoliciesReadAction, policyTarget); err != nil {
 		return nil, err
 	}
-	var out []domain.SlaPolicy
+	var out []domain.SLAPolicy
 	err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		out, err = h.Desk.Policies.List(ctx)
@@ -118,9 +118,9 @@ func (h ListSlaPolicies) Execute(ctx context.Context, actor appshared.ActorConte
 }
 
 // Descriptor is the catalogue entry.
-func (h ListSlaPolicies) Descriptor() usecase.Descriptor {
+func (h ListSLAPolicies) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name: ListSlaPoliciesName, Permission: service.PermissionRead,
+		Name: ListSLAPoliciesName, Permission: service.PermissionRead,
 		Summary: "Lists the workspace's SLA policies: the types each measures, its goals with targets per " +
 			"priority, the statuses that pause them and the share at which they are at risk, and its calendar.",
 		SideEffects: "None. Reads only.",
@@ -140,36 +140,36 @@ func (h ListSlaPolicies) Descriptor() usecase.Descriptor {
 	}, policyTarget)
 }
 
-// DefineSlaPolicyCommand is the input, typed.
-type DefineSlaPolicyCommand struct {
+// DefineSLAPolicyCommand is the input, typed.
+type DefineSLAPolicyCommand struct {
 	Key             string
 	Name            string
 	CalendarKey     string
 	EntryTypes      []string
 	Organisations   []string
 	PriorityField   string
-	Goals           []domain.SlaGoal
+	Goals           []domain.SLAGoal
 	Position        int
 	Enabled         bool
 	ExpectedVersion int
 }
 
-// DefineSlaPolicy creates a policy under a key, or replaces the one there (UC-SVC-02). A change
+// DefineSLAPolicy creates a policy under a key, or replaces the one there (UC-SVC-02). A change
 // measures what is armed after it; a clock already running keeps its target.
-type DefineSlaPolicy struct{ Desk Desk }
+type DefineSLAPolicy struct{ Desk Desk }
 
 // Execute defines the policy.
-func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorContext, cmd DefineSlaPolicyCommand) (domain.SlaPolicy, error) {
+func (h DefineSLAPolicy) Execute(ctx context.Context, actor appshared.ActorContext, cmd DefineSLAPolicyCommand) (domain.SLAPolicy, error) {
 	if err := h.Desk.authorizeWrite(ctx, actor, PolicyDefinedAction, policyTarget); err != nil {
-		return domain.SlaPolicy{}, err
+		return domain.SLAPolicy{}, err
 	}
 	now := h.Desk.Clock.Now()
-	input := domain.NewSlaPolicyInput{
+	input := domain.NewSLAPolicyInput{
 		ID: h.Desk.IDs.NewID(), TenantID: actor.TenantID, Key: cmd.Key, Name: cmd.Name,
 		CalendarKey: cmd.CalendarKey, EntryTypes: cmd.EntryTypes, Organisations: cmd.Organisations,
 		PriorityField: cmd.PriorityField, Goals: cmd.Goals, Position: cmd.Position, Enabled: cmd.Enabled, Now: now, Text: h.Desk.Text,
 	}
-	var out domain.SlaPolicy
+	var out domain.SLAPolicy
 	err := h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Desk.calendarHeld(ctx, strings.TrimSpace(cmd.CalendarKey)); err != nil {
 			return err
@@ -180,7 +180,7 @@ func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 		current, err := h.Desk.Policies.Find(ctx, strings.TrimSpace(cmd.Key))
 		switch {
 		case errors.Is(err, shared.ErrNotFound):
-			if out, err = domain.NewSlaPolicy(input); err != nil {
+			if out, err = domain.NewSLAPolicy(input); err != nil {
 				return err
 			}
 			if err := h.Desk.Policies.Insert(ctx, out); err != nil {
@@ -212,9 +212,9 @@ func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 }
 
 // Descriptor is the catalogue entry.
-func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
+func (h DefineSLAPolicy) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name: DefineSlaPolicyName,
+		Name: DefineSLAPolicyName,
 		Summary: "Creates an SLA policy under a key, or replaces the one there: the entry types it measures, a " +
 			"first-response and a resolution goal with targets in working minutes per priority, the statuses " +
 			"that pause a goal, the share of the target at which it is at risk, and the business calendar its " +
@@ -252,7 +252,7 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 			if in.Present("enabled") {
 				enabled = in.Bool("enabled")
 			}
-			defined, err := h.Execute(ctx, actor, DefineSlaPolicyCommand{
+			defined, err := h.Execute(ctx, actor, DefineSLAPolicyCommand{
 				Key: in.String("key"), Name: in.String("name"), CalendarKey: in.String("calendar"),
 				EntryTypes: types, Organisations: organisations, PriorityField: in.String("priority_field"), Goals: goals,
 				Position: in.Int("position"), Enabled: enabled, ExpectedVersion: in.Int("expected_version"),
@@ -265,12 +265,12 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 	}, policyTarget)
 }
 
-// DeleteSlaPolicy removes a policy (UC-SVC-02). The entries it measured keep their records; their
+// DeleteSLAPolicy removes a policy (UC-SVC-02). The entries it measured keep their records; their
 // clocks stop being moved by it.
-type DeleteSlaPolicy struct{ Desk Desk }
+type DeleteSLAPolicy struct{ Desk Desk }
 
 // Execute deletes the policy.
-func (h DeleteSlaPolicy) Execute(ctx context.Context, actor appshared.ActorContext, key string) error {
+func (h DeleteSLAPolicy) Execute(ctx context.Context, actor appshared.ActorContext, key string) error {
 	if err := h.Desk.authorizeWrite(ctx, actor, PolicyDeletedAction, policyTarget); err != nil {
 		return err
 	}
@@ -289,9 +289,9 @@ func (h DeleteSlaPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 }
 
 // Descriptor is the catalogue entry.
-func (h DeleteSlaPolicy) Descriptor() usecase.Descriptor {
+func (h DeleteSLAPolicy) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
-		Name:        DeleteSlaPolicyName,
+		Name:        DeleteSLAPolicyName,
 		Summary:     "Deletes an SLA policy. The entries it measured keep the record of how their goals stood.",
 		SideEffects: "Deletes the policy and writes an audit entry.",
 		TokenScope:  deskWrite,

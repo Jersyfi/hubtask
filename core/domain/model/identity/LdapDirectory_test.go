@@ -134,8 +134,8 @@ func TestAnLdapPlanProvisionsLinksRenamesAndSwitches(t *testing.T) {
 				{DN: "uid=twin2", ID: "twin2", Email: "twin@example.com"},
 			},
 			Groups: []LdapGroup{
-				{ID: "g1", Name: "Engineering", MemberDNs: []string{"UID=Lena, OU=People", "uid=old,ou=people", "uid=stranger"}},
-				{ID: "g2", Name: "Kept"},
+				{MemberNames: "g1", Name: "Engineering", MemberDNs: []string{"UID=Lena, OU=People", "uid=old,ou=people", "uid=stranger"}},
+				{MemberNames: "g2", Name: "Kept"},
 			},
 		},
 		Held: []LdapHeld{

@@ -708,9 +708,9 @@ func lifecyclePayload(item work.WorkItem) map[string]any {
 	return payload
 }
 
-// SlaMoment is what an SLA announcement says: which goal of which policy, its target in working
+// SLAMoment is what an SLA announcement says: which goal of which policy, its target in working
 // seconds, and when it falls due.
-type SlaMoment struct {
+type SLAMoment struct {
 	ItemID       shared.ID
 	CollectionID shared.ID
 	PolicyKey    string
@@ -719,17 +719,17 @@ type SlaMoment struct {
 	DueAt        *time.Time
 }
 
-// NewItemSlaAtRisk announces that a goal passed its warning share unmet.
-func NewItemSlaAtRisk(id, tenant shared.ID, moment SlaMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
-	return newSlaMoment(id, ItemSlaAtRisk, tenant, moment, occurredAt, cause)
+// NewItemSLAAtRisk announces that a goal passed its warning share unmet.
+func NewItemSLAAtRisk(id, tenant shared.ID, moment SLAMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
+	return newSLAMoment(id, ItemSLAAtRisk, tenant, moment, occurredAt, cause)
 }
 
-// NewItemSlaBreached announces that a goal ran out of working time unmet.
-func NewItemSlaBreached(id, tenant shared.ID, moment SlaMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
-	return newSlaMoment(id, ItemSlaBreached, tenant, moment, occurredAt, cause)
+// NewItemSLABreached announces that a goal ran out of working time unmet.
+func NewItemSLABreached(id, tenant shared.ID, moment SLAMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
+	return newSLAMoment(id, ItemSLABreached, tenant, moment, occurredAt, cause)
 }
 
-func newSlaMoment(id shared.ID, eventType Type, tenant shared.ID, moment SlaMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
+func newSLAMoment(id shared.ID, eventType Type, tenant shared.ID, moment SLAMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
 	payload := map[string]any{
 		"item_id":        moment.ItemID.String(),
 		"collection_id":  moment.CollectionID.String(),

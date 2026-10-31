@@ -46,7 +46,7 @@ func (SnapshotRepository) Approvals(ctx context.Context, after shared.ID, batch 
 }
 
 // EntrySlas pages every live entry's SLA records with the entry's collection.
-func (SnapshotRepository) EntrySlas(ctx context.Context, after shared.ID, batch int) ([]repository.EntrySlaOf, error) {
+func (SnapshotRepository) EntrySlas(ctx context.Context, after shared.ID, batch int) ([]repository.EntrySLAOf, error) {
 	queries, key, err := snapshotPage(ctx, after)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (SnapshotRepository) EntrySlas(ctx context.Context, after shared.ID, batch 
 	if err != nil {
 		return nil, snapshotFailed("SLA records", err)
 	}
-	return mapRows(rows, func(row sqlc.SnapshotEntrySlasRow) (repository.EntrySlaOf, error) {
+	return mapRows(rows, func(row sqlc.SnapshotEntrySlasRow) (repository.EntrySLAOf, error) {
 		record, err := recordFrom(sqlc.EntrySla{
 			ID: row.ID, TenantID: row.TenantID, ItemID: row.ItemID, Goal: row.Goal, PolicyKey: row.PolicyKey,
 			TargetSeconds: row.TargetSeconds, Standing: row.Standing, ArmedAt: row.ArmedAt, DueAt: row.DueAt,
@@ -65,13 +65,13 @@ func (SnapshotRepository) EntrySlas(ctx context.Context, after shared.ID, batch 
 			Version: row.Version,
 		})
 		if err != nil {
-			return repository.EntrySlaOf{}, err
+			return repository.EntrySLAOf{}, err
 		}
 		collection, err := idFrom(row.CollectionID)
 		if err != nil {
-			return repository.EntrySlaOf{}, err
+			return repository.EntrySLAOf{}, err
 		}
-		return repository.EntrySlaOf{Record: record, CollectionID: collection}, nil
+		return repository.EntrySLAOf{Record: record, CollectionID: collection}, nil
 	})
 }
 

@@ -548,7 +548,7 @@ func (h ListMyRequests) Descriptor() usecase.Descriptor {
 type MyRequest struct {
 	Item     workdomain.WorkItem
 	Comments []workdomain.Comment
-	Goals    []domain.EntrySla
+	Goals    []domain.EntrySLA
 	// Rating is the requester's own score, nil while they have given none (UC-SVC-07).
 	Rating *domain.Rating
 }

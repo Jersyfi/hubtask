@@ -61,7 +61,7 @@ func TestAnEntrysGoalsAreReadByItsReaders(t *testing.T) {
 	f := newFixture(t)
 	f.deliver(t, "de.hubtask.work.item.created.v1", monday, nil)
 	authorizer := &gate{allow: true}
-	read := ReadEntrySla{
+	read := ReadEntrySLA{
 		Desk:  Desk{Records: f.records, Authorizer: authorizer, UnitOfWork: inline{}},
 		Items: f.items, Containers: containerStore{},
 	}
@@ -85,7 +85,7 @@ func TestAnEntrysGoalsAreReadByItsReaders(t *testing.T) {
 // UC-SVC-02 check 7: the report asks STRUCTURE at the workspace and refuses a period past a year.
 func TestTheReportAsksStructureAndABoundedPeriod(t *testing.T) {
 	authorizer := &gate{allow: true}
-	report := ReportSla{Desk: Desk{Records: &recordStore{}, Authorizer: authorizer, UnitOfWork: inline{}}}
+	report := ReportSLA{Desk: Desk{Records: &recordStore{}, Authorizer: authorizer, UnitOfWork: inline{}}}
 	if _, err := report.Execute(context.Background(), reader(), monday, monday.Add(MaxReportSpan+time.Hour)); !errors.Is(err, shared.ErrValidation) {
 		t.Errorf("a period past a year: %v", err)
 	}

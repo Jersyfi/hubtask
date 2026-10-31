@@ -307,7 +307,7 @@ func ldapAttribute(raw, fallback, path string) (string, error) {
 	}
 	for i, r := range name {
 		letter := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
-		if !letter && (i == 0 || !(r >= '0' && r <= '9') && r != '-') {
+		if !letter && (i == 0 || (r < '0' || r > '9') && r != '-') {
 			return "", ldapInvalid("directory.ldap_attribute_invalid", path)
 		}
 	}
@@ -322,7 +322,7 @@ type LdapPerson struct {
 
 // LdapGroup is a group as the directory answers it, its members by their entries' names.
 type LdapGroup struct {
-	ID, Name  string
+	MemberNames, Name  string
 	MemberDNs []string
 }
 
@@ -508,7 +508,7 @@ func planGroups(plan *LdapPlan, in LdapPlanInput, kept map[string]string) {
 	}
 	answered := map[string]bool{}
 	for _, group := range in.Answer.Groups {
-		external := LdapExternalID(group.ID)
+		external := LdapExternalID(group.MemberNames)
 		name := strings.TrimSpace(group.Name)
 		if external == "" || name == "" || answered[external] {
 			continue

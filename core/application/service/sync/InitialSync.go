@@ -50,7 +50,7 @@ var walkKinds = []string{
 	entityTimesheet, entityCapacities, entityAbsence, entityCostRates, entityBudget,
 	entityPortfolio,
 	entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun,
-	entityApproval, entityEntrySla, entitySatisfaction, entityCodeLink, entityFileLink,
+	entityApproval, entityEntrySLA, entitySatisfaction, entityCodeLink, entityFileLink,
 	entityWorkflowScheme,
 }
 
@@ -148,7 +148,7 @@ const (
 	// trail, its SLA goals and its score, each filed under the entry's collection (M5); walked
 	// last, for the schedule's reason.
 	entityApproval     = servicedeskservice.ApprovalEntity
-	entityEntrySla     = servicedeskservice.EntrySlaEntity
+	entityEntrySLA     = servicedeskservice.EntrySLAEntity
 	entitySatisfaction = servicedeskservice.SatisfactionEntity
 	// entityCodeLink is an entry's commit, branch or pull request, filed under the entry's
 	// collection (UC-INT-13).
@@ -956,7 +956,7 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			})
 		}
 		return rows, nil
-	case entityEntrySla:
+	case entityEntrySLA:
 		records, err := p.Snapshot.EntrySlas(ctx, afterID, batch)
 		if err != nil {
 			return nil, err
@@ -964,8 +964,8 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 		rows := make([]walkRow, 0, len(records))
 		for _, r := range records {
 			rows = append(rows, walkRow{
-				entity: entityEntrySla, entityID: r.Record.ID, containerID: r.CollectionID,
-				payload: servicedeskservice.SlaRecord(r.Record), key: r.Record.ID.String(),
+				entity: entityEntrySLA, entityID: r.Record.ID, containerID: r.CollectionID,
+				payload: servicedeskservice.SLARecord(r.Record), key: r.Record.ID.String(),
 			})
 		}
 		return rows, nil

@@ -196,7 +196,7 @@ func (h ReadConfigSchema) Descriptor() usecase.Descriptor {
 // ExportConfig answers the document in force.
 type ExportConfig struct{ Desk Desk }
 
-func (h ExportConfig) Execute(ctx context.Context, actor appshared.ActorContext, hub shared.ID) (current, int, error) {
+func (h ExportConfig) export(ctx context.Context, actor appshared.ActorContext, hub shared.ID) (current, int, error) {
 	if err := h.Desk.authorizeAt(ctx, actor, hub, ReadAction, scopeRead, true); err != nil {
 		return current{}, 0, err
 	}
@@ -236,7 +236,7 @@ func (h ExportConfig) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			now, version, err := h.Execute(ctx, actor, hub)
+			now, version, err := h.export(ctx, actor, hub)
 			if err != nil {
 				return nil, err
 			}
@@ -304,7 +304,7 @@ func (d Desk) explain(ctx context.Context, actor appshared.ActorContext, path st
 		}
 		block, held := now.Document[name][key]
 		row, read := now.Rows[sectionSettings][key]
-		if !held && !(name == sectionSettings && read) {
+		if !held && (name != sectionSettings || !read) {
 			return unknown
 		}
 		out = usecase.Output{

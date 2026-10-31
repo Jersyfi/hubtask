@@ -379,7 +379,7 @@ func TestAnLdapRunKeepsTheGroupsMembers(t *testing.T) {
 	f.store.directory.GroupBase = "ou=groups,dc=example,dc=com"
 	f.reader.answer = domain.LdapAnswer{
 		People: []domain.LdapPerson{{DN: "uid=mia,ou=people", ID: "mia", Email: "mia@example.com", Name: "Mia"}},
-		Groups: []domain.LdapGroup{{ID: "eng", Name: "Engineering", MemberDNs: []string{"UID=mia, ou=people"}}},
+		Groups: []domain.LdapGroup{{MemberNames: "eng", Name: "Engineering", MemberDNs: []string{"UID=mia, ou=people"}}},
 	}
 	out := f.sync(t, usecase.Input{})
 	if out["outcome"] != "OK" || out["counts"].(usecase.Output)["groups_created"] != 1 {

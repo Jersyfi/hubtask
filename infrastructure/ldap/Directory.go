@@ -125,7 +125,7 @@ func groupsOf(entries []*goldap.Entry, dir identity.LdapDirectory) []identity.Ld
 	groups := make([]identity.LdapGroup, 0, len(entries))
 	for _, entry := range entries {
 		groups = append(groups, identity.LdapGroup{
-			ID: identifierOf(entry, dir.IDAttribute), Name: strings.TrimSpace(entry.GetAttributeValue(dir.GroupNameAttribute)),
+			MemberNames: identifierOf(entry, dir.IDAttribute), Name: strings.TrimSpace(entry.GetAttributeValue(dir.GroupNameAttribute)),
 			MemberDNs: entry.GetAttributeValues(dir.MemberAttribute),
 		})
 	}

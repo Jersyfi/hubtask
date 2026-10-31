@@ -63,7 +63,7 @@ type snapshotStore struct {
 	members     []repository.SprintEntryOf
 	estimates   []repository.EstimateOf
 	approvals   []repository.ApprovalOf
-	slas        []repository.EntrySlaOf
+	slas        []repository.EntrySLAOf
 	ratings     []repository.RatingOf
 	codeLinks   []repository.CodeLinkOf
 	fileLinks   []repository.FileLinkOf

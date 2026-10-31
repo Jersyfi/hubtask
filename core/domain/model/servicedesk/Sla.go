@@ -74,10 +74,10 @@ const (
 	MaxTargetMinutes = int(calendar.MaxBudget / time.Minute)
 )
 
-// SlaGoal is one promise of a policy: a target in working minutes, narrower per priority, the
+// SLAGoal is one promise of a policy: a target in working minutes, narrower per priority, the
 // statuses in which its clock stands still (waiting for the requester), and the share of the
 // target at which it is announced at risk.
-type SlaGoal struct {
+type SLAGoal struct {
 	Kind       GoalKind
 	Minutes    int
 	ByPriority map[string]int
@@ -89,7 +89,7 @@ type SlaGoal struct {
 
 // Target answers the goal's working time for an entry of a priority; a priority without a target
 // of its own takes the goal's.
-func (g SlaGoal) Target(priority string) time.Duration {
+func (g SLAGoal) Target(priority string) time.Duration {
 	if minutes, ok := g.ByPriority[priority]; ok && priority != "" {
 		return time.Duration(minutes) * time.Minute
 	}
@@ -97,7 +97,7 @@ func (g SlaGoal) Target(priority string) time.Duration {
 }
 
 // Warning answers the working time after which the goal is at risk; false when it announces none.
-func (g SlaGoal) Warning(priority string) (time.Duration, bool) {
+func (g SLAGoal) Warning(priority string) (time.Duration, bool) {
 	if g.WarnPercent == 0 {
 		return 0, false
 	}
@@ -106,13 +106,13 @@ func (g SlaGoal) Warning(priority string) (time.Duration, bool) {
 }
 
 // Pauses reports whether the clock stands still while the entry is in the status.
-func (g SlaGoal) Pauses(status string) bool {
+func (g SLAGoal) Pauses(status string) bool {
 	return status != "" && slices.Contains(g.PauseStatuses, status)
 }
 
-// SlaPolicy is a workspace's promise for entries of some types: its goals, counted on one of the
+// SLAPolicy is a workspace's promise for entries of some types: its goals, counted on one of the
 // workspace's business calendars - or around the clock when it names none.
-type SlaPolicy struct {
+type SLAPolicy struct {
 	ID          shared.ID
 	TenantID    shared.ID
 	Key         string
@@ -125,7 +125,7 @@ type SlaPolicy struct {
 	// PriorityField is the custom field whose option value picks a goal's target; empty takes the
 	// goals' own.
 	PriorityField string
-	Goals         []SlaGoal
+	Goals         []SLAGoal
 	Position      int
 	Enabled       bool
 	CreatedAt     time.Time
@@ -133,107 +133,107 @@ type SlaPolicy struct {
 	Version       int
 }
 
-// NewSlaPolicyInput is what defining a policy takes.
-type NewSlaPolicyInput struct {
+// NewSLAPolicyInput is what defining a policy takes.
+type NewSLAPolicyInput struct {
 	ID, TenantID  shared.ID
 	Key, Name     string
 	CalendarKey   string
 	EntryTypes    []string
 	Organisations []string
 	PriorityField string
-	Goals         []SlaGoal
+	Goals         []SLAGoal
 	Position      int
 	Enabled       bool
 	Now           time.Time
 	Text          text.Normalizer
 }
 
-// NewSlaPolicy checks a policy: a key, a name, at least one type and one goal, each kind once,
+// NewSLAPolicy checks a policy: a key, a name, at least one type and one goal, each kind once,
 // targets inside a timer's bound.
-func NewSlaPolicy(in NewSlaPolicyInput) (SlaPolicy, error) {
+func NewSLAPolicy(in NewSLAPolicyInput) (SLAPolicy, error) {
 	if in.ID.IsZero() || in.TenantID.IsZero() {
-		return SlaPolicy{}, shared.ErrInternal.WithDetail("sla_policies.identity_incomplete")
+		return SLAPolicy{}, shared.ErrInternal.WithDetail("sla_policies.identity_incomplete")
 	}
 	key := strings.TrimSpace(in.Key)
 	if !keyPattern.MatchString(key) {
-		return SlaPolicy{}, invalid("/key", "sla_policies.key_malformed")
+		return SLAPolicy{}, invalid("/key", "sla_policies.key_malformed")
 	}
 	name, err := checkName(in.Name, in.Text, "sla_policies")
 	if err != nil {
-		return SlaPolicy{}, err
+		return SLAPolicy{}, err
 	}
 	calendarKey := strings.TrimSpace(in.CalendarKey)
 	if calendarKey != "" && !keyPattern.MatchString(calendarKey) {
-		return SlaPolicy{}, invalid("/calendar", "sla_policies.calendar_malformed")
+		return SLAPolicy{}, invalid("/calendar", "sla_policies.calendar_malformed")
 	}
 	priorityField := strings.TrimSpace(in.PriorityField)
 	if priorityField != "" && !keyPattern.MatchString(priorityField) {
-		return SlaPolicy{}, invalid("/priority_field", "sla_policies.priority_field_malformed")
+		return SLAPolicy{}, invalid("/priority_field", "sla_policies.priority_field_malformed")
 	}
 	types, err := checkKeys(in.EntryTypes, "/entry_types", MaxPolicyEntryTypes)
 	if err != nil {
-		return SlaPolicy{}, err
+		return SLAPolicy{}, err
 	}
 	if len(types) == 0 {
-		return SlaPolicy{}, invalid("/entry_types", "sla_policies.entry_types_required")
+		return SLAPolicy{}, invalid("/entry_types", "sla_policies.entry_types_required")
 	}
 	organisations, err := checkKeys(in.Organisations, "/organisations", MaxPolicyOrganisations)
 	if err != nil {
-		return SlaPolicy{}, err
+		return SLAPolicy{}, err
 	}
 	if len(in.Goals) == 0 {
-		return SlaPolicy{}, invalid("/goals", "sla_policies.goals_required")
+		return SLAPolicy{}, invalid("/goals", "sla_policies.goals_required")
 	}
-	goals := make([]SlaGoal, 0, len(in.Goals))
+	goals := make([]SLAGoal, 0, len(in.Goals))
 	for i, goal := range in.Goals {
 		checked, err := checkGoal(goal, "/goals/"+strconv.Itoa(i))
 		if err != nil {
-			return SlaPolicy{}, err
+			return SLAPolicy{}, err
 		}
-		if slices.ContainsFunc(goals, func(g SlaGoal) bool { return g.Kind == checked.Kind }) {
-			return SlaPolicy{}, invalid("/goals/"+strconv.Itoa(i)+"/kind", "sla_policies.goal_twice")
+		if slices.ContainsFunc(goals, func(g SLAGoal) bool { return g.Kind == checked.Kind }) {
+			return SLAPolicy{}, invalid("/goals/"+strconv.Itoa(i)+"/kind", "sla_policies.goal_twice")
 		}
 		goals = append(goals, checked)
 	}
-	slices.SortFunc(goals, func(a, b SlaGoal) int {
+	slices.SortFunc(goals, func(a, b SLAGoal) int {
 		return cmp.Compare(slices.Index(goalKinds[:], a.Kind), slices.Index(goalKinds[:], b.Kind))
 	})
-	return SlaPolicy{
+	return SLAPolicy{
 		ID: in.ID, TenantID: in.TenantID, Key: key, Name: name, CalendarKey: calendarKey,
 		EntryTypes: types, Organisations: organisations, PriorityField: priorityField, Goals: goals, Position: in.Position,
 		Enabled: in.Enabled, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil
 }
 
-func checkGoal(goal SlaGoal, at string) (SlaGoal, error) {
+func checkGoal(goal SLAGoal, at string) (SLAGoal, error) {
 	if !goal.Kind.Valid() {
-		return SlaGoal{}, invalid(at+"/kind", "sla_policies.goal_kind_unknown")
+		return SLAGoal{}, invalid(at+"/kind", "sla_policies.goal_kind_unknown")
 	}
 	if goal.Minutes <= 0 || goal.Minutes > MaxTargetMinutes {
-		return SlaGoal{}, invalid(at+"/minutes", "sla_policies.target_invalid")
+		return SLAGoal{}, invalid(at+"/minutes", "sla_policies.target_invalid")
 	}
 	if len(goal.ByPriority) > MaxPriorityTargets {
-		return SlaGoal{}, invalid(at+"/by_priority", "sla_policies.too_many_targets")
+		return SLAGoal{}, invalid(at+"/by_priority", "sla_policies.too_many_targets")
 	}
 	byPriority := make(map[string]int, len(goal.ByPriority))
 	for _, priority := range slices.Sorted(maps.Keys(goal.ByPriority)) {
 		minutes := goal.ByPriority[priority]
 		if strings.TrimSpace(priority) == "" || len(priority) > MaxNameLength {
-			return SlaGoal{}, invalid(at+"/by_priority", "sla_policies.priority_malformed")
+			return SLAGoal{}, invalid(at+"/by_priority", "sla_policies.priority_malformed")
 		}
 		if minutes <= 0 || minutes > MaxTargetMinutes {
-			return SlaGoal{}, invalid(at+"/by_priority/"+priority, "sla_policies.target_invalid")
+			return SLAGoal{}, invalid(at+"/by_priority/"+priority, "sla_policies.target_invalid")
 		}
 		byPriority[priority] = minutes
 	}
 	pauses, err := checkKeys(goal.PauseStatuses, at+"/pause_statuses", MaxPauseStatuses)
 	if err != nil {
-		return SlaGoal{}, err
+		return SLAGoal{}, err
 	}
 	if goal.WarnPercent < 0 || goal.WarnPercent > 99 {
-		return SlaGoal{}, invalid(at+"/warn_percent", "sla_policies.warn_percent_invalid")
+		return SLAGoal{}, invalid(at+"/warn_percent", "sla_policies.warn_percent_invalid")
 	}
-	return SlaGoal{
+	return SLAGoal{
 		Kind: goal.Kind, Minutes: goal.Minutes, ByPriority: byPriority, PauseStatuses: pauses,
 		WarnPercent: goal.WarnPercent,
 	}, nil
@@ -258,11 +258,11 @@ func checkKeys(raw []string, at string, bound int) ([]string, error) {
 }
 
 // Change answers the policy with every decision replaced, its key and identity kept.
-func (p SlaPolicy) Change(in NewSlaPolicyInput) (SlaPolicy, error) {
+func (p SLAPolicy) Change(in NewSLAPolicyInput) (SLAPolicy, error) {
 	in.ID, in.TenantID, in.Key = p.ID, p.TenantID, p.Key
-	changed, err := NewSlaPolicy(in)
+	changed, err := NewSLAPolicy(in)
 	if err != nil {
-		return SlaPolicy{}, err
+		return SLAPolicy{}, err
 	}
 	changed.CreatedAt, changed.Version = p.CreatedAt, p.Version
 	return changed, nil
@@ -270,33 +270,33 @@ func (p SlaPolicy) Change(in NewSlaPolicyInput) (SlaPolicy, error) {
 
 // Covers reports whether the policy measures entries of the type raised by a requester of the
 // organisation (its key, empty for none).
-func (p SlaPolicy) Covers(entryType, organisation string) bool {
+func (p SLAPolicy) Covers(entryType, organisation string) bool {
 	return p.Enabled && entryType != "" && slices.Contains(p.EntryTypes, entryType) &&
 		(len(p.Organisations) == 0 || organisation != "" && slices.Contains(p.Organisations, organisation))
 }
 
 // ForOrganisations reports whether any of the policies is for some organisations only, so that
 // a caller reads the requester's organisation only where it can matter.
-func ForOrganisations(policies []SlaPolicy) bool {
-	return slices.ContainsFunc(policies, func(p SlaPolicy) bool { return p.Enabled && len(p.Organisations) > 0 })
+func ForOrganisations(policies []SLAPolicy) bool {
+	return slices.ContainsFunc(policies, func(p SLAPolicy) bool { return p.Enabled && len(p.Organisations) > 0 })
 }
 
 // Goal answers the policy's goal of a kind.
-func (p SlaPolicy) Goal(kind GoalKind) (SlaGoal, bool) {
+func (p SLAPolicy) Goal(kind GoalKind) (SLAGoal, bool) {
 	for _, goal := range p.Goals {
 		if goal.Kind == kind {
 			return goal, true
 		}
 	}
-	return SlaGoal{}, false
+	return SLAGoal{}, false
 }
 
 // Choose answers the policy an entry of the type, raised by a requester of the organisation, is
 // measured against: the first enabled one that covers both, by position and then key - one policy
 // per entry, so its clocks never disagree.
-func Choose(policies []SlaPolicy, entryType, organisation string) (SlaPolicy, bool) {
+func Choose(policies []SLAPolicy, entryType, organisation string) (SLAPolicy, bool) {
 	ordered := slices.Clone(policies)
-	slices.SortFunc(ordered, func(a, b SlaPolicy) int {
+	slices.SortFunc(ordered, func(a, b SLAPolicy) int {
 		return cmp.Or(cmp.Compare(a.Position, b.Position), cmp.Compare(a.Key, b.Key))
 	})
 	for _, policy := range ordered {
@@ -304,7 +304,7 @@ func Choose(policies []SlaPolicy, entryType, organisation string) (SlaPolicy, bo
 			return policy, true
 		}
 	}
-	return SlaPolicy{}, false
+	return SLAPolicy{}, false
 }
 
 // Standing is where a goal of one entry stands, as a handler and a report read it.
@@ -330,9 +330,9 @@ func StandingOf(timer calendar.Timer) Standing {
 	return StandingRunning
 }
 
-// EntrySla is what became of one goal on one entry: the record a report reads and the archive
+// EntrySLA is what became of one goal on one entry: the record a report reads and the archive
 // carries, beside the timer that is its clock.
-type EntrySla struct {
+type EntrySLA struct {
 	ID         shared.ID
 	TenantID   shared.ID
 	ItemID     shared.ID
@@ -350,7 +350,7 @@ type EntrySla struct {
 
 // Follow brings the record in step with its timer at now: its due moment while it runs, met when
 // it was stopped, breached when it fired. A breached goal stays breached.
-func (r EntrySla) Follow(timer calendar.Timer, now time.Time) EntrySla {
+func (r EntrySLA) Follow(timer calendar.Timer, now time.Time) EntrySLA {
 	if r.Standing == StandingBreached {
 		return r
 	}
@@ -371,7 +371,7 @@ func (r EntrySla) Follow(timer calendar.Timer, now time.Time) EntrySla {
 
 // Rearm starts a met goal's next round at now, its marks of the last round cleared; false for one
 // still live or breached - a round is not cut short, and a broken promise stays on the entry.
-func (r EntrySla) Rearm(target time.Duration, now time.Time) (EntrySla, bool) {
+func (r EntrySLA) Rearm(target time.Duration, now time.Time) (EntrySLA, bool) {
 	if r.Standing != StandingMet {
 		return r, false
 	}

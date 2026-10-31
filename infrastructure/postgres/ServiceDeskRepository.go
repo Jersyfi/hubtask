@@ -170,7 +170,7 @@ type goalDocument struct {
 	WarnPercent   int            `json:"warn_percent,omitempty"`
 }
 
-func goalsJSON(goals []servicedesk.SlaGoal) ([]byte, error) {
+func goalsJSON(goals []servicedesk.SLAGoal) ([]byte, error) {
 	docs := make([]goalDocument, 0, len(goals))
 	for _, goal := range goals {
 		docs = append(docs, goalDocument{
@@ -181,14 +181,14 @@ func goalsJSON(goals []servicedesk.SlaGoal) ([]byte, error) {
 	return json.Marshal(docs)
 }
 
-func goalsFromJSON(raw []byte) ([]servicedesk.SlaGoal, error) {
+func goalsFromJSON(raw []byte) ([]servicedesk.SLAGoal, error) {
 	var docs []goalDocument
 	if err := json.Unmarshal(raw, &docs); err != nil {
 		return nil, err
 	}
-	goals := make([]servicedesk.SlaGoal, 0, len(docs))
+	goals := make([]servicedesk.SLAGoal, 0, len(docs))
 	for _, doc := range docs {
-		goals = append(goals, servicedesk.SlaGoal{
+		goals = append(goals, servicedesk.SLAGoal{
 			Kind: servicedesk.GoalKind(doc.Kind), Minutes: doc.Minutes, ByPriority: doc.ByPriority,
 			PauseStatuses: doc.PauseStatuses, WarnPercent: doc.WarnPercent,
 		})
@@ -203,7 +203,7 @@ func optionalKey(key string) *string {
 	return &key
 }
 
-func policyWriteFailed(policy servicedesk.SlaPolicy, err error) error {
+func policyWriteFailed(policy servicedesk.SLAPolicy, err error) error {
 	switch {
 	case isUniqueViolation(err):
 		return shared.ErrConflict.WithDetail("sla_policies.key_taken").WithParams(map[string]string{"key": policy.Key})
@@ -214,7 +214,7 @@ func policyWriteFailed(policy servicedesk.SlaPolicy, err error) error {
 	return queryFailed("writing an SLA policy", err)
 }
 
-func (ServiceDeskPolicies) Insert(ctx context.Context, policy servicedesk.SlaPolicy) error {
+func (ServiceDeskPolicies) Insert(ctx context.Context, policy servicedesk.SLAPolicy) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
@@ -242,7 +242,7 @@ func (ServiceDeskPolicies) Insert(ctx context.Context, policy servicedesk.SlaPol
 	return nil
 }
 
-func (ServiceDeskPolicies) Update(ctx context.Context, policy servicedesk.SlaPolicy, expectedVersion int) error {
+func (ServiceDeskPolicies) Update(ctx context.Context, policy servicedesk.SLAPolicy, expectedVersion int) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
@@ -275,20 +275,20 @@ func keysOrEmpty(keys []string) []string {
 	return keys
 }
 
-func policyFrom(row sqlc.SlaPolicy) (servicedesk.SlaPolicy, error) {
+func policyFrom(row sqlc.SlaPolicy) (servicedesk.SLAPolicy, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
-		return servicedesk.SlaPolicy{}, err
+		return servicedesk.SLAPolicy{}, err
 	}
 	tenant, err := idFrom(row.TenantID)
 	if err != nil {
-		return servicedesk.SlaPolicy{}, err
+		return servicedesk.SLAPolicy{}, err
 	}
 	goals, err := goalsFromJSON(row.Goals)
 	if err != nil {
-		return servicedesk.SlaPolicy{}, shared.ErrInternal.WithDetail("sla_policies.unreadable").WithCause(err)
+		return servicedesk.SLAPolicy{}, shared.ErrInternal.WithDetail("sla_policies.unreadable").WithCause(err)
 	}
-	policy := servicedesk.SlaPolicy{
+	policy := servicedesk.SLAPolicy{
 		ID: id, TenantID: tenant, Key: row.Key, Name: row.Name, EntryTypes: row.EntryTypes,
 		Organisations: row.Organisations, PriorityField: row.PriorityField, Goals: goals, Position: int(row.Position), Enabled: row.Enabled,
 		CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time, Version: int(row.Version),
@@ -299,22 +299,22 @@ func policyFrom(row sqlc.SlaPolicy) (servicedesk.SlaPolicy, error) {
 	return policy, nil
 }
 
-func (ServiceDeskPolicies) Find(ctx context.Context, key string) (servicedesk.SlaPolicy, error) {
+func (ServiceDeskPolicies) Find(ctx context.Context, key string) (servicedesk.SLAPolicy, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return servicedesk.SlaPolicy{}, err
+		return servicedesk.SLAPolicy{}, err
 	}
 	row, err := queries.FindSlaPolicy(ctx, key)
 	if err != nil {
 		if IsNoRows(err) {
-			return servicedesk.SlaPolicy{}, shared.ErrNotFound.WithDetail("sla_policies.not_found")
+			return servicedesk.SLAPolicy{}, shared.ErrNotFound.WithDetail("sla_policies.not_found")
 		}
-		return servicedesk.SlaPolicy{}, queryFailed("reading an SLA policy", err)
+		return servicedesk.SLAPolicy{}, queryFailed("reading an SLA policy", err)
 	}
 	return policyFrom(row)
 }
 
-func (ServiceDeskPolicies) List(ctx context.Context) ([]servicedesk.SlaPolicy, error) {
+func (ServiceDeskPolicies) List(ctx context.Context) ([]servicedesk.SLAPolicy, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -323,7 +323,7 @@ func (ServiceDeskPolicies) List(ctx context.Context) ([]servicedesk.SlaPolicy, e
 	if err != nil {
 		return nil, queryFailed("listing SLA policies", err)
 	}
-	out := make([]servicedesk.SlaPolicy, 0, len(rows))
+	out := make([]servicedesk.SLAPolicy, 0, len(rows))
 	for _, row := range rows {
 		policy, err := policyFrom(row)
 		if err != nil {
@@ -349,7 +349,7 @@ func (ServiceDeskPolicies) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-func (ServiceDeskRecords) Save(ctx context.Context, record servicedesk.EntrySla, now time.Time) error {
+func (ServiceDeskRecords) Save(ctx context.Context, record servicedesk.EntrySLA, now time.Time) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
@@ -378,7 +378,7 @@ func (ServiceDeskRecords) Save(ctx context.Context, record servicedesk.EntrySla,
 	return nil
 }
 
-func (ServiceDeskRecords) OfItem(ctx context.Context, itemID shared.ID) ([]servicedesk.EntrySla, error) {
+func (ServiceDeskRecords) OfItem(ctx context.Context, itemID shared.ID) ([]servicedesk.EntrySLA, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -391,7 +391,7 @@ func (ServiceDeskRecords) OfItem(ctx context.Context, itemID shared.ID) ([]servi
 	if err != nil {
 		return nil, queryFailed("reading an entry's SLA records", err)
 	}
-	out := make([]servicedesk.EntrySla, 0, len(rows))
+	out := make([]servicedesk.EntrySLA, 0, len(rows))
 	for _, row := range rows {
 		record, err := recordFrom(row)
 		if err != nil {
@@ -402,20 +402,20 @@ func (ServiceDeskRecords) OfItem(ctx context.Context, itemID shared.ID) ([]servi
 	return out, nil
 }
 
-func recordFrom(row sqlc.EntrySla) (servicedesk.EntrySla, error) {
+func recordFrom(row sqlc.EntrySla) (servicedesk.EntrySLA, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
-		return servicedesk.EntrySla{}, err
+		return servicedesk.EntrySLA{}, err
 	}
 	tenant, err := idFrom(row.TenantID)
 	if err != nil {
-		return servicedesk.EntrySla{}, err
+		return servicedesk.EntrySLA{}, err
 	}
 	item, err := idFrom(row.ItemID)
 	if err != nil {
-		return servicedesk.EntrySla{}, err
+		return servicedesk.EntrySLA{}, err
 	}
-	return servicedesk.EntrySla{
+	return servicedesk.EntrySLA{
 		ID: id, TenantID: tenant, ItemID: item, Goal: servicedesk.GoalKind(row.Goal), PolicyKey: row.PolicyKey,
 		Target: time.Duration(row.TargetSeconds) * time.Second, Standing: servicedesk.Standing(row.Standing),
 		ArmedAt: row.ArmedAt.Time, DueAt: optionalTime(row.DueAt), AtRiskAt: optionalTime(row.AtRiskAt),

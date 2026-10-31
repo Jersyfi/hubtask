@@ -42,8 +42,8 @@ func liveTimer(t calendar.Timer) bool {
 	return t.State == calendar.TimerRunning || t.State == calendar.TimerPaused
 }
 
-func (s *timerStore) Insert(_ context.Context, timer calendar.Timer, _ time.Time) error {
-	if _, err := s.FindLive(context.Background(), timer.Purpose, timer.SubjectID, timer.Name); err == nil {
+func (s *timerStore) Insert(ctx context.Context, timer calendar.Timer, _ time.Time) error {
+	if _, err := s.FindLive(ctx, timer.Purpose, timer.SubjectID, timer.Name); err == nil {
 		return shared.ErrConflict.WithDetail("timer.already_running")
 	}
 	s.rows = append(s.rows, timer)
@@ -95,9 +95,9 @@ func (s *timerStore) named(name string) calendar.Timer {
 	return calendar.Timer{}
 }
 
-type recordStore struct{ rows []domain.EntrySla }
+type recordStore struct{ rows []domain.EntrySLA }
 
-func (s *recordStore) Save(_ context.Context, record domain.EntrySla, _ time.Time) error {
+func (s *recordStore) Save(_ context.Context, record domain.EntrySLA, _ time.Time) error {
 	for i, row := range s.rows {
 		if row.ItemID == record.ItemID && row.Goal == record.Goal {
 			s.rows[i] = record
@@ -108,8 +108,8 @@ func (s *recordStore) Save(_ context.Context, record domain.EntrySla, _ time.Tim
 	return nil
 }
 
-func (s *recordStore) OfItem(_ context.Context, id shared.ID) ([]domain.EntrySla, error) {
-	var out []domain.EntrySla
+func (s *recordStore) OfItem(_ context.Context, id shared.ID) ([]domain.EntrySLA, error) {
+	var out []domain.EntrySLA
 	for _, row := range s.rows {
 		if row.ItemID == id {
 			out = append(out, row)
@@ -122,23 +122,23 @@ func (s *recordStore) Report(context.Context, time.Time, time.Time) ([]domain.Re
 	return nil, nil
 }
 
-func (s *recordStore) goal(kind domain.GoalKind) domain.EntrySla {
+func (s *recordStore) goal(kind domain.GoalKind) domain.EntrySLA {
 	for _, row := range s.rows {
 		if row.Goal == kind {
 			return row
 		}
 	}
-	return domain.EntrySla{}
+	return domain.EntrySLA{}
 }
 
-type policyStore struct{ rows []domain.SlaPolicy }
+type policyStore struct{ rows []domain.SLAPolicy }
 
-func (p policyStore) Insert(context.Context, domain.SlaPolicy) error      { return nil }
-func (p policyStore) Update(context.Context, domain.SlaPolicy, int) error { return nil }
-func (p policyStore) Find(context.Context, string) (domain.SlaPolicy, error) {
-	return domain.SlaPolicy{}, shared.ErrNotFound
+func (p policyStore) Insert(context.Context, domain.SLAPolicy) error      { return nil }
+func (p policyStore) Update(context.Context, domain.SLAPolicy, int) error { return nil }
+func (p policyStore) Find(context.Context, string) (domain.SLAPolicy, error) {
+	return domain.SLAPolicy{}, shared.ErrNotFound
 }
-func (p policyStore) List(context.Context) ([]domain.SlaPolicy, error) { return p.rows, nil }
+func (p policyStore) List(context.Context) ([]domain.SLAPolicy, error) { return p.rows, nil }
 func (p policyStore) Delete(context.Context, string) error             { return nil }
 
 type calendarStore struct{ office domain.Calendar }
@@ -178,7 +178,7 @@ type fixture struct {
 	records *recordStore
 	items   *itemStore
 	events  *eventLog
-	clocks  SlaClocks
+	clocks  SLAClocks
 	ids     *seqIDs
 }
 
@@ -198,11 +198,11 @@ func newFixture(t *testing.T) fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policy, err := domain.NewSlaPolicy(domain.NewSlaPolicyInput{
+	policy, err := domain.NewSLAPolicy(domain.NewSLAPolicyInput{
 		ID: shared.MustParseID("01936f2a-7c1e-7000-8000-0000000005c2"), TenantID: tenantID, Key: "incidents",
 		Name: "Incidents", CalendarKey: "office", EntryTypes: []string{"incident"}, PriorityField: "priority",
 		Enabled: true, Now: monday, Text: text.Composing{},
-		Goals: []domain.SlaGoal{
+		Goals: []domain.SLAGoal{
 			{Kind: domain.GoalFirstResponse, Minutes: 60, ByPriority: map[string]int{"p1": 15}},
 			{Kind: domain.GoalResolution, Minutes: 600, ByPriority: map[string]int{"p1": 240}, PauseStatuses: []string{"waiting"}, WarnPercent: 50},
 		},
@@ -218,8 +218,8 @@ func newFixture(t *testing.T) fixture {
 			CreatedBy: requesterID, CustomFields: map[string]any{"priority": "p1"},
 		}},
 	}
-	f.clocks = SlaClocks{
-		Calendars: calendarStore{office: office}, Policies: policyStore{rows: []domain.SlaPolicy{policy}},
+	f.clocks = SLAClocks{
+		Calendars: calendarStore{office: office}, Policies: policyStore{rows: []domain.SLAPolicy{policy}},
 		Records: f.records, Items: f.items, IDs: ids,
 		Timers: calendarservice.Clocks{Timers: f.timers, IDs: ids},
 	}
@@ -338,7 +338,7 @@ func TestARunOutGoalIsAtRiskThenBreached(t *testing.T) {
 	fire := calendarservice.FireTimers{
 		Timers: f.timers,
 		Elapsed: map[calendar.Purpose]calendarservice.TimerElapsed{
-			calendar.PurposeSLA: SlaElapsed{Records: f.records, Items: f.items, Events: f.events, IDs: f.ids},
+			calendar.PurposeSLA: SLAElapsed{Records: f.records, Items: f.items, Events: f.events, IDs: f.ids},
 		},
 	}
 	actor := appshared.ActorContext{TenantID: tenantID, Kind: appshared.ActorSystem}
@@ -366,7 +366,7 @@ func TestARunOutGoalIsAtRiskThenBreached(t *testing.T) {
 	for _, envelope := range f.events.events {
 		kinds = append(kinds, envelope.Type)
 	}
-	want := []event.Type{event.ItemSlaBreached, event.ItemSlaAtRisk, event.ItemSlaBreached}
+	want := []event.Type{event.ItemSLABreached, event.ItemSLAAtRisk, event.ItemSLABreached}
 	if !slices.Equal(kinds, want) {
 		t.Errorf("announced %v, want %v", kinds, want)
 	}
@@ -380,11 +380,11 @@ func TestARunOutGoalIsAtRiskThenBreached(t *testing.T) {
 
 func withNextResponse(t *testing.T, f *fixture) {
 	t.Helper()
-	policy, err := domain.NewSlaPolicy(domain.NewSlaPolicyInput{
+	policy, err := domain.NewSLAPolicy(domain.NewSLAPolicyInput{
 		ID: shared.MustParseID("01936f2a-7c1e-7000-8000-0000000005c2"), TenantID: tenantID, Key: "incidents",
 		Name: "Incidents", CalendarKey: "office", EntryTypes: []string{"incident"}, Enabled: true, Now: monday,
 		Text: text.Composing{},
-		Goals: []domain.SlaGoal{
+		Goals: []domain.SLAGoal{
 			{Kind: domain.GoalFirstResponse, Minutes: 60},
 			{Kind: domain.GoalNextResponse, Minutes: 30},
 		},
@@ -392,7 +392,7 @@ func withNextResponse(t *testing.T, f *fixture) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.clocks.Policies = policyStore{rows: []domain.SlaPolicy{policy}}
+	f.clocks.Policies = policyStore{rows: []domain.SLAPolicy{policy}}
 }
 
 // UC-SVC-02 check 8: the next response is armed by the requester's words once the first response
@@ -475,7 +475,7 @@ func TestAnOrganisationsPolicyMeasuresItsRequestersEntries(t *testing.T) {
 			everyone.Position = 1
 			vip := everyone
 			vip.Key, vip.Position, vip.Organisations = "key_accounts", 0, []string{"acme"}
-			f.clocks.Policies = policyStore{rows: []domain.SlaPolicy{everyone, vip}}
+			f.clocks.Policies = policyStore{rows: []domain.SLAPolicy{everyone, vip}}
 			emails := map[shared.ID]string{}
 			if c.email != "" {
 				emails[requesterID] = c.email

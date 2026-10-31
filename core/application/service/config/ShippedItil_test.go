@@ -214,7 +214,7 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 				types = append(types, each.(string))
 			}
 			field, _ := block["priority_field"].(string)
-			_, err = desk.NewSlaPolicy(desk.NewSlaPolicyInput{ID: id, TenantID: tenant, Key: key, Name: block["name"].(string),
+			_, err = desk.NewSLAPolicy(desk.NewSLAPolicyInput{ID: id, TenantID: tenant, Key: key, Name: block["name"].(string),
 				CalendarKey: block["calendar"].(string), EntryTypes: types, PriorityField: field, Goals: goals, Enabled: true, Now: now, Text: textport.Composing{}})
 		}
 		if err != nil {

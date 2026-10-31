@@ -2180,14 +2180,24 @@ func (pending) DeleteHubCalendar(w http.ResponseWriter, r *http.Request, _ opena
 func (pending) DefineHubCalendar(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string, _ openapi.DefineHubCalendarParams) {
 	notAvailable(w, r)
 }
+
+//nolint:revive // var-naming: the contract's operationId
 func (pending) ReadEntrySla(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
-func (pending) ListSlaPolicies(w http.ResponseWriter, r *http.Request)           { notAvailable(w, r) }
+
+//nolint:revive // var-naming: the contract's operationId
+func (pending) ListSlaPolicies(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+//nolint:revive // var-naming: the contract's operationId
 func (pending) DeleteSlaPolicy(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+//nolint:revive // var-naming: the contract's operationId
 func (pending) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineSlaPolicyParams) {
 	notAvailable(w, r)
 }
+
+//nolint:revive // var-naming: the contract's operationId
 func (pending) ReportSla(w http.ResponseWriter, r *http.Request, _ openapi.ReportSlaParams) {
 	notAvailable(w, r)
 }

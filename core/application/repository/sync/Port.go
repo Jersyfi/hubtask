@@ -181,7 +181,7 @@ type Snapshot interface {
 	// SLA records by goal, and SatisfactionRatings every live request's rating - each with the
 	// entry's collection (M5).
 	Approvals(ctx context.Context, after shared.ID, batch int) ([]ApprovalOf, error)
-	EntrySlas(ctx context.Context, after shared.ID, batch int) ([]EntrySlaOf, error)
+	EntrySlas(ctx context.Context, after shared.ID, batch int) ([]EntrySLAOf, error)
 	SatisfactionRatings(ctx context.Context, after shared.ID, batch int) ([]RatingOf, error)
 	// CodeLinks pages every live entry's commits, branches and pull requests with the entry's
 	// collection (UC-INT-13).
@@ -282,9 +282,9 @@ type ApprovalOf struct {
 	CollectionID shared.ID
 }
 
-// EntrySlaOf is one goal's record on an entry, with the entry's collection.
-type EntrySlaOf struct {
-	Record       servicedesk.EntrySla
+// EntrySLAOf is one goal's record on an entry, with the entry's collection.
+type EntrySLAOf struct {
+	Record       servicedesk.EntrySLA
 	CollectionID shared.ID
 }
 

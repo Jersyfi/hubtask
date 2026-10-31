@@ -2208,12 +2208,12 @@ func run() error {
 		servicedeskservice.ListHubCalendars{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DefineHubCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteHubCalendar{Desk: serviceDesk}.Descriptor(),
-		servicedeskservice.ListSlaPolicies{Desk: serviceDesk}.Descriptor(),
-		servicedeskservice.DefineSlaPolicy{Desk: serviceDesk}.Descriptor(),
-		servicedeskservice.DeleteSlaPolicy{Desk: serviceDesk}.Descriptor(),
-		servicedeskservice.ReadEntrySla{Desk: serviceDesk, Items: items, Containers: containers}.Descriptor(),
+		servicedeskservice.ListSLAPolicies{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineSLAPolicy{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteSLAPolicy{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ReadEntrySLA{Desk: serviceDesk, Items: items, Containers: containers}.Descriptor(),
 		servicedeskservice.ReadEntryRequester{Desk: serviceDesk, Items: items, Containers: containers, Accounts: accounts}.Descriptor(),
-		servicedeskservice.ReportSla{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ReportSLA{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ListReplyTemplates{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DefineReplyTemplate{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteReplyTemplate{Desk: serviceDesk}.Descriptor(),
@@ -4170,7 +4170,7 @@ func run() error {
 			notify, webhookFanOut, matchRules, relativeDates,
 			// The SLA clocks (UC-SVC-02): armed, paused, met and stopped by what happens to the
 			// entry, in the dispatcher's transaction; never on a replay.
-			servicedeskservice.SlaClocks{
+			servicedeskservice.SLAClocks{
 				Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
 				Policies:     serviceDeskStore.Policies(),
 				HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers,
@@ -4667,7 +4667,7 @@ func run() error {
 			Timers: postgres.NewTimerRepository(), Clock: clockadapter.System{},
 			BatchSize: calendarservice.DefaultTimerBatch,
 			Elapsed: map[calendardomain.Purpose]calendarservice.TimerElapsed{
-				calendardomain.PurposeSLA: servicedeskservice.SlaElapsed{
+				calendardomain.PurposeSLA: servicedeskservice.SLAElapsed{
 					Records: slaRecords, Items: items, Events: outbox, IDs: ids,
 				},
 				calendardomain.PurposeApproval: servicedeskservice.ApprovalElapsed{

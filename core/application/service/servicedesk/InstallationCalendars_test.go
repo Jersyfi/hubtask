@@ -90,9 +90,9 @@ func TestAPolicyNamesACalendarTheInstallationOffers(t *testing.T) {
 		Calendars: calendarStore{office: office}, Offered: offered, Policies: policyStore{rows: named},
 		Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{},
 	}
-	goals := []domain.SlaGoal{{Kind: domain.GoalResolution, Minutes: 600}}
+	goals := []domain.SLAGoal{{Kind: domain.GoalResolution, Minutes: 600}}
 	define := func(calendar string) error {
-		_, err := DefineSlaPolicy{Desk: desk}.Execute(context.Background(), reader(), DefineSlaPolicyCommand{
+		_, err := DefineSLAPolicy{Desk: desk}.Execute(context.Background(), reader(), DefineSLAPolicyCommand{
 			Key: "changes", Name: "Changes", CalendarKey: calendar, EntryTypes: []string{"change"}, Goals: goals, Enabled: true,
 		})
 		return err
