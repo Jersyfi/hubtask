@@ -228,7 +228,7 @@ func (p Portal) catalogueOf(ctx context.Context, actor appshared.ActorContext, c
 				return err
 			}
 		}
-		catalogue = domain.RequestCatalogue(workdomain.NewEntryTypes(rows), offered, definitions)
+		catalogue = domain.RequestCatalogue(workdomain.NewEntryTypes(rows), offered, definitions, actor.Locale)
 		return nil
 	})
 	return catalogue, err
@@ -267,13 +267,40 @@ func requestOutputFor(item workdomain.WorkItem, reader shared.ID) usecase.Output
 // ListRequestCatalogue answers the kinds of request a collection offers (UC-SVC-05 check 1).
 type ListRequestCatalogue struct{ Portal Portal }
 
-// Execute answers the catalogue.
-func (h ListRequestCatalogue) Execute(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID) ([]domain.CatalogueEntry, error) {
+// RequestCatalogueView is the catalogue with the service it belongs to: the collection, whose
+// name, description, icon and colour the portal presents as the desk (UC-SVC-05 check 8).
+type RequestCatalogueView struct {
+	Desk    workdomain.Container
+	Entries []domain.CatalogueEntry
+}
+
+// Execute answers the catalogue, named and described in the reader's language (check 7).
+func (h ListRequestCatalogue) Execute(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID) (RequestCatalogueView, error) {
 	collection, err := h.Portal.collectionOf(ctx, actor, collectionID, CatalogueReadAction)
 	if err != nil {
-		return nil, err
+		return RequestCatalogueView{}, err
 	}
-	return h.Portal.catalogueOf(ctx, actor, collection)
+	entries, err := h.Portal.catalogueOf(ctx, actor, collection)
+	return RequestCatalogueView{Desk: collection, Entries: entries}, err
+}
+
+// CatalogueEntryOutput is one kind of request as the contract names it (schema RequestCatalogue),
+// shared by the portal and a public form.
+func CatalogueEntryOutput(entry domain.CatalogueEntry) usecase.Output {
+	questions := make([]usecase.Output, 0, len(entry.Questions))
+	for _, question := range entry.Questions {
+		options := question.Options
+		if options == nil {
+			options = []string{}
+		}
+		questions = append(questions, usecase.Output{
+			"key": question.Key, "kind": string(question.Kind), "options": options,
+		})
+	}
+	return usecase.Output{
+		"key": entry.Key, "name": entry.Name, "description": entry.Description, "icon": entry.Icon,
+		"form": workflow.FormOutput(entry.Form), "questions": questions,
+	}
 }
 
 // Descriptor is the catalogue entry.
@@ -281,7 +308,8 @@ func (h ListRequestCatalogue) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListRequestCatalogueName, Permission: service.PermissionRequest,
 		Summary: "The kinds of request a collection offers through the portal: each type whose form " +
-			"names the PORTAL channel and leaves it open, with its form as the portal shows it.",
+			"names the PORTAL channel and leaves it open, with its form as the portal shows it, named in " +
+			"the reader's language where the type names it there, and the service it belongs to.",
 		SideEffects: "None. Reads only.", TokenScope: deskRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "collection_id", Kind: usecase.KindID, Required: true, Description: "The collection serving as the service."}},
 		Audit: usecase.AuditDeclaration{Action: CatalogueReadAction},
@@ -294,24 +322,15 @@ func (h ListRequestCatalogue) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			data := make([]usecase.Output, 0, len(catalogue))
-			for _, entry := range catalogue {
-				questions := make([]usecase.Output, 0, len(entry.Questions))
-				for _, question := range entry.Questions {
-					options := question.Options
-					if options == nil {
-						options = []string{}
-					}
-					questions = append(questions, usecase.Output{
-						"key": question.Key, "kind": string(question.Kind), "options": options,
-					})
-				}
-				data = append(data, usecase.Output{
-					"key": entry.Key, "name": entry.Name, "icon": entry.Icon,
-					"form": workflow.FormOutput(entry.Form), "questions": questions,
-				})
+			data := make([]usecase.Output, 0, len(catalogue.Entries))
+			for _, entry := range catalogue.Entries {
+				data = append(data, CatalogueEntryOutput(entry))
 			}
-			return usecase.Output{"data": data}, nil
+			desk := usecase.Output{
+				"name": catalogue.Desk.Name, "description": catalogue.Desk.Description,
+				"icon": catalogue.Desk.Icon, "color_token": catalogue.Desk.ColorToken,
+			}
+			return usecase.Output{"desk": desk, "data": data}, nil
 		}),
 	}, requestTarget)
 }

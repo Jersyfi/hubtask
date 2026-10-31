@@ -489,7 +489,9 @@ type openForm struct {
 }
 
 // open evaluates a link now. Every way it can be dead answers linkGone.
-func (f PublicForms) open(ctx context.Context, token integration.FormLinkToken) (openForm, error) {
+//
+// locale is the visitor's, whose words the catalogue is named in; empty reads the default texts.
+func (f PublicForms) open(ctx context.Context, token integration.FormLinkToken, locale string) (openForm, error) {
 	if token.IsZero() || f.Links == nil || f.Accounts == nil {
 		return openForm{}, linkGone()
 	}
@@ -560,7 +562,7 @@ func (f PublicForms) open(ctx context.Context, token integration.FormLinkToken) 
 			return openForm{}, linkGone()
 		}
 	}
-	catalogue, err := f.catalogue(ctx, out.maker, out.collection)
+	catalogue, err := f.catalogue(ctx, out.maker, out.collection, locale)
 	if err != nil {
 		return openForm{}, err
 	}
@@ -571,7 +573,9 @@ func (f PublicForms) open(ctx context.Context, token integration.FormLinkToken) 
 	return out, nil
 }
 
-func (f PublicForms) catalogue(ctx context.Context, actor appshared.ActorContext, collection workdomain.Container) ([]domain.CatalogueEntry, error) {
+func (f PublicForms) catalogue(
+	ctx context.Context, actor appshared.ActorContext, collection workdomain.Container, locale string,
+) ([]domain.CatalogueEntry, error) {
 	var catalogue []domain.CatalogueEntry
 	err := f.Portal.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		rows, err := f.Portal.EntryTypes.List(ctx)
@@ -588,7 +592,7 @@ func (f PublicForms) catalogue(ctx context.Context, actor appshared.ActorContext
 				return err
 			}
 		}
-		catalogue = domain.CatalogueThrough(workdomain.ChannelPublic, workdomain.NewEntryTypes(rows), offered, definitions)
+		catalogue = domain.CatalogueThrough(workdomain.ChannelPublic, workdomain.NewEntryTypes(rows), offered, definitions, locale)
 		return nil
 	})
 	return catalogue, err
@@ -606,9 +610,9 @@ type PublicFormView struct {
 // from the token alone, and every question is asked here (ADR-0005).
 type OpenPublicForm struct{ Forms PublicForms }
 
-// Execute answers the form, or that there is none.
-func (h OpenPublicForm) Execute(ctx context.Context, token integration.FormLinkToken) (PublicFormView, error) {
-	opened, err := h.Forms.open(ctx, token)
+// Execute answers the form, or that there is none, named in the visitor's locale.
+func (h OpenPublicForm) Execute(ctx context.Context, token integration.FormLinkToken, locale string) (PublicFormView, error) {
+	opened, err := h.Forms.open(ctx, token, locale)
 	if err != nil {
 		return PublicFormView{}, err
 	}
@@ -679,7 +683,7 @@ func (h SubmitPublicForm) file(ctx context.Context, token integration.FormLinkTo
 	if err != nil {
 		return err
 	}
-	opened, err := h.Forms.open(ctx, token)
+	opened, err := h.Forms.open(ctx, token, "")
 	if err != nil {
 		return err
 	}

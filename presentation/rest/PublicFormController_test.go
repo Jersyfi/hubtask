@@ -24,7 +24,7 @@ type publicForm struct {
 	sent              servicedesk.PublicSubmission
 }
 
-func (p *publicForm) Open(context.Context, integration.FormLinkToken) (servicedesk.PublicFormView, error) {
+func (p *publicForm) Open(context.Context, integration.FormLinkToken, string) (servicedesk.PublicFormView, error) {
 	p.opened++
 	return servicedesk.PublicFormView{
 		Catalogue: []desk.CatalogueEntry{{Key: "feedback", Name: "Feedback"}},

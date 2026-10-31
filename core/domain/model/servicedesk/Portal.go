@@ -13,9 +13,12 @@ import (
 // CatalogueEntry is one kind of request the portal offers a requester (UC-SVC-05): a type, and
 // its form as the portal's door narrows it.
 type CatalogueEntry struct {
-	Key  string
-	Name string
-	Icon string
+	Key string
+	// Name and Description are in the reader's language where the type says them there
+	// (EntryType.TextIn, UC-SVC-05 check 7).
+	Name        string
+	Description string
+	Icon        string
 	// Form is the type's form without the fields the portal hides; their presets still apply
 	// when the request is raised.
 	Form work.Form
@@ -38,15 +41,18 @@ type Question struct {
 // so a workspace's internal types never reach a requester by default.
 //
 // definitions are the custom fields in force at the collection; a field of the form that none
-// defines is asked of nobody.
-func RequestCatalogue(types []work.EntryType, offered []string, definitions []work.CustomFieldDefinition) []CatalogueEntry {
-	return CatalogueThrough(work.ChannelPortal, types, offered, definitions)
+// defines is asked of nobody. locale is the reader's, whose words the entries are named in.
+func RequestCatalogue(
+	types []work.EntryType, offered []string, definitions []work.CustomFieldDefinition, locale string,
+) []CatalogueEntry {
+	return CatalogueThrough(work.ChannelPortal, types, offered, definitions, locale)
 }
 
 // CatalogueThrough is RequestCatalogue for another opt-in door: a public form offers the types
 // whose form names PUBLIC and leaves it open (UC-SVC-13).
 func CatalogueThrough(
 	channel work.FormChannel, types []work.EntryType, offered []string, definitions []work.CustomFieldDefinition,
+	locale string,
 ) []CatalogueEntry {
 	out := []CatalogueEntry{}
 	for _, entryType := range types {
@@ -61,8 +67,9 @@ func CatalogueThrough(
 			continue
 		}
 		form := portalForm(entryType.Form, rule.Hidden)
+		words := entryType.TextIn(locale)
 		out = append(out, CatalogueEntry{
-			Key: entryType.Key, Name: entryType.Name, Icon: entryType.Icon,
+			Key: entryType.Key, Name: words.Name, Description: words.Description, Icon: entryType.Icon,
 			Form: form, Questions: questionsOf(form, definitions),
 		})
 	}

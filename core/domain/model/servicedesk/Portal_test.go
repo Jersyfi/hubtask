@@ -30,14 +30,14 @@ func TestTheCatalogueOffersTheTypesThePortalOpens(t *testing.T) {
 		{Key: "step", Level: work.ItemActivity, Form: portal(false)},
 	}
 
-	all := servicedesk.RequestCatalogue(types, nil, nil)
+	all := servicedesk.RequestCatalogue(types, nil, nil, "")
 	if len(all) != 2 || all[0].Key != "incident" || all[1].Key != "access" {
 		t.Fatalf("the catalogue is %+v", all)
 	}
 	if len(all[0].Form.Fields) != 2 || all[0].Form.Fields[1].Key != "custom_fields.room" || len(all[0].Form.Channels) != 0 {
 		t.Errorf("the portal's form is %+v", all[0].Form)
 	}
-	narrowed := servicedesk.RequestCatalogue(types, []string{"access", "change"}, nil)
+	narrowed := servicedesk.RequestCatalogue(types, []string{"access", "change"}, nil, "")
 	if len(narrowed) != 1 || narrowed[0].Key != "access" || !servicedesk.InCatalogue(narrowed, "access") ||
 		servicedesk.InCatalogue(narrowed, "incident") {
 		t.Errorf("a collection offering access and change answers %+v", narrowed)
@@ -57,9 +57,27 @@ func TestThePortalAsksTheShownCustomFieldsWithTheirKind(t *testing.T) {
 		{Key: "room", Kind: work.CustomFieldSelect, Options: []string{"floor_1", "floor_2"}},
 		{Key: "cost_centre", Kind: work.CustomFieldText},
 	}
-	questions := servicedesk.RequestCatalogue(types, nil, definitions)[0].Questions
+	questions := servicedesk.RequestCatalogue(types, nil, definitions, "")[0].Questions
 	if len(questions) != 1 || questions[0].Key != "room" || questions[0].Kind != work.CustomFieldSelect ||
 		len(questions[0].Options) != 2 {
 		t.Errorf("the portal asks %+v", questions)
+	}
+}
+
+// UC-SVC-05 check 7: the catalogue names and describes each type in the reader's language where
+// the type says it there, and in the default text otherwise.
+func TestTheCatalogueSpeaksTheReadersLanguage(t *testing.T) {
+	open := work.Form{Channels: []work.FormChannelRule{{Channel: work.ChannelPortal}}}
+	types := []work.EntryType{{
+		Key: "incident", Level: work.ItemTask, Name: "Incident", Description: "Something is broken", Form: open,
+		Translations: map[string]work.EntryTypeText{"de": {Name: "Störung", Description: "Etwas ist kaputt"}},
+	}}
+	german := servicedesk.RequestCatalogue(types, nil, nil, "de-AT")
+	if german[0].Name != "Störung" || german[0].Description != "Etwas ist kaputt" {
+		t.Errorf("a reader of de-AT reads %+v", german[0])
+	}
+	french := servicedesk.CatalogueThrough(work.ChannelPortal, types, nil, nil, "fr")
+	if french[0].Name != "Incident" || french[0].Description != "Something is broken" {
+		t.Errorf("a reader of fr reads %+v", french[0])
 	}
 }

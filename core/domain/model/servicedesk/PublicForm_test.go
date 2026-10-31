@@ -136,11 +136,11 @@ func TestThePublicCatalogueOffersTheTypesPublicOpens(t *testing.T) {
 		{Key: "closed", Level: work.ItemTask, Form: opens(work.ChannelPublic, true)},
 		{Key: "plain", Level: work.ItemTask},
 	}
-	public := servicedesk.CatalogueThrough(work.ChannelPublic, types, nil, nil)
+	public := servicedesk.CatalogueThrough(work.ChannelPublic, types, nil, nil, "")
 	if len(public) != 1 || public[0].Key != "feedback" {
 		t.Fatalf("the public catalogue is %+v", public)
 	}
-	if portal := servicedesk.RequestCatalogue(types, nil, nil); len(portal) != 1 || portal[0].Key != "incident" {
+	if portal := servicedesk.RequestCatalogue(types, nil, nil, ""); len(portal) != 1 || portal[0].Key != "incident" {
 		t.Fatalf("the portal's catalogue is %+v", portal)
 	}
 }

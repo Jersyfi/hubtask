@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/Jersyfi/hubtask/core/application/service/servicedesk"
-	"github.com/Jersyfi/hubtask/core/application/service/workflow"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -17,7 +16,7 @@ import (
 
 // PublicFormDoor is the slice of the public form this controller needs.
 type PublicFormDoor interface {
-	Open(ctx context.Context, token integration.FormLinkToken) (servicedesk.PublicFormView, error)
+	Open(ctx context.Context, token integration.FormLinkToken, locale string) (servicedesk.PublicFormView, error)
 	Submit(ctx context.Context, token integration.FormLinkToken, in servicedesk.PublicSubmission) error
 }
 
@@ -27,9 +26,9 @@ type PublicFormService struct {
 	Submitter servicedesk.SubmitPublicForm
 }
 
-// Open answers what the form shows.
-func (s PublicFormService) Open(ctx context.Context, token integration.FormLinkToken) (servicedesk.PublicFormView, error) {
-	return s.Opener.Execute(ctx, token)
+// Open answers what the form shows, in the visitor's locale.
+func (s PublicFormService) Open(ctx context.Context, token integration.FormLinkToken, locale string) (servicedesk.PublicFormView, error) {
+	return s.Opener.Execute(ctx, token, locale)
 }
 
 // Submit files a request.
@@ -60,25 +59,14 @@ func (c *FeedDoor) GetPublicForm(w http.ResponseWriter, r *http.Request, present
 		WriteProblem(w, err, requestID)
 		return
 	}
-	view, err := c.Forms.Open(r.Context(), token)
+	view, err := c.Forms.Open(r.Context(), token, requestedLocaleFrom(r.Context()))
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
 	data := make([]map[string]any, 0, len(view.Catalogue))
 	for _, entry := range view.Catalogue {
-		questions := make([]map[string]any, 0, len(entry.Questions))
-		for _, question := range entry.Questions {
-			options := question.Options
-			if options == nil {
-				options = []string{}
-			}
-			questions = append(questions, map[string]any{"key": question.Key, "kind": string(question.Kind), "options": options})
-		}
-		data = append(data, map[string]any{
-			"key": entry.Key, "name": entry.Name, "icon": entry.Icon,
-			"form": workflow.FormOutput(entry.Form), "questions": questions,
-		})
+		data = append(data, servicedesk.CatalogueEntryOutput(entry))
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")

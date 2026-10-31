@@ -200,7 +200,7 @@ func (s publicScene) mint(t *testing.T) integration.FormLinkToken {
 
 func solved(t *testing.T, s publicScene, token integration.FormLinkToken) (string, string) {
 	t.Helper()
-	view, err := OpenPublicForm{Forms: s.forms}.Execute(context.Background(), token)
+	view, err := OpenPublicForm{Forms: s.forms}.Execute(context.Background(), token, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +226,7 @@ func TestAPublicFormAnswersOnlyWhileEverythingBehindItHolds(t *testing.T) {
 	ctx := context.Background()
 	s := newPublicScene()
 	token := s.mint(t)
-	view, err := OpenPublicForm{Forms: s.forms}.Execute(ctx, token)
+	view, err := OpenPublicForm{Forms: s.forms}.Execute(ctx, token, "")
 	if err != nil || len(view.Catalogue) != 1 || view.Catalogue[0].Key != "feedback" || view.Challenge.Bits != domain.PublicFormWorkBits {
 		t.Fatalf("the form shows %+v, %v", view, err)
 	}
@@ -250,19 +250,19 @@ func TestAPublicFormAnswersOnlyWhileEverythingBehindItHolds(t *testing.T) {
 	} {
 		forms := s.forms
 		undo := change(&forms)
-		if _, err := (OpenPublicForm{Forms: forms}).Execute(ctx, token); detailOf(err) != "public_forms.link_not_found" {
+		if _, err := (OpenPublicForm{Forms: forms}).Execute(ctx, token, ""); detailOf(err) != "public_forms.link_not_found" {
 			t.Errorf("%s: the form answered %v", name, err)
 		}
 		undo()
 	}
 	replaced := s.mint(t)
-	if _, err := (OpenPublicForm{Forms: s.forms}).Execute(ctx, token); detailOf(err) != "public_forms.link_not_found" {
+	if _, err := (OpenPublicForm{Forms: s.forms}).Execute(ctx, token, ""); detailOf(err) != "public_forms.link_not_found" {
 		t.Errorf("a replaced link answered %v", err)
 	}
 	if err := (DeletePublicForm{Forms: s.forms}).Execute(ctx, reader(), collection); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := (OpenPublicForm{Forms: s.forms}).Execute(ctx, replaced); detailOf(err) != "public_forms.link_not_found" {
+	if _, err := (OpenPublicForm{Forms: s.forms}).Execute(ctx, replaced, ""); detailOf(err) != "public_forms.link_not_found" {
 		t.Errorf("a removed link answered %v", err)
 	}
 	s.settings.on = false
