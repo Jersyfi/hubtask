@@ -29157,7 +29157,9 @@ type ClientInterface interface {
 	// of the week - as it is in force for the caller, with the level its value comes from:
 	// `PERSON` where they chose it, else `WORKSPACE`, `INSTANCE` or Hubtask's own `DEFAULT`. The
 	// same resolution every other level's settings answer, so a preferences screen says "the
-	// workspace's" from the server's answer rather than its own guess. A value is written through
+	// workspace's" from the server's answer rather than its own guess. Where the person chose no
+	// language, the one a request asks for (`Accept-Language`) goes before the workspace's; it is
+	// no level of the catalogue, so it is not answered here. A value is written through
 	// `/accounts/{accountId}/preferences`. Needs a signed-in caller of their own; nothing beyond
 	// that is asked.
 	//
@@ -39573,7 +39575,9 @@ func (c *Client) StartPasskeyRegistration(ctx context.Context, params *StartPass
 // of the week - as it is in force for the caller, with the level its value comes from:
 // `PERSON` where they chose it, else `WORKSPACE`, `INSTANCE` or Hubtask's own `DEFAULT`. The
 // same resolution every other level's settings answer, so a preferences screen says "the
-// workspace's" from the server's answer rather than its own guess. A value is written through
+// workspace's" from the server's answer rather than its own guess. Where the person chose no
+// language, the one a request asks for (`Accept-Language`) goes before the workspace's; it is
+// no level of the catalogue, so it is not answered here. A value is written through
 // `/accounts/{accountId}/preferences`. Needs a signed-in caller of their own; nothing beyond
 // that is asked.
 //
@@ -97398,7 +97402,9 @@ type ClientWithResponsesInterface interface {
 	// of the week - as it is in force for the caller, with the level its value comes from:
 	// `PERSON` where they chose it, else `WORKSPACE`, `INSTANCE` or Hubtask's own `DEFAULT`. The
 	// same resolution every other level's settings answer, so a preferences screen says "the
-	// workspace's" from the server's answer rather than its own guess. A value is written through
+	// workspace's" from the server's answer rather than its own guess. Where the person chose no
+	// language, the one a request asks for (`Accept-Language`) goes before the workspace's; it is
+	// no level of the catalogue, so it is not answered here. A value is written through
 	// `/accounts/{accountId}/preferences`. Needs a signed-in caller of their own; nothing beyond
 	// that is asked.
 	//
@@ -146047,7 +146053,9 @@ func (c *ClientWithResponses) StartPasskeyRegistrationWithResponse(ctx context.C
 // of the week - as it is in force for the caller, with the level its value comes from:
 // `PERSON` where they chose it, else `WORKSPACE`, `INSTANCE` or Hubtask's own `DEFAULT`. The
 // same resolution every other level's settings answer, so a preferences screen says "the
-// workspace's" from the server's answer rather than its own guess. A value is written through
+// workspace's" from the server's answer rather than its own guess. Where the person chose no
+// language, the one a request asks for (`Accept-Language`) goes before the workspace's; it is
+// no level of the catalogue, so it is not answered here. A value is written through
 // `/accounts/{accountId}/preferences`. Needs a signed-in caller of their own; nothing beyond
 // that is asked.
 //
