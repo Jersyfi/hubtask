@@ -11,13 +11,13 @@ import (
 )
 
 // Purpose is what a timer is the clock of - a closed set, because each has its own handler when it
-// elapses and the job's metrics label it.
+// elapses and the job's metrics label it. A purpose is added with its handler: an effectiveness
+// check after a delay is a RELATIVE_DATE rule (automation.md §1.1), not a timer.
 type Purpose string
 
 const (
-	PurposeSLA           Purpose = "SLA"
-	PurposeApproval      Purpose = "APPROVAL"
-	PurposeEffectiveness Purpose = "EFFECTIVENESS_CHECK"
+	PurposeSLA      Purpose = "SLA"
+	PurposeApproval Purpose = "APPROVAL"
 	// PurposePageReview counts down to the end of a page's verification (UC-DOC-12 check 4).
 	PurposePageReview Purpose = "PAGE_REVIEW"
 )
@@ -25,7 +25,7 @@ const (
 // Valid answers whether the purpose is one of the set.
 func (p Purpose) Valid() bool {
 	switch p {
-	case PurposeSLA, PurposeApproval, PurposeEffectiveness, PurposePageReview:
+	case PurposeSLA, PurposeApproval, PurposePageReview:
 		return true
 	}
 	return false

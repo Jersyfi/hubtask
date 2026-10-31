@@ -741,7 +741,9 @@ asks for `auto_assign`. Removing a policy deletes it. A new strategy implements 
 ### 3.7 Business calendars and timers
 
 Business time (F-10, `core/domain/model/calendar`) is the clock under an SLA, an approval's
-deadline and a change's effectiveness check.
+deadline and a page's review. An effectiveness check some days after a step is a rule, not a
+timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (automation.md
+§1.1), counted in calendar days.
 
 * **`BusinessCalendar`**: a time zone, the working spans of each weekday (minutes from local
   midnight, ordered and disjoint) and up to 1,000 holidays as whole local days. `Add(start, work)`
@@ -750,7 +752,8 @@ deadline and a change's effectiveness check.
   change cuts away counts nothing, a 25-hour night counts 25 hours. `Continuous()` is the clock
   that never stops.
 * **`Timer`**: a budget of working time on a calendar, for one purpose (`SLA`, `APPROVAL`,
-  `EFFECTIVENESS_CHECK`, `PAGE_REVIEW`), one subject and a name (the goal it measures). It runs, pauses (what was
+  `PAGE_REVIEW`, each with its handler; the table's CHECK still admits `EFFECTIVENESS_CHECK`,
+  which nothing arms), one subject and a name (the goal it measures). It runs, pauses (what was
   spent is kept, there is no due moment), resumes, stops, and fires once when its due moment has
   come. It keeps a copy of the calendar it was armed on, so a calendar changed later moves no
   clock already running. Durable: a row in `durable_timer`, fired by the `timer.fire` job of its

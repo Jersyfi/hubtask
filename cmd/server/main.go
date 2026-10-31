@@ -4660,8 +4660,8 @@ func run() error {
 		},
 		Progress: jobs,
 	}
-	// Durable timers on business calendars (domain-model.md §3.7). A page's review registers its
-	// handler; the SLA, approval and effectiveness steps each add theirs to Elapsed.
+	// Durable timers on business calendars (domain-model.md §3.7): every purpose has its handler
+	// in Elapsed.
 	timerFiring := worker.TimerFiring{
 		Firing: calendarservice.FireTimers{
 			Timers: postgres.NewTimerRepository(), Clock: clockadapter.System{},

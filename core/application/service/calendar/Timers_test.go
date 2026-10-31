@@ -156,7 +156,7 @@ func TestTheFiringPassFiresWhatIsDueOnceAndHandsItToItsPurpose(t *testing.T) {
 
 func TestAPurposeWithoutAHandlerStillFires(t *testing.T) {
 	armed := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
-	timer, _ := domain.Arm(timerID, tenant, domain.PurposeEffectiveness, subject, "check",
+	timer, _ := domain.Arm(timerID, tenant, domain.PurposePageReview, subject, "check",
 		domain.Continuous(), time.Minute, armed)
 	store := &timerStore{rows: map[shared.ID]domain.Timer{timerID: timer}}
 	pass := FireTimers{Timers: store, Clock: clock.Fixed(armed.Add(time.Hour))}

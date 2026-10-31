@@ -85,6 +85,11 @@ func TestArmRefusesWhatCannotRun(t *testing.T) {
 		"unknown purpose": func() (Timer, error) {
 			return Arm(timerID, timerTen, Purpose("NAP"), timerItem, "goal", Continuous(), time.Hour, now)
 		},
+		// No handler answers an effectiveness check: such a check is a RELATIVE_DATE rule, so a
+		// timer of that purpose would only fire into nothing.
+		"a purpose nothing handles": func() (Timer, error) {
+			return Arm(timerID, timerTen, Purpose("EFFECTIVENESS_CHECK"), timerItem, "check", Continuous(), time.Hour, now)
+		},
 		"no calendar": func() (Timer, error) {
 			return Arm(timerID, timerTen, PurposeSLA, timerItem, "goal", BusinessCalendar{}, time.Hour, now)
 		},
