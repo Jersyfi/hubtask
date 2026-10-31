@@ -306,6 +306,15 @@ var generatedCommands = []door{
 			{Name: "text", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
+	{Group: "backup", Verb: "ls", OperationID: "listBackupsAtTarget", Method: "GET", Path: "/backup-targets/{targetId}/backups", Summary: "List the backups present at the target",
+		PathParams: []doorParam{
+			{Name: "targetId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "refresh", Kind: "boolean", Help: "Bypass the cache and read again", Required: false},
+			{Name: "tenant_id", Kind: "uuid", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"archive_id", "path", "created_at", "mode", "size_bytes"}},
 	{Group: "backup", Verb: "show", OperationID: "getBackupRun", Method: "GET", Path: "/backups/{backupId}", Summary: "What one backup run did",
 		PathParams: []doorParam{
 			{Name: "backupId", Kind: "uuid", Help: "", Required: true},
@@ -1092,6 +1101,19 @@ var generatedCommands = []door{
 			{Name: "start_on", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "hold", Verb: "ls", OperationID: "listLegalHolds", Method: "GET", Path: "/legal-holds", Summary: "The legal holds in force",
+		Query: []doorParam{
+			{Name: "include_released", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "reason", "placed_at", "released_at", "released_reason"}},
+	{Group: "hold", Verb: "release", OperationID: "releaseLegalHold", Method: "POST", Path: "/legal-holds/{holdId}:release", Summary: "Lift a legal hold",
+		PathParams: []doorParam{
+			{Name: "holdId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "reason", Kind: "string", Help: "Why the hold is being lifted", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
 	{Group: "item", Verb: "affect", OperationID: "affectEntryCi", Method: "PUT", Path: "/items/{itemId}/cis/{ciId}", Summary: "Name a configuration item as affected by an entry",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -1162,6 +1184,25 @@ var generatedCommands = []door{
 			{Name: "jobId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"status"}},
+	{Group: "jumble", Verb: "destinations", OperationID: "listJumbleDestinations", Method: "GET", Path: "/jumble/destinations", Summary: "Where an entry may become work for you",
+		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "size", Kind: "integer", Help: "Collections scanned per page", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "hub_name", "hub_private"}},
+	{Group: "jumble", Verb: "dismiss", OperationID: "dismissJumbleEntry", Method: "POST", Path: "/jumble/entries/{entryId}:dismiss", Summary: "Decide against an entry",
+		PathParams: []doorParam{
+			{Name: "entryId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "status"}},
+	{Group: "jumble", Verb: "ls", OperationID: "listJumbleEntries", Method: "GET", Path: "/jumble/entries", Summary: "The jumble, newest first",
+		Query: []doorParam{
+			{Name: "channel", Kind: "string", Help: "Narrow to one way of arriving", Required: false},
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "size", Kind: "integer", Help: "", Required: false},
+			{Name: "status", Kind: "string", Help: "Narrow to one state", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "channel", "sender", "raw_subject", "status"}},
 	{Group: "link", Verb: "add", OperationID: "linkEntries", Method: "POST", Path: "/items/{itemId}/links", Summary: "Link the entry to another",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},

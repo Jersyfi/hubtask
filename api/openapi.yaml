@@ -6129,6 +6129,8 @@ paths:
     get:
       tags: [jumble]
       operationId: listJumbleEntries
+      x-hubtask-cli: "jumble ls"
+      x-hubtask-cli-columns: [id, channel, sender, raw_subject, status]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: jumbleEntryResponse
       summary: The jumble, newest first
@@ -6199,6 +6201,8 @@ paths:
     get:
       tags: [jumble]
       operationId: listJumbleDestinations
+      x-hubtask-cli: "jumble destinations"
+      x-hubtask-cli-columns: [id, name, hub_name, hub_private]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: jumbleDestinationResponse
       summary: Where an entry may become work for you
@@ -6340,6 +6344,7 @@ paths:
     post:
       tags: [jumble]
       operationId: dismissJumbleEntry
+      x-hubtask-cli: "jumble dismiss"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: jumbleEntryResponse
       summary: Decide against an entry
@@ -8667,6 +8672,8 @@ paths:
     get:
       tags: [backup]
       operationId: listBackupsAtTarget
+      x-hubtask-cli: "backup ls"
+      x-hubtask-cli-columns: [archive_id, path, created_at, mode, size_bytes]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: backupArchiveResponse
       summary: List the backups present at the target
@@ -9114,6 +9121,8 @@ paths:
     get:
       tags: [retention]
       operationId: listLegalHolds
+      x-hubtask-cli: "hold ls"
+      x-hubtask-cli-columns: [id, reason, placed_at, released_at, released_reason]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: legalHoldResponse
       summary: The legal holds in force
@@ -9162,6 +9171,7 @@ paths:
     post:
       tags: [retention]
       operationId: releaseLegalHold
+      x-hubtask-cli: "hold release"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: legalHoldResponse
       summary: Lift a legal hold

@@ -175,12 +175,12 @@ func TestADismissalSaysTheEntryStays(t *testing.T) {
 		`{"id":"`+jumbleEntryID+`","channel":"API","attachments":[],"status":"DISMISSED",
 		  "received_at":"2026-08-20T08:00:00Z","settled_at":"2026-08-20T09:00:00Z"}`)
 
-	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "jumble", "dismiss", jumbleEntryID)
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "jumble", "dismiss", jumbleEntryID)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if !strings.Contains(errOut, "stays readable") {
-		t.Errorf("the note is %q", errOut)
+	if !strings.Contains(out, "DISMISSED") {
+		t.Errorf("the answer is %q", out)
 	}
 }
 

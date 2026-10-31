@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"net/url"
 
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -22,18 +21,6 @@ func holdGroup() group {
 				usage:   "--scope TENANT|CONTAINER|ITEM|ACCOUNT [--id <id>] --reason <why>",
 				summary: "stop anything under it being deleted",
 				run:     holdPlace,
-			},
-			{
-				name:    "ls",
-				usage:   "[--include-released]",
-				summary: "the holds in force, and the lifted ones when asked for",
-				run:     holdList,
-			},
-			{
-				name:    "release",
-				usage:   "<id> --reason <why>",
-				summary: "lift one, with the reason it was lifted",
-				run:     holdRelease,
 			},
 		},
 	}
@@ -70,58 +57,6 @@ func holdPlace(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(placed, holdTable([]openapi.LegalHold{placed}))
-}
-
-func holdList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "hold", "ls", "[--include-released]")
-	includeReleased := flags.Bool("include-released", false, "the lifted ones too, which is what shows that they were")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *includeReleased {
-		query.Set("include_released", "true")
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var holds []openapi.LegalHold
-	if err := client.Get(ctx, holdsPath, query, &holds); err != nil {
-		return err
-	}
-	return cli.Emit(holds, holdTable(holds))
-}
-
-// holdRelease requires the reason the API requires, and refuses without one here rather than
-// letting the server say so: the round trip adds nothing, and the sentence is the same either way.
-func holdRelease(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "hold release <id> --reason <why>"
-	holdID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "hold", "release", "<id> --reason <why>")
-	reason := flags.String("reason", "", "why it is being lifted - \"released\" with no reason is an entry nobody can act on")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	if *reason == "" {
-		return usagef("hold release needs --reason: lifting a hold is the moment the data under it becomes deletable")
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var released openapi.LegalHold
-	if err := client.Post(ctx, holdsPath+"/"+holdID.String()+":release",
-		openapi.LegalHoldRelease{Reason: *reason}, &released); err != nil {
-		return err
-	}
-	return cli.Emit(released, holdTable([]openapi.LegalHold{released}))
 }
 
 func holdTable(holds []openapi.LegalHold) Table {

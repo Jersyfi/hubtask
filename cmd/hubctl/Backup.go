@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -41,12 +40,6 @@ func backupGroup() group {
 				summary: "start a backup now",
 				run:     backupRun,
 				waits:   true,
-			},
-			{
-				name:    "ls",
-				usage:   "--target <id>",
-				summary: "the archives that are actually lying at the target",
-				run:     backupList,
 			},
 			{
 				name:    "verify",
@@ -273,73 +266,6 @@ func backupRun(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(run, runTable([]openapi.BackupRun{run}))
-}
-
-// backupList reads the target rather than the database, which is the whole point of it: it is the
-// listing that still answers after the installation that wrote the archives is gone
-// (backup-restore.md §6), and it is where `hubctl restore` gets an archive to name.
-//
-// What it answers is an **archive** rather than a run: a path, what wrote it, whether it is
-// complete, whether it is encrypted. There is no run row behind it - that is the database's
-// reading - and the two are deliberately different shapes.
-func backupList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "backup", "ls", "--target <id> [--refresh]")
-	target := flags.String("target", "", "the target to look at")
-	refresh := flags.Bool("refresh", false, "read the target again rather than the cached listing")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if *target == "" {
-		return usagef("backup ls needs --target; `hubctl backup target ls` prints the identifiers")
-	}
-	targetID, err := cli.parseID("--target", *target)
-	if err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *refresh {
-		query.Set("refresh", "true")
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var archives []openapi.BackupArchive
-	if err := client.Get(ctx,
-		backupTargetsPath+"/"+targetID.String()+"/backups", query, &archives); err != nil {
-		return err
-	}
-	return cli.Emit(archives, archiveTable(archives))
-}
-
-func archiveTable(archives []openapi.BackupArchive) Table {
-	rows := make([][]string, 0, len(archives))
-	for _, archive := range archives {
-		rows = append(rows, []string{
-			text(archive.Path),
-			shortTime(archive.CreatedAt),
-			modeOf(archive),
-			count(archive.ItemCount),
-			byteSize(archive.SizeBytes),
-			// An archive without `checksums.txt` is not damaged: it is a run still going, or one
-			// that died. Whoever is deciding what to restore from needs that told apart.
-			yesNo(archive.Complete),
-			yesNo(archive.Encrypted),
-		})
-	}
-	return Table{
-		Columns: []string{"archive", "created", "mode", "items", "size", "complete", "encrypted"},
-		Rows:    rows,
-	}
-}
-
-func modeOf(archive openapi.BackupArchive) string {
-	if archive.Mode == nil {
-		return "-"
-	}
-	return string(*archive.Mode)
 }
 
 func backupVerify(ctx context.Context, cli *CLI, args []string) error {
