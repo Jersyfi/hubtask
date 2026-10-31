@@ -21,6 +21,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -71,8 +72,7 @@ func forEachGoFile(t *testing.T, fn func(path string, file *ast.File, fset *toke
 // line they can jump to.
 func at(path string, fset *token.FileSet, node ast.Node) string {
 	position := fset.Position(node.Pos())
-	return strings.TrimPrefix(filepath.Clean(path), "../../") + ":" +
-		strings.TrimPrefix(position.String()[strings.LastIndex(position.String(), ":")+1:], "")
+	return strings.TrimPrefix(filepath.Clean(path), "../../") + ":" + strconv.Itoa(position.Line)
 }
 
 // readFile is the whole of a file, for the checks that read text rather than syntax.
