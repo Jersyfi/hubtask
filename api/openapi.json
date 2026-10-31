@@ -65920,13 +65920,15 @@
             "enum": [
               "CSV",
               "JSON",
+              "XLSX",
               "CYCLONEDX",
               "SPDX"
             ]
           },
           "content": {
             "type": "string",
-            "maxLength": 5242880
+            "maxLength": 5242880,
+            "description": "The file's text; an `XLSX` workbook base64-encoded, its first sheet read as a `CSV` table by the same mapping, a cell styled as a date as that date.\n"
           },
           "mapping": {
             "$ref": "#/components/schemas/CiFileMapping"

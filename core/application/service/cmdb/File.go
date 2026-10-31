@@ -5,6 +5,7 @@ package cmdb
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/spreadsheet"
 )
 
 func fileInvalid(path, code string, params ...string) error {
@@ -30,7 +32,7 @@ func ParseFile(format domain.FileFormat, data []byte, mapping *domain.FileMappin
 		return domain.Payload{}, nil, fileInvalid("/content", "cmdb.file_too_large", "maximum", strconv.Itoa(domain.MaxFileBytes))
 	}
 	switch format {
-	case domain.FormatCSV, domain.FormatJSON:
+	case domain.FormatCSV, domain.FormatJSON, domain.FormatXLSX:
 		if mapping == nil {
 			return domain.Payload{}, nil, fileInvalid("/mapping", "cmdb.mapping_required")
 		}
@@ -48,6 +50,9 @@ func ParseFile(format domain.FileFormat, data []byte, mapping *domain.FileMappin
 }
 
 func tableRows(format domain.FileFormat, data []byte) ([]map[string]string, error) {
+	if format == domain.FormatXLSX {
+		return workbookRows(data)
+	}
 	if format == domain.FormatJSON {
 		var raw []map[string]any
 		if err := json.Unmarshal(data, &raw); err != nil {
@@ -85,6 +90,30 @@ func tableRows(format domain.FileFormat, data []byte) ([]map[string]string, erro
 		if err != nil {
 			return nil, fileInvalid("/content", "cmdb.file_unreadable")
 		}
+		row := map[string]string{}
+		for i, h := range header {
+			if i < len(record) {
+				row[strings.TrimSpace(h)] = record[i]
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+// workbookRows reads a base64-encoded workbook's first sheet as tableRows reads a CSV table.
+func workbookRows(data []byte) ([]map[string]string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(data)))
+	if err != nil {
+		return nil, fileInvalid("/content", "cmdb.file_unreadable")
+	}
+	sheet, err := spreadsheet.Rows(decoded)
+	if err != nil || len(sheet) == 0 {
+		return nil, fileInvalid("/content", "cmdb.file_unreadable")
+	}
+	header := sheet[0]
+	rows := make([]map[string]string, 0, len(sheet)-1)
+	for _, record := range sheet[1:] {
 		row := map[string]string{}
 		for i, h := range header {
 			if i < len(record) {

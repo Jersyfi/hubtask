@@ -6001,7 +6001,7 @@ class CiPayload(TypedDict, total=False):
 
 class CiFileImport(TypedDict, total=False):
     source: Required[str]
-    format: Required[Literal["CSV", "JSON", "CYCLONEDX", "SPDX"]]
+    format: Required[Literal["CSV", "JSON", "XLSX", "CYCLONEDX", "SPDX"]]
     content: Required[str]
     mapping: "CiFileMapping"
     dry_run: bool

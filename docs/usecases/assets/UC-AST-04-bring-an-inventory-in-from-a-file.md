@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
 state: built
 tasks: []
-checked_by: [core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
+checked_by: [core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/cmdb/FileXlsx_test.go]
 ---
 
 # Bring an inventory in from a file
@@ -27,7 +27,12 @@ Dana exports the old asset spreadsheet as CSV, maps *Host* to the name, *Serial*
 3. An import runs through the reconciliation of UC-AST-02, with its dry run, holds and explanation.
 4. A file above 5 MiB is refused with `cmdb.file_too_large`, and one that cannot be read in its format with `cmdb.file_unreadable`.
 5. The *Assets* screen takes a file, shows the dry run's decisions row by row and imports it.
+6. An XLSX workbook, sent base64-encoded through the API, is read as its first sheet saved as CSV
+   would be - the same mapping, rows without a name reported by number - with a cell styled as a
+   date read as that date; one that is no workbook is refused with `cmdb.file_unreadable`.
 
 ## Where it ends
 
-* No spreadsheet format other than CSV, no mapping packs per tool - the following release.
+* No spreadsheet format other than CSV and XLSX, no mapping packs per tool - the following release.
+* The *Assets* screen reads CSV and JSON in the browser for its mapping; an XLSX workbook is
+  imported through the API.

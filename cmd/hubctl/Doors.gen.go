@@ -841,7 +841,7 @@ var generatedCommands = []door{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
 		Body: []doorParam{
-			{Name: "content", Kind: "string", Help: "", Required: true},
+			{Name: "content", Kind: "string", Help: "The file's text; an `XLSX` workbook base64-encoded, its first sheet read as a `CSV` table by the …", Required: true},
 			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
 			{Name: "format", Kind: "string", Help: "", Required: true},
 			{Name: "mapping", Kind: "json", Help: "How a CSV table's or a JSON array's columns become a configuration item", Required: false},

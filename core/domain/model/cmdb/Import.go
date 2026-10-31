@@ -18,13 +18,15 @@ const (
 	FormatCSV FileFormat = "CSV"
 	// FormatJSON is an array of objects, one per CI.
 	FormatJSON FileFormat = "JSON"
+	// FormatXLSX is a workbook, sent base64-encoded, whose first sheet is read as a CSV table.
+	FormatXLSX FileFormat = "XLSX"
 	// FormatCycloneDX and FormatSPDX are software bills of materials: each component or package
 	// becomes a `software` CI identified by its package URL, CPE or name and version.
 	FormatCycloneDX FileFormat = "CYCLONEDX"
 	FormatSPDX      FileFormat = "SPDX"
 )
 
-// FileMapping says how a table's columns become a CI (CSV and JSON): the class, which column is
+// FileMapping says how a table's columns become a CI (CSV, XLSX and JSON): the class, which column is
 // the name and which the source's own key, which columns are attributes, and defaults for what
 // the file leaves out.
 type FileMapping struct {

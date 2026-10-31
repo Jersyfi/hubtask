@@ -39180,8 +39180,13 @@ components:
       required: [source, format, content]
       properties:
         source: { type: string }
-        format: { type: string, enum: [CSV, JSON, CYCLONEDX, SPDX] }
-        content: { type: string, maxLength: 5242880 }
+        format: { type: string, enum: [CSV, JSON, XLSX, CYCLONEDX, SPDX] }
+        content:
+          type: string
+          maxLength: 5242880
+          description: >
+            The file's text; an `XLSX` workbook base64-encoded, its first sheet read as a `CSV`
+            table by the same mapping, a cell styled as a date as that date.
         mapping: { $ref: "#/components/schemas/CiFileMapping" }
         dry_run: { type: boolean }
 

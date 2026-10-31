@@ -2665,6 +2665,7 @@ const (
 	CiFileImportFormatCYCLONEDX CiFileImportFormat = "CYCLONEDX"
 	CiFileImportFormatJSON      CiFileImportFormat = "JSON"
 	CiFileImportFormatSPDX      CiFileImportFormat = "SPDX"
+	CiFileImportFormatXLSX      CiFileImportFormat = "XLSX"
 )
 
 // Valid indicates whether the value is a known member of the CiFileImportFormat enum.
@@ -2677,6 +2678,8 @@ func (e CiFileImportFormat) Valid() bool {
 	case CiFileImportFormatJSON:
 		return true
 	case CiFileImportFormatSPDX:
+		return true
+	case CiFileImportFormatXLSX:
 		return true
 	default:
 		return false
@@ -13714,6 +13717,7 @@ type CiDuplicateResolved struct {
 
 // CiFileImport defines model for CiFileImport.
 type CiFileImport struct {
+	// Content The file's text; an `XLSX` workbook base64-encoded, its first sheet read as a `CSV` table by the same mapping, a cell styled as a date as that date.
 	Content string             `json:"content"`
 	DryRun  *bool              `json:"dry_run,omitempty"`
 	Format  CiFileImportFormat `json:"format"`

@@ -146,7 +146,7 @@ type ImportCiFile struct{ Inventory Inventory }
 func (h ImportCiFile) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ImportCiFileName, Permission: service.PermissionWriteItems,
-		Summary: "Imports a file of configuration items as a source: a CSV table or a JSON array read by a " +
+		Summary: "Imports a file of configuration items as a source: a CSV table, an XLSX workbook's first sheet or a JSON array read by a " +
 			"mapping (the source's saved one, or one given), or a CycloneDX or SPDX bill of materials whose " +
 			"components become software CIs identified by package URL, CPE or name and version, with their " +
 			"dependencies. It runs through the reconciliation like every source; a dry run answers what would " +
@@ -156,9 +156,9 @@ func (h ImportCiFile) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub whose inventory it is."},
 			{Name: "source", Kind: usecase.KindString, Required: true, Description: "The source's key; not `manual`."},
-			{Name: "format", Kind: usecase.KindString, Required: true, Enum: []string{"CSV", "JSON", "CYCLONEDX", "SPDX"}, Description: "The file's shape."},
-			{Name: "content", Kind: usecase.KindString, Required: true, Description: "The file's text, at most 5 MiB."},
-			{Name: "mapping", Kind: usecase.KindObject, Description: "How a CSV or JSON file is read, instead of the source's saved mapping."},
+			{Name: "format", Kind: usecase.KindString, Required: true, Enum: []string{"CSV", "JSON", "XLSX", "CYCLONEDX", "SPDX"}, Description: "The file's shape."},
+			{Name: "content", Kind: usecase.KindString, Required: true, Description: "The file's text, at most 5 MiB; an XLSX workbook base64-encoded."},
+			{Name: "mapping", Kind: usecase.KindObject, Description: "How a CSV, XLSX or JSON file is read, instead of the source's saved mapping."},
 			dryRunField,
 		},
 		Audit: usecase.AuditDeclaration{Action: ReconciledAction, TargetType: runTarget, Severity: audit.SeverityInfo, Required: true},
