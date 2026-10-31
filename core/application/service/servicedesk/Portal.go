@@ -6,7 +6,6 @@ package servicedesk
 import (
 	"context"
 	"errors"
-	"slices"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
@@ -454,27 +453,17 @@ func (h ListMyRequests) Execute(
 		if found {
 			answer.Organisation = &organisation
 		}
-		raisers := []shared.ID{actor.AccountID}
+		search := workrepo.ItemSearch{
+			Anchor: workrepo.Anchor{Kind: workrepo.AnchorCollection, CollectionID: collectionID},
+			Spec:   view.Spec{Sort: sort, Size: size, Cursor: cursor},
+		}
 		if scope == RequestsOrganisation {
 			if !found || !organisation.SharesRequests {
 				return shared.ErrForbidden.WithDetail("requests.organisation_not_shared")
 			}
-			members, err := h.Portal.Desk.Organisations.Members(ctx, organisation.Domains, domain.MaxOrganisationMembers)
-			if err != nil {
-				return err
-			}
-			if !slices.Contains(members, actor.AccountID) {
-				members = append(members[:min(len(members), domain.MaxOrganisationMembers-1)], actor.AccountID)
-			}
-			raisers = members
-		}
-		filter, err := view.ParseFilter(raisedBy(raisers), "/filter")
-		if err != nil {
+			search.RaisedFrom = &workrepo.Raisers{Account: actor.AccountID, Domains: organisation.Domains}
+		} else if search.Spec.Filter, err = view.ParseFilter(raisedBy(actor.AccountID), "/filter"); err != nil {
 			return err
-		}
-		search := workrepo.ItemSearch{
-			Anchor: workrepo.Anchor{Kind: workrepo.AnchorCollection, CollectionID: collectionID},
-			Spec:   view.Spec{Filter: filter, Sort: sort, Size: size, Cursor: cursor},
 		}
 		answer.ItemQueryResult, err = h.Portal.Items.Query(ctx, search)
 		return err
@@ -482,26 +471,9 @@ func (h ListMyRequests) Execute(
 	return answer, err
 }
 
-// raisedBy is the filter of the entries these people raised: one IN of up to view.MaxValues per
-// leaf, joined by OR, within the query's bounds for MaxOrganisationMembers.
-func raisedBy(accounts []shared.ID) map[string]any {
-	leaves := make([]map[string]any, 0, len(accounts)/view.MaxValues+1)
-	for start := 0; start < len(accounts); start += view.MaxValues {
-		chunk := accounts[start:min(start+view.MaxValues, len(accounts))]
-		values := make([]any, 0, len(chunk))
-		for _, id := range chunk {
-			values = append(values, id.String())
-		}
-		leaves = append(leaves, map[string]any{"field": view.FieldCreatedBy, "op": "IN", "value": values})
-	}
-	if len(leaves) == 1 {
-		return leaves[0]
-	}
-	nodes := make([]any, 0, len(leaves))
-	for _, leaf := range leaves {
-		nodes = append(nodes, leaf)
-	}
-	return map[string]any{"op": "OR", "nodes": nodes}
+// raisedBy is the filter of the entries one person raised.
+func raisedBy(account shared.ID) map[string]any {
+	return map[string]any{"field": view.FieldCreatedBy, "op": "IN", "value": []any{account.String()}}
 }
 
 // Descriptor is the catalogue entry.

@@ -125,7 +125,4 @@ type Organisations interface {
 	Delete(ctx context.Context, key string) error
 	// OfDomain answers the organisation a mail domain belongs to; shared.ErrNotFound for none.
 	OfDomain(ctx context.Context, domain string) (servicedesk.Organisation, error)
-	// Members answers the active people whose address is at one of the domains, by account, at
-	// most limit of them.
-	Members(ctx context.Context, domains []string, limit int) ([]shared.ID, error)
 }

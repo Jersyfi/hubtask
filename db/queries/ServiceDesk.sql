@@ -238,11 +238,3 @@ DELETE FROM requester_organisation WHERE key = sqlc.arg('key');
 -- The organisation a mail domain belongs to; a domain is in at most one (migration 0287).
 SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version
 FROM requester_organisation WHERE domains @> ARRAY[sqlc.arg('domain')::text] LIMIT 1;
-
--- name: AccountsAtDomains :many
--- The active people whose address is at one of the domains, by account, bounded.
-SELECT id FROM account
-WHERE kind = 'USER' AND status = 'ACTIVE' AND deleted_at IS NULL AND email IS NOT NULL
-  AND lower(split_part(email, '@', 2)) = ANY(sqlc.arg('domains')::text[])
-ORDER BY id
-LIMIT sqlc.arg('max')::int;

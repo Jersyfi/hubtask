@@ -591,6 +591,7 @@ func (b *builder) prefixQuery(head, prefix string) {
 func (b *builder) predicates(search repository.ItemSearch) {
 	b.scope(search.Anchor)
 	b.restriction(search.RestrictTo)
+	b.raisedFrom(search.RaisedFrom)
 	b.lifecycle(search.Spec)
 	if search.Spec.Filter != nil {
 		b.write(` AND (`)
@@ -643,6 +644,22 @@ func (b *builder) restriction(ids []shared.ID) {
 	b.write(` AND wi.id = ANY(`)
 	b.param(values)
 	b.write(`::uuid[])`)
+}
+
+// raisedFrom narrows the answer to the entries an organisation raised. The domains are a bound
+// array compared with the address's domain, lowercased, as account_mail_domain_idx keeps it.
+func (b *builder) raisedFrom(raisers *repository.Raisers) {
+	if raisers == nil {
+		return
+	}
+	domains := make([]string, 0, len(raisers.Domains))
+	domains = append(domains, raisers.Domains...)
+	b.write(` AND (wi.created_by = `)
+	b.param(raisers.Account.String())
+	b.write(`::uuid OR wi.created_by IN (SELECT a.id FROM account a WHERE a.kind = 'USER' AND a.status = 'ACTIVE'`,
+		` AND a.deleted_at IS NULL AND a.email IS NOT NULL AND lower(split_part(a.email, '@', 2)) = ANY(`)
+	b.param(domains)
+	b.write(`::text[])))`)
 }
 
 // identifiers is a set of identifiers as a bound text array; empty, never nil, so the array is

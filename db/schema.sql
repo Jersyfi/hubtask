@@ -226,6 +226,9 @@ CREATE UNIQUE INDEX account_subject_uq ON account (tenant_id, external_subject)
   WHERE external_subject IS NOT NULL;
 CREATE UNIQUE INDEX account_external_id_uq ON account (tenant_id, external_id)
   WHERE external_id IS NOT NULL AND deleted_at IS NULL;
+-- A portal organisation's people by their address's domain (migration 0300, UC-SVC-11 check 3).
+CREATE INDEX account_mail_domain_idx ON account (tenant_id, lower(split_part(email, '@', 2)))
+  WHERE email IS NOT NULL AND deleted_at IS NULL;
 -- The lookup the public redemption route makes: the hash covers the whole presented string,
 -- tenant half included, and is unique across the installation.
 CREATE UNIQUE INDEX account_redemption_token_uq ON account (redemption_token_hash)

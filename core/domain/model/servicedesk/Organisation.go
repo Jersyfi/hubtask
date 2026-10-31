@@ -17,11 +17,8 @@ const (
 	MaxOrganisationDomains = 20
 	// MaxOrganisations bounds a workspace's organisations: a list an administrator reads whole.
 	MaxOrganisations = 500
-	// MaxOrganisationMembers bounds the colleagues whose requests one portal list reads; a larger
-	// organisation reads the first of them by account, never a scan of every account.
-	MaxOrganisationMembers = 2000
-	maxDomainLength        = 253
-	maxLabelLength         = 63
+	maxDomainLength  = 253
+	maxLabelLength   = 63
 )
 
 // Organisation is a group of requesters (UC-SVC-11): every person of the workspace whose address

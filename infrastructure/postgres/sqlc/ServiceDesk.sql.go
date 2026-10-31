@@ -11,40 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const accountsAtDomains = `-- name: AccountsAtDomains :many
-SELECT id FROM account
-WHERE kind = 'USER' AND status = 'ACTIVE' AND deleted_at IS NULL AND email IS NOT NULL
-  AND lower(split_part(email, '@', 2)) = ANY($1::text[])
-ORDER BY id
-LIMIT $2::int
-`
-
-type AccountsAtDomainsParams struct {
-	Domains []string
-	Max     int32
-}
-
-// The active people whose address is at one of the domains, by account, bounded.
-func (q *Queries) AccountsAtDomains(ctx context.Context, arg AccountsAtDomainsParams) ([]pgtype.UUID, error) {
-	rows, err := q.db.Query(ctx, accountsAtDomains, arg.Domains, arg.Max)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []pgtype.UUID{}
-	for rows.Next() {
-		var id pgtype.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const countRequesterOrganisations = `-- name: CountRequesterOrganisations :one
 SELECT count(*)::int AS held FROM requester_organisation
 `

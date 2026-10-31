@@ -22,8 +22,7 @@ import (
 var colleagueID = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000005f9")
 
 type organisationStore struct {
-	rows    map[string]domain.Organisation
-	members map[string][]shared.ID
+	rows map[string]domain.Organisation
 }
 
 func (s *organisationStore) Insert(_ context.Context, o domain.Organisation) error {
@@ -62,14 +61,6 @@ func (s *organisationStore) OfDomain(_ context.Context, d string) (domain.Organi
 	}
 	return domain.Organisation{}, shared.ErrNotFound
 }
-func (s *organisationStore) Members(_ context.Context, domains []string, _ int) ([]shared.ID, error) {
-	var out []shared.ID
-	for _, d := range domains {
-		out = append(out, s.members[d]...)
-	}
-	return out, nil
-}
-
 type addressBook struct {
 	identityrepo.Accounts
 	emails map[shared.ID]string
@@ -118,9 +109,7 @@ func raisers(node *view.Node) []shared.ID {
 
 func organisationPortal(ctx context.Context, t *testing.T, shares bool) (Portal, *queriedItems, *organisationStore) {
 	t.Helper()
-	store := &organisationStore{rows: map[string]domain.Organisation{}, members: map[string][]shared.ID{
-		"acme.example": {requesterID, colleagueID},
-	}}
+	store := &organisationStore{rows: map[string]domain.Organisation{}}
 	define := DefineRequesterOrganisation{Desk: Desk{
 		Organisations: store, Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{},
 		Clock: at(monday), IDs: &seqIDs{}, Text: text.Composing{},
@@ -174,8 +163,10 @@ func TestAnOrganisationsRequestsAreSeenWhereItSharesThem(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := raisers(items.searched[0].Spec.Filter); !slices.Contains(got, requesterID) || !slices.Contains(got, colleagueID) {
-			t.Errorf("the list asked for %v", got)
+		// The domains are asked for, not a list of accounts read first and cut at a bound.
+		if got := items.searched[0].RaisedFrom; got == nil || got.Account != requesterID ||
+			!slices.Equal(got.Domains, []string{"acme.example"}) || items.searched[0].Spec.Filter != nil {
+			t.Errorf("the list asked for %+v", got)
 		}
 		if listed.Organisation == nil || listed.Organisation.Name != "Acme" {
 			t.Errorf("the organisation named %+v", listed.Organisation)

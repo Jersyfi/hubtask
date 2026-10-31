@@ -338,6 +338,17 @@ type ItemSearch struct {
 	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is empty -
 	// the read half of the share rule, exactly as ItemQuery carries it for the plain level list.
 	RestrictTo []shared.ID
+	// RaisedFrom narrows the answer to the entries a portal organisation raised (UC-SVC-11 check
+	// 3), nil for no such narrowing. The domains are joined in the query, not read as a list of
+	// accounts first, so no organisation is cut short however many people it has.
+	RaisedFrom *Raisers
+}
+
+// Raisers is an organisation as a portal list asks for it: the active people whose address is at
+// one of the domains, and the asking account whatever its state.
+type Raisers struct {
+	Account shared.ID
+	Domains []string
 }
 
 // TextSearch is one full-text search as the adapter receives it: the validated request, its

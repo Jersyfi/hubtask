@@ -175,25 +175,3 @@ func (ServiceDeskOrganisations) OfDomain(ctx context.Context, domain string) (se
 	}
 	return organisationFrom(row)
 }
-
-func (ServiceDeskOrganisations) Members(ctx context.Context, domains []string, limit int) ([]shared.ID, error) {
-	queries, err := queriesFrom(ctx)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := queries.AccountsAtDomains(ctx, sqlc.AccountsAtDomainsParams{
-		Domains: domains, Max: int32(limit), //nolint:gosec // the caller bounds it far below 2^31
-	})
-	if err != nil {
-		return nil, queryFailed("reading an organisation's people", err)
-	}
-	out := make([]shared.ID, 0, len(rows))
-	for _, row := range rows {
-		id, err := idFrom(row)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, id)
-	}
-	return out, nil
-}
