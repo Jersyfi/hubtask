@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -94,7 +95,10 @@ func ReferenceFields() map[string]repository.ReferenceKind {
 type CheckRules struct {
 	Rules      repository.Rules
 	References repository.References
-	Catalogue  Catalogue
+	// CustomRoles resolves a NOTIFY_ROLE step's key: a role is a key, not an identifier the
+	// reference table resolves. Nil leaves the question unasked.
+	CustomRoles RoleKeys
+	Catalogue   Catalogue
 	// Conditions compiles every condition and every branch's, as the write does (ADR-0009).
 	Conditions expression.Compiler
 	Authorizer Authorizer
@@ -396,8 +400,34 @@ func (h CheckRules) inspectActions(
 				})
 			}
 		}
+		finding, err := h.goneRole(ctx, action, at)
+		if err != nil {
+			return nil, err
+		}
+		if finding != nil {
+			findings = append(findings, *finding)
+		}
 	}
 	return findings, nil
+}
+
+// goneRole finds a NOTIFY_ROLE step whose custom role was removed after the save.
+func (h CheckRules) goneRole(ctx context.Context, action domain.Action, at string) (*domain.Finding, error) {
+	if h.CustomRoles == nil || action.Kind != "NOTIFY_ROLE" {
+		return nil, nil
+	}
+	key, named := action.Params["role"].(string)
+	if !named || identity.Role(key).Valid() {
+		return nil, nil
+	}
+	_, err := h.CustomRoles.Find(ctx, key)
+	if errors.Is(err, shared.ErrNotFound) {
+		return &domain.Finding{
+			Level: domain.FindingAttention, Path: at + "/params/role", Code: FindingReferenceGone,
+			Params: map[string]string{"kind": "role", "id": key},
+		}, nil
+	}
+	return nil, err
 }
 
 // conditionFinding carries the compiler's own code and parameters - a line and a column - under

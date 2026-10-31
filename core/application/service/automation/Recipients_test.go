@@ -122,3 +122,28 @@ func TestTheCheckFlagsANotificationStepWhoseGroupIsGone(t *testing.T) {
 		t.Errorf("findings %v, want the gone group flagged", codes)
 	}
 }
+
+// UC-AUT-09 check 4: a custom role removed after the step was saved is the check's finding, as a
+// removed account or group is - the run would refuse the step every time it is reached.
+func TestTheCheckFindsANotificationStepWhoseCustomRoleIsGone(t *testing.T) {
+	rule := ruleAt(domain.Scope{Type: domain.ScopeTenant}, ruleID)
+	rule.Actions = []domain.Action{
+		{Kind: "NOTIFY_ROLE", Params: map[string]any{"role": "dispatcher"}},
+		{Kind: "NOTIFY_ROLE", Params: map[string]any{"role": string(identity.RoleAdmin)}},
+		{Kind: "NOTIFY_ROLE", Params: map[string]any{"role": "retired_role"}},
+	}
+	h := newCheck(rule)
+	h.check.Catalogue = catalogue{known: map[string]usecase.Descriptor{
+		"NOTIFY_ROLE": {Name: "NOTIFY_ROLE", Input: []usecase.Field{{Name: "item_id", Kind: usecase.KindID}, {Name: "role"}}},
+	}}
+	h.check.CustomRoles = roleKeys{"dispatcher": true}
+
+	checked, err := h.check.Execute(context.Background(), writerActor())
+	if err != nil {
+		t.Fatalf("checking: %v", err)
+	}
+	codes := findingCodes(checked[0])
+	if len(codes) != 1 || codes["/actions/2/params/role"] != FindingReferenceGone {
+		t.Errorf("findings %v, want only %s at /actions/2/params/role", codes, FindingReferenceGone)
+	}
+}
