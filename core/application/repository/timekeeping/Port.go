@@ -105,6 +105,14 @@ type Resources interface {
 	// RemoveRate removes a rate held to the version read.
 	RemoveRate(ctx context.Context, id shared.ID, expected int) error
 
+	// BillingRates answers the billing rates of the plans named, at most max.
+	BillingRates(ctx context.Context, plans []shared.ID, max int) ([]domain.BillingRate, error)
+	FindBillingRate(ctx context.Context, id shared.ID) (domain.BillingRate, error)
+	// PutBillingRate writes a billing rate: a new row when expected is 0, else held to the version read.
+	PutBillingRate(ctx context.Context, r domain.BillingRate, expected int, by shared.ID, at time.Time) error
+	// RemoveBillingRate removes a billing rate held to the version read.
+	RemoveBillingRate(ctx context.Context, id shared.ID, expected int) error
+
 	// Budget answers a plan's budget, and whether it has one.
 	Budget(ctx context.Context, plan shared.ID) (domain.Budget, bool, error)
 	// PutBudget writes a plan's budget: a new row when expected is 0, else held to the version read.

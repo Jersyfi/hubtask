@@ -1040,6 +1040,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `time_actuals.read` | ReadEstimatesVsActuals | `plan` | INFO | When refused |
 
+## Time_billing_rate
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_billing_rate.read` | ListBillingRates | `time_billing_rate` | INFO | When refused |
+| `time_billing_rate.removed` | RemoveBillingRate | `time_billing_rate` | INFO | Every time |
+| `time_billing_rate.set` | SetBillingRate | `time_billing_rate` | INFO | Every time |
+
 ## Time_budget
 
 | Action | Use case | Target | Severity | Recorded |

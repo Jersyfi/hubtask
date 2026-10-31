@@ -10367,6 +10367,8 @@
   "time.budget_version_conflict": "The budget was changed meanwhile; read it again.",
   "time.capacity_not_found": "The person has no capacity from that day.",
   "time.capacity_week_required": "A capacity names seven weekdays' minutes, Monday first.",
+  "time.billing_rate_not_found": "There is no such billing rate.",
+  "time.billing_rate_version_conflict": "The billing rate was changed meanwhile; read it again.",
   "time.rate_not_found": "There is no such cost rate.",
   "time.rate_version_conflict": "The cost rate was changed meanwhile; read it again.",
   "time.too_many_capacities": "A person keeps at most {maximum} capacities.",

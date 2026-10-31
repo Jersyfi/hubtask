@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -25,11 +26,12 @@ type resources struct {
 	capacities []domain.Capacity
 	absences   map[shared.ID]domain.Absence
 	rates      map[shared.ID]domain.CostRate
+	billing    map[shared.ID]domain.BillingRate
 	budgets    map[shared.ID]domain.Budget
 }
 
 func newResources() *resources {
-	return &resources{absences: map[shared.ID]domain.Absence{}, rates: map[shared.ID]domain.CostRate{}, budgets: map[shared.ID]domain.Budget{}}
+	return &resources{absences: map[shared.ID]domain.Absence{}, rates: map[shared.ID]domain.CostRate{}, billing: map[shared.ID]domain.BillingRate{}, budgets: map[shared.ID]domain.Budget{}}
 }
 
 func (r *resources) Capacities(_ context.Context, accounts []shared.ID, _ int) ([]domain.Capacity, error) {
@@ -118,6 +120,37 @@ func (r *resources) RemoveRate(_ context.Context, id shared.ID, expected int) er
 		return shared.ErrVersionConflict
 	}
 	delete(r.rates, id)
+	return nil
+}
+func (r *resources) BillingRates(_ context.Context, plans []shared.ID, _ int) ([]domain.BillingRate, error) {
+	var out []domain.BillingRate
+	for _, rate := range r.billing {
+		if slices.Contains(plans, rate.PlanID) {
+			out = append(out, rate)
+		}
+	}
+	return out, nil
+}
+func (r *resources) FindBillingRate(_ context.Context, id shared.ID) (domain.BillingRate, error) {
+	rate, ok := r.billing[id]
+	if !ok {
+		return rate, shared.ErrNotFound
+	}
+	return rate, nil
+}
+func (r *resources) PutBillingRate(_ context.Context, rate domain.BillingRate, expected int, _ shared.ID, _ time.Time) error {
+	if r.billing[rate.ID].Version != expected {
+		return shared.ErrVersionConflict
+	}
+	rate.Version = expected + 1
+	r.billing[rate.ID] = rate
+	return nil
+}
+func (r *resources) RemoveBillingRate(_ context.Context, id shared.ID, expected int) error {
+	if r.billing[id].Version != expected {
+		return shared.ErrVersionConflict
+	}
+	delete(r.billing, id)
 	return nil
 }
 func (r *resources) Budget(_ context.Context, plan shared.ID) (domain.Budget, bool, error) {
@@ -373,7 +406,7 @@ func TestTimeIsHandedToAccountingWithItsCost(t *testing.T) {
 		t.Fatalf("export with costs: %v", err)
 	}
 	columns := out["columns"].([]string)
-	if len(columns) != len(ExportColumns)+len(CostColumns) || columns[len(columns)-1] != "cost_minor" {
+	if len(columns) != len(ExportColumns)+len(CostColumns) || columns[len(ExportColumns)+2] != "cost_minor" {
 		t.Fatalf("columns = %v", columns)
 	}
 	priced := map[string]usecase.Output{}
@@ -390,5 +423,76 @@ func TestTimeIsHandedToAccountingWithItsCost(t *testing.T) {
 		if strings.Contains(fmt.Sprint(e.Changes), "6000") || strings.Contains(fmt.Sprint(e.Changes), "9000") {
 			t.Fatalf("an amount reached the trail: %+v", e)
 		}
+	}
+}
+
+// UC-TIM-08 check 9: a hub or a collection bills its client by its own rate from a day to a day,
+// the collection's before its hub's; only MANAGE_COSTS at the plan reads or writes one, its amount
+// never reaches the trail, and the export with costs carries each record's billable value.
+func TestTimeIsBilledByItsPlansRate(t *testing.T) {
+	f := newFixture()
+	r := f.withResources()
+	ctx := context.Background()
+	from, end := day(t, "2026-01-01"), day(t, "2026-11-02")
+	if _, err := (SetBillingRate{Keeper: f.keeper}).Execute(ctx, as(ana), domain.BillingRate{PlanID: hubID, HourMinor: 10000, Currency: "EUR", From: from}, 0); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("a member set a billing rate: %v", err)
+	}
+	if _, err := (ListBillingRates{Keeper: f.keeper}).Execute(ctx, as(ana), hubID); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("a member read the billing rates: %v", err)
+	}
+	f.gate.approvers[lead] = append(f.gate.approvers[lead], tenantID)
+	hub, err := SetBillingRate{Keeper: f.keeper}.Execute(ctx, as(lead), domain.BillingRate{PlanID: hubID, HourMinor: 10000, Currency: "EUR", From: from}, 0)
+	if err != nil {
+		t.Fatalf("the hub's rate: %v", err)
+	}
+	if _, err := (SetBillingRate{Keeper: f.keeper}).Execute(ctx, as(lead), domain.BillingRate{PlanID: hubID, HourMinor: 11000, Currency: "EUR", From: end}, 0); detail(err) != "time.rate_overlaps" {
+		t.Fatalf("two rates of the hub on a day: %v", err)
+	}
+	if _, err := (SetBillingRate{Keeper: f.keeper}).Execute(ctx, as(lead), domain.BillingRate{PlanID: listID, HourMinor: 12000, Currency: "EUR", From: day(t, "2026-11-03")}, 0); err != nil {
+		t.Fatalf("the collection's rate: %v", err)
+	}
+	if _, err := (SetBillingRate{Keeper: f.keeper}).Execute(ctx, as(lead), domain.BillingRate{ID: hub.ID, PlanID: listID, HourMinor: 1, Currency: "EUR", From: from}, 1); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("the hub's rate changed through the collection: %v", err)
+	}
+	if err := (RemoveBillingRate{Keeper: f.keeper}).Execute(ctx, as(lead), listID, hub.ID, 1); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("the hub's rate removed through the collection: %v", err)
+	}
+	listed, err := ListBillingRates{Keeper: f.keeper}.Execute(ctx, as(lead), hubID)
+	if err != nil || len(listed) != 1 || listed[0].ID != hub.ID {
+		t.Fatalf("the hub's rates = %+v %v", listed, err)
+	}
+	no := false
+	f.log(t, ana, checkout, "2026-11-02", 90) // the hub's: 1.5 x 100.00
+	f.log(t, ben, payment, "2026-11-03", 30)  // the collection's: 0.5 x 120.00
+	if _, err := (LogTime{Keeper: f.keeper}).Execute(ctx, as(ben), RecordFields{
+		EntryID: checkout, WorkType: "development", Day: day(t, "2026-11-04"), Minutes: 60, Billable: &no,
+	}, time.UTC); err != nil {
+		t.Fatalf("log unbillable time: %v", err)
+	}
+	out, err := ExportTimeRecords{Keeper: f.keeper}.Descriptor().Handler.Invoke(ctx, as(lead), usecase.Input{"from": "2026-11-02", "to": "2026-11-08", "costs": true})
+	if err != nil {
+		t.Fatalf("export with costs: %v", err)
+	}
+	if columns := out["columns"].([]string); columns[len(columns)-1] != "billable_value_minor" {
+		t.Fatalf("columns = %v", columns)
+	}
+	byDay := map[string]usecase.Output{}
+	for _, row := range out["rows"].([]usecase.Output) {
+		byDay[row["day"].(string)] = row
+	}
+	want := map[string][2]int64{"2026-11-02": {10000, 15000}, "2026-11-03": {12000, 6000}, "2026-11-04": {12000, 0}}
+	for on, w := range want {
+		row := byDay[on]
+		if row["bill_rate_minor"] != w[0] || row["billable_value_minor"] != w[1] || row["bill_currency"] != "EUR" {
+			t.Errorf("%s: %+v, want rate %d and value %d", on, row, w[0], w[1])
+		}
+	}
+	for _, e := range f.audit.entries {
+		if text := fmt.Sprint(e.Changes); strings.Contains(text, "10000") || strings.Contains(text, "12000") {
+			t.Fatalf("a billing rate's amount reached the trail: %+v", e)
+		}
+	}
+	if err := (RemoveBillingRate{Keeper: f.keeper}).Execute(ctx, as(lead), hubID, hub.ID, 1); err != nil || len(r.billing) != 1 {
+		t.Fatalf("remove the hub's rate: %v", err)
 	}
 }

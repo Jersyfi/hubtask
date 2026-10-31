@@ -400,7 +400,8 @@ func (h ReadEstimatesVsActuals) Descriptor() usecase.Descriptor {
 // ExportTimeRecords hands time records to accounting (UC-TIM-05): the same records a listing
 // reads, at most 50000, in fixed columns. Where the workspace shows only sums, only the caller's
 // own: a record is one person's. Asked with costs, each record also carries the hourly rate that
-// prices it and its cost - which only MANAGE_COSTS at the workspace reads, as the rates themselves.
+// prices it and its cost, and the billing rate of its plan with its billable value - which only
+// MANAGE_COSTS at the workspace reads, as the rates themselves.
 type ExportTimeRecords struct{ Keeper Keeper }
 
 // Cost is what one exported record cost: the rate pricing its day, in that rate's currency - no
@@ -410,6 +411,8 @@ type Cost struct {
 	HourMinor   int64
 	Currency    string
 	AmountMinor int64
+	// Bill is what the record is billed to its plan's client.
+	Bill Billing
 }
 
 // Execute reads the rows; costs holds one Cost per row when asked, else nothing.
@@ -438,15 +441,20 @@ func (h ExportTimeRecords) Execute(
 		}
 	}
 	var (
-		placed []timerepo.Placed
-		rates  []domain.CostRate
+		placed  []timerepo.Placed
+		rates   []domain.CostRate
+		billing []domain.BillingRate
 	)
 	if err := h.Keeper.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		if placed, err = h.Keeper.Store.Records(ctx, f, maxRecordsExported+1); err != nil || !withCosts {
 			return err
 		}
-		rates, err = h.Keeper.Resources.Rates(ctx, maxRatesKept)
+		if rates, err = h.Keeper.Resources.Rates(ctx, maxRatesKept); err != nil {
+			return err
+		}
+		plans := plansOf(placed)
+		billing, err = h.Keeper.Resources.BillingRates(ctx, plans, len(plans)*maxBillingRatesKept)
 		return err
 	}); err != nil {
 		return nil, nil, false, err
@@ -467,6 +475,7 @@ func (h ExportTimeRecords) Execute(
 		if costs, err = h.Keeper.costsOf(ctx, actor, placed, domain.NewRates(rates)); err != nil {
 			return nil, nil, false, err
 		}
+		billingOf(placed, costs, domain.NewBillingRates(billing))
 	}
 	now := h.Keeper.Clock.Now()
 	err := h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -514,8 +523,8 @@ var ExportColumns = []string{
 }
 
 // CostColumns follow ExportColumns in an export asked with costs: amounts in the currency's minor
-// unit, empty where no rate prices the record.
-var CostColumns = []string{"rate_minor", "currency", "cost_minor"}
+// unit, empty where no rate prices or bills the record.
+var CostColumns = []string{"rate_minor", "currency", "cost_minor", "bill_rate_minor", "bill_currency", "billable_value_minor"}
 
 // Descriptor is the catalogue entry.
 func (h ExportTimeRecords) Descriptor() usecase.Descriptor {
@@ -524,12 +533,14 @@ func (h ExportTimeRecords) Descriptor() usecase.Descriptor {
 		Summary: "Exports time records of a range of days for accounting, at most 50000, in fixed columns: the " +
 			"caller's own with `mine`, else also other people's where the caller approves time; where the workspace " +
 			"shows only sums, the caller's own only (time.aggregated_only). With `costs`, each record also carries " +
-			"the hourly rate pricing it and its cost, which needs MANAGE_COSTS at the workspace. No invoice is made.",
+			"the hourly rate pricing it and its cost, and the billing rate of its collection, else its hub, with its " +
+			"billable value (0 where the record is not billable), which needs MANAGE_COSTS at the workspace. No " +
+			"invoice is made.",
 		SideEffects: "Writes an audit entry of the export.",
 		TokenScope:  itemsRead,
 		Input: append(filterInput(true), usecase.Field{
 			Name: "costs", Kind: usecase.KindBool,
-			Description: "Also each record's hourly rate and cost, in the rate's currency; needs MANAGE_COSTS.",
+			Description: "Also each record's hourly rate and cost, and its billing rate and billable value, each in its rate's currency; needs MANAGE_COSTS.",
 		}),
 		Audit: usecase.AuditDeclaration{Action: RecordsExportedAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -560,6 +571,10 @@ func (h ExportTimeRecords) Descriptor() usecase.Descriptor {
 					row["rate_minor"], row["currency"], row["cost_minor"] = nil, "", nil
 					if c := costs[i]; c.Priced {
 						row["rate_minor"], row["currency"], row["cost_minor"] = c.HourMinor, c.Currency, c.AmountMinor
+					}
+					row["bill_rate_minor"], row["bill_currency"], row["billable_value_minor"] = nil, "", nil
+					if b := costs[i].Bill; b.Billed {
+						row["bill_rate_minor"], row["bill_currency"], row["billable_value_minor"] = b.HourMinor, b.Currency, b.ValueMinor
 					}
 				}
 				rows = append(rows, row)
