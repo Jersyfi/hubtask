@@ -32,12 +32,6 @@ func reminderGroup() group {
 				summary: "add a reminder to an entry",
 				run:     reminderAdd,
 			},
-			{
-				name:    "rm",
-				usage:   "<item-id> <reminder-id> [--expect-version <n>]",
-				summary: "remove a reminder",
-				run:     reminderRemove,
-			},
 		},
 	}
 }
@@ -124,34 +118,6 @@ func reminderAdd(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(created, reminderTable([]openapi.Reminder{created}))
-}
-
-func reminderRemove(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "remind rm <item-id> <reminder-id> [--expect-version <n>]"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	reminder, rest, err := cli.takeID(rest, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "remind", "rm", "<item-id> <reminder-id> [--expect-version <n>]")
-	expected := flags.Int("expect-version", 0, "refuse unless the reminder is still at this version")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	target := remindersPath(item) + "/" + reminder.String()
-	if err := client.Delete(ctx, target, versionPrecondition(*expected)); err != nil {
-		return err
-	}
-	printf(cli.Err, "reminder removed: %s\n", reminder)
-	return nil
 }
 
 func remindersPath(item openapitypes.UUID) string {

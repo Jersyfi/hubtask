@@ -10323,6 +10323,7 @@
           "templates"
         ],
         "operationId": "deleteTemplate",
+        "x-hubtask-cli": "template rm",
         "x-hubtask-rest": "generated",
         "description": "Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.\n",
         "parameters": [
@@ -10437,6 +10438,14 @@
           "views"
         ],
         "operationId": "listSavedViews",
+        "x-hubtask-cli": "view ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "key",
+          "name",
+          "layout",
+          "version"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "savedViewResponse",
         "description": "The saved views the caller may see. Naming a container answers the caller's own views plus what is shared into that container's path - the collection's, its hub's and the workspace-wide ones, computed in the query rather than filtered after a page. Naming none answers the caller's own views alone.\n",
@@ -10616,6 +10625,7 @@
           "views"
         ],
         "operationId": "deleteSavedView",
+        "x-hubtask-cli": "view rm",
         "x-hubtask-rest": "generated",
         "description": "Deletes the view. A calendar feed that served it keeps its token and serves nothing, saying why - the feed's view reference nulls rather than cascading, because a feed is the subscriber's and a view is the workspace's.\n",
         "parameters": [
@@ -10623,6 +10633,7 @@
             "$ref": "#/components/parameters/IfMatch"
           }
         ],
+        "summary": "Delete a view; a calendar feed over it serves nothing from then on",
         "responses": {
           "204": {
             "description": "Deleted"
@@ -15197,6 +15208,7 @@
           "retention"
         ],
         "operationId": "deleteRetentionPolicy",
+        "x-hubtask-cli": "retention rm",
         "x-hubtask-rest": "generated",
         "summary": "Withdraw a retention rule",
         "description": "The rule stops applying. What it already did stands - retention deletes, and a deletion is not undone by withdrawing the instruction that caused it - and what it had marked for a future pass is unmarked, because an entry counting down towards a rule nobody holds any more would be deleted by a rule that does not exist.\nWithdrawing one that is not there is not an error. Auditable.\n",
@@ -15285,6 +15297,7 @@
           "retention"
         ],
         "operationId": "retainItem",
+        "x-hubtask-cli": "retention retain",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "workItemResponse",
         "summary": "Take an object out of the running retention period",
@@ -21404,6 +21417,7 @@
           "suggestions"
         ],
         "operationId": "dismissSuggestion",
+        "x-hubtask-cli": "suggestion dismiss",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "suggestionResponse",
         "summary": "Dismiss a suggestion",
@@ -23971,6 +23985,7 @@
           "structure"
         ],
         "operationId": "deleteEntryType",
+        "x-hubtask-cli": "type rm",
         "x-hubtask-rest": "generated",
         "summary": "Delete an unused entry type",
         "description": "Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.\n",
@@ -29125,6 +29140,7 @@
           "recurrence"
         ],
         "operationId": "getRecurrence",
+        "x-hubtask-cli": "recur show",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "recurrenceResponse",
         "description": "The entry's series, or 404 when it has none. A rule a client can set and never read back is one it cannot show, so the series is read here as well as written.\n",
@@ -29202,6 +29218,7 @@
           "recurrence"
         ],
         "operationId": "removeRecurrence",
+        "x-hubtask-cli": "recur rm",
         "x-hubtask-rest": "generated",
         "description": "Takes the series off the entry. Occurrences that were already materialised stay exactly where they are: they are ordinary entries the moment they exist, and deleting somebody's next three weeks because they stopped a series would be a deletion nobody asked for. Idempotent - an entry with no series succeeds and announces nothing.\n",
         "parameters": [
@@ -29209,6 +29226,7 @@
             "$ref": "#/components/parameters/IfMatch"
           }
         ],
+        "summary": "Remove an entry's series; the occurrences it produced stay",
         "responses": {
           "204": {
             "description": "Removed"
@@ -29230,6 +29248,7 @@
           "recurrence"
         ],
         "operationId": "skipOccurrence",
+        "x-hubtask-cli": "recur skip",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "recurrenceResponse",
         "description": "Skips the next occurrence the series has not produced yet: the one after the last one materialised, or - for a series that has produced none - the first one after the entry's own due date. Nothing that already exists is touched, because a materialised occurrence is an ordinary entry and skipping it would be deleting somebody's work.\nIdempotent under its Idempotency-Key, and repeatable without one: calling it twice skips two occurrences, which is what \"skip the next one\" means said twice. The answer is the rule with its bookkeeping moved on.\n",
@@ -29402,6 +29421,7 @@
           "reminders"
         ],
         "operationId": "deleteReminder",
+        "x-hubtask-cli": "remind rm",
         "x-hubtask-rest": "generated",
         "description": "Removes the reminder. A hard delete of one row: a reminder is created and deleted whole, and what a person deleted is gone rather than kept as a tombstone with a state - so a second deletion answers 404, the same answer any other missing sub-resource gives, rather than pretending to have removed something twice.\n",
         "parameters": [

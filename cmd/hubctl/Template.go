@@ -45,12 +45,6 @@ func templateGroup() group {
 				summary: "stamp a template out into a collection",
 				run:     templateInstantiate,
 			},
-			{
-				name:    "rm",
-				usage:   "<template-id> [--expect-version <n>]",
-				summary: "delete a template; what it stamped out stays",
-				run:     templateRemove,
-			},
 		},
 	}
 }
@@ -236,31 +230,6 @@ func templateInstantiate(ctx context.Context, cli *CLI, args []string) error {
 				dropped.Kind, dropped.Id, reason)
 		}
 	}
-	return nil
-}
-
-func templateRemove(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "template rm <template-id> [--expect-version <n>]"
-	template, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "template", "rm", "<template-id> [--expect-version <n>]")
-	expected := flags.Int("expect-version", 0, "refuse unless the template is still at this version")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(
-		ctx, templatesPath+"/"+template.String(), versionPrecondition(*expected),
-	); err != nil {
-		return err
-	}
-	printf(cli.Err, "template deleted: %s (what it stamped out stays)\n", template)
 	return nil
 }
 

@@ -5774,6 +5774,7 @@ paths:
     delete:
       tags: [templates]
       operationId: deleteTemplate
+      x-hubtask-cli: "template rm"
       x-hubtask-rest: generated
       description: >
         Removes a template for good. The trees it has already stamped out are ordinary entries and
@@ -5866,6 +5867,8 @@ paths:
     get:
       tags: [views]
       operationId: listSavedViews
+      x-hubtask-cli: "view ls"
+      x-hubtask-cli-columns: [id, key, name, layout, version]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: savedViewResponse
       description: >
@@ -5990,6 +5993,7 @@ paths:
     delete:
       tags: [views]
       operationId: deleteSavedView
+      x-hubtask-cli: "view rm"
       x-hubtask-rest: generated
       description: >
         Deletes the view. A calendar feed that served it keeps its token and serves nothing,
@@ -5997,6 +6001,7 @@ paths:
         subscriber's and a view is the workspace's.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
+      summary: Delete a view; a calendar feed over it serves nothing from then on
       responses:
         "204":
           description: Deleted
@@ -9265,6 +9270,7 @@ paths:
     delete:
       tags: [retention]
       operationId: deleteRetentionPolicy
+      x-hubtask-cli: "retention rm"
       x-hubtask-rest: generated
       summary: Withdraw a retention rule
       description: >
@@ -9315,6 +9321,7 @@ paths:
     post:
       tags: [retention]
       operationId: retainItem
+      x-hubtask-cli: "retention retain"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: workItemResponse
       summary: Take an object out of the running retention period
@@ -14496,6 +14503,7 @@ paths:
     post:
       tags: [suggestions]
       operationId: dismissSuggestion
+      x-hubtask-cli: "suggestion dismiss"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: suggestionResponse
       summary: Dismiss a suggestion
@@ -16338,6 +16346,7 @@ paths:
     delete:
       tags: [structure]
       operationId: deleteEntryType
+      x-hubtask-cli: "type rm"
       x-hubtask-rest: generated
       summary: Delete an unused entry type
       description: >
@@ -19834,6 +19843,7 @@ paths:
     get:
       tags: [recurrence]
       operationId: getRecurrence
+      x-hubtask-cli: "recur show"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: recurrenceResponse
       description: >
@@ -19893,6 +19903,7 @@ paths:
     delete:
       tags: [recurrence]
       operationId: removeRecurrence
+      x-hubtask-cli: "recur rm"
       x-hubtask-rest: generated
       description: >
         Takes the series off the entry. Occurrences that were already materialised stay exactly
@@ -19901,6 +19912,7 @@ paths:
         Idempotent - an entry with no series succeeds and announces nothing.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
+      summary: Remove an entry's series; the occurrences it produced stay
       responses:
         "204":
           description: Removed
@@ -19913,6 +19925,7 @@ paths:
     post:
       tags: [recurrence]
       operationId: skipOccurrence
+      x-hubtask-cli: "recur skip"
       x-hubtask-rest: generated
       x-hubtask-rest-answer: recurrenceResponse
       description: >
@@ -20030,6 +20043,7 @@ paths:
     delete:
       tags: [reminders]
       operationId: deleteReminder
+      x-hubtask-cli: "remind rm"
       x-hubtask-rest: generated
       description: >
         Removes the reminder. A hard delete of one row: a reminder is created and deleted whole,

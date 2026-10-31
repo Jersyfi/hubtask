@@ -1647,6 +1647,21 @@ var generatedCommands = []door{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "status"}},
+	{Group: "recur", Verb: "rm", OperationID: "removeRecurrence", Method: "DELETE", Path: "/items/{itemId}/recurrence", Summary: "Remove an entry's series; the occurrences it produced stay",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "recur", Verb: "show", OperationID: "getRecurrence", Method: "GET", Path: "/items/{itemId}/recurrence", Summary: "The entry's series, or 404 when it has none",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "version"}},
+	{Group: "recur", Verb: "skip", OperationID: "skipOccurrence", Method: "POST", Path: "/items/{itemId}/recurrence:skip", Summary: "Skips the next occurrence the series has not produced yet: the one after the last one materialised, …",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "version"}},
 	{Group: "release", Verb: "add", OperationID: "addReleaseEntries", Method: "POST", Path: "/releases/{releaseId}/entries", Summary: "Put entries into a release",
 		PathParams: []doorParam{
 			{Name: "releaseId", Kind: "uuid", Help: "", Required: true},
@@ -1711,6 +1726,12 @@ var generatedCommands = []door{
 			{Name: "release_on", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "remind", Verb: "rm", OperationID: "deleteReminder", Method: "DELETE", Path: "/items/{itemId}/reminders/{reminderId}", Summary: "Removes the reminder",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+			{Name: "reminderId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "reply", Verb: "define", OperationID: "defineReplyTemplate", Method: "PUT", Path: "/reply-templates/{templateKey}", Summary: "Add or replace a canned reply",
 		PathParams: []doorParam{
 			{Name: "templateKey", Kind: "string", Help: "", Required: true},
@@ -1783,6 +1804,16 @@ var generatedCommands = []door{
 			{Name: "restoreId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "status"}},
+	{Group: "retention", Verb: "retain", OperationID: "retainItem", Method: "POST", Path: "/items/{itemId}:retain", Summary: "Take an object out of the running retention period",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
+	{Group: "retention", Verb: "rm", OperationID: "deleteRetentionPolicy", Method: "DELETE", Path: "/retention-policies/{policyId}", Summary: "Withdraw a retention rule",
+		PathParams: []doorParam{
+			{Name: "policyId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "role", Verb: "create", OperationID: "createRole", Method: "POST", Path: "/roles", Summary: "Define a role of the workspace's own",
 		Body: []doorParam{
 			{Name: "key", Kind: "string", Help: "", Required: true},
@@ -2007,6 +2038,16 @@ var generatedCommands = []door{
 			{Name: "collectionId", Kind: "uuid", Help: "The collection - a team's board - the sprints belong to", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"average", "unit"}},
+	{Group: "suggestion", Verb: "dismiss", OperationID: "dismissSuggestion", Method: "POST", Path: "/suggestions/{suggestionId}:dismiss", Summary: "Dismiss a suggestion",
+		PathParams: []doorParam{
+			{Name: "suggestionId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "kind", "status", "version"}},
+	{Group: "template", Verb: "rm", OperationID: "deleteTemplate", Method: "DELETE", Path: "/templates/{templateId}", Summary: "Removes a template for good",
+		PathParams: []doorParam{
+			{Name: "templateId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "time", Verb: "correct", OperationID: "correctTimeRecord", Method: "POST", Path: "/time-records/{recordId}:correct", Summary: "Correct an approved record",
 		PathParams: []doorParam{
 			{Name: "recordId", Kind: "uuid", Help: "A time record", Required: true},
@@ -2204,11 +2245,27 @@ var generatedCommands = []door{
 			{Name: "validations", Kind: "json", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "level", "version"}},
+	{Group: "type", Verb: "rm", OperationID: "deleteEntryType", Method: "DELETE", Path: "/entry-types/{key}", Summary: "Delete an unused entry type",
+		PathParams: []doorParam{
+			{Name: "key", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "view", Verb: "aggregate", OperationID: "aggregateView", Method: "POST", Path: "/views/{viewId}:aggregate", Summary: "The summary a saved view stores",
 		PathParams: []doorParam{
 			{Name: "viewId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"count", "group", "period", "value"}},
+	{Group: "view", Verb: "ls", OperationID: "listSavedViews", Method: "GET", Path: "/views", Summary: "The saved views the caller may see",
+		Query: []doorParam{
+			{Name: "container_id", Kind: "uuid", Help: "The container whose shared views are wanted, together with the caller's own", Required: false},
+			{Name: "workspace", Kind: "boolean", Help: "Without a container: the views shared workspace-wide, together with the caller's own", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "name", "layout", "version"}},
+	{Group: "view", Verb: "rm", OperationID: "deleteSavedView", Method: "DELETE", Path: "/views/{viewId}", Summary: "Delete a view; a calendar feed over it serves nothing from then on",
+		PathParams: []doorParam{
+			{Name: "viewId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "webhook", Verb: "deliveries", OperationID: "listWebhookDeliveries", Method: "GET", Path: "/integrations/webhooks/{webhookId}/deliveries", Summary: "What was delivered, and what happened to it",
 		PathParams: []doorParam{
 			{Name: "webhookId", Kind: "uuid", Help: "", Required: true},

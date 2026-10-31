@@ -29,7 +29,6 @@ func entryTypeGroup() group {
 			{name: "set", summary: "rename, recolour, reorder or change a type's behaviours", run: entryTypeChange},
 			{name: "archive", summary: "stop offering a type; its entries keep it", run: entryTypeArchive(true)},
 			{name: "unarchive", summary: "offer an archived type again", run: entryTypeArchive(false)},
-			{name: "rm", summary: "delete a type nothing uses", run: entryTypeDelete},
 			{name: "assign", summary: "change an entry's type", run: entryTypeAssign},
 			{name: "form get", summary: "print a type's form, as `type form set --body` takes it", run: entryTypeFormGet},
 		},
@@ -234,29 +233,6 @@ func patchEntryType(ctx context.Context, cli *CLI, key string, body openapi.Entr
 		return err
 	}
 	return cli.Emit(changed, entryTypeTable([]openapi.EntryType{changed}))
-}
-
-func entryTypeDelete(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "type rm <key> [--expect-version <n>]"
-	key, rest, err := takeKey(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "type", "rm", "<key> [--expect-version <n>]")
-	expected := flags.Int("expect-version", 0, "refuse unless the type is still at this version")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	// A type in use is refused by the server with entry_types.in_use: it can only be archived.
-	if err := client.Delete(ctx, entryTypesPath+"/"+url.PathEscape(key), versionTag(*expected)); err != nil {
-		return err
-	}
-	printf(cli.Err, "deleted: %s\n", key)
-	return nil
 }
 
 func entryTypeAssign(ctx context.Context, cli *CLI, args []string) error {

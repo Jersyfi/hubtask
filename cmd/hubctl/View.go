@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -25,12 +24,6 @@ func viewGroup() group {
 		summary: "saved queries - and the files they turn into",
 		commands: []command{
 			{
-				name:    "ls",
-				usage:   "[--container <id>]",
-				summary: "list the views the caller may see",
-				run:     viewList,
-			},
-			{
 				name: "create",
 				usage: "--name <name> --scope TENANT|HUB|COLLECTION|ACCOUNT [--container <id>]" +
 					" --layout <layout> --query <file|-> [--share]",
@@ -43,42 +36,8 @@ func viewGroup() group {
 				summary: "render a view whole",
 				run:     viewExport,
 			},
-			{
-				name:    "rm",
-				usage:   "<view-id> [--expect-version <n>]",
-				summary: "delete a view",
-				run:     viewRemove,
-			},
 		},
 	}
-}
-
-func viewList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "view", "ls", "[--container <id>]")
-	container := flags.String("container", "",
-		"the container whose shared views are wanted, together with the caller's own")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *container != "" {
-		parsed, err := cli.parseID("--container", *container)
-		if err != nil {
-			return err
-		}
-		query.Set("container_id", parsed.String())
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var views []openapi.SavedView
-	if err := client.Get(ctx, viewsPath, query, &views); err != nil {
-		return err
-	}
-	return cli.Emit(views, viewTable(views))
 }
 
 func viewCreate(ctx context.Context, cli *CLI, args []string) error {
@@ -204,31 +163,6 @@ func viewExport(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	printf(cli.Err, "written: %s (%d bytes)\n", *out, len(document))
-	return nil
-}
-
-func viewRemove(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "view rm <view-id> [--expect-version <n>]"
-	view, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "view", "rm", "<view-id> [--expect-version <n>]")
-	expected := flags.Int("expect-version", 0, "refuse unless the view is still at this version")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(ctx, viewsPath+"/"+view.String(), versionPrecondition(*expected)); err != nil {
-		return err
-	}
-	// The feed that served it keeps its token and serves nothing, which is worth saying to
-	// whoever is about to wonder why their calendar went quiet.
-	printf(cli.Err, "view deleted: %s (a calendar feed over it now serves nothing)\n", view)
 	return nil
 }
 

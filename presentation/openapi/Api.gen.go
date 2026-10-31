@@ -29890,7 +29890,7 @@ type ServerInterface interface {
 	// ListValueProvenance Where an entry's AI-originated values came from
 	// (GET /items/{itemId}/provenance)
 	ListValueProvenance(w http.ResponseWriter, r *http.Request, itemId ItemId)
-
+	// RemoveRecurrence Remove an entry's series; the occurrences it produced stay
 	// (DELETE /items/{itemId}/recurrence)
 	RemoveRecurrence(w http.ResponseWriter, r *http.Request, itemId ItemId, params RemoveRecurrenceParams)
 
@@ -30754,7 +30754,7 @@ type ServerInterface interface {
 
 	// (POST /views)
 	CreateSavedView(w http.ResponseWriter, r *http.Request, params CreateSavedViewParams)
-
+	// DeleteSavedView Delete a view; a calendar feed over it serves nothing from then on
 	// (DELETE /views/{viewId})
 	DeleteSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId, params DeleteSavedViewParams)
 

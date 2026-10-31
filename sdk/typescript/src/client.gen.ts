@@ -1309,7 +1309,7 @@ export class HubtaskClient {
     return this.call("PATCH", "/views/{viewId}", { "viewId": viewId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
-  /** DELETE /views/{viewId} */
+  /** Delete a view; a calendar feed over it serves nothing from then on */
   deleteSavedView(viewId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
     return this.call("DELETE", "/views/{viewId}", { "viewId": viewId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
   }
@@ -3640,7 +3640,7 @@ export class HubtaskClient {
     return this.call("PUT", "/items/{itemId}/recurrence", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** DELETE /items/{itemId}/recurrence */
+  /** Remove an entry's series; the occurrences it produced stay */
   removeRecurrence(itemId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
     return this.call("DELETE", "/items/{itemId}/recurrence", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
   }

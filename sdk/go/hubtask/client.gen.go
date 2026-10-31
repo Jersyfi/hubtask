@@ -34480,9 +34480,11 @@ type ClientInterface interface {
 	// Corresponds with GET /items/{itemId}/provenance (the `ListValueProvenance` operationId).
 	ListValueProvenance(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RemoveRecurrence performs a DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId) request.
+	// RemoveRecurrence Remove an entry's series; the occurrences it produced stay
 	//
 	// Takes the series off the entry. Occurrences that were already materialised stay exactly where they are: they are ordinary entries the moment they exist, and deleting somebody's next three weeks because they stopped a series would be a deletion nobody asked for. Idempotent - an entry with no series succeeds and announces nothing.
+	//
+	// Corresponds with DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId).
 	RemoveRecurrence(ctx context.Context, itemId ItemId, params *RemoveRecurrenceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetRecurrence performs a GET /items/{itemId}/recurrence (the `GetRecurrence` operationId) request.
@@ -38320,9 +38322,11 @@ type ClientInterface interface {
 	// Saves a view: a query in the DSL of POST /items:query, the layout it is drawn in, and the fields the client shows. The query is validated here, against the same catalogue and the same bounds as an ad-hoc one and with the same codes - a saved view that failed at read time would be a broken bookmark nobody can repair. The layout is validated against the declared set (/meta/capabilities, view_layouts), stored, echoed back, and never consulted: what a layout looks like is the client's business, which is what makes new views possible without a backend change. The creator owns the view, and it starts PRIVATE unless sharing says otherwise, under the same rules as :share.
 	CreateSavedView(ctx context.Context, params *CreateSavedViewParams, body CreateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeleteSavedView performs a DELETE /views/{viewId} (the `DeleteSavedView` operationId) request.
+	// DeleteSavedView Delete a view; a calendar feed over it serves nothing from then on
 	//
 	// Deletes the view. A calendar feed that served it keeps its token and serves nothing, saying why - the feed's view reference nulls rather than cascading, because a feed is the subscriber's and a view is the workspace's.
+	//
+	// Corresponds with DELETE /views/{viewId} (the `DeleteSavedView` operationId).
 	DeleteSavedView(ctx context.Context, viewId ViewId, params *DeleteSavedViewParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSavedView performs a GET /views/{viewId} (the `GetSavedView` operationId) request.
@@ -51082,9 +51086,11 @@ func (c *Client) ListValueProvenance(ctx context.Context, itemId ItemId, reqEdit
 	return c.Client.Do(req)
 }
 
-// RemoveRecurrence performs a DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId) request.
+// RemoveRecurrence Remove an entry's series; the occurrences it produced stay
 //
 // Takes the series off the entry. Occurrences that were already materialised stay exactly where they are: they are ordinary entries the moment they exist, and deleting somebody's next three weeks because they stopped a series would be a deletion nobody asked for. Idempotent - an entry with no series succeeds and announces nothing.
+//
+// Corresponds with DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId).
 func (c *Client) RemoveRecurrence(ctx context.Context, itemId ItemId, params *RemoveRecurrenceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRemoveRecurrenceRequest(c.Server, itemId, params)
 	if err != nil {
@@ -59122,9 +59128,11 @@ func (c *Client) CreateSavedView(ctx context.Context, params *CreateSavedViewPar
 	return c.Client.Do(req)
 }
 
-// DeleteSavedView performs a DELETE /views/{viewId} (the `DeleteSavedView` operationId) request.
+// DeleteSavedView Delete a view; a calendar feed over it serves nothing from then on
 //
 // Deletes the view. A calendar feed that served it keeps its token and serves nothing, saying why - the feed's view reference nulls rather than cascading, because a feed is the subscriber's and a view is the workspace's.
+//
+// Corresponds with DELETE /views/{viewId} (the `DeleteSavedView` operationId).
 func (c *Client) DeleteSavedView(ctx context.Context, viewId ViewId, params *DeleteSavedViewParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteSavedViewRequest(c.Server, viewId, params)
 	if err != nil {
@@ -102547,11 +102555,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /items/{itemId}/provenance (the `ListValueProvenance` operationId).
 	ListValueProvenanceWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListValueProvenanceResult, error)
 
-	// RemoveRecurrenceWithResponse performs a DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId) request.
+	// RemoveRecurrenceWithResponse Remove an entry's series; the occurrences it produced stay
 	//
 	// Takes the series off the entry. Occurrences that were already materialised stay exactly where they are: they are ordinary entries the moment they exist, and deleting somebody's next three weeks because they stopped a series would be a deletion nobody asked for. Idempotent - an entry with no series succeeds and announces nothing.
 	//
 	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId).
 	RemoveRecurrenceWithResponse(ctx context.Context, itemId ItemId, params *RemoveRecurrenceParams, reqEditors ...RequestEditorFn) (*RemoveRecurrenceResult, error)
 
 	// GetRecurrenceWithResponse performs a GET /items/{itemId}/recurrence (the `GetRecurrence` operationId) request.
@@ -106739,11 +106749,13 @@ type ClientWithResponsesInterface interface {
 	// Saves a view: a query in the DSL of POST /items:query, the layout it is drawn in, and the fields the client shows. The query is validated here, against the same catalogue and the same bounds as an ad-hoc one and with the same codes - a saved view that failed at read time would be a broken bookmark nobody can repair. The layout is validated against the declared set (/meta/capabilities, view_layouts), stored, echoed back, and never consulted: what a layout looks like is the client's business, which is what makes new views possible without a backend change. The creator owns the view, and it starts PRIVATE unless sharing says otherwise, under the same rules as :share.
 	CreateSavedViewWithResponse(ctx context.Context, params *CreateSavedViewParams, body CreateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSavedViewResult, error)
 
-	// DeleteSavedViewWithResponse performs a DELETE /views/{viewId} (the `DeleteSavedView` operationId) request.
+	// DeleteSavedViewWithResponse Delete a view; a calendar feed over it serves nothing from then on
 	//
 	// Deletes the view. A calendar feed that served it keeps its token and serves nothing, saying why - the feed's view reference nulls rather than cascading, because a feed is the subscriber's and a view is the workspace's.
 	//
 	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /views/{viewId} (the `DeleteSavedView` operationId).
 	DeleteSavedViewWithResponse(ctx context.Context, viewId ViewId, params *DeleteSavedViewParams, reqEditors ...RequestEditorFn) (*DeleteSavedViewResult, error)
 
 	// GetSavedViewWithResponse performs a GET /views/{viewId} (the `GetSavedView` operationId) request.
@@ -154529,11 +154541,13 @@ func (c *ClientWithResponses) ListValueProvenanceWithResponse(ctx context.Contex
 	return ParseListValueProvenanceResult(rsp)
 }
 
-// RemoveRecurrenceWithResponse performs a DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId) request.
+// RemoveRecurrenceWithResponse Remove an entry's series; the occurrences it produced stay
 //
 // Takes the series off the entry. Occurrences that were already materialised stay exactly where they are: they are ordinary entries the moment they exist, and deleting somebody's next three weeks because they stopped a series would be a deletion nobody asked for. Idempotent - an entry with no series succeeds and announces nothing.
 //
 // Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /items/{itemId}/recurrence (the `RemoveRecurrence` operationId).
 func (c *ClientWithResponses) RemoveRecurrenceWithResponse(ctx context.Context, itemId ItemId, params *RemoveRecurrenceParams, reqEditors ...RequestEditorFn) (*RemoveRecurrenceResult, error) {
 	rsp, err := c.RemoveRecurrence(ctx, itemId, params, reqEditors...)
 	if err != nil {
@@ -161241,11 +161255,13 @@ func (c *ClientWithResponses) CreateSavedViewWithResponse(ctx context.Context, p
 	return ParseCreateSavedViewResult(rsp)
 }
 
-// DeleteSavedViewWithResponse performs a DELETE /views/{viewId} (the `DeleteSavedView` operationId) request.
+// DeleteSavedViewWithResponse Delete a view; a calendar feed over it serves nothing from then on
 //
 // Deletes the view. A calendar feed that served it keeps its token and serves nothing, saying why - the feed's view reference nulls rather than cascading, because a feed is the subscriber's and a view is the workspace's.
 //
 // Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /views/{viewId} (the `DeleteSavedView` operationId).
 func (c *ClientWithResponses) DeleteSavedViewWithResponse(ctx context.Context, viewId ViewId, params *DeleteSavedViewParams, reqEditors ...RequestEditorFn) (*DeleteSavedViewResult, error) {
 	rsp, err := c.DeleteSavedView(ctx, viewId, params, reqEditors...)
 	if err != nil {

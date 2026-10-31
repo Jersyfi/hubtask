@@ -1060,7 +1060,7 @@ class Client:
         return self._call("PATCH", "/views/{viewId}", {"viewId": view_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
 
     def delete_saved_view(self, view_id: str, *, if_match: str | None = None) -> None:
-        """DELETE /views/{viewId}"""
+        """Delete a view; a calendar feed over it serves nothing from then on"""
         return self._call("DELETE", "/views/{viewId}", {"viewId": view_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
     def share_saved_view(self, view_id: str, body: "SavedViewShare", *, idempotency_key: str | None = None, if_match: str | None = None) -> "SavedView":
@@ -2896,7 +2896,7 @@ class Client:
         return self._call("PUT", "/items/{itemId}/recurrence", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def remove_recurrence(self, item_id: str, *, if_match: str | None = None) -> None:
-        """DELETE /items/{itemId}/recurrence"""
+        """Remove an entry's series; the occurrences it produced stay"""
         return self._call("DELETE", "/items/{itemId}/recurrence", {"itemId": item_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
     def skip_occurrence(self, item_id: str, *, idempotency_key: str | None = None) -> "Recurrence":

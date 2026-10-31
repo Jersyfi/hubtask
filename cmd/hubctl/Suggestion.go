@@ -48,12 +48,6 @@ func suggestionGroup() group {
 				summary: "apply it as your own write, with your own rights",
 				run:     suggestionAccept,
 			},
-			{
-				name:    "dismiss",
-				usage:   "<id>",
-				summary: "turn it down - a state, not a deletion",
-				run:     suggestionDismiss,
-			},
 		},
 	}
 }
@@ -198,30 +192,6 @@ func suggestionAccept(ctx context.Context, cli *CLI, args []string) error {
 	var decided openapi.Suggestion
 	if err := client.Post(ctx,
 		suggestionPath+"/"+id.String()+":accept", body, &decided); err != nil {
-		return err
-	}
-	return cli.Emit(decided, suggestionTable([]openapi.Suggestion{decided}))
-}
-
-func suggestionDismiss(ctx context.Context, cli *CLI, args []string) error {
-	return decideSuggestion(ctx, cli, args, "dismiss")
-}
-
-// decideSuggestion is both decisions, because they differ in one word on the wire and in nothing
-// here - and two copies would be two places for the identifier parsing to drift.
-func decideSuggestion(ctx context.Context, cli *CLI, args []string, verb string) error {
-	id, err := cli.onlyID(args, "suggestion "+verb+" <id>")
-	if err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var decided openapi.Suggestion
-	if err := client.Post(ctx,
-		suggestionPath+"/"+id.String()+":"+verb, nil, &decided); err != nil {
 		return err
 	}
 	return cli.Emit(decided, suggestionTable([]openapi.Suggestion{decided}))

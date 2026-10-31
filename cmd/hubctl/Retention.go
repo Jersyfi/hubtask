@@ -39,22 +39,10 @@ func retentionGroup() group {
 				run:     retentionSet,
 			},
 			{
-				name:    "rm",
-				usage:   "<policy id>",
-				summary: "withdraw a rule; what it already did stands",
-				run:     retentionRemove,
-			},
-			{
 				name:    "preview",
 				usage:   "<policy id>",
 				summary: "what the rule would do, without doing it",
 				run:     retentionPreview,
-			},
-			{
-				name:    "retain",
-				usage:   "<item id>",
-				summary: "take one entry out of the running period",
-				run:     retentionRetain,
 			},
 		},
 	}
@@ -201,27 +189,6 @@ func retentionSet(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(changed, policyTable([]openapi.RetentionPolicy{changed}))
 }
 
-// retentionRemove withdraws a rule. What it already did stands - retention deletes, and a deletion
-// is not undone by withdrawing the instruction that caused it - and what it had marked stops
-// counting down.
-func retentionRemove(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "retention rm <policy id>"
-	policyID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "retention", "rm", "<policy id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	return client.Delete(ctx, retentionPath+"/"+policyID.String(), "")
-}
-
 // preview is the answer to `:preview`. Written out here for the same reason the REST layer writes
 // its own: the response is an inline schema in `openapi.yaml` and the generator makes no type for
 // one, and a preview read through a `map[string]any` would print whatever arrived rather than what
@@ -301,28 +268,6 @@ func blockedBy(blocked map[string]int) string {
 		parts = append(parts, reason+"="+strconv.Itoa(blocked[reason]))
 	}
 	return strings.Join(parts, " ")
-}
-
-func retentionRetain(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "retention retain <item id>"
-	itemID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "retention", "retain", "<item id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var item openapi.WorkItem
-	if err := client.Post(ctx, itemsPath+"/"+itemID.String()+":retain", nil, &item); err != nil {
-		return err
-	}
-	return cli.Emit(item, itemTable([]openapi.WorkItem{item}))
 }
 
 // failingOf is a rule set aside by the last pass that reached it: the code and when, or nothing.

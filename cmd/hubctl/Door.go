@@ -191,10 +191,9 @@ func (d door) run(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	if answer == nil {
-		// No answer to show: what was done is said, so a deletion is not silence.
-		if !cli.JSON {
-			printf(cli.Err, "done: %s %s\n", strings.ToLower(d.Summary), strings.Join(positional, " "))
-		}
+		// No answer to show: what was done is said on standard error, so a deletion is not
+		// silence and a pipe stays empty.
+		printf(cli.Err, "done: %s %s\n", strings.ToLower(d.Summary), strings.Join(positional, " "))
 		return nil
 	}
 	return cli.Emit(answer, d.table(answer))
