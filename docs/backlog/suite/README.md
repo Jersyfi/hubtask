@@ -195,6 +195,7 @@ this list with its row.
 | Third answers | Renamed hubctl flags have no aliases for their old names | open: build it (accepted.md, "The owner's third answers", item 7) |
 | Third answers | POST /items:export embeds the whole ItemQuery instead of its own query schema | open: build it (accepted.md, "The owner's third answers", item 8) |
 | Third answers | Retention sweeps of default-period kinds ignore the workspace's TENANT-scope rule | open: build it (accepted.md, "The owner's third answers", item 10) |
+| Third answers | The 10⁷ capacity run has not run | open: run it on the owner's workstation (accepted.md, "The owner's third answers", item 9) and record it in the S-12 State row |
 
 ## State
 

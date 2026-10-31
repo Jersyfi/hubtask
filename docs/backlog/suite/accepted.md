@@ -134,6 +134,8 @@ The decisions round raised ten further questions; the owner accepted every propo
    scripts do not break.
 8. `POST /items:export` gets its own query schema without `page`, `count`, `group_by` and `expand`.
 9. The 10⁷ capacity run: the owner provides the host; the command is in `test/load/README`.
+   The owner named it the same day: the owner's workstation (14 cores, 36 GB, the strongest
+   machine available), which also runs the 10⁶ run.
 10. The retention sweeps of kinds with a default period (`DOCUMENT_HISTORY`, `PAGE_VERSION`,
     `AGENT_*`, `REQUESTER`, …) read the workspace's TENANT-scope rule, as `WHITEBOARD_HISTORY` does,
     keeping each kind's lower bound.
