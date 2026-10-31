@@ -154,3 +154,22 @@ export function exportBytes(file: { content: string; encoding: 'TEXT' | 'BASE64'
 
 /** The address a page's public link opens, on this server: the token is the whole credential. */
 export const publicLinkAddress = (origin: string, token: string) => `${origin.replace(/\/+$/u, '')}/api/v1/public/pages/${token}`;
+
+/**
+ * The labels a page carries after a writer types more: each word in the server's written form
+ * (lower case, once, alphabetical), so the chip drawn is the label the server keeps.
+ */
+export function withLabels(current: readonly string[], typed: string): string[] {
+  const words = typed.split(/[\s,]+/u).map((word) => word.trim().toLowerCase()).filter(Boolean);
+  return [...new Set([...current, ...words])].sort();
+}
+
+/** How far back a search's *Changed* choice reaches; `any` does not narrow. */
+export const CHANGED_WITHIN = { any: 0, week: 7, month: 30, year: 365 } as const;
+export type ChangedWithin = keyof typeof CHANGED_WITHIN;
+
+/** The moment a *Changed* choice starts at, or undefined for `any`. */
+export function changedFrom(choice: ChangedWithin, now: Date): string | undefined {
+  const days = CHANGED_WITHIN[choice];
+  return days === 0 ? undefined : new Date(now.getTime() - days * 86_400_000).toISOString();
+}

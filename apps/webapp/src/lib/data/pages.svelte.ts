@@ -12,7 +12,7 @@
  */
 
 import type {
-  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageArticle, PageMove, PagePublicLinkMinted, PageShare, PublicLinksPolicy, PageTrashed, PageVersionNamed,
+  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageLabels, PageSearch, PageArticle, PageMove, PagePublicLinkMinted, PageShare, PublicLinksPolicy, PageTrashed, PageVersionNamed,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -29,12 +29,17 @@ export const versionPath = (pageId: string, seq: number) => `/pages/${pageId}/ve
 export const pageCommentsPath = (pageId: string) => `/pages/${pageId}/comments`;
 export const backlinksPath = (pageId: string) => `/pages/${pageId}/backlinks`;
 export const accessPath = (pageId: string) => `/pages/${pageId}/access`;
+export const labelsPath = (pageId: string) => `/pages/${pageId}/labels`;
+export const spaceLabelsPath = (hubId: string) => `/hubs/${hubId}/page-labels`;
 export const sharedPagesPath = '/pages:shared';
 export const personalSpacePath = '/pages:personal';
 export const publicLinksPolicyPath = '/pages:public-links';
 
 /** What a write to one page makes stale: the page, its space, and its history. */
 const touched = (hubId: string, pageId: string) => [pagePath(pageId), `/hubs/${hubId}/pages`, `/hubs/${hubId}/trashed-pages`, versionsPath(pageId)];
+
+/** What narrows a page search besides its words. */
+export type SearchNarrowing = Pick<PageSearch, 'label' | 'author_id' | 'updated_from' | 'updated_to'>;
 
 class Pages {
   create(hubId: string, body: PageCreate): Promise<Page> {
@@ -74,6 +79,13 @@ class Pages {
     return engine.mutate<Page>('POST', `${pagePath(page.id)}:copy`, {}, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: [`/hubs/${page.hub_id}/pages`],
+    });
+  }
+
+  /** Every label the page carries afterwards; the space's facet is stale with it. */
+  setLabels(page: Page, labels: readonly string[]): Promise<PageLabels> {
+    return engine.mutate<PageLabels>('POST', `${pagePath(page.id)}:label`, { labels: [...labels] }, {
+      invalidates: [labelsPath(page.id), spaceLabelsPath(page.hub_id)],
     });
   }
 
@@ -135,8 +147,10 @@ class Pages {
   }
 
   /** The pages that match, over every space the reader may read or one hub's. A read. */
-  async search(text: string, hubId?: string, limit = 20): Promise<PageHitList['data']> {
-    const state = await engine.refresh<PageHitList>({ path: '/pages:search', body: { text, limit, ...(hubId ? { hub_id: hubId } : {}) } });
+  /** Words, narrowed by a label, the first author and a window of the last change (UC-DOC-01 check 9). */
+  async search(text: string, hubId?: string, limit = 20, narrow: SearchNarrowing = {}): Promise<PageHitList['data']> {
+    const body: PageSearch = { text, limit, ...(hubId ? { hub_id: hubId } : {}), ...narrow };
+    const state = await engine.refresh<PageHitList>({ path: '/pages:search', body });
     if (state.status === 'failed') throw state.error;
     return state.status === 'ready' ? state.data.data : [];
   }

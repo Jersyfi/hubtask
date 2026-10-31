@@ -140,6 +140,8 @@ export type {
   PageExport,
   PageSearch,
   PageHitList,
+  PageLabels,
+  PageLabelCounts,
   PageRestrict,
   PageAccess,
   PageShare,

@@ -18,7 +18,7 @@
   } from '@hubtask/design-system/components';
   import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
   import type {
-    Page, PageBacklinkList, PageComment, PageCommentList, PageHitList, PageList, PageRead, PageVersionList, PageVersionRead,
+    Page, PageBacklinkList, PageComment, PageCommentList, PageHitList, PageLabelCounts, PageList, PageRead, PageVersionList, PageVersionRead,
   } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -27,9 +27,9 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    EXPORT_TYPES, SHIPPED_TEMPLATES, VERIFY_DAYS, ancestorsOf, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
+    CHANGED_WITHIN, EXPORT_TYPES, SHIPPED_TEMPLATES, VERIFY_DAYS, ancestorsOf, changedFrom, spaceLabelsPath, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
     pagesPath, shippedTemplate, subtreeOf, templatesPath, trashedPagesPath, verifiedUntil, versionPath, versionsPath, visibleRows,
-    type ShippedTemplate,
+    type ChangedWithin, type ShippedTemplate,
   } from '../lib/data/pages.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
@@ -39,6 +39,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import PageAccess from '../lib/pages/PageAccess.svelte';
+  import PageLabels from '../lib/pages/PageLabels.svelte';
   import PageEditor from '../lib/pages/PageEditor.svelte';
   import { levelThreads } from '../lib/pages/margin.ts';
   import { platform } from '../lib/platform/index.ts';
@@ -236,16 +237,37 @@
   let words = $state('');
   let hits = $state<PageHitList['data'] | undefined>(undefined);
   let generation = 0;
+  // What narrows the search (UC-DOC-01 check 9): one of the space's labels, the reader's own pages,
+  // how recently a page changed. A label or the reader's own pages find without words.
+  let chosenLabel = $state('');
+  let ownOnly = $state(false);
+  let changedWithin = $state<ChangedWithin>('any');
+  let facet = $state<PageLabelCounts['data']>([]);
+  $effect(() => {
+    const at = hubId;
+    if (!at) return;
+    return untrack(() => engine.subscribe<PageLabelCounts>({ path: spaceLabelsPath(at) }, (next) => {
+      if (next.status === 'ready') facet = next.data.data;
+    }));
+  });
+  const changedOptions = $derived(
+    (Object.keys(CHANGED_WITHIN) as ChangedWithin[]).map((value) => ({ value, label: t(`app.pages.changed_${value}`) })),
+  );
   $effect(() => {
     const asked = words.trim();
     const at = hubId;
-    if (asked === '' || !at) {
+    const narrow = {
+      ...(chosenLabel ? { label: chosenLabel } : {}),
+      ...(ownOnly && actor.account ? { author_id: actor.account.id } : {}),
+    };
+    const from = changedFrom(changedWithin, new Date());
+    if ((asked === '' && !narrow.label && !narrow.author_id) || !at) {
       hits = undefined;
       return;
     }
     const mine = (generation += 1);
     const timer = setTimeout(() => {
-      pages.search(asked, at).then(
+      pages.search(asked, at, 20, { ...narrow, ...(from ? { updated_from: from } : {}) }).then(
         (found) => { if (mine === generation) hits = found; },
         () => { if (mine === generation) hits = []; },
       );
@@ -426,6 +448,24 @@
         <a class="hub" href={`/hubs/${hub.id}`}>{hub.name}</a>
       {/if}
       <SearchField label={t('app.pages.search')} clearLabel={t('app.pages.search_clear')} bind:value={words} size="sm" />
+      <div class="narrow" data-page-search-narrow>
+        {#if facet.length > 0}
+          <Inline gap="050" isWrapping>
+            {#each facet.slice(0, 12) as each (each.label)}
+              <Button
+                size="sm"
+                tone={chosenLabel === each.label ? 'secondary' : 'subtle'}
+                aria-pressed={chosenLabel === each.label}
+                onclick={() => (chosenLabel = chosenLabel === each.label ? '' : each.label)}
+              >{t('app.pages.label_facet', { label: each.label, count: String(each.pages) })}</Button>
+            {/each}
+          </Inline>
+        {/if}
+        <Inline gap="100" align="center" isWrapping>
+          <Select label={t('app.pages.changed')} size="sm" bind:value={changedWithin} options={changedOptions} />
+          <Switch label={t('app.pages.own_only')} checked={ownOnly} onchange={(event: Event) => (ownOnly = (event.currentTarget as HTMLInputElement).checked)} />
+        </Inline>
+      </div>
 
       {#if hits !== undefined}
         <ul class="hits" aria-label={t('app.pages.search_results')}>
@@ -540,6 +580,7 @@
               <Badge tone="success" size="sm">{t('app.pages.verified_until', { date: when(current.verified_until) })}</Badge>
             {/if}
           </Inline>
+          {#key current.id}<PageLabels page={current} onchoose={(label) => { chosenLabel = label; }} />{/key}
           {#if current.writable}
             <Inline gap="100" isWrapping>
               <Button size="sm" tone="secondary" icon="plus" onclick={() => startCreate(current.id)}>{t('app.pages.new_child')}</Button>
@@ -756,6 +797,7 @@
   }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .hub { color: var(--text-secondary); font-size: var(--fs-075); }
+  .narrow { display: grid; gap: var(--sp-050); }
   .rows, .hits, .versions { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
   .row {
     display: flex;

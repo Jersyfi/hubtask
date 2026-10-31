@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Page } from '@hubtask/sync-engine';
 
-import { SHIPPED_TEMPLATES, ancestorsOf, caretOf, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
+import { SHIPPED_TEMPLATES, ancestorsOf, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
 
 const page = (id: string, parent: string | null, position: string, title = id): Page => ({
   id, hub_id: 'hub', parent_id: parent, title, icon: null, position, template: false, content_language: null, owner_id: null,
@@ -60,4 +60,15 @@ test('an exported DOCX document is saved as its decoded bytes, text as its UTF-8
 
 test('a public link opens the page on this server, its token the whole credential (UC-DOC-08 check 4)', () => {
   assert.equal(publicLinkAddress('https://hub.example.org/', 'hbt_page_abc'), 'https://hub.example.org/api/v1/public/pages/hbt_page_abc');
+});
+
+test('a typed label is drawn in the written form the server keeps (UC-DOC-01 check 9)', () => {
+  assert.deepEqual(withLabels(['hr'], ' How-To, HR  policy '), ['how-to', 'hr', 'policy']);
+  assert.deepEqual(withLabels([], '   '), []);
+});
+
+test('a search narrowed by when a page changed starts that many days back, or not at all', () => {
+  const now = new Date('2026-10-31T12:00:00Z');
+  assert.equal(changedFrom('any', now), undefined);
+  assert.equal(changedFrom('week', now), '2026-10-24T12:00:00.000Z');
 });
