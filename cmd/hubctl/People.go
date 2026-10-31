@@ -50,12 +50,6 @@ func peopleGroup() group {
 				run:     peopleGrant,
 			},
 			{
-				name:    "revoke",
-				usage:   "<membership id>",
-				summary: "take a role away",
-				run:     peopleRevoke,
-			},
-			{
 				name:    "add-managed",
 				usage:   "--name <text> --sign-in <name> --role <role> [--scope … --scope-id <id>]",
 				summary: "create an account without an address - its start password is shown once",
@@ -219,31 +213,6 @@ func peopleGrant(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(membership, membershipTable([]openapi.Membership{membership}))
-}
-
-func peopleRevoke(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "people revoke <membership id>"
-	membershipID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "people", "revoke", "<membership id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := cli.proveAgain(ctx, client, func(stepUp string) error {
-		return client.DeleteWithHeader(ctx, membershipsPath+"/"+membershipID.String(), stepUpProof(stepUp))
-	}); err != nil {
-		return err
-	}
-	if !cli.JSON {
-		printf(cli.Err, "membership %s revoked\n", membershipID)
-	}
-	return nil
 }
 
 func peopleAddManaged(ctx context.Context, cli *CLI, args []string) error {

@@ -978,6 +978,11 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
+	{Group: "field", Verb: "ls", OperationID: "listCustomFields", Method: "GET", Path: "/custom-fields", Summary: "The custom field definitions in force, by key",
+		Query: []doorParam{
+			{Name: "collection_id", Kind: "uuid", Help: "The collection whose definitions are wanted, together with the workspace-wide ones", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "kind", "collection_id", "is_required"}},
 	{Group: "file", Verb: "add", OperationID: "linkEntryFile", Method: "POST", Path: "/items/{itemId}/file-links", Summary: "Link a file in a store on an entry",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -1224,6 +1229,17 @@ var generatedCommands = []door{
 			{Name: "jobId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"status"}},
+	{Group: "jumble", Verb: "convert", OperationID: "convertJumbleEntry", Method: "POST", Path: "/jumble/entries/{entryId}:convert", Summary: "Turn an entry into work",
+		PathParams: []doorParam{
+			{Name: "entryId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "bucket_id", Kind: "uuid", Help: "The board column, when the destination has a board", Required: false},
+			{Name: "collection_id", Kind: "uuid", Help: "The destination", Required: true},
+			{Name: "title", Kind: "string", Help: "The item's title", Required: false},
+			{Name: "type", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "status", "target_item_id"}},
 	{Group: "jumble", Verb: "destinations", OperationID: "listJumbleDestinations", Method: "GET", Path: "/jumble/destinations", Summary: "Where an entry may become work for you",
 		Query: []doorParam{
 			{Name: "cursor", Kind: "string", Help: "", Required: false},
@@ -1575,6 +1591,11 @@ var generatedCommands = []door{
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"name", "title"}},
+	{Group: "people", Verb: "revoke", OperationID: "revokeMembership", Method: "DELETE", Path: "/memberships/{membershipId}", Summary: "Take a role away",
+		PathParams: []doorParam{
+			{Name: "membershipId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: true, List: false, Columns: []string(nil)},
 	{Group: "plan", Verb: "actuals", OperationID: "readEstimatesVsActuals", Method: "GET", Path: "/plans/{planId}/actuals", Summary: "Estimates against the time recorded",
 		PathParams: []doorParam{
 			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},

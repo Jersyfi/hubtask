@@ -148,7 +148,7 @@ func TestAConversionNamesTheItemItBecame(t *testing.T) {
 		  "target_item_id":"`+itemID+`"}`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"jumble", "convert", jumbleEntryID, "--collection", collectionID, "--title", "Call back")
+		"jumble", "convert", jumbleEntryID, "--collection-id", collectionID, "--title", "Call back")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -160,8 +160,8 @@ func TestAConversionNamesTheItemItBecame(t *testing.T) {
 	if sent["collection_id"] != collectionID || sent["title"] != "Call back" {
 		t.Errorf("the conversion reached the server as %v", sent)
 	}
-	if !strings.Contains(errOut, itemID) {
-		t.Errorf("the note does not name the item: %q", errOut)
+	if !strings.Contains(out, itemID) {
+		t.Errorf("the answer does not name the item: %q", out)
 	}
 	if !strings.Contains(out, "PROCESSED") {
 		t.Errorf("the table is %q", out)

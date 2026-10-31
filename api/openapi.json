@@ -11022,6 +11022,12 @@
           "jumble"
         ],
         "operationId": "convertJumbleEntry",
+        "x-hubtask-cli": "jumble convert",
+        "x-hubtask-cli-columns": [
+          "id",
+          "status",
+          "target_item_id"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "jumbleEntryResponse",
         "summary": "Turn an entry into work",
@@ -22626,6 +22632,7 @@
           "identity"
         ],
         "operationId": "revokeMembership",
+        "x-hubtask-cli": "people revoke",
         "x-hubtask-rest": "generated",
         "summary": "Take a role away",
         "description": "Takes effect on the next request. What the account holds through a group is unaffected —\nthat is the group's membership, revoked separately.\n\nRevoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up\nin the `X-Hubtask-Step-Up` header. Revoking the last way a person who can act holds `OWNER`\non the workspace is refused with `409 memberships.last_owner`: the workspace keeps an owner.\n",
@@ -28753,6 +28760,14 @@
           "structure"
         ],
         "operationId": "listCustomFields",
+        "x-hubtask-cli": "field ls",
+        "x-hubtask-cli-columns": [
+          "id",
+          "key",
+          "kind",
+          "collection_id",
+          "is_required"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "customFieldResponse",
         "description": "The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.\n",

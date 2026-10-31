@@ -41,12 +41,6 @@ func jumbleGroup() group {
 				run:     jumbleSubmit,
 			},
 			{
-				name:    "convert",
-				usage:   "<id> --collection <id> [--bucket <id>] [--title <t>] [--type TASK|WORK_PACKAGE|ACTIVITY]",
-				summary: "turn an entry into work, once",
-				run:     jumbleConvert,
-			},
-			{
 				name:    "intake",
 				usage:   "rotate-token",
 				summary: "mint the address the jumble accepts deliveries on - shown once",
@@ -117,59 +111,6 @@ func jumbleSubmit(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(entry, jumbleTable([]openapi.JumbleEntry{entry}))
-}
-
-func jumbleConvert(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "jumble convert <id> --collection <id> [--bucket <id>] [--title <t>] [--type <t>]"
-	entryID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "jumble", "convert", "<id> --collection <id> [--title <t>]")
-	collection := flags.String("collection", "", "where the entry becomes work")
-	bucket := flags.String("bucket", "", "the board column, when the destination has a board")
-	title := flags.String("title", "", "what the item is called (defaults to the entry's subject)")
-	kind := flags.String("type", "", "TASK, WORK_PACKAGE or ACTIVITY")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	if *collection == "" {
-		return usagef("jumble convert needs --collection: an entry becomes work somewhere")
-	}
-
-	destination, err := cli.parseID("--collection", *collection)
-	if err != nil {
-		return err
-	}
-	convert := openapi.JumbleEntryConvert{CollectionId: destination}
-	if *bucket != "" {
-		parsed, err := cli.parseID("--bucket", *bucket)
-		if err != nil {
-			return err
-		}
-		convert.BucketId = &parsed
-	}
-	if *title != "" {
-		convert.Title = title
-	}
-	if *kind != "" {
-		itemType := openapi.JumbleEntryConvertType(*kind)
-		convert.Type = &itemType
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var converted openapi.JumbleEntry
-	if err := client.Post(ctx,
-		jumblePath+"/"+entryID.String()+":convert", convert, &converted); err != nil {
-		return err
-	}
-	if !cli.JSON && converted.TargetItemId != nil {
-		printf(cli.Err, "the item it became: %s\n", converted.TargetItemId.String())
-	}
-	return cli.Emit(converted, jumbleTable([]openapi.JumbleEntry{converted}))
 }
 
 // jumbleIntake is `jumble intake rotate-token`: the sub-verb exists because minting and revoking

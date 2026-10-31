@@ -21,12 +21,6 @@ func fieldGroup() group {
 		summary: "custom fields - defined once, written per entry",
 		commands: []command{
 			{
-				name:    "ls",
-				usage:   "[--collection <id>]",
-				summary: "list the definitions in force",
-				run:     fieldList,
-			},
-			{
 				name: "define",
 				usage: "--key <key> --kind TEXT|NUMBER|DATE|SELECT|MULTI_SELECT|BOOL|USER|URL" +
 					" [--collection <id>] [--applies-to <types>] [--options <values>] [--required]",
@@ -41,34 +35,6 @@ func fieldGroup() group {
 			},
 		},
 	}
-}
-
-func fieldList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "field", "ls", "[--collection <id>]")
-	collection := flags.String("collection", "",
-		"the collection whose definitions are wanted; unset answers the workspace-wide ones alone")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *collection != "" {
-		parsed, err := cli.parseID("--collection", *collection)
-		if err != nil {
-			return err
-		}
-		query.Set("collection_id", parsed.String())
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var definitions []openapi.CustomFieldDefinition
-	if err := client.Get(ctx, customFieldsPath, query, &definitions); err != nil {
-		return err
-	}
-	return cli.Emit(definitions, fieldTable(definitions))
 }
 
 func fieldDefine(ctx context.Context, cli *CLI, args []string) error {

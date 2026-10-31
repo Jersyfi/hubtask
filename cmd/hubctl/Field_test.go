@@ -19,7 +19,7 @@ func TestListingFieldDefinitionsPassesTheCollectionOn(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, `[`+oneDefinition+`]`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"field", "ls", "--collection", collectionID)
+		"field", "ls", "--collection-id", collectionID)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}

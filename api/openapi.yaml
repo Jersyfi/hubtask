@@ -6266,6 +6266,8 @@ paths:
     post:
       tags: [jumble]
       operationId: convertJumbleEntry
+      x-hubtask-cli: "jumble convert"
+      x-hubtask-cli-columns: [id, status, target_item_id]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: jumbleEntryResponse
       summary: Turn an entry into work
@@ -15431,6 +15433,7 @@ paths:
     delete:
       tags: [identity]
       operationId: revokeMembership
+      x-hubtask-cli: "people revoke"
       x-hubtask-rest: generated
       summary: Take a role away
       description: |
@@ -19567,6 +19570,8 @@ paths:
     get:
       tags: [structure]
       operationId: listCustomFields
+      x-hubtask-cli: "field ls"
+      x-hubtask-cli-columns: [id, key, kind, collection_id, is_required]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: customFieldResponse
       description: >
