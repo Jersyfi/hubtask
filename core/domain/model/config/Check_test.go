@@ -109,7 +109,7 @@ func TestTheConfigurationCheck(t *testing.T) {
 						channelRule("APP", []any{"custom_fields.severity", "custom_fields.impact", "custom_fields.cause"}, nil),
 						channelRule("MCP", []any{"custom_fields.severity", "custom_fields.impact", "custom_fields.cause"}, map[string]any{"custom_fields.impact": "low"}))},
 					"change": Block{"level": "TASK", "form": formOf(nil, channelRule("APP", []any{"custom_fields.severity"}, nil))},
-					"story":  Block{"level": "WORK_PACKAGE", "form": formOf(nil,
+					"story": Block{"level": "WORK_PACKAGE", "form": formOf(nil,
 						channelRule("APP", []any{"custom_fields.severity"}, nil), channelRule("MCP", []any{"custom_fields.severity"}, nil))},
 				},
 			}},
