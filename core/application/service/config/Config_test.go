@@ -122,7 +122,17 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		if w.fields == nil {
 			return nil, shared.ErrValidation.WithDetail("module.off")
 		}
-		return usecase.Output{"data": rowsOf(w.fields)}, nil
+		// As the use case answers: a collection's own beside the workspace-wide ones, or the
+		// workspace-wide ones alone.
+		collection := in.String("collection_id")
+		var rows []any
+		for _, raw := range rowsOf(w.fields) {
+			row := raw.(map[string]any)
+			if own := text(row["collection_id"]); own == "" || own == collection {
+				rows = append(rows, row)
+			}
+		}
+		return usecase.Output{"data": rows}, nil
 	case "PreviewCustomFieldReach":
 		if w.inputs == nil {
 			w.inputs = map[string][]usecase.Input{}
@@ -234,7 +244,7 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 			return nil, shared.ErrForbidden
 		}
 		return usecase.Output(maps.Clone(w.ai)), nil
-	case "UpdateWorkspace", "ChooseAiSource", "SetAiPersonOptOut":
+	case "UpdateWorkspace", "ChooseAiSource", "SetAiPersonOptOut", "DefineCustomField", "UpdateCustomField", "DeleteCustomField":
 		if w.inputs == nil {
 			w.inputs = map[string][]usecase.Input{}
 		}

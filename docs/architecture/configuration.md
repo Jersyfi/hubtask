@@ -18,7 +18,8 @@ too. One mechanism serves all three.
   §5), workspace, hub. A workspace document
   contains its hubs' and collections' configuration; a hub document its own. A hub's and its
   collections' blocks are read and applied as the hub's document (`hub_id`): a collection's own
-  structure settings, time tolerance, shared views and rules in the `collection_*` sections, each
+  structure settings, time tolerance, shared views, rules and custom fields in the `collection_*`
+  sections, each
   block under the collection's handle, a dot and the block's key (`collection_views.network.open`);
   a handle that names no collection of the hub is refused (`config.collection_unknown`).
 * **Contents:** every catalogue setting and every building block (the building blocks of `domain-model.md`) — never content

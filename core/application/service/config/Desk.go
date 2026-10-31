@@ -460,7 +460,7 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 			}
 			if s.hides != nil && s.hides(change) {
 				p.Flags.HidesData = true
-				if s.name == sectionFields {
+				if s.name == sectionFields || s.name == sectionCollectionFields {
 					p.hiddenFields = append(p.hiddenFields, hiddenField{
 						Path: change.Path(), ID: text(now.Rows[s.name][change.Key][s.locateFrom]),
 					})

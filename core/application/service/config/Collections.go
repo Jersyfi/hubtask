@@ -27,6 +27,7 @@ const (
 	sectionCollectionTolerance = "collection_tolerance"
 	sectionCollectionViews     = "collection_views"
 	sectionCollectionRules     = "collection_rules"
+	sectionCollectionFields    = "collection_fields"
 	// toleranceKey is the tolerance's one block, under the catalogue's name.
 	toleranceKey   = "time_tolerance_days"
 	sourceLevel    = "COLLECTION"
@@ -142,7 +143,34 @@ func collectionSections() []section {
 			},
 			hides: removing, permissions: true,
 		},
+		collectionFieldsSection(),
 	}
+}
+
+// collectionFieldsSection is a collection's own custom fields: the workspace's fields section
+// read at the collection and written with its identifier, the block's own key the field's.
+func collectionFieldsSection() section {
+	fields := workspaceFieldsSection()
+	own := fields
+	own.name, own.collection = sectionCollectionFields, true
+	own.listFor = func(c string) usecase.Input { return usecase.Input{"collection_id": c} }
+	own.rowsFor = func(answer map[string]any, c string) []any {
+		return rowsWhere(answer, func(row map[string]any) bool { return text(row["collection_id"]) == c })
+	}
+	own.opsAt = func(now current, change domain.BlockChange, row map[string]any) ([]operation, error) {
+		collection, inner := now.Places.collection(change.Key)
+		at := change
+		at.Key = inner
+		ops, err := fields.blockOperations(at, row)
+		for i := range ops {
+			ops[i].Path = change.Path()
+			if ops[i].UseCase == fields.create {
+				ops[i].Input["collection_id"] = collection
+			}
+		}
+		return ops, err
+	}
+	return own
 }
 
 func rowsWhere(answer map[string]any, keep func(map[string]any) bool) []any {

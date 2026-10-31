@@ -262,3 +262,60 @@ func TestARuleConditionNamingAnUnknownPlaceIsRefused(t *testing.T) {
 		t.Fatalf("planned as %v", plan)
 	}
 }
+
+// configuration.md §1, UC-CFG-01 check 9: a collection's own custom fields are blocks of the hub's
+// document by the collection's handle - not the workspace's fields, not another hub's - and an
+// export applied to a second hub defines them at that hub's collection of the same handle.
+func TestACollectionsOwnFieldsTravelWithTheHub(t *testing.T) {
+	own := func(f *fixture) {
+		f.world.fields = map[string]map[string]any{
+			"circuit": {"id": "0190a8f0-0000-7000-8000-0000000000f1", "key": "circuit", "kind": "TEXT", "options": []any{},
+				"collection_id": networkQueue, "applies_to": []any{"TASK"}},
+			"visit_no": {"id": "0190a8f0-0000-7000-8000-0000000000f2", "key": "visit_no", "kind": "TEXT", "options": []any{},
+				"collection_id": otherCollection, "applies_to": []any{"TASK"}},
+		}
+	}
+	f, _ := collectionsFixture()
+	own(&f)
+	exported := invoke(t, ExportConfig{f.desk}.Descriptor(), person, usecase.Input{"hub_id": deskHub})["document"].(map[string]any)
+	fields, _ := exported["collection_fields"].(map[string]any)
+	if len(fields) != 1 || block(t, exported, "collection_fields", "network.circuit")["kind"] != "TEXT" {
+		t.Fatalf("the hub's collection fields read %v", exported["collection_fields"])
+	}
+	workspace := invoke(t, ExportConfig{f.desk}.Descriptor(), person, usecase.Input{})["document"].(map[string]any)
+	if got, _ := workspace["fields"].(map[string]any); len(got) != 0 {
+		t.Errorf("the workspace's fields hold a collection's own: %v", got)
+	}
+
+	raw, err := json.Marshal(map[string]any{"collection_fields": fields})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+	second, c := collectionsFixture()
+	second.world.hub = secondHub
+	second.world.containers = []any{
+		map[string]any{"id": secondHub, "type": "HUB", "handle": "desk"},
+		map[string]any{"id": secondNetwork, "type": "COLLECTION", "parent_id": secondHub, "handle": "network"},
+	}
+	second.world.fields = map[string]map[string]any{}
+	second.desk.Catalogue = c
+	c.catalogue = catalogue{second.world}
+	second.desk.Catalogue = c
+	in := usecase.Input{"document": document, "mode": "MERGE", "hub_id": secondHub}
+	plan := invoke(t, PlanConfig{second.desk}.Descriptor(), person, in)
+	if plan["plan_hash"] == nil {
+		t.Fatalf("plan %v", plan)
+	}
+	in["plan_hash"], in["acknowledge"] = plan["plan_hash"], true
+	if applied := invoke(t, ApplyConfig{second.desk}.Descriptor(), person, in); applied["state"] != "APPLIED" {
+		t.Fatalf("not applied: %v", applied)
+	}
+	defined := second.world.inputs["DefineCustomField"]
+	if len(defined) != 1 || defined[0]["key"] != "circuit" || defined[0]["collection_id"] != secondNetwork || defined[0]["kind"] != "TEXT" {
+		t.Errorf("the collection's field was defined as %v", defined)
+	}
+}

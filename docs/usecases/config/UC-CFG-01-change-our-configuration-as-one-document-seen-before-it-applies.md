@@ -65,7 +65,7 @@ the two versions and rolls the hub's workflow back.
    refusals; promoting it plans and applies only what it changed since its copy - a change made in
    force meanwhile is kept - and an agent's promotion waits for a person like any apply.
 9. A hub's document holds its collections' own configuration too - each collection's structure
-   settings, time tolerance, shared views (a queue is one) and rules, under the collection's
+   settings, time tolerance, shared views (a queue is one), rules and custom fields, under the collection's
    handle and the block's key - and the hub's own time tolerance; applied to a second hub whose
    collection has the same handle, they are written at that collection, and a handle that names no
    collection of the hub is refused with `config.collection_unknown`. A rule condition naming a

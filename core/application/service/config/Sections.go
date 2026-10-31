@@ -133,22 +133,7 @@ func sections() []section {
 			create:     "CreateRole", change: "ChangeRole", remove: "DeleteRole", locate: "key", locateFrom: "key",
 			changeable: []string{"name", "permissions"}, whole: true, permissions: true,
 		},
-		{
-			name: sectionFields, list: "ListCustomFields", rows: "data", key: "key",
-			attributes: []string{"kind", "options", "currency", "formula", "is_required", "restricted", "read_restricted", "applies_to"},
-			fixed:      []string{"kind", "currency", "formula"},
-			create:     "DefineCustomField", change: "UpdateCustomField", remove: "DeleteCustomField",
-			locate: "field_id", locateFrom: "id",
-			changeable: []string{"options", "is_required", "restricted", "read_restricted", "applies_to"},
-			hides: func(change domain.BlockChange) bool {
-				if change.Op == domain.OpRemove {
-					return true
-				}
-				hidden, _ := change.After["read_restricted"].(bool)
-				was, _ := change.Before["read_restricted"].(bool)
-				return hidden && !was
-			},
-		},
+		workspaceFieldsSection(),
 		{
 			name: sectionLinkTypes, list: "ListLinkTypes", rows: "data", key: "key", system: "system",
 			attributes: []string{"name", "inverse_name", "direction", "cardinality", "cycles", "waits", "position", "archived"},
@@ -454,4 +439,25 @@ func (s section) isFixed(attribute string) bool {
 func text(v any) string {
 	s, _ := v.(string)
 	return s
+}
+
+// workspaceFieldsSection is the workspace's custom fields; a collection's own are the same
+// section read and written at the collection (collectionFieldsSection).
+func workspaceFieldsSection() section {
+	return section{
+		name: sectionFields, list: "ListCustomFields", rows: "data", key: "key",
+		attributes: []string{"kind", "options", "currency", "formula", "is_required", "restricted", "read_restricted", "applies_to"},
+		fixed:      []string{"kind", "currency", "formula"},
+		create:     "DefineCustomField", change: "UpdateCustomField", remove: "DeleteCustomField",
+		locate: "field_id", locateFrom: "id",
+		changeable: []string{"options", "is_required", "restricted", "read_restricted", "applies_to"},
+		hides: func(change domain.BlockChange) bool {
+			if change.Op == domain.OpRemove {
+				return true
+			}
+			hidden, _ := change.After["read_restricted"].(bool)
+			was, _ := change.Before["read_restricted"].(bool)
+			return hidden && !was
+		},
+	}
 }
