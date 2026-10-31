@@ -92,7 +92,7 @@ func TestAPolicyNamesACalendarTheInstallationOffers(t *testing.T) {
 	}
 	goals := []domain.SLAGoal{{Kind: domain.GoalResolution, Minutes: 600}}
 	define := func(calendar string) error {
-		_, err := DefineSLAPolicy{Desk: desk}.Execute(context.Background(), reader(), DefineSLAPolicyCommand{
+		_, err := DefineSlaPolicy{Desk: desk}.Execute(context.Background(), reader(), DefineSLAPolicyCommand{
 			Key: "changes", Name: "Changes", CalendarKey: calendar, EntryTypes: []string{"change"}, Goals: goals, Enabled: true,
 		})
 		return err

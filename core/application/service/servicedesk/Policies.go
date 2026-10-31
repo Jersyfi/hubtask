@@ -100,11 +100,13 @@ func PolicyOutput(p domain.SLAPolicy) usecase.Output {
 	return out
 }
 
-// ListSLAPolicies reads the workspace's SLA policies (UC-SVC-02).
-type ListSLAPolicies struct{ Desk Desk }
+// ListSlaPolicies reads the workspace's SLA policies (UC-SVC-02).
+//
+//nolint:revive // var-naming: a use case type is named as the catalogue names it
+type ListSlaPolicies struct{ Desk Desk }
 
 // Execute answers every policy by position and key, to any member of the workspace.
-func (h ListSLAPolicies) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.SLAPolicy, error) {
+func (h ListSlaPolicies) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.SLAPolicy, error) {
 	if err := h.Desk.authorizeRead(ctx, actor, PoliciesReadAction, policyTarget); err != nil {
 		return nil, err
 	}
@@ -118,7 +120,7 @@ func (h ListSLAPolicies) Execute(ctx context.Context, actor appshared.ActorConte
 }
 
 // Descriptor is the catalogue entry.
-func (h ListSLAPolicies) Descriptor() usecase.Descriptor {
+func (h ListSlaPolicies) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListSLAPoliciesName, Permission: service.PermissionRead,
 		Summary: "Lists the workspace's SLA policies: the types each measures, its goals with targets per " +
@@ -154,12 +156,14 @@ type DefineSLAPolicyCommand struct {
 	ExpectedVersion int
 }
 
-// DefineSLAPolicy creates a policy under a key, or replaces the one there (UC-SVC-02). A change
+// DefineSlaPolicy creates a policy under a key, or replaces the one there (UC-SVC-02). A change
 // measures what is armed after it; a clock already running keeps its target.
-type DefineSLAPolicy struct{ Desk Desk }
+//
+//nolint:revive // var-naming: a use case type is named as the catalogue names it
+type DefineSlaPolicy struct{ Desk Desk }
 
 // Execute defines the policy.
-func (h DefineSLAPolicy) Execute(ctx context.Context, actor appshared.ActorContext, cmd DefineSLAPolicyCommand) (domain.SLAPolicy, error) {
+func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorContext, cmd DefineSLAPolicyCommand) (domain.SLAPolicy, error) {
 	if err := h.Desk.authorizeWrite(ctx, actor, PolicyDefinedAction, policyTarget); err != nil {
 		return domain.SLAPolicy{}, err
 	}
@@ -212,7 +216,7 @@ func (h DefineSLAPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 }
 
 // Descriptor is the catalogue entry.
-func (h DefineSLAPolicy) Descriptor() usecase.Descriptor {
+func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: DefineSLAPolicyName,
 		Summary: "Creates an SLA policy under a key, or replaces the one there: the entry types it measures, a " +
@@ -265,12 +269,14 @@ func (h DefineSLAPolicy) Descriptor() usecase.Descriptor {
 	}, policyTarget)
 }
 
-// DeleteSLAPolicy removes a policy (UC-SVC-02). The entries it measured keep their records; their
+// DeleteSlaPolicy removes a policy (UC-SVC-02). The entries it measured keep their records; their
 // clocks stop being moved by it.
-type DeleteSLAPolicy struct{ Desk Desk }
+//
+//nolint:revive // var-naming: a use case type is named as the catalogue names it
+type DeleteSlaPolicy struct{ Desk Desk }
 
 // Execute deletes the policy.
-func (h DeleteSLAPolicy) Execute(ctx context.Context, actor appshared.ActorContext, key string) error {
+func (h DeleteSlaPolicy) Execute(ctx context.Context, actor appshared.ActorContext, key string) error {
 	if err := h.Desk.authorizeWrite(ctx, actor, PolicyDeletedAction, policyTarget); err != nil {
 		return err
 	}
@@ -289,7 +295,7 @@ func (h DeleteSLAPolicy) Execute(ctx context.Context, actor appshared.ActorConte
 }
 
 // Descriptor is the catalogue entry.
-func (h DeleteSLAPolicy) Descriptor() usecase.Descriptor {
+func (h DeleteSlaPolicy) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name:        DeleteSLAPolicyName,
 		Summary:     "Deletes an SLA policy. The entries it measured keep the record of how their goals stood.",

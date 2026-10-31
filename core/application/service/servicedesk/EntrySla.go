@@ -43,16 +43,18 @@ func RecordOutput(r domain.EntrySLA) usecase.Output {
 	return out
 }
 
-// ReadEntrySLA answers how an entry's goals stand (UC-SVC-02 check 6): for whoever may read the
+// ReadEntrySla answers how an entry's goals stand (UC-SVC-02 check 6): for whoever may read the
 // entry, so the handler and the requester see the same clock (P-11).
-type ReadEntrySLA struct {
+//
+//nolint:revive // var-naming: a use case type is named as the catalogue names it
+type ReadEntrySla struct {
 	Desk       Desk
 	Items      workrepo.Items
 	Containers workrepo.Containers
 }
 
 // Execute answers the entry's goals, by kind; none when no policy measures it.
-func (h ReadEntrySLA) Execute(ctx context.Context, actor appshared.ActorContext, itemID shared.ID) ([]domain.EntrySLA, error) {
+func (h ReadEntrySla) Execute(ctx context.Context, actor appshared.ActorContext, itemID shared.ID) ([]domain.EntrySLA, error) {
 	if err := actor.RequireScope(deskRead); err != nil {
 		return nil, err
 	}
@@ -93,7 +95,7 @@ func (h ReadEntrySLA) Execute(ctx context.Context, actor appshared.ActorContext,
 }
 
 // Descriptor is the catalogue entry.
-func (h ReadEntrySLA) Descriptor() usecase.Descriptor {
+func (h ReadEntrySla) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadEntrySLAName, Permission: service.PermissionRead,
 		Summary: "How an entry's SLA goals stand: per goal its policy, target in working seconds, whether it " +
@@ -122,13 +124,15 @@ func (h ReadEntrySLA) Descriptor() usecase.Descriptor {
 	}, entrySLATarget)
 }
 
-// ReportSLA counts how the goals armed in a period stand, per policy and goal (UC-SVC-02 check 7).
+// ReportSla counts how the goals armed in a period stand, per policy and goal (UC-SVC-02 check 7).
 // The workspace's configurers read it: it counts entries across every hub, private ones included,
 // and names none of them.
-type ReportSLA struct{ Desk Desk }
+//
+//nolint:revive // var-naming: a use case type is named as the catalogue names it
+type ReportSla struct{ Desk Desk }
 
 // Execute counts the goals armed in [from, to).
-func (h ReportSLA) Execute(ctx context.Context, actor appshared.ActorContext, from, to time.Time) ([]domain.ReportRow, error) {
+func (h ReportSla) Execute(ctx context.Context, actor appshared.ActorContext, from, to time.Time) ([]domain.ReportRow, error) {
 	if !to.After(from) || to.Sub(from) > MaxReportSpan {
 		return nil, malformed("/to", "sla_reports.period_invalid")
 	}
@@ -148,7 +152,7 @@ func (h ReportSLA) Execute(ctx context.Context, actor appshared.ActorContext, fr
 }
 
 // Descriptor is the catalogue entry.
-func (h ReportSLA) Descriptor() usecase.Descriptor {
+func (h ReportSla) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReportSLAName, Permission: service.PermissionStructure,
 		Summary: "Counts the SLA goals armed in a period - at most a year - per policy, goal and standing: met, " +

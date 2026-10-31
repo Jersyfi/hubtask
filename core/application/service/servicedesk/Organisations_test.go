@@ -218,7 +218,7 @@ func TestAnOrganisationsRequestsAreSeenWhereItSharesThem(t *testing.T) {
 
 // UC-SVC-02 check 9: a policy names organisations the workspace holds, and reads them back.
 func TestAPolicyNamesOrganisationsTheWorkspaceHolds(t *testing.T) {
-	define := DefineSLAPolicy{Desk: Desk{
+	define := DefineSlaPolicy{Desk: Desk{
 		Policies: policyStore{}, Organisations: &organisationStore{rows: map[string]domain.Organisation{"acme": {Key: "acme"}}},
 		Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{},
 		Text: text.Composing{},
