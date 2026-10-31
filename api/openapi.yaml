@@ -7069,6 +7069,8 @@ paths:
     post:
       tags: [automation]
       operationId: testRule
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ruleTestResponse
       summary: Dry-run a rule against a sample event
       description: >
         A dry run: a sample event in, which conditions matched and

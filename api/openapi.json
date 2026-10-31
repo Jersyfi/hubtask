@@ -12099,6 +12099,8 @@
           "automation"
         ],
         "operationId": "testRule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ruleTestResponse",
         "summary": "Dry-run a rule against a sample event",
         "description": "A dry run: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.\nTest either a stored rule by its identifier or a definition you are about to save - the same document `POST /automation/rules` takes, checked by the same validation, so a rule the dry run accepts is a rule the create will accept. Both arms of every branch are reported with whether they would run, which is more than a real run's log shows: the run records the path it took, and the dry run answers the question \"and what if it had not\".\n",
         "requestBody": {

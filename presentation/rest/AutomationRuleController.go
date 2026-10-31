@@ -4,10 +4,8 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -182,66 +180,14 @@ func textField(document map[string]any, name string) string {
 
 // The run log. What a rule did, why it did not, and what each action answered.
 
-const (
-	testRuleUseCase = "TestRule"
-)
-
-// TestRule answers POST /automation/rules:test.
-//
-//nolint:contextcheck // the closure carries the request's own context exactly as every sibling does
-func (c *RestController) TestRule(w http.ResponseWriter, r *http.Request) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.RuleTest
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-
-		in := usecase.Input{}
-		if body.RuleId != nil {
-			in["rule_id"] = body.RuleId.String()
-		}
-		if body.Rule != nil {
-			rule := map[string]any{
-				"name":    body.Rule.Name,
-				"scope":   scopeInput(body.Rule.Scope),
-				"run_as":  body.Rule.RunAs.String(),
-				"trigger": triggerInput(body.Rule.Trigger),
-				"actions": actionsInput(body.Rule.Actions),
-			}
-			if body.Rule.Conditions != nil {
-				rule["conditions"] = conditionsInput(*body.Rule.Conditions)
-			}
-			if body.Rule.Throttle != nil {
-				rule["throttle"] = throttleInput(*body.Rule.Throttle)
-			}
-			if body.Rule.OnError != nil {
-				rule["on_error"] = string(*body.Rule.OnError)
-			}
-			in["rule"] = rule
-		}
-		if body.SampleEvent != nil {
-			sample := map[string]any{"type": body.SampleEvent.Type}
-			if body.SampleEvent.Subject != nil {
-				sample["subject"] = *body.SampleEvent.Subject
-			}
-			if body.SampleEvent.Payload != nil {
-				sample["payload"] = *body.SampleEvent.Payload
-			}
-			in["sample_event"] = sample
-		}
-		if body.Payload != nil {
-			in["payload"] = map[string]any(*body.Payload)
-		}
-		return c.UseCases.Invoke(r.Context(), testRuleUseCase, actor, in)
-	}, func(out usecase.Output) {
-		matched, _ := out["matched"].(bool)
-		result := openapi.RuleTestResult{
-			Matched:          matched,
-			ConditionResults: conditionResultsResponse(out["condition_results"]),
-			Actions:          testActionsResponse(out["actions"]),
-		}
-		writeJSON(w, r, http.StatusOK, result)
-	})
+// ruleTestResponse draws what a dry run of a rule found.
+func ruleTestResponse(out usecase.Output) openapi.RuleTestResult {
+	matched, _ := out["matched"].(bool)
+	return openapi.RuleTestResult{
+		Matched:          matched,
+		ConditionResults: conditionResultsResponse(out["condition_results"]),
+		Actions:          testActionsResponse(out["actions"]),
+	}
 }
 
 func testActionsResponse(value any) []openapi.RuleTestAction {
@@ -381,71 +327,3 @@ func checkedRulesResponse(out usecase.Output) map[string]any {
 	return map[string]any{"data": rules}
 }
 
-func scopeInput(scope openapi.RuleScope) map[string]any {
-	document := map[string]any{"type": string(scope.Type)}
-	if scope.Id != nil {
-		document["id"] = scope.Id.String()
-	}
-	return document
-}
-
-func triggerInput(trigger openapi.RuleTrigger) map[string]any {
-	document := map[string]any{"kind": string(trigger.Kind)}
-	for name, value := range map[string]*string{
-		"event_type": trigger.EventType,
-		"rrule":      trigger.Rrule,
-		"timezone":   trigger.Timezone,
-		"offset":     trigger.Offset,
-		"step":       trigger.Step,
-		"workflow":   trigger.Workflow,
-	} {
-		if value != nil {
-			// Present when the client sent it, empty string and all: a field belonging to another
-			// kind is refused inwards of here, and a reader that dropped an empty one would decide
-			// that question in the wrong place.
-			document[name] = *value
-		}
-	}
-	if trigger.Anchor != nil {
-		document["anchor"] = string(*trigger.Anchor)
-	}
-	if trigger.ChangedFields != nil {
-		fields := make([]any, 0, len(*trigger.ChangedFields))
-		for _, field := range *trigger.ChangedFields {
-			fields = append(fields, field)
-		}
-		document["changed_fields"] = fields
-	}
-	return document
-}
-
-func conditionsInput(conditions []openapi.RuleCondition) []any {
-	rows := make([]any, 0, len(conditions))
-	for _, condition := range conditions {
-		rows = append(rows, map[string]any{"expr": condition.Expr})
-	}
-	return rows
-}
-
-func actionsInput(actions []openapi.RuleAction) []any {
-	rows := make([]any, 0, len(actions))
-	for _, action := range actions {
-		row := map[string]any{"kind": action.Kind}
-		if action.Params != nil {
-			row["params"] = map[string]any(*action.Params)
-		}
-		rows = append(rows, row)
-	}
-	return rows
-}
-
-func throttleInput(throttle openapi.RuleThrottle) map[string]any {
-	document := map[string]any{}
-	if throttle.MaxRunsPerHour != nil {
-		document["max_runs_per_hour"] = *throttle.MaxRunsPerHour
-	}
-	if throttle.DedupeKeyExpr != nil {
-		document["dedupe_key_expr"] = *throttle.DedupeKeyExpr
-	}
-	return document
-}

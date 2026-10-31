@@ -672,6 +672,7 @@ var restDoors = map[string]restDoor{
 	"takeStep":                          {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"testBackupTarget":                  {UseCase: "TestBackupTarget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"testInstanceBackupTarget":          {UseCase: "TestInstanceBackupTarget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"testRule":                          {UseCase: "TestRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"trashContainer":                    {UseCase: "TrashContainer", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"trashPage":                         {UseCase: "TrashPage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"trashWhiteboard":                   {UseCase: "TrashWhiteboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4991,6 +4992,12 @@ func (c *RestController) TestBackupTarget(w http.ResponseWriter, r *http.Request
 // TestInstanceBackupTarget answers POST /admin/backup-targets/{targetId}:test by the generated mapping.
 func (c *RestController) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID) {
 	c.door(w, r, restDoors["testInstanceBackupTarget"], usecase.Input{"target_id": targetId.String()}, nil, nil, answerBy(backupProbeResponse))
+}
+
+// TestRule answers POST /automation/rules:test by the generated mapping.
+func (c *RestController) TestRule(w http.ResponseWriter, r *http.Request) {
+	var body openapi.TestRuleJSONRequestBody
+	c.door(w, r, restDoors["testRule"], usecase.Input{}, nil, &body, answerBy(ruleTestResponse))
 }
 
 // TrashContainer answers DELETE /containers/{containerId} by the generated mapping.
