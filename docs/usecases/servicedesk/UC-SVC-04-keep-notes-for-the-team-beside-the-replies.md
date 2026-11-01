@@ -5,9 +5,9 @@ context: servicedesk
 actors: [PE-handler, PE-requester]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11]
-state: built
+state: verified
 tasks: []
-checked_by: [core/domain/model/work/Comment_test.go, core/application/service/servicedesk/Clocks_test.go]
+checked_by: [core/domain/model/work/Comment_test.go, core/application/service/servicedesk/Clocks_test.go, core/application/service/servicedesk/Portal_test.go]
 ---
 
 # Keep notes for the team beside the replies
