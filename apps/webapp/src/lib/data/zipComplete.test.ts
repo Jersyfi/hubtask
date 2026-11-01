@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import { TransportError } from '@hubtask/sync-engine';
 
-import { zipComplete } from './zipComplete.ts';
+import { assertZipComplete, zipComplete } from './zipComplete.ts';
 
 /** The end record of an archive without a comment: the signature and eighteen bytes. */
 const END = [0x50, 0x4b, 0x05, 0x06, ...new Array<number>(18).fill(0)];
@@ -58,4 +58,12 @@ test('an archive whose stream breaks off discards its target', async () => {
   await writer.write(new Uint8Array([1]));
   await writer.abort(new Error('network'));
   assert.deepEqual(ended, ['aborted']);
+});
+
+test('a file held whole is handed over only when it ends with the end record', async () => {
+  await assertZipComplete(new Blob([new Uint8Array([1, 2, ...END])]));
+  await assert.rejects(
+    () => assertZipComplete(new Blob([new Uint8Array([0x50, 0x4b, 0x03, 0x04])])),
+    (error: unknown) => error instanceof TransportError && error.detailCode === 'app.backup.download_incomplete',
+  );
 });

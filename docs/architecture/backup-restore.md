@@ -218,7 +218,7 @@ data:
   file only once its ZIP directory reads, so a cut transfer leaves nothing behind. The web app writes
   it to a place the person picks as it arrives where the browser has a save picker, and keeps it
   only when it ends with the ZIP's end record (`zipComplete`); a browser without one holds the whole
-  file in the tab's memory before handing it over. MCP has no door
+  file in the tab's memory and hands it over only under the same test. MCP has no door
   for it: a tool's answer is a message, not a stream of a whole workspace. Each download holds a
   pool connection and its snapshot while the data files stream (the media follow after it ends),
   so one process streams at most

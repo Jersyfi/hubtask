@@ -42,7 +42,7 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { stepUp } from '../lib/data/stepup.svelte.ts';
   import { platform } from '../lib/platform/index.ts';
-  import { zipComplete } from '../lib/data/zipComplete.ts';
+  import { assertZipComplete, zipComplete } from '../lib/data/zipComplete.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
@@ -246,6 +246,7 @@
       if (target === undefined) {
         const file = await stepUp.around((token) => backup.downloadWorkspace(token, downloadPassphrase));
         downloadPassphrase = '';
+        await assertZipComplete(file.body);
         platform.saveFile(file.body, file.fileName ?? 'hubtask-export.zip');
         return;
       }

@@ -32,9 +32,8 @@ export function zipComplete(target: WritableStream<Uint8Array>): WritableStream<
       await writer.write(chunk);
     },
     async close() {
-      const whole = tail.length === END_LENGTH && END_SIGNATURE.every((byte, i) => tail[i] === byte);
-      if (!whole) {
-        const cut = new TransportError('offline', { detailCode: 'app.backup.download_incomplete' });
+      if (!endsWhole(tail)) {
+        const cut = incomplete();
         await writer.abort(cut);
         throw cut;
       }
@@ -44,4 +43,17 @@ export function zipComplete(target: WritableStream<Uint8Array>): WritableStream<
       await writer.abort(reason);
     },
   });
+}
+
+/** The same test for a file already held whole: a cut one is refused rather than handed over. */
+export async function assertZipComplete(file: Blob): Promise<void> {
+  if (!endsWhole(new Uint8Array(await file.slice(-END_LENGTH).arrayBuffer()))) throw incomplete();
+}
+
+function endsWhole(tail: Uint8Array): boolean {
+  return tail.length === END_LENGTH && END_SIGNATURE.every((byte, i) => tail[i] === byte);
+}
+
+function incomplete(): TransportError {
+  return new TransportError('offline', { detailCode: 'app.backup.download_incomplete' });
 }
