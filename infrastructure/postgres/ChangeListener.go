@@ -30,6 +30,11 @@ const ChangeChannel = "hubtask_change"
 // back to its poll interval - correct, but slow.
 const listenerReconnectDelay = time.Second
 
+// wakeCoalesce is how long a workspace's later changes wait after a wake-up: the first change
+// wakes its streams at once, and a burst of commits then costs each stream one read per window
+// rather than one per commit.
+const wakeCoalesce = 250 * time.Millisecond
+
 // ChangeListener is the wake-up for the change stream: one connection per process holding a
 // `LISTEN`, and an in-process fan-out from it (ADR-0007).
 //
@@ -73,6 +78,10 @@ type ChangeListener struct {
 	// process at once instead of at the next announcement.
 	peers   map[string]time.Time
 	newPeer chan struct{}
+	// held are the workspaces inside a coalescing window, true when a change arrived during it;
+	// coalesce is the window (wakeCoalesce), zero for none.
+	held     map[shared.ID]bool
+	coalesce time.Duration
 	// ended is where a credential's doorbell goes (migration 0332); the account is empty for a
 	// whole workspace.
 	ended func(tenantID, accountID shared.ID)
@@ -100,6 +109,7 @@ func NewChangeListener(pool *pgxpool.Pool) *ChangeListener {
 		pool: pool, waiters: map[shared.ID]map[int64]chan struct{}{},
 		documents: map[DocumentKey]map[int64]chan struct{}{}, origin: hex.EncodeToString(origin),
 		peers: map[string]time.Time{}, newPeer: make(chan struct{}, 1),
+		held: map[shared.ID]bool{}, coalesce: wakeCoalesce,
 	}
 }
 
@@ -271,11 +281,42 @@ func (l *ChangeListener) setConnected(connected bool) {
 	l.connected = connected
 }
 
-// wake rings the doorbell for everybody watching one workspace.
+// wake rings the doorbell for everybody watching one workspace, at once for the first change and
+// once at the end of the window for those that arrive during it.
 func (l *ChangeListener) wake(tenantID shared.ID) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if _, holding := l.held[tenantID]; holding {
+		l.held[tenantID] = true
+		return
+	}
+	l.ring(tenantID)
+	l.hold(tenantID)
+}
 
+func (l *ChangeListener) hold(tenantID shared.ID) {
+	if l.coalesce <= 0 {
+		return
+	}
+	if l.held == nil {
+		l.held = map[shared.ID]bool{}
+	}
+	l.held[tenantID] = false
+	time.AfterFunc(l.coalesce, func() { l.release(tenantID) })
+}
+
+func (l *ChangeListener) release(tenantID shared.ID) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	again := l.held[tenantID]
+	delete(l.held, tenantID)
+	if again {
+		l.ring(tenantID)
+		l.hold(tenantID)
+	}
+}
+
+func (l *ChangeListener) ring(tenantID shared.ID) {
 	for _, woken := range l.waiters[tenantID] {
 		select {
 		case woken <- struct{}{}:

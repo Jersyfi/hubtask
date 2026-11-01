@@ -215,6 +215,12 @@ source of truth.
   at a cap waits at least `Retry-After`, longer and spread with each refusal, pulls the delta on
   each turn and shows "live updates paused" rather than "reconnecting".
 * A browser reads it through `fetch`, never `EventSource`, which cannot carry a bearer.
+* A workspace's first commit wakes its streams at once; commits in the 250 ms after it wake them
+  once more at the window's end (`ChangeListener`), so a burst of commits costs each stream one
+  read per window, not one per commit.
+* The web app gathers a burst of records for 300 ms and reloads each stale read once; an entry
+  record of another collection leaves a collection's level or board alone unless the board shows
+  that entry (`unaffected` in `apps/webapp/src/lib/data/live.ts`).
 
 ---
 
