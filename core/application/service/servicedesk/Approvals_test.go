@@ -6,6 +6,7 @@ package servicedesk
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	workdomain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -52,6 +54,15 @@ func (s *approvalStore) PendingOf(_ context.Context, item shared.ID) (domain.App
 		}
 	}
 	return domain.Approval{}, shared.ErrNotFound
+}
+func (s *approvalStore) OfItem(_ context.Context, item shared.ID) ([]domain.Approval, error) {
+	var out []domain.Approval
+	for _, a := range s.rows {
+		if a.ItemID == item {
+			out = append(out, a)
+		}
+	}
+	return out, nil
 }
 func (s *approvalStore) Record(_ context.Context, d domain.Decision) error {
 	s.decisions = append(s.decisions, d)
@@ -163,5 +174,60 @@ func TestTheDelegateDecidesWhileThePersonIsAway(t *testing.T) {
 	}
 	if len(calls.inputs) != 1 || calls.inputs[0]["to_status"] != "declined" {
 		t.Errorf("the decline moved %+v", calls.inputs)
+	}
+}
+
+// UC-SVC-09 check 3: an entry's readers read its approvals with the levels, the people counted,
+// where it stands and the trail - who decided, for whom, when, why, on which version; somebody
+// who may not read the entry is told it does not exist.
+func TestAnEntrysReadersReadItsApprovalsAndTrail(t *testing.T) {
+	approvals, store, _, items := approvalFixture(t)
+	step := workdomain.WorkflowStep{Key: "approve", To: "approved", Approval: &workdomain.StepApproval{
+		DeclineTo: "declined", Levels: []workdomain.ApprovalLevel{{People: []string{handlerID.String()}, Rule: workdomain.ApprovalAny}},
+	}}
+	if err := approvals.Open(context.Background(), person(requesterID), items.item, workdomain.Container{}, "purchase", step); err != nil {
+		t.Fatal(err)
+	}
+	deputy := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000005f9")
+	store.delegations = []domain.Delegation{{AccountID: handlerID, DelegateID: deputy, From: monday.Add(-time.Hour), Until: monday.Add(time.Hour)}}
+	var id shared.ID
+	for key := range store.rows {
+		id = key
+	}
+	if _, err := (DecideApproval{Approvals: approvals}).Execute(context.Background(), person(deputy),
+		DecideApprovalCommand{ApprovalID: id, Verdict: domain.VerdictDecline, Reason: "Over budget."}); err != nil {
+		t.Fatal(err)
+	}
+
+	read := ReadEntryApprovals{Approvals: approvals}
+	rows, err := read.Execute(context.Background(), person(requesterID), items.item.ID)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("read %v, %v", rows, err)
+	}
+	gate := approvals.Desk.Authorizer.(*gate)
+	if asked := gate.asked[len(gate.asked)-1]; asked.Permission != service.PermissionRead || asked.TargetID != items.item.ID {
+		t.Errorf("reading asked %+v, want READ on the entry", asked)
+	}
+	row := rows[0]
+	if row["state"] != string(domain.ApprovalDeclined) || row["item_version"] != items.item.Version {
+		t.Errorf("where it stands: %v, version %v", row["state"], row["item_version"])
+	}
+	levels, _ := row["levels"].([]usecase.Output)
+	if len(levels) != 1 || !slices.Equal(levels[0]["approvers"].([]string), []string{handlerID.String()}) {
+		t.Errorf("the levels and the people counted: %v", levels)
+	}
+	trail, _ := row["decisions"].([]usecase.Output)
+	if len(trail) != 1 {
+		t.Fatalf("the trail: %v", trail)
+	}
+	d := trail[0]
+	if d["approver_id"] != deputy.String() || d["on_behalf_of"] != handlerID.String() || d["reason"] != "Over budget." ||
+		d["verdict"] != string(domain.VerdictDecline) || d["item_version"] != items.item.Version || d["decided_at"] != monday.UTC() {
+		t.Errorf("the trail names %+v", d)
+	}
+
+	gate.allow = false
+	if _, err := read.Execute(context.Background(), person(requesterID), items.item.ID); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("somebody who may not read the entry read its approvals: %v", err)
 	}
 }

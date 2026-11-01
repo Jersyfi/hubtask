@@ -5,7 +5,7 @@ context: servicedesk
 actors: [PE-handler, PE-requester]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/servicedesk/Approval_test.go, core/application/service/servicedesk/Approvals_test.go, test/integration/service_desk_approval_test.go, core/application/service/notification/RecordApproval_test.go, apps/webapp/src/lib/servicedesk/approvals.test.ts, core/application/service/servicedesk/PortalApprovals_test.go, core/domain/model/integration/ChatLink_test.go, core/application/service/chatbot/Approvals_test.go, infrastructure/chatbot/Tell_test.go, presentation/worker/ChatApprovalCard_test.go, test/integration/chat_bot_test.go]
 ---
