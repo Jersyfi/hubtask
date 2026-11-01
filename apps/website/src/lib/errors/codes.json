@@ -1,0 +1,117 @@
+{
+  "_comment": "One entry per error code the API answers with. test/architecture/errorpages_test.go holds this list equal to the codes in core/domain/model/shared/Errors.go and presentation/rest/Problem.go; each entry is a page at /errors/<code>/.",
+  "codes": [
+    {
+      "code": "malformed_request",
+      "status": 400,
+      "title": "Malformed request",
+      "meaning": "The request could not be read at all: the body is not valid JSON, a header or a query parameter has the wrong shape. Because nothing could be read, no field is named.",
+      "action": "Fix the request itself. Retrying it unchanged gives the same answer.",
+      "retry": false
+    },
+    {
+      "code": "unauthenticated",
+      "status": 401,
+      "title": "Not signed in",
+      "meaning": "The request carries no credential, or one that has expired or cannot be read.",
+      "action": "Sign in again, or refresh the access token, then repeat the request.",
+      "retry": false
+    },
+    {
+      "code": "forbidden",
+      "status": 403,
+      "title": "Not allowed",
+      "meaning": "The caller is signed in but lacks the permission for this operation. The detail code says which rule refused it; auth.step_up_required asks for a fresh proof of identity before a sensitive change.",
+      "action": "Ask an administrator of the workspace for the permission, or give the proof the detail code asks for. An administrator can look the request up in the audit trail by its request_id.",
+      "retry": false
+    },
+    {
+      "code": "not_found",
+      "status": 404,
+      "title": "Not found",
+      "meaning": "The resource does not exist, or the caller may not know that it exists. The two cases answer alike on purpose.",
+      "action": "Check the identifier. If someone shared a link, ask them whether you have access.",
+      "retry": false
+    },
+    {
+      "code": "method_not_allowed",
+      "status": 405,
+      "title": "Method not allowed",
+      "meaning": "The path exists, but not with this HTTP method. The Allow header names the methods it accepts.",
+      "action": "Use one of the methods in the Allow header.",
+      "retry": false
+    },
+    {
+      "code": "conflict",
+      "status": 409,
+      "title": "Conflict",
+      "meaning": "The request clashes with the current state: a duplicate, a cycle in the hierarchy, a state that does not allow this step. The detail code names the clash.",
+      "action": "Read the current state, resolve what the detail code names, and send the request again.",
+      "retry": false
+    },
+    {
+      "code": "version_conflict",
+      "status": 409,
+      "title": "Changed in the meantime",
+      "meaning": "The resource changed since it was read: the If-Match header names an older version than the stored one. The answer carries the current version.",
+      "action": "Read the resource again, apply the change to the current version, and send it with the new If-Match.",
+      "retry": false
+    },
+    {
+      "code": "gone",
+      "status": 410,
+      "title": "Deleted",
+      "meaning": "The resource existed and has been deleted for good. Unlike not_found, this tells a synchronising client to drop its copy.",
+      "action": "Remove the local copy. It cannot be restored through the API.",
+      "retry": false
+    },
+    {
+      "code": "payload_too_large",
+      "status": 413,
+      "title": "Request too large",
+      "meaning": "The request body is larger than this installation accepts. The limit_bytes parameter names the limit.",
+      "action": "Send a smaller body, or split the work into several requests.",
+      "retry": false
+    },
+    {
+      "code": "validation_failed",
+      "status": 422,
+      "title": "Input not accepted",
+      "meaning": "The request was read, but a value breaks a rule. field_errors names each field by its JSON Pointer and the rule it broke.",
+      "action": "Correct the named fields and send the request again.",
+      "retry": false
+    },
+    {
+      "code": "capability_not_supported",
+      "status": 422,
+      "title": "Not available for this type",
+      "meaning": "The field is real and well formed, but the item type it is written to does not carry this capability.",
+      "action": "Write the field to an item type that has the capability, or leave it out.",
+      "retry": false
+    },
+    {
+      "code": "rate_limited",
+      "status": 429,
+      "title": "Too many requests",
+      "meaning": "A limit per token, workspace or address was reached. The RateLimit headers say how much is left; Retry-After says how long to wait.",
+      "action": "Wait for the time in Retry-After, then repeat the request.",
+      "retry": true
+    },
+    {
+      "code": "internal",
+      "status": 500,
+      "title": "Internal error",
+      "meaning": "Something failed on the server that it did not expect. The answer carries only the code and the request_id; the cause is in the server's log.",
+      "action": "Repeat the request once. If it fails again, give the request_id to the operator of the installation.",
+      "retry": true
+    },
+    {
+      "code": "dependency_unavailable",
+      "status": 503,
+      "title": "Temporarily unavailable",
+      "meaning": "A part this request needs is out of reach or deliberately switched off, for example the object store or the AI provider. The detail code says which.",
+      "action": "Try again later; Retry-After, where present, says when. A detail code such as ai.unavailable may mean the feature is off in this workspace.",
+      "retry": true
+    }
+  ]
+}
