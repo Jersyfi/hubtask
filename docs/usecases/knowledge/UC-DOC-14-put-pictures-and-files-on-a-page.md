@@ -5,7 +5,7 @@ context: knowledge
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-19]
-state: built
+state: verified
 tasks: []
 checked_by: [packages/editor/test/markdown.test.ts, core/application/service/knowledge/Media_test.go, core/application/service/media/ReadMedia_test.go, test/integration/page_repository_test.go, infrastructure/importer/Wiki_test.go]
 ---

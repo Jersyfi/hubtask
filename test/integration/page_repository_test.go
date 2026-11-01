@@ -491,8 +491,8 @@ func TestAnArticlesLanguageVariantIsOfferedInItsWorkspaceAlone(t *testing.T) {
 }
 
 // A picture a page holds is counted once and found through the page, a trashed page serves it no
-// more, and the workspace next door neither attaches nor finds it (migration 0265, UC-DOC-14
-// check 4).
+// more, and the workspace next door neither attaches nor finds it (migration 0265,
+// UC-DOC-14 check 4).
 func TestAPagesPicturesStayInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	_, root, _ := seedSpace(ctx, t)
