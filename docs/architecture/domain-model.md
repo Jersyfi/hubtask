@@ -460,7 +460,8 @@ sandbox out (a scratch copy; what its promotion wrote is a version).
 of kind `FLAG`, off by default: the installation and a plan lock one on or off, the workspace
 switches it, a hub only switches off what the workspace has on. A use case of a module declares it
 (`usecase.Descriptor.Module`); the registry refuses it with `403 module.off` where the module is
-off, through every door. The installation's and a plan's documents carry them as the `module`
+off, through every door: at the hub its input names - directly, through a collection, an entry, a
+page or a board in it - and at the workspace where it names none. The installation's and a plan's documents carry them as the `module`
 area. Switching off hides and never deletes.
 
 ---

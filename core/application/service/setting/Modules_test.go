@@ -362,3 +362,46 @@ func TestTheGateRefusesAModuleAHubNarrowedOff(t *testing.T) {
 		t.Errorf("an unknown entry: %v, want the workspace's answer", err)
 	}
 }
+
+// UC-INS-21 check 3 for a module's own objects: a page or a board names only itself, and the gate
+// judges it at its hub - pages narrowed off for that hub are refused there, through every door.
+func TestTheGateJudgesAModuleObjectAtItsHub(t *testing.T) {
+	ctx := context.Background()
+	modules, _, _ := fixture()
+	set := settingservice.SetModule{Modules: modules}
+	for _, cmd := range []settingservice.SetModuleCommand{
+		{Module: module.Knowledge, Switch: settingservice.SwitchOn},
+		{Module: module.Knowledge, Switch: settingservice.SwitchOff, HubID: hub},
+	} {
+		if _, err := set.Execute(ctx, actor(), cmd); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page := shared.MustParseID("018f0000-0000-7000-8000-0000000000a1")
+	descriptor := usecase.Descriptor{
+		Name: "EditPage", Summary: "test", Module: module.Knowledge,
+		Input: []usecase.Field{{Name: "page_id", Kind: usecase.KindID}},
+		Handler: usecase.HandlerFunc(func(context.Context, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+			return usecase.Output{}, nil
+		}),
+	}
+	gate := settingservice.ModuleGate{Modules: modules, Objects: map[string]settingservice.GateObject{
+		"page_id": func(_ context.Context, id shared.ID) (shared.ID, error) {
+			if id == page {
+				return hub, nil
+			}
+			return "", shared.ErrNotFound
+		},
+	}}
+	registry, err := usecase.NewRegistry(gate.Wrap(nil), descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.Invoke(ctx, "EditPage", actor(), usecase.Input{"page_id": page.String()}); !refusedWith(err, module.OffCode) {
+		t.Errorf("a page in the hub: %v, want %s", err, module.OffCode)
+	}
+	unknown := shared.MustParseID("018f0000-0000-7000-8000-0000000000ff")
+	if _, err := registry.Invoke(ctx, "EditPage", actor(), usecase.Input{"page_id": unknown.String()}); err != nil {
+		t.Errorf("an unknown page: %v, want the workspace's answer", err)
+	}
+}

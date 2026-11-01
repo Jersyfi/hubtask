@@ -2212,7 +2212,7 @@ func run() error {
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).
 		agentservice.Gate{Desk: agentDesk}.Wrap(
-			settingservice.ModuleGate{Modules: modules, Items: items}.Wrap(entitlementGate.Wrap(observer.Registry()))),
+			settingservice.ModuleGate{Modules: modules, Items: items, Objects: moduleObjects()}.Wrap(entitlementGate.Wrap(observer.Registry()))),
 		agentservice.RegisterAgentModel{Desk: agentDesk}.Descriptor(),
 		agentservice.ListAgentModels{Desk: agentDesk}.Descriptor(),
 		agentservice.ChangeAgentModel{Desk: agentDesk}.Descriptor(),
@@ -5517,6 +5517,23 @@ func verifierWriter(verifier stepupport.Verifier) identity.SessionWriter {
 func runsBackgroundWork(cfg envport.Config) bool {
 	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler) ||
 		cfg.HasRole(envport.RoleAutomation)
+}
+
+// moduleObjects finds the hub of a page or a board, so that an operation naming only one is
+// judged where its hub narrowed the module (UC-INS-21 check 3).
+func moduleObjects() map[string]settingservice.GateObject {
+	pages, boards := postgres.NewPageRepository(), postgres.NewWhiteboardRepository()
+	page := func(ctx context.Context, id shared.ID) (shared.ID, error) {
+		found, err := pages.Find(ctx, id)
+		return found.HubID, err
+	}
+	return map[string]settingservice.GateObject{
+		"page_id": page, "source_page_id": page,
+		"whiteboard_id": func(ctx context.Context, id shared.ID) (shared.ID, error) {
+			found, err := boards.Find(ctx, id)
+			return found.HubID, err
+		},
+	}
 }
 
 // claimedKinds is the role's bulkhead (deployment.md §2.2): the automation role alone claims the

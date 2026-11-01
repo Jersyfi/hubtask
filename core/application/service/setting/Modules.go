@@ -402,7 +402,14 @@ type ModuleGate struct {
 	// Items finds the collection an entry is in. Nil judges an operation that names only an entry
 	// at the workspace.
 	Items GateItems
+	// Objects finds the hub of a module's own object by the input field naming it (a page, a
+	// board), read after the places: an operation that names only its object is judged at that
+	// object's hub, not the workspace.
+	Objects map[string]GateObject
 }
+
+// GateObject answers the hub an object is in.
+type GateObject func(ctx context.Context, id shared.ID) (shared.ID, error)
 
 // GateItems is the one read of the item store the gate needs.
 type GateItems interface {
@@ -451,6 +458,21 @@ func (g ModuleGate) hubOf(ctx context.Context, descriptor usecase.Descriptor, in
 			return container.ID
 		}
 		return container.ParentID
+	}
+	for _, field := range descriptor.Input {
+		find, ok := g.Objects[field.Name]
+		if !ok || in.String(field.Name) == "" {
+			continue
+		}
+		id, err := in.ID(field.Name)
+		if err != nil {
+			return ""
+		}
+		hubID, err := find(ctx, id)
+		if err != nil {
+			return ""
+		}
+		return hubID
 	}
 	return ""
 }
