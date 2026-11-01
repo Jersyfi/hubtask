@@ -17092,9 +17092,9 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
-  /workflows/{key}:copy-here:
+  /workflows/{workflowKey}:copy-here:
     parameters:
-      - name: key
+      - name: workflowKey
         in: path
         required: true
         schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
@@ -17104,7 +17104,7 @@ paths:
       x-hubtask-cli: "workflow copy-here"
       x-hubtask-rest: generated
       x-hubtask-rest-path:
-        key: source_key
+        workflowKey: source_key
       summary: Make a copy of a shared workflow at a hub
       description: >
         A workflow shared from the workspace is read-only at a hub; a hub that needs it different

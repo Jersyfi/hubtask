@@ -3118,9 +3118,9 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
 	{Group: "work-type", Verb: "ls", OperationID: "listWorkTypes", Method: "GET", Path: "/time-work-types", Summary: "The workspace's kinds of work",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
-	{Group: "workflow", Verb: "copy-here", OperationID: "copyWorkflowHere", Method: "POST", Path: "/workflows/{key}:copy-here", Summary: "Make a copy of a shared workflow at a hub",
+	{Group: "workflow", Verb: "copy-here", OperationID: "copyWorkflowHere", Method: "POST", Path: "/workflows/{workflowKey}:copy-here", Summary: "Make a copy of a shared workflow at a hub",
 		PathParams: []doorParam{
-			{Name: "key", Kind: "string", Help: "", Required: true},
+			{Name: "workflowKey", Kind: "string", Help: "", Required: true},
 		},
 		Body: []doorParam{
 			{Name: "hub_id", Kind: "uuid", Help: "The hub the copy belongs to", Required: true},

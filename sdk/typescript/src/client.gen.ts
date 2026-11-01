@@ -3162,8 +3162,8 @@ export class HubtaskClient {
   }
 
   /** Make a copy of a shared workflow at a hub */
-  copyWorkflowHere(key: string, body: NonNullable<operations["copyWorkflowHere"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["copyWorkflowHere"]['responses'][201]['content']["application/json"]> {
-    return this.call("POST", "/workflows/{key}:copy-here", { "key": key }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  copyWorkflowHere(workflowKey: string, body: NonNullable<operations["copyWorkflowHere"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["copyWorkflowHere"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/workflows/{workflowKey}:copy-here", { "workflowKey": workflowKey }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Show what publishing the draft would do */

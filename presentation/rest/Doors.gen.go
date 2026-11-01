@@ -1473,11 +1473,11 @@ func (c *RestController) CopyTimesheetWeek(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["copyTimesheetWeek"], usecase.Input{"week": week.String()}, nil, nil, nil)
 }
 
-// CopyWorkflowHere answers POST /workflows/{key}:copy-here by the generated mapping.
-func (c *RestController) CopyWorkflowHere(w http.ResponseWriter, r *http.Request, key string) {
+// CopyWorkflowHere answers POST /workflows/{workflowKey}:copy-here by the generated mapping.
+func (c *RestController) CopyWorkflowHere(w http.ResponseWriter, r *http.Request, workflowKey string) {
 	var body openapi.CopyWorkflowHereJSONRequestBody
 	var answer openapi.Workflow
-	c.door(w, r, restDoors["copyWorkflowHere"], usecase.Input{"source_key": key}, nil, &body, &answer)
+	c.door(w, r, restDoors["copyWorkflowHere"], usecase.Input{"source_key": workflowKey}, nil, &body, &answer)
 }
 
 // CorrectTimeRecord answers POST /time-records/{recordId}:correct by the generated mapping.

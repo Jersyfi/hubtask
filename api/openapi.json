@@ -25106,10 +25106,10 @@
         }
       }
     },
-    "/workflows/{key}:copy-here": {
+    "/workflows/{workflowKey}:copy-here": {
       "parameters": [
         {
-          "name": "key",
+          "name": "workflowKey",
           "in": "path",
           "required": true,
           "schema": {
@@ -25126,7 +25126,7 @@
         "x-hubtask-cli": "workflow copy-here",
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-path": {
-          "key": "source_key"
+          "workflowKey": "source_key"
         },
         "summary": "Make a copy of a shared workflow at a hub",
         "description": "A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.\n",

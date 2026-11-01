@@ -29356,14 +29356,14 @@ type SaveWorkflowDraftJSONRequestBody = WorkflowDraft
 // TryWorkflowStepJSONRequestBody defines body for TryWorkflowStep for application/json ContentType.
 type TryWorkflowStepJSONRequestBody TryWorkflowStepJSONBody
 
-// CopyWorkflowHereJSONRequestBody defines body for CopyWorkflowHere for application/json ContentType.
-type CopyWorkflowHereJSONRequestBody = WorkflowCopy
-
 // PreviewWorkflowPublishJSONRequestBody defines body for PreviewWorkflowPublish for application/json ContentType.
 type PreviewWorkflowPublishJSONRequestBody = WorkflowPublishPreview
 
 // PublishWorkflowJSONRequestBody defines body for PublishWorkflow for application/json ContentType.
 type PublishWorkflowJSONRequestBody = WorkflowPublish
+
+// CopyWorkflowHereJSONRequestBody defines body for CopyWorkflowHere for application/json ContentType.
+type CopyWorkflowHereJSONRequestBody = WorkflowCopy
 
 // Getter for additional properties for ScimGroup. Returns the specified
 // element and whether it was found
@@ -32223,15 +32223,15 @@ type ServerInterface interface {
 	// TryWorkflowStep Try a step against an entry
 	// (POST /workflows/{key}/steps/{step}:try)
 	TryWorkflowStep(w http.ResponseWriter, r *http.Request, key string, step string)
-	// CopyWorkflowHere Make a copy of a shared workflow at a hub
-	// (POST /workflows/{key}:copy-here)
-	CopyWorkflowHere(w http.ResponseWriter, r *http.Request, key string)
 	// PreviewWorkflowPublish Show what publishing the draft would do
 	// (POST /workflows/{key}:preview-publish)
 	PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request, key string)
 	// PublishWorkflow Publish the draft
 	// (POST /workflows/{key}:publish)
 	PublishWorkflow(w http.ResponseWriter, r *http.Request, key string, params PublishWorkflowParams)
+	// CopyWorkflowHere Make a copy of a shared workflow at a hub
+	// (POST /workflows/{workflowKey}:copy-here)
+	CopyWorkflowHere(w http.ResponseWriter, r *http.Request, workflowKey string)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -59428,32 +59428,6 @@ func (siw *ServerInterfaceWrapper) TryWorkflowStep(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
-// CopyWorkflowHere operation middleware
-func (siw *ServerInterfaceWrapper) CopyWorkflowHere(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "key" -------------
-	var key string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CopyWorkflowHere(w, r, key)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // PreviewWorkflowPublish operation middleware
 func (siw *ServerInterfaceWrapper) PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request) {
 
@@ -59521,6 +59495,32 @@ func (siw *ServerInterfaceWrapper) PublishWorkflow(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PublishWorkflow(w, r, key, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CopyWorkflowHere operation middleware
+func (siw *ServerInterfaceWrapper) CopyWorkflowHere(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workflowKey" -------------
+	var workflowKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workflowKey", r.PathValue("workflowKey"), &workflowKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workflowKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CopyWorkflowHere(w, r, workflowKey)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -60252,7 +60252,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows", wrapper.CreateWorkflow)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/workflows/{key}", wrapper.DeleteWorkflow)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/workflows/{key}", wrapper.SaveWorkflowDraft)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}:copy-here", wrapper.CopyWorkflowHere)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{workflowKey}:copy-here", wrapper.CopyWorkflowHere)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}:preview-publish", wrapper.PreviewWorkflowPublish)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}:publish", wrapper.PublishWorkflow)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}/steps/{step}:try", wrapper.TryWorkflowStep)

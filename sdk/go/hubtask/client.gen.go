@@ -29362,14 +29362,14 @@ type SaveWorkflowDraftJSONRequestBody = WorkflowDraft
 // TryWorkflowStepJSONRequestBody defines body for TryWorkflowStep for application/json ContentType.
 type TryWorkflowStepJSONRequestBody TryWorkflowStepJSONBody
 
-// CopyWorkflowHereJSONRequestBody defines body for CopyWorkflowHere for application/json ContentType.
-type CopyWorkflowHereJSONRequestBody = WorkflowCopy
-
 // PreviewWorkflowPublishJSONRequestBody defines body for PreviewWorkflowPublish for application/json ContentType.
 type PreviewWorkflowPublishJSONRequestBody = WorkflowPublishPreview
 
 // PublishWorkflowJSONRequestBody defines body for PublishWorkflow for application/json ContentType.
 type PublishWorkflowJSONRequestBody = WorkflowPublish
+
+// CopyWorkflowHereJSONRequestBody defines body for CopyWorkflowHere for application/json ContentType.
+type CopyWorkflowHereJSONRequestBody = WorkflowCopy
 
 // Getter for additional properties for ScimGroup. Returns the specified
 // element and whether it was found
@@ -40654,24 +40654,6 @@ type ClientInterface interface {
 	// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
 	TryWorkflowStep(ctx context.Context, key string, step string, body TryWorkflowStepJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CopyWorkflowHereWithBody Make a copy of a shared workflow at a hub
-	//
-	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
-	//
-	// Takes any type of body and a specified content type.
-	//
-	// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
-	CopyWorkflowHereWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// CopyWorkflowHere Make a copy of a shared workflow at a hub
-	//
-	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
-	//
-	// Takes a body of the `application/json` content type.
-	//
-	// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
-	CopyWorkflowHere(ctx context.Context, key string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// PreviewWorkflowPublishWithBody Show what publishing the draft would do
 	//
 	// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after. Given `shape`, it answers for that shape instead of the stored draft - what a configuration plan shows before anything is saved.
@@ -40707,6 +40689,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
 	PublishWorkflow(ctx context.Context, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyWorkflowHereWithBody Make a copy of a shared workflow at a hub
+	//
+	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workflows/{workflowKey}:copy-here (the `CopyWorkflowHere` operationId).
+	CopyWorkflowHereWithBody(ctx context.Context, workflowKey string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyWorkflowHere Make a copy of a shared workflow at a hub
+	//
+	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workflows/{workflowKey}:copy-here (the `CopyWorkflowHere` operationId).
+	CopyWorkflowHere(ctx context.Context, workflowKey string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // ExplainAccess What a person holds at a place, and why
@@ -63499,44 +63499,6 @@ func (c *Client) TryWorkflowStep(ctx context.Context, key string, step string, b
 	return c.Client.Do(req)
 }
 
-// CopyWorkflowHereWithBody Make a copy of a shared workflow at a hub
-//
-// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
-//
-// Takes any type of body and a specified content type.
-//
-// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
-func (c *Client) CopyWorkflowHereWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCopyWorkflowHereRequestWithBody(c.Server, key, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// CopyWorkflowHere Make a copy of a shared workflow at a hub
-//
-// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
-//
-// Takes a body of the `application/json` content type.
-//
-// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
-func (c *Client) CopyWorkflowHere(ctx context.Context, key string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCopyWorkflowHereRequest(c.Server, key, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 // PreviewWorkflowPublishWithBody Show what publishing the draft would do
 //
 // Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after. Given `shape`, it answers for that shape instead of the stored draft - what a configuration plan shows before anything is saved.
@@ -63603,6 +63565,44 @@ func (c *Client) PublishWorkflowWithBody(ctx context.Context, key string, params
 // Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
 func (c *Client) PublishWorkflow(ctx context.Context, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPublishWorkflowRequest(c.Server, key, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyWorkflowHereWithBody Make a copy of a shared workflow at a hub
+//
+// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workflows/{workflowKey}:copy-here (the `CopyWorkflowHere` operationId).
+func (c *Client) CopyWorkflowHereWithBody(ctx context.Context, workflowKey string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyWorkflowHereRequestWithBody(c.Server, workflowKey, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyWorkflowHere Make a copy of a shared workflow at a hub
+//
+// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workflows/{workflowKey}:copy-here (the `CopyWorkflowHere` operationId).
+func (c *Client) CopyWorkflowHere(ctx context.Context, workflowKey string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyWorkflowHereRequest(c.Server, workflowKey, body)
 	if err != nil {
 		return nil, err
 	}
@@ -101925,53 +101925,6 @@ func NewTryWorkflowStepRequestWithBody(server string, key string, step string, c
 	return req, nil
 }
 
-// NewCopyWorkflowHereRequest calls the generic CopyWorkflowHere builder with application/json body
-func NewCopyWorkflowHereRequest(server string, key string, body CopyWorkflowHereJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewCopyWorkflowHereRequestWithBody(server, key, "application/json", bodyReader)
-}
-
-// NewCopyWorkflowHereRequestWithBody constructs an http.Request for the CopyWorkflowHere method, with any body, and a specified content type
-func NewCopyWorkflowHereRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/workflows/%s:copy-here", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
 // NewPreviewWorkflowPublishRequest calls the generic PreviewWorkflowPublish builder with application/json body
 func NewPreviewWorkflowPublishRequest(server string, key string, body PreviewWorkflowPublishJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -102077,6 +102030,53 @@ func NewPublishWorkflowRequestWithBody(server string, key string, params *Publis
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewCopyWorkflowHereRequest calls the generic CopyWorkflowHere builder with application/json body
+func NewCopyWorkflowHereRequest(server string, workflowKey string, body CopyWorkflowHereJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCopyWorkflowHereRequestWithBody(server, workflowKey, "application/json", bodyReader)
+}
+
+// NewCopyWorkflowHereRequestWithBody constructs an http.Request for the CopyWorkflowHere method, with any body, and a specified content type
+func NewCopyWorkflowHereRequestWithBody(server string, workflowKey string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workflowKey", workflowKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows/%s:copy-here", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -113909,24 +113909,6 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
 	TryWorkflowStepWithResponse(ctx context.Context, key string, step string, body TryWorkflowStepJSONRequestBody, reqEditors ...RequestEditorFn) (*TryWorkflowStepResult, error)
 
-	// CopyWorkflowHereWithBodyWithResponse Make a copy of a shared workflow at a hub
-	//
-	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
-	//
-	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
-	CopyWorkflowHereWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error)
-
-	// CopyWorkflowHereWithResponse Make a copy of a shared workflow at a hub
-	//
-	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
-	//
-	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
-	CopyWorkflowHereWithResponse(ctx context.Context, key string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error)
-
 	// PreviewWorkflowPublishWithBodyWithResponse Show what publishing the draft would do
 	//
 	// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after. Given `shape`, it answers for that shape instead of the stored draft - what a configuration plan shows before anything is saved.
@@ -113962,6 +113944,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
 	PublishWorkflowWithResponse(ctx context.Context, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishWorkflowResult, error)
+
+	// CopyWorkflowHereWithBodyWithResponse Make a copy of a shared workflow at a hub
+	//
+	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{workflowKey}:copy-here (the `CopyWorkflowHere` operationId).
+	CopyWorkflowHereWithBodyWithResponse(ctx context.Context, workflowKey string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error)
+
+	// CopyWorkflowHereWithResponse Make a copy of a shared workflow at a hub
+	//
+	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{workflowKey}:copy-here (the `CopyWorkflowHere` operationId).
+	CopyWorkflowHereWithResponse(ctx context.Context, workflowKey string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error)
 }
 
 type ExplainAccessResult struct {
@@ -153509,61 +153509,6 @@ func (r TryWorkflowStepResult) ContentType() string {
 	return ""
 }
 
-// CopyWorkflowHereResult201Headers the declared response headers of an HTTP 201 response for CopyWorkflowHere
-type CopyWorkflowHereResult201Headers struct {
-	ETag *string
-}
-
-type CopyWorkflowHereResult struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON201 the response for an HTTP 201 `application/json` response
-	JSON201 *Workflow
-	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
-	ApplicationproblemJSON4XX *Problem
-	// Headers201 the parsed response headers for an HTTP 201 response
-	Headers201 *CopyWorkflowHereResult201Headers
-}
-
-// GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r CopyWorkflowHereResult) GetJSON201() *Workflow {
-	return r.JSON201
-}
-
-// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
-func (r CopyWorkflowHereResult) GetApplicationproblemJSON4XX() *Problem {
-	return r.ApplicationproblemJSON4XX
-}
-
-// GetBody returns the raw response body bytes
-func (r CopyWorkflowHereResult) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r CopyWorkflowHereResult) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r CopyWorkflowHereResult) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r CopyWorkflowHereResult) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 type PreviewWorkflowPublishResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -153661,6 +153606,61 @@ func (r PublishWorkflowResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r PublishWorkflowResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// CopyWorkflowHereResult201Headers the declared response headers of an HTTP 201 response for CopyWorkflowHere
+type CopyWorkflowHereResult201Headers struct {
+	ETag *string
+}
+
+type CopyWorkflowHereResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Workflow
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CopyWorkflowHereResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CopyWorkflowHereResult) GetJSON201() *Workflow {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CopyWorkflowHereResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CopyWorkflowHereResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CopyWorkflowHereResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CopyWorkflowHereResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CopyWorkflowHereResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -172639,36 +172639,6 @@ func (c *ClientWithResponses) TryWorkflowStepWithResponse(ctx context.Context, k
 	return ParseTryWorkflowStepResult(rsp)
 }
 
-// CopyWorkflowHereWithBodyWithResponse Make a copy of a shared workflow at a hub
-//
-// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
-//
-// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
-func (c *ClientWithResponses) CopyWorkflowHereWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error) {
-	rsp, err := c.CopyWorkflowHereWithBody(ctx, key, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseCopyWorkflowHereResult(rsp)
-}
-
-// CopyWorkflowHereWithResponse Make a copy of a shared workflow at a hub
-//
-// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
-//
-// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
-func (c *ClientWithResponses) CopyWorkflowHereWithResponse(ctx context.Context, key string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error) {
-	rsp, err := c.CopyWorkflowHere(ctx, key, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseCopyWorkflowHereResult(rsp)
-}
-
 // PreviewWorkflowPublishWithBodyWithResponse Show what publishing the draft would do
 //
 // Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after. Given `shape`, it answers for that shape instead of the stored draft - what a configuration plan shows before anything is saved.
@@ -172727,6 +172697,36 @@ func (c *ClientWithResponses) PublishWorkflowWithResponse(ctx context.Context, k
 		return nil, err
 	}
 	return ParsePublishWorkflowResult(rsp)
+}
+
+// CopyWorkflowHereWithBodyWithResponse Make a copy of a shared workflow at a hub
+//
+// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{workflowKey}:copy-here (the `CopyWorkflowHere` operationId).
+func (c *ClientWithResponses) CopyWorkflowHereWithBodyWithResponse(ctx context.Context, workflowKey string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error) {
+	rsp, err := c.CopyWorkflowHereWithBody(ctx, workflowKey, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyWorkflowHereResult(rsp)
+}
+
+// CopyWorkflowHereWithResponse Make a copy of a shared workflow at a hub
+//
+// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{workflowKey}:copy-here (the `CopyWorkflowHere` operationId).
+func (c *ClientWithResponses) CopyWorkflowHereWithResponse(ctx context.Context, workflowKey string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error) {
+	rsp, err := c.CopyWorkflowHere(ctx, workflowKey, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyWorkflowHereResult(rsp)
 }
 
 // ParseExplainAccessResult parses an HTTP response from a ExplainAccessWithResponse call
@@ -200699,52 +200699,6 @@ func ParseTryWorkflowStepResult(rsp *http.Response) (*TryWorkflowStepResult, err
 	return response, nil
 }
 
-// ParseCopyWorkflowHereResult parses an HTTP response from a CopyWorkflowHereWithResponse call
-func ParseCopyWorkflowHereResult(rsp *http.Response) (*CopyWorkflowHereResult, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &CopyWorkflowHereResult{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest Workflow
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON201 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
-		var dest Problem
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSON4XX = &dest
-
-	}
-
-	switch {
-	case rsp.StatusCode == 201:
-		var headers CopyWorkflowHereResult201Headers
-		if values := rsp.Header.Values("ETag"); len(values) > 0 {
-			var value string
-			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
-				return nil, err
-			}
-			headers.ETag = &value
-		}
-		response.Headers201 = &headers
-	}
-
-	return response, nil
-}
-
 // ParsePreviewWorkflowPublishResult parses an HTTP response from a PreviewWorkflowPublishWithResponse call
 func ParsePreviewWorkflowPublishResult(rsp *http.Response) (*PreviewWorkflowPublishResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -200819,6 +200773,52 @@ func ParsePublishWorkflowResult(rsp *http.Response) (*PublishWorkflowResult, err
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseCopyWorkflowHereResult parses an HTTP response from a CopyWorkflowHereWithResponse call
+func ParseCopyWorkflowHereResult(rsp *http.Response) (*CopyWorkflowHereResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CopyWorkflowHereResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Workflow
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CopyWorkflowHereResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil

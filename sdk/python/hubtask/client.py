@@ -2511,9 +2511,9 @@ class Client:
         """Delete an unused workflow"""
         return self._call("DELETE", "/workflows/{key}", {"key": key}, None, {}, None, "none", None, "void")
 
-    def copy_workflow_here(self, key: str, body: "WorkflowCopy") -> "Workflow":
+    def copy_workflow_here(self, workflow_key: str, body: "WorkflowCopy") -> "Workflow":
         """Make a copy of a shared workflow at a hub"""
-        return self._call("POST", "/workflows/{key}:copy-here", {"key": key}, None, {}, body, "json", "application/json", "json")
+        return self._call("POST", "/workflows/{workflowKey}:copy-here", {"workflowKey": workflow_key}, None, {}, body, "json", "application/json", "json")
 
     def preview_workflow_publish(self, key: str, body: "WorkflowPublishPreview") -> "WorkflowPreview":
         """Show what publishing the draft would do"""
