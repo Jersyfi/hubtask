@@ -1290,6 +1290,9 @@ CREATE INDEX wi_figure_open_idx ON work_item (tenant_id, collection_id)
   WHERE parent_id IS NULL AND is_completed = false AND archived_at IS NULL AND deleted_at IS NULL;
 CREATE INDEX wi_figure_done_idx ON work_item (tenant_id, collection_id, completed_at)
   WHERE is_completed = true AND deleted_at IS NULL;
+-- A count by completion over a hub or a collection, from the index alone. Migration 0318.
+CREATE INDEX wi_completion_idx ON work_item (tenant_id, collection_id, is_completed)
+  WHERE deleted_at IS NULL AND archived_at IS NULL;
 -- The occurrences of one series: what an ON_COMPLETION series is waiting for, and when it was
 -- last done.
 CREATE INDEX wi_recurrence_idx ON work_item (recurrence_rule_id)
