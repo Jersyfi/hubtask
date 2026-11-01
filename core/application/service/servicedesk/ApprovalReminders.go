@@ -35,6 +35,29 @@ type ApprovalNotifier interface {
 	ApprovalReminded(ctx context.Context, approval domain.Approval, people []shared.ID) error
 }
 
+// Notifiers tells people through each notifier in turn: the mail and the chat cards.
+type Notifiers []ApprovalNotifier
+
+// ApprovalAsked tells through every notifier.
+func (n Notifiers) ApprovalAsked(ctx context.Context, approval domain.Approval, people []shared.ID, actor shared.ID) error {
+	for _, each := range n {
+		if err := each.ApprovalAsked(ctx, approval, people, actor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ApprovalReminded reminds through every notifier.
+func (n Notifiers) ApprovalReminded(ctx context.Context, approval domain.Approval, people []shared.ID) error {
+	for _, each := range n {
+		if err := each.ApprovalReminded(ctx, approval, people); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 const (
 	// remindTimer fires halfway through a level's hours, dueTimer at their end.
 	remindTimer = "remind"

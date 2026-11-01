@@ -94,3 +94,82 @@ func TestAChatBotStaysInItsWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A person's code links the chat user who says it, a wrong or spent code links nothing and lets
+// no earlier link go, and the workspace next door neither claims nor finds a link (migration 0321,
+// UC-SVC-09 check 6).
+func TestAChatLinkIsClaimedOnceAndStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	admin := adminPool(ctx, t)
+	hub, collection := freshID(t), freshID(t)
+	if _, err := admin.Exec(ctx, `INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
+		VALUES ($1, $2, 'HUB', $3, 'a0', $4)`, hub.String(), tenantA.String(), freshName(t), authorA.String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, `INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
+		VALUES ($1, $2, 'COLLECTION', $3, $4, 'a0', $5)`,
+		collection.String(), tenantA.String(), hub.String(), freshName(t), authorA.String()); err != nil {
+		t.Fatal(err)
+	}
+	at := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+	bot := integration.ChatBot{
+		ID: freshID(t), HubID: hub, CollectionID: collection, Platform: integration.FormatSlack, Homeserver: integration.SlackOrigin,
+		Room: "C0LINKS01", BotUser: "UBOT", Enabled: true, RunAs: authorA, CreatedAt: at, UpdatedAt: at,
+	}
+	links := postgres.ChatLinkRepository{}
+	code := integration.ChatLinkCodeHash("AB23CD34")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := postgres.NewChatBotRepository().Insert(ctx, bot, crypto.Sealed{KeyID: "k1", Ciphertext: []byte("b")}); err != nil {
+			return err
+		}
+		return links.Start(ctx, freshID(t), bot.ID, authorA, code, at.Add(integration.ChatLinkLifetime), at)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		_, err := links.Claim(ctx, bot.ID, code, "UMALLORY", "UMALLORY", at)
+		return err
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the workspace next door claimed the code: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		account, err := links.Claim(ctx, bot.ID, code, "UANNA", "UANNA", at.Add(time.Minute))
+		if err != nil || account != authorA {
+			t.Errorf("the claim answered %v, %v", account, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// A spent code claims nothing, and the chat user's link stays where it is.
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := links.Claim(ctx, bot.ID, code, "UANNA", "UANNA", at.Add(2*time.Minute))
+		return err
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("a spent code: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		link, err := links.ByUser(ctx, bot.ID, "UANNA")
+		if err != nil || link.AccountID != authorA {
+			t.Errorf("the link of UANNA: %+v, %v", link, err)
+		}
+		if mine, err := links.OfAccount(ctx, authorA); err != nil || len(mine) != 1 || mine[0].Address != "UANNA" {
+			t.Errorf("the person's links: %+v, %v", mine, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := links.ByUser(ctx, bot.ID, "UANNA"); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the workspace next door found the link: %v", err)
+		}
+		if err := links.Delete(ctx, bot.ID, authorA); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the workspace next door removed the link: %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

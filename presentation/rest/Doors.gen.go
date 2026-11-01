@@ -284,6 +284,7 @@ var restDoors = map[string]restDoor{
 	"instantiateTemplate":               {UseCase: "InstantiateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"inviteAccount":                     {UseCase: "InviteAccount", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/accounts/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "invitation_link"},
 	"issueStartPassword":                {UseCase: "IssueStartPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "start_password"},
+	"linkChatAccount":                   {UseCase: "LinkChatAccount", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkEntries":                       {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkEntryFile":                     {UseCase: "LinkEntryFile", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkGoalEntries":                   {UseCase: "LinkGoalEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -731,6 +732,7 @@ var restDoors = map[string]restDoor{
 	"unarchiveContainer":                {UseCase: "UnarchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unarchiveWorkItem":                 {UseCase: "UnarchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unassignWorkItem":                  {UseCase: "UnassignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unlinkChatAccount":                 {UseCase: "UnlinkChatAccount", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkEntries":                     {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkEntryFile":                   {UseCase: "UnlinkEntryFile", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkGoalEntry":                   {UseCase: "UnlinkGoalEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2645,6 +2647,12 @@ func (c *RestController) InviteAccount(w http.ResponseWriter, r *http.Request, p
 // IssueStartPassword answers POST /accounts/{accountId}:issue-start-password by the generated mapping.
 func (c *RestController) IssueStartPassword(w http.ResponseWriter, r *http.Request, accountId openapi.AccountId, params openapi.IssueStartPasswordParams) {
 	c.door(w, r, restDoors["issueStartPassword"], usecase.Input{"account_id": accountId.String()}, params, nil, answerBy(startPasswordIssuedResponse))
+}
+
+// LinkChatAccount answers POST /chat-bots/{botId}/link by the generated mapping.
+func (c *RestController) LinkChatAccount(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID) {
+	var answer openapi.ChatLinkCode
+	c.door(w, r, restDoors["linkChatAccount"], usecase.Input{"bot_id": botId.String()}, nil, nil, &answer)
 }
 
 // LinkEntries answers POST /items/{itemId}/links by the generated mapping.
@@ -5448,6 +5456,11 @@ func (c *RestController) UnarchiveWorkItem(w http.ResponseWriter, r *http.Reques
 // UnassignWorkItem answers POST /items/{itemId}:unassign by the generated mapping.
 func (c *RestController) UnassignWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.UnassignWorkItemParams) {
 	c.door(w, r, restDoors["unassignWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
+}
+
+// UnlinkChatAccount answers DELETE /chat-bots/{botId}/link by the generated mapping.
+func (c *RestController) UnlinkChatAccount(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID) {
+	c.door(w, r, restDoors["unlinkChatAccount"], usecase.Input{"bot_id": botId.String()}, nil, nil, nil)
 }
 
 // UnlinkEntries answers DELETE /links/{linkId} by the generated mapping.

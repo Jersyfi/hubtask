@@ -13222,7 +13222,10 @@ type ChatBot struct {
 	Homeserver string             `json:"homeserver"`
 	HubId      openapi_types.UUID `json:"hub_id"`
 	Id         openapi_types.UUID `json:"id"`
-	Locale     *string            `json:"locale,omitempty"`
+
+	// Linked Whether the caller's chat account is linked to the bot.
+	Linked *bool   `json:"linked,omitempty"`
+	Locale *string `json:"locale,omitempty"`
 
 	// Platform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
 	Platform ChatBotPlatform `json:"platform"`
@@ -13262,6 +13265,9 @@ type ChatBotCreate struct {
 	// Platform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
 	Platform *ChatBotPlatform `json:"platform,omitempty"`
 
+	// PostHook The key of a Mattermost incoming webhook, the last part of its address, through which the bot tells a linked person of an approval; kept sealed, never answered.
+	PostHook *string `json:"post_hook,omitempty"`
+
 	// Room The room's identifier, never an alias: a Matrix room `!…:server`, a Slack channel `C…`, a Mattermost channel's 26 characters, a Teams conversation `19:…`.
 	Room string `json:"room"`
 
@@ -13288,6 +13294,16 @@ type ChatBotUpdate struct {
 	Enabled      *bool               `json:"enabled,omitempty"`
 	Locale       *string             `json:"locale,omitempty"`
 	Unfurl       *bool               `json:"unfurl,omitempty"`
+}
+
+// ChatLinkCode defines model for ChatLinkCode.
+type ChatLinkCode struct {
+	// Code The one-time code, said once.
+	Code string `json:"code"`
+
+	// Command What to say to the bot.
+	Command   string    `json:"command"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 // CiAlert defines model for CiAlert.
@@ -33033,6 +33049,20 @@ type ClientInterface interface {
 	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
 	UpdateChatBot(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// UnlinkChatAccount Unlink the caller's chat account from a chat bot
+	//
+	// The bot tells the caller of nothing more and takes nothing said there as theirs. Needs READ on the bot's hub.
+	//
+	// Corresponds with DELETE /chat-bots/{botId}/link (the `UnlinkChatAccount` operationId).
+	UnlinkChatAccount(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LinkChatAccount Link the caller's chat account to a chat bot
+	//
+	// Answers a one-time code for fifteen minutes; the caller says `!link <code>` to the bot - on Slack and Mattermost through its slash command, on Teams in the bot's personal chat, on Matrix in its room - and the chat account that said it is theirs for that bot. From then on an approval that waits for their yes is posted to them there, with the entry's title where only they read it, and they answer `!approve <ref>` or `!decline <ref> <reason>` as themselves. A new code replaces one not yet said; a chat account linked to somebody else before is theirs no more. Needs READ on the bot's hub.
+	//
+	// Corresponds with POST /chat-bots/{botId}/link (the `LinkChatAccount` operationId).
+	LinkChatAccount(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeliverChatWithBody A chat platform posts what was said to its bot
 	//
 	// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
@@ -46965,6 +46995,40 @@ func (c *Client) UpdateChatBotWithBody(ctx context.Context, botId openapi_types.
 // Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
 func (c *Client) UpdateChatBot(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateChatBotRequest(c.Server, botId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnlinkChatAccount Unlink the caller's chat account from a chat bot
+//
+// The bot tells the caller of nothing more and takes nothing said there as theirs. Needs READ on the bot's hub.
+//
+// Corresponds with DELETE /chat-bots/{botId}/link (the `UnlinkChatAccount` operationId).
+func (c *Client) UnlinkChatAccount(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnlinkChatAccountRequest(c.Server, botId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LinkChatAccount Link the caller's chat account to a chat bot
+//
+// Answers a one-time code for fifteen minutes; the caller says `!link <code>` to the bot - on Slack and Mattermost through its slash command, on Teams in the bot's personal chat, on Matrix in its room - and the chat account that said it is theirs for that bot. From then on an approval that waits for their yes is posted to them there, with the entry's title where only they read it, and they answer `!approve <ref>` or `!decline <ref> <reason>` as themselves. A new code replaces one not yet said; a chat account linked to somebody else before is theirs no more. Needs READ on the bot's hub.
+//
+// Corresponds with POST /chat-bots/{botId}/link (the `LinkChatAccount` operationId).
+func (c *Client) LinkChatAccount(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLinkChatAccountRequest(c.Server, botId)
 	if err != nil {
 		return nil, err
 	}
@@ -72586,6 +72650,74 @@ func NewUpdateChatBotRequestWithBody(server string, botId openapi_types.UUID, co
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewUnlinkChatAccountRequest constructs an http.Request for the UnlinkChatAccount method
+func NewUnlinkChatAccountRequest(server string, botId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "botId", botId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/chat-bots/%s/link", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewLinkChatAccountRequest constructs an http.Request for the LinkChatAccount method
+func NewLinkChatAccountRequest(server string, botId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "botId", botId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/chat-bots/%s/link", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -104814,6 +104946,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /chat-bots/{botId} (the `UpdateChatBot` operationId).
 	UpdateChatBotWithResponse(ctx context.Context, botId openapi_types.UUID, body UpdateChatBotJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateChatBotResult, error)
 
+	// UnlinkChatAccountWithResponse Unlink the caller's chat account from a chat bot
+	//
+	// The bot tells the caller of nothing more and takes nothing said there as theirs. Needs READ on the bot's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /chat-bots/{botId}/link (the `UnlinkChatAccount` operationId).
+	UnlinkChatAccountWithResponse(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkChatAccountResult, error)
+
+	// LinkChatAccountWithResponse Link the caller's chat account to a chat bot
+	//
+	// Answers a one-time code for fifteen minutes; the caller says `!link <code>` to the bot - on Slack and Mattermost through its slash command, on Teams in the bot's personal chat, on Matrix in its room - and the chat account that said it is theirs for that bot. From then on an approval that waits for their yes is posted to them there, with the entry's title where only they read it, and they answer `!approve <ref>` or `!decline <ref> <reason>` as themselves. A new code replaces one not yet said; a chat account linked to somebody else before is theirs no more. Needs READ on the bot's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /chat-bots/{botId}/link (the `LinkChatAccount` operationId).
+	LinkChatAccountWithResponse(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*LinkChatAccountResult, error)
+
 	// DeliverChatWithBodyWithResponse A chat platform posts what was said to its bot
 	//
 	// Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
@@ -123418,6 +123568,95 @@ func (r UpdateChatBotResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateChatBotResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnlinkChatAccountResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnlinkChatAccountResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnlinkChatAccountResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnlinkChatAccountResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnlinkChatAccountResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnlinkChatAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LinkChatAccountResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ChatLinkCode
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r LinkChatAccountResult) GetJSON200() *ChatLinkCode {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r LinkChatAccountResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r LinkChatAccountResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LinkChatAccountResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LinkChatAccountResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LinkChatAccountResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -157674,6 +157913,36 @@ func (c *ClientWithResponses) UpdateChatBotWithResponse(ctx context.Context, bot
 	return ParseUpdateChatBotResult(rsp)
 }
 
+// UnlinkChatAccountWithResponse Unlink the caller's chat account from a chat bot
+//
+// The bot tells the caller of nothing more and takes nothing said there as theirs. Needs READ on the bot's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /chat-bots/{botId}/link (the `UnlinkChatAccount` operationId).
+func (c *ClientWithResponses) UnlinkChatAccountWithResponse(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkChatAccountResult, error) {
+	rsp, err := c.UnlinkChatAccount(ctx, botId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnlinkChatAccountResult(rsp)
+}
+
+// LinkChatAccountWithResponse Link the caller's chat account to a chat bot
+//
+// Answers a one-time code for fifteen minutes; the caller says `!link <code>` to the bot - on Slack and Mattermost through its slash command, on Teams in the bot's personal chat, on Matrix in its room - and the chat account that said it is theirs for that bot. From then on an approval that waits for their yes is posted to them there, with the entry's title where only they read it, and they answer `!approve <ref>` or `!decline <ref> <reason>` as themselves. A new code replaces one not yet said; a chat account linked to somebody else before is theirs no more. Needs READ on the bot's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /chat-bots/{botId}/link (the `LinkChatAccount` operationId).
+func (c *ClientWithResponses) LinkChatAccountWithResponse(ctx context.Context, botId openapi_types.UUID, reqEditors ...RequestEditorFn) (*LinkChatAccountResult, error) {
+	rsp, err := c.LinkChatAccount(ctx, botId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLinkChatAccountResult(rsp)
+}
+
 // DeliverChatWithBodyWithResponse A chat platform posts what was said to its bot
 //
 // Slack's Events API (`url_verification`, `link_shared`) and its slash command, signed with the app's signing secret in `X-Slack-Signature` over `X-Slack-Request-Timestamp`, which may be at most five minutes off; Microsoft Teams' Bot Framework activities (a message to the bot, the messaging extension's `composeExtension/queryLink`), carrying the Bot Framework's signed token for the bot's application in `Authorization`; Mattermost's slash command and outgoing webhook, carrying their token. Each is answered in the platform's own format: a link to one of the hub's entries with its title, status and link - never its notes, and nothing for another hub's entry; a command's title becomes an entry in the bot's collection, answered with its link. Slack's unfurl and a Teams reply are sent through the platform's API.
@@ -178374,6 +178643,68 @@ func ParseUpdateChatBotResult(rsp *http.Response) (*UpdateChatBotResult, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ChatBot
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnlinkChatAccountResult parses an HTTP response from a UnlinkChatAccountWithResponse call
+func ParseUnlinkChatAccountResult(rsp *http.Response) (*UnlinkChatAccountResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnlinkChatAccountResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLinkChatAccountResult parses an HTTP response from a LinkChatAccountWithResponse call
+func ParseLinkChatAccountResult(rsp *http.Response) (*LinkChatAccountResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LinkChatAccountResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ChatLinkCode
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -698,7 +698,7 @@ func (r PrivacyRepository) DiscardKudos(ctx context.Context, accountID shared.ID
 	return int(rows), nil
 }
 
-// DiscardArrangements removes the person's digests, private dashboards and delegations.
+// DiscardArrangements removes the person's digests, private dashboards, delegations and chat links.
 func (r PrivacyRepository) DiscardArrangements(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
 	if err != nil {
@@ -709,6 +709,7 @@ func (r PrivacyRepository) DiscardArrangements(ctx context.Context, accountID sh
 		"the digests":            queries.DeleteDigestsOfAccount,
 		"the private dashboards": queries.DeletePrivateDashboardsOfAccount,
 		"the delegations":        queries.DeleteDelegationsOfAccount,
+		"the chat links":         queries.DeleteChatLinksOfAccount,
 	} {
 		rows, err := remove(ctx, id)
 		if err != nil {

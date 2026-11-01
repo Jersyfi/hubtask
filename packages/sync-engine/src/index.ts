@@ -605,4 +605,5 @@ export type {
   FileStoreShare,
   ChatBot,
   ChatBotList,
+  ChatLinkCode,
 } from './schema.ts';

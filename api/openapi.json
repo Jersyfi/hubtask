@@ -8734,6 +8734,62 @@
         }
       }
     },
+    "/chat-bots/{botId}/link": {
+      "parameters": [
+        {
+          "name": "botId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "operationId": "linkChatAccount",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "chat link",
+        "summary": "Link the caller's chat account to a chat bot",
+        "description": "Answers a one-time code for fifteen minutes; the caller says `!link <code>` to the bot - on Slack and Mattermost through its slash command, on Teams in the bot's personal chat, on Matrix in its room - and the chat account that said it is theirs for that bot. From then on an approval that waits for their yes is posted to them there, with the entry's title where only they read it, and they answer `!approve <ref>` or `!decline <ref> <reason>` as themselves. A new code replaces one not yet said; a chat account linked to somebody else before is theirs no more. Needs READ on the bot's hub.\n",
+        "responses": {
+          "200": {
+            "description": "The code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatLinkCode"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "chat"
+        ],
+        "operationId": "unlinkChatAccount",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "chat unlink",
+        "summary": "Unlink the caller's chat account from a chat bot",
+        "description": "The bot tells the caller of nothing more and takes nothing said there as theirs. Needs READ on the bot's hub.\n",
+        "responses": {
+          "204": {
+            "description": "Unlinked"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/code-hooks/{hookId}": {
       "parameters": [
         {
@@ -67173,11 +67229,37 @@
             "type": "string",
             "description": "The message code of the last read that did not go through."
           },
+          "linked": {
+            "type": "boolean",
+            "description": "Whether the caller's chat account is linked to the bot."
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
           },
           "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ChatLinkCode": {
+        "type": "object",
+        "required": [
+          "code",
+          "command",
+          "expires_at"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The one-time code, said once."
+          },
+          "command": {
+            "type": "string",
+            "description": "What to say to the bot."
+          },
+          "expires_at": {
             "type": "string",
             "format": "date-time"
           }
@@ -67269,6 +67351,12 @@
             "writeOnly": true,
             "maxLength": 256,
             "description": "The Mattermost outgoing webhook's token; kept sealed, never answered."
+          },
+          "post_hook": {
+            "type": "string",
+            "writeOnly": true,
+            "maxLength": 256,
+            "description": "The key of a Mattermost incoming webhook, the last part of its address, through which the bot tells a linked person of an approval; kept sealed, never answered."
           },
           "locale": {
             "type": "string",

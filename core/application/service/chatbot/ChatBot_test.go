@@ -179,7 +179,7 @@ func (i *invoker) Invoke(_ context.Context, name string, actor appshared.ActorCo
 type texts struct{}
 
 func (texts) Render(locale, code string, params map[string]string) string {
-	return locale + ":" + code + ":" + params["status"]
+	return locale + ":" + code + ":" + params["status"] + params["ref"]
 }
 
 type address struct{}

@@ -401,6 +401,8 @@ func Descriptors() []usecase.Descriptor {
 		chatbotservice.CreateChatBot{}.Descriptor(),
 		chatbotservice.UpdateChatBot{}.Descriptor(),
 		chatbotservice.DeleteChatBot{}.Descriptor(),
+		chatbotservice.LinkChatAccount{}.Descriptor(),
+		chatbotservice.UnlinkChatAccount{}.Descriptor(),
 		filestoreservice.ConnectFileStore{}.Descriptor(),
 		filestoreservice.CompleteFileStoreConnection{}.Descriptor(),
 		filestoreservice.DisconnectFileStore{}.Descriptor(),

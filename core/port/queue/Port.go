@@ -517,6 +517,9 @@ const (
 	// its identifier, rescheduling itself every minute; seating or switching it on seeds it, a bot
 	// gone, off or refused its token ends it.
 	KindChatBot Kind = "chat.bot"
+	// KindChatApprovalCard posts one approval's card to one linked chat account (UC-SVC-09 check
+	// 6), deduplicated by the approval, its level, why and the link.
+	KindChatApprovalCard Kind = "chat.approval_card"
 
 	// KindAgentJob is one job of a shipped agent on its target (G11), deduplicated by the job's
 	// identifier; StartAgentJob stores the job and seeds it.

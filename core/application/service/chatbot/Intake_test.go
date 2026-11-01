@@ -23,6 +23,7 @@ type platform struct {
 	answered [][]roomport.Card
 	fail     error
 	checked  roomport.Credentials
+	told     []string
 }
 
 func (p *platform) Check(_ context.Context, c roomport.Credentials) (string, error) {
@@ -49,6 +50,11 @@ func (p *platform) Answer(_ context.Context, _ roomport.Credentials, in roomport
 		return roomport.Response{}, p.fail
 	}
 	return roomport.Response{Body: []byte("answered")}, nil
+}
+
+func (p *platform) Tell(_ context.Context, _ roomport.Credentials, _, address string, card roomport.Card) error {
+	p.told = append(p.told, address+"|"+card.Headline+"|"+card.Title)
+	return p.fail
 }
 
 func slackFixture(t *testing.T) (fixture, *platform, shared.ID) {

@@ -2009,9 +2009,12 @@ func run() error {
 		Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
 		Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 	}
+	// Beside the mail, a person who linked a chat account is posted a card there (UC-SVC-09 check 6).
+	chatLinks := postgres.ChatLinkRepository{}
+	approvalNotice := servicedeskservice.Notifiers{approvalMail, chatbotservice.ApprovalCards{Links: chatLinks, Jobs: jobs}}
 	stepApprovals := servicedeskservice.Approvals{
 		Store: deskApprovals, Items: items, Containers: containers, Groups: groups,
-		Roles: authorizer, Steps: approvalSteps, Desk: serviceDesk, Timers: reviewClocks, Notify: approvalMail,
+		Roles: authorizer, Steps: approvalSteps, Desk: serviceDesk, Timers: reviewClocks, Notify: approvalNotice,
 	}
 	// The planning module (M2): a plan is a hub or a collection, read for whoever may see its
 	// entries; an accepted move goes through UpdateWorkItem in the registry.
@@ -2143,11 +2146,11 @@ func run() error {
 		Invoker: glanceSearches, Addresses: workspaceAddress(cfg), Containers: containers, UnitOfWork: unitOfWork,
 	}
 	chatBots := chatbotservice.Bots{
-		Store: postgres.NewChatBotRepository(), Containers: containers, Entries: entryLinks,
+		Store: postgres.NewChatBotRepository(), Links: chatLinks, Entropy: clockadapter.CryptoRandom{}, Containers: containers, Entries: entryLinks,
 		Room: chatbotadapter.Matrix{Client: outboundClient}, Invoker: botEntries, Texts: renderer,
 		Platforms: map[integrationmodel.DeliveryFormat]chatbotport.Platform{
 			integrationmodel.FormatSlack: chatbotadapter.Slack{Client: outboundClient},
-			integrationmodel.FormatTeams: chatbotadapter.NewTeams(outboundClient), integrationmodel.FormatMattermost: chatbotadapter.Mattermost{},
+			integrationmodel.FormatTeams: chatbotadapter.NewTeams(outboundClient), integrationmodel.FormatMattermost: chatbotadapter.Mattermost{Client: outboundClient},
 		},
 		Addresses: workspaceAddress(cfg), Encryptor: encryptor, Authorizer: authorizer, Jobs: jobs,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -2474,6 +2477,8 @@ func run() error {
 		chatbotservice.CreateChatBot{Bots: chatBots}.Descriptor(),
 		chatbotservice.UpdateChatBot{Bots: chatBots}.Descriptor(),
 		chatbotservice.DeleteChatBot{Bots: chatBots}.Descriptor(),
+		chatbotservice.LinkChatAccount{Bots: chatBots}.Descriptor(),
+		chatbotservice.UnlinkChatAccount{Bots: chatBots}.Descriptor(),
 		filestoreservice.ConnectFileStore{Connections: fileStores}.Descriptor(),
 		filestoreservice.CompleteFileStoreConnection{Connections: fileStores}.Descriptor(),
 		filestoreservice.DisconnectFileStore{Connections: fileStores}.Descriptor(),
@@ -4829,7 +4834,7 @@ func run() error {
 					Records: serviceDeskStore.Records(), Items: items, Events: outbox, IDs: ids,
 				},
 				calendardomain.PurposeApproval: servicedeskservice.ApprovalElapsed{
-					Store: deskApprovals, Notify: approvalMail,
+					Store: deskApprovals, Notify: approvalNotice,
 				},
 				calendardomain.PurposePageReview: knowledgeservice.PageReviewElapsed{
 					Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},
@@ -4978,7 +4983,9 @@ func run() error {
 		// A calendar push's run every quarter hour (UC-INT-16).
 		queueport.KindCalendarPush: worker.CalendarPush{Pushes: calendarPushes},
 		// A chat bot's read of its room every minute (UC-INT-18).
-		queueport.KindChatBot:              worker.ChatBot{Bots: chatBots},
+		queueport.KindChatBot: worker.ChatBot{Bots: chatBots},
+		// An approval's card to a linked chat account (UC-SVC-09 check 6).
+		queueport.KindChatApprovalCard:     worker.ChatApprovalCard{Bots: chatBots},
 		queueport.KindAutomationCheck:      worker.AutomationCheck{Check: ruleCheck},
 		queueport.KindAuditExport:          worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindImport:               importJob,

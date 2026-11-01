@@ -6202,8 +6202,14 @@ class ChatBot(TypedDict, total=False):
     enabled: Required[bool]
     run_as: Required[str]
     failure: str
+    linked: bool
     created_at: Required[str]
     updated_at: Required[str]
+
+class ChatLinkCode(TypedDict, total=False):
+    code: Required[str]
+    command: Required[str]
+    expires_at: Required[str]
 
 class ChatBotList(TypedDict, total=False):
     data: Required[list["ChatBot"]]
@@ -6222,6 +6228,7 @@ class ChatBotCreate(TypedDict, total=False):
     app_password: str
     command_token: str
     webhook_token: str
+    post_hook: str
     locale: str
     unfurl: bool
     capture: bool

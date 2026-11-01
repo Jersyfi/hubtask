@@ -24,6 +24,11 @@ func revoked(why string) error {
 	return shared.ErrForbidden.WithDetail("chatbot.token_revoked").WithCause(errors.New("chat bot: " + why))
 }
 
+// cannotTell is an address a platform cannot post a card to.
+func cannotTell(why string) error {
+	return shared.ErrValidation.WithDetail("chatbot.cannot_tell").WithCause(errors.New("chat bot: " + why))
+}
+
 // sameSecret compares in constant time; an empty secret proves nothing.
 func sameSecret(given string, want secret.Secret) bool {
 	return given != "" && !want.IsEmpty() && subtle.ConstantTimeCompare([]byte(given), []byte(want.Reveal())) == 1

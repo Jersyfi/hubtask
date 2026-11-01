@@ -106,7 +106,8 @@ type teamsActivity struct {
 		ID string `json:"id"`
 	} `json:"from"`
 	Conversation struct {
-		ID string `json:"id"`
+		ID   string `json:"id"`
+		Type string `json:"conversationType"`
 	} `json:"conversation"`
 	Value struct {
 		URL string `json:"url"`
@@ -169,12 +170,17 @@ func (t Teams) Read(ctx context.Context, creds port.Credentials, botUser string,
 	case a.Type == "message" && a.From.ID != "28:"+botUser:
 		reply["kind"] = "message"
 		text := said(a.Text)
+		address := ""
+		if a.Conversation.Type == "personal" {
+			// Only the bot's personal chat with the sender is read by them alone.
+			address = a.ServiceURL + " " + a.Conversation.ID
+		}
 		for _, command := range []string{"!task", "task"} {
 			if len(text) > len(command) && strings.EqualFold(text[:len(command)], command) && (text[len(command)] == ' ' || text[len(command)] == '\t') {
-				return port.Inbound{Asks: port.AsksCapture, Room: a.Conversation.ID, Text: text[len(command)+1:], Reply: reply}, nil
+				return port.Inbound{Asks: port.AsksCapture, Room: a.Conversation.ID, Text: text[len(command)+1:], Reply: reply, Sender: a.From.ID, Address: address}, nil
 			}
 		}
-		return port.Inbound{Asks: port.AsksUnfurl, Room: a.Conversation.ID, Text: text, Reply: reply}, nil
+		return port.Inbound{Asks: port.AsksUnfurl, Room: a.Conversation.ID, Text: text, Reply: reply, Sender: a.From.ID, Address: address}, nil
 	}
 	return port.Inbound{}, nil
 }
@@ -227,17 +233,39 @@ func (t Teams) Answer(ctx context.Context, creds port.Credentials, in port.Inbou
 	})
 	address := strings.TrimSuffix(in.Reply["service"], "/") + "/v3/conversations/" + url.PathEscape(in.Reply["conversation"]) +
 		"/activities/" + url.PathEscape(in.Reply["activity"])
+	return port.Response{}, t.post(ctx, bearer, address, raw)
+}
+
+// Tell posts the card into the bot's personal chat with the person, through the Bot Connector at
+// the service address that chat came from.
+func (t Teams) Tell(ctx context.Context, creds port.Credentials, _ string, address string, card port.Card) error {
+	service, conversation, ok := strings.Cut(address, " ")
+	if !ok || conversation == "" || !allowedService(service) {
+		return cannotTell("not a Teams personal chat")
+	}
+	bearer, err := t.token(ctx, creds)
+	if err != nil {
+		return err
+	}
+	raw, _ := json.Marshal(map[string]any{"type": "message", "attachments": []map[string]any{teamsCard(card)}})
+	return t.post(ctx, bearer, strings.TrimSuffix(service, "/")+"/v3/conversations/"+url.PathEscape(conversation)+"/activities", raw)
+}
+
+func (t Teams) post(ctx context.Context, bearer, address string, raw []byte) error {
+	if t.Client == nil {
+		return unreachable(errors.New("chat bot: no outbound client is wired"))
+	}
 	response, err := t.Client.Do(ctx, httpport.Request{
 		Method: http.MethodPost, URL: address, Body: raw, TargetClass: TargetClass,
 		Header: map[string][]string{"Authorization": {"Bearer " + bearer}, "Content-Type": {"application/json"}},
 	})
 	switch {
 	case err != nil:
-		return port.Response{}, unreachable(err)
+		return unreachable(err)
 	case response.Status == http.StatusUnauthorized || response.Status == http.StatusForbidden:
-		return port.Response{}, revoked("the Bot Connector refused the bot's token")
+		return revoked("the Bot Connector refused the bot's token")
 	case response.Status/100 != 2:
-		return port.Response{}, unreachable(errors.New("chat bot: the Bot Connector answered " + http.StatusText(response.Status)))
+		return unreachable(errors.New("chat bot: the Bot Connector answered " + http.StatusText(response.Status)))
 	}
-	return port.Response{}, nil
+	return nil
 }

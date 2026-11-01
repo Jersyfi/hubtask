@@ -713,6 +713,16 @@ var generatedCommands = []door{
 			{Name: "unfurl", Kind: "boolean", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "chat", Verb: "link", OperationID: "linkChatAccount", Method: "POST", Path: "/chat-bots/{botId}/link", Summary: "Link the caller's chat account to a chat bot",
+		PathParams: []doorParam{
+			{Name: "botId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"code", "command", "expires_at"}},
+	{Group: "chat", Verb: "unlink", OperationID: "unlinkChatAccount", Method: "DELETE", Path: "/chat-bots/{botId}/link", Summary: "Unlink the caller's chat account from a chat bot",
+		PathParams: []doorParam{
+			{Name: "botId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "ci", Verb: "alert ls", OperationID: "listCiAlerts", Method: "GET", Path: "/hubs/{hubId}/ci-alerts", Summary: "A hub's alerts",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},

@@ -6,6 +6,8 @@
 
 export const chatBotsPath = (hubId: string) => `/hubs/${hubId}/chat-bots`;
 export const chatBotPath = (botId: string) => `/chat-bots/${botId}`;
+/** Where the caller links their own chat account to a bot (UC-SVC-09 check 6). */
+export const chatLinkPath = (botId: string) => `/chat-bots/${botId}/link`;
 
 export type ChatPlatform = 'MATRIX' | 'SLACK' | 'TEAMS' | 'MATTERMOST';
 
@@ -24,6 +26,8 @@ export interface ChatBotDraft {
   appPassword: string;
   commandToken: string;
   webhookToken: string;
+  /** A Mattermost incoming webhook's key, through which a linked person is told of an approval. */
+  postHook: string;
   unfurl: boolean;
   capture: boolean;
 }
@@ -31,7 +35,7 @@ export interface ChatBotDraft {
 export function emptyChatBotDraft(collectionId: string): ChatBotDraft {
   return {
     platform: 'MATRIX', collectionId, homeserver: '', room: '', token: '', signingSecret: '', appId: '', appTenant: '',
-    appPassword: '', commandToken: '', webhookToken: '', unfurl: true, capture: true,
+    appPassword: '', commandToken: '', webhookToken: '', postHook: '', unfurl: true, capture: true,
   };
 }
 
@@ -69,9 +73,16 @@ export function chatBotBody(draft: ChatBotDraft): Record<string, unknown> {
     case 'MATTERMOST':
       if (draft.capture) body.command_token = draft.commandToken.trim();
       if (draft.unfurl) body.webhook_token = draft.webhookToken.trim();
+      if (draft.postHook.trim()) body.post_hook = postHookKey(draft.postHook);
       break;
   }
   return body;
+}
+
+/** A Mattermost incoming webhook's key: pasted as its whole address, the last part of it. */
+export function postHookKey(typed: string): string {
+  const trimmed = typed.trim().replace(/\/+$/u, '');
+  return trimmed.slice(trimmed.lastIndexOf('/') + 1);
 }
 
 const roomShape: Record<ChatPlatform, RegExp> = {

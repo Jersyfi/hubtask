@@ -366,6 +366,10 @@ DELETE FROM approval_delegation
 WHERE tenant_id = current_tenant_id()
   AND (account_id = sqlc.arg('account_id') OR delegate_id = sqlc.arg('account_id'));
 
+-- name: DeleteChatLinksOfAccount :execrows
+-- A chat account linked to the person names them on the platform (migration 0321).
+DELETE FROM chat_link WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
 -- name: KudosOfAccount :many
 -- The kudos the person gave and received, for their own copy of their data, a page at a time in the
 -- key's order. Never kudos between two other people.

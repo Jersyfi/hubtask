@@ -55,6 +55,8 @@ type Credentials struct {
 	// CommandToken and WebhookToken are what Mattermost's slash command and outgoing webhook send.
 	CommandToken secret.Secret
 	WebhookToken secret.Secret
+	// PostHook is the key of a Mattermost incoming webhook the bot tells a linked person through.
+	PostHook secret.Secret
 }
 
 // Delivery is one post a platform made to a bot's intake, as it came.
@@ -91,6 +93,17 @@ type Inbound struct {
 	Challenge string
 	// Reply is what the platform needs to answer it later: Slack's message, a Teams activity.
 	Reply map[string]string
+	// Sender is the platform's own identifier of whoever said it, empty when the platform names
+	// nobody.
+	Sender string
+	// Address is where a card only the sender reads goes later (Tell), empty where the platform
+	// cannot post to them alone from here - a Teams channel rather than the bot's personal chat.
+	Address string
+	// Bare is a slash command's text, whose commands may leave their `!` out.
+	Bare bool
+	// Privately asks Answer for a reply only the sender sees, where the platform has one: what a
+	// person's own command answers is theirs.
+	Privately bool
 }
 
 // Card is one answer: a sentence, an entry's title and its link at most - never its notes.
@@ -118,4 +131,7 @@ type Platform interface {
 	Read(ctx context.Context, creds Credentials, botUser string, d Delivery) (Inbound, error)
 	// Answer gives the cards to the platform: in the intake's response, or through its API.
 	Answer(ctx context.Context, creds Credentials, in Inbound, cards []Card) (Response, error)
+	// Tell posts a card to one person at the address a delivery of theirs answered, unasked: an
+	// approval waiting for their yes. A platform that cannot is `chatbot.cannot_tell`.
+	Tell(ctx context.Context, creds Credentials, server, address string, card Card) error
 }

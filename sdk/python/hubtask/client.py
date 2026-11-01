@@ -891,6 +891,14 @@ class Client:
         """Remove a chat bot"""
         return self._call("DELETE", "/chat-bots/{botId}", {"botId": bot_id}, None, {}, None, "none", None, "void")
 
+    def link_chat_account(self, bot_id: str) -> "ChatLinkCode":
+        """Link the caller's chat account to a chat bot"""
+        return self._call("POST", "/chat-bots/{botId}/link", {"botId": bot_id}, None, {}, None, "none", None, "json")
+
+    def unlink_chat_account(self, bot_id: str) -> None:
+        """Unlink the caller's chat account from a chat bot"""
+        return self._call("DELETE", "/chat-bots/{botId}/link", {"botId": bot_id}, None, {}, None, "none", None, "void")
+
     def update_code_hook(self, hook_id: str, body: "CodeHookUpdate") -> "CodeHook":
         """Rename a forge hook or switch it on or off"""
         return self._call("PATCH", "/code-hooks/{hookId}", {"hookId": hook_id}, None, {}, body, "json", "application/json", "json")

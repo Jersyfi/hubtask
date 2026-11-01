@@ -1045,4 +1045,5 @@ export type FileStoreFolder = components['schemas']['FileStoreFolder'];
 export type FileStoreShare = components['schemas']['FileStoreShare'];
 export type ChatBot = components['schemas']['ChatBot'];
 export type ChatBotList = components['schemas']['ChatBotList'];
+export type ChatLinkCode = components['schemas']['ChatLinkCode'];
 export type FileLinkList = components['schemas']['FileLinkList'];

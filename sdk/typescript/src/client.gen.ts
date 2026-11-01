@@ -1097,6 +1097,16 @@ export class HubtaskClient {
     return this.call("DELETE", "/chat-bots/{botId}", { "botId": botId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Link the caller's chat account to a chat bot */
+  linkChatAccount(botId: string, options: CallOptions = {}): Promise<operations["linkChatAccount"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/chat-bots/{botId}/link", { "botId": botId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Unlink the caller's chat account from a chat bot */
+  unlinkChatAccount(botId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/chat-bots/{botId}/link", { "botId": botId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Rename a forge hook or switch it on or off */
   updateCodeHook(hookId: string, body: NonNullable<operations["updateCodeHook"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["updateCodeHook"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/code-hooks/{hookId}", { "hookId": hookId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

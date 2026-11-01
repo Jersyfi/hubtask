@@ -11,7 +11,7 @@
   import {
     Banner, Button, Checkbox, Dialog, EmptyState, IconButton, Input, Select, Spinner, Stack, Switch, type SelectOption,
   } from '@hubtask/design-system/components';
-  import type { ChatBot, ChatBotList, Container } from '@hubtask/sync-engine';
+  import type { ChatBot, ChatBotList, ChatLinkCode, Container } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
   import {
@@ -89,13 +89,33 @@
       fail(error);
     } finally {
       isSeating = false;
-      draft.token = draft.signingSecret = draft.appPassword = draft.commandToken = draft.webhookToken = '';
+      draft.token = draft.signingSecret = draft.appPassword = draft.commandToken = draft.webhookToken = draft.postHook = '';
     }
   }
 
   async function change(bot: ChatBot, what: Partial<Pick<ChatBot, 'enabled' | 'unfurl' | 'capture'>>) {
     try {
       await chatBots.change(bot, what);
+    } catch (error) {
+      fail(error);
+    }
+  }
+
+  // A member links their own chat account (UC-SVC-09 check 6): the code is shown once, to say to
+  // the bot, and held here only while it can be said.
+  let linkCode = $state<{ botId: string; code: ChatLinkCode } | undefined>(undefined);
+  async function link(bot: ChatBot) {
+    try {
+      linkCode = { botId: bot.id, code: await chatBots.link(bot) };
+    } catch (error) {
+      fail(error);
+    }
+  }
+  async function unlink(bot: ChatBot) {
+    try {
+      await chatBots.unlink(bot);
+      linkCode = undefined;
+      toast.show({ text: t('app.chatbots.unlinked'), tone: 'success' });
     } catch (error) {
       fail(error);
     }
@@ -153,6 +173,18 @@
             <IntakeAddress address={at} lead={t('app.chatbots.intake')} />
             {#if mayShape}<p class="meta">{t('app.chatbots.intake_hint')}</p>{/if}
           {/if}
+          <div class="actions" data-chat-link>
+            {#if bot.linked}
+              <span class="meta">{t('app.chatbots.linked')}</span>
+              <Button size="sm" tone="secondary" onclick={() => void unlink(bot)}>{t('app.chatbots.unlink')}</Button>
+            {:else}
+              <Button size="sm" tone="secondary" icon="link" onclick={() => void link(bot)}>{t('app.chatbots.link')}</Button>
+            {/if}
+          </div>
+          {#if linkCode?.botId === bot.id}
+            <p class="meta">{t(`app.chatbots.link_say_${bot.platform.toLowerCase()}`)}</p>
+            <code class="widget" data-chat-link-command>{linkCode.code.command}</code>
+          {/if}
           {#if mayShape}
             <div class="actions">
               <Checkbox label={t('app.chatbots.unfurl')} checked={bot.unfurl}
@@ -192,6 +224,7 @@
         {#if draft.unfurl}
           <Input label={t('app.chatbots.webhook_token')} hint={t('app.chatbots.webhook_token_hint')} bind:value={draft.webhookToken} type="password" autocomplete="off" maxlength={256} />
         {/if}
+        <Input label={t('app.chatbots.post_hook')} hint={t('app.chatbots.post_hook_hint')} bind:value={draft.postHook} type="password" autocomplete="off" maxlength={512} />
       {/if}
       <Select label={t('app.chatbots.collection')} options={collectionOptions} bind:value={draft.collectionId} />
       <Checkbox label={t('app.chatbots.unfurl')} hint={t('app.chatbots.unfurl_hint')} bind:checked={draft.unfurl} />

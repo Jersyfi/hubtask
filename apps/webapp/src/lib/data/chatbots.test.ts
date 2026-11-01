@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { chatBotBody, chatBotMissing, chatBotsPath, chatIntakeAddress, emptyChatBotDraft, postsToIntake, roomWidgetAddress } from './chatbots.ts';
+import { chatBotBody, chatBotMissing, chatBotsPath, chatIntakeAddress, emptyChatBotDraft, postHookKey, postsToIntake, roomWidgetAddress, chatLinkPath } from './chatbots.ts';
 
 const draft = { ...emptyChatBotDraft('c'), homeserver: 'matrix.example.org', room: '!r:example.org', token: ' tok ', capture: false };
 
@@ -53,4 +53,10 @@ test('UC-INT-19: a platform bot shows where its platform posts', () => {
 
 test('UC-INT-18 check 5: a Matrix room shows the hub as its widget, by an address that carries no credential', () => {
   assert.equal(roomWidgetAddress('https://tasks.example.org/', 'h1'), 'https://tasks.example.org/hubs/h1');
+});
+
+test('UC-SVC-09: a Mattermost incoming webhook pasted as its whole address is sent as its key', () => {
+  assert.equal(postHookKey('https://chat.example.org/hooks/x7k3m9/'), 'x7k3m9');
+  assert.equal(postHookKey(' x7k3m9 '), 'x7k3m9');
+  assert.equal(chatLinkPath('b1'), '/chat-bots/b1/link');
 });

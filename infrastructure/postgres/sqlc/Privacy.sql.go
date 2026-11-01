@@ -287,6 +287,19 @@ func (q *Queries) DeleteAiRequestsOfAccount(ctx context.Context, accountID pgtyp
 	return result.RowsAffected(), nil
 }
 
+const deleteChatLinksOfAccount = `-- name: DeleteChatLinksOfAccount :execrows
+DELETE FROM chat_link WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// A chat account linked to the person names them on the platform (migration 0321).
+func (q *Queries) DeleteChatLinksOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteChatLinksOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteCommentsOf = `-- name: DeleteCommentsOf :execrows
 DELETE FROM comment
 WHERE tenant_id = current_tenant_id() AND author_id = $1

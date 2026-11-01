@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -150,7 +151,7 @@ func (s Slack) Read(_ context.Context, creds port.Credentials, botUser string, d
 		case doc.Type == "url_verification":
 			return port.Inbound{Asks: port.AsksChallenge, Challenge: doc.Challenge}, nil
 		case doc.Type == "event_callback" && doc.Event.Type == "link_shared" && doc.Event.User != botUser:
-			in := port.Inbound{Asks: port.AsksUnfurl, Room: doc.Event.Channel, Reply: map[string]string{
+			in := port.Inbound{Asks: port.AsksUnfurl, Room: doc.Event.Channel, Sender: doc.Event.User, Reply: map[string]string{
 				"channel": doc.Event.Channel, "ts": doc.Event.MessageTS, "unfurl_id": doc.Event.UnfurlID, "source": doc.Event.Source,
 			}}
 			for _, l := range doc.Event.Links {
@@ -167,7 +168,25 @@ func (s Slack) Read(_ context.Context, creds port.Credentials, botUser string, d
 	if form["command"] == "" || form["user_id"] == botUser {
 		return port.Inbound{}, nil
 	}
-	return port.Inbound{Asks: port.AsksCapture, Room: form["channel_id"], Text: form["text"], Reply: map[string]string{"kind": "command"}}, nil
+	in := port.Inbound{Asks: port.AsksCapture, Room: form["channel_id"], Text: form["text"], Bare: true, Reply: map[string]string{"kind": "command"}}
+	if slackUser.MatchString(form["user_id"]) {
+		// A message to a user's identifier lands in the app's own conversation with them.
+		in.Sender, in.Address = form["user_id"], form["user_id"]
+	}
+	return in, nil
+}
+
+var slackUser = regexp.MustCompile(`^[UW][A-Z0-9]{2,20}$`)
+
+// Tell posts the card to the person through `chat.postMessage`, its channel their user
+// identifier: the app's own conversation with them, which nobody else reads.
+func (s Slack) Tell(ctx context.Context, creds port.Credentials, _ string, address string, card port.Card) error {
+	if !slackUser.MatchString(address) {
+		return cannotTell("not a Slack user")
+	}
+	return s.call(ctx, "/chat.postMessage", creds, map[string]any{
+		"channel": address, "text": slackText(card.Headline), "blocks": slackBlocks(card), "unfurl_links": false,
+	}, nil)
 }
 
 // slackText escapes what Slack's mrkdwn reads as markup: `&`, `<` and `>`, so a title can neither
@@ -203,7 +222,11 @@ func (s Slack) Answer(ctx context.Context, creds port.Credentials, in port.Inbou
 			blocks = append(blocks, slackBlocks(c)...)
 			fallback = append(fallback, slackText(c.Headline))
 		}
-		raw, _ := json.Marshal(map[string]any{"response_type": "in_channel", "text": strings.Join(fallback, " "), "blocks": blocks})
+		kind := "in_channel"
+		if in.Privately {
+			kind = "ephemeral"
+		}
+		raw, _ := json.Marshal(map[string]any{"response_type": kind, "text": strings.Join(fallback, " "), "blocks": blocks})
 		return port.Response{Body: raw}, nil
 	case in.Asks == port.AsksUnfurl && len(cards) > 0:
 		unfurls := map[string]any{}

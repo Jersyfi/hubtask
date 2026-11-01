@@ -103,7 +103,10 @@ type Enqueuer interface {
 
 // Bots is what every chat bot use case shares.
 type Bots struct {
-	Store      repository.Store
+	Store repository.Store
+	// Links are the chat accounts people linked to a bot (UC-SVC-09 check 6); nil links none.
+	Links      repository.Links
+	Entropy    clock.Entropy
 	Containers workrepo.Containers
 	Entries    Entries
 	Room       roomport.Room
@@ -241,8 +244,11 @@ func (h ListChatBots) Descriptor() usecase.Descriptor {
 			rows := []usecase.Output{}
 			err = h.Bots.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				list, err := h.Bots.Store.List(ctx, hub)
+				linked := h.Bots.linkedBots(ctx, actor)
 				for _, bot := range list {
-					rows = append(rows, Output(bot))
+					row := Output(bot)
+					row["linked"] = linked[bot.ID]
+					rows = append(rows, row)
 				}
 				return err
 			})
@@ -279,6 +285,7 @@ func (h CreateChatBot) Descriptor() usecase.Descriptor {
 			{Name: "app_password", Kind: usecase.KindString, Description: "The Teams bot's client secret."},
 			{Name: "command_token", Kind: usecase.KindString, Description: "The Mattermost slash command's token."},
 			{Name: "webhook_token", Kind: usecase.KindString, Description: "The Mattermost outgoing webhook's token."},
+			{Name: "post_hook", Kind: usecase.KindString, Description: "The key of a Mattermost incoming webhook a linked person is told through."},
 			{Name: "locale", Kind: usecase.KindString, Description: "The language the bot answers in; the installation's when empty."},
 			{Name: "unfurl", Kind: usecase.KindBool, Description: "Whether links to the hub's entries are answered."},
 			{Name: "capture", Kind: usecase.KindBool, Description: "Whether `!task` messages become entries."},
@@ -577,6 +584,9 @@ type reply struct {
 // answer is a Matrix message's replies, each keyed by the message's event so a retried post is
 // one notice.
 func (b Bots) answer(ctx context.Context, actor appshared.ActorContext, bot integration.ChatBot, base string, m roomport.Message) []reply {
+	if card, ok := b.command(ctx, bot, said{sender: m.Sender, address: bot.Room, text: m.Body}); ok {
+		return []reply{{Card: card, txn: "hubtask-" + m.EventID}}
+	}
 	if title, ok := integration.Captured(m.Body); ok && bot.Capture {
 		return []reply{{Card: b.captured(ctx, actor, bot, base, title), txn: "hubtask-" + m.EventID}}
 	}
@@ -677,12 +687,14 @@ type credentials struct {
 	AppPassword   string `json:"app_password,omitempty"`
 	CommandToken  string `json:"command_token,omitempty"`
 	WebhookToken  string `json:"webhook_token,omitempty"`
+	PostHook      string `json:"post_hook,omitempty"`
 }
 
 func bundle(c roomport.Credentials) string {
 	raw, _ := json.Marshal(credentials{
 		Token: c.Token.Reveal(), SigningSecret: c.SigningSecret.Reveal(), AppID: c.AppID, AppTenant: c.AppTenant,
 		AppPassword: c.AppPassword.Reveal(), CommandToken: c.CommandToken.Reveal(), WebhookToken: c.WebhookToken.Reveal(),
+		PostHook: c.PostHook.Reveal(),
 	})
 	return string(raw)
 }
@@ -695,6 +707,7 @@ func unbundle(s secret.Secret) (roomport.Credentials, error) {
 	return roomport.Credentials{
 		Token: secret.New(c.Token), SigningSecret: secret.New(c.SigningSecret), AppID: c.AppID, AppTenant: c.AppTenant,
 		AppPassword: secret.New(c.AppPassword), CommandToken: secret.New(c.CommandToken), WebhookToken: secret.New(c.WebhookToken),
+		PostHook: secret.New(c.PostHook),
 	}, nil
 }
 
@@ -737,6 +750,12 @@ func credentialsFrom(platform integration.DeliveryFormat, in usecase.Input) (sec
 			return secret.Secret{}, c, invalid("/command_token", "chatbot.command_token_required")
 		}
 		c.CommandToken, c.WebhookToken = secret.New(field("command_token")), secret.New(field("webhook_token"))
+		if hook := field("post_hook"); hook != "" {
+			if strings.ContainsAny(hook, "/?#") {
+				return secret.Secret{}, c, invalid("/post_hook", "chatbot.post_hook_invalid")
+			}
+			c.PostHook = secret.New(hook)
+		}
 	}
 	return secret.Secret{}, c, nil
 }
@@ -808,6 +827,14 @@ func (b Bots) Receive(ctx context.Context, d Delivery) (roomport.Response, error
 	}
 	call, cancel := context.WithTimeout(ctx, answerLimit)
 	defer cancel()
+	if in.Asks == roomport.AsksCapture || in.Asks == roomport.AsksUnfurl {
+		// A person's own command is theirs wherever they say it: in the bot's room, or in its
+		// conversation with them, which is another room.
+		if card, ok := b.command(call, bot, said{sender: in.Sender, address: in.Address, text: in.Text, bare: in.Bare}); ok {
+			in.Privately = true
+			return b.answered(ctx, adapter, creds, bot, in, []roomport.Card{card})
+		}
+	}
 	switch {
 	case in.Asks == roomport.AsksChallenge:
 		return adapter.Answer(call, creds, in, nil)
@@ -818,13 +845,22 @@ func (b Bots) Receive(ctx context.Context, d Delivery) (roomport.Response, error
 	if b.Addresses != nil {
 		base, _ = b.Addresses.Of(ctx)
 	}
-	cards := b.cards(call, runAs(bot), bot, base, in)
+	return b.answered(ctx, adapter, creds, bot, in, b.cards(call, runAs(bot), bot, base, in))
+}
+
+// answered gives the platform the cards; an answer it does not take is recorded on the bot, and
+// the next one that goes through clears it.
+func (b Bots) answered(ctx context.Context, adapter roomport.Platform, creds roomport.Credentials, bot integration.ChatBot,
+	in roomport.Inbound, cards []roomport.Card) (roomport.Response, error) {
+	call, cancel := context.WithTimeout(ctx, answerLimit)
+	defer cancel()
 	answer, err := adapter.Answer(call, creds, in, cards)
 	failure := ""
 	if err != nil {
 		failure = codeOf(err)
 		answer, _ = adapter.Answer(call, creds, roomport.Inbound{}, nil)
 	}
+	scope := persistence.Scope{TenantID: bot.TenantID}
 	if failure != bot.Failure {
 		bot.Read("", failure, b.Clock.Now())
 		if err := b.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error { return b.Store.Record(ctx, bot) }); err != nil {

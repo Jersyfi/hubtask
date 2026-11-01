@@ -13216,7 +13216,10 @@ type ChatBot struct {
 	Homeserver string             `json:"homeserver"`
 	HubId      openapi_types.UUID `json:"hub_id"`
 	Id         openapi_types.UUID `json:"id"`
-	Locale     *string            `json:"locale,omitempty"`
+
+	// Linked Whether the caller's chat account is linked to the bot.
+	Linked *bool   `json:"linked,omitempty"`
+	Locale *string `json:"locale,omitempty"`
 
 	// Platform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
 	Platform ChatBotPlatform `json:"platform"`
@@ -13256,6 +13259,9 @@ type ChatBotCreate struct {
 	// Platform Where the bot sits. MATRIX reads its room every minute; SLACK, TEAMS and MATTERMOST are posted to at the bot's intake by an app the platform's administrator registered.
 	Platform *ChatBotPlatform `json:"platform,omitempty"`
 
+	// PostHook The key of a Mattermost incoming webhook, the last part of its address, through which the bot tells a linked person of an approval; kept sealed, never answered.
+	PostHook *string `json:"post_hook,omitempty"`
+
 	// Room The room's identifier, never an alias: a Matrix room `!…:server`, a Slack channel `C…`, a Mattermost channel's 26 characters, a Teams conversation `19:…`.
 	Room string `json:"room"`
 
@@ -13282,6 +13288,16 @@ type ChatBotUpdate struct {
 	Enabled      *bool               `json:"enabled,omitempty"`
 	Locale       *string             `json:"locale,omitempty"`
 	Unfurl       *bool               `json:"unfurl,omitempty"`
+}
+
+// ChatLinkCode defines model for ChatLinkCode.
+type ChatLinkCode struct {
+	// Code The one-time code, said once.
+	Code string `json:"code"`
+
+	// Command What to say to the bot.
+	Command   string    `json:"command"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 // CiAlert defines model for CiAlert.
@@ -30314,6 +30330,12 @@ type ServerInterface interface {
 	// UpdateChatBot Change a chat bot
 	// (PATCH /chat-bots/{botId})
 	UpdateChatBot(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID)
+	// UnlinkChatAccount Unlink the caller's chat account from a chat bot
+	// (DELETE /chat-bots/{botId}/link)
+	UnlinkChatAccount(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID)
+	// LinkChatAccount Link the caller's chat account to a chat bot
+	// (POST /chat-bots/{botId}/link)
+	LinkChatAccount(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID)
 	// DeliverChat A chat platform posts what was said to its bot
 	// (POST /chat-intake/{tenantId}/{botId})
 	DeliverChat(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, botId openapi_types.UUID)
@@ -38288,6 +38310,58 @@ func (siw *ServerInterfaceWrapper) UpdateChatBot(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateChatBot(w, r, botId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnlinkChatAccount operation middleware
+func (siw *ServerInterfaceWrapper) UnlinkChatAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "botId" -------------
+	var botId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "botId", r.PathValue("botId"), &botId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "botId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnlinkChatAccount(w, r, botId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LinkChatAccount operation middleware
+func (siw *ServerInterfaceWrapper) LinkChatAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "botId" -------------
+	var botId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "botId", r.PathValue("botId"), &botId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "botId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LinkChatAccount(w, r, botId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -59465,6 +59539,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/chat-bots", wrapper.CreateChatBot)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/chat-bots/{botId}", wrapper.DeleteChatBot)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/chat-bots/{botId}", wrapper.UpdateChatBot)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/chat-bots/{botId}/link", wrapper.UnlinkChatAccount)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/chat-bots/{botId}/link", wrapper.LinkChatAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/code-hooks/{hookId}", wrapper.UpdateCodeHook)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/code-hooks/{hookId}/secret", wrapper.RotateCodeHookSecret)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/code-links", wrapper.ListEntryCodeLinks)

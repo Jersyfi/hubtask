@@ -54,3 +54,37 @@ func (h ChatBot) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
 	}
 	return queue.Result{Repeat: true, RepeatAfter: waitUntil(now(), next, time.Hour)}, nil
 }
+
+// CardTeller posts one approval's card to one linked chat account.
+type CardTeller interface {
+	TellApproval(ctx context.Context, tenantID, linkID, approvalID shared.ID, txn string) error
+}
+
+// ChatApprovalCard posts an approval's card to a linked chat account (UC-SVC-09 check 6); a
+// platform out of reach is retried by the queue.
+//
+// Detached: the platform is outside, and no transaction stays open across it.
+type ChatApprovalCard struct {
+	Bots CardTeller
+}
+
+var (
+	_ queue.Handler  = ChatApprovalCard{}
+	_ queue.Detached = ChatApprovalCard{}
+)
+
+// OwnsItsTransactions marks the handler detached.
+func (ChatApprovalCard) OwnsItsTransactions() {}
+
+// Run posts the card the job names.
+func (h ChatApprovalCard) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
+	rawLink, _ := job.Payload["link_id"].(string)
+	rawApproval, _ := job.Payload["approval_id"].(string)
+	txn, _ := job.Payload["txn"].(string)
+	link, err := shared.ParseID(rawLink)
+	approval, aerr := shared.ParseID(rawApproval)
+	if job.TenantID.IsZero() || err != nil || aerr != nil || txn == "" {
+		return queue.Result{}, shared.ErrInternal.WithDetail("chatbot.link_job_without_link")
+	}
+	return queue.Result{}, h.Bots.TellApproval(ctx, job.TenantID, link, approval, txn)
+}

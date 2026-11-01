@@ -7,6 +7,7 @@ package chatbot
 
 import (
 	"context"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -27,4 +28,21 @@ type Store interface {
 	Record(ctx context.Context, bot integration.ChatBot) error
 	// Delete removes a bot; not found for none.
 	Delete(ctx context.Context, id shared.ID) error
+}
+
+// Links keeps the chat accounts people linked to a bot (migration 0321).
+type Links interface {
+	// Start keeps a pending link's code hash until it runs out, replacing one not yet said.
+	Start(ctx context.Context, id, botID, accountID shared.ID, codeHash []byte, expiresAt, now time.Time) error
+	// Claim links the chat user to whoever's code it said, letting go the chat user's earlier link;
+	// a code unknown or run out is not found.
+	Claim(ctx context.Context, botID shared.ID, codeHash []byte, chatUser, address string, now time.Time) (shared.ID, error)
+	// ByUser answers an active person's link of the chat user; not found for none.
+	ByUser(ctx context.Context, botID shared.ID, chatUser string) (integration.ChatLink, error)
+	// OfAccount answers the person's linked chat accounts.
+	OfAccount(ctx context.Context, accountID shared.ID) ([]integration.ChatLink, error)
+	// Find answers an active person's link; not found for none.
+	Find(ctx context.Context, id shared.ID) (integration.ChatLink, error)
+	// Delete removes the person's link to the bot; not found for none.
+	Delete(ctx context.Context, botID, accountID shared.ID) error
 }

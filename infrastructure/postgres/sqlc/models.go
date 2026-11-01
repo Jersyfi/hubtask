@@ -1035,6 +1035,19 @@ type ChatBot struct {
 	Platform     string
 }
 
+type ChatLink struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	BotID         pgtype.UUID
+	AccountID     pgtype.UUID
+	ChatUser      string
+	Address       string
+	CodeHash      []byte
+	CodeExpiresAt pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	LinkedAt      pgtype.Timestamptz
+}
+
 type CmdbAffected struct {
 	ID       pgtype.UUID
 	TenantID pgtype.UUID
