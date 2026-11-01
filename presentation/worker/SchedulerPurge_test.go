@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 // finishedJobs is the queue's purge, as the leader sees it.
@@ -98,5 +99,34 @@ func TestTheLeaderSweepsTheUseCountsDaily(t *testing.T) {
 	leader.tick(t.Context(), true, midnight.Add(10*time.Second))
 	if sweep.calls != 1 {
 		t.Errorf("swept %d times within one day", sweep.calls)
+	}
+}
+
+// deadDuties is the queue's revival, as the leader sees it.
+type deadDuties struct {
+	calls int
+	kinds []queue.Kind
+}
+
+func (d *deadDuties) ReviveDeadDuties(_ context.Context, kinds []queue.Kind, _ int) (map[queue.Kind]int, error) {
+	d.calls++
+	d.kinds = kinds
+	return map[queue.Kind]int{"mail.mailbox_poll": 1}, nil
+}
+
+// A dead duty is brought back by the leader on the first tick of each hour, for the duty kinds
+// only, and not again within the hour.
+func TestTheLeaderRevivesDeadDutiesHourly(t *testing.T) {
+	revive := &deadDuties{}
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.DeadDuties, leader.DutyKinds = revive, []queue.Kind{"mail.mailbox_poll"}
+
+	leader.tick(t.Context(), false, now)
+	if revive.calls != 1 || len(revive.kinds) != 1 || revive.kinds[0] != "mail.mailbox_poll" {
+		t.Fatalf("revived %d times for %v", revive.calls, revive.kinds)
+	}
+	leader.tick(t.Context(), true, now.Add(10*time.Second))
+	if revive.calls != 1 {
+		t.Errorf("revived %d times within one hour", revive.calls)
 	}
 }

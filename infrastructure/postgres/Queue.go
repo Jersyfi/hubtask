@@ -468,6 +468,32 @@ func (q Queue) PurgeFinished(ctx context.Context, before time.Time, batch int) (
 	return purged, nil
 }
 
+// ReviveDeadDuties brings back up to batch dead-lettered jobs of the duty kinds whose wait has run
+// out, and answers how many of each kind came back.
+func (q Queue) ReviveDeadDuties(ctx context.Context, kinds []queue.Kind, batch int) (map[queue.Kind]int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(kinds))
+	for _, kind := range kinds {
+		names = append(names, string(kind))
+	}
+	revived, err := queries.ReviveDeadDuties(ctx, sqlc.ReviveDeadDutiesParams{
+		Now: timestampOf(q.now.Now()), Kinds: names, Batch: int32(min(max(batch, 0), math.MaxInt32)),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reviving dead duties: %w", err))
+	}
+	counts := map[queue.Kind]int{}
+	for _, kind := range revived {
+		counts[queue.Kind(kind)]++
+	}
+	return counts, nil
+}
+
 // jobFrom rebuilds a claimed job. A row that cannot be read is a defect rather than a bad job:
 // everything in it was written by this adapter.
 func jobFrom(row sqlc.ClaimJobsRow) (queue.Job, error) {

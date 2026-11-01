@@ -58,6 +58,15 @@ type FinishedJobs interface {
 	PurgeFinished(ctx context.Context, before time.Time, batch int) (map[string]int, error)
 }
 
+// DeadDuties brings duties back from the dead letter (queue.Perpetual), in the installation's
+// scope: the job table has no tenant (multi-tenancy.md §2.1).
+type DeadDuties interface {
+	ReviveDeadDuties(ctx context.Context, kinds []queue.Kind, batch int) (map[queue.Kind]int, error)
+}
+
+// deadDutyBatch bounds one revival pass.
+const deadDutyBatch = 1_000
+
 // UsageSweep removes the use counts older than the day it is given, inside workspaces and in the
 // installation's ledger (multi-tenancy.md §4.3).
 type UsageSweep interface {
@@ -178,6 +187,12 @@ type Scheduler struct {
 	// FinishedJobs removes finished jobs past FinishedJobPeriod, on the first tick of every hour.
 	// Nil skips.
 	FinishedJobs FinishedJobs
+	// DeadDuties revives the dead-lettered jobs of DutyKinds, on the first tick of every hour: a
+	// mailbox's poll, a connector's pull or a workspace's sweep that died is a duty nothing else
+	// re-seeds, and an outage or a fixed defect must not end it for good. Nil skips.
+	DeadDuties DeadDuties
+	// DutyKinds are the kinds whose handler is queue.Perpetual.
+	DutyKinds []queue.Kind
 	// Usage removes the use counts older than UsageMonths, on the first tick of every day. Nil
 	// skips.
 	Usage UsageSweep
@@ -287,6 +302,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.ensureStreamPartitions(ctx)
 	s.dropAgedStreamPartitions(ctx)
 	s.applyOperators(ctx, due)
+	s.reviveDeadDuties(ctx, due)
 	s.purgeFinishedJobs(ctx, due)
 	s.sweepUsage(ctx, due)
 	s.dropAgedAuditPartitions(ctx, due)
@@ -376,6 +392,37 @@ func (s Scheduler) dropAgedAuditPartitions(ctx context.Context, due time.Time) {
 	if s.Signals != nil {
 		s.Signals.AuditPartitionsHeld(ctx, held)
 		s.Signals.AuditDefaultAgedRows(ctx, defaultAged)
+	}
+}
+
+// reviveDeadDuties puts dead-lettered duties back to work: hourly and stateless, like the purge,
+// before it, so a duty dead for a week is revived rather than purged. Each revival doubles the
+// next wait (an hour to a day), so a duty that fails for good costs a few attempts a day; the
+// dead letter's alert (A-07) still fires each time it dies.
+func (s Scheduler) reviveDeadDuties(ctx context.Context, due time.Time) {
+	if s.DeadDuties == nil || len(s.DutyKinds) == 0 {
+		return
+	}
+	if due.Truncate(time.Hour).Equal(due.Add(-s.TickInterval).Truncate(time.Hour)) {
+		return
+	}
+	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	var revived map[queue.Kind]int
+	err := s.UnitOfWork.Within(dutyCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		revived, err = s.DeadDuties.ReviveDeadDuties(txCtx, s.DutyKinds, deadDutyBatch)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "dead duties could not be revived", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	for kind, count := range revived {
+		slog.WarnContext(ctx, "dead duties revived", slog.String("kind", string(kind)), slog.Int("count", count))
 	}
 }
 

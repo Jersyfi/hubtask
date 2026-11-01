@@ -652,6 +652,7 @@ UPDATE job SET
   state        = 'PENDING',
   run_at       = $1,
   attempts     = 0,
+  revivals     = 0,
   locked_until = NULL,
   last_error   = NULL
 WHERE id = $2 AND state = 'RUNNING' AND locked_until = $3
@@ -700,6 +701,66 @@ func (q *Queries) RetryJob(ctx context.Context, arg RetryJobParams) (int64, erro
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const reviveDeadDuties = `-- name: ReviveDeadDuties :many
+UPDATE job SET
+  state        = 'PENDING',
+  run_at       = $1::timestamptz,
+  attempts     = 0,
+  revivals     = job.revivals + 1,
+  finished_at  = NULL,
+  locked_until = NULL
+WHERE job.id IN (
+  SELECT dead.id FROM job AS dead
+  WHERE dead.state = 'DEAD_LETTER'
+    AND dead.kind = ANY($2::text[])
+    AND dead.finished_at <= $1::timestamptz
+      - LEAST(interval '1 hour' * power(2, LEAST(dead.revivals, 5)), interval '24 hours')
+    AND (dead.dedupe_key IS NULL OR NOT EXISTS (
+      SELECT 1 FROM job AS open
+      WHERE open.kind = dead.kind AND open.dedupe_key = dead.dedupe_key
+        AND open.state IN ('PENDING', 'RUNNING')))
+    -- Only a key's newest dead letter, so one statement never revives two rows of one key.
+    AND (dead.dedupe_key IS NULL OR NOT EXISTS (
+      SELECT 1 FROM job AS newer
+      WHERE newer.kind = dead.kind AND newer.dedupe_key = dead.dedupe_key
+        AND newer.state = 'DEAD_LETTER' AND (newer.finished_at, newer.id) > (dead.finished_at, dead.id)))
+  ORDER BY dead.finished_at, dead.id
+  LIMIT $3::int
+  FOR UPDATE SKIP LOCKED
+)
+RETURNING kind
+`
+
+type ReviveDeadDutiesParams struct {
+	Now   pgtype.Timestamptz
+	Kinds []string
+	Batch int32
+}
+
+// A duty the dead letter holds goes back to work (queue.Perpetual): the same row, due now, its
+// attempts from zero, once it has waited an hour doubled by each earlier revival and capped at a
+// day - unless its key already has an open job, which then is the duty. Bounded, oldest first; the
+// answer is the kinds revived, never a payload (rule 10).
+func (q *Queries) ReviveDeadDuties(ctx context.Context, arg ReviveDeadDutiesParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, reviveDeadDuties, arg.Now, arg.Kinds, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var kind string
+		if err := rows.Scan(&kind); err != nil {
+			return nil, err
+		}
+		items = append(items, kind)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const rewrapCallJobSecret = `-- name: RewrapCallJobSecret :execrows

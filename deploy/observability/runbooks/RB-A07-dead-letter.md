@@ -40,7 +40,11 @@ pull, a workspace's retention, recurrence, privacy-deadline or backup-schedule p
 sweep - is not here for a transient failure (`dependency.unavailable`, a timeout, a rate limit): its
 last attempt becomes its next round at the backoff's ceiling (`queue.Perpetual`), logged as
 `job failed` with `duty_held=true` and counted as a retry. Such a duty is here only for a permanent
-answer or a defect.
+answer or a defect, and not for long: the scheduler's leader revives it on the first tick of each
+hour once it has waited an hour, doubled by each earlier revival up to a day (`job.revivals`, zero
+again after a round that works), unless its key already has an open job - logged as `dead duties
+revived` with the kind and the count. A duty that keeps failing returns here, and this alert with
+it; fix the cause and the next revival carries on. Requeueing it by hand below is only faster.
 
 A job that met a refusal — an AI suggestion whose workspace spent its budget or switched AI off
 before the job ran — is never here: it ends `FAILED` at once with the refusal's code, for the

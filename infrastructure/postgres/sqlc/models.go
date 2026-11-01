@@ -2044,6 +2044,7 @@ type Job struct {
 	Progress        *float32
 	LastErrorParams []byte
 	Outcome         *string
+	Revivals        int32
 }
 
 type JumbleEntry struct {

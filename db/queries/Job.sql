@@ -130,6 +130,7 @@ UPDATE job SET
   state        = 'PENDING',
   run_at       = sqlc.arg('run_at'),
   attempts     = 0,
+  revivals     = 0,
   locked_until = NULL,
   last_error   = NULL
 WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease');
@@ -276,6 +277,39 @@ WHERE id = sqlc.arg('id')
   AND kind = 'automation.http'
   AND state IN ('PENDING', 'RUNNING')
   AND payload #>> '{secret_header_sealed,key_id}' = sqlc.arg('expected_key_id')::text;
+
+-- A duty the dead letter holds goes back to work (queue.Perpetual): the same row, due now, its
+-- attempts from zero, once it has waited an hour doubled by each earlier revival and capped at a
+-- day - unless its key already has an open job, which then is the duty. Bounded, oldest first; the
+-- answer is the kinds revived, never a payload (rule 10).
+-- name: ReviveDeadDuties :many
+UPDATE job SET
+  state        = 'PENDING',
+  run_at       = sqlc.arg('now')::timestamptz,
+  attempts     = 0,
+  revivals     = job.revivals + 1,
+  finished_at  = NULL,
+  locked_until = NULL
+WHERE job.id IN (
+  SELECT dead.id FROM job AS dead
+  WHERE dead.state = 'DEAD_LETTER'
+    AND dead.kind = ANY(sqlc.arg('kinds')::text[])
+    AND dead.finished_at <= sqlc.arg('now')::timestamptz
+      - LEAST(interval '1 hour' * power(2, LEAST(dead.revivals, 5)), interval '24 hours')
+    AND (dead.dedupe_key IS NULL OR NOT EXISTS (
+      SELECT 1 FROM job AS open
+      WHERE open.kind = dead.kind AND open.dedupe_key = dead.dedupe_key
+        AND open.state IN ('PENDING', 'RUNNING')))
+    -- Only a key's newest dead letter, so one statement never revives two rows of one key.
+    AND (dead.dedupe_key IS NULL OR NOT EXISTS (
+      SELECT 1 FROM job AS newer
+      WHERE newer.kind = dead.kind AND newer.dedupe_key = dead.dedupe_key
+        AND newer.state = 'DEAD_LETTER' AND (newer.finished_at, newer.id) > (dead.finished_at, dead.id)))
+  ORDER BY dead.finished_at, dead.id
+  LIMIT sqlc.arg('batch')::int
+  FOR UPDATE SKIP LOCKED
+)
+RETURNING kind;
 
 -- The catalogue's period for a finished job: seven days after it ended (docs/privacy/data-catalog.md).
 -- Every terminal state alike, dead letters included - a payload names people by identifier, and a

@@ -5115,8 +5115,12 @@ func run() error {
 		handlers[queueport.KindBusPublish] = busPublication
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
-	for kind := range handlers {
+	var dutyKinds []queueport.Kind
+	for kind, handler := range handlers {
 		kinds = append(kinds, kind)
+		if _, duty := handler.(queueport.Perpetual); duty {
+			dutyKinds = append(dutyKinds, kind)
+		}
 	}
 
 	if cfg.HasRole(envport.RoleAPI) {
@@ -5212,6 +5216,8 @@ func run() error {
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,
+			// A dead duty back to work, hourly with a doubling wait (queue.Perpetual).
+			DeadDuties: jobs, DutyKinds: dutyKinds,
 			// The use counts' 13 months, inside workspaces and in the installation's ledger
 			// (multi-tenancy.md §4.3).
 			Usage: postgres.NewUsageRepository(cursors),
