@@ -839,10 +839,11 @@ gate-chart:
 	@echo "chart: GOMEMLIMIT follows every role's memory limit"
 	@echo "chart: lint and template green"
 
-## gate-compose: Start the self-hosting reference stack from a real image and wait for /readyz
+## gate-compose: Start the self-hosting reference stack from a real image, wait for /readyz, back it up and restore it
 .PHONY: gate-compose
 gate-compose: docker-build
 	scripts/compose-smoke.sh $(VERSION)
+	scripts/compose-restore-drill.sh $(VERSION)
 
 ## gate-cli: Build hubctl on the platform it will run on, test it, and start it
 # The support matrix rows for the CLI (support-matrix.md §4) are about a binary on somebody's own
