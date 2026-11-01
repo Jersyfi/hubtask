@@ -71,6 +71,9 @@ export const ROUTES: readonly Route[] = [
   { name: 'own-rules', pattern: '/profile/rules', area: 'profile' },
   { name: 'own-rule-new', pattern: '/profile/rules/new', area: 'profile' },
   { name: 'own-rule', pattern: '/profile/rules/:id', area: 'profile' },
+  // The agents acting for the reader and what they wait on (UC-AGT-02), reached without the
+  // administration: a member's agent is theirs, and its notice links here.
+  { name: 'own-agents', pattern: '/profile/agents', area: 'profile' },
   // ADR-0032's administration area. Every route added under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,

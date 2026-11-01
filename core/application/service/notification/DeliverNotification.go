@@ -259,6 +259,9 @@ type subject struct {
 	plan work.Container
 	// base is the workspace's address every link of the message names, read with the rest.
 	base string
+	// personalRule is a rule the record names that is a person's own: its screen is the profile's,
+	// which a member reaches without the administration.
+	personalRule bool
 }
 
 // identityAccount is the slice of an account this package renders from: the locale that decides
@@ -386,6 +389,7 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.title = rule.Name
+			loaded.personalRule = rule.Scope.Type == automation.ScopePerson
 		case !record.SubscriptionID.IsZero() && d.Subscriptions != nil:
 			stored, err := d.Subscriptions.Find(ctx, record.SubscriptionID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -555,7 +559,7 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		return domain.Message{
 			SubjectCode: subjectPrivateHubTrashed,
 			BodyCode:    bodyPrivateHubTrashed,
-			Link:        link(loaded.base, loaded.record),
+			Link:        link(loaded),
 		}
 	}
 	subjectCode, bodyCode := codesFor(loaded.record.Category)
@@ -581,7 +585,7 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		SubjectCode: subjectCode,
 		BodyCode:    bodyCode,
 		ActorName:   loaded.actorName,
-		Link:        link(loaded.base, loaded.record),
+		Link:        link(loaded),
 	}
 	message = message.WithTitle(loaded.title, loaded.decision)
 	if !loaded.record.BaselineID.IsZero() {
@@ -693,8 +697,12 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 }
 
 // link is where to look, absolute so that a mail client has something to click.
-func link(base string, record domain.Notification) string {
-	base = strings.TrimSuffix(base, "/")
+//
+// Every link leads to a screen the recipient reaches: a personal rule's and an agent's are the
+// profile's, because their owner need hold no administration permission.
+func link(loaded subject) string {
+	record := loaded.record
+	base := strings.TrimSuffix(loaded.base, "/")
 	if base == "" {
 		return ""
 	}
@@ -705,6 +713,8 @@ func link(base string, record domain.Notification) string {
 	case record.Category == domain.CategoryRequestReply && !record.ItemID.IsZero():
 		// A requester reads their request in the portal; the entry's own screen is the team's.
 		return base + "/portal/requests/" + url.PathEscape(record.ItemID.String())
+	case !record.RuleID.IsZero() && loaded.personalRule:
+		return base + "/profile/rules/" + url.PathEscape(record.RuleID.String())
 	case !record.RuleID.IsZero():
 		return base + "/administration/rules/" + url.PathEscape(record.RuleID.String())
 	case !record.SubscriptionID.IsZero():
@@ -714,7 +724,7 @@ func link(base string, record domain.Notification) string {
 	case !record.PageID.IsZero():
 		return base + "/pages/" + url.PathEscape(record.PageID.String())
 	case !record.AgentID.IsZero():
-		return base + "/administration/agents"
+		return base + "/profile/agents"
 	case !record.WhiteboardID.IsZero():
 		return base + "/whiteboards/" + url.PathEscape(record.WhiteboardID.String())
 	case !record.ApprovalID.IsZero():

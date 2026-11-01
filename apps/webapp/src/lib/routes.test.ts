@@ -148,6 +148,7 @@ test('every route resolves to one of the four areas, and the profile ones are na
     'filestores',
     'grants',
     'notifications',
+    'own-agents',
     'own-rule',
     'own-rule-new',
     'own-rules',
@@ -227,4 +228,15 @@ test('the detail pane is a place, not a feature: a pane from large, a redirect b
   assert.deepEqual(paneFor(resolve(ROUTES, '/items/i1?item=i2'), { isLarge: false }), { kind: 'none' });
   // A hub has no list of entries to open one beside.
   assert.deepEqual(paneFor(resolve(ROUTES, '/hubs/h1?item=i1'), { isLarge: true }), { kind: 'none' });
+});
+
+// The links a member's own notices carry (DeliverNotification's link) resolve to screens outside
+// the administration, which App.svelte draws without any administration permission.
+test('a personal rule and an agent notice lead to profile screens', () => {
+  const rule = resolve(ROUTES, '/profile/rules/01936f2a-7c1e-7000-8000-0000000000f3');
+  assert.equal(rule.name, 'own-rule');
+  assert.equal(rule.area, 'profile');
+  const agents = resolve(ROUTES, '/profile/agents');
+  assert.equal(agents.name, 'own-agents');
+  assert.equal(agents.area, 'profile');
 });

@@ -679,3 +679,49 @@ func TestARuleNoticeNamesTheEntryAndLinksToIt(t *testing.T) {
 		t.Errorf("the subject does not name the entry: %q", message.Subject)
 	}
 }
+
+// A notice whose subject is the recipient's own - their personal rule, their agent - links to the
+// profile's screen, which a member reaches without any administration permission; a workspace
+// rule keeps the administration's.
+func TestAPersonalRulesAndAnAgentsNoticeLinkToTheProfile(t *testing.T) {
+	ruleID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f3")
+	agentID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f4")
+	cases := []struct {
+		name  string
+		input domain.NewInput
+		want  string
+	}{
+		{name: "a personal rule", want: "/profile/rules/" + ruleID.String(),
+			input: domain.NewInput{ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000f5"), RuleID: ruleID}},
+		{name: "an agent", want: "/profile/agents",
+			input: domain.NewInput{ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000f6"), AgentID: agentID}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := delivery(t, domain.CategoryIntegration, false)
+			input := tc.input
+			input.TenantID, input.RecipientID, input.Category, input.Channel, input.At =
+				tenant, bert, domain.CategoryIntegration, domain.ChannelEmail, now
+			record, err := domain.New(input)
+			if err != nil {
+				t.Fatalf("building the record: %v", err)
+			}
+			if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+				t.Fatalf("seeding the record: %v", err)
+			}
+			fixture.delivery.Rules = ruleReader{rules: map[shared.ID]automation.Rule{ruleID: {
+				ID: ruleID, Name: "Mine", Scope: automation.Scope{Type: automation.ScopePerson, ID: bert},
+			}}}
+			if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+				t.Fatalf("delivering: %v", err)
+			}
+			body := fixture.mailbox.sent[0].Body
+			if !strings.Contains(body, "link="+mainBase+tc.want) {
+				t.Errorf("the body links elsewhere than %s: %q", tc.want, body)
+			}
+			if strings.Contains(body, "/administration/") {
+				t.Errorf("a member's own notice links into the administration: %q", body)
+			}
+		})
+	}
+}

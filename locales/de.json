@@ -5975,6 +5975,7 @@
   "app.rules.reading": "Die Regeln werden gelesen",
   "app.rules.none": "Noch keine Regeln.",
   "app.you.row_rules": "Regeln",
+  "app.you.row_agents": "Agenten",
   "app.rules.mine_title": "Deine Regeln",
   "app.rules.mine_intro": "Regeln für dich allein: Sie laufen als du, starten, wenn etwas passiert, und wirken nur auf das, was du sehen kannst. Niemand sonst sieht sie.",
   "app.rules.mine_none": "Du hast noch keine eigenen Regeln.",

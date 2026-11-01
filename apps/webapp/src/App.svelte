@@ -460,6 +460,8 @@
     <LazyView load={views.TimeSettingsView} />
   {:else if route.name === 'agents'}
     <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'own-agents'}
+    <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], base: '/profile/agents', onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'cmdb'}
     <LazyView load={views.CmdbView} />
   {:else if route.name === 'changes'}

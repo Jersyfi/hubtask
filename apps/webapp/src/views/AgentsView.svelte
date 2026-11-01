@@ -42,9 +42,11 @@
     tab?: string;
     /** Replaces the address when the tab changes, so a reload or a link keeps it. */
     onnavigate?: (path: string) => void;
+    /** Where the screen lives: the administration's, or the reader's own under the profile. */
+    base?: string;
   }
 
-  let { tab, onnavigate }: Props = $props();
+  let { tab, onnavigate, base = '/administration/agents' }: Props = $props();
 
   $effect(() => page.entitle(t('app.agents.title')));
 
@@ -58,7 +60,7 @@
   );
 
   function select(next: string): void {
-    onnavigate?.(next === 'agents' ? '/administration/agents' : `/administration/agents?tab=${next}`);
+    onnavigate?.(next === 'agents' ? base : `${base}?tab=${next}`);
   }
 
   const agentsRead = resource<AgentList>(agentsPath);
