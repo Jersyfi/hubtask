@@ -57,7 +57,9 @@ message code, the key path and, where it exists, the allowed values — machine-
 can correct itself), and what is irreversible (none, by design: narrowing hides, a deletion of a
 block in use is refused: a custom role still granted or addressed by a rule (`roles.in_use`), a
 business calendar a policy or a switched-on rule counts on (`calendars.in_use`,
-`calendars.named_by_rules`) - a rollback recreates a block, never who held it where).
+`calendars.named_by_rules`) - a rollback recreates a block, never who held it where). The plan
+already refuses removing a role somebody holds (`roles.held`, with the count of its grants); the
+rules and calendars in use are found at the apply, which refuses whole.
 
 **Apply is all or nothing,** carries the version it was planned against (`If-Match`; a configuration
 somebody changed since is refused with `version_conflict`), writes one configuration version and

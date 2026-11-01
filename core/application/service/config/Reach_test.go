@@ -112,6 +112,33 @@ func TestAPlanNamesThePeopleARolesChangeReaches(t *testing.T) {
 	}
 }
 
+// configuration.md §2: a plan that removes a role somebody holds is refused at the plan, with the
+// count of its grants, as DeleteRole refuses the apply - not first found out half-way.
+func TestAPlanRefusesRemovingARoleSomebodyHolds(t *testing.T) {
+	f := newFixture()
+	f.world.roles["desk_agent"] = map[string]any{"key": "desk_agent", "name": "Desk agent", "permissions": []any{"READ"}}
+	f.world.grants = []any{
+		map[string]any{"role": "desk_agent", "account_id": "0190a8f0-0000-7000-8000-0000000000d1"},
+		map[string]any{"role": "desk_agent", "group_id": "0190a8f0-0000-7000-8000-0000000000e1"},
+	}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": map[string]any{"roles": map[string]any{"desk_agent": nil}}})
+
+	refusals, _ := plan["refusals"].([]usecase.Output)
+	if len(refusals) != 1 || refusals[0]["code"] != "roles.held" || refusals[0]["path"] != "/roles/desk_agent" || plan["plan_hash"] != nil {
+		t.Fatalf("refusals %v, hash %v", refusals, plan["plan_hash"])
+	}
+	if params := refusals[0]["params"].(map[string]string); params["grants"] != "2" || params["key"] != "desk_agent" {
+		t.Errorf("the refusal does not count the grants: %v", params)
+	}
+
+	// Nobody holds it: the removal plans.
+	f.world.grants = []any{}
+	plan = invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": map[string]any{"roles": map[string]any{"desk_agent": nil}}})
+	if plan["plan_hash"] == nil {
+		t.Errorf("an unheld role's removal was refused: %v", plan["refusals"])
+	}
+}
+
 // S-09's gap: a plan that removes a field, or hides it from readers, says how many entries hold a
 // value under it - what would stop being shown - asked by the field's identifier.
 func TestAPlanCountsTheEntriesAFieldItRemovesHolds(t *testing.T) {

@@ -177,11 +177,13 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 				}
 			}
 			accounts, groups := map[string]bool{}, map[string]bool{}
+			held := 0
 			for _, raw := range grants {
 				grant, _ := raw.(map[string]any)
 				if text(grant["role"]) != change.Key {
 					continue
 				}
+				held++
 				if id := text(grant["account_id"]); id != "" {
 					accounts[id] = true
 				}
@@ -190,6 +192,12 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 				}
 			}
 			r.Accounts, r.Groups = len(accounts), len(groups)
+			// DeleteRole refuses a role somebody holds; the plan says so now rather than the apply
+			// half-way. The rules that address it are counted at the apply only.
+			if change.Op == domain.OpRemove && held > 0 {
+				p.Refusals = append(p.Refusals, domain.Refusal("roles.held", change.Path(),
+					map[string]string{"key": change.Key, "grants": strconv.Itoa(held)}))
+			}
 			if len(r.Gained)+len(r.Lost) > 0 {
 				p.Reach = append(p.Reach, r)
 			}
