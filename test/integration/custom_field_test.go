@@ -556,3 +556,41 @@ func TestTheDefinitionWalkStaysInItsWorkspace(t *testing.T) {
 		}
 	}
 }
+
+// The same round trip for a custom field definition: a field hidden from readers that came back
+// readable from an archive would show every reader what the workspace had hidden (UC-ID-27 check 3).
+func TestARealCustomFieldSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	defined := definedField(ctx, t, tenantA, collection, "salary_band", work.CustomFieldText)
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE custom_field_definition SET restricted = true, read_restricted = true
+		 WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), defined.ID.String()); err != nil {
+		t.Fatalf("hiding the field: %v", err)
+	}
+
+	exportedRow := exportedRowOf(ctx, t, tenantA, "custom_field_definition", defined.ID)
+	if exportedRow["read_restricted"] != true {
+		t.Fatal("the export carries no hidden field, so this test proves nothing")
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`DELETE FROM custom_field_definition WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), defined.ID.String()); err != nil {
+		t.Fatalf("removing the original: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "custom_field_definition", exportedRow, false)
+		return err
+	}); err != nil {
+		t.Fatalf("importing the row back: %v", err)
+	}
+
+	restored := exportedRowOf(ctx, t, tenantA, "custom_field_definition", defined.ID)
+	for column, before := range exportedRow {
+		if after := restored[column]; !sameJSON(before, after) {
+			t.Errorf("%s came back as %#v, want %#v", column, after, before)
+		}
+	}
+}
