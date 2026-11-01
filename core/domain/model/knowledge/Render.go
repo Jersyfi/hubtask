@@ -176,7 +176,7 @@ func spans(text string) []span {
 			if strings.HasPrefix(href, "hubtask:") {
 				kind := strings.SplitN(strings.TrimPrefix(href, "hubtask:"), "/", 2)[0]
 				out = append(out, span{text: "[" + kind + "]", href: href})
-			} else if group(1) == "" {
+			} else if group(1) == "" && linkable(href) {
 				out = append(out, span{text: group(2), href: href})
 			} else {
 				out = append(out, span{text: group(2)})
@@ -300,6 +300,19 @@ func boldened(runs []span) []span {
 		runs[i].bold = true
 	}
 	return runs
+}
+
+// linkable reports whether an export may write href as a link. An allow-list, not a deny-list: a
+// file opened locally has no CSP, so any scheme a browser runs (javascript:, data:, vbscript:)
+// would run there; a page also arrives through the API and the importers, not only the editor.
+func linkable(href string) bool {
+	lower := strings.ToLower(href)
+	for _, scheme := range []string{"https://", "http://", "mailto:"} {
+		if strings.HasPrefix(lower, scheme) {
+			return true
+		}
+	}
+	return false
 }
 
 func htmlSpans(runs []span) string {

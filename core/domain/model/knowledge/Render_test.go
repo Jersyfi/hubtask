@@ -34,6 +34,24 @@ func TestAPageExportsAsHTML(t *testing.T) {
 	}
 }
 
+// UC-DOC-09 check 4: a link whose scheme a file could run - javascript:, data:, vbscript: - is
+// written as its words, never as an href; a page also arrives through the API and the importers.
+func TestALinkOfAnUnsafeSchemeExportsAsItsWords(t *testing.T) {
+	page := newPage(t, "Plan", "See [help](javascript:fetch(1)), [pic](data:text/html;base64,PHNjcmlwdD4=), "+
+		"[old](VBScript:x), [mail](mailto:a@example.org), [plain](http://example.org) and [rel](/x).\n")
+	out := HTMLFile(page)
+	for _, banned := range []string{"javascript:", "data:", "VBScript:", `href="/x"`} {
+		if strings.Contains(out, banned) {
+			t.Errorf("the HTML carries %q:\n%s", banned, out)
+		}
+	}
+	for _, want := range []string{"help", "pic", `<a href="mailto:a@example.org">mail</a>`, `<a href="http://example.org">plain</a>`, "rel"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the HTML lacks %q:\n%s", want, out)
+		}
+	}
+}
+
 // UC-DOC-09 check 4: a page exports as a DOCX document whose text is the page's.
 func TestAPageExportsAsADOCXDocument(t *testing.T) {
 	page := newPage(t, "Plan & more", renderBody)
