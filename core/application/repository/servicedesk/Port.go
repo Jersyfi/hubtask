@@ -14,6 +14,15 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+// PendingQuery selects the waiting approvals that may be one reader's: People are the reader and
+// those whose approvals the reader decides now; the cursor is the last row of the page before.
+type PendingQuery struct {
+	People           []shared.ID
+	AfterRequestedAt time.Time
+	AfterID          shared.ID
+	Limit            int
+}
+
 // Calendars stores the workspace's business calendars.
 type Calendars interface {
 	// Insert writes a new calendar; a key the workspace holds is `calendars.key_taken`.
@@ -109,10 +118,13 @@ type Approvals interface {
 	PendingOf(ctx context.Context, itemID shared.ID) (servicedesk.Approval, error)
 	// OfItem answers an entry's approvals, newest first, at most fifty.
 	OfItem(ctx context.Context, itemID shared.ID) ([]servicedesk.Approval, error)
-	// Pending answers every approval waiting in the workspace, oldest first, at most limit.
-	Pending(ctx context.Context, limit int) ([]servicedesk.Approval, error)
+	// PendingFor answers, oldest first after the query's cursor and at most its limit, the waiting
+	// approvals whose current level counts one of its people or names a role.
+	PendingFor(ctx context.Context, query PendingQuery) ([]servicedesk.Approval, error)
 	// Record writes one decision.
 	Record(ctx context.Context, decision servicedesk.Decision) error
+	// DecisionsOf answers the decisions of several approvals by approval, each in the order given.
+	DecisionsOf(ctx context.Context, approvalIDs []shared.ID) (map[shared.ID][]servicedesk.Decision, error)
 	// Decisions answers an approval's decisions in the order they were given.
 	Decisions(ctx context.Context, approvalID shared.ID) ([]servicedesk.Decision, error)
 	// Delegate writes a person's delegation, replacing an earlier one.

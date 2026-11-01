@@ -781,6 +781,42 @@ func (q *Queries) ListBusinessCalendars(ctx context.Context) ([]BusinessCalendar
 	return items, nil
 }
 
+const listDecisionsOfApprovals = `-- name: ListDecisionsOfApprovals :many
+SELECT id, tenant_id, approval_id, level, approver_id, on_behalf_of, verdict, reason, item_version, decided_at
+FROM approval_decision WHERE approval_id = ANY ($1::uuid[]) ORDER BY decided_at, id
+`
+
+func (q *Queries) ListDecisionsOfApprovals(ctx context.Context, approvalIds []pgtype.UUID) ([]ApprovalDecision, error) {
+	rows, err := q.db.Query(ctx, listDecisionsOfApprovals, approvalIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ApprovalDecision{}
+	for rows.Next() {
+		var i ApprovalDecision
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ApprovalID,
+			&i.Level,
+			&i.ApproverID,
+			&i.OnBehalfOf,
+			&i.Verdict,
+			&i.Reason,
+			&i.ItemVersion,
+			&i.DecidedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEntryOla = `-- name: ListEntryOla :many
 SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
        at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
@@ -1002,16 +1038,37 @@ func (q *Queries) ListLiveEntrySla(ctx context.Context, arg ListLiveEntrySlaPara
 	return items, nil
 }
 
-const listPendingApprovals = `-- name: ListPendingApprovals :many
+const listPendingApprovalsFor = `-- name: ListPendingApprovalsFor :many
 SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
        current_level, state, requested_by, requested_at, level_since, decided_at, version
-FROM approval WHERE state = 'PENDING' ORDER BY requested_at, id LIMIT $1
+FROM approval
+WHERE state = 'PENDING'
+  AND (requested_at, id) > ($1::timestamptz, $2::uuid)
+  AND (
+    EXISTS (SELECT 1 FROM jsonb_array_elements_text(levels -> current_level -> 'counted') AS counted (person)
+            WHERE counted.person = ANY ($3::text[]))
+    OR jsonb_array_length(COALESCE(levels -> current_level -> 'level' -> 'roles', '[]'::jsonb)) > 0
+  )
+ORDER BY requested_at, id LIMIT $4
 `
 
-// Every approval waiting in the workspace, oldest first: a person's own are those whose current
-// level counts them or names a role they hold, which the application decides.
-func (q *Queries) ListPendingApprovals(ctx context.Context, maxRows int32) ([]Approval, error) {
-	rows, err := q.db.Query(ctx, listPendingApprovals, maxRows)
+type ListPendingApprovalsForParams struct {
+	AfterRequestedAt pgtype.Timestamptz
+	AfterID          pgtype.UUID
+	People           []string
+	MaxRows          int32
+}
+
+// The waiting approvals that may be a reader's, oldest first after a (requested_at, id) cursor:
+// those whose current level counts one of the people - the reader and whoever they decide for
+// now - and those whose current level names a role, which the application checks along the path.
+func (q *Queries) ListPendingApprovalsFor(ctx context.Context, arg ListPendingApprovalsForParams) ([]Approval, error) {
+	rows, err := q.db.Query(ctx, listPendingApprovalsFor,
+		arg.AfterRequestedAt,
+		arg.AfterID,
+		arg.People,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}

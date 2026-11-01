@@ -203,12 +203,23 @@ func (ServiceDeskApprovals) OfItem(ctx context.Context, itemID shared.ID) ([]ser
 	return approvalsFrom(rows)
 }
 
-func (ServiceDeskApprovals) Pending(ctx context.Context, limit int) ([]servicedesk.Approval, error) {
+func (ServiceDeskApprovals) PendingFor(ctx context.Context, query repository.PendingQuery) ([]servicedesk.Approval, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.ListPendingApprovals(ctx, int32(limit)) //nolint:gosec // bounded by the use case
+	after, err := cursorOf(query.AfterID)
+	if err != nil {
+		return nil, err
+	}
+	people := make([]string, 0, len(query.People))
+	for _, id := range query.People {
+		people = append(people, id.String())
+	}
+	rows, err := queries.ListPendingApprovalsFor(ctx, sqlc.ListPendingApprovalsForParams{
+		AfterRequestedAt: pgtype.Timestamptz{Time: query.AfterRequestedAt, Valid: true}, AfterID: after,
+		People: people, MaxRows: int32(query.Limit), //nolint:gosec // bounded by the use case
+	})
 	if err != nil {
 		return nil, queryFailed("listing the pending approvals", err)
 	}
@@ -276,23 +287,63 @@ func (ServiceDeskApprovals) Decisions(ctx context.Context, approvalID shared.ID)
 	}
 	out := make([]servicedesk.Decision, 0, len(rows))
 	for _, row := range rows {
-		ids := make([]shared.ID, 4)
-		for i, raw := range []pgtype.UUID{row.ID, row.ApprovalID, row.ApproverID, row.TenantID} {
-			if ids[i], err = idFrom(raw); err != nil {
-				return nil, err
-			}
-		}
-		behalf, err := optionalID(row.OnBehalfOf)
+		decision, err := decisionFrom(row)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, servicedesk.Decision{
-			ID: ids[0], TenantID: ids[3], ApprovalID: ids[1], Level: int(row.Level), ApproverID: ids[2], OnBehalfOf: behalf,
-			Verdict: servicedesk.Verdict(row.Verdict), Reason: row.Reason, ItemVersion: int(row.ItemVersion),
-			DecidedAt: timeFrom(row.DecidedAt),
-		})
+		out = append(out, decision)
 	}
 	return out, nil
+}
+
+func (ServiceDeskApprovals) DecisionsOf(ctx context.Context, approvalIDs []shared.ID) (map[shared.ID][]servicedesk.Decision, error) {
+	out := map[shared.ID][]servicedesk.Decision{}
+	if len(approvalIDs) == 0 {
+		return out, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]pgtype.UUID, 0, len(approvalIDs))
+	for _, id := range approvalIDs {
+		key, err := uuidOf(id)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	rows, err := queries.ListDecisionsOfApprovals(ctx, keys)
+	if err != nil {
+		return nil, queryFailed("listing the approvals' decisions", err)
+	}
+	for _, row := range rows {
+		decision, err := decisionFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		out[decision.ApprovalID] = append(out[decision.ApprovalID], decision)
+	}
+	return out, nil
+}
+
+func decisionFrom(row sqlc.ApprovalDecision) (servicedesk.Decision, error) {
+	ids := make([]shared.ID, 4)
+	var err error
+	for i, raw := range []pgtype.UUID{row.ID, row.ApprovalID, row.ApproverID, row.TenantID} {
+		if ids[i], err = idFrom(raw); err != nil {
+			return servicedesk.Decision{}, err
+		}
+	}
+	behalf, err := optionalID(row.OnBehalfOf)
+	if err != nil {
+		return servicedesk.Decision{}, err
+	}
+	return servicedesk.Decision{
+		ID: ids[0], TenantID: ids[3], ApprovalID: ids[1], Level: int(row.Level), ApproverID: ids[2], OnBehalfOf: behalf,
+		Verdict: servicedesk.Verdict(row.Verdict), Reason: row.Reason, ItemVersion: int(row.ItemVersion),
+		DecidedAt: timeFrom(row.DecidedAt),
+	}, nil
 }
 
 func delegationFrom(row sqlc.ApprovalDelegation) (servicedesk.Delegation, error) {

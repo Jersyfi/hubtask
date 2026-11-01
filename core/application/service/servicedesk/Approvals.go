@@ -6,6 +6,7 @@ package servicedesk
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -37,8 +38,10 @@ const (
 	delegationTarget = "approval_delegation"
 	takeStepUseCase  = "TakeStep"
 	itemsWriteScope  = "items:write"
-	// maxPendingScanned bounds the waiting approvals one person's list reads through.
-	maxPendingScanned = 500
+	// pendingPage is one read of the waiting approvals that may be a reader's; maxPendingPages
+	// bounds how many one list walks through (rule 7's spirit: no read without an end).
+	pendingPage     = 200
+	maxPendingPages = 25
 )
 
 const (
@@ -168,38 +171,133 @@ func named(item workdomain.WorkItem, field string) []shared.ID {
 // eligibility answers how the actor stands at an approval's current level: counted there, holding
 // one of its roles along the entry's path, or the delegate of a counted person away now.
 func (a Approvals) eligibility(ctx context.Context, actor appshared.ActorContext, approval domain.Approval, at time.Time) (domain.Eligibility, error) {
-	if approval.State != domain.ApprovalPending || actor.AccountID.IsZero() {
+	return a.standingOf(actor, at).eligibility(ctx, approval)
+}
+
+func (a Approvals) standingOf(actor appshared.ActorContext, at time.Time) *standing {
+	return &standing{approvals: a, actor: actor, at: at, items: map[shared.ID]workdomain.WorkItem{}, held: map[shared.ID][]string{}}
+}
+
+// standing is one reader's eligibility across many approvals: their delegations are read once, an
+// entry once, and the roles they hold once per collection.
+type standing struct {
+	approvals   Approvals
+	actor       appshared.ActorContext
+	at          time.Time
+	delegations []domain.Delegation
+	delegated   bool
+	items       map[shared.ID]workdomain.WorkItem
+	held        map[shared.ID][]string
+}
+
+// decidesFor answers the reader and every person whose approvals the reader decides now.
+func (s *standing) decidesFor(ctx context.Context) ([]shared.ID, error) {
+	delegations, err := s.delegationsTo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	people := []shared.ID{s.actor.AccountID}
+	for _, delegation := range delegations {
+		if delegation.Covers(s.at) && !slices.Contains(people, delegation.AccountID) {
+			people = append(people, delegation.AccountID)
+		}
+	}
+	return people, nil
+}
+
+func (s *standing) delegationsTo(ctx context.Context) ([]domain.Delegation, error) {
+	if !s.delegated {
+		delegations, err := s.approvals.Store.DelegationsTo(ctx, s.actor.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		s.delegations, s.delegated = delegations, true
+	}
+	return s.delegations, nil
+}
+
+func (s *standing) item(ctx context.Context, id shared.ID) (workdomain.WorkItem, error) {
+	if item, ok := s.items[id]; ok {
+		return item, nil
+	}
+	item, err := s.approvals.Items.Find(ctx, id)
+	if err != nil {
+		return workdomain.WorkItem{}, err
+	}
+	s.items[id] = item
+	return item, nil
+}
+
+// prefetchItems reads the entries a page names in one query where the store reads many at once.
+func prefetchItems(ctx context.Context, s *standing, ids []shared.ID) error {
+	batch, ok := s.approvals.Items.(workrepo.ItemBatch)
+	if !ok {
+		return nil
+	}
+	missing := make([]shared.ID, 0, len(ids))
+	for _, id := range ids {
+		if _, held := s.items[id]; !held && !slices.Contains(missing, id) {
+			missing = append(missing, id)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	found, err := batch.FindMany(ctx, missing)
+	if err != nil {
+		return err
+	}
+	for _, item := range found {
+		s.items[item.ID] = item
+	}
+	return nil
+}
+
+func (s *standing) rolesIn(ctx context.Context, collectionID shared.ID) ([]string, error) {
+	if roles, ok := s.held[collectionID]; ok {
+		return roles, nil
+	}
+	collection, err := s.approvals.Containers.Find(ctx, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	held, err := s.approvals.Roles.HeldAlong(ctx, s.actor, service.ContainerScopes(collection))
+	if err != nil {
+		return nil, err
+	}
+	s.held[collectionID] = held.Roles
+	return held.Roles, nil
+}
+
+func (s *standing) eligibility(ctx context.Context, approval domain.Approval) (domain.Eligibility, error) {
+	if approval.State != domain.ApprovalPending || s.actor.AccountID.IsZero() {
 		return domain.Eligibility{}, nil
 	}
-	if approval.Counts(actor.AccountID) {
+	if approval.Counts(s.actor.AccountID) {
 		return domain.Eligibility{Direct: true}, nil
 	}
 	level := approval.Levels[approval.Current].Level
-	if len(level.Roles) > 0 && a.Roles != nil {
-		item, err := a.Items.Find(ctx, approval.ItemID)
+	if len(level.Roles) > 0 && s.approvals.Roles != nil {
+		item, err := s.item(ctx, approval.ItemID)
 		if err != nil {
 			return domain.Eligibility{}, err
 		}
-		collection, err := a.Containers.Find(ctx, item.CollectionID)
-		if err != nil {
-			return domain.Eligibility{}, err
-		}
-		held, err := a.Roles.HeldAlong(ctx, actor, service.ContainerScopes(collection))
+		held, err := s.rolesIn(ctx, item.CollectionID)
 		if err != nil {
 			return domain.Eligibility{}, err
 		}
 		for _, role := range level.Roles {
-			if slices.Contains(held.Roles, role) {
+			if slices.Contains(held, role) {
 				return domain.Eligibility{Direct: true}, nil
 			}
 		}
 	}
-	delegations, err := a.Store.DelegationsTo(ctx, actor.AccountID)
+	delegations, err := s.delegationsTo(ctx)
 	if err != nil {
 		return domain.Eligibility{}, err
 	}
 	for _, delegation := range delegations {
-		if delegation.Covers(at) && approval.Counts(delegation.AccountID) {
+		if delegation.Covers(s.at) && approval.Counts(delegation.AccountID) {
 			return domain.Eligibility{OnBehalfOf: delegation.AccountID}, nil
 		}
 	}
@@ -392,31 +490,31 @@ func (h ListMyApprovals) Execute(ctx context.Context, actor appshared.ActorConte
 	a := h.Approvals
 	out := []usecase.Output{}
 	err := a.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		pending, err := a.Store.Pending(ctx, maxPendingScanned)
+		reader := a.standingOf(actor, a.Desk.Clock.Now())
+		people, err := reader.decidesFor(ctx)
 		if err != nil {
 			return err
 		}
-		now := a.Desk.Clock.Now()
-		for _, approval := range pending {
-			who, err := a.eligibility(ctx, actor, approval, now)
+		// The selection is the database's: only approvals counting one of these people, or naming
+		// a role, come back - never the workspace's oldest ones with the reader's past them.
+		query := repository.PendingQuery{People: people, Limit: pendingPage}
+		for range maxPendingPages {
+			pending, err := a.Store.PendingFor(ctx, query)
 			if err != nil {
 				return err
 			}
-			if !who.Direct && who.OnBehalfOf.IsZero() {
-				continue
-			}
-			decisions, err := a.Store.Decisions(ctx, approval.ID)
+			rows, err := h.rows(ctx, reader, pending)
 			if err != nil {
 				return err
 			}
-			row := ApprovalOutput(approval, decisions, true)
-			if item, err := a.Items.Find(ctx, approval.ItemID); err == nil {
-				// The approver reads what they decide on: the entry's title and number, never more.
-				row["item_title"], row["item_number"] = item.Title, item.Number
+			out = append(out, rows...)
+			if len(pending) < pendingPage {
+				return nil
 			}
-			row["on_behalf_of"] = idOrNil(who.OnBehalfOf)
-			out = append(out, row)
+			last := pending[len(pending)-1]
+			query.AfterRequestedAt, query.AfterID = last.RequestedAt, last.ID
 		}
+		slog.WarnContext(ctx, "a reader's approval list stopped at its bound", slog.Int("pages", maxPendingPages))
 		return nil
 	})
 	if err != nil {
@@ -428,6 +526,51 @@ func (h ListMyApprovals) Execute(ctx context.Context, actor appshared.ActorConte
 		ActorLabel: actor.AccountName, TargetType: approvalTarget, TargetID: actor.AccountID,
 		Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 	})
+}
+
+// rows answers the page's approvals the reader decides, with their decisions read in one query.
+func (h ListMyApprovals) rows(ctx context.Context, reader *standing, pending []domain.Approval) ([]usecase.Output, error) {
+	type mine struct {
+		approval domain.Approval
+		who      domain.Eligibility
+	}
+	var theirs []mine
+	ids := make([]shared.ID, 0, len(pending))
+	for _, approval := range pending {
+		who, err := reader.eligibility(ctx, approval)
+		if err != nil {
+			return nil, err
+		}
+		if who.Direct || !who.OnBehalfOf.IsZero() {
+			theirs = append(theirs, mine{approval, who})
+			ids = append(ids, approval.ID)
+		}
+	}
+	if len(theirs) == 0 {
+		return nil, nil
+	}
+	decisions, err := h.Approvals.Store.DecisionsOf(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]shared.ID, 0, len(theirs))
+	for _, each := range theirs {
+		items = append(items, each.approval.ItemID)
+	}
+	if err := prefetchItems(ctx, reader, items); err != nil {
+		return nil, err
+	}
+	out := make([]usecase.Output, 0, len(theirs))
+	for _, each := range theirs {
+		row := ApprovalOutput(each.approval, decisions[each.approval.ID], true)
+		if item, err := reader.item(ctx, each.approval.ItemID); err == nil {
+			// The approver reads what they decide on: the entry's title and number, never more.
+			row["item_title"], row["item_number"] = item.Title, item.Number
+		}
+		row["on_behalf_of"] = idOrNil(each.who.OnBehalfOf)
+		out = append(out, row)
+	}
+	return out, nil
 }
 
 // Descriptor is the catalogue entry.

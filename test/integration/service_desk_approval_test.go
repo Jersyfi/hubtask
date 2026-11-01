@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -106,7 +107,7 @@ func TestAnApprovalStaysInItsWorkspace(t *testing.T) {
 		if trail, _ := approvals.Decisions(ctx, opened.ID); len(trail) != 0 {
 			t.Errorf("the other workspace reads the trail")
 		}
-		if pending, _ := approvals.Pending(ctx, 10); len(pending) != 0 {
+		if pending, _ := approvals.PendingFor(ctx, repository.PendingQuery{People: []shared.ID{ana, ben}, Limit: 10}); len(pending) != 0 {
 			t.Errorf("the other workspace lists the approvals")
 		}
 		walked, _ := postgres.SnapshotRepository{}.Approvals(ctx, "", 500)
@@ -126,5 +127,71 @@ func TestAnApprovalStaysInItsWorkspace(t *testing.T) {
 	stray.ID, stray.TenantID = freshID(t), tenantB
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error { return approvals.Insert(ctx, stray) }); !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("the other workspace opened an approval on the entry: %v", err)
+	}
+}
+
+// The list's selection is the database's: a reader gets the waiting approvals whose current level
+// counts one of their people or names a role - not somebody else's - oldest first after the
+// cursor, with every page's decisions in one read; the workspace next door gets none of them.
+func TestThePendingApprovalsAreSelectedForTheReader(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	approvals := postgres.NewServiceDeskRepository().Approvals()
+	now := time.Date(2026, 11, 3, 8, 0, 0, 0, time.UTC)
+	ana, ben, cleo := freshID(t), freshID(t), freshID(t)
+	open := func(at time.Time, level work.ApprovalLevel, counted []shared.ID) servicedesk.Approval {
+		item := seedWorkItemForRules(ctx, t, tenantA)
+		step := work.WorkflowStep{Key: "approve", To: "approved", Approval: &work.StepApproval{Levels: []work.ApprovalLevel{level}}}
+		opened, err := servicedesk.NewApproval(freshID(t), work.WorkItem{ID: item, TenantID: tenantA, Version: 1}, "purchase", step,
+			[][]shared.ID{counted}, cleo, at)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error { return approvals.Insert(ctx, opened) }); err != nil {
+			t.Fatal(err)
+		}
+		return opened
+	}
+	anas := open(now, work.ApprovalLevel{People: []string{ana.String()}, Rule: work.ApprovalAny}, []shared.ID{ana})
+	_ = open(now.Add(time.Minute), work.ApprovalLevel{People: []string{ben.String()}, Rule: work.ApprovalAny}, []shared.ID{ben})
+	byRole := open(now.Add(2*time.Minute), work.ApprovalLevel{Roles: []string{"approver"}, Rule: work.ApprovalAny}, nil)
+	_, decision, err := servicedesk.Decide(anas, nil, freshID(t), ana, servicedesk.Eligibility{Direct: true},
+		servicedesk.VerdictApprove, "", 1, now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return approvals.Record(ctx, decision) }); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		first, err := approvals.PendingFor(ctx, repository.PendingQuery{People: []shared.ID{ana}, Limit: 1})
+		if err != nil || len(first) != 1 || first[0].ID != anas.ID {
+			t.Errorf("the first page %+v %v", first, err)
+		}
+		rest, err := approvals.PendingFor(ctx, repository.PendingQuery{
+			People: []shared.ID{ana}, AfterRequestedAt: anas.RequestedAt, AfterID: anas.ID, Limit: 10,
+		})
+		if err != nil || len(rest) != 1 || rest[0].ID != byRole.ID {
+			t.Errorf("after the cursor %+v %v - ben's approval must not be ana's", rest, err)
+		}
+		trails, err := approvals.DecisionsOf(ctx, []shared.ID{anas.ID, byRole.ID})
+		if err != nil || len(trails[anas.ID]) != 1 || len(trails[byRole.ID]) != 0 {
+			t.Errorf("the decisions %+v %v", trails, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if pending, _ := approvals.PendingFor(ctx, repository.PendingQuery{People: []shared.ID{ana}, Limit: 10}); len(pending) != 0 {
+			t.Errorf("the other workspace lists %d approvals", len(pending))
+		}
+		if trails, _ := approvals.DecisionsOf(ctx, []shared.ID{anas.ID}); len(trails) != 0 {
+			t.Errorf("the other workspace reads the decisions")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 }

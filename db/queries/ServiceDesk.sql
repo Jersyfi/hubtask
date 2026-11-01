@@ -209,12 +209,21 @@ SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, dec
        current_level, state, requested_by, requested_at, level_since, decided_at, version
 FROM approval WHERE item_id = sqlc.arg('item_id') ORDER BY requested_at DESC, id DESC LIMIT 50;
 
--- name: ListPendingApprovals :many
--- Every approval waiting in the workspace, oldest first: a person's own are those whose current
--- level counts them or names a role they hold, which the application decides.
+-- name: ListPendingApprovalsFor :many
+-- The waiting approvals that may be a reader's, oldest first after a (requested_at, id) cursor:
+-- those whose current level counts one of the people - the reader and whoever they decide for
+-- now - and those whose current level names a role, which the application checks along the path.
 SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
        current_level, state, requested_by, requested_at, level_since, decided_at, version
-FROM approval WHERE state = 'PENDING' ORDER BY requested_at, id LIMIT sqlc.arg('max_rows');
+FROM approval
+WHERE state = 'PENDING'
+  AND (requested_at, id) > (sqlc.arg('after_requested_at')::timestamptz, sqlc.arg('after_id')::uuid)
+  AND (
+    EXISTS (SELECT 1 FROM jsonb_array_elements_text(levels -> current_level -> 'counted') AS counted (person)
+            WHERE counted.person = ANY (sqlc.arg('people')::text[]))
+    OR jsonb_array_length(COALESCE(levels -> current_level -> 'level' -> 'roles', '[]'::jsonb)) > 0
+  )
+ORDER BY requested_at, id LIMIT sqlc.arg('max_rows');
 
 -- The pending approvals whose levels count hours, after one id: the pass that re-arms their clocks
 -- after a restore.
@@ -230,6 +239,10 @@ INSERT INTO approval_decision (id, tenant_id, approval_id, level, approver_id, o
                                item_version, decided_at)
 VALUES (sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('approval_id'), sqlc.arg('level'), sqlc.arg('approver_id'),
         sqlc.narg('on_behalf_of'), sqlc.arg('verdict'), sqlc.arg('reason'), sqlc.arg('item_version'), sqlc.arg('decided_at'));
+
+-- name: ListDecisionsOfApprovals :many
+SELECT id, tenant_id, approval_id, level, approver_id, on_behalf_of, verdict, reason, item_version, decided_at
+FROM approval_decision WHERE approval_id = ANY (sqlc.arg('approval_ids')::uuid[]) ORDER BY decided_at, id;
 
 -- name: ListApprovalDecisions :many
 SELECT id, tenant_id, approval_id, level, approver_id, on_behalf_of, verdict, reason, item_version, decided_at

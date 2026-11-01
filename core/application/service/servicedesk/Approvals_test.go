@@ -23,6 +23,8 @@ type approvalStore struct {
 	rows        map[shared.ID]domain.Approval
 	decisions   []domain.Decision
 	delegations []domain.Delegation
+	// Reads of the list's queries, to bound what one list costs.
+	pendingReads, decisionReads, delegationReads int
 }
 
 func (s *approvalStore) Insert(_ context.Context, a domain.Approval) error {
@@ -65,6 +67,7 @@ func (s *approvalStore) Decisions(_ context.Context, id shared.ID) ([]domain.Dec
 	return out, nil
 }
 func (s *approvalStore) DelegationsTo(_ context.Context, delegate shared.ID) ([]domain.Delegation, error) {
+	s.delegationReads++
 	var out []domain.Delegation
 	for _, d := range s.delegations {
 		if d.DelegateID == delegate {
