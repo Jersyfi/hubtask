@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, test/architecture/doorsalike_test.go]
+checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs]
 ---
 
 # Set goals for a period and connect them to the work
