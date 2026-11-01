@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // *Today* (UC-WRK-34), the page the app opens on, over the shared fixture's day: what is due on
-// the reader across hubs with the hub's colour, ticked off where it stands (check 1); a list as
-// one tile with its figure (check 2); a project's next due step (check 3); the jumble's count and
-// first three (check 4); what this device opened (check 5); and no word about what the person did
-// not do (check 6, since changed: what is late is said as late). Also UC-WRK-20's line between overdue and next, in the reader's zone, and its
+// the reader across hubs with the hub's colour, ticked off where it stands (UC-WRK-34 check 1); a list as
+// one tile with its figure (UC-WRK-34 check 2); a project's next due step (UC-WRK-34 check 3); the jumble's count and
+// first three (UC-WRK-34 check 4); what this device opened (UC-WRK-34 check 5); and no word about what the person did
+// not do (UC-WRK-34 check 6, since changed: what is late is said as late). Also UC-WRK-20's line between overdue and next, in the reader's zone, and its
 // empty states. Chromium: a layout and a set of requests, with no engine-specific part.
 
 import { test } from 'node:test';
@@ -213,6 +213,7 @@ test('chromium: a project\'s step ticked off on Today gives way to the next', as
   assert.deepEqual(failures, []);
 });
 
+// UC-WRK-34 check 7: a greeting by the hour and figures that lead to their entries.
 test('chromium: the day at a glance - a greeting by the hour, figures that lead to their search, the overdue among them (check 7)', async (t) => {
   showToday();
   const browser = await chromium.launch();
