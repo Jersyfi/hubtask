@@ -26,7 +26,7 @@ import { platform } from '../platform/index.ts';
 import { manifest } from './capabilities.svelte.ts';
 import { engine } from './engine.ts';
 import { figures } from './figures.svelte.ts';
-import { pathsFor, revokedContainerOf } from './live.ts';
+import { LIVE_BATCH_MS, pathsFor, revokedContainerOf, unaffected } from './live.ts';
 import { fetchStructureAfresh } from './replica.ts';
 
 /**
@@ -121,6 +121,8 @@ class Live {
       if (stopped) return;
       stopListening = engine.listen({
         pathsFor,
+        unaffected,
+        batchMs: LIVE_BATCH_MS,
         // What the mark in the bar reads, and it is the **connection's** state rather than the
         // traffic's. Were it `live` only on the first record, a stream that is open and idle - a
         // workspace nobody else is writing in - would say *Reconnecting…* until somebody changed

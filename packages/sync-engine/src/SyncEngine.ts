@@ -209,6 +209,18 @@ export interface ListenOptions {
    */
   readonly onRecord?: (record: ChangeRecord) => void;
   /**
+   * Whether a record cannot change a read's answer though `pathsFor` names its path - the
+   * application's, like `pathsFor`, and asked only of a read that holds an answer. One person's
+   * bulk move in one collection then reloads that collection's board, not every board open in the
+   * workspace. A read it is not sure of is stale.
+   */
+  readonly unaffected?: (record: ChangeRecord, request: ResourceRequest, data: unknown) => boolean;
+  /**
+   * How long the records of a burst are gathered before the reads they make stale are reloaded,
+   * once each. Zero, the default, reloads on each record.
+   */
+  readonly batchMs?: number;
+  /**
    * Whether the stream is attached, called when that changes and not otherwise.
    *
    * `true` the moment the server accepts the connection, `false` when an attempt fails and the
@@ -337,6 +349,9 @@ export class SyncEngine {
   readonly #token: () => string | undefined;
   /** One entry per path, so two components asking for the same thing share one state. */
   readonly #resources = new Map<string, ResourceEntry<unknown>>();
+  /** The reads a batch of stream records made stale, and the batch's end (`batchMs`). */
+  readonly #due = new Set<string>();
+  #dueTimer: ReturnType<typeof setTimeout> | undefined;
   readonly #onUnauthorized: () => void;
   readonly #onRefresh: () => Promise<boolean>;
   readonly #storeFor: ((request: ResourceRequest, storage: Storage) => Promise<unknown>) | undefined;
@@ -935,7 +950,7 @@ export class SyncEngine {
             // The empty list is not the absent one: `#invalidate(undefined)` means everything,
             // and an application that maps a record to no path means the opposite. The list
             // travels as it is, and a record that names nothing here invalidates nothing.
-            this.#invalidate(options.pathsFor(record));
+            this.#invalidateFor(record, options);
           }
           if (event.id && this.#replica) await this.#replica.hold({ ...(await this.#replica.position()), cursor: event.id });
         }
@@ -1421,11 +1436,41 @@ export class SyncEngine {
    * a write returns what the server answered and does not wait for the screens around it to catch
    * up — and a reload that fails reaches its subscribers as a `failed` state like any other.
    */
+  /**
+   * A stream record's invalidation: narrowed by `scopeOf`, and gathered for `batchMs` so that a
+   * burst reloads each stale read once. The reads are chosen when the record arrives; whether one
+   * is still watched is asked when the batch ends.
+   */
+  #invalidateFor(record: ChangeRecord, options: ListenOptions): void {
+    const prefixes = options.pathsFor(record);
+    if (prefixes.length === 0) return;
+    const stale = [...this.#resources].filter(([, entry]) =>
+      prefixes.some((prefix) => matchesPath(prefix, entry.path)) && !unaffectedBy(record, entry, options.unaffected));
+    const batchMs = options.batchMs ?? 0;
+    if (batchMs <= 0) {
+      this.#reload(stale);
+      return;
+    }
+    for (const [key] of stale) this.#due.add(key);
+    this.#dueTimer ??= setTimeout(() => {
+      this.#dueTimer = undefined;
+      const due = [...this.#due];
+      this.#due.clear();
+      this.#reload(due.flatMap((key) => {
+        const entry = this.#resources.get(key);
+        return entry ? [[key, entry] as [string, ResourceEntry<unknown>]] : [];
+      }));
+    }, batchMs);
+  }
+
   #invalidate(prefixes: readonly string[] | undefined): void {
     const stale = [...this.#resources].filter(
       ([, entry]) => prefixes === undefined || prefixes.some((prefix) => matchesPath(prefix, entry.path)),
     );
+    this.#reload(stale);
+  }
 
+  #reload(stale: readonly (readonly [string, ResourceEntry<unknown>])[]): void {
     for (const [key, entry] of stale) {
       if (entry.listeners.size === 0) {
         this.#resources.delete(key);
@@ -1458,6 +1503,14 @@ export function matchesPath(name: string, path: string): boolean {
     .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     .join('[^/?]+');
   return new RegExp(`^${source}${isExact ? '(?:\\?.*)?$' : ''}`).test(path);
+}
+
+function unaffectedBy(
+  record: ChangeRecord,
+  entry: ResourceEntry<unknown>,
+  unaffected: ListenOptions['unaffected'],
+): boolean {
+  return unaffected !== undefined && entry.state.status === 'ready' && unaffected(record, entry.request, entry.state.data);
 }
 
 /** A failure that never reached the server: no answer at all, or none in time. */

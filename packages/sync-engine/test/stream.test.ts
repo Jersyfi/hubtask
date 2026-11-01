@@ -481,3 +481,58 @@ test('an open stream with nothing on it is attached, and says so without a recor
   assert.deepEqual(seen, [true]);
   stop();
 });
+
+test('a burst of records reloads each stale read once, at the end of the batch', async () => {
+  const records = Array.from({ length: 50 }, (_, i) => frame(String(10 + i), { entity: 'work_item', entity_id: ITEM }));
+  const transport = new FakeTransport()
+    .answer(`/items/${ITEM}`, { id: ITEM, title: 'one' })
+    .streamSessions({ events: records, open: true });
+  const engine = new SyncEngine({ transport });
+  const pause = pauses(1);
+
+  engine.subscribe({ path: `/items/${ITEM}` }, () => {});
+  await settle();
+  const before = transport.calls.length;
+
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, batchMs: 20 }));
+  await settle();
+  assert.equal(transport.calls.length, before, 'a read reloaded before its batch ended');
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  await settle();
+  pause.end();
+
+  assert.equal(transport.calls.length - before, 1, 'fifty records reloaded the read more than once');
+});
+
+test('a record the application calls unaffected leaves a read alone', async () => {
+  const transport = new FakeTransport()
+    .answer(`/items/${ITEM}`, { id: ITEM, title: 'one' })
+    .answer(`/items/${OTHER}`, { id: OTHER, title: 'two' })
+    .streamSessions({
+      events: [frame('7', { entity: 'work_item', entity_id: ITEM, container_id: CONTAINER })],
+      open: true,
+    });
+  const engine = new SyncEngine({ transport });
+  const pause = pauses(1);
+  const both = (record: ChangeRecord) => (record.entity === 'work_item' ? [`/items/${ITEM}`, `/items/${OTHER}`] : []);
+
+  engine.subscribe({ path: `/items/${ITEM}` }, () => {});
+  engine.subscribe({ path: `/items/${OTHER}` }, () => {});
+  await settle();
+  const before = transport.calls.length;
+
+  const asked: unknown[] = [];
+  pause.hold(engine.listen({
+    pathsFor: both,
+    wait: pause.wait,
+    unaffected: (_record, request, data) => {
+      asked.push(data);
+      return request.path === `/items/${OTHER}`;
+    },
+  }));
+  await settle();
+  pause.end();
+
+  assert.deepEqual(transport.calls.slice(before).map((call) => call.path), [`/items/${ITEM}`]);
+  assert.ok(asked.some((data) => (data as { id?: string }).id === OTHER), 'the answer held was not handed over');
+});
