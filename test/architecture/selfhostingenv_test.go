@@ -175,55 +175,125 @@ func TestTheSelfHostingStackDumpsBeforeItMigrates(t *testing.T) {
 // instance file were documented and silently dropped: .env.example did not offer them either, so
 // the test above had nothing to compare.
 func TestEveryVariableTheDeploymentTableNamesReachesTheComposeStack(t *testing.T) {
-	// Tuning the two-container stack leaves at its default; set them by adding a line to
-	// compose.yaml, which the operator edits for a keyring's second key anyway.
-	leftOut := map[string]string{
-		"HUBTASK_ROLES":                           "compose.yaml sets all four roles itself",
-		"HUBTASK_WORKSPACE_HOSTS":                 "decided, not built",
-		"HUBTASK_METRICS_TENANT_LABEL":            "provider operation's metrics",
-		"HUBTASK_SHUTDOWN_DEREGISTER_SECONDS":     "tuning for a load balancer",
-		"HUBTASK_SHUTDOWN_GRACE_SECONDS":          "tuning",
-		"HUBTASK_STEP_UP_WINDOW":                  "tuning",
-		"HUBTASK_DB_MAX_CONNS":                    "tuning",
-		"HUBTASK_DB_MIN_CONNS":                    "tuning",
-		"HUBTASK_DB_STATEMENT_TIMEOUT":            "tuning",
-		"HUBTASK_DB_WORKER_STATEMENT_TIMEOUT":     "tuning",
-		"HUBTASK_S3_REGION":                       "tuning; the default region serves MinIO",
-		"HUBTASK_S3_USE_PATH_STYLE":               "tuning; path style is the default",
-		"HUBTASK_SMTP_TIMEOUT":                    "tuning",
-		"HUBTASK_BACKUP_CONCURRENT_DOWNLOADS":     "tuning",
-		"HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE": "tuning",
-		"HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE":      "tuning",
-		"HUBTASK_LOAD_SHED_INFLIGHT":              "tuning",
-		"HUBTASK_LOAD_SHED_RETRY_AFTER":           "tuning",
-		"HUBTASK_STREAM_PER_CREDENTIAL":           "tuning",
-		"HUBTASK_STREAM_PER_TENANT":               "tuning",
-		"HUBTASK_STREAM_PER_PROCESS":              "tuning",
-		"HUBTASK_MAILBOX_WATCH_LIMIT":             "tuning",
-		"HUBTASK_MAX_BODY_BYTES":                  "tuning",
-		"HUBTASK_HTTP_TIMEOUT":                    "tuning",
-		"HUBTASK_HTTP_CONNECT_TIMEOUT":            "tuning",
-		"HUBTASK_HTTP_MAX_RESPONSE_BYTES":         "tuning",
-		"HUBTASK_HTTP_MAX_REDIRECTS":              "tuning",
-		"HUBTASK_JOB_TIMEOUT":                     "tuning",
-		"HUBTASK_JOB_MAX_ATTEMPTS":                "tuning",
-		"HUBTASK_JOB_RETRY_BASE":                  "tuning",
-		"HUBTASK_JOB_RETRY_MAX":                   "tuning",
-		"HUBTASK_SCHEDULER_TICK_INTERVAL":         "tuning",
-		"HUBTASK_LONG_JOB_TIMEOUT":                "tuning",
-		"HUBTASK_QUEUE_CONCURRENCY":               "tuning",
-		"HUBTASK_OUTBOX_MAX_INTERVAL":             "tuning",
-		"HUBTASK_TRIGGER_POLL_LAG":                "tuning",
-		"HUBTASK_TOMBSTONE_WINDOW":                "tuning, and lowering it is a trap (offline-sync.md §7)",
-		"HUBTASK_HLC_SKEW":                        "tuning",
-		"HUBTASK_MEDIA_STAGING_GRACE":             "tuning",
-		"HUBTASK_MEDIA_UNREFERENCED_GRACE":        "tuning",
-		"HUBTASK_MEDIA_ORPHAN_GRACE":              "tuning",
-		"HUBTASK_LOCALE_DIR":                      "needs a mount of its own",
-	}
 
 	names := readNames(t)
+	listed := documentedVariables(t, names)
+	if !listed["HUBTASK_UI_FRAME_SOURCES"] {
+		t.Fatal("the table yielded no HUBTASK_UI_FRAME_SOURCES - the parsing has stopped matching")
+	}
 
+	passed := map[string]bool{}
+	for _, line := range strings.Split(string(readFile(t, "../../deploy/docker/compose.yaml")), "\n") {
+		if m := regexp.MustCompile(`^\s+(HUBTASK_[A-Z0-9_]*):`).FindStringSubmatch(line); m != nil {
+			passed[m[1]] = true
+		}
+	}
+	for name := range listed {
+		if strings.HasPrefix(name, "HUBTASK_ENCRYPTION_KEY_") && name != "HUBTASK_ENCRYPTION_KEYS" {
+			continue // a keyring's key is named by its identifier; compose.yaml passes k1
+		}
+		if !passed[name] && leftAtDefault[name] == "" {
+			t.Errorf("deployment.md §6.1 documents %s and compose.yaml does not pass it: a self-hoster "+
+				"who sets it in .env changes nothing - pass it through (and offer it in .env.example), "+
+				"or name it here as left at its default", name)
+		}
+	}
+}
+
+// The other direction: every variable the server's configuration reads has a row in deployment.md
+// §6.1, where an operator looks for it. A variable documented only in a subject document or an ADR
+// is one an operator configuring the installation from the reference never finds - the media path a
+// backup has to include, the mail intake's key. The secrets the opening of §6 names, and the
+// migrator's of §6.2, are stated there.
+func TestEveryVariableTheConfigurationReadsHasARow(t *testing.T) {
+	names := readNames(t)
+	listed := documentedVariables(t, names)
+	statedAbove := map[string]bool{
+		"HUBTASK_DB_DSN": true, "HUBTASK_SECRET_KEY": true,
+	}
+	literal := regexp.MustCompile(`"(HUBTASK_[A-Z0-9_]*[A-Z0-9])"`)
+	read := literal.FindAllStringSubmatch(string(readFile(t, "../../infrastructure/environment/EnvConfig.go")), -1)
+	if len(read) < 50 {
+		t.Fatalf("EnvConfig.go yielded %d variables - the literal pattern has stopped matching", len(read))
+	}
+	for _, m := range read {
+		if !listed[m[1]] && !statedAbove[m[1]] {
+			t.Errorf("infrastructure/environment/EnvConfig.go reads %s, and deployment.md §6.1 has no "+
+				"row for it: add one (its default, and what it changes)", m[1])
+		}
+	}
+}
+
+// Tuning the two-container stack leaves at its default; set them by adding a line to
+// compose.yaml, which the operator edits for a keyring's second key anyway.
+var leftAtDefault = map[string]string{
+	"HUBTASK_ROLES":                           "compose.yaml sets all four roles itself",
+	"HUBTASK_WORKSPACE_HOSTS":                 "decided, not built",
+	"HUBTASK_METRICS_TENANT_LABEL":            "provider operation's metrics",
+	"HUBTASK_SHUTDOWN_DEREGISTER_SECONDS":     "tuning for a load balancer",
+	"HUBTASK_SHUTDOWN_GRACE_SECONDS":          "tuning",
+	"HUBTASK_STEP_UP_WINDOW":                  "tuning",
+	"HUBTASK_DB_MAX_CONNS":                    "tuning",
+	"HUBTASK_DB_MIN_CONNS":                    "tuning",
+	"HUBTASK_DB_STATEMENT_TIMEOUT":            "tuning",
+	"HUBTASK_DB_WORKER_STATEMENT_TIMEOUT":     "tuning",
+	"HUBTASK_S3_REGION":                       "tuning; the default region serves MinIO",
+	"HUBTASK_S3_USE_PATH_STYLE":               "tuning; path style is the default",
+	"HUBTASK_SMTP_TIMEOUT":                    "tuning",
+	"HUBTASK_BACKUP_CONCURRENT_DOWNLOADS":     "tuning",
+	"HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE": "tuning",
+	"HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE":      "tuning",
+	"HUBTASK_LOAD_SHED_INFLIGHT":              "tuning",
+	"HUBTASK_LOAD_SHED_RETRY_AFTER":           "tuning",
+	"HUBTASK_STREAM_PER_CREDENTIAL":           "tuning",
+	"HUBTASK_STREAM_PER_TENANT":               "tuning",
+	"HUBTASK_STREAM_PER_PROCESS":              "tuning",
+	"HUBTASK_MAILBOX_WATCH_LIMIT":             "tuning",
+	"HUBTASK_MAX_BODY_BYTES":                  "tuning",
+	"HUBTASK_HTTP_TIMEOUT":                    "tuning",
+	"HUBTASK_HTTP_CONNECT_TIMEOUT":            "tuning",
+	"HUBTASK_HTTP_MAX_RESPONSE_BYTES":         "tuning",
+	"HUBTASK_HTTP_MAX_REDIRECTS":              "tuning",
+	"HUBTASK_JOB_TIMEOUT":                     "tuning",
+	"HUBTASK_JOB_MAX_ATTEMPTS":                "tuning",
+	"HUBTASK_JOB_RETRY_BASE":                  "tuning",
+	"HUBTASK_JOB_RETRY_MAX":                   "tuning",
+	"HUBTASK_SCHEDULER_TICK_INTERVAL":         "tuning",
+	"HUBTASK_LONG_JOB_TIMEOUT":                "tuning",
+	"HUBTASK_QUEUE_CONCURRENCY":               "tuning",
+	"HUBTASK_OUTBOX_MAX_INTERVAL":             "tuning",
+	"HUBTASK_TRIGGER_POLL_LAG":                "tuning",
+	"HUBTASK_TOMBSTONE_WINDOW":                "tuning, and lowering it is a trap (offline-sync.md §7)",
+	"HUBTASK_HLC_SKEW":                        "tuning",
+	"HUBTASK_MEDIA_STAGING_GRACE":             "tuning",
+	"HUBTASK_MEDIA_UNREFERENCED_GRACE":        "tuning",
+	"HUBTASK_MEDIA_ORPHAN_GRACE":              "tuning",
+	"HUBTASK_LOCALE_DIR":                      "needs a mount of its own",
+	"HUBTASK_HTTP_ADDR":                       "compose.yaml publishes the default port",
+	"HUBTASK_OPS_ADDR":                        "compose.yaml publishes the default port",
+	"HUBTASK_LOG_LEVEL":                       "tuning",
+	"HUBTASK_STORAGE_LOCAL_PATH":              "compose.yaml mounts the media volume at the default",
+	"HUBTASK_DB_CONNECT_TIMEOUT":              "tuning",
+	"HUBTASK_DB_MAX_CONN_LIFETIME":            "tuning",
+	"HUBTASK_DB_MAX_CONN_IDLE_TIME":           "tuning",
+	"HUBTASK_CORS_MAX_AGE":                    "tuning",
+	"HUBTASK_QUEUE_POLL_INTERVAL":             "tuning",
+	"HUBTASK_QUEUE_BATCH_SIZE":                "tuning",
+	"HUBTASK_OUTBOX_MIN_INTERVAL":             "tuning",
+	"HUBTASK_OUTBOX_BATCH_SIZE":               "tuning",
+	"HUBTASK_NATS_CREDENTIALS_FILE":           "the bus is provider operation's",
+	"HUBTASK_NATS_CONNECT_TIMEOUT":            "tuning",
+	"HUBTASK_NATS_PUBLISH_TIMEOUT":            "tuning",
+	"HUBTASK_MEDIA_RECONCILE_BATCH_SIZE":      "tuning",
+	"HUBTASK_MEDIA_RECONCILE_INTERVAL":        "tuning",
+	"HUBTASK_RETENTION_BATCH_SIZE":            "tuning",
+	"HUBTASK_RETENTION_INTERVAL":              "tuning",
+}
+
+// documentedVariables reads the variables deployment.md §6.1's table names, each matched against
+// the names the code reads, short forms and patterns resolved.
+func documentedVariables(t *testing.T, names []string) map[string]bool {
+	t.Helper()
 	doc := string(readFile(t, "../../docs/architecture/deployment.md"))
 	start := strings.Index(doc, "### 6.1 Reference")
 	end := strings.Index(doc, "### 6.2")
@@ -262,32 +332,13 @@ func TestEveryVariableTheDeploymentTableNamesReachesTheComposeStack(t *testing.T
 					matched = matched || candidate == prefix // a keyring's key, read by its prefix
 				}
 			}
-			if !matched && leftOut[name] == "" {
+			if !matched && leftAtDefault[name] == "" {
 				t.Errorf("deployment.md §6.1 names %s, which no code under cmd/ or infrastructure/ "+
 					"reads", name)
 			}
 		}
 	}
-	if !listed["HUBTASK_UI_FRAME_SOURCES"] {
-		t.Fatal("the table yielded no HUBTASK_UI_FRAME_SOURCES - the parsing has stopped matching")
-	}
-
-	passed := map[string]bool{}
-	for _, line := range strings.Split(string(readFile(t, "../../deploy/docker/compose.yaml")), "\n") {
-		if m := regexp.MustCompile(`^\s+(HUBTASK_[A-Z0-9_]*):`).FindStringSubmatch(line); m != nil {
-			passed[m[1]] = true
-		}
-	}
-	for name := range listed {
-		if strings.HasPrefix(name, "HUBTASK_ENCRYPTION_KEY_") && name != "HUBTASK_ENCRYPTION_KEYS" {
-			continue // a keyring's key is named by its identifier; compose.yaml passes k1
-		}
-		if !passed[name] && leftOut[name] == "" {
-			t.Errorf("deployment.md §6.1 documents %s and compose.yaml does not pass it: a self-hoster "+
-				"who sets it in .env changes nothing - pass it through (and offer it in .env.example), "+
-				"or name it here as left at its default", name)
-		}
-	}
+	return listed
 }
 
 // readNames lists the variable names the code holds as literals, a prefix such as a keyring's
