@@ -134,7 +134,12 @@ func TestADownloadNobodyReadsEndsAfterItsStall(t *testing.T) {
 	}))
 	defer server.Close()
 
-	response, err := server.Client().Post(server.URL, "application/json", nil)
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := server.Client().Do(request)
 	if err != nil {
 		t.Fatal(err)
 	}

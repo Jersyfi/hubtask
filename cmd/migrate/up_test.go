@@ -124,7 +124,7 @@ func startDatabase(ctx context.Context, t *testing.T) string {
 	if err != nil {
 		t.Fatalf("starting PostgreSQL: %v", err)
 	}
-	t.Cleanup(func() { _ = container.Terminate(context.Background()) })
+	t.Cleanup(func() { _ = container.Terminate(context.WithoutCancel(ctx)) })
 	dsn, err := container.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
 		t.Fatalf("connection string: %v", err)

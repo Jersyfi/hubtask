@@ -34,6 +34,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
 	// The pgx driver in its database/sql form: goose speaks database/sql, and a second driver for
 	// the same database would be a second set of connection semantics to reason about.
 	"github.com/jackc/pgx/v5/stdlib"

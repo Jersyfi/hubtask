@@ -27,12 +27,11 @@ var (
 	validates      = regexp.MustCompile(`(?is)\bVALIDATE\s+CONSTRAINT\s+([a-z_0-9]+)`)
 	// The clauses of one ALTER TABLE; a column's own CHECK or REFERENCES is checked against every
 	// row under the ALTER's ACCESS EXCLUSIVE lock.
-	clauseStart  = regexp.MustCompile(`(?i),(\s*(?:ADD|ALTER|DROP|VALIDATE|RENAME)\b)`)
-	addsColumn   = regexp.MustCompile(`(?is)^\s*ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)\b(.*)$`)
-	inlineCheck  = regexp.MustCompile(`(?i)\b(CHECK|REFERENCES)\b`)
-	updatesTable = regexp.MustCompile(`(?is)^\s*UPDATE\s+(?:ONLY\s+)?([a-z_][a-z0-9_]*)\b`)
-	lineComment  = regexp.MustCompile(`--[^\n]*`)
-	dollarBlock  = regexp.MustCompile(`(?s)\$([a-z_]*)\$.*?\$([a-z_]*)\$`)
+	clauseStart = regexp.MustCompile(`(?i),(\s*(?:ADD|ALTER|DROP|VALIDATE|RENAME)\b)`)
+	addsColumn  = regexp.MustCompile(`(?is)^\s*ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)\b(.*)$`)
+	inlineCheck = regexp.MustCompile(`(?i)\b(CHECK|REFERENCES)\b`)
+	lineComment = regexp.MustCompile(`--[^\n]*`)
+	dollarBlock = regexp.MustCompile(`(?s)\$([a-z_]*)\$.*?\$([a-z_]*)\$`)
 )
 
 type migrationFile struct {
@@ -53,7 +52,7 @@ func readMigrations(t *testing.T) []migrationFile {
 	}
 	files := make([]migrationFile, 0, len(paths))
 	for _, path := range paths {
-		raw, err := os.ReadFile(path) //nolint:gosec // G304: the repository's own files
+		raw, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -206,7 +205,7 @@ func releasedTables(files []migrationFile) map[string]bool {
 // The constant above follows the release: the newest v* tag without a pre-release suffix carries
 // exactly that many migrations. Skipped where the checkout has no tags (a shallow clone).
 func TestTheLastReleasedMigrationIsTheLastReleasesHighest(t *testing.T) {
-	out, err := exec.Command("git", "tag", "--list", "v*", "--sort=-v:refname").Output()
+	out, err := exec.CommandContext(t.Context(), "git", "tag", "--list", "v*", "--sort=-v:refname").Output()
 	if err != nil {
 		t.Skip("no git here")
 	}
@@ -220,7 +219,7 @@ func TestTheLastReleasedMigrationIsTheLastReleasesHighest(t *testing.T) {
 	if tag == "" {
 		t.Skip("no release tag in this checkout")
 	}
-	listing, err := exec.Command("git", "ls-tree", "--name-only", tag, "../../db/migrations/").Output() //nolint:gosec // G204: a tag read from git itself
+	listing, err := exec.CommandContext(t.Context(), "git", "ls-tree", "--name-only", tag, "../../db/migrations/").Output()
 	if err != nil {
 		t.Skipf("reading %s: %v", tag, err)
 	}

@@ -134,11 +134,11 @@ func (s Server) hold(
 
 	// ended asks the credential; the client then reconnects through a fresh authentication, which
 	// refuses it. slot.Recheck is a revocation heard for this account on any process.
-	ended := func() bool {
+	ended := func(ctx context.Context) bool {
 		if still == nil {
 			return false
 		}
-		checkCtx, cancel := context.WithTimeout(r.Context(), agentCredentialTimeout)
+		checkCtx, cancel := context.WithTimeout(ctx, agentCredentialTimeout)
 		defer cancel()
 		if still(checkCtx) != nil {
 			_ = events.Comment("credential")
@@ -149,11 +149,11 @@ func (s Server) hold(
 	for {
 		select {
 		case <-slot.Recheck:
-			if ended() {
+			if ended(r.Context()) {
 				return
 			}
 		case <-recheck.C:
-			if ended() {
+			if ended(r.Context()) {
 				return
 			}
 		case <-r.Context().Done():
