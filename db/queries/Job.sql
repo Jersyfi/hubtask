@@ -329,3 +329,37 @@ RETURNING state;
 -- The oldest open transaction's age in seconds (migration 0331, alert A-25).
 -- name: OldestTransactionSeconds :one
 SELECT oldest_transaction_seconds()::float8 AS seconds;
+
+-- The installation's dead letters for an operator (UC-INS-12), newest first: codes and moments,
+-- never the payload (rule 10). The table has no policy; only the operator's door reads this.
+-- name: PageDeadLetters :many
+SELECT id, tenant_id, kind, attempts, max_attempts, last_error, created_at, finished_at
+FROM job
+WHERE state = 'DEAD_LETTER'
+  AND (sqlc.narg('kind')::text IS NULL OR kind = sqlc.narg('kind')::text)
+  AND (sqlc.narg('before')::uuid IS NULL OR id < sqlc.narg('before')::uuid)
+ORDER BY id DESC
+LIMIT sqlc.arg('size')::int;
+
+-- One dead letter back to the queue as it was, due now, its attempts from zero - unless its key
+-- already has an open job, which then does the work (job_dedupe_uq would refuse the row anyway).
+-- name: RequeueDeadLetter :one
+UPDATE job SET
+  state        = 'PENDING',
+  run_at       = sqlc.arg('now')::timestamptz,
+  attempts     = 0,
+  finished_at  = NULL,
+  locked_until = NULL,
+  last_error   = NULL,
+  last_error_params = NULL
+WHERE job.id = sqlc.arg('id') AND job.state = 'DEAD_LETTER'
+  AND (job.dedupe_key IS NULL OR NOT EXISTS (
+    SELECT 1 FROM job AS open
+    WHERE open.kind = job.kind AND open.dedupe_key = job.dedupe_key
+      AND open.state IN ('PENDING', 'RUNNING')))
+RETURNING id, tenant_id, kind, attempts, max_attempts, last_error, created_at;
+
+-- Whether a job of this identifier is a dead letter, for the refusal a requeue that changed nothing
+-- answers.
+-- name: IsDeadLetter :one
+SELECT EXISTS (SELECT 1 FROM job WHERE id = sqlc.arg('id') AND state = 'DEAD_LETTER');

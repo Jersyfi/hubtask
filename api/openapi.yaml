@@ -13333,6 +13333,61 @@ paths:
                   queued:
                     type: integer
                     description: How many dead letters were queued again.
+  /admin/dead-letters:
+    get:
+      tags: [admin]
+      operationId: listDeadLetters
+      x-hubtask-cli: "admin dead-letter list"
+      x-hubtask-cli-columns: [id, kind, tenant_id, attempts, error_code, finished_at]
+      x-hubtask-rest: generated
+      x-hubtask-rest-query: {size: limit}
+      summary: The jobs that ran out of attempts
+      description: >
+        Every job of the installation that failed as often as it may and now waits for an operator,
+        newest first: its kind, the workspace it ran for, how often it was tried, the code of its last
+        failure and when it ended. Never what it was given - that names people by identifier. A dead
+        letter stays seven days after it ended; a duty that keeps running is revived on its own after
+        a wait. Behind `admin:tenants` and the operator register, both.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: kind
+          in: query
+          required: false
+          description: Only the dead letters of this kind of job.
+          schema: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: One page, newest first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeadLetterPage" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/dead-letters/{jobId}:requeue:
+    parameters:
+      - { name: jobId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin]
+      operationId: requeueDeadLetter
+      x-hubtask-cli: "admin dead-letter requeue"
+      x-hubtask-rest: generated
+      summary: Run a dead letter again
+      description: >
+        The job goes back to the queue as it was, due now, with its attempts from zero, and the
+        installation's journal records it. `404 admin.dead_letter_not_found` when no dead letter has this
+        identifier; `409 admin.job_already_open` while another job of the same kind and key is
+        waiting or running - that one does the work. Behind `admin:tenants` and the operator
+        register, both.
+      responses:
+        "202":
+          description: Queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeadLetter" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /admin/usage:
     get:
       tags: [admin]
@@ -26597,6 +26652,43 @@ components:
         next_attempt_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    DeadLetter:
+      type: object
+      description: A job that ran out of attempts, as an operator acts on it. Codes and moments only.
+      required: [id, kind, tenant_id, state, attempts, max_attempts, error_code, created_at, finished_at]
+      properties:
+        id: { type: string, format: uuid }
+        kind:
+          type: string
+          description: The kind of job, e.g. `notification.deliver`.
+        tenant_id:
+          type: [string, "null"]
+          format: uuid
+          description: The workspace it ran for; null for a job of the installation.
+        state:
+          type: string
+          enum: [DEAD_LETTER, PENDING]
+          description: DEAD_LETTER while it waits; PENDING once it is queued again.
+        attempts: { type: integer }
+        max_attempts: { type: integer }
+        error_code:
+          type: [string, "null"]
+          description: The message code of its last failure, never a message.
+        created_at: { type: string, format: date-time }
+        finished_at:
+          type: [string, "null"]
+          format: date-time
+          description: When it ran out of attempts; null once it is queued again.
+
+    DeadLetterPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/DeadLetter" }
+        page: { $ref: "#/components/schemas/PageInfo" }
 
     PlatformDeliveryPage:
       type: object

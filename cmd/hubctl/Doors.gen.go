@@ -69,6 +69,18 @@ var generatedCommands = []door{
 			{Name: "to", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "kind", "version"}},
+	{Group: "admin", Verb: "dead-letter list", OperationID: "listDeadLetters", Method: "GET", Path: "/admin/dead-letters", Summary: "The jobs that ran out of attempts",
+		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "kind", Kind: "string", Help: "Only the dead letters of this kind of job", Required: false},
+			{Name: "size", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "kind", "tenant_id", "attempts", "error_code", "finished_at"}},
+	{Group: "admin", Verb: "dead-letter requeue", OperationID: "requeueDeadLetter", Method: "POST", Path: "/admin/dead-letters/{jobId}:requeue", Summary: "Run a dead letter again",
+		PathParams: []doorParam{
+			{Name: "jobId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "kind", "state"}},
 	{Group: "admin", Verb: "encryption reseal", OperationID: "resealSecrets", Method: "POST", Path: "/admin/encryption:reseal", Summary: "Re-seal what older keys still hold",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"active_key_id", "queued_tenants"}},
 	{Group: "admin", Verb: "encryption show", OperationID: "readEncryptionStatus", Method: "GET", Path: "/admin/encryption", Summary: "The keyring, and what still names each key",

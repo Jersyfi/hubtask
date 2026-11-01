@@ -2520,6 +2520,16 @@ export class HubtaskClient {
     return this.call("POST", "/admin/subscriptions/{subscriptionId}:redeliver", { "subscriptionId": subscriptionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The jobs that ran out of attempts */
+  listDeadLetters(options: CallOptions & { readonly query?: NonNullable<operations["listDeadLetters"]['parameters']['query']> } = {}): Promise<operations["listDeadLetters"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/dead-letters", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Run a dead letter again */
+  requeueDeadLetter(jobId: string, options: CallOptions = {}): Promise<operations["requeueDeadLetter"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/admin/dead-letters/{jobId}:requeue", { "jobId": jobId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The use per workspace, metric and day, for billing */
   readUsage(options: CallOptions & { readonly query?: NonNullable<operations["readUsage"]['parameters']['query']> } = {}): Promise<operations["readUsage"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/usage", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

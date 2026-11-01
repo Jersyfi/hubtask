@@ -3543,6 +3543,10 @@ func run() error {
 			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
 		}.Descriptor(),
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListDeadLetters{
+			Writer: instanceWriter, DeadLetters: postgres.NewDeadLetterRepository(), Cursors: cursors,
+		}.Descriptor(),
+		adminservice.RequeueDeadLetter{Writer: instanceWriter, DeadLetters: postgres.NewDeadLetterRepository()}.Descriptor(),
 		adminservice.ListPlatformSubscriptions{Writer: platformWriter}.Descriptor(),
 		adminservice.CreatePlatformSubscription{Writer: platformWriter}.Descriptor(),
 		adminservice.ReadPlatformSubscription{Writer: platformWriter}.Descriptor(),

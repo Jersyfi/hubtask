@@ -559,6 +559,8 @@
   "admin.subscription_not_found": "There is no such subscription of the installation.",
   "admin.subscription_paused": "This subscription is paused. Resume it before redelivering its events.",
   "admin.delivery_not_found": "There is no such delivery of the installation's events.",
+  "admin.dead_letter_not_found": "No job with this identifier is waiting as a dead letter.",
+  "admin.job_already_open": "Another job of the same kind and key is already waiting or running, and it does this work.",
   "admin.subscription_incomplete": "This installation could not create that subscription.",
   "admin.subscription_state_invalid": "A subscription is either active or paused.",
   "admin.subscription_version_moved": "Somebody changed this subscription meanwhile. Read it again and repeat your change.",

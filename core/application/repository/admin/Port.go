@@ -347,3 +347,27 @@ type PlatformDeliveries interface {
 	// Sweep removes up to `batch` settled deliveries untouched since `cutoff`, and answers how many.
 	Sweep(ctx context.Context, cutoff time.Time, batch int) (int, error)
 }
+
+// DeadLetter is a job of the installation that ran out of attempts, as an operator acts on it:
+// codes and moments, never what it was given (rule 10).
+type DeadLetter struct {
+	ID          shared.ID
+	TenantID    shared.ID // empty for a job of the installation
+	Kind        string
+	Attempts    int
+	MaxAttempts int
+	ErrorCode   string
+	CreatedAt   time.Time
+	FinishedAt  time.Time // zero once it is queued again
+	Requeued    bool
+}
+
+// DeadLetters are the installation's dead letters, across every workspace (UC-INS-12).
+type DeadLetters interface {
+	// Page answers them newest first, before `before` when it is set, of one kind when it is set.
+	Page(ctx context.Context, kind string, before shared.ID, size int) ([]DeadLetter, error)
+	// Requeue returns one to the queue, due at `now`, its attempts from zero: ErrNotFound
+	// (admin.dead_letter_not_found) when no dead letter has the identifier, ErrConflict
+	// (admin.job_already_open) when another job of its kind and key is open.
+	Requeue(ctx context.Context, id shared.ID, now time.Time) (DeadLetter, error)
+}

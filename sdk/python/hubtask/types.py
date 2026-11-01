@@ -853,6 +853,22 @@ class PlatformDelivery(TypedDict, total=False):
     created_at: Required[str]
     updated_at: str
 
+class DeadLetter(TypedDict, total=False):
+    """A job that ran out of attempts, as an operator acts on it. Codes and moments only."""
+    id: Required[str]
+    kind: Required[str]
+    tenant_id: Required[str | None]
+    state: Required[Literal["DEAD_LETTER", "PENDING"]]
+    attempts: Required[int]
+    max_attempts: Required[int]
+    error_code: Required[str | None]
+    created_at: Required[str]
+    finished_at: Required[str | None]
+
+class DeadLetterPage(TypedDict, total=False):
+    data: Required[list["DeadLetter"]]
+    page: Required["PageInfo"]
+
 class PlatformDeliveryPage(TypedDict, total=False):
     data: Required[list["PlatformDelivery"]]
     page: Required["PageInfo"]

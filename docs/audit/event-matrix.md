@@ -628,6 +628,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.backup_target_read` | ListInstanceBackupTargets | `backup_target` | INFO | When refused |
 | `instance.backup_target_removed` | DeleteInstanceBackupTarget | `backup_target` | WARNING | Every time |
 | `instance.backup_target_tested` | TestInstanceBackupTarget | `backup_target` | INFO | Every time |
+| `instance.dead_letter_requeued` | RequeueDeadLetter | `job` | NOTICE | Every time |
+| `instance.dead_letters_read` | ListDeadLetters | `instance` | INFO | When refused |
 | `instance.journal_read` | ListInstanceJournal | `instance` | INFO | When refused |
 | `instance.operator_added` | AddOperator | `instance` | NOTICE | Every time |
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |

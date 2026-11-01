@@ -482,6 +482,19 @@ func (q *Queries) HoldJob(ctx context.Context, arg HoldJobParams) (pgtype.UUID, 
 	return id, err
 }
 
+const isDeadLetter = `-- name: IsDeadLetter :one
+SELECT EXISTS (SELECT 1 FROM job WHERE id = $1 AND state = 'DEAD_LETTER')
+`
+
+// Whether a job of this identifier is a dead letter, for the refusal a requeue that changed nothing
+// answers.
+func (q *Queries) IsDeadLetter(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, isDeadLetter, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const jobQueueDepth = `-- name: JobQueueDepth :many
 SELECT kind, count(*) AS pending
 FROM job
@@ -573,6 +586,64 @@ func (q *Queries) OpenJobKeys(ctx context.Context, arg OpenJobKeysParams) ([]Ope
 	for rows.Next() {
 		var i OpenJobKeysRow
 		if err := rows.Scan(&i.TenantID, &i.DedupeKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pageDeadLetters = `-- name: PageDeadLetters :many
+SELECT id, tenant_id, kind, attempts, max_attempts, last_error, created_at, finished_at
+FROM job
+WHERE state = 'DEAD_LETTER'
+  AND ($1::text IS NULL OR kind = $1::text)
+  AND ($2::uuid IS NULL OR id < $2::uuid)
+ORDER BY id DESC
+LIMIT $3::int
+`
+
+type PageDeadLettersParams struct {
+	Kind   *string
+	Before pgtype.UUID
+	Size   int32
+}
+
+type PageDeadLettersRow struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Kind        string
+	Attempts    int32
+	MaxAttempts int32
+	LastError   *string
+	CreatedAt   pgtype.Timestamptz
+	FinishedAt  pgtype.Timestamptz
+}
+
+// The installation's dead letters for an operator (UC-INS-12), newest first: codes and moments,
+// never the payload (rule 10). The table has no policy; only the operator's door reads this.
+func (q *Queries) PageDeadLetters(ctx context.Context, arg PageDeadLettersParams) ([]PageDeadLettersRow, error) {
+	rows, err := q.db.Query(ctx, pageDeadLetters, arg.Kind, arg.Before, arg.Size)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PageDeadLettersRow{}
+	for rows.Next() {
+		var i PageDeadLettersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Kind,
+			&i.Attempts,
+			&i.MaxAttempts,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.FinishedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -684,6 +755,55 @@ func (q *Queries) RepeatJob(ctx context.Context, arg RepeatJobParams) (int64, er
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const requeueDeadLetter = `-- name: RequeueDeadLetter :one
+UPDATE job SET
+  state        = 'PENDING',
+  run_at       = $1::timestamptz,
+  attempts     = 0,
+  finished_at  = NULL,
+  locked_until = NULL,
+  last_error   = NULL,
+  last_error_params = NULL
+WHERE job.id = $2 AND job.state = 'DEAD_LETTER'
+  AND (job.dedupe_key IS NULL OR NOT EXISTS (
+    SELECT 1 FROM job AS open
+    WHERE open.kind = job.kind AND open.dedupe_key = job.dedupe_key
+      AND open.state IN ('PENDING', 'RUNNING')))
+RETURNING id, tenant_id, kind, attempts, max_attempts, last_error, created_at
+`
+
+type RequeueDeadLetterParams struct {
+	Now pgtype.Timestamptz
+	ID  pgtype.UUID
+}
+
+type RequeueDeadLetterRow struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Kind        string
+	Attempts    int32
+	MaxAttempts int32
+	LastError   *string
+	CreatedAt   pgtype.Timestamptz
+}
+
+// One dead letter back to the queue as it was, due now, its attempts from zero - unless its key
+// already has an open job, which then does the work (job_dedupe_uq would refuse the row anyway).
+func (q *Queries) RequeueDeadLetter(ctx context.Context, arg RequeueDeadLetterParams) (RequeueDeadLetterRow, error) {
+	row := q.db.QueryRow(ctx, requeueDeadLetter, arg.Now, arg.ID)
+	var i RequeueDeadLetterRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Kind,
+		&i.Attempts,
+		&i.MaxAttempts,
+		&i.LastError,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const retryJob = `-- name: RetryJob :execrows

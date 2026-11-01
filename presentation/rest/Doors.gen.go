@@ -344,6 +344,7 @@ var restDoors = map[string]restDoor{
 	"listCustomFields":                  {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listDashboards":                    {UseCase: "ListDashboards", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listDataSubjectRequests":           {UseCase: "ListDataSubjectRequests", Status: 200, Query: []string{"cursor", "due_within_days", "include_closed", "kind", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"due_within_days", "size"}},
+	"listDeadLetters":                   {UseCase: "ListDeadLetters", Status: 200, Query: []string{"cursor", "kind", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, QueryAs: map[string]string{"size": "limit"}},
 	"listEmergencyNotices":              {UseCase: "ListEmergencyNotices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryCis":                      {UseCase: "ListEntryCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryCodeLinks":                {UseCase: "ListEntryCodeLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -607,6 +608,7 @@ var restDoors = map[string]restDoor{
 	"requestAddress":                    {UseCase: "RequestAddress", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"requestMediaUpload":                {UseCase: "RequestMediaUpload", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/media/{id}", NullClears: false, Integers: []string{"size"}},
 	"requestTenantDeletion":             {UseCase: "RequestTenantDeletion", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"requeueDeadLetter":                 {UseCase: "RequeueDeadLetter", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resealSecrets":                     {UseCase: "ResealSecrets", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resetPassword":                     {UseCase: "ResetPassword", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"user_agent", "remote_addr", "tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
 	"resolveCiDuplicate":                {UseCase: "ResolveCiDuplicate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3018,6 +3020,12 @@ func (c *RestController) ListDataSubjectRequests(w http.ResponseWriter, r *http.
 	c.door(w, r, restDoors["listDataSubjectRequests"], usecase.Input{}, params, nil, answerPage(dataSubjectRequestResponse))
 }
 
+// ListDeadLetters answers GET /admin/dead-letters by the generated mapping.
+func (c *RestController) ListDeadLetters(w http.ResponseWriter, r *http.Request, params openapi.ListDeadLettersParams) {
+	var answer openapi.DeadLetterPage
+	c.door(w, r, restDoors["listDeadLetters"], usecase.Input{}, params, nil, &answer)
+}
+
 // ListEmergencyNotices answers GET /accounts/me/emergency-notices by the generated mapping.
 func (c *RestController) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listEmergencyNotices"], usecase.Input{}, nil, nil, answerRows(privateHubAccessResponse))
@@ -4641,6 +4649,12 @@ func (c *RestController) RequestTenantDeletion(w http.ResponseWriter, r *http.Re
 	var body openapi.RequestTenantDeletionJSONRequestBody
 	var answer openapi.TenantDeletionScheduled
 	c.door(w, r, restDoors["requestTenantDeletion"], usecase.Input{"tenant_id": tenantId.String()}, params, &body, &answer)
+}
+
+// RequeueDeadLetter answers POST /admin/dead-letters/{jobId}:requeue by the generated mapping.
+func (c *RestController) RequeueDeadLetter(w http.ResponseWriter, r *http.Request, jobId openapi_types.UUID) {
+	var answer openapi.DeadLetter
+	c.door(w, r, restDoors["requeueDeadLetter"], usecase.Input{"job_id": jobId.String()}, nil, nil, &answer)
 }
 
 // ResealSecrets answers POST /admin/encryption:reseal by the generated mapping.

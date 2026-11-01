@@ -4135,6 +4135,24 @@ func (e DataSubjectRequestStatus) Valid() bool {
 	}
 }
 
+// Defines values for DeadLetterState.
+const (
+	DeadLetterStateDEADLETTER DeadLetterState = "DEAD_LETTER"
+	DeadLetterStatePENDING    DeadLetterState = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the DeadLetterState enum.
+func (e DeadLetterState) Valid() bool {
+	switch e {
+	case DeadLetterStateDEADLETTER:
+		return true
+	case DeadLetterStatePENDING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DependencyHealthCircuitState.
 const (
 	DependencyHealthCircuitStateClosed      DependencyHealthCircuitState = "closed"
@@ -15633,6 +15651,38 @@ type DataSubjectRequestUpdate struct {
 	TargetId        *openapi_types.UUID       `json:"target_id,omitempty"`
 }
 
+// DeadLetter A job that ran out of attempts, as an operator acts on it. Codes and moments only.
+type DeadLetter struct {
+	Attempts  int       `json:"attempts"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// ErrorCode The message code of its last failure, never a message.
+	ErrorCode *string `json:"error_code"`
+
+	// FinishedAt When it ran out of attempts; null once it is queued again.
+	FinishedAt *time.Time         `json:"finished_at"`
+	Id         openapi_types.UUID `json:"id"`
+
+	// Kind The kind of job, e.g. `notification.deliver`.
+	Kind        string `json:"kind"`
+	MaxAttempts int    `json:"max_attempts"`
+
+	// State DEAD_LETTER while it waits; PENDING once it is queued again.
+	State DeadLetterState `json:"state"`
+
+	// TenantId The workspace it ran for; null for a job of the installation.
+	TenantId *openapi_types.UUID `json:"tenant_id"`
+}
+
+// DeadLetterState DEAD_LETTER while it waits; PENDING once it is queued again.
+type DeadLetterState string
+
+// DeadLetterPage defines model for DeadLetterPage.
+type DeadLetterPage struct {
+	Data []DeadLetter `json:"data"`
+	Page PageInfo     `json:"page"`
+}
+
 // DegradedFeature defines model for DegradedFeature.
 type DegradedFeature struct {
 	Feature    string    `json:"feature"`
@@ -25485,6 +25535,15 @@ type DeleteInstanceBackupTargetParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListDeadLettersParams defines parameters for ListDeadLetters.
+type ListDeadLettersParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Kind Only the dead letters of this kind of job.
+	Kind *string `form:"kind,omitempty" json:"kind,omitempty"`
+}
+
 // ListPlatformEventsParams defines parameters for ListPlatformEvents.
 type ListPlatformEventsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -29900,6 +29959,12 @@ type ServerInterface interface {
 	// TestInstanceBackupTarget Test the connection to a target of the installation
 	// (POST /admin/backup-targets/{targetId}:test)
 	TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID)
+	// ListDeadLetters The jobs that ran out of attempts
+	// (GET /admin/dead-letters)
+	ListDeadLetters(w http.ResponseWriter, r *http.Request, params ListDeadLettersParams)
+	// RequeueDeadLetter Run a dead letter again
+	// (POST /admin/dead-letters/{jobId}:requeue)
+	RequeueDeadLetter(w http.ResponseWriter, r *http.Request, jobId openapi_types.UUID)
 	// ReadEncryptionStatus The keyring, and what still names each key
 	// (GET /admin/encryption)
 	ReadEncryptionStatus(w http.ResponseWriter, r *http.Request)
@@ -33212,6 +33277,91 @@ func (siw *ServerInterfaceWrapper) TestInstanceBackupTarget(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TestInstanceBackupTarget(w, r, targetId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDeadLetters operation middleware
+func (siw *ServerInterfaceWrapper) ListDeadLetters(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDeadLettersParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDeadLetters(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RequeueDeadLetter operation middleware
+func (siw *ServerInterfaceWrapper) RequeueDeadLetter(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", r.PathValue("jobId"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "jobId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequeueDeadLetter(w, r, jobId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -60230,6 +60380,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}:rotate-secret", wrapper.RotatePlatformSubscriptionSecret)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}/deliveries", wrapper.ListPlatformDeliveries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}:redeliver", wrapper.RedeliverPlatformSubscription)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/dead-letters", wrapper.ListDeadLetters)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/dead-letters/{jobId}:requeue", wrapper.RequeueDeadLetter)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/usage", wrapper.ReadUsage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/ai-providers", wrapper.ListInstanceAiProviders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/ai-providers", wrapper.CreateInstanceAiProvider)

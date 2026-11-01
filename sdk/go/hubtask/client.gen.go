@@ -4141,6 +4141,24 @@ func (e DataSubjectRequestStatus) Valid() bool {
 	}
 }
 
+// Defines values for DeadLetterState.
+const (
+	DeadLetterStateDEADLETTER DeadLetterState = "DEAD_LETTER"
+	DeadLetterStatePENDING    DeadLetterState = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the DeadLetterState enum.
+func (e DeadLetterState) Valid() bool {
+	switch e {
+	case DeadLetterStateDEADLETTER:
+		return true
+	case DeadLetterStatePENDING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DependencyHealthCircuitState.
 const (
 	DependencyHealthCircuitStateClosed      DependencyHealthCircuitState = "closed"
@@ -15639,6 +15657,38 @@ type DataSubjectRequestUpdate struct {
 	TargetId        *openapi_types.UUID       `json:"target_id,omitempty"`
 }
 
+// DeadLetter A job that ran out of attempts, as an operator acts on it. Codes and moments only.
+type DeadLetter struct {
+	Attempts  int       `json:"attempts"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// ErrorCode The message code of its last failure, never a message.
+	ErrorCode *string `json:"error_code"`
+
+	// FinishedAt When it ran out of attempts; null once it is queued again.
+	FinishedAt *time.Time         `json:"finished_at"`
+	Id         openapi_types.UUID `json:"id"`
+
+	// Kind The kind of job, e.g. `notification.deliver`.
+	Kind        string `json:"kind"`
+	MaxAttempts int    `json:"max_attempts"`
+
+	// State DEAD_LETTER while it waits; PENDING once it is queued again.
+	State DeadLetterState `json:"state"`
+
+	// TenantId The workspace it ran for; null for a job of the installation.
+	TenantId *openapi_types.UUID `json:"tenant_id"`
+}
+
+// DeadLetterState DEAD_LETTER while it waits; PENDING once it is queued again.
+type DeadLetterState string
+
+// DeadLetterPage defines model for DeadLetterPage.
+type DeadLetterPage struct {
+	Data []DeadLetter `json:"data"`
+	Page PageInfo     `json:"page"`
+}
+
 // DegradedFeature defines model for DegradedFeature.
 type DegradedFeature struct {
 	Feature    string    `json:"feature"`
@@ -25491,6 +25541,15 @@ type DeleteInstanceBackupTargetParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListDeadLettersParams defines parameters for ListDeadLetters.
+type ListDeadLettersParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Kind Only the dead letters of this kind of job.
+	Kind *string `form:"kind,omitempty" json:"kind,omitempty"`
+}
+
 // ListPlatformEventsParams defines parameters for ListPlatformEvents.
 type ListPlatformEventsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -30618,6 +30677,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/backup-targets/{targetId}:test (the `TestInstanceBackupTarget` operationId).
 	TestInstanceBackupTarget(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDeadLetters The jobs that ran out of attempts
+	//
+	// Every job of the installation that failed as often as it may and now waits for an operator, newest first: its kind, the workspace it ran for, how often it was tried, the code of its last failure and when it ended. Never what it was given - that names people by identifier. A dead letter stays seven days after it ended; a duty that keeps running is revived on its own after a wait. Behind `admin:tenants` and the operator register, both.
+	//
+	// Corresponds with GET /admin/dead-letters (the `ListDeadLetters` operationId).
+	ListDeadLetters(ctx context.Context, params *ListDeadLettersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RequeueDeadLetter Run a dead letter again
+	//
+	// The job goes back to the queue as it was, due now, with its attempts from zero, and the installation's journal records it. `404 admin.dead_letter_not_found` when no dead letter has this identifier; `409 admin.job_already_open` while another job of the same kind and key is waiting or running - that one does the work. Behind `admin:tenants` and the operator register, both.
+	//
+	// Corresponds with POST /admin/dead-letters/{jobId}:requeue (the `RequeueDeadLetter` operationId).
+	RequeueDeadLetter(ctx context.Context, jobId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadEncryptionStatus The keyring, and what still names each key
 	//
@@ -41983,6 +42056,40 @@ func (c *Client) DeleteInstanceBackupTarget(ctx context.Context, targetId openap
 // Corresponds with POST /admin/backup-targets/{targetId}:test (the `TestInstanceBackupTarget` operationId).
 func (c *Client) TestInstanceBackupTarget(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewTestInstanceBackupTargetRequest(c.Server, targetId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListDeadLetters The jobs that ran out of attempts
+//
+// Every job of the installation that failed as often as it may and now waits for an operator, newest first: its kind, the workspace it ran for, how often it was tried, the code of its last failure and when it ended. Never what it was given - that names people by identifier. A dead letter stays seven days after it ended; a duty that keeps running is revived on its own after a wait. Behind `admin:tenants` and the operator register, both.
+//
+// Corresponds with GET /admin/dead-letters (the `ListDeadLetters` operationId).
+func (c *Client) ListDeadLetters(ctx context.Context, params *ListDeadLettersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDeadLettersRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RequeueDeadLetter Run a dead letter again
+//
+// The job goes back to the queue as it was, due now, with its attempts from zero, and the installation's journal records it. `404 admin.dead_letter_not_found` when no dead letter has this identifier; `409 admin.job_already_open` while another job of the same kind and key is waiting or running - that one does the work. Behind `admin:tenants` and the operator register, both.
+//
+// Corresponds with POST /admin/dead-letters/{jobId}:requeue (the `RequeueDeadLetter` operationId).
+func (c *Client) RequeueDeadLetter(ctx context.Context, jobId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequeueDeadLetterRequest(c.Server, jobId)
 	if err != nil {
 		return nil, err
 	}
@@ -65111,6 +65218,118 @@ func NewTestInstanceBackupTargetRequest(server string, targetId openapi_types.UU
 	}
 
 	operationPath := fmt.Sprintf("/admin/backup-targets/%s:test", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListDeadLettersRequest constructs an http.Request for the ListDeadLetters method
+func NewListDeadLettersRequest(server string, params *ListDeadLettersParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/dead-letters")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Kind != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "kind", *params.Kind, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRequeueDeadLetterRequest constructs an http.Request for the RequeueDeadLetter method
+func NewRequeueDeadLetterRequest(server string, jobId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "jobId", jobId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/dead-letters/%s:requeue", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -103117,6 +103336,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/backup-targets/{targetId}:test (the `TestInstanceBackupTarget` operationId).
 	TestInstanceBackupTargetWithResponse(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*TestInstanceBackupTargetResult, error)
 
+	// ListDeadLettersWithResponse The jobs that ran out of attempts
+	//
+	// Every job of the installation that failed as often as it may and now waits for an operator, newest first: its kind, the workspace it ran for, how often it was tried, the code of its last failure and when it ended. Never what it was given - that names people by identifier. A dead letter stays seven days after it ended; a duty that keeps running is revived on its own after a wait. Behind `admin:tenants` and the operator register, both.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/dead-letters (the `ListDeadLetters` operationId).
+	ListDeadLettersWithResponse(ctx context.Context, params *ListDeadLettersParams, reqEditors ...RequestEditorFn) (*ListDeadLettersResult, error)
+
+	// RequeueDeadLetterWithResponse Run a dead letter again
+	//
+	// The job goes back to the queue as it was, due now, with its attempts from zero, and the installation's journal records it. `404 admin.dead_letter_not_found` when no dead letter has this identifier; `409 admin.job_already_open` while another job of the same kind and key is waiting or running - that one does the work. Behind `admin:tenants` and the operator register, both.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/dead-letters/{jobId}:requeue (the `RequeueDeadLetter` operationId).
+	RequeueDeadLetterWithResponse(ctx context.Context, jobId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RequeueDeadLetterResult, error)
+
 	// ReadEncryptionStatusWithResponse The keyring, and what still names each key
 	//
 	// What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
@@ -115768,6 +116005,102 @@ func (r TestInstanceBackupTargetResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r TestInstanceBackupTargetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListDeadLettersResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeadLetterPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListDeadLettersResult) GetJSON200() *DeadLetterPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListDeadLettersResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListDeadLettersResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDeadLettersResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDeadLettersResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListDeadLettersResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RequeueDeadLetterResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *DeadLetter
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r RequeueDeadLetterResult) GetJSON202() *DeadLetter {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RequeueDeadLetterResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RequeueDeadLetterResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RequeueDeadLetterResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RequeueDeadLetterResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RequeueDeadLetterResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -155081,6 +155414,36 @@ func (c *ClientWithResponses) TestInstanceBackupTargetWithResponse(ctx context.C
 	return ParseTestInstanceBackupTargetResult(rsp)
 }
 
+// ListDeadLettersWithResponse The jobs that ran out of attempts
+//
+// Every job of the installation that failed as often as it may and now waits for an operator, newest first: its kind, the workspace it ran for, how often it was tried, the code of its last failure and when it ended. Never what it was given - that names people by identifier. A dead letter stays seven days after it ended; a duty that keeps running is revived on its own after a wait. Behind `admin:tenants` and the operator register, both.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/dead-letters (the `ListDeadLetters` operationId).
+func (c *ClientWithResponses) ListDeadLettersWithResponse(ctx context.Context, params *ListDeadLettersParams, reqEditors ...RequestEditorFn) (*ListDeadLettersResult, error) {
+	rsp, err := c.ListDeadLetters(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDeadLettersResult(rsp)
+}
+
+// RequeueDeadLetterWithResponse Run a dead letter again
+//
+// The job goes back to the queue as it was, due now, with its attempts from zero, and the installation's journal records it. `404 admin.dead_letter_not_found` when no dead letter has this identifier; `409 admin.job_already_open` while another job of the same kind and key is waiting or running - that one does the work. Behind `admin:tenants` and the operator register, both.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/dead-letters/{jobId}:requeue (the `RequeueDeadLetter` operationId).
+func (c *ClientWithResponses) RequeueDeadLetterWithResponse(ctx context.Context, jobId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RequeueDeadLetterResult, error) {
+	rsp, err := c.RequeueDeadLetter(ctx, jobId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequeueDeadLetterResult(rsp)
+}
+
 // ReadEncryptionStatusWithResponse The keyring, and what still names each key
 //
 // What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
@@ -174192,6 +174555,72 @@ func ParseTestInstanceBackupTargetResult(rsp *http.Response) (*TestInstanceBacku
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDeadLettersResult parses an HTTP response from a ListDeadLettersWithResponse call
+func ParseListDeadLettersResult(rsp *http.Response) (*ListDeadLettersResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDeadLettersResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeadLetterPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRequeueDeadLetterResult parses an HTTP response from a RequeueDeadLetterWithResponse call
+func ParseRequeueDeadLetterResult(rsp *http.Response) (*RequeueDeadLetterResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RequeueDeadLetterResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest DeadLetter
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

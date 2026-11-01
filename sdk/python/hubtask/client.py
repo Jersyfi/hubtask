@@ -1999,6 +1999,14 @@ class Client:
         """Send the subscription's dead letters again"""
         return self._call("POST", "/admin/subscriptions/{subscriptionId}:redeliver", {"subscriptionId": subscription_id}, None, {}, None, "none", None, "json")
 
+    def list_dead_letters(self, *, query: dict[str, Any] | None = None) -> "DeadLetterPage":
+        """The jobs that ran out of attempts"""
+        return self._call("GET", "/admin/dead-letters", {}, query, {}, None, "none", None, "json")
+
+    def requeue_dead_letter(self, job_id: str) -> "DeadLetter":
+        """Run a dead letter again"""
+        return self._call("POST", "/admin/dead-letters/{jobId}:requeue", {"jobId": job_id}, None, {}, None, "none", None, "json")
+
     def read_usage(self, *, query: dict[str, Any] | None = None) -> "UsagePage":
         """The use per workspace, metric and day, for billing"""
         return self._call("GET", "/admin/usage", {}, query, {}, None, "none", None, "json")

@@ -802,6 +802,8 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.ListOperators{}.Descriptor(),
 		adminservice.ReadInstanceOverview{}.Descriptor(),
 		adminservice.ListInstanceJournal{}.Descriptor(),
+		adminservice.ListDeadLetters{}.Descriptor(),
+		adminservice.RequeueDeadLetter{}.Descriptor(),
 		adminservice.ListPlatformEvents{}.Descriptor(),
 		adminservice.ListPlatformSubscriptions{}.Descriptor(),
 		adminservice.CreatePlatformSubscription{}.Descriptor(),

@@ -3193,3 +3193,11 @@ func (pending) ListHubTemplatePages(w http.ResponseWriter, r *http.Request, _ op
 func (pending) AddHubTemplatePage(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+
+func (pending) ListDeadLetters(w http.ResponseWriter, r *http.Request, _ openapi.ListDeadLettersParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RequeueDeadLetter(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
