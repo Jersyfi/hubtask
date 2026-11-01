@@ -1834,7 +1834,7 @@ func (pending) CreateWorkflow(w http.ResponseWriter, r *http.Request) { notAvail
 func (pending) SaveWorkflowDraft(w http.ResponseWriter, r *http.Request, _ string, _ openapi.SaveWorkflowDraftParams) {
 	notAvailable(w, r)
 }
-func (pending) DeleteWorkflow(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+func (pending) DeleteWorkflow(w http.ResponseWriter, r *http.Request, _ string)   { notAvailable(w, r) }
 func (pending) CopyWorkflowHere(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
 func (pending) PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request, _ string) {
 	notAvailable(w, r)
