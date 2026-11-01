@@ -40,6 +40,15 @@ type Media interface {
 	Open(ctx context.Context, digest string) (io.ReadCloser, error)
 }
 
+// Locator is a Media whose Open needs the snapshot to find a medium's bytes. Locate answers, while
+// the snapshot is still open, a Media that opens the given digests without it - so that Begin can
+// end the snapshot before the bulk of the bytes is transferred rather than holding a transaction
+// open for the whole upload. A digest Locate cannot place is ErrNotFound.
+type Locator interface {
+	Media
+	Locate(ctx context.Context, digests []string) (Media, error)
+}
+
 // Request is one run: what to write, where, and under which key.
 type Request struct {
 	// ArchiveID identifies the archive. It comes from the ID port rather than from the clock, so
@@ -127,14 +136,25 @@ func NewWriter(store backupstorage.Store, cipher crypto.StreamCipher, media Medi
 	return &Writer{store: store, cipher: cipher, media: media}
 }
 
-// Write produces the archive and answers the manifest it wrote.
+// Write produces the archive and answers the manifest it wrote: Begin and Finish in one context.
 //
 // The order is the format: the data files, then the media they reference, then the manifest that
 // names them, then checksums.txt. Nothing later depends on nothing earlier, and the last file is
 // the one that says the run finished.
 func (w *Writer) Write(ctx context.Context, request Request, source Source) (Manifest, error) {
-	if err := request.validate(); err != nil {
+	pending, err := w.Begin(ctx, request, source)
+	if err != nil {
 		return Manifest{}, err
+	}
+	return pending.Finish(ctx)
+}
+
+// Begin writes the data files and fixes which media they reference and, through a Locator, where
+// each lies. It is the part that needs the snapshot; a caller ends the snapshot after it and calls
+// Finish outside, so a large upload holds no transaction open (backup-restore.md §5).
+func (w *Writer) Begin(ctx context.Context, request Request, source Source) (Pending, error) {
+	if err := request.validate(); err != nil {
+		return Pending{}, err
 	}
 
 	manifest := Manifest{
@@ -174,7 +194,7 @@ func (w *Writer) Write(ctx context.Context, request Request, source Source) (Man
 			}
 		})
 		if err != nil {
-			return Manifest{}, err
+			return Pending{}, err
 		}
 		manifest.Files = append(manifest.Files, file)
 		manifest.Counts[entity.Name] = file.Records
@@ -183,21 +203,64 @@ func (w *Writer) Write(ctx context.Context, request Request, source Source) (Man
 	for _, section := range request.Sections {
 		file, err := w.writeData(ctx, request, source, section, func(Blob) {})
 		if err != nil {
-			return Manifest{}, err
+			return Pending{}, err
 		}
 		manifest.Files = append(manifest.Files, file)
 		manifest.Counts[section.Name] = file.Records
 	}
 
-	if request.IncludeMedia {
-		count, bytes, err := w.writeMedia(ctx, request, order)
+	pending := Pending{writer: w, request: request, manifest: manifest}
+	if !request.IncludeMedia {
+		return pending, nil
+	}
+	if w.media == nil {
+		return Pending{}, shared.Internalf("archive: media requested with no media source")
+	}
+	alreadyStored, err := w.chainMedia(ctx, request)
+	if err != nil {
+		return Pending{}, err
+	}
+	for _, digest := range order {
+		if !alreadyStored[digest] {
+			pending.media = append(pending.media, digest)
+		}
+	}
+	pending.source = w.media
+	if locator, ok := w.media.(Locator); ok && len(pending.media) > 0 {
+		located, err := locator.Locate(ctx, pending.media)
+		if err != nil {
+			return Pending{}, mediaMissing("", err)
+		}
+		pending.source = located
+	}
+	return pending, nil
+}
+
+// Pending is an archive whose data files are written and whose media are not yet transferred.
+type Pending struct {
+	writer   *Writer
+	request  Request
+	manifest Manifest
+	// media are the digests still to transfer, in the order the records first named them.
+	media  []string
+	source Media
+}
+
+// Finish transfers the media and seals the archive. It needs no snapshot when the writer's Media
+// is a Locator: Begin fixed where every byte lies.
+func (p Pending) Finish(ctx context.Context) (Manifest, error) {
+	if p.writer == nil {
+		return Manifest{}, shared.Internalf("archive: finishing an archive that was not begun")
+	}
+	manifest := p.manifest
+	if p.request.IncludeMedia {
+		count, bytes, err := p.writer.writeMedia(ctx, p.request, p.source, p.media)
 		if err != nil {
 			return Manifest{}, err
 		}
 		manifest.MediaCount, manifest.MediaBytes = count, bytes
 	}
-
-	return w.seal(ctx, request, manifest)
+	return p.writer.seal(ctx, p.request, manifest)
 }
 
 // writeData streams one entity's records to the target and answers the member it wrote.
@@ -242,28 +305,14 @@ func (w *Writer) writeData(
 // afterwards means fetching exactly those. A medium replaced during the run is not the one the
 // archive refers to, and asking for it by digest is what makes that impossible rather than
 // unlikely.
-func (w *Writer) writeMedia(ctx context.Context, request Request, order []string) (int64, int64, error) {
-	if w.media == nil {
-		return 0, 0, shared.Internalf("archive: media requested with no media source")
-	}
-
-	alreadyStored, err := w.chainMedia(ctx, request)
-	if err != nil {
-		return 0, 0, err
-	}
-
+func (w *Writer) writeMedia(
+	ctx context.Context, request Request, media Media, digests []string,
+) (int64, int64, error) {
 	var count, bytes int64
-	for _, digest := range order {
-		if alreadyStored[digest] {
-			continue
-		}
-		content, err := w.media.Open(ctx, digest)
+	for _, digest := range digests {
+		content, err := media.Open(ctx, digest)
 		if err != nil {
-			if errors.Is(err, shared.ErrNotFound) {
-				return 0, 0, shared.ErrValidation.WithDetail(CodeMediaMissing).
-					WithParams(map[string]string{"sha256": digest}).WithCause(err)
-			}
-			return 0, 0, err
+			return 0, 0, mediaMissing(digest, err)
 		}
 
 		file, putErr := w.putMember(ctx, request, MediaName(digest), func(to io.Writer) error {
@@ -278,6 +327,20 @@ func (w *Writer) writeMedia(ctx context.Context, request Request, order []string
 		bytes += file.Bytes
 	}
 	return count, bytes, nil
+}
+
+// mediaMissing turns a medium the store does not have into the run's refusal; any other error
+// passes as it is. An empty digest is taken from the error's own sha256 parameter.
+func mediaMissing(digest string, err error) error {
+	if !errors.Is(err, shared.ErrNotFound) {
+		return err
+	}
+	var detailed *shared.Error
+	if digest == "" && errors.As(err, &detailed) {
+		digest = detailed.Params["sha256"]
+	}
+	return shared.ErrValidation.WithDetail(CodeMediaMissing).
+		WithParams(map[string]string{"sha256": digest}).WithCause(err)
 }
 
 // chainMedia answers what the ancestors already hold, with one listing per ancestor rather than

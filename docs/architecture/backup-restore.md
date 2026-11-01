@@ -164,8 +164,10 @@ bulkhead pool apart from the API path.
 
 * **The lock is the insert** (`… WHERE NOT EXISTS (… status = 'RUNNING' AND id <> …)`): a resumed
   run continues its own row (BK-7); a second run is answered "no", not an error.
-* **Consistency:** one `REPEATABLE READ` snapshot resolves the media locations; the bytes are
-  fetched by checksum after it.
+* **Consistency:** one `REPEATABLE READ` snapshot writes the data files and resolves the media
+  locations; it ends then, and the bytes are fetched by those locations after it
+  (`archive.Writer.Begin` inside, `Pending.Finish` outside). A medium removed from the object store
+  in between fails the run with `backup.archive_media_missing`, as one missing inside it would.
 * The run is **detached** from the runner's transaction; its completion is written in a short
   transaction of its own, safe because the run is repeatable.
 
@@ -215,7 +217,8 @@ data:
   once in 24 hours, audited as `tenant.exported` with `download` as its target. `hubctl` keeps the
   file only once its ZIP directory reads, so a cut transfer leaves nothing behind. MCP has no door
   for it: a tool's answer is a message, not a stream of a whole workspace. Each download holds a
-  pool connection and its snapshot for the whole transfer, so one process streams at most
+  pool connection and its snapshot while the data files stream (the media follow after it ends),
+  so one process streams at most
   `HUBTASK_BACKUP_CONCURRENT_DOWNLOADS` (2) at once and refuses the next with `503` and
   `Retry-After` before the proof or the day's window is spent; a snapshot held for hours raises A-25.
 * An archive at a target is the operator's responsibility. A third-country target is a transfer

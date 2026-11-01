@@ -310,7 +310,6 @@ func (a TenantExportArchivist) WriteInto(
 ) (archive.Manifest, error) {
 	prefix := ExportArchiveName(in.TenantID, a.Clock.Now())
 	scope := persistence.Scope{TenantID: in.TenantID}
-	var manifest archive.Manifest
 
 	// Unencrypted unless the owner gave a passphrase, the DSR export's reasoning taken one step
 	// further: the archive is the workspace's way out of this installation, and a copy the
@@ -327,11 +326,12 @@ func (a TenantExportArchivist) WriteInto(
 		}
 	}
 
+	var pending archive.Pending
 	err := a.Snapshot.WithinSnapshot(ctx, scope, func(snapshotCtx context.Context, at time.Time) error {
 		source := backupservice.Redacted(backupservice.ExportSource{Export: a.Rows, SnapshotAt: at})
 		media := backupservice.ExportMedia{Export: a.Rows, Objects: a.Objects}
 
-		written, err := archive.NewWriter(store, a.Cipher, media).Write(snapshotCtx, archive.Request{
+		begun, err := archive.NewWriter(store, a.Cipher, media).Begin(snapshotCtx, archive.Request{
 			ArchiveID: in.ExportID, Prefix: prefix,
 			Scope:          archive.Scope{Kind: archive.ScopeTenant, ID: in.TenantID.String()},
 			Mode:           archive.ModeFull,
@@ -344,11 +344,12 @@ func (a TenantExportArchivist) WriteInto(
 			// The workspace's trail is part of what it owns (tenant-export.md §1).
 			IncludeAudit: true,
 		}, source)
-		manifest = written
+		pending = begun
 		return err
 	})
 	if err != nil {
 		return archive.Manifest{}, err
 	}
-	return manifest, nil
+	// The media go after the snapshot ends; their keys were fixed inside it.
+	return pending.Finish(ctx)
 }

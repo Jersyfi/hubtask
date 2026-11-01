@@ -247,6 +247,7 @@ func (e Exporter) writeOne(
 	scope := persistence.Scope{TenantID: in.tenantID}
 	written := exported{prefix: archiveName}
 
+	var pending archive.Pending
 	err := e.Snapshot.WithinSnapshot(ctx, scope, func(snapshotCtx context.Context, at time.Time) error {
 		source := subjectSource{
 			// Redacted for the tenant export's reason (tenant-export.md §9): this archive
@@ -265,7 +266,7 @@ func (e Exporter) writeOne(
 			sections = []archive.Entity{kudosSection}
 		}
 
-		_, err := archive.NewWriter(store, e.Cipher, media).Write(snapshotCtx, archive.Request{
+		begun, err := archive.NewWriter(store, e.Cipher, media).Begin(snapshotCtx, archive.Request{
 			ArchiveID: e.IDs.NewID(), Prefix: prefix,
 			Scope:      archive.Scope{Kind: archive.ScopeTenant, ID: in.tenantID.String()},
 			Mode:       archive.ModeFull,
@@ -282,9 +283,14 @@ func (e Exporter) writeOne(
 			IncludeAudit: true,
 			Sections:     sections,
 		}, source)
+		pending = begun
 		return err
 	})
 	if err != nil {
+		return exported{}, err
+	}
+	// The media go after the snapshot ends; their keys were fixed inside it.
+	if _, err := pending.Finish(ctx); err != nil {
 		return exported{}, err
 	}
 

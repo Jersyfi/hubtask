@@ -342,11 +342,12 @@ func (p Performer) chainOf(ctx context.Context, parent domain.Run) ([]string, er
 // a row whose parent points at itself becoming a loop.
 const maxChainLength = 512
 
-// write is the export: the snapshot, and the archive that comes out of it.
+// write is the export: the snapshot, and the archive that comes out of it. The snapshot ends after
+// the data files; the media are transferred after it.
 func (p Performer) write(
 	ctx context.Context, in PerformInput, ready prepared,
 ) (archive.Manifest, time.Time, error) {
-	var manifest archive.Manifest
+	var pending archive.Pending
 	var snapshotAt time.Time
 
 	err := p.Snapshot.WithinSnapshot(ctx, persistence.Scope{TenantID: in.TenantID},
@@ -372,14 +373,16 @@ func (p Performer) write(
 				IncludeAudit:   in.IncludeAudit,
 			}
 
-			written, err := archive.NewWriter(ready.store, p.Cipher, media).
-				Write(snapshotCtx, request, newProgress(source, in.Report))
-			if err != nil {
-				return err
-			}
-			manifest = written
-			return nil
+			begun, err := archive.NewWriter(ready.store, p.Cipher, media).
+				Begin(snapshotCtx, request, newProgress(source, in.Report))
+			pending = begun
+			return err
 		})
+	if err != nil {
+		return archive.Manifest{}, time.Time{}, err
+	}
+	// Outside the snapshot: the media's keys were fixed inside it, and their bytes need none.
+	manifest, err := pending.Finish(ctx)
 	if err != nil {
 		return archive.Manifest{}, time.Time{}, err
 	}

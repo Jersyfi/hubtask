@@ -113,7 +113,40 @@ type ExportMedia struct {
 	Objects storage.ObjectStore
 }
 
-var _ archive.Media = ExportMedia{}
+var _ archive.Locator = ExportMedia{}
+
+// Locate reads every digest's storage key inside the snapshot and answers a Media that reads the
+// bytes by those keys alone, so the transfer runs after the snapshot ends. A key costs about a
+// hundred bytes, the price of holding no transaction open while the media upload.
+func (m ExportMedia) Locate(ctx context.Context, digests []string) (archive.Media, error) {
+	keys := make(map[string]string, len(digests))
+	for _, digest := range digests {
+		location, err := m.Export.MediaLocation(ctx, digest)
+		if err != nil {
+			if errors.Is(err, shared.ErrNotFound) {
+				return nil, shared.ErrNotFound.WithDetail(archive.CodeMediaMissing).
+					WithParams(map[string]string{"sha256": digest}).WithCause(err)
+			}
+			return nil, err
+		}
+		keys[digest] = location.StorageKey
+	}
+	return locatedMedia{keys: keys, objects: m.Objects}, nil
+}
+
+// locatedMedia opens media by the storage keys Locate fixed, with no database.
+type locatedMedia struct {
+	keys    map[string]string
+	objects storage.ObjectStore
+}
+
+func (m locatedMedia) Open(ctx context.Context, digest string) (io.ReadCloser, error) {
+	key, found := m.keys[digest]
+	if !found {
+		return nil, shared.Internalf("backup: a medium that was not located")
+	}
+	return openObject(ctx, m.objects, key, digest)
+}
 
 // Open answers the medium's content.
 func (m ExportMedia) Open(ctx context.Context, digest string) (io.ReadCloser, error) {
@@ -121,7 +154,11 @@ func (m ExportMedia) Open(ctx context.Context, digest string) (io.ReadCloser, er
 	if err != nil {
 		return nil, err
 	}
-	object, err := m.Objects.Get(ctx, location.StorageKey)
+	return openObject(ctx, m.Objects, location.StorageKey, digest)
+}
+
+func openObject(ctx context.Context, objects storage.ObjectStore, key, digest string) (io.ReadCloser, error) {
+	object, err := objects.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
 			// The row says the bytes are there and the bucket says they are not. That is worth
