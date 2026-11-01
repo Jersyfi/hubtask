@@ -53,7 +53,21 @@ func TestSlaDueInAGroupedQueue(t *testing.T) {
 	}
 }
 
-// sla_standing filters by the worst standing; the value stays a parameter (ADR-0026).
+// UC-SVC-03 check 2: sla_due filters before or after a moment, the moment a parameter.
+func TestSlaDueFiltersBeforeAndAfterAMoment(t *testing.T) {
+	for op, sign := range map[string]string{"LT": "<", "GT": ">"} {
+		got := compile(t, map[string]any{"field": "sla_due", "op": op, "value": "2026-10-30T09:00:00Z"}, view.Spec{})
+		if !strings.Contains(got.SQL, slaDue+` `+sign+` $`) {
+			t.Errorf("%s compiled to\n  %s", op, got.SQL)
+		}
+		if strings.Contains(got.SQL, "2026-10-30") {
+			t.Errorf("the moment reached the text:\n  %s", got.SQL)
+		}
+	}
+}
+
+// UC-SVC-03 check 2: sla_standing filters by the worst standing; the value stays a parameter
+// (ADR-0026).
 func TestSlaStandingIsTheWorstGoal(t *testing.T) {
 	got := compile(t, map[string]any{"field": "sla_standing", "op": "EQ", "value": "AT_RISK"}, view.Spec{})
 	if !strings.Contains(got.SQL, slaStanding+` = $`) {

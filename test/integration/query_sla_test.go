@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A queue by what breaks first (UC-SVC-03 checks 1 to 3): sla_due orders by the next running
+// A queue by what breaks first (UC-SVC-03 checks 1, 2 and 3): sla_due orders by the next running
 // goal, entries without one last, a page boundary continues the order, and sla_standing filters
 // by the worst goal.
 func TestTheQueueSortsByTheNextBreach(t *testing.T) {
