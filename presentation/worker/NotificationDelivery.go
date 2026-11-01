@@ -22,8 +22,15 @@ import (
 // again. That is the right side of the trade for email - a duplicate is a nuisance, a lost one is
 // the thing somebody needed to know.
 type NotificationDelivery struct {
-	Delivery notification.DeliverNotification
+	Delivery Deliverer
 }
+
+// Deliverer sends one notification (notification.DeliverNotification).
+type Deliverer interface {
+	Execute(ctx context.Context, tenantID, notificationID shared.ID, lastAttempt bool) error
+}
+
+var _ Deliverer = notification.DeliverNotification{}
 
 var (
 	_ queue.Handler  = NotificationDelivery{}
