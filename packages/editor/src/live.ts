@@ -64,6 +64,19 @@ export interface LiveDocumentOptions {
   readonly onSynced?: () => void;
   /** The timer, injected so a test can run the reconnect at once (rule 4). */
   readonly schedule?: (run: () => void, ms: number) => () => void;
+  /**
+   * Keeps a writer's words the server has not had yet on the device, so a tab closed or reloaded
+   * offline loses none: what it loads is applied before the first connection and sent on it.
+   */
+  readonly keep?: UpdateKeeper;
+  /** Told how many local changes wait for the server, whenever that changes. */
+  readonly onUnsent?: (count: number) => void;
+}
+
+/** The device's store of a document's unsent updates; `save` replaces what it held. */
+export interface UpdateKeeper {
+  load(): Promise<readonly Uint8Array[]>;
+  save(updates: readonly Uint8Array[]): Promise<void>;
 }
 
 const OPEN = 1;
@@ -81,6 +94,9 @@ export class LiveDocument {
   /** The server's snapshot and log on this connection, until its state vector arrives. */
   #held: Uint8Array[] = [];
   #answered = false;
+  /** Local changes made while no answered connection carried them, merged into one update. */
+  #unsent: Uint8Array[] = [];
+  #unsentCount = 0;
 
   constructor(doc: Y.Doc, options: LiveDocumentOptions) {
     this.doc = doc;
@@ -88,7 +104,36 @@ export class LiveDocument {
     this.#options = options;
     doc.on('update', this.#onUpdate);
     this.awareness.on('update', this.#onAwareness);
-    void this.#connect();
+    void this.#restore().then(() => this.#connect());
+  }
+
+  /** How many local changes wait for the server. */
+  get unsent(): number {
+    return this.#unsentCount;
+  }
+
+  async #restore(): Promise<void> {
+    if (!this.#options.keep || !this.#options.writable) return;
+    let kept: readonly Uint8Array[] = [];
+    try {
+      kept = await this.#options.keep.load();
+    } catch {
+      return;
+    }
+    if (kept.length === 0 || this.#destroyed) return;
+    // As the server's: not sent on its own, but part of what the answer to its vector carries.
+    for (const update of kept) Y.applyUpdate(this.doc, update, this);
+    this.#unsent = [Y.mergeUpdates([...kept])];
+    this.#setUnsent(kept.length);
+  }
+
+  #setUnsent(count: number): void {
+    this.#unsentCount = count;
+    this.#options.onUnsent?.(count);
+  }
+
+  #keep(): void {
+    void this.#options.keep?.save(this.#unsent).catch(() => {});
   }
 
   get status(): LiveStatus {
@@ -236,6 +281,11 @@ export class LiveDocument {
     encoding.writeVarUint(encoder, MESSAGE_SYNC);
     syncProtocol.writeSyncStep2(encoder, this.doc, vector);
     this.#send(encoding.toUint8Array(encoder));
+    if (this.#unsentCount > 0) {
+      this.#unsent = [];
+      this.#setUnsent(0);
+      this.#keep();
+    }
     if (!this.#synced) {
       this.#synced = true;
       this.#options.onSynced?.();
@@ -245,6 +295,11 @@ export class LiveDocument {
 
   #onUpdate = (update: Uint8Array, origin: unknown) => {
     if (origin === this || !this.#options.writable) return;
+    if (this.#socket?.readyState !== OPEN || !this.#answered) {
+      this.#unsent = [Y.mergeUpdates([...this.#unsent, update])];
+      this.#setUnsent(this.#unsentCount + 1);
+      this.#keep();
+    }
     const encoder = encoding.createEncoder();
     encoding.writeVarUint(encoder, MESSAGE_SYNC);
     syncProtocol.writeUpdate(encoder, update);

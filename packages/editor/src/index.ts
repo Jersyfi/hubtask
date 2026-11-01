@@ -10,7 +10,7 @@
 export { CALLOUT_TONES, STATUS_TONES, addressOf, embeddable, fromMarkdown, parseAddress, parseInline, textOf, toMarkdown } from './markdown.ts';
 export type { DocNode, ReferenceAttrs } from './markdown.ts';
 export { CLOSE_ACCESS_ENDED, LiveDocument } from './live.ts';
-export type { LiveDocumentOptions, LiveSocket, LiveStatus } from './live.ts';
+export type { LiveDocumentOptions, LiveSocket, LiveStatus, UpdateKeeper } from './live.ts';
 export { compareBodies, MAX_COMPARED_LINES } from './compare.ts';
 export type { CompareLine } from './compare.ts';
 export {

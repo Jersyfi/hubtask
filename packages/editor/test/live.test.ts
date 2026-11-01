@@ -181,3 +181,47 @@ test('a writer told it writes too fast reconnects no sooner than the server says
   assert.deepEqual(waits, [45_000]);
   live.destroy();
 });
+
+/** A keeper in memory, as the application's store would hold it across a reload. */
+function keeper() {
+  let kept: Uint8Array[] = [];
+  return {
+    get kept() { return kept; },
+    load: async () => kept,
+    save: async (updates: readonly Uint8Array[]) => { kept = [...updates]; },
+  };
+}
+
+test('words typed offline are kept, survive a reload, and are sent on the next connection', async () => {
+  const store = keeper();
+  const first = new FakeSocket();
+  const counts: number[] = [];
+  const doc = new Y.Doc();
+  const live = new LiveDocument(doc, { open: () => first, writable: true, keep: store, onUnsent: (n) => counts.push(n), schedule: () => () => {} });
+  await flush();
+  first.open();
+  first.push(serverStep1());
+  first.drop();
+  doc.getText('t').insert(0, 'typed on the train');
+  await flush();
+  assert.equal(live.unsent > 0, true);
+  assert.equal(store.kept.length > 0, true, 'the offline words are kept');
+  live.destroy();
+  doc.destroy();
+
+  // The tab closed and opened again: the kept words are back in the document and go out.
+  const second = new FakeSocket();
+  const reopened = new Y.Doc();
+  const again = new LiveDocument(reopened, { open: () => second, writable: true, keep: store, schedule: () => () => {} });
+  await flush();
+  assert.equal(reopened.getText('t').toString(), 'typed on the train');
+  second.open();
+  second.push(serverStep1());
+  const server = new Y.Doc();
+  for (const update of updatesIn(second.sent)) Y.applyUpdate(server, update);
+  assert.equal(server.getText('t').toString(), 'typed on the train');
+  await flush();
+  assert.equal(again.unsent, 0);
+  assert.deepEqual(store.kept, [], 'sent, nothing is kept');
+  again.destroy();
+});
