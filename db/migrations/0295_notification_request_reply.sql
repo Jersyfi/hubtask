@@ -5,17 +5,17 @@
 -- Safe for a rolling update: only a widening. An older binary never writes the new value; no
 -- released binary runs the portal (migration 0240 and its successors are not on a release), so
 -- none reads a requester's record. Drop and add are one transaction, so no moment holds neither
--- check.
+-- check; the new one is added NOT VALID and validated in 0328, outside a transaction.
 
 -- +goose Up
 
 ALTER TABLE notification DROP CONSTRAINT notification_category_check;
 ALTER TABLE notification ADD CONSTRAINT notification_category_check
-  CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY'));
+  CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY')) NOT VALID;
 
 ALTER TABLE notification_preference DROP CONSTRAINT notification_preference_category_check;
 ALTER TABLE notification_preference ADD CONSTRAINT notification_preference_category_check
-  CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY'));
+  CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY')) NOT VALID;
 
 -- +goose Down
 -- +goose StatementBegin

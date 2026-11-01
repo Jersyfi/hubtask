@@ -3,17 +3,18 @@
 --
 -- Safe for a rolling update: only a widening. An older binary never writes the new value and reads
 -- a category it does not know only through a preference list, which answers the stored value as
--- it is. Drop and add are one transaction, so no moment holds neither check.
+-- it is. Drop and add are one transaction, so no moment holds neither check; the new one is added
+-- NOT VALID and validated in 0328, outside a transaction.
 
 -- +goose Up
 
 ALTER TABLE notification DROP CONSTRAINT notification_category_check;
 ALTER TABLE notification ADD CONSTRAINT notification_category_check
-  CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA'));
+  CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA')) NOT VALID;
 
 ALTER TABLE notification_preference DROP CONSTRAINT notification_preference_category_check;
 ALTER TABLE notification_preference ADD CONSTRAINT notification_preference_category_check
-  CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA'));
+  CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA')) NOT VALID;
 
 -- +goose Down
 -- +goose StatementBegin

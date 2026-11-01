@@ -150,3 +150,35 @@ func TestTheShippedMigratorGrantsTheApplicationRoleItsLogin(t *testing.T) {
 		t.Errorf("connecting with the granted login failed: %v", err)
 	}
 }
+
+// A migration after the release adds a constraint NOT VALID and builds an index CONCURRENTLY, and
+// a later file without a transaction finishes both (versioning-release.md §4). Migrated, the schema
+// holds no constraint left unvalidated - a promise the data may already break - and no index a
+// concurrent build left invalid, which the restore drill would refuse too.
+func TestTheMigrationsLeaveEveryConstraintValidatedAndEveryIndexValid(t *testing.T) {
+	ctx := context.Background()
+	dbtest.Start(t)
+	admin := adminPool(ctx, t)
+
+	rows, err := admin.Query(ctx, `
+		SELECT 'constraint ' || conname || ' on ' || conrelid::regclass::text FROM pg_constraint
+		 WHERE NOT convalidated AND connamespace = 'public'::regnamespace
+		UNION ALL
+		SELECT 'index ' || c.relname FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+		 WHERE NOT i.indisvalid AND c.relnamespace = 'public'::regnamespace
+		 ORDER BY 1`)
+	if err != nil {
+		t.Fatalf("catalogue query: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var what string
+		if err := rows.Scan(&what); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		t.Errorf("%s is not valid after the migrations", what)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
+	}
+}

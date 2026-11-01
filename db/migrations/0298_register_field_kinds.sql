@@ -9,14 +9,15 @@
 -- addition beside it, never a fifth column the CHECK would have to admit.
 --
 -- Expand only (versioning-release.md §4): the kind CHECK widens, `addr` is new and nullable, and an
--- older binary defines none of the new kinds. The index on `addr` is built CONCURRENTLY in 0299.
+-- older binary defines none of the new kinds. The index on `addr` is built CONCURRENTLY in 0299;
+-- the kind check is added NOT VALID and validated in 0328.
 
 -- +goose Up
 ALTER TABLE custom_field_definition DROP CONSTRAINT IF EXISTS custom_field_definition_kind_check;
 ALTER TABLE custom_field_definition ADD CONSTRAINT custom_field_definition_kind_check
   CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL',
                   'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT','CALCULATED',
-                  'DATE_TIME','GROUP','CASCADING_SELECT','IP_ADDRESS','FILE','LABEL','STATUS'));
+                  'DATE_TIME','GROUP','CASCADING_SELECT','IP_ADDRESS','FILE','LABEL','STATUS')) NOT VALID;
 
 ALTER TABLE entry_field_value ADD COLUMN IF NOT EXISTS addr inet;
 ALTER TABLE entry_field_value DROP CONSTRAINT IF EXISTS entry_field_value_addr_check;

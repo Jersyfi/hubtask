@@ -1,19 +1,20 @@
 -- A calculated field (F-2, UC-WRK-12, domain-model.md §3.5): a NUMBER the server computes from the
 -- entry's own fields with a formula, recomputed by every writer of the entry's values. Expand only
 -- (versioning-release.md §4): the kind CHECK widens, the formula column is new and nullable and
--- paired with the kind, and an older binary writes no calculated definition. The projection into
+-- paired with the kind (both NOT VALID, validated in 0328), and an older binary writes no calculated
+-- definition. The projection into
 -- `entry_field_value` gives the kind the numeric column, as it does NUMBER.
 
 -- +goose Up
 ALTER TABLE custom_field_definition DROP CONSTRAINT IF EXISTS custom_field_definition_kind_check;
 ALTER TABLE custom_field_definition ADD CONSTRAINT custom_field_definition_kind_check
   CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL',
-                  'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT','CALCULATED'));
+                  'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT','CALCULATED')) NOT VALID;
 
 ALTER TABLE custom_field_definition ADD COLUMN IF NOT EXISTS formula text;
 ALTER TABLE custom_field_definition DROP CONSTRAINT IF EXISTS custom_field_definition_formula_check;
 ALTER TABLE custom_field_definition ADD CONSTRAINT custom_field_definition_formula_check
-  CHECK ((kind = 'CALCULATED') = (formula IS NOT NULL) AND (formula IS NULL OR length(formula) <= 2000));
+  CHECK ((kind = 'CALCULATED') = (formula IS NOT NULL) AND (formula IS NULL OR length(formula) <= 2000)) NOT VALID;
 
 -- +goose StatementBegin
 CREATE OR REPLACE FUNCTION entry_field_values_of(entry work_item) RETURNS SETOF entry_field_value

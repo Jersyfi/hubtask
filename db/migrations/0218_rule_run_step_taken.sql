@@ -2,17 +2,16 @@
 -- `rule_run.trigger` takes STEP_TAKEN.
 --
 -- Safe for a rolling update: only a widening. An older binary never writes the new value, and a
--- newer one writing it beside an older one breaks nothing the older one reads. Validated at once
--- rather than NOT VALID: rule_run is partitioned (0068), which does not take a NOT VALID check, and
--- the scan is bounded by the runs' retention. Drop and add are one transaction, so no moment
--- holds neither check.
+-- newer one writing it beside an older one breaks nothing the older one reads. Added NOT VALID -
+-- a partitioned table takes one and passes it to every partition - and validated in 0328, outside
+-- a transaction. Drop and add are one transaction, so no moment holds neither check.
 
 -- +goose Up
 
 ALTER TABLE rule_run DROP CONSTRAINT IF EXISTS rule_run_trigger_check;
 ALTER TABLE rule_run
   ADD CONSTRAINT rule_run_trigger_check
-  CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY','STEP_TAKEN'));
+  CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY','STEP_TAKEN')) NOT VALID;
 
 -- +goose Down
 -- +goose StatementBegin

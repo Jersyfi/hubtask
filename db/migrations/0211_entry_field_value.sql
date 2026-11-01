@@ -15,19 +15,19 @@
 -- document's value is.
 --
 -- Expand only (versioning-release.md §4): the CHECK widens, the currency column is new and
--- nullable, and an older binary writes none of the new kinds. The backfill of today's values
--- follows in 0212, outside a transaction.
+-- nullable, and an older binary writes none of the new kinds. The checks are added NOT VALID and
+-- validated in 0328, outside a transaction. The backfill of today's values follows in 0212.
 
 -- +goose Up
 ALTER TABLE custom_field_definition DROP CONSTRAINT IF EXISTS custom_field_definition_kind_check;
 ALTER TABLE custom_field_definition ADD CONSTRAINT custom_field_definition_kind_check
   CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL',
-                  'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT'));
+                  'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT')) NOT VALID;
 
 ALTER TABLE custom_field_definition ADD COLUMN IF NOT EXISTS currency text;
 ALTER TABLE custom_field_definition DROP CONSTRAINT IF EXISTS custom_field_definition_currency_check;
 ALTER TABLE custom_field_definition ADD CONSTRAINT custom_field_definition_currency_check
-  CHECK ((kind = 'MONEY') = (currency IS NOT NULL) AND (currency IS NULL OR currency ~ '^[A-Z]{3}$'));
+  CHECK ((kind = 'MONEY') = (currency IS NOT NULL) AND (currency IS NULL OR currency ~ '^[A-Z]{3}$')) NOT VALID;
 
 CREATE TABLE IF NOT EXISTS entry_field_value (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,

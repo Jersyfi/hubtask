@@ -7,22 +7,18 @@
 -- the next.
 --
 -- Expand only (rule 12): a nullable column nothing of the previous release writes, constraints
--- every stored row satisfies, added NOT VALID and then validated, and an index no stored row
--- conflicts with.
+-- every stored row satisfies, added NOT VALID, and an index no stored row conflicts with - the
+-- constraints validated and the index built CONCURRENTLY in 0328, outside a transaction.
 -- +goose Up
 ALTER TABLE notification ADD COLUMN IF NOT EXISTS baseline_id uuid;
 ALTER TABLE notification ADD CONSTRAINT notification_baseline_id_fkey
   FOREIGN KEY (tenant_id, baseline_id) REFERENCES plan_baseline (tenant_id, id) ON DELETE CASCADE NOT VALID;
-ALTER TABLE notification VALIDATE CONSTRAINT notification_baseline_id_fkey;
-CREATE UNIQUE INDEX IF NOT EXISTS notification_baseline_once
-  ON notification (tenant_id, baseline_id, recipient_id, channel) WHERE baseline_id IS NOT NULL;
 
 ALTER TABLE notification DROP CONSTRAINT notification_one_subject_check;
 ALTER TABLE notification ADD CONSTRAINT notification_one_subject_check
   CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
     whiteboard_id, approval_id, baseline_id) <= 1)
   NOT VALID;
-ALTER TABLE notification VALIDATE CONSTRAINT notification_one_subject_check;
 
 -- +goose Down
 -- +goose StatementBegin

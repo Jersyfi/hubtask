@@ -6,8 +6,8 @@
 -- to remember to. The person is named by identifier; one deleted while being viewed ends the view.
 --
 -- Expand only (rule 12): two nullable columns nothing of the previous release reads or writes. NULL
--- is "not viewing as anybody", what every existing row means. The key is added NOT VALID and
--- validated, so no row is locked while the table is scanned.
+-- is "not viewing as anybody", what every existing row means. The key and the check are added NOT
+-- VALID and validated in 0328, outside a transaction, so no write waits while the table is scanned.
 
 -- +goose Up
 ALTER TABLE session ADD COLUMN IF NOT EXISTS viewing_as uuid;
@@ -15,10 +15,8 @@ ALTER TABLE session ADD COLUMN IF NOT EXISTS viewing_as_until timestamptz;
 ALTER TABLE session ADD CONSTRAINT session_viewing_as_fkey
   FOREIGN KEY (tenant_id, viewing_as) REFERENCES account (tenant_id, id)
   ON DELETE SET NULL (viewing_as) NOT VALID;
-ALTER TABLE session VALIDATE CONSTRAINT session_viewing_as_fkey;
 ALTER TABLE session ADD CONSTRAINT session_viewing_as_check
   CHECK ((viewing_as IS NULL) OR (viewing_as_until IS NOT NULL)) NOT VALID;
-ALTER TABLE session VALIDATE CONSTRAINT session_viewing_as_check;
 
 -- +goose Down
 -- +goose StatementBegin

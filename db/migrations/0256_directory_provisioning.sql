@@ -4,22 +4,17 @@
 -- hand or made by a provider's first arrival has none.
 --
 -- Expand only (rule 12): two nullable columns nothing of the previous release writes, length
--- bounds every stored row satisfies (all NULL), added NOT VALID and then validated, and unique
--- indexes over columns that hold no value yet.
+-- bounds every stored row satisfies (all NULL), added NOT VALID, and unique indexes over columns
+-- that hold no value yet. Both are finished in 0328, outside a transaction: the bounds validated,
+-- the indexes built CONCURRENTLY.
 -- +goose Up
 ALTER TABLE account ADD COLUMN IF NOT EXISTS external_id text;
 ALTER TABLE account ADD CONSTRAINT account_external_id_length_check
   CHECK (external_id IS NULL OR char_length(external_id) BETWEEN 1 AND 255) NOT VALID;
-ALTER TABLE account VALIDATE CONSTRAINT account_external_id_length_check;
-CREATE UNIQUE INDEX IF NOT EXISTS account_external_id_uq
-  ON account (tenant_id, external_id) WHERE external_id IS NOT NULL AND deleted_at IS NULL;
 
 ALTER TABLE account_group ADD COLUMN IF NOT EXISTS external_id text;
 ALTER TABLE account_group ADD CONSTRAINT account_group_external_id_length_check
   CHECK (external_id IS NULL OR char_length(external_id) BETWEEN 1 AND 255) NOT VALID;
-ALTER TABLE account_group VALIDATE CONSTRAINT account_group_external_id_length_check;
-CREATE UNIQUE INDEX IF NOT EXISTS account_group_external_id_uq
-  ON account_group (tenant_id, external_id) WHERE external_id IS NOT NULL;
 
 -- +goose Down
 -- +goose StatementBegin

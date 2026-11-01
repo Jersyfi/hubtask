@@ -17,7 +17,8 @@
 --
 -- Expand only (rule 12): two nullable columns the previous release neither reads nor writes, the
 -- trigger filling them for its inserts too, and a hub's handle the previous release answers as
--- it answers a collection's.
+-- it answers a collection's. The unique indexes on the keys are built CONCURRENTLY in 0328; the
+-- trigger's dedupe gives no two rows one key before then.
 
 -- +goose Up
 ALTER TABLE saved_view ADD COLUMN IF NOT EXISTS key text
@@ -141,12 +142,6 @@ END
 $$;
 -- +goose StatementEnd
 
-CREATE UNIQUE INDEX IF NOT EXISTS saved_view_key_uq ON saved_view
-  (tenant_id, scope_type, coalesce(scope_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
-  WHERE key IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS automation_rule_key_uq ON automation_rule
-  (tenant_id, scope_type, coalesce(scope_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
-  WHERE key IS NOT NULL AND deleted_at IS NULL;
 
 -- +goose Down
 DO $forward_only$

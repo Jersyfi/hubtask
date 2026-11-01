@@ -5,7 +5,9 @@
 -- record holds an identifier and no content (rule 10), and a purged board takes its records along.
 --
 -- Expand only (rule 12): a new table nothing older reads, a nullable column nothing of the previous
--- release writes, and a widened check every stored row satisfies (NOT VALID, then VALIDATE).
+-- release writes, and a widened check every stored row satisfies. The constraints on `notification`
+-- are added NOT VALID and validated in 0328, outside a transaction, where the index is built
+-- CONCURRENTLY.
 -- +goose Up
 CREATE TABLE IF NOT EXISTS whiteboard_comment (
   id            uuid PRIMARY KEY,
@@ -43,17 +45,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON whiteboard_comment TO hubtask_app;
 ALTER TABLE notification ADD COLUMN IF NOT EXISTS whiteboard_id uuid;
 ALTER TABLE notification ADD CONSTRAINT notification_whiteboard_id_fkey
   FOREIGN KEY (tenant_id, whiteboard_id) REFERENCES whiteboard (tenant_id, id) ON DELETE CASCADE NOT VALID;
-ALTER TABLE notification VALIDATE CONSTRAINT notification_whiteboard_id_fkey;
--- The cascade a purged board sets off reads this side.
-CREATE INDEX IF NOT EXISTS notification_whiteboard_idx
-  ON notification (tenant_id, whiteboard_id) WHERE whiteboard_id IS NOT NULL;
 
 ALTER TABLE notification DROP CONSTRAINT notification_one_subject_check;
 ALTER TABLE notification ADD CONSTRAINT notification_one_subject_check
   CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
     whiteboard_id) <= 1)
   NOT VALID;
-ALTER TABLE notification VALIDATE CONSTRAINT notification_one_subject_check;
 
 -- +goose Down
 -- +goose StatementBegin

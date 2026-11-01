@@ -6,10 +6,10 @@
 -- writes only what changed. `calendar_push_authorization` is a connection waiting ten minutes for
 -- the provider's answer, its state stored as a hash and its PKCE verifier sealed.
 --
--- Expand only: new tables nothing older reads (rule 12).
+-- Expand only: new tables nothing older reads (rule 12). The push's reference to its feed needs a
+-- unique (tenant_id, id) on `calendar_feed`, a released table; 0328 builds that CONCURRENTLY and
+-- adds the reference after it.
 -- +goose Up
--- A feed's identity per workspace, which the push's tenant-scoped reference needs; a small table.
-CREATE UNIQUE INDEX IF NOT EXISTS calendar_feed_tenant_id_uq ON calendar_feed (tenant_id, id);
 
 CREATE TABLE IF NOT EXISTS calendar_push (
   id                uuid PRIMARY KEY,
@@ -29,9 +29,7 @@ CREATE TABLE IF NOT EXISTS calendar_push (
   UNIQUE (tenant_id, id),
   UNIQUE (tenant_id, feed_id, provider),
   CONSTRAINT calendar_push_account_fkey FOREIGN KEY (tenant_id, account_id)
-    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
-  CONSTRAINT calendar_push_feed_fkey FOREIGN KEY (tenant_id, feed_id)
-    REFERENCES calendar_feed (tenant_id, id) ON DELETE CASCADE
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS calendar_push_account_idx ON calendar_push (tenant_id, account_id, created_at);
 

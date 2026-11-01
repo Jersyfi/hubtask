@@ -4,9 +4,8 @@
 -- content (rule 10), and a page purged before then takes its record along.
 --
 -- Expand only (rule 12): a purpose and a nullable column nothing of the previous release writes,
--- and constraints every stored row satisfies. Not yet free of write-stopping locks: in one
--- transaction the ADD's lock is held through the VALIDATE's scan, and the index is built without
--- CONCURRENTLY (test/architecture, notYetConcurrent).
+-- and constraints every stored row satisfies. The constraints on `notification` are added NOT VALID
+-- and validated in 0328, outside a transaction, where the index is built CONCURRENTLY.
 -- +goose Up
 ALTER TABLE durable_timer DROP CONSTRAINT IF EXISTS durable_timer_purpose_check;
 ALTER TABLE durable_timer ADD CONSTRAINT durable_timer_purpose_check
@@ -16,16 +15,11 @@ ALTER TABLE durable_timer VALIDATE CONSTRAINT durable_timer_purpose_check;
 ALTER TABLE notification ADD COLUMN IF NOT EXISTS page_id uuid;
 ALTER TABLE notification ADD CONSTRAINT notification_page_id_fkey
   FOREIGN KEY (tenant_id, page_id) REFERENCES page (tenant_id, id) ON DELETE CASCADE NOT VALID;
-ALTER TABLE notification VALIDATE CONSTRAINT notification_page_id_fkey;
--- The cascade a purged page sets off reads this side.
-CREATE INDEX IF NOT EXISTS notification_page_idx
-  ON notification (tenant_id, page_id) WHERE page_id IS NOT NULL;
 
 ALTER TABLE notification DROP CONSTRAINT notification_one_subject_check;
 ALTER TABLE notification ADD CONSTRAINT notification_one_subject_check
   CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id) <= 1)
   NOT VALID;
-ALTER TABLE notification VALIDATE CONSTRAINT notification_one_subject_check;
 
 -- +goose Down
 -- +goose StatementBegin

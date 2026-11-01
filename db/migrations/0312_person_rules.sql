@@ -3,14 +3,14 @@
 --
 -- Expand only (rule 12): a widened CHECK accepts every row the old one did, so an old pod writing
 -- the three levels it knows is unaffected. The new CHECK holds no existing row (none is PERSON);
--- it is added NOT VALID and validated after, so the table is not held while it is read.
+-- both are added NOT VALID and validated in 0328, outside a transaction, so no write waits while the
+-- table is read.
 -- +goose Up
 ALTER TABLE automation_rule DROP CONSTRAINT IF EXISTS automation_rule_scope_type_check;
 ALTER TABLE automation_rule ADD CONSTRAINT automation_rule_scope_type_check
-  CHECK (scope_type IN ('TENANT','HUB','COLLECTION','PERSON'));
+  CHECK (scope_type IN ('TENANT','HUB','COLLECTION','PERSON')) NOT VALID;
 ALTER TABLE automation_rule ADD CONSTRAINT automation_rule_person_run_as_check
   CHECK (scope_type <> 'PERSON' OR (scope_id IS NOT NULL AND run_as = scope_id)) NOT VALID;
-ALTER TABLE automation_rule VALIDATE CONSTRAINT automation_rule_person_run_as_check;
 
 -- +goose Down
 -- +goose StatementBegin

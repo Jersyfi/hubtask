@@ -4,12 +4,12 @@
 --
 -- Expand only (versioning-release.md §4): an older binary never writes either value, reads one
 -- as "not READY" - no download, no attaching - and confirms only a PENDING row, so a rolling
--- update meets nothing it mishandles.
+-- update meets nothing it mishandles. Added NOT VALID and validated in 0328, outside a transaction.
 
 -- +goose Up
 ALTER TABLE media_object DROP CONSTRAINT IF EXISTS media_object_status_check;
 ALTER TABLE media_object ADD CONSTRAINT media_object_status_check
-  CHECK (status IN ('PENDING', 'READY', 'PENDING_SCAN', 'INFECTED'));
+  CHECK (status IN ('PENDING', 'READY', 'PENDING_SCAN', 'INFECTED')) NOT VALID;
 
 -- +goose Down
 DO $forward_only$

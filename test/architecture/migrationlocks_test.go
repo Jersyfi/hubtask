@@ -18,24 +18,6 @@ import (
 // that stops writes for the length of a scan (versioning-release.md §4). Raised with each release.
 const lastReleasedMigration = 206
 
-// notYetConcurrent are the unreleased, unmerged files that still break the rule, each to be
-// rewritten before the suite merges: the index moved into a NO TRANSACTION file after them, the
-// constraint added NOT VALID and validated there. An entry is removed when its file is fixed; a
-// file not named here is held to the rule at once.
-var notYetConcurrent = map[string]bool{
-	"0211_entry_field_value.sql": true, "0215_calculated_field.sql": true,
-	"0218_rule_run_step_taken.sql": true, "0220_field_read_restricted.sql": true,
-	"0232_page_review.sql": true, "0253_agent_notice.sql": true, "0254_suggestion_agent.sql": true,
-	"0255_import_kinds.sql": true, "0256_directory_provisioning.sql": true,
-	"0257_webhook_chat_format.sql": true, "0258_session_view_as.sql": true,
-	"0266_whiteboard_comment.sql": true, "0269_notification_approval.sql": true,
-	"0273_notification_plan_exception.sql": true, "0278_calendar_push.sql": true,
-	"0284_saml_provider.sql": true, "0286_stable_keys.sql": true,
-	"0295_notification_request_reply.sql": true, "0298_register_field_kinds.sql": true,
-	"0301_media_scan_hold.sql": true, "0305_mailbox_graph.sql": true, "0312_person_rules.sql": true,
-	"0313_desk_logo.sql": true, "0316_notification_sla.sql": true,
-}
-
 var (
 	createdTable   = regexp.MustCompile(`(?i)\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)`)
 	createdIndex   = regexp.MustCompile(`(?is)\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?[a-z_0-9]*\s*ON\s+(?:ONLY\s+)?([a-z_][a-z0-9_]*)`)
@@ -88,22 +70,7 @@ func readMigrations(t *testing.T) []migrationFile {
 // one transaction the ADD's ACCESS EXCLUSIVE lock is held through the VALIDATE's scan.
 func TestNoMigrationAfterTheReleaseBlocksWritesOnAReleasedTable(t *testing.T) {
 	for _, violation := range lockViolations(t) {
-		if !notYetConcurrent[violation.file] {
-			t.Errorf("%s: %s", violation.file, violation.what)
-		}
-	}
-}
-
-// An entry of notYetConcurrent that no longer breaks the rule is removed, so the list only shrinks.
-func TestEveryFileNotYetConcurrentStillNeedsIt(t *testing.T) {
-	breaking := map[string]bool{}
-	for _, violation := range lockViolations(t) {
-		breaking[violation.file] = true
-	}
-	for name := range notYetConcurrent {
-		if !breaking[name] {
-			t.Errorf("%s keeps the rule now; remove it from notYetConcurrent", name)
-		}
+		t.Errorf("%s: %s", violation.file, violation.what)
 	}
 }
 

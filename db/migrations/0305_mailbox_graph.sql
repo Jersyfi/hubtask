@@ -3,12 +3,12 @@
 -- row names neither an IMAP server nor a JMAP session, which the two existing checks already allow.
 --
 -- Expand only (rule 12): the protocol check widens; a release before this one never writes GRAPH.
--- NOT VALID then VALIDATE, so the check takes no lock that blocks writes while existing rows are read.
+-- NOT VALID here and validated in 0328, outside a transaction, so no write waits while existing rows
+-- are read.
 -- +goose Up
 ALTER TABLE mailbox DROP CONSTRAINT IF EXISTS mailbox_protocol_check;
 ALTER TABLE mailbox ADD CONSTRAINT mailbox_protocol_check
   CHECK (protocol IN ('IMAP', 'JMAP', 'GRAPH')) NOT VALID;
-ALTER TABLE mailbox VALIDATE CONSTRAINT mailbox_protocol_check;
 
 -- +goose Down
 -- +goose StatementBegin

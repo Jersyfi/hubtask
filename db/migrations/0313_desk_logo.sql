@@ -7,18 +7,19 @@
 -- fail. The media reconciliation counts the reference.
 --
 -- Expand only (rule 12): a nullable column without a default rewrites nothing, the usage CHECK is
--- widened, and a process of the previous release neither writes nor reads either.
+-- widened, and a process of the previous release neither writes nor reads either. The key and the
+-- check are added NOT VALID and validated in 0328, outside a transaction.
 
 -- +goose Up
 ALTER TABLE container ADD COLUMN IF NOT EXISTS logo_media_id uuid;
 ALTER TABLE container DROP CONSTRAINT IF EXISTS container_logo_media_fkey;
 ALTER TABLE container ADD CONSTRAINT container_logo_media_fkey
   FOREIGN KEY (tenant_id, logo_media_id) REFERENCES media_object (tenant_id, id)
-  ON DELETE SET NULL (logo_media_id);
+  ON DELETE SET NULL (logo_media_id) NOT VALID;
 
 ALTER TABLE media_object DROP CONSTRAINT IF EXISTS media_object_usage_check;
 ALTER TABLE media_object ADD CONSTRAINT media_object_usage_check
-  CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR', 'DESK_LOGO'));
+  CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR', 'DESK_LOGO')) NOT VALID;
 
 -- +goose Down
 -- +goose StatementBegin
