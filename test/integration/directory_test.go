@@ -21,6 +21,7 @@ import (
 
 func directoryRepo() postgres.DirectoryRepository { return postgres.NewDirectoryRepository() }
 
+// UC-ID-28 check 7: unique in a workspace, neither read nor written from another.
 func TestADirectoryIdentifierIsFoundInItsWorkspaceOnly(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -111,6 +112,7 @@ func TestADirectorySwitchesAPersonOffAndOn(t *testing.T) {
 	}
 }
 
+// UC-ID-28 check 7: a group's identifier is found in its workspace only.
 func TestADirectoryGroupIsFoundByNameAndIdentifierInItsWorkspaceOnly(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

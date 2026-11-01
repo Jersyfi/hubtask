@@ -22,6 +22,7 @@ import (
 
 func ldapRepo() postgres.LdapDirectoryRepository { return postgres.NewLdapDirectoryRepository() }
 
+// UC-ID-31 check 7: the directory's configuration is neither read nor written from another workspace.
 func TestAnLdapDirectoryIsItsWorkspacesOnly(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
