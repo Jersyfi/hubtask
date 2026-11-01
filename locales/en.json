@@ -8287,6 +8287,7 @@
   "mail.mailbox_not_found": "That mailbox is not connected any more.",
   "mail.mailbox_required": "Name the mailbox.",
   "mail.mailbox_unwired": "This installation cannot read mailboxes.",
+  "mail.mailbox_idle_unsupported": "The mail server cannot announce new mail; the mailbox is read every minute.",
   "mail.mailbox_reference_invalid": "The mail server named a message in a way that cannot be read.",
   "mail.intake_off": "The workspace's mail intake is switched off; the mail waits in the mailbox.",
   "mail.preset_gmail": "Gmail needs an app password: in your Google account under Security, turn on the extra sign-in check, then create an app password.",

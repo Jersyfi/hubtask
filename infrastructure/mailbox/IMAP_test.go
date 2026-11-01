@@ -44,6 +44,9 @@ type server struct {
 	commands  []string
 	literalOK bool
 	oauthUser string
+	// idle is whether the server names IDLE; announce whether it says a message arrived while idling.
+	idle     bool
+	announce bool
 }
 
 func newServer(password string) *server {
@@ -171,6 +174,27 @@ func (s *server) serve(conn net.Conn) {
 				}
 			}
 			write("%s OK expunged", tag)
+		case "CAPABILITY":
+			if s.idle {
+				write("* CAPABILITY IMAP4rev1 MOVE IDLE")
+			} else {
+				write("* CAPABILITY IMAP4rev1 MOVE")
+			}
+			write("%s OK capability done", tag)
+		case "IDLE":
+			write("+ idling")
+			write("* OK still here")
+			if s.announce {
+				write("* 4 EXISTS")
+			}
+			done, err := reader.ReadString('\n')
+			if err != nil {
+				return
+			}
+			s.mu.Lock()
+			s.commands = append(s.commands, strings.TrimRight(done, "\r\n"))
+			s.mu.Unlock()
+			write("%s OK idle done", tag)
 		case "LOGOUT":
 			write("* BYE")
 			write("%s OK bye", tag)

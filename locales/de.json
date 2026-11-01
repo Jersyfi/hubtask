@@ -8287,6 +8287,7 @@
   "mail.mailbox_not_found": "Dieses Postfach ist nicht mehr verbunden.",
   "mail.mailbox_required": "Nenne das Postfach.",
   "mail.mailbox_unwired": "Diese Installation kann keine Postfächer lesen.",
+  "mail.mailbox_idle_unsupported": "Der Mailserver kann neue Mails nicht melden; das Postfach wird jede Minute gelesen.",
   "mail.mailbox_reference_invalid": "Der Mailserver hat eine Nachricht so benannt, dass Hubtask sie nicht lesen kann.",
   "mail.intake_off": "Der Mail-Eingang des Arbeitsbereichs ist ausgeschaltet; die Mails warten im Postfach.",
   "mail.preset_gmail": "Gmail braucht die Bestätigung in zwei Schritten und ein App-Passwort (Google-Konto → Sicherheit → App-Passwörter).",

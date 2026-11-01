@@ -45,16 +45,28 @@ type IMAP struct {
 	Dial func(ctx context.Context, address, host string) (net.Conn, error)
 }
 
-var _ port.Reader = IMAP{}
+var (
+	_ port.Reader  = IMAP{}
+	_ port.Watcher = IMAP{}
+)
 
 // Open signs in and selects the folder.
 func (i IMAP) Open(ctx context.Context, connection port.Connection) (port.Session, error) {
+	session, err := i.open(ctx, connection, sessionTimeout)
+	if err != nil {
+		return nil, err
+	}
+	return session, nil
+}
+
+// open signs in and selects the folder, the connection bounded by budget or the context's deadline.
+func (i IMAP) open(ctx context.Context, connection port.Connection, budget time.Duration) (*imapSession, error) {
 	box := connection.Mailbox
 	conn, err := i.dial(ctx, box.Endpoint(), box.Host)
 	if err != nil {
 		return nil, err
 	}
-	deadline := time.Now().Add(sessionTimeout)
+	deadline := time.Now().Add(budget)
 	if until, ok := ctx.Deadline(); ok && until.Before(deadline) {
 		deadline = until
 	}
