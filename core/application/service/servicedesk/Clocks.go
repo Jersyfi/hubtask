@@ -386,10 +386,17 @@ func (s SLAClocks) follow(
 			continue
 		}
 		var goal domain.SLAGoal
+		measured := false
 		for _, policy := range policies {
 			if policy.Key == record.PolicyKey {
 				goal, _ = policy.Goal(record.Goal)
+				measured = true
 			}
+		}
+		if !measured {
+			// Its policy was deleted: the clock stands as it stood, neither paused nor resumed by
+			// a policy that no longer says (UC-SVC-02); the completion still stops it.
+			continue
 		}
 		var (
 			timer calendar.Timer

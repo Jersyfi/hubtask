@@ -242,10 +242,16 @@ func (s OLAClocks) follow(
 			continue
 		}
 		var goal domain.SLAGoal
+		measured := false
 		for _, policy := range policies {
 			if policy.Key == record.PolicyKey {
 				goal, _ = policy.Goal(record.Goal)
+				measured = true
 			}
+		}
+		if !measured && item.DeletedAt == nil {
+			// Its OLA was deleted: the clock stands as it stood (UC-SVC-02).
+			continue
 		}
 		if err := s.move(ctx, clocks, record, item.DeletedAt != nil || goal.Pauses(item.Status), now); err != nil {
 			return err

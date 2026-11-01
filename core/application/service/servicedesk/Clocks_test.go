@@ -497,3 +497,22 @@ func TestAnOrganisationsPolicyMeasuresItsRequestersEntries(t *testing.T) {
 		})
 	}
 }
+
+// "A policy changed or deleted later moves no clock already running" (UC-SVC-02): a goal paused
+// under a policy that is then deleted stays as it stood rather than resuming because no goal of
+// that key pauses any more.
+func TestADeletedPolicyMovesNoClockAlreadyRunning(t *testing.T) {
+	f := newFixture(t)
+	f.deliver(t, event.ItemCreated, monday, nil)
+	f.items.item.Status = "waiting"
+	f.deliver(t, event.ItemUpdated, monday.Add(time.Hour), map[string]any{"change_set": map[string]any{"status": map[string]any{}}})
+	if paused := f.records.goal(domain.GoalResolution); paused.Standing != domain.StandingPaused {
+		t.Fatalf("waiting did not pause the resolution: %+v", paused)
+	}
+
+	f.clocks.Policies = policyStore{}
+	f.deliver(t, event.ItemUpdated, monday.Add(2*time.Hour), map[string]any{"change_set": map[string]any{"title": map[string]any{}}})
+	if still := f.records.goal(domain.GoalResolution); still.Standing != domain.StandingPaused {
+		t.Fatalf("the deleted policy's paused goal was moved: %+v", still)
+	}
+}

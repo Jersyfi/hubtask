@@ -263,3 +263,20 @@ func TestAnOlaIsDefinedForAGroupAndReadBesideTheSla(t *testing.T) {
 		t.Errorf("the goals read %v and %v", sla, ola)
 	}
 }
+
+// An OLA deleted while its goal stands still leaves the goal as it stood (UC-SVC-02).
+func TestADeletedOlaMovesNoClockAlreadyRunning(t *testing.T) {
+	f, clocks, olas := olaFixture(t)
+	f.items.item.AssigneeID = networker
+	deliverTo(t, f, clocks, event.ItemCreated, monday, nil)
+	f.items.item.Status = "waiting"
+	deliverTo(t, f, clocks, event.ItemUpdated, monday.Add(30*time.Minute), nil)
+	if got := olas.goal(domain.GoalResolution); got.Standing != domain.StandingPaused {
+		t.Fatalf("the team's resolution did not stand still while waiting: %+v", got)
+	}
+	clocks.Policies = policyStore{}
+	deliverTo(t, f, clocks, event.ItemUpdated, monday.Add(time.Hour), nil)
+	if got := olas.goal(domain.GoalResolution); got.Standing != domain.StandingPaused {
+		t.Fatalf("the deleted OLA's paused goal was moved: %+v", got)
+	}
+}
