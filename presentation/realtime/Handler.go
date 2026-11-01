@@ -98,6 +98,9 @@ type Credential struct {
 	Still func(ctx context.Context) error
 	// Until is when the credential ends regardless - a view as somebody lapsing; zero for none.
 	Until time.Time
+	// Recheck rings when a credential of the account was revoked on any process; Still is asked
+	// at once. Nil never rings.
+	Recheck <-chan struct{}
 }
 
 // Signals counts a log nobody compacts (A-24): an update landing past domain.BacklogAlarm
@@ -206,6 +209,16 @@ func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, clo
 		select {
 		case <-ctx.Done():
 			return websocket.StatusGoingAway, ""
+		case <-c.credential.Recheck:
+			if c.credential.Still == nil {
+				continue
+			}
+			checkCtx, cancel := context.WithTimeout(ctx, writeTimeout)
+			err := c.credential.Still(checkCtx)
+			cancel()
+			if err != nil {
+				return closeUnauthenticated, credentialCode(err)
+			}
 		case <-recheckCredential:
 			checkCtx, cancel := context.WithTimeout(ctx, writeTimeout)
 			err := c.credential.Still(checkCtx)

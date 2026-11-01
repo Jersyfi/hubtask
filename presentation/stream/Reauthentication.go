@@ -41,3 +41,13 @@ func CredentialStill(ctx context.Context, actor appshared.ActorContext) func(con
 		return nil
 	}
 }
+
+// Accounts are those whose revocation reaches a stream of the actor: its own, and the viewer's
+// while somebody views the app as the actor. What Registry.Admit is given.
+func Accounts(actor appshared.ActorContext) []string {
+	accounts := []string{actor.AccountID.String()}
+	if actor.ViewedBy != "" {
+		accounts = append(accounts, actor.ViewedBy.String())
+	}
+	return accounts
+}

@@ -40,7 +40,7 @@ func (c RealtimeController) OpenRealtimeDocument(
 		WriteProblem(w, err, requestID)
 		return
 	}
-	slot, refusal := c.Registry.Admit(stream.Credential(r), actor.TenantID.String())
+	slot, refusal := c.Registry.Admit(stream.Credential(r), actor.TenantID.String(), stream.Accounts(actor)...)
 	if refusal != stream.RefusedNone {
 		w.Header().Set("Retry-After", strconv.Itoa(streamRefusalRetryAfter))
 		WriteProblem(w, shared.ErrUnavailable.WithDetail("sync.stream_unavailable").
@@ -48,7 +48,9 @@ func (c RealtimeController) OpenRealtimeDocument(
 		return
 	}
 	defer slot.Release()
-	credential := realtime.Credential{Still: stream.CredentialStill(r.Context(), actor), Until: actor.ViewingAsUntil}
+	credential := realtime.Credential{
+		Still: stream.CredentialStill(r.Context(), actor), Until: actor.ViewingAsUntil, Recheck: slot.Recheck,
+	}
 	if err := c.Handler.Serve(w, r, actor, ref, slot.Closing, credential); err != nil {
 		WriteProblem(w, err, requestID)
 	}

@@ -469,3 +469,24 @@ func TestTheAgentStreamEndsWithItsCredential(t *testing.T) {
 		t.Errorf("the client was not told why: %q", recorder.Body.String())
 	}
 }
+
+// A revocation rung for the agent's account ends its stream at once, not at the next recheck.
+func TestARevocationEndsTheAgentStreamAtOnce(t *testing.T) {
+	server, _, _, registry := streamingServer(stream.Limits{PerProcess: 4})
+	server.CredentialRecheck = time.Hour
+
+	request := streamRequest(t.Context(), sessionFor(streamTenant, streamAccount))
+	revoked := stream.WithReauthentication(request.Context(), func(context.Context) (appshared.ActorContext, error) {
+		return appshared.ActorContext{}, shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+	})
+	concurrency.Go(t.Context(), "test.ring", func(context.Context) {
+		for deadline := time.Now().Add(5 * time.Second); registry.Open() == 0 && time.Now().Before(deadline); {
+			time.Sleep(2 * time.Millisecond)
+		}
+		registry.Recheck(streamTenant.String(), streamAccount.String())
+	})
+	recorder := serveStream(t, server, request.WithContext(revoked))
+	if !strings.Contains(recorder.Body.String(), ": credential") {
+		t.Errorf("the client was not told why: %q", recorder.Body.String())
+	}
+}

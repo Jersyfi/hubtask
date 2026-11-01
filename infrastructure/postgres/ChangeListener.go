@@ -68,6 +68,9 @@ type ChangeListener struct {
 	// heard is where another process's awareness goes.
 	origin string
 	heard  func(tenantID shared.ID, kind string, documentID shared.ID, message []byte)
+	// ended is where a credential's doorbell goes (migration 0332); the account is empty for a
+	// whole workspace.
+	ended func(tenantID, accountID shared.ID)
 }
 
 // DocumentKey names one live document of a workspace.
@@ -80,8 +83,9 @@ type DocumentKey struct {
 // The channels besides ChangeChannel: a document's own log (migration 0296) and the awareness
 // relayed between processes (AwarenessBus).
 const (
-	DocumentChannel  = "hubtask_document"
-	AwarenessChannel = "hubtask_awareness"
+	DocumentChannel   = "hubtask_document"
+	AwarenessChannel  = "hubtask_awareness"
+	CredentialChannel = "hubtask_credential"
 )
 
 func NewChangeListener(pool *pgxpool.Pool) *ChangeListener {
@@ -123,6 +127,13 @@ func (l *ChangeListener) OnAwareness(heard func(tenantID shared.ID, kind string,
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.heard = heard
+}
+
+// OnCredential names where a credential's doorbell goes; set before Run.
+func (l *ChangeListener) OnCredential(ended func(tenantID, accountID shared.ID)) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.ended = ended
 }
 
 // Subscribe asks to be woken when the workspace changes, and returns the channel and the way to
@@ -203,7 +214,7 @@ func (l *ChangeListener) listen(ctx context.Context) error {
 	}
 	defer conn.Release()
 
-	for _, channel := range []string{ChangeChannel, DocumentChannel, AwarenessChannel} {
+	for _, channel := range []string{ChangeChannel, DocumentChannel, AwarenessChannel, CredentialChannel} {
 		if _, err := conn.Exec(ctx, "LISTEN "+channel); err != nil {
 			return err
 		}
@@ -233,6 +244,9 @@ func (l *ChangeListener) listen(ctx context.Context) error {
 			continue
 		case AwarenessChannel:
 			l.hear(notification.Payload)
+			continue
+		case CredentialChannel:
+			l.credential(notification.Payload)
 			continue
 		}
 		tenantID, err := shared.ParseID(notification.Payload)
@@ -298,6 +312,28 @@ func (l *ChangeListener) hear(payload string) {
 	l.mu.Unlock()
 	if heard != nil {
 		heard(key.TenantID, key.Kind, key.DocumentID, message)
+	}
+}
+
+// credential hands `tenant` or `tenant/account`, as migration 0332 writes it, to OnCredential's
+// handler; another shape is skipped.
+func (l *ChangeListener) credential(payload string) {
+	tenantText, accountText, scoped := strings.Cut(payload, "/")
+	tenantID, err := shared.ParseID(tenantText)
+	if err != nil {
+		return
+	}
+	var accountID shared.ID
+	if scoped {
+		if accountID, err = shared.ParseID(accountText); err != nil {
+			return
+		}
+	}
+	l.mu.Lock()
+	ended := l.ended
+	l.mu.Unlock()
+	if ended != nil {
+		ended(tenantID, accountID)
 	}
 }
 

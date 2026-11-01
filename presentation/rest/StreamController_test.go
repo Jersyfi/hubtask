@@ -404,3 +404,24 @@ func TestARevokedCredentialEndsTheStream(t *testing.T) {
 		})
 	}
 }
+
+// A revocation rung for the stream's account asks the credential at once, however recently it was
+// asked.
+func TestARevocationEndsTheStreamAtOnce(t *testing.T) {
+	controller, registry, _ := streamController(t, &fakeStream{}, stream.Limits{PerProcess: 4})
+	request := authenticated(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stream", nil))
+	request = request.WithContext(stream.WithReauthentication(request.Context(),
+		func(context.Context) (appshared.ActorContext, error) {
+			return appshared.ActorContext{}, shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+		}))
+	recorder, wait := serveStream(t, controller, request)
+	deadline := time.Now().Add(5 * time.Second)
+	for registry.Open() == 0 && time.Now().Before(deadline) {
+		time.Sleep(2 * time.Millisecond)
+	}
+	registry.Recheck(streamTenant.String(), streamAccount.String())
+	wait()
+	if !strings.Contains(recorder.Body.String(), ": credential") {
+		t.Errorf("the stream did not end on its credential:\n%s", recorder.Body.String())
+	}
+}

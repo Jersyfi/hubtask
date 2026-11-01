@@ -77,7 +77,7 @@ func (s Server) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slot, refusal := s.Streams.Admit(credentialOf(r), actor.TenantID.String())
+	slot, refusal := s.Streams.Admit(credentialOf(r), actor.TenantID.String(), stream.Accounts(actor)...)
 	if refusal != stream.RefusedNone {
 		s.report(r.Context(), func(ctx context.Context, signals StreamSignals) {
 			signals.StreamRefused(ctx, refusal.String())
@@ -132,18 +132,28 @@ func (s Server) hold(
 	recheck := time.NewTicker(recheckEvery)
 	defer recheck.Stop()
 
+	// ended asks the credential; the client then reconnects through a fresh authentication, which
+	// refuses it. slot.Recheck is a revocation heard for this account on any process.
+	ended := func() bool {
+		if still == nil {
+			return false
+		}
+		checkCtx, cancel := context.WithTimeout(r.Context(), agentCredentialTimeout)
+		defer cancel()
+		if still(checkCtx) != nil {
+			_ = events.Comment("credential")
+			return true
+		}
+		return false
+	}
 	for {
 		select {
-		case <-recheck.C:
-			if still == nil {
-				continue
+		case <-slot.Recheck:
+			if ended() {
+				return
 			}
-			checkCtx, cancel := context.WithTimeout(r.Context(), agentCredentialTimeout)
-			err := still(checkCtx)
-			cancel()
-			if err != nil {
-				// The client reconnects through a fresh authentication, which refuses it.
-				_ = events.Comment("credential")
+		case <-recheck.C:
+			if ended() {
 				return
 			}
 		case <-r.Context().Done():

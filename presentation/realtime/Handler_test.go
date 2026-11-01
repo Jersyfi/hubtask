@@ -415,3 +415,39 @@ func TestARevokedCredentialClosesTheConnection(t *testing.T) {
 		})
 	}
 }
+
+// A revocation rung for the connection's account closes it at once, not at the next recheck.
+func TestARevocationClosesTheConnectionAtOnce(t *testing.T) {
+	docs := &documents{writable: true}
+	var revoked atomic.Bool
+	ring := make(chan struct{}, 1)
+	handler := Handler{Documents: docs, Relay: NewRelay(), CredentialEvery: time.Hour}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil,
+			Credential{Recheck: ring, Still: func(context.Context) error {
+				if revoked.Load() {
+					return shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+				}
+				return nil
+			}})
+	}))
+	t.Cleanup(server.Close)
+	conn := dial(t, server)
+	next(t, conn)
+	next(t, conn)
+	revoked.Store(true)
+	ring <- struct{}{}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	for {
+		_, _, err := conn.Read(ctx)
+		if err == nil {
+			continue
+		}
+		if websocket.CloseStatus(err) != closeUnauthenticated {
+			t.Errorf("closed with %v, want %d", err, closeUnauthenticated)
+		}
+		return
+	}
+}

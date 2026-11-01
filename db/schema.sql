@@ -3655,6 +3655,57 @@ CREATE TRIGGER realtime_update_notify_document
   AFTER INSERT ON realtime_update
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_document();
 
+-- A credential ended rings every process holding a stream of its account, which asks the
+-- credential again at once (migration 0332): `tenant/account`, or `tenant` for a whole workspace.
+CREATE OR REPLACE FUNCTION hubtask_notify_credential() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_credential', NEW.tenant_id::text || '/' || NEW.account_id::text);
+  RETURN NULL;
+END $$;
+
+CREATE OR REPLACE FUNCTION hubtask_notify_account_credential() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_credential', NEW.tenant_id::text || '/' || NEW.id::text);
+  RETURN NULL;
+END $$;
+
+CREATE OR REPLACE FUNCTION hubtask_notify_tenant_credential() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_credential', NEW.id::text);
+  RETURN NULL;
+END $$;
+
+CREATE TRIGGER session_notify_credential
+  AFTER UPDATE OF revoked_at ON session
+  FOR EACH ROW WHEN (OLD.revoked_at IS NULL AND NEW.revoked_at IS NOT NULL)
+  EXECUTE FUNCTION hubtask_notify_credential();
+
+CREATE TRIGGER access_token_notify_credential
+  AFTER UPDATE OF revoked_at ON access_token
+  FOR EACH ROW WHEN (OLD.revoked_at IS NULL AND NEW.revoked_at IS NOT NULL)
+  EXECUTE FUNCTION hubtask_notify_credential();
+
+CREATE TRIGGER oauth_grant_notify_credential
+  AFTER UPDATE OF revoked_at ON oauth_grant
+  FOR EACH ROW WHEN (OLD.revoked_at IS NULL AND NEW.revoked_at IS NOT NULL)
+  EXECUTE FUNCTION hubtask_notify_credential();
+
+CREATE TRIGGER account_notify_credential
+  AFTER UPDATE OF status ON account
+  FOR EACH ROW WHEN (OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION hubtask_notify_account_credential();
+
+CREATE TRIGGER tenant_notify_credential
+  AFTER UPDATE OF status ON tenant
+  FOR EACH ROW WHEN (OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION hubtask_notify_tenant_credential();
+
 -- The wake-up for the dispatcher (ADR-0007). The queue rather than outbox_event: an event is
 -- written together with its dispatch job in one transaction, so the row the worker waits for is the
 -- job. No payload - `job` has no tenant column and none is needed, and an empty payload is what

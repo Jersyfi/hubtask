@@ -139,7 +139,7 @@ func (c StreamController) admit(
 	// per-credential cap only means anything if this stream and the agent's key a credential the
 	// same way, or a client could double its allowance by opening half its connections at the
 	// other endpoint.
-	return c.Registry.Admit(stream.Credential(r), actor.TenantID.String())
+	return c.Registry.Admit(stream.Credential(r), actor.TenantID.String(), stream.Accounts(actor)...)
 }
 
 func (c StreamController) subscribe(tenantID shared.ID) (<-chan struct{}, func()) {
@@ -179,12 +179,15 @@ func (c StreamController) serve(
 	still := stream.CredentialStill(r.Context(), actor)
 	checked := c.now()
 	cursor := from
+	// rung is a revocation heard for this account on any process: the next round asks at once.
+	rung := false
 	for {
 		if !actor.ViewingAsUntil.IsZero() && !c.now().Before(actor.ViewingAsUntil) {
 			_ = events.Comment("credential")
 			return
 		}
-		if still != nil && c.now().Sub(checked) >= streamCredentialRecheck {
+		if still != nil && (rung || c.now().Sub(checked) >= streamCredentialRecheck) {
+			rung = false
 			checkCtx, cancel := context.WithTimeout(r.Context(), streamCredentialTimeout)
 			err := still(checkCtx)
 			cancel()
@@ -220,7 +223,7 @@ func (c StreamController) serve(
 			continue
 		}
 
-		if !c.wait(r.Context(), slot, woken, heartbeat, idle, events) {
+		if !c.wait(r.Context(), slot, woken, heartbeat, idle, events, &rung) {
 			return
 		}
 	}
@@ -234,7 +237,7 @@ func (c StreamController) serve(
 // connection that died without telling anybody is noticed at all.
 func (c StreamController) wait(
 	ctx context.Context, slot stream.Slot, woken <-chan struct{},
-	heartbeat *time.Ticker, idle *time.Timer, events *stream.Writer,
+	heartbeat *time.Ticker, idle *time.Timer, events *stream.Writer, rung *bool,
 ) bool {
 	if !idle.Stop() {
 		select {
@@ -255,6 +258,9 @@ func (c StreamController) wait(
 			_ = events.Comment("closing")
 			return false
 		case <-woken:
+			return true
+		case <-slot.Recheck:
+			*rung = true
 			return true
 		case <-idle.C:
 			return true

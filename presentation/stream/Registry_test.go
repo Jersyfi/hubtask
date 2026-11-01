@@ -202,3 +202,40 @@ func TestTheRegistryIsSafeUnderConcurrentUse(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func rung(ch <-chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
+}
+
+// A credential ended on any process asks the streams of its account to ask again at once, and
+// those of a workspace whose status changed; nobody else's.
+func TestARevocationAsksTheAccountsStreamsAgain(t *testing.T) {
+	r := registry(Limits{})
+	anna, _ := r.Admit("a", "workspace", "anna")
+	viewer, _ := r.Admit("v", "workspace", "bert", "admin")
+	other, _ := r.Admit("c", "another", "anna")
+	defer anna.Release()
+	defer viewer.Release()
+	defer other.Release()
+
+	r.Recheck("workspace", "anna")
+	if !rung(anna.Recheck) || rung(viewer.Recheck) || rung(other.Recheck) {
+		t.Fatal("the account's revocation rang the wrong streams")
+	}
+	r.Recheck("workspace", "admin")
+	if !rung(viewer.Recheck) {
+		t.Error("the viewer's revocation did not reach the view as somebody")
+	}
+	r.Recheck("workspace", "")
+	if !rung(anna.Recheck) || !rung(viewer.Recheck) || rung(other.Recheck) {
+		t.Error("the workspace's change did not ring exactly its streams")
+	}
+
+	anna.Release()
+	r.Recheck("workspace", "anna") // a released slot is not rung, and nothing blocks
+}

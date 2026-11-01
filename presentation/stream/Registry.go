@@ -12,6 +12,7 @@
 package stream
 
 import (
+	"slices"
 	"sync"
 )
 
@@ -68,6 +69,10 @@ func NewRegistry(limits Limits) *Registry {
 type openStream struct {
 	closing chan struct{}
 	once    sync.Once
+	// tenant and accounts are what a revocation is matched against; recheck is its doorbell.
+	tenant   string
+	accounts []string
+	recheck  chan struct{}
 }
 
 func (s *openStream) close() { s.once.Do(func() { close(s.closing) }) }
@@ -78,6 +83,10 @@ type Slot struct {
 	// the client's own context, so a shutdown ends the connection the same way a client leaving
 	// does - by returning from the handler, which is what lets the server drain (§9).
 	Closing <-chan struct{}
+	// Recheck rings when a credential of the stream's account or its workspace's status changed on
+	// any process (migration 0332): the handler asks its credential again now rather than at its
+	// next periodic recheck. Room for one; a second ring before the first is read says nothing new.
+	Recheck <-chan struct{}
 	release func()
 }
 
@@ -112,8 +121,9 @@ func (r Refusal) String() string { return string(r) }
 //
 // The keys are opaque to this type: whoever calls it decides what "one credential" means, and it
 // is a fingerprint rather than the credential itself - the same reasoning that keeps the rate
-// limiter's bucket key a hash (security.md §9, rule 10).
-func (r *Registry) Admit(credential, tenant string) (Slot, Refusal) {
+// limiter's bucket key a hash (security.md §9, rule 10). The accounts are those whose revocation
+// must reach the stream: the actor's, and a viewer's where somebody views as the actor.
+func (r *Registry) Admit(credential, tenant string, accounts ...string) (Slot, Refusal) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -131,7 +141,9 @@ func (r *Registry) Admit(credential, tenant string) (Slot, Refusal) {
 
 	r.nextID++
 	id := r.nextID
-	held := &openStream{closing: make(chan struct{})}
+	held := &openStream{
+		closing: make(chan struct{}), tenant: tenant, accounts: accounts, recheck: make(chan struct{}, 1),
+	}
 	r.open[id] = held
 	if tenant != "" {
 		r.perTenant[tenant]++
@@ -143,6 +155,7 @@ func (r *Registry) Admit(credential, tenant string) (Slot, Refusal) {
 	var once sync.Once
 	return Slot{
 		Closing: held.closing,
+		Recheck: held.recheck,
 		release: func() {
 			once.Do(func() {
 				r.mu.Lock()
@@ -186,6 +199,22 @@ func (r *Registry) CloseAll() {
 	// has actually returned and released its slot. A gauge that dropped to zero the moment the
 	// signal arrived would say the drain was over while the connections were still finishing,
 	// which is precisely the number an operator watches during a rollout.
+}
+
+// Recheck rings the streams of the workspace's account, or every stream of the workspace when the
+// account is empty. It never blocks: a ring already unread is enough.
+func (r *Registry) Recheck(tenant, account string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, held := range r.open {
+		if held.tenant != tenant || (account != "" && !slices.Contains(held.accounts, account)) {
+			continue
+		}
+		select {
+		case held.recheck <- struct{}{}:
+		default:
+		}
+	}
 }
 
 // Draining reports whether the process has begun shutting down.

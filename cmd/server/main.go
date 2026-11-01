@@ -346,6 +346,11 @@ func run() error {
 		PerTenant:     64,
 		PerProcess:    256,
 	})
+	// A credential ended on any process asks this process's streams of that account again at once
+	// (migration 0332); without the listener they still ask every 30 seconds.
+	changeListener.OnCredential(func(tenantID, accountID shared.ID) {
+		streams.Recheck(tenantID.String(), accountID.String())
+	})
 
 	// The mail channel, and the renderer that decides its language. Both are built whatever the
 	// roles are, because the pieces are the same; what the
