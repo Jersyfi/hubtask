@@ -2162,7 +2162,7 @@ func run() error {
 		Store: postgres.NewCodeForgeRepository(), Containers: containers, Keys: mailIntake, Entries: entryLinks,
 		Secrets: security.NewCodeHookSecrets(cfg.SecretKey), Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
-		Changes: changes, HLC: hybrid,
+		Changes: changes, HLC: hybrid, SwitchedOff: connectionNotices,
 	}
 	// An entry's files in a store (UC-INT-14): kept by address, never fetched.
 	entryFiles := filelinkservice.Files{

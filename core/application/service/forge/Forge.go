@@ -114,6 +114,14 @@ type Forge struct {
 	// nothing, a test's convenience.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
+	// SwitchedOff tells the hub's and the workspace's administrators once a hook switched itself
+	// off because the person it acts as may no longer write in the hub. Nil tells nobody.
+	SwitchedOff SwitchedOffNotice
+}
+
+// SwitchedOffNotice is the message a hook that switched itself off leaves.
+type SwitchedOffNotice interface {
+	HookSwitchedOff(ctx context.Context, tenantID, hubID, hookID shared.ID) error
 }
 
 func invalid(path, code string) error {
@@ -585,6 +593,12 @@ func (f Forge) Deliver(ctx context.Context, d Delivery, parse Parser) (Receipt, 
 		Permission: service.PermissionWriteItems, Path: hubPath(hook.HubID), Action: DeliveryTakenAction,
 		TokenScope: linksWrite, TargetType: hookTarget, TargetID: hook.ID,
 	}); err != nil {
+		if !refused(err) {
+			return Receipt{}, err
+		}
+		if err := f.switchOff(ctx, actor, hook); err != nil {
+			return Receipt{}, err
+		}
 		return Receipt{}, hookNotFound()
 	}
 	signals, err := parse(hook.Kind, d.Event, d.Body)
@@ -624,6 +638,38 @@ func (f Forge) Deliver(ctx context.Context, d Delivery, parse Parser) (Receipt, 
 			audit.Change{Field: "unknown", Classification: audit.Open, To: receipt.Unknown})
 	})
 	return receipt, err
+}
+
+// refused answers whether the authorisation said no, rather than failed to answer: only a no
+// switches a hook off.
+func refused(err error) bool {
+	return errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound) ||
+		errors.Is(err, shared.ErrUnauthenticated)
+}
+
+// switchOff stops a hook whose writer may no longer write in its hub: every delivery would be
+// refused until somebody who may defines it again, so it says so once instead of refusing in
+// silence. The delivery was trusted by the secret, so the forge alone could have caused it.
+func (f Forge) switchOff(ctx context.Context, actor appshared.ActorContext, hook domain.Hook) error {
+	return f.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		current, err := f.Store.FindHook(ctx, hook.ID)
+		if err != nil || !current.Enabled {
+			return err
+		}
+		current.Enabled, current.UpdatedAt = false, f.Clock.Now()
+		if err := f.Store.PutHook(ctx, current); err != nil {
+			return err
+		}
+		if err := f.record(ctx, actor, HookChangedAction, hookTarget, current.ID,
+			audit.Change{Field: "enabled", Classification: audit.Open, From: true, To: false},
+			audit.Change{Field: "reason", Classification: audit.Open, To: "forge.hook_run_as_refused"}); err != nil {
+			return err
+		}
+		if f.SwitchedOff == nil {
+			return nil
+		}
+		return f.SwitchedOff.HookSwitchedOff(ctx, actor.TenantID, current.HubID, current.ID)
+	})
 }
 
 // apply keeps one signal on every entry of the hook's hub its keys name.

@@ -301,3 +301,62 @@ func TestAGitLabTokenIsTheSecretAndAHookSwitchedOffTakesNothing(t *testing.T) {
 		t.Fatalf("a hook switched off took a delivery: %v", err)
 	}
 }
+
+type told struct{ hooks []shared.ID }
+
+func (t *told) HookSwitchedOff(_ context.Context, tenantID, hubID, hookID shared.ID) error {
+	if tenantID != tenant || hubID != hub {
+		return fmt.Errorf("told about %s in %s", hubID, tenantID)
+	}
+	t.hooks = append(t.hooks, hookID)
+	return nil
+}
+
+// A delivery that proves the secret while the person the hook acts as may no longer write in the hub
+// switches the hook off and tells the administrators once; the forge still reads one answer (T-21).
+func TestAHookWhoseWriterLostTheHubSwitchesItselfOffAndTellsOnce(t *testing.T) {
+	f, m, _ := newForge()
+	notices := &told{}
+	f.SwitchedOff = notices
+	id, secret := create(t, f, domain.GitLab)
+	hook := m.hooks[id]
+	hook.RunAs = bert
+	m.hooks[id] = hook
+	parse := parseAll(domain.Signal{Kind: domain.Branch, Repository: "team/web", Ref: "WEB-42-x", Texts: []string{"WEB-42-x"}})
+	for _, delivery := range []string{"1", "2"} {
+		_, err := f.Deliver(context.Background(), Delivery{TenantID: tenant, HookID: id, Token: secret, DeliveryID: delivery, Body: []byte("{}")}, parse)
+		if !errors.Is(err, shared.ErrNotFound) {
+			t.Fatalf("delivery %s answered %v", delivery, err)
+		}
+	}
+	if m.hooks[id].Enabled {
+		t.Fatal("the hook stayed on")
+	}
+	if len(notices.hooks) != 1 || notices.hooks[0] != id {
+		t.Fatalf("told %v", notices.hooks)
+	}
+	if len(m.links) != 0 {
+		t.Fatalf("links written: %v", m.links)
+	}
+}
+
+type broken struct{}
+
+func (broken) Authorize(context.Context, appshared.ActorContext, access.Request) error {
+	return errors.New("connection reset")
+}
+
+// A question the authorisation could not answer is no refusal: the hook stays on and the forge is
+// answered with the failure, so it delivers again.
+func TestAnUnansweredAuthorisationLeavesTheHookOn(t *testing.T) {
+	f, m, _ := newForge()
+	id, secret := create(t, f, domain.GitLab)
+	f.Authorizer = broken{}
+	_, err := f.Deliver(context.Background(), Delivery{TenantID: tenant, HookID: id, Token: secret, DeliveryID: "1", Body: []byte("{}")}, parseAll())
+	if err == nil || errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("answered %v", err)
+	}
+	if !m.hooks[id].Enabled {
+		t.Fatal("the hook was switched off")
+	}
+}

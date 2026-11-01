@@ -590,7 +590,13 @@ names a wire protocol (engineering-guidelines.md §2, item 17); nothing calls th
   Every refusal is one `404`, `forge.hook_not_found`.
 * **Who writes**: a delivery writes as the person who last defined the hook, only while they hold
   WRITE_ITEMS on the hub, and only on the hub's own live entries; a key is read as the mail intake
-  reads one (`HANDLE-42`, standing alone before its number ends, at most ten a signal).
+  reads one (`HANDLE-42`, standing alone before its number ends, at most ten a signal). A delivery
+  that proves the secret while that person may no longer write there switches the hook off - it is
+  still answered `404` - and the workspace's and the hub's administrators are told once by e-mail
+  (`INTEGRATION`, subject `notification.code_hook_id`, migration 0346), linking the hub's
+  *Settings → Code*; switching it on again makes it act as whoever does. An authorisation that
+  could not be answered is no refusal: the hook stays on and the forge is answered `5xx`, so it
+  delivers again.
 * **Order**: a link follows the forge's own moment; an older signal is ignored and a merged pull
   request stays merged. A push names its branch (closed when deleted) and its commits; a pull
   request (GitLab's merge request) its title, branch and description.
