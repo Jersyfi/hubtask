@@ -145,13 +145,14 @@ func (m ExportMedia) Open(ctx context.Context, digest string) (io.ReadCloser, er
 // Keyed by table name, the repository's vocabulary. The list is pinned by the format document and
 // by a test that greps a written archive for the fields.
 var redactedFields = map[string][]string{
-	"account":              {"password_hash", "redemption_token_hash"},
-	"automation_rule":      {"inbound_token_hash"},
-	"webhook_subscription": {"secret_enc", "secret_key_id", "previous_secret_enc", "previous_secret_key_id", "previous_secret_until"},
-	"calendar_feed":        {"token_hash"},
-	"page_public_link":     {"token_hash"},
-	"public_form":          {"token_hash"},
-	"cmdb_connector":       {"credential_enc", "credential_key_id"},
+	"account":               {"password_hash", "redemption_token_hash"},
+	"automation_rule":       {"inbound_token_hash"},
+	"webhook_subscription":  {"secret_enc", "secret_key_id", "previous_secret_enc", "previous_secret_key_id", "previous_secret_until"},
+	"calendar_feed":         {"token_hash"},
+	"page_public_link":      {"token_hash"},
+	"portfolio_public_link": {"token_hash"},
+	"public_form":           {"token_hash"},
+	"cmdb_connector":        {"credential_enc", "credential_key_id"},
 	// A passkey leaves as what the person sees of it - its name and dates - and never as a
 	// credential: without its identifier, key and handle it opens nothing, and an import skips it.
 	"webauthn_credential": {"credential_id", "public_key", "user_handle"},

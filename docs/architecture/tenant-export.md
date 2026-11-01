@@ -259,6 +259,7 @@ re-mints identities must rewrite exactly these).
 | 136 | `sample_entries` | `sample_entry` | `item_id` | `item_id`→work_items, `hub_id`→containers (the mark of a template's sample entry, migration 0307, configuration.md §6) |
 | 137 | `config_drafts` | `config_draft` | `section`, `key` | `saved_by`→accounts (a draft of a type, an SLA policy or a role saved beside the block in force, migration 0308, ui.md A4) |
 | 138 | `template_pages` | `template_page` | `page_id` | `page_id`→pages, `hub_id`→containers (the mark of a page a template brought to a hub's space, migration 0309, configuration.md §6) |
+| 139 | `portfolio_public_links` | `portfolio_public_link` | `portfolio_id` | `portfolio_id`→portfolios, `created_by`→accounts (a portfolio's roadmap opened read-only by a link, UC-GOL-03 check 15, migration 0322; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
 | 126 | `file_links` | `file_link` | `id` | `item_id`→work_items, `added_by`→accounts (an entry's file or folder in a file store by its address, migration 0276; the file itself stays in its store) |
 | 127 | `requester_organisations` | `requester_organisation` | `id` | none (a portal's organisation: its key, name, mail domains and whether its members see each other's requests, migration 0287) |
 | 133 | `public_forms` | `public_form` | `collection_id` | `collection_id`→containers, `created_by`→accounts (a collection's public form, UC-SVC-13; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
@@ -370,6 +371,7 @@ is absent from the record, not null. The redacted fields, exhaustively:
 | `calendar_feeds` | `token_hash` |
 | `page_public_links` | `token_hash` |
 | `public_forms` | `token_hash` |
+| `portfolio_public_links` | `token_hash` |
 | `cmdb_connectors` | `credential_enc`, `credential_key_id` |
 | `webauthn_credentials` | `credential_id`, `public_key`, `user_handle` — the passkey leaves by name and dates, and an import skips it ([identity.md](./identity.md) §23.5) |
 

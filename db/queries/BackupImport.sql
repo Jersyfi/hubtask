@@ -2248,6 +2248,28 @@ SELECT EXISTS (
 -- name: ClearPersonalSpace :execrows
 DELETE FROM personal_space;
 
+-- name: ImportPortfolioPublicLink :execrows
+-- An export carries no token hash (tenant-export.md §9): such a link is skipped, and its
+-- portfolio is made a new link after the import.
+INSERT INTO portfolio_public_link (tenant_id, portfolio_id, token_hash, created_by, created_at)
+SELECT r.tenant_id, r.portfolio_id, r.token_hash, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::portfolio_public_link,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE r.token_hash IS NOT NULL
+ON CONFLICT (tenant_id, portfolio_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPortfolioPublicLink :one
+SELECT EXISTS (
+  SELECT 1 FROM portfolio_public_link WHERE portfolio_id = (sqlc.arg('payload')::jsonb->>'portfolio_id')::uuid
+) AS held;
+
+-- name: ClearPortfolioPublicLink :execrows
+DELETE FROM portfolio_public_link;
+
 -- name: ImportPagePublicLink :execrows
 -- An export carries no token hash (tenant-export.md §9): such a link is skipped, and its page
 -- is made a new link after the import.

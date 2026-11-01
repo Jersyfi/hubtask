@@ -1146,6 +1146,15 @@ var entities = []Entity{
 			{Field: "author_id", Table: "account", Clearable: true},
 		},
 	},
+	// A portfolio roadmap's public link (migration 0322): its token's hash leaves in a backup only
+	// (§9).
+	{
+		Name: "portfolio_public_links", Table: "portfolio_public_link", Whole: true, Later: true, Keys: []string{"portfolio_id"},
+		References: []Reference{
+			{Field: "portfolio_id", Table: "portfolio"},
+			{Field: "created_by", Table: "account"},
+		},
+	},
 	{
 		Name: "dashboards", Table: "dashboard", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,

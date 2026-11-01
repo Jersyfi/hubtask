@@ -1143,6 +1143,18 @@ func (q *Queries) ClearPortfolioItem(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPortfolioPublicLink = `-- name: ClearPortfolioPublicLink :execrows
+DELETE FROM portfolio_public_link
+`
+
+func (q *Queries) ClearPortfolioPublicLink(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPortfolioPublicLink)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPortfolioUpdate = `-- name: ClearPortfolioUpdate :execrows
 DELETE FROM portfolio_update
 `
@@ -2750,6 +2762,19 @@ SELECT EXISTS (
 
 func (q *Queries) HoldsPortfolioItem(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPortfolioItem, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPortfolioPublicLink = `-- name: HoldsPortfolioPublicLink :one
+SELECT EXISTS (
+  SELECT 1 FROM portfolio_public_link WHERE portfolio_id = ($1::jsonb->>'portfolio_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPortfolioPublicLink(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPortfolioPublicLink, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6533,6 +6558,34 @@ type ImportPortfolioItemParams struct {
 
 func (q *Queries) ImportPortfolioItem(ctx context.Context, arg ImportPortfolioItemParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPortfolioItem, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPortfolioPublicLink = `-- name: ImportPortfolioPublicLink :execrows
+INSERT INTO portfolio_public_link (tenant_id, portfolio_id, token_hash, created_by, created_at)
+SELECT r.tenant_id, r.portfolio_id, r.token_hash, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::portfolio_public_link,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE r.token_hash IS NOT NULL
+ON CONFLICT (tenant_id, portfolio_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportPortfolioPublicLinkParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// An export carries no token hash (tenant-export.md §9): such a link is skipped, and its
+// portfolio is made a new link after the import.
+func (q *Queries) ImportPortfolioPublicLink(ctx context.Context, arg ImportPortfolioPublicLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPortfolioPublicLink, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
