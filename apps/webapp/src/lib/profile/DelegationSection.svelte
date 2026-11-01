@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Who decides the reader's approvals while they are away (UC-SVC-10 checks 1 and 3): a person
+  // Who decides the reader's approvals while they are away (UC-SVC-10 check 1): a person
   // and a span of at most a year, set, replaced or ended. The person's own, so on the profile; drawn
   // only where the service desk is on, since nothing else asks anybody's yes.
 
