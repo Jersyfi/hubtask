@@ -121,7 +121,9 @@ func (s *roleStore) Grants(_ context.Context, filter repository.GrantFilter, aft
 		}
 		out = append(out, row)
 	}
-	slices.SortFunc(out, func(a, b repository.CustomGrantRow) int { return strings.Compare(string(a.Grant.ID), string(b.Grant.ID)) })
+	slices.SortFunc(out, func(a, b repository.CustomGrantRow) int {
+		return strings.Compare(string(a.Grant.ID), string(b.Grant.ID))
+	})
 	return out[:min(limit, len(out))], nil
 }
 
