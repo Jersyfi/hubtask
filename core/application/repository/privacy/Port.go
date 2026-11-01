@@ -391,6 +391,40 @@ type IntakeLines interface {
 	ExpiredAddresses(ctx context.Context, cutoff time.Time, skip, batch int) ([]string, error)
 }
 
+// MailReceipt is one line of the mail intake's log of an address: when a mail from it arrived,
+// its subject, and what the intake made of it.
+type MailReceipt struct {
+	ID         shared.ID
+	MessageID  string
+	ReceivedAt time.Time
+	Sender     string
+	Subject    string
+	Outcome    string
+	Reason     string
+	// ItemID and EntryID are the entry or jumble entry the mail became, zero when none.
+	ItemID  shared.ID
+	EntryID shared.ID
+	Door    string
+}
+
+// RatingLink is a resolution mail's rating link sent to an address, without its token.
+type RatingLink struct {
+	ItemID    shared.ID
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	// UsedAt is when it was answered, nil while it was not.
+	UsedAt *time.Time
+}
+
+// AddressMail is what a person's own copy reads of the mail an address sent and was sent, which no
+// workspace archive carries: the intake's log and the rating links (data-protection.md §4.1).
+type AddressMail interface {
+	// MailReceiptsFrom answers the intake's log of mails whose sender is the address.
+	MailReceiptsFrom(ctx context.Context, address string) ([]MailReceipt, error)
+	// RatingLinksTo answers the rating links mailed to the requester of the address.
+	RatingLinksTo(ctx context.Context, address string) ([]RatingLink, error)
+}
+
 // IntegrationsAs is how many of each integration act as one account: the inventory connectors and
 // forge hooks switched on with it as run_as, and the approved or active agents it owns.
 type IntegrationsAs struct {

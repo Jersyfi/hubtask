@@ -128,7 +128,10 @@ practice. Rules:
   narrower hold reaches what an address sent. The same person's Art. 15 copy carries, beside
   the record and their jumble entries, the entries and comments whose `From:` line names the
   address exactly: their own mail, though an account filed it. Their mail receipts and
-  satisfaction links are in no archive, so not in the copy either.
+  satisfaction links are in no workspace archive (a 30-day log, a live credential), so the copy of
+  an address carries them as sections of its own, as it does kudos: `mail_receipts` (the intake's
+  log of mails from the address) and `rating_links` (each link's entry, life and answer - never its
+  token). No restore reads either.
   The record's one other use is answering the person: a public reply on an entry filed for them is
   mailed to the address, one mail per address (UC-SVC-12); the queued job names the comment only,
   so an address erased while it waits is mailed nothing.

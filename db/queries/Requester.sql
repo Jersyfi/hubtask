@@ -66,6 +66,22 @@ WHERE tenant_id = current_tenant_id() AND lower(sender) = lower(sqlc.arg('addres
 DELETE FROM mail_receipt
 WHERE tenant_id = current_tenant_id() AND lower(sender) = lower(sqlc.arg('address')::text);
 
+-- name: ListMailReceiptsFrom :many
+-- The mail intake's log of the address, for the person's own copy (data-protection.md §4.1). The
+-- log lasts 30 days (ADR-0094), so it is read whole.
+SELECT id, message_id, received_at, sender, subject, outcome, reason, item_id, entry_id, door
+FROM mail_receipt
+WHERE tenant_id = current_tenant_id() AND lower(sender) = lower(sqlc.arg('address')::text)
+ORDER BY received_at, id;
+
+-- name: ListRatingLinksTo :many
+-- The rating links mailed to the address's requester, for the person's own copy - never the token.
+SELECT l.item_id, l.created_at, l.expires_at, l.used_at
+FROM satisfaction_link l
+JOIN requester r ON r.tenant_id = l.tenant_id AND r.id = l.requester_id
+WHERE l.tenant_id = current_tenant_id() AND r.address = lower(sqlc.arg('address')::text)
+ORDER BY l.created_at, l.item_id;
+
 -- name: ListRequesterAddressesOn :many
 -- Who an entry was filed for by mail: the addresses a public reply on it is mailed to (UC-SVC-12).
 SELECT r.id, r.address, r.display_name

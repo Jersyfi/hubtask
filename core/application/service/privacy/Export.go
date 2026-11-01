@@ -74,7 +74,10 @@ type Exporter struct {
 	// IntakeLines finds what a requester's mail became on entries an account filed: in the copy
 	// of an address (data-protection.md §4.1). Nil leaves them out.
 	IntakeLines repository.IntakeLines
-	Targets     TargetStore
+	// Mail reads the sections of an address's copy: the intake's log of it and the rating links
+	// mailed to it, which no workspace archive holds.
+	Mail    repository.AddressMail
+	Targets TargetStore
 	// Rows is the tenant's rows as the archive writer needs them - the same reader a backup uses,
 	// because this is the same archive.
 	Rows       backuprepo.Export
@@ -270,13 +273,11 @@ func (e Exporter) writeOne(
 			email:   in.email,
 			counted: &written.Records,
 			kudos:   e.Kudos,
+			mail:    e.Mail,
 		}
 		media := backupservice.ExportMedia{Export: e.Rows, Objects: e.Objects}
 		// A person known here only by an address gave and received no kudos: kudos name accounts.
-		var sections []archive.Entity
-		if !in.subjectID.IsZero() {
-			sections = []archive.Entity{kudosSection}
-		}
+		sections := copySections(in.subjectID, strings.ToLower(strings.TrimSpace(in.email)))
 
 		begun, err := archive.NewWriter(store, e.Cipher, media).Begin(snapshotCtx, archive.Request{
 			ArchiveID: e.IDs.NewID(), Prefix: prefix,

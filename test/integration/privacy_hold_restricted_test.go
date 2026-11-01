@@ -340,7 +340,8 @@ func ownCopyOf(ctx context.Context, t *testing.T, tenant, account shared.ID) str
 	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
 	return writtenBy(t, func(store backupstorage.LocalStore) {
 		exporter := privacyservice.Exporter{
-			Requests: privacyRepo(), Subjects: privacyRepo(), Kudos: privacyRepo(), Targets: exportTargetStore{store: store},
+			Requests: privacyRepo(), Subjects: privacyRepo(), Kudos: privacyRepo(), Mail: postgres.RequesterRepository{},
+			Targets: exportTargetStore{store: store},
 			Rows: postgres.NewBackupExportRepository(postgres.DefaultExportBatch), Objects: exportObjects{key: "none"},
 			Cipher: cryptoadapter.NewStream(clockadapter.CryptoRandom{}), Audit: postgres.NewAuditSink(generator{t}),
 			Snapshot: unitOfWork, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: generator{t},

@@ -404,7 +404,7 @@ func newExporter(target *memoryTarget, subjects *tenantsOf, sink *auditSink, sna
 			"comment": {{ID: "c1", Data: map[string]any{"author_id": subjectID.String()}}},
 			"bucket":  {{ID: "b1", Data: map[string]any{"name": "Doing"}}},
 		}},
-		Kudos: ownKudos{}, Audit: sink, Snapshot: snapshot, UnitOfWork: &unitOfWork{},
+		Kudos: ownKudos{}, Mail: addressMail{}, Audit: sink, Snapshot: snapshot, UnitOfWork: &unitOfWork{},
 		Clock: clock.Fixed(now), IDs: &idSource{},
 		SchemaVersion: "44", ProductVersion: "0.4.5",
 	}
@@ -621,4 +621,85 @@ func TestAnAddressCopyCarriesTheEntriesAndCommentsTheirMailBecame(t *testing.T) 
 	if kept := collect(t, source, "comment"); len(kept) != 1 || kept[0].ID != reply.String() {
 		t.Errorf("the comments came out as %v", kept)
 	}
+}
+
+// The intake's log of an address and the rating links mailed to it are in no workspace archive, so
+// a copy of the address carries them as sections of its own (data-protection.md §4.1) - the link
+// without its token, which is a credential and nothing about the person.
+func TestAnAddressCopyCarriesItsMailReceiptsAndRatingLinks(t *testing.T) {
+	item := shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+	used := now.Add(time.Hour)
+	mail := addressMail{
+		receipts: []repository.MailReceipt{{
+			ID: item, MessageID: "<m1@example.org>", ReceivedAt: now, Sender: "anna@example.org",
+			Subject: "Printer", Outcome: "ENTRY", ItemID: item, Door: "support@example.com",
+		}},
+		links: []repository.RatingLink{{ItemID: item, CreatedAt: now, ExpiresAt: now.Add(720 * time.Hour), UsedAt: &used}},
+	}
+	counted := 0
+	source := subjectSource{inner: &rowsOfEntity{}, email: "anna@example.org", mail: mail, counted: &counted}
+
+	var noAccount shared.ID
+	sections := copySections(noAccount, "anna@example.org")
+	if len(sections) != 2 || sections[0].Name != mailReceiptSection.Name || sections[1].Name != ratingLinkSection.Name {
+		t.Fatalf("an address's copy has the sections %v", sections)
+	}
+	if withAccount := copySections(subjectID, "anna@example.org"); len(withAccount) != 3 {
+		t.Errorf("an account's copy with an address has the sections %v", withAccount)
+	}
+	if none := copySections(subjectID, ""); len(none) != 1 || none[0].Name != kudosSection.Name {
+		t.Errorf("an account's copy without an address has the sections %v", none)
+	}
+
+	receipts := collectSection(t, source, mailReceiptSection)
+	if len(receipts) != 1 || receipts[0].Data["subject"] != "Printer" || receipts[0].Data["item_id"] != item.String() ||
+		receipts[0].Data["entry_id"] != nil || receipts[0].Data["received_at"] == nil {
+		t.Errorf("the receipts came out as %v", receipts)
+	}
+	links := collectSection(t, source, ratingLinkSection)
+	if len(links) != 1 || links[0].Data["item_id"] != item.String() || links[0].Data["used_at"] == nil {
+		t.Errorf("the rating links came out as %v", links)
+	}
+	if _, token := links[0].Data["token_hash"]; token {
+		t.Error("a rating link went into the copy with its token")
+	}
+	if counted != 2 {
+		t.Errorf("%d records were counted", counted)
+	}
+	for _, section := range []archive.Entity{mailReceiptSection, ratingLinkSection} {
+		if _, archived := archive.FindEntity(section.Name); archived {
+			t.Errorf("%s is an entity of every archive", section.Name)
+		}
+		// A copy that cannot read them is not written short.
+		if err := (subjectSource{inner: &rowsOfEntity{}, email: "anna@example.org"}).Records(t.Context(), section,
+			time.Time{}, func(archive.Record) error { return nil }); err == nil {
+			t.Errorf("a copy without a reader for %s was written without them", section.Name)
+		}
+	}
+}
+
+func collectSection(t *testing.T, source subjectSource, section archive.Entity) []archive.Record {
+	t.Helper()
+	var kept []archive.Record
+	if err := source.Records(t.Context(), section, time.Time{}, func(record archive.Record) error {
+		kept = append(kept, record)
+		return nil
+	}); err != nil {
+		t.Fatalf("reading %s: %v", section.Name, err)
+	}
+	return kept
+}
+
+// addressMail answers an address's receipts and links as the repository would.
+type addressMail struct {
+	receipts []repository.MailReceipt
+	links    []repository.RatingLink
+}
+
+func (a addressMail) MailReceiptsFrom(context.Context, string) ([]repository.MailReceipt, error) {
+	return a.receipts, nil
+}
+
+func (a addressMail) RatingLinksTo(context.Context, string) ([]repository.RatingLink, error) {
+	return a.links, nil
 }

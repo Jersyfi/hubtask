@@ -246,6 +246,33 @@ var kudosSection = archive.Entity{
 	Name: "kudos", Table: "kudos", Whole: true, Keys: []string{"item_id", "given_by", "given_to"},
 }
 
+// mailReceiptSection and ratingLinkSection are the files of an address's copy that hold the mail
+// intake's log of it and the rating links mailed to it.
+//
+// Sections for kudosSection's reason turned around: neither is in a workspace archive - the log
+// lasts 30 days, a link is a credential a restore must not bring back - yet both are about the
+// person, and an access request answered without them would be short (data-protection.md §4.1).
+// A link goes without its token. No restore reads either.
+var (
+	mailReceiptSection = archive.Entity{Name: "mail_receipts", Table: "mail_receipt", Whole: true, Keys: []string{"id"}}
+	ratingLinkSection  = archive.Entity{
+		Name: "rating_links", Table: "satisfaction_link", Whole: true, Keys: []string{"item_id"},
+	}
+)
+
+// copySections answers the sections a person's copy carries: kudos name accounts, receipts and
+// links an address.
+func copySections(subject shared.ID, email string) []archive.Entity {
+	var sections []archive.Entity
+	if !subject.IsZero() {
+		sections = append(sections, kudosSection)
+	}
+	if email != "" {
+		sections = append(sections, mailReceiptSection, ratingLinkSection)
+	}
+	return sections
+}
+
 // subjectSource hands the writer only what belongs to the person.
 type subjectSource struct {
 	inner   archive.Source
@@ -255,6 +282,8 @@ type subjectSource struct {
 	counted *int
 	// kudos reads the person's kudos section; the archive's own source never carries any.
 	kudos repository.OwnKudos
+	// mail reads the address's receipts and rating links, which no archive carries either.
+	mail repository.AddressMail
 	// lines is, per table, the rows whose intake line names the address: the entries a requester's
 	// mail created and the comments their replies became, which an account filed and which name
 	// them by nothing else (data-protection.md §4.1).
@@ -291,8 +320,13 @@ var _ archive.Source = subjectSource{}
 func (s subjectSource) Records(
 	ctx context.Context, entity archive.Entity, since time.Time, yield func(archive.Record) error,
 ) error {
-	if entity.Name == kudosSection.Name {
+	switch entity.Name {
+	case kudosSection.Name:
 		return s.ownKudos(ctx, yield)
+	case mailReceiptSection.Name:
+		return s.ownReceipts(ctx, yield)
+	case ratingLinkSection.Name:
+		return s.ownRatingLinks(ctx, yield)
 	}
 	byID, hasID := subjectColumns[entity.Table]
 	byEmail, hasEmail := subjectEmailColumns[entity.Table]
@@ -331,6 +365,75 @@ func (s subjectSource) ownKudos(ctx context.Context, yield func(archive.Record) 
 			},
 		})
 	})
+}
+
+// ownReceipts writes the intake's log of the address.
+func (s subjectSource) ownReceipts(ctx context.Context, yield func(archive.Record) error) error {
+	if s.mail == nil {
+		return shared.ErrInternal.WithDetail("privacy.export_mail_unwired").
+			WithCause(errors.New("the person's copy has no reader for their mail receipts"))
+	}
+	receipts, err := s.mail.MailReceiptsFrom(ctx, s.email)
+	if err != nil {
+		return err
+	}
+	for _, receipt := range receipts {
+		if err := s.yieldCounted(yield, archive.Record{
+			ID: receipt.ID.String(), Op: archive.OpUpsert, UpdatedAt: receipt.ReceivedAt,
+			Data: map[string]any{
+				"id": receipt.ID.String(), "message_id": receipt.MessageID,
+				"received_at": receipt.ReceivedAt.UTC().Format(time.RFC3339Nano), "sender": receipt.Sender,
+				"subject": receipt.Subject, "outcome": receipt.Outcome, "reason": receipt.Reason,
+				"item_id": idOrNil(receipt.ItemID), "entry_id": idOrNil(receipt.EntryID), "door": receipt.Door,
+			},
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ownRatingLinks writes the rating links mailed to the address, each without its token.
+func (s subjectSource) ownRatingLinks(ctx context.Context, yield func(archive.Record) error) error {
+	if s.mail == nil {
+		return shared.ErrInternal.WithDetail("privacy.export_mail_unwired").
+			WithCause(errors.New("the person's copy has no reader for their rating links"))
+	}
+	links, err := s.mail.RatingLinksTo(ctx, s.email)
+	if err != nil {
+		return err
+	}
+	for _, link := range links {
+		data := map[string]any{
+			"item_id":    link.ItemID.String(),
+			"created_at": link.CreatedAt.UTC().Format(time.RFC3339Nano),
+			"expires_at": link.ExpiresAt.UTC().Format(time.RFC3339Nano),
+			"used_at":    nil,
+		}
+		if link.UsedAt != nil {
+			data["used_at"] = link.UsedAt.UTC().Format(time.RFC3339Nano)
+		}
+		if err := s.yieldCounted(yield, archive.Record{
+			ID: link.ItemID.String(), Op: archive.OpUpsert, UpdatedAt: link.CreatedAt, Data: data,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s subjectSource) yieldCounted(yield func(archive.Record) error, record archive.Record) error {
+	if s.counted != nil {
+		*s.counted++
+	}
+	return yield(record)
+}
+
+func idOrNil(id shared.ID) any {
+	if id.IsZero() {
+		return nil
+	}
+	return id.String()
 }
 
 // owns decides whether one record is about the person.

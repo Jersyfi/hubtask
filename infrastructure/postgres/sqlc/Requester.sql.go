@@ -270,6 +270,100 @@ func (q *Queries) ListIntakeLinesFrom(ctx context.Context, addresses []string) (
 	return items, nil
 }
 
+const listMailReceiptsFrom = `-- name: ListMailReceiptsFrom :many
+SELECT id, message_id, received_at, sender, subject, outcome, reason, item_id, entry_id, door
+FROM mail_receipt
+WHERE tenant_id = current_tenant_id() AND lower(sender) = lower($1::text)
+ORDER BY received_at, id
+`
+
+type ListMailReceiptsFromRow struct {
+	ID         pgtype.UUID
+	MessageID  string
+	ReceivedAt pgtype.Timestamptz
+	Sender     string
+	Subject    string
+	Outcome    string
+	Reason     string
+	ItemID     pgtype.UUID
+	EntryID    pgtype.UUID
+	Door       string
+}
+
+// The mail intake's log of the address, for the person's own copy (data-protection.md §4.1). The
+// log lasts 30 days (ADR-0094), so it is read whole.
+func (q *Queries) ListMailReceiptsFrom(ctx context.Context, address string) ([]ListMailReceiptsFromRow, error) {
+	rows, err := q.db.Query(ctx, listMailReceiptsFrom, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMailReceiptsFromRow{}
+	for rows.Next() {
+		var i ListMailReceiptsFromRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.ReceivedAt,
+			&i.Sender,
+			&i.Subject,
+			&i.Outcome,
+			&i.Reason,
+			&i.ItemID,
+			&i.EntryID,
+			&i.Door,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRatingLinksTo = `-- name: ListRatingLinksTo :many
+SELECT l.item_id, l.created_at, l.expires_at, l.used_at
+FROM satisfaction_link l
+JOIN requester r ON r.tenant_id = l.tenant_id AND r.id = l.requester_id
+WHERE l.tenant_id = current_tenant_id() AND r.address = lower($1::text)
+ORDER BY l.created_at, l.item_id
+`
+
+type ListRatingLinksToRow struct {
+	ItemID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+	UsedAt    pgtype.Timestamptz
+}
+
+// The rating links mailed to the address's requester, for the person's own copy - never the token.
+func (q *Queries) ListRatingLinksTo(ctx context.Context, address string) ([]ListRatingLinksToRow, error) {
+	rows, err := q.db.Query(ctx, listRatingLinksTo, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRatingLinksToRow{}
+	for rows.Next() {
+		var i ListRatingLinksToRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.UsedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRequesterAddressesOn = `-- name: ListRequesterAddressesOn :many
 SELECT r.id, r.address, r.display_name
 FROM requester_contact c

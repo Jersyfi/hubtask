@@ -21,6 +21,8 @@ type RequesterRepository struct {
 	IDs interface{ NewID() shared.ID }
 }
 
+var _ privacyrepo.AddressMail = RequesterRepository{}
+
 func requesterFailed(what string, err error) error {
 	return shared.ErrUnavailable.WithDetail("postgres.query_failed").WithCause(fmt.Errorf("%s: %w", what, err))
 }
@@ -204,6 +206,63 @@ func (RequesterRepository) IntakeLinesFrom(ctx context.Context, addresses []stri
 		})
 	}
 	return lines, nil
+}
+
+// MailReceiptsFrom answers the mail intake's log of the address, oldest first.
+func (RequesterRepository) MailReceiptsFrom(ctx context.Context, address string) ([]privacyrepo.MailReceipt, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListMailReceiptsFrom(ctx, address)
+	if err != nil {
+		return nil, requesterFailed("reading the mail receipts of an address", err)
+	}
+	receipts := make([]privacyrepo.MailReceipt, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		itemID, err := optionalID(row.ItemID)
+		if err != nil {
+			return nil, err
+		}
+		entryID, err := optionalID(row.EntryID)
+		if err != nil {
+			return nil, err
+		}
+		receipts = append(receipts, privacyrepo.MailReceipt{
+			ID: id, MessageID: row.MessageID, ReceivedAt: timeFrom(row.ReceivedAt), Sender: row.Sender,
+			Subject: row.Subject, Outcome: row.Outcome, Reason: row.Reason, ItemID: itemID, EntryID: entryID,
+			Door: row.Door,
+		})
+	}
+	return receipts, nil
+}
+
+// RatingLinksTo answers the rating links mailed to the address's requester, without their tokens.
+func (RequesterRepository) RatingLinksTo(ctx context.Context, address string) ([]privacyrepo.RatingLink, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListRatingLinksTo(ctx, address)
+	if err != nil {
+		return nil, requesterFailed("reading the rating links of an address", err)
+	}
+	links := make([]privacyrepo.RatingLink, 0, len(rows))
+	for _, row := range rows {
+		itemID, err := idFrom(row.ItemID)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, privacyrepo.RatingLink{
+			ItemID: itemID, CreatedAt: timeFrom(row.CreatedAt), ExpiresAt: timeFrom(row.ExpiresAt),
+			UsedAt: optionalTime(row.UsedAt),
+		})
+	}
+	return links, nil
 }
 
 // ExpiredAddresses answers a page of the expired requesters' addresses, oldest first.
