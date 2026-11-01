@@ -483,6 +483,23 @@ func (q *Queries) DeleteKudosOfAccount(ctx context.Context, accountID pgtype.UUI
 	return result.RowsAffected(), nil
 }
 
+const deleteMailReceiptsOfAccount = `-- name: DeleteMailReceiptsOfAccount :execrows
+DELETE FROM mail_receipt
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1)
+`
+
+// The mail intake's log of the person's address, in both modes, as the address path removes it
+// (DeleteMailReceiptsFrom): a receipt is the address and a subject. Before the account is
+// anonymised, which clears the address this matches by.
+func (q *Queries) DeleteMailReceiptsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMailReceiptsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMediaObject = `-- name: DeleteMediaObject :execrows
 DELETE FROM media_object WHERE tenant_id = current_tenant_id() AND id = $1
 `

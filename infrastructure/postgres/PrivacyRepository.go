@@ -801,7 +801,11 @@ func (r PrivacyRepository) DiscardIntake(ctx context.Context, accountID shared.I
 	if err != nil {
 		return 0, erasureFailed("removing the intake of an account", err)
 	}
-	return int(rows), nil
+	receipts, err := queries.DeleteMailReceiptsOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the mail receipts of an account", err)
+	}
+	return int(rows + receipts), nil
 }
 
 // ReleaseIntake keeps the text and takes the person's address and account off it.
@@ -815,7 +819,11 @@ func (r PrivacyRepository) ReleaseIntake(ctx context.Context, accountID shared.I
 	if err != nil {
 		return 0, erasureFailed("releasing the intake of an account", err)
 	}
-	return int(rows), nil
+	receipts, err := queries.DeleteMailReceiptsOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the mail receipts of an account", err)
+	}
+	return int(rows + receipts), nil
 }
 
 // AutomationsRunningAs counts the rules that act as the person.

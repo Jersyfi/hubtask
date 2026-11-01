@@ -263,6 +263,14 @@ WHERE tenant_id = current_tenant_id()
   AND (created_by = sqlc.arg('account_id')
        OR lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id')));
 
+-- name: DeleteMailReceiptsOfAccount :execrows
+-- The mail intake's log of the person's address, in both modes, as the address path removes it
+-- (DeleteMailReceiptsFrom): a receipt is the address and a subject. Before the account is
+-- anonymised, which clears the address this matches by.
+DELETE FROM mail_receipt
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+
 -- name: DeletePersonalRulesOfAccount :execrows
 -- The person's own rules (scope PERSON, migration 0312): their configuration, gone with them
 -- whatever the mode, their runs by the cascade; before the account itself, which their run_as holds.

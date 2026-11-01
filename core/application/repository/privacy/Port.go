@@ -284,11 +284,11 @@ type Erasure interface {
 
 	// DiscardIntake removes what the person sent in by mail, matched by their address, which is
 	// all an inbound message carries, and what they captured, matched by the account that
-	// submitted it. Only `FULL_DELETE` calls it.
+	// submitted it, and the mail intake's receipts of the address. Only `FULL_DELETE` calls it.
 	DiscardIntake(ctx context.Context, accountID shared.ID) (int, error)
 
 	// ReleaseIntake is the same in the mode that keeps the workspace's content: the text stays and
-	// stops being anybody's.
+	// stops being anybody's; the receipts of the address go all the same.
 	ReleaseIntake(ctx context.Context, accountID shared.ID) (int, error)
 
 	// OrphanedMedia answers the media the person uploaded that nothing points at any more, with
