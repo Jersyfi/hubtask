@@ -424,9 +424,11 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 	m.OutboxLag(ctx, 1.5)
 	m.SchedulerTickLag(ctx, 4)
 	m.SchedulerTicked(ctx, time.Unix(1793534400, 0))
+	m.TimerFailed(ctx, "SLA")
 
 	body := scrape(t, m)
 	for _, want := range []string{
+		`hubtask_timer_failures_total{purpose="SLA"} 1`,
 		`hubtask_job_failures_total{attempt_class="retry",job_type="outbox.dispatch"} 1`,
 		`hubtask_job_failures_total{attempt_class="final",job_type="reminder.fire"} 1`,
 		`hubtask_job_dead_letter_total{job_type="reminder.fire"} 1`,

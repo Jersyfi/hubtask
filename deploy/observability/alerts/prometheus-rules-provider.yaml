@@ -494,3 +494,19 @@ groups:
           summary: "Audit entries past their period are stuck in the default partition"
           description: "No partition drop reaches them; move them into their monthly partitions so retention can remove them."
           runbook: RB-A34-audit-default-partition.md
+
+      # A-35. A durable timer's firing failed and was put back: the pass fires each timer under its
+      # own savepoint, so one bad row degrades only itself, but that SLA breach, OLA, approval
+      # reminder or page review is not happening while it keeps failing. Retried with a delay
+      # doubling up to six hours; a failure that stays is a defect or a row to repair.
+      - alert: HubtaskTimerFailing
+        expr: sum by (purpose) (increase(hubtask_timer_failures_total[1h])) > 0
+        for: 0m
+        labels:
+          severity: ticket
+          alert_id: A-35
+        annotations:
+          summary: "Durable timers of purpose {{ $labels.purpose }} fail to fire"
+          description: "Each failing timer is put back with a growing delay while the others fire. The worker's log names the timer and the failure's code."
+          runbook: RB-A35-timer-failing.md
+

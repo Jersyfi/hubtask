@@ -1642,6 +1642,7 @@ type DurableTimer struct {
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
+	FireAttempts    int32
 }
 
 type EntryEstimate struct {

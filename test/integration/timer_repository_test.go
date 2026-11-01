@@ -157,3 +157,74 @@ func TestATimerIsNotReachableFromAnotherTenant(t *testing.T) {
 		t.Error("Insert wrote a row for tenant A under tenant B")
 	}
 }
+
+// A timer whose firing failed is put back: due a minute later on its first failure, its attempt
+// counted, and only in its own workspace. Under a savepoint the failed firing's writes are undone
+// while the transaction goes on (persistence.Savepoint).
+func TestAFailedTimerIsDeferredUnderASavepointInItsOwnWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	repo := postgres.NewTimerRepository()
+	armed := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+	timer, err := calendar.Arm(freshID(t), tenantA, calendar.PurposeSLA, freshID(t), "resolution",
+		calendar.Continuous(), time.Minute, armed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.Insert(ctx, timer, armed)
+	}); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.Defer(ctx, timer.ID, now)
+	}); err != nil {
+		t.Fatalf("defer as tenant B: %v", err)
+	}
+	attemptsOf := func() (int, time.Time) {
+		var attempts int
+		var due time.Time
+		if err := adminPool(ctx, t).QueryRow(ctx,
+			`SELECT fire_attempts, due_at FROM durable_timer WHERE id = $1`, timer.ID.String()).Scan(&attempts, &due); err != nil {
+			t.Fatal(err)
+		}
+		return attempts, due
+	}
+	if attempts, _ := attemptsOf(); attempts != 0 {
+		t.Fatalf("tenant B deferred tenant A's timer: %d attempts", attempts)
+	}
+
+	unit := postgres.NewUnitOfWork(appPool(ctx, t))
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		failed := unit.WithinSavepoint(ctx, func(ctx context.Context) error {
+			fired, _ := timer.Fire(now)
+			if err := repo.Update(ctx, fired, timer.Version, now); err != nil {
+				return err
+			}
+			return errors.New("the handler failed")
+		})
+		if failed == nil {
+			t.Error("the savepoint swallowed the failure")
+		}
+		return repo.Defer(ctx, timer.ID, now)
+	}); err != nil {
+		t.Fatalf("firing under a savepoint: %v", err)
+	}
+	attempts, due := attemptsOf()
+	if attempts != 1 || !due.Equal(now.Add(time.Minute)) {
+		t.Errorf("deferred to %s with %d attempts, want one attempt and a minute after %s", due, attempts, now)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		live, err := repo.FindLive(ctx, calendar.PurposeSLA, timer.SubjectID, "resolution")
+		if err != nil {
+			return err
+		}
+		if live.State != calendar.TimerRunning {
+			t.Errorf("the failed firing was kept: %s", live.State)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("reading back: %v", err)
+	}
+}

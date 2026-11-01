@@ -668,3 +668,22 @@ tests:
       - eval_time: 7h
         alertname: HubtaskAuditDefaultPartitionAged
         exp_alerts: []
+
+  # A-35: a timer that fails to fire raises a ticket per purpose.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_timer_failures_total{purpose="SLA"}'
+        values: '0 1 1 2 2 2'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HubtaskTimerFailing
+        exp_alerts:
+          - exp_labels:
+              purpose: SLA
+              severity: ticket
+              alert_id: A-35
+            exp_annotations:
+              summary: "Durable timers of purpose SLA fail to fire"
+              description: "Each failing timer is put back with a growing delay while the others fire. The worker's log names the timer and the failure's code."
+              runbook: RB-A35-timer-failing.md
+

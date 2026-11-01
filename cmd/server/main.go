@@ -4934,7 +4934,8 @@ func run() error {
 	timerFiring := worker.TimerFiring{
 		Firing: calendarservice.FireTimers{
 			Timers: postgres.NewTimerRepository(), Clock: clockadapter.System{},
-			BatchSize: calendarservice.DefaultTimerBatch,
+			BatchSize:  calendarservice.DefaultTimerBatch,
+			Savepoints: unitOfWork, Signals: metrics,
 			Elapsed: map[calendardomain.Purpose]calendarservice.TimerElapsed{
 				calendardomain.PurposeSLA: servicedeskservice.SLAElapsed{
 					Records: slaRecords, Items: items, Events: outbox, IDs: ids,

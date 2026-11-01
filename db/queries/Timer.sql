@@ -48,3 +48,14 @@ FOR UPDATE SKIP LOCKED;
 -- The tenant's next due moment, NULL when no timer runs.
 -- name: NextTimerDue :one
 SELECT min(due_at)::timestamptz AS next_at FROM durable_timer WHERE state = 'RUNNING';
+
+-- A running timer whose firing failed, put back: due again after a delay that doubles with each
+-- failed attempt from a minute up to six hours, so a failure that does not go away costs one
+-- attempt every six hours rather than the whole pass.
+-- name: DeferTimer :execrows
+UPDATE durable_timer SET
+  due_at        = sqlc.arg('now')::timestamptz
+                  + least(interval '1 minute' * power(2, least(fire_attempts, 20)), interval '6 hours'),
+  fire_attempts = fire_attempts + 1,
+  updated_at    = sqlc.arg('now')::timestamptz
+WHERE id = sqlc.arg('id') AND state = 'RUNNING';

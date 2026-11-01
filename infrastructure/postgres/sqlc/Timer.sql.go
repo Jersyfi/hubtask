@@ -11,6 +11,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deferTimer = `-- name: DeferTimer :execrows
+UPDATE durable_timer SET
+  due_at        = $1::timestamptz
+                  + least(interval '1 minute' * power(2, least(fire_attempts, 20)), interval '6 hours'),
+  fire_attempts = fire_attempts + 1,
+  updated_at    = $1::timestamptz
+WHERE id = $2 AND state = 'RUNNING'
+`
+
+type DeferTimerParams struct {
+	Now pgtype.Timestamptz
+	ID  pgtype.UUID
+}
+
+// A running timer whose firing failed, put back: due again after a delay that doubles with each
+// failed attempt from a minute up to six hours, so a failure that does not go away costs one
+// attempt every six hours rather than the whole pass.
+func (q *Queries) DeferTimer(ctx context.Context, arg DeferTimerParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deferTimer, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findLiveTimer = `-- name: FindLiveTimer :one
 SELECT id, tenant_id, purpose, subject_id, name, calendar, budget_seconds, consumed_seconds,
        running_since, due_at, state, fired_at, version

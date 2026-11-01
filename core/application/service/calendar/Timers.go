@@ -10,6 +10,7 @@ package calendar
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/calendar"
@@ -17,6 +18,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
@@ -126,6 +128,12 @@ func (c Clocks) schedule(ctx context.Context, tenant shared.ID, at *time.Time) e
 // DefaultTimerBatch is how many timers one pass fires, small enough to keep the transaction short.
 const DefaultTimerBatch = 100
 
+// TimerSignals is the observability slice of the firing pass.
+type TimerSignals interface {
+	// TimerFailed counts a timer whose firing failed and was put back, by purpose.
+	TimerFailed(ctx context.Context, purpose string)
+}
+
 // FireTimers fires the tenant's timers whose moment has come.
 type FireTimers struct {
 	Timers repository.Timers
@@ -134,17 +142,24 @@ type FireTimers struct {
 	// the timer's state is still the truth, and the step that builds the purpose reads it.
 	Elapsed   map[domain.Purpose]TimerElapsed
 	BatchSize int
+	// Savepoints keeps each timer's firing apart: one that fails is undone and put back with a
+	// growing delay while the pass fires the rest. Without it, a failure ends the pass.
+	Savepoints persistence.Savepoint
+	// Signals is optional.
+	Signals TimerSignals
 }
 
 // TimerOutcome is what one pass did and when the tenant needs the next.
 type TimerOutcome struct {
 	Fired     int
 	Unhandled int
-	NextAt    *time.Time
+	// Failed are the timers whose firing failed and were put back.
+	Failed int
+	NextAt *time.Time
 }
 
 // FilledBatch reports whether the pass ran into its bound, so the job comes straight back.
-func (o TimerOutcome) FilledBatch(batch int) bool { return batch > 0 && o.Fired >= batch }
+func (o TimerOutcome) FilledBatch(batch int) bool { return batch > 0 && o.Fired+o.Failed >= batch }
 
 func (f FireTimers) batch() int {
 	if f.BatchSize > 0 {
@@ -165,27 +180,56 @@ func (f FireTimers) Execute(ctx context.Context, actor appshared.ActorContext) (
 	}
 	outcome := TimerOutcome{}
 	for _, timer := range due {
-		fired, err := timer.Fire(now)
-		if err != nil {
-			return TimerOutcome{}, err
+		handled := false
+		fire := func(ctx context.Context) error {
+			var err error
+			handled, err = f.fire(ctx, actor, timer, now)
+			return err
 		}
-		if err := f.Timers.Update(ctx, fired, timer.Version, now); err != nil {
-			return TimerOutcome{}, err
-		}
-		fired.Version = timer.Version + 1
-		outcome.Fired++
-		handler, ok := f.Elapsed[fired.Purpose]
-		if !ok {
-			outcome.Unhandled++
+		if f.Savepoints == nil {
+			if err := fire(ctx); err != nil {
+				return TimerOutcome{}, err
+			}
+		} else if err := f.Savepoints.WithinSavepoint(ctx, fire); err != nil {
+			// Undone to the savepoint: this timer alone is put back, the others still fire. A
+			// database that cannot take the deferral either ends the pass as before.
+			if deferErr := f.Timers.Defer(ctx, timer.ID, now); deferErr != nil {
+				return TimerOutcome{}, errors.Join(err, deferErr)
+			}
+			outcome.Failed++
+			slog.WarnContext(ctx, "a timer's firing failed and was put back",
+				slog.String("purpose", string(timer.Purpose)), slog.String("timer_id", timer.ID.String()),
+				slog.String("error", shared.AsError(err).DetailCode))
+			if f.Signals != nil {
+				f.Signals.TimerFailed(ctx, string(timer.Purpose))
+			}
 			continue
 		}
-		if err := handler.Elapsed(ctx, actor, fired); err != nil {
-			return TimerOutcome{}, err
+		outcome.Fired++
+		if !handled {
+			outcome.Unhandled++
 		}
 	}
-	// Read after the pass, so the answer is what is left.
+	// Read after the pass, so the answer is what is left - a deferred timer at its new moment.
 	if outcome.NextAt, err = f.Timers.NextDue(ctx); err != nil {
 		return TimerOutcome{}, err
 	}
 	return outcome, nil
+}
+
+// fire marks one timer fired and runs its purpose's handler; it answers whether one ran.
+func (f FireTimers) fire(ctx context.Context, actor appshared.ActorContext, timer domain.Timer, now time.Time) (bool, error) {
+	fired, err := timer.Fire(now)
+	if err != nil {
+		return false, err
+	}
+	if err := f.Timers.Update(ctx, fired, timer.Version, now); err != nil {
+		return false, err
+	}
+	fired.Version = timer.Version + 1
+	handler, ok := f.Elapsed[fired.Purpose]
+	if !ok {
+		return false, nil
+	}
+	return true, handler.Elapsed(ctx, actor, fired)
 }

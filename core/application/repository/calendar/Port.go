@@ -30,6 +30,10 @@ type Timers interface {
 	// most limit, locking them so that overlapping passes take disjoint sets.
 	ClaimDue(ctx context.Context, now time.Time, limit int) ([]calendar.Timer, error)
 
+	// Defer puts a running timer whose firing failed back, due again after a delay that grows with
+	// each failed attempt; a timer no longer running is left alone.
+	Defer(ctx context.Context, id shared.ID, now time.Time) error
+
 	// NextDue answers the tenant's next due moment; nil when no timer runs.
 	NextDue(ctx context.Context) (*time.Time, error)
 }

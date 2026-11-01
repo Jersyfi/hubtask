@@ -86,6 +86,8 @@ func (s *timerStore) ClaimDue(_ context.Context, now time.Time, _ int) ([]calend
 
 func (s *timerStore) NextDue(context.Context) (*time.Time, error) { return nil, nil }
 
+func (s *timerStore) Defer(context.Context, shared.ID, time.Time) error { return nil }
+
 func (s *timerStore) named(name string) calendar.Timer {
 	for _, row := range slices.Backward(s.rows) {
 		if row.Name == name {

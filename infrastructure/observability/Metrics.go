@@ -64,6 +64,7 @@ type Metrics struct {
 	schedulerTicked   metric.Int64Gauge
 	backupLastSuccess metric.Int64Gauge
 	dsrDeadline       metric.Int64Counter
+	timerFailures     metric.Int64Counter
 	retentionDeleted  metric.Int64Counter
 	retentionBlocked  metric.Int64Counter
 	retentionRun      metric.Float64Histogram
@@ -445,6 +446,13 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithUnit("s"),
 	); err != nil {
 		return fmt.Errorf("backup freshness gauge: %w", err)
+	}
+	if m.timerFailures, err = meter.Int64Counter(
+		namespace+"_timer_failures_total",
+		metric.WithDescription(
+			"Durable timers whose firing failed and were put back with a growing delay, by purpose."),
+	); err != nil {
+		return fmt.Errorf("timer failure counter: %w", err)
 	}
 	if m.dsrDeadline, err = meter.Int64Counter(
 		namespace+"_dsr_deadline_total",
@@ -1230,6 +1238,12 @@ func (m *Metrics) BackupLastSuccess(ctx context.Context, targetID string, at tim
 func (m *Metrics) DataSubjectDeadline(ctx context.Context, stage string, count int) {
 	m.dsrDeadline.Add(ctx, int64(count),
 		metric.WithAttributes(attribute.String("stage", stage)))
+}
+
+// TimerFailed counts a durable timer whose firing failed and was put back; the purpose is the
+// closed set of the timers' purposes, never a subject.
+func (m *Metrics) TimerFailed(ctx context.Context, purpose string) {
+	m.timerFailures.Add(ctx, 1, metric.WithAttributes(attribute.String("purpose", purpose)))
 }
 
 // ConfigInvalid counts a rejected configuration variable - misconfiguration as a signal rather

@@ -187,6 +187,22 @@ func (TimerRepository) ClaimDue(ctx context.Context, now time.Time, limit int) (
 	return timers, nil
 }
 
+func (TimerRepository) Defer(ctx context.Context, id shared.ID, now time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	if _, err := queries.DeferTimer(ctx, sqlc.DeferTimerParams{ID: key, Now: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("deferring the timer %s: %w", id, err))
+	}
+	return nil
+}
+
 func (TimerRepository) NextDue(ctx context.Context) (*time.Time, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

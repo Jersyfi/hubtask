@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"testing"
 	"time"
 
@@ -75,6 +76,84 @@ func (s *timerStore) NextDue(context.Context) (*time.Time, error) {
 		}
 	}
 	return next, nil
+}
+
+func (s *timerStore) Defer(_ context.Context, id shared.ID, now time.Time) error {
+	row := s.rows[id]
+	if row.State == domain.TimerRunning {
+		later := now.Add(time.Minute)
+		row.DueAt = &later
+		s.rows[id] = row
+	}
+	return nil
+}
+
+// savepoints undoes what fn changed in the store when it fails, as a savepoint does.
+type savepoints struct{ store *timerStore }
+
+func (p savepoints) WithinSavepoint(ctx context.Context, fn func(context.Context) error) error {
+	kept := maps.Clone(p.store.rows)
+	if err := fn(ctx); err != nil {
+		p.store.rows = kept
+		return err
+	}
+	return nil
+}
+
+// failing is a purpose's handler that fails for one subject and records the rest.
+type failing struct {
+	subject shared.ID
+	fired   []domain.Timer
+}
+
+func (f *failing) Elapsed(_ context.Context, _ appshared.ActorContext, timer domain.Timer) error {
+	if timer.SubjectID == f.subject {
+		return shared.ErrConflict.WithDetail("notification.refused")
+	}
+	f.fired = append(f.fired, timer)
+	return nil
+}
+
+type failedSignals struct{ purposes []string }
+
+func (s *failedSignals) TimerFailed(_ context.Context, purpose string) {
+	s.purposes = append(s.purposes, purpose)
+}
+
+// One timer whose handler always fails degrades only itself: it is undone and put back with a
+// delay, counted, and the timers behind it still fire in the same pass.
+func TestAFailingTimerDoesNotHoldBackTheOthers(t *testing.T) {
+	armed := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	bad, _ := domain.Arm(timerID, tenant, domain.PurposeSLA, subject, "resolution", domain.Continuous(), time.Minute, armed)
+	otherID := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000f4")
+	other, _ := domain.Arm(otherID, tenant, domain.PurposeSLA, otherID, "resolution", domain.Continuous(), 2*time.Minute, armed)
+	store := &timerStore{rows: map[shared.ID]domain.Timer{timerID: bad, otherID: other}}
+	handler, signals := &failing{subject: subject}, &failedSignals{}
+	now := armed.Add(time.Hour)
+	pass := FireTimers{
+		Timers: store, Clock: clock.Fixed(now), Savepoints: savepoints{store}, Signals: signals,
+		Elapsed: map[domain.Purpose]TimerElapsed{domain.PurposeSLA: handler},
+	}
+	outcome, err := pass.Execute(context.Background(), appshared.ActorContext{TenantID: tenant})
+	if err != nil {
+		t.Fatalf("one failing timer failed the pass: %v", err)
+	}
+	if outcome.Fired != 1 || outcome.Failed != 1 || len(handler.fired) != 1 || handler.fired[0].ID != otherID {
+		t.Fatalf("pass %+v fired %+v, want the other timer fired and the bad one failed", outcome, handler.fired)
+	}
+	kept := store.rows[timerID]
+	if kept.State != domain.TimerRunning || !kept.DueAt.After(now) {
+		t.Errorf("the failing timer is %s due %v, want running and put back", kept.State, kept.DueAt)
+	}
+	if store.rows[otherID].State != domain.TimerFired {
+		t.Error("the other timer did not fire")
+	}
+	if len(signals.purposes) != 1 || signals.purposes[0] != string(domain.PurposeSLA) {
+		t.Errorf("failures counted %v", signals.purposes)
+	}
+	if outcome.NextAt == nil || !outcome.NextAt.After(now) {
+		t.Errorf("next at %v, want the deferred moment", outcome.NextAt)
+	}
 }
 
 type jobs struct{ requests []queue.Request }
