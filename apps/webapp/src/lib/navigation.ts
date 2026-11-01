@@ -473,6 +473,7 @@ export const INSTANCE: readonly SectionGroup[] = [
     rows: [
       { id: 'operators', icon: 'shield', code: 'app.instance.operators', path: '/instance/operators', routes: ['instance-operators'] },
       { id: 'journal', icon: 'clock', code: 'app.instance.journal', path: '/instance/journal', routes: ['instance-journal'] },
+      { id: 'dead-letters', icon: 'triangle-alert', code: 'app.instance.dead_letters', path: '/instance/dead-letters', routes: ['instance-dead-letters'] },
     ],
   },
 ];

@@ -20,6 +20,11 @@ Requeue it, or copy what the issue needs, within the week.
 
 ## Immediate action
 
+*Installation → Failed jobs* (`/instance/dead-letters`) lists them, newest first, with the kind, the
+workspace, the attempts and the code of the last failure; so does `hubctl admin dead-letter list`
+(both behind `admin:tenants` and the operator register). What a job was given is not shown there;
+for that, and on an installation whose API is down:
+
 ```bash
 psql -c "SELECT id, kind, tenant_id, attempts, last_error, finished_at, payload
          FROM job WHERE state = 'DEAD_LETTER' ORDER BY finished_at DESC LIMIT 20;"
@@ -51,6 +56,11 @@ before the job ran — is never here: it ends `FAILED` at once with the refusal'
 person who asked, and counts toward no alert.
 
 ## Requeueing, once the cause is fixed
+
+*Run again* on the screen, or `hubctl admin dead-letter requeue <job id>`: the job is due now with
+its attempts from zero, and the installation's journal records it (`instance.dead_letter_requeued`).
+It is refused with `admin.job_already_open` while another job of the same kind and key is waiting or
+running - that one does the work. Without the API:
 
 ```sql
 UPDATE job SET state = 'PENDING', attempts = 0, run_at = now(), last_error = NULL

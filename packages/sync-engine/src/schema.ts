@@ -859,6 +859,8 @@ export type InstanceJournalPage = components['schemas']['InstanceJournalPage'];
 export type PlatformSubscription = components['schemas']['PlatformSubscription'];
 export type PlatformSubscriptionSecret = components['schemas']['PlatformSubscriptionSecret'];
 export type PlatformDelivery = components['schemas']['PlatformDelivery'];
+/** A job of the installation that ran out of attempts, as its operator runs it again (UC-INS-12). */
+export type DeadLetter = components['schemas']['DeadLetter'];
 /** The control plane's view of a workspace: its standing and its lifecycle, never its contents. */
 export type AdminTenant = components['schemas']['AdminTenant'];
 /** The installation's own switches, each with where its lock came from. */

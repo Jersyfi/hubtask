@@ -108,6 +108,7 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   assert.deepEqual(built, [
     'instance',
     'instance-ai',
+    'instance-dead-letters',
     'instance-encryption',
     'instance-journal',
     'instance-operators',
