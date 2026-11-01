@@ -8,6 +8,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/archive"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
@@ -93,5 +94,17 @@ func TestACannedReplyIsFilledForTheEntry(t *testing.T) {
 	authorizer.allow = false
 	if _, err := render.Execute(context.Background(), actor, itemID, "vpn"); !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("somebody who may not read the entry rendered: %v", err)
+	}
+}
+
+// UC-SVC-06 check 3: the canned replies go whole into the workspace's archive and come back with
+// its restore.
+func TestCannedRepliesAreInTheWorkspaceArchive(t *testing.T) {
+	entity, ok := archive.FindEntityByTable("reply_template")
+	if !ok || !entity.Whole {
+		t.Fatalf("reply_template is archived: %v, whole: %v", ok, entity.Whole)
+	}
+	if _, skipped := archive.NotRestored()[entity.Table]; skipped {
+		t.Errorf("a restore leaves the canned replies out")
 	}
 }
