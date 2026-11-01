@@ -68,8 +68,37 @@ config:
   # header arrives (security.md §9).
   trustedProxies: []
   # Anything HUBTASK_* this chart does not model yet. A map, so that a new variable is a value
-  # rather than a template change.
+  # rather than a template change. It renders into the ConfigMap, which anyone allowed to read
+  # ConfigMaps reads: a name ending in _KEY, _SECRET, _PASSWORD or _TOKEN refuses the render - put
+  # it in extraSecretEnv.
   extraEnv: {}
+  # Variables read from a Secret, as VARIABLE: { secret: <name>, key: <key> } - rendered as a
+  # secretKeyRef, never into the ConfigMap. An instance file's `api_key_env` names one of these.
+  extraSecretEnv: {}
+
+# Mail into the jumble (ADR-0092) and connected mailboxes through the provider's sign-in
+# (ADR-0094). The domain and the client IDs are configuration; the inbound bearer key and the
+# client secrets are read from Secrets by key.
+mail:
+  inbound:
+    domain: ""
+    existingSecret: ""         # key: inbound-key
+  oauth:
+    google:
+      clientId: ""
+      existingSecret: ""       # key: client-secret
+    microsoft:
+      clientId: ""
+      existingSecret: ""       # key: client-secret
+
+# The instance file (deployment.md §6.1, ADR-0070): business calendars, the upload scanner,
+# presets, plans, offered AI models. Mounted from a ConfigMap, or from a Secret when it names
+# something sensitive; one of the two. `mode` is seed (written once) or enforce (at every start).
+instanceFile:
+  configMap: ""
+  secret: ""
+  key: instance.json
+  mode: seed
 
 # Files the process needs and the chart does not know about, mounted into every role: a private
 # certificate authority behind an internal mail relay, most likely, read through Go's own

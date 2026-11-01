@@ -51,6 +51,39 @@ without `SUPERUSER` or `BYPASSRLS`, so that row level security is the last bound
 `migration.dsnSecretKey`; the migrator can also grant `hubtask_app` its login itself when it is
 handed `HUBTASK_DB_APP_PASSWORD`.
 
+## Further secrets, and the instance file
+
+`config.extraEnv` renders into the ConfigMap, which anyone allowed to read ConfigMaps in the
+namespace reads. It is for configuration only: a name ending in `_KEY`, `_SECRET`, `_PASSWORD` or
+`_TOKEN` refuses the render. A secret the chart does not model goes into `config.extraSecretEnv`
+and is rendered as a `secretKeyRef`:
+
+```yaml
+mail:
+  inbound:
+    domain: in.example.org
+    existingSecret: hubtask-mail          # key: inbound-key
+  oauth:
+    google:
+      clientId: 1234.apps.googleusercontent.com
+      existingSecret: hubtask-google      # key: client-secret
+    microsoft:
+      clientId: 00000000-0000-0000-0000-000000000000
+      existingSecret: hubtask-microsoft   # key: client-secret
+config:
+  extraSecretEnv:
+    HUBTASK_AI_KEY_PRIMARY: { secret: hubtask-ai, key: api-key }   # an instance file's api_key_env
+instanceFile:
+  configMap: hubtask-instance             # or `secret:`, never both
+  key: instance.json
+  mode: seed                              # or enforce
+```
+
+The instance file (business calendars, the upload scanner, presets, plans, offered AI models;
+deployment.md §6.1) is mounted read-only at `/etc/hubtask/instance/` from the ConfigMap or Secret
+named, and `HUBTASK_INSTANCE_FILE` points at its key. A variable's `_FILE` form with
+`extraVolumes`/`extraVolumeMounts` works too, for a secret that is a file.
+
 ## Principles that must not be watered down in the templates
 
 * `/healthz` is the liveness probe and checks **no** dependencies — otherwise a database outage

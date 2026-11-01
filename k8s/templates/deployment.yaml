@@ -80,6 +80,11 @@ spec:
               mountPath: /var/run/hubtask/restore-drill
               readOnly: true
             {{- end }}
+            {{- if or $.Values.instanceFile.configMap $.Values.instanceFile.secret }}
+            - name: instance-file
+              mountPath: /etc/hubtask/instance
+              readOnly: true
+            {{- end }}
             {{- with $.Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -96,6 +101,15 @@ spec:
         - name: media
           persistentVolumeClaim:
             claimName: {{ $.Values.storage.persistence.existingClaim | default (printf "%s-media" (include "hubtask.fullname" $)) }}
+        {{- end }}
+        {{- if $.Values.instanceFile.configMap }}
+        - name: instance-file
+          configMap:
+            name: {{ $.Values.instanceFile.configMap }}
+        {{- else if $.Values.instanceFile.secret }}
+        - name: instance-file
+          secret:
+            secretName: {{ $.Values.instanceFile.secret }}
         {{- end }}
         {{- with $.Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}

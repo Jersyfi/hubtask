@@ -159,6 +159,37 @@ rather than a re-render of every deployment.
       name: {{ include "hubtask.secretName" .root }}
       key: {{ .root.Values.smtp.existingSecretKey }}
 {{- end }}
+{{- with .root.Values.mail.inbound.existingSecret }}
+- name: HUBTASK_MAIL_INBOUND_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: inbound-key
+{{- end }}
+{{- with .root.Values.mail.oauth.google.existingSecret }}
+- name: HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: client-secret
+{{- end }}
+{{- with .root.Values.mail.oauth.microsoft.existingSecret }}
+- name: HUBTASK_MAIL_OAUTH_MICROSOFT_CLIENT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: client-secret
+{{- end }}
+{{- range $name, $ref := .root.Values.config.extraSecretEnv }}
+{{- if not (and $ref.secret $ref.key) }}
+{{- fail (printf "config.extraSecretEnv.%s needs both secret and key" $name) }}
+{{- end }}
+- name: {{ $name }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ $ref.secret }}
+      key: {{ $ref.key }}
+{{- end }}
 {{- if and (eq .root.Values.storage.kind "s3") .root.Values.storage.existingSecret }}
 - name: HUBTASK_S3_ACCESS_KEY
   valueFrom:

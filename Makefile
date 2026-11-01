@@ -683,7 +683,27 @@ gate-chart:
 		--set imagePolicy.enabled=true \
 		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} \
 		--set 'extraVolumes[0].name=mail-ca' --set 'extraVolumes[0].secret.secretName=mail-ca' \
-		--set 'extraVolumeMounts[0].name=mail-ca' --set 'extraVolumeMounts[0].mountPath=/etc/hubtask/mail-ca' > /dev/null
+		--set 'extraVolumeMounts[0].name=mail-ca' --set 'extraVolumeMounts[0].mountPath=/etc/hubtask/mail-ca' \
+		--set mail.inbound.domain=in.example.org --set mail.inbound.existingSecret=hubtask-mail \
+		--set mail.oauth.google.clientId=gid --set mail.oauth.google.existingSecret=hubtask-google \
+		--set mail.oauth.microsoft.clientId=mid --set mail.oauth.microsoft.existingSecret=hubtask-microsoft \
+		--set instanceFile.configMap=hubtask-instance \
+		--set 'config.extraSecretEnv.HUBTASK_AI_KEY_ONE.secret=hubtask-ai' \
+		--set 'config.extraSecretEnv.HUBTASK_AI_KEY_ONE.key=api-key' > /dev/null
+	@# A secret never reaches the ConfigMap: extraEnv refuses a name that looks like one, and the
+	@# chart's own secrets render as secretKeyRef.
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) --set existingSecret=hubtask-secrets \
+		--set config.extraEnv.HUBTASK_MAIL_INBOUND_KEY=x > /dev/null 2>&1; then \
+		echo "chart: a secret-looking name in config.extraEnv rendered into the ConfigMap"; exit 1; fi
+	@configmap="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set mail.inbound.existingSecret=hubtask-mail \
+		--set mail.oauth.google.existingSecret=hubtask-google \
+		--set 'config.extraSecretEnv.HUBTASK_AI_KEY_ONE.secret=hubtask-ai' \
+		--set 'config.extraSecretEnv.HUBTASK_AI_KEY_ONE.key=api-key' --show-only templates/configmap.yaml)"; \
+		for name in HUBTASK_MAIL_INBOUND_KEY HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_SECRET HUBTASK_AI_KEY_ONE; do \
+			printf '%s' "$$configmap" | grep -q "$$name" && \
+				{ echo "chart: $$name is in the ConfigMap"; exit 1; }; \
+		done; echo "chart: no secret in the ConfigMap"
 	@# Every host the operator names has to reach the API and be on the certificate. A name in the
 	@# rules and not in the `tls` block is a route a browser refuses before the application sees it.
 	@routed="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \

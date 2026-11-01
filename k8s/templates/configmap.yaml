@@ -56,6 +56,26 @@ data:
   # client keeps its own sign-in and anonymous budget (security.md §9).
   HUBTASK_TRUSTED_PROXIES: {{ join "," .Values.config.trustedProxies | quote }}
   {{- end }}
+  {{- with .Values.mail.inbound.domain }}
+  HUBTASK_MAIL_INBOUND_DOMAIN: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.mail.oauth.google.clientId }}
+  HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_ID: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.mail.oauth.microsoft.clientId }}
+  HUBTASK_MAIL_OAUTH_MICROSOFT_CLIENT_ID: {{ . | quote }}
+  {{- end }}
+  {{- if or .Values.instanceFile.configMap .Values.instanceFile.secret }}
+  {{- if and .Values.instanceFile.configMap .Values.instanceFile.secret }}
+  {{- fail "instanceFile: name a configMap or a secret, not both - one file is one source" }}
+  {{- end }}
+  # Mounted by deployment.yaml (deployment.md §6.1).
+  HUBTASK_INSTANCE_FILE: "/etc/hubtask/instance/{{ .Values.instanceFile.key }}"
+  HUBTASK_INSTANCE_FILE_MODE: {{ .Values.instanceFile.mode | quote }}
+  {{- end }}
   {{- range $key, $value := .Values.config.extraEnv }}
+  {{- if regexMatch "_(KEY|SECRET|PASSWORD|TOKEN)$" $key }}
+  {{- fail (printf "config.extraEnv.%s looks like a secret, and extraEnv renders into a ConfigMap anyone with read rights on ConfigMaps reads: put it in config.extraSecretEnv as { secret: <name>, key: <key> }" $key) }}
+  {{- end }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
