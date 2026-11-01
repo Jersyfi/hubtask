@@ -8,6 +8,8 @@ import (
 	"encoding/hex"
 	"net/http"
 	"strings"
+
+	"github.com/Jersyfi/hubtask/presentation/realtime"
 )
 
 // fingerprintLength is how much of the digest is kept. 16 hex digits is 64 bits: far too much to
@@ -30,20 +32,41 @@ const fingerprintLength = 16
 // A request with no bearer credential answers empty, which the registry reads as "do not count this
 // one per credential". That is the right answer rather than a hole: every stream in this product is
 // behind authentication, so an empty key means a shape the caller has already refused.
+//
+// A browser's WebSocket cannot set a header, so it carries the bearer as a subprotocol: read from
+// there as the authentication reads it, or a browser's live documents were never counted.
 func Credential(r *http.Request) string {
-	header := r.Header.Get("Authorization")
-	if header == "" {
-		return ""
-	}
-	scheme, value, found := strings.Cut(header, " ")
-	if !found || !strings.EqualFold(scheme, "bearer") {
-		return ""
-	}
-	value = strings.TrimSpace(value)
+	value := bearerOf(r)
 	if value == "" {
 		return ""
 	}
 
 	sum := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(sum[:])[:fingerprintLength]
+}
+
+func bearerOf(r *http.Request) string {
+	header := r.Header.Get("Authorization")
+	if header == "" {
+		return websocketBearer(r)
+	}
+	scheme, value, found := strings.Cut(header, " ")
+	if !found || !strings.EqualFold(scheme, "bearer") {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}
+
+func websocketBearer(r *http.Request) string {
+	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		return ""
+	}
+	for _, offered := range r.Header.Values("Sec-WebSocket-Protocol") {
+		for _, protocol := range strings.Split(offered, ",") {
+			if token, found := strings.CutPrefix(strings.TrimSpace(protocol), realtime.BearerPrefix); found && token != "" {
+				return token
+			}
+		}
+	}
+	return ""
 }
