@@ -520,3 +520,27 @@ func TestABusinessCalendarCountsWorkingDays(t *testing.T) {
 		t.Error("a rule whose calendar is gone still owes a moment")
 	}
 }
+
+// A trigger whose calendar is gone owes nothing and seeds the workspace's check, so the rule
+// becomes a finding its owner hears of rather than a rule that silently stops firing.
+func TestAGoneCalendarSeedsTheCheck(t *testing.T) {
+	due := now.Add(72 * time.Hour)
+	rule := relativeRule(domain.AnchorDueDate, "P5D")
+	rule.Trigger.Calendar = "office"
+	h := newDates([]domain.Rule{rule}, dueItem(&due))
+	h.subscriber.Calendars = &businessCalendars{rows: map[string]calendar.BusinessCalendar{}}
+
+	if err := h.subscriber.Deliver(context.Background(), dueChanged()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if _, found := h.owed.rows[owedKey(ruleID, itemID)]; found {
+		t.Fatal("a rule whose calendar is gone still owes a moment")
+	}
+	seeded := false
+	for _, request := range h.queued.queued {
+		seeded = seeded || (request.Kind == queue.KindAutomationCheck && request.DedupeKey == tenant.String())
+	}
+	if !seeded {
+		t.Fatalf("queued %+v, want the workspace's check", h.queued.queued)
+	}
+}

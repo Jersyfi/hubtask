@@ -86,6 +86,9 @@ type Desk struct {
 	// HubCalendars and Containers serve a hub's own calendars: the hub is read to ask there.
 	HubCalendars repository.HubCalendars
 	Containers   workrepo.Containers
+	// Rules counts the switched-on rules whose trigger counts working days on a calendar, so
+	// that deleting it is refused rather than silently stopping them; nil counts none.
+	Rules RuleNames
 	// Visibility narrows the policies listed to the hubs the caller may read (UC-SVC-02 check
 	// 13). Nil lists the workspace's alone, so a build without it never shows a private hub's.
 	Visibility Visibility
@@ -95,6 +98,11 @@ type Desk struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Text       text.Normalizer
+}
+
+// RuleNames counts the switched-on automation rules that name a calendar by its key.
+type RuleNames interface {
+	Calendar(ctx context.Context, key string) (int, error)
 }
 
 // Visibility answers, per path, whether the caller may read it, without auditing a row left out.

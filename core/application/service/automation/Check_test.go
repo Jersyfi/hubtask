@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -443,5 +444,26 @@ func TestTheRunSuppliesOnlyWhatTheCheckKnowsItMay(t *testing.T) {
 	}
 	if SuppliedByRun("body") {
 		t.Error("the check believes the run supplies a body")
+	}
+}
+
+// A RELATIVE_DATE trigger whose calendar is gone never fires again: BROKEN at the trigger's path,
+// switched off, its author told.
+func TestTheCheckReportsATriggersGoneCalendar(t *testing.T) {
+	rule := ruleAt(domain.Scope{Type: domain.ScopeTenant}, ruleID)
+	rule.Trigger = domain.Trigger{Kind: domain.TriggerRelativeDate, Anchor: domain.AnchorDueDate, Offset: "P5D", Calendar: "office"}
+	h := newCheck(rule)
+	h.check.Calendars = &businessCalendars{rows: map[string]calendar.BusinessCalendar{}}
+
+	checked, err := h.check.Execute(context.Background(), writerActor())
+	if err != nil {
+		t.Fatalf("checking: %v", err)
+	}
+	got := checked[0]
+	if codes := findingCodes(got); codes["/trigger/calendar"] != FindingReferenceGone {
+		t.Fatalf("findings %v, want the calendar gone", codes)
+	}
+	if got.Enabled {
+		t.Error("a rule whose calendar is gone stayed on")
 	}
 }

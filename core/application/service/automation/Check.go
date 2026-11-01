@@ -98,7 +98,10 @@ type CheckRules struct {
 	// CustomRoles resolves a NOTIFY_ROLE step's key: a role is a key, not an identifier the
 	// reference table resolves. Nil leaves the question unasked.
 	CustomRoles RoleKeys
-	Catalogue   Catalogue
+	// Calendars resolves a RELATIVE_DATE trigger's business calendar as the run does. Nil leaves
+	// the question unasked.
+	Calendars BusinessCalendars
+	Catalogue Catalogue
 	// Conditions compiles every condition and every branch's, as the write does (ADR-0009).
 	Conditions expression.Compiler
 	Authorizer Authorizer
@@ -265,6 +268,24 @@ func (h CheckRules) inspect(
 			Level: domain.FindingBroken, Path: "/trigger/event_type", Code: FindingEventUnknown,
 			Params: map[string]string{"event_type": string(rule.Trigger.EventType)},
 		})
+	}
+
+	// The trigger's calendar: gone, the rule never fires again.
+	if h.Calendars != nil && rule.Trigger.Kind == domain.TriggerRelativeDate && rule.Trigger.Calendar != "" {
+		hubID := shared.ID("")
+		if rule.Scope.Type == domain.ScopeHub {
+			hubID = rule.Scope.ID
+		}
+		_, err := h.Calendars.Find(ctx, hubID, rule.Trigger.Calendar)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return nil, err
+		}
+		if err != nil {
+			findings = append(findings, domain.Finding{
+				Level: domain.FindingBroken, Path: "/trigger/calendar", Code: FindingReferenceGone,
+				Params: map[string]string{"kind": "calendar", "id": rule.Trigger.Calendar},
+			})
+		}
 	}
 
 	// The account it runs as: gone, or unable to act, is a rule that can do nothing.

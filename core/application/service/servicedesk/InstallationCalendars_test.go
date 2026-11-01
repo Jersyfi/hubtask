@@ -153,3 +153,26 @@ func mustCalendar(t *testing.T, spec calendar.Spec) calendar.BusinessCalendar {
 	}
 	return cal
 }
+
+type rulesOn map[string]int
+
+func (r rulesOn) Calendar(_ context.Context, key string) (int, error) { return r[key], nil }
+
+// A calendar no policy names but a switched-on rule's trigger counts on is refused with the count:
+// deleting it would stop the auto-close rule without a word (configuration.md §2).
+func TestACalendarARuleCountsOnIsNotDeleted(t *testing.T) {
+	office := domain.Calendar{Key: "office", Name: "Office"}
+	desk := Desk{
+		Calendars: calendarStore{office: office}, Policies: policyStore{}, Rules: rulesOn{"office": 2},
+		Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{},
+	}
+	err := (DeleteBusinessCalendar{Desk: desk}).Execute(context.Background(), reader(), "office")
+	refusal := shared.AsError(err)
+	if refusal.DetailCode != "calendars.named_by_rules" || refusal.Params["rules"] != "2" {
+		t.Fatalf("a calendar two rules count on: %v", err)
+	}
+	desk.Rules = rulesOn{}
+	if err := (DeleteBusinessCalendar{Desk: desk}).Execute(context.Background(), reader(), "office"); err != nil {
+		t.Fatalf("a calendar nothing names: %v", err)
+	}
+}

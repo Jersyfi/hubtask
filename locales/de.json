@@ -9923,6 +9923,7 @@
   "calendars.hours_malformed": "Arbeitszeiten sind eine Liste von Spannen mit Tag, Beginn und Ende.",
   "calendars.identity_incomplete": "Diese Installation ist falsch eingerichtet und konnte den Kalender nicht anlegen.",
   "calendars.in_use": "Der Kalender {key} wird von einer SLA-Richtlinie verwendet. Ändere zuerst die Richtlinie.",
+  "calendars.named_by_rules": "Auf dem Kalender {key} zählen {rules} eingeschaltete Regeln Arbeitstage. Ändere oder schalte diese Regeln zuerst aus.",
   "calendars.key_malformed": "Ein Schlüssel beginnt mit einem Buchstaben und enthält nur Kleinbuchstaben, Ziffern und Unterstriche.",
   "calendars.key_taken": "Der Arbeitsbereich hat bereits einen Kalender {key}.",
   "calendars.name_required": "Ein Kalender braucht einen Namen.",

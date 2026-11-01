@@ -275,7 +275,7 @@ func (h DeleteBusinessCalendar) Execute(ctx context.Context, actor appshared.Act
 func (h DeleteBusinessCalendar) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name:        DeleteBusinessCalendarName,
-		Summary:     "Deletes a business calendar that no SLA policy names and no hub keeps its own version of; one in use is refused with calendars.in_use.",
+		Summary:     "Deletes a business calendar that no SLA policy names and no hub keeps its own version of; one in use is refused with calendars.in_use, one a switched-on rule's trigger counts on with calendars.named_by_rules.",
 		SideEffects: "Deletes the calendar and writes an audit entry.",
 		TokenScope:  deskWrite,
 		Input: []usecase.Field{
@@ -314,6 +314,16 @@ func (d Desk) calendarStillNamed(ctx context.Context, key string) error {
 	for _, p := range policies {
 		if p.CalendarKey == key {
 			return shared.ErrConflict.WithDetail("calendars.in_use").WithParams(map[string]string{"key": key})
+		}
+	}
+	if d.Rules != nil {
+		rules, err := d.Rules.Calendar(ctx, key)
+		if err != nil {
+			return err
+		}
+		if rules > 0 {
+			return shared.ErrConflict.WithDetail("calendars.named_by_rules").
+				WithParams(map[string]string{"key": key, "rules": strconv.Itoa(rules)})
 		}
 	}
 	return nil

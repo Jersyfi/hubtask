@@ -9923,6 +9923,7 @@
   "calendars.hours_malformed": "Working hours are a list of spans, each with a day, a start and an end.",
   "calendars.identity_incomplete": "This installation is misconfigured and could not create that calendar.",
   "calendars.in_use": "The calendar {key} is used by an SLA policy. Change the policy first.",
+  "calendars.named_by_rules": "The calendar {key} is what {rules} switched-on rules count working days on. Change or switch off those rules first.",
   "calendars.key_malformed": "A key starts with a letter and holds only lower-case letters, digits and underscores.",
   "calendars.key_taken": "The workspace already has a calendar {key}.",
   "calendars.name_required": "A calendar needs a name.",

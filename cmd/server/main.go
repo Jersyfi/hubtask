@@ -1849,7 +1849,14 @@ func run() error {
 		Rules:       postgres.NewAutomationRuleRepository(cursors),
 		References:  postgres.NewAutomationReferenceRepository(),
 		CustomRoles: postgres.NewCustomRoleRepository(),
-		Catalogue:   ruleCatalogue, Conditions: celexpression.New(),
+		// The trigger's calendar as the run reads it, so a calendar gone is a finding.
+		Calendars: servicedeskservice.RuleCalendars{
+			Calendars: servicedeskservice.WithInstallation{
+				Calendars: postgres.NewServiceDeskRepository().Calendars(), Installation: installationCalendars,
+			},
+			HubCalendars: postgres.NewServiceDeskRepository().HubCalendars(),
+		},
+		Catalogue: ruleCatalogue, Conditions: celexpression.New(),
 		Authorizer: authorizer, Audit: auditSink,
 		Owners: notification.RecordRuleDisabled{
 			Notifications: notifications, Accounts: accounts,
@@ -2031,6 +2038,7 @@ func run() error {
 		Organisations: serviceDeskStore.Organisations(),
 		HubCalendars:  serviceDeskStore.HubCalendars(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms, Visibility: authorizer,
+		Rules: automationservice.RulesNaming{Rules: postgres.NewAutomationRuleRepository(cursors)},
 	}
 	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the
 	// registry, on the PORTAL door.

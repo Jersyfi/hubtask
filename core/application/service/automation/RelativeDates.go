@@ -158,6 +158,11 @@ func (d RelativeDates) settle(
 		}
 		found, err := d.Calendars.Find(ctx, hubID, rule.Trigger.Calendar)
 		if errors.Is(err, shared.ErrNotFound) {
+			// A rule that can no longer fire is the check's to report and switch off, so its
+			// owner hears of it rather than finding resolved tickets that never close (ADR-0060).
+			if err := d.seedCheck(ctx, rule.TenantID); err != nil {
+				return time.Time{}, false, err
+			}
 			return time.Time{}, false, d.Occurrences.Forget(ctx, rule.ID, item.ID)
 		}
 		if err != nil {
@@ -300,4 +305,15 @@ func (d RelativeDates) hubOf(ctx context.Context, collectionID shared.ID) (share
 		return "", err
 	}
 	return container.ParentID, nil
+}
+
+// seedCheck writes the workspace's check job, deduplicated per tenant as a deletion's is.
+func (d RelativeDates) seedCheck(ctx context.Context, tenantID shared.ID) error {
+	if d.Jobs == nil || tenantID.IsZero() {
+		return nil
+	}
+	_, err := d.Jobs.Enqueue(ctx, queue.Request{
+		Kind: queue.KindAutomationCheck, TenantID: tenantID, DedupeKey: tenantID.String(),
+	})
+	return err
 }
