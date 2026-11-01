@@ -496,6 +496,26 @@ func (q *Queries) HoldJob(ctx context.Context, arg HoldJobParams) (pgtype.UUID, 
 	return id, err
 }
 
+const invalidIndexCount = `-- name: InvalidIndexCount :one
+SELECT count(*)::bigint AS invalid
+FROM pg_catalog.pg_index i
+JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND NOT i.indisvalid
+`
+
+// The indexes PostgreSQL holds invalid (alert A-28): an index a CREATE INDEX CONCURRENTLY left
+// behind when it was interrupted, which every write still maintains and no query uses, and which
+// a unique index's constraint does not enforce. The migrator rebuilds the ones a migration builds
+// (versioning-release.md §4); one that stays is what this counts. pg_index is readable by every
+// role, so no function is needed.
+func (q *Queries) InvalidIndexCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, invalidIndexCount)
+	var invalid int64
+	err := row.Scan(&invalid)
+	return invalid, err
+}
+
 const isDeadLetter = `-- name: IsDeadLetter :one
 SELECT EXISTS (SELECT 1 FROM job WHERE id = $1 AND state = 'DEAD_LETTER')
 `

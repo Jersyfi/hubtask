@@ -5293,6 +5293,7 @@ func run() error {
 			Open: jobs,
 			// Alert A-25's number: a snapshot or a session pinning vacuum.
 			Transactions: jobs,
+			Indexes:      jobs,
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,

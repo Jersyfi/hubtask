@@ -76,6 +76,11 @@ type schedulerSignals struct {
 	auditHeld        []int64
 	auditDefaultAged []int64
 	oldest           []float64
+	invalidIndexes   []int64
+}
+
+func (s *schedulerSignals) InvalidIndexes(_ context.Context, count int64) {
+	s.invalidIndexes = append(s.invalidIndexes, count)
 }
 
 func (s *schedulerSignals) OldestTransaction(_ context.Context, seconds float64) {
@@ -628,5 +633,23 @@ func TestTheLeaderPublishesTheOldestTransaction(t *testing.T) {
 	leader.tick(t.Context(), false, now)
 	if len(signals.oldest) != 1 || signals.oldest[0] != 7300 {
 		t.Errorf("published %v, want [7300]", signals.oldest)
+	}
+}
+
+// invalidIndexes is the database's count of indexes held invalid.
+type invalidIndexes struct{ count int64 }
+
+func (i invalidIndexes) InvalidIndexCount(context.Context) (int64, error) { return i.count, nil }
+
+// Alert A-28's number: the indexes left invalid, published by the leader on every tick, so an
+// interrupted concurrent build that the migrator did not repair is seen.
+func TestTheLeaderPublishesTheInvalidIndexes(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.Indexes = invalidIndexes{count: 2}
+
+	leader.tick(t.Context(), false, now)
+	if len(signals.invalidIndexes) != 1 || signals.invalidIndexes[0] != 2 {
+		t.Errorf("published %v, want [2]", signals.invalidIndexes)
 	}
 }

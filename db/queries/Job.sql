@@ -336,6 +336,18 @@ RETURNING state;
 -- name: OldestTransactionSeconds :one
 SELECT oldest_transaction_seconds()::float8 AS seconds;
 
+-- The indexes PostgreSQL holds invalid (alert A-28): an index a CREATE INDEX CONCURRENTLY left
+-- behind when it was interrupted, which every write still maintains and no query uses, and which
+-- a unique index's constraint does not enforce. The migrator rebuilds the ones a migration builds
+-- (versioning-release.md §4); one that stays is what this counts. pg_index is readable by every
+-- role, so no function is needed.
+-- name: InvalidIndexCount :one
+SELECT count(*)::bigint AS invalid
+FROM pg_catalog.pg_index i
+JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND NOT i.indisvalid;
+
 -- The installation's dead letters for an operator (UC-INS-12), newest first: codes and moments,
 -- never the payload (rule 10). The table has no policy; only the operator's door reads this.
 -- name: PageDeadLetters :many

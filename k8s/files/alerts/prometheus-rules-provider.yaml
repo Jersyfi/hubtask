@@ -386,3 +386,21 @@ groups:
             period. Look for dead letters of retention.sweep and for a scheduler that does not
             run.
           runbook: RB-A27-retention-stalled.md
+
+      # A-28. An index has been invalid for an hour: a CREATE INDEX CONCURRENTLY was interrupted
+      # and the migrator did not rebuild it (one no migration builds, or a build that fails again).
+      # Every write still maintains it and no query uses it; a unique one enforces nothing. The hour
+      # lets a concurrent build in progress, which is invalid until it ends, finish. max() reads the
+      # one leader's series.
+      - alert: HubtaskInvalidIndex
+        expr: max(hubtask_db_invalid_indexes) > 0
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-28
+        annotations:
+          summary: "An index of the database has been invalid for an hour"
+          description: >
+            An interrupted concurrent index build left an index that queries do not use and that,
+            if unique, does not enforce its uniqueness. Find it in pg_index and build it again.
+          runbook: RB-A28-invalid-index.md

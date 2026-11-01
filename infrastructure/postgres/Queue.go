@@ -521,6 +521,21 @@ func (q Queue) OldestTransactionSeconds(ctx context.Context) (float64, error) {
 	return seconds, nil
 }
 
+// InvalidIndexCount answers how many indexes of the schema PostgreSQL holds invalid (alert A-28).
+func (q Queue) InvalidIndexCount(ctx context.Context) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.InvalidIndexCount(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the invalid indexes: %w", err))
+	}
+	return count, nil
+}
+
 // jobFrom rebuilds a claimed job. A row that cannot be read is a defect rather than a bad job:
 // everything in it was written by this adapter.
 func jobFrom(row sqlc.ClaimJobsRow) (queue.Job, error) {

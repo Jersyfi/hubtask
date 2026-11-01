@@ -465,3 +465,30 @@ tests:
       - eval_time: 190h
         alertname: HubtaskRetentionStalled
         exp_alerts: []
+
+  # A-28: an index left invalid for over an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_invalid_indexes'
+        values: '1x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskInvalidIndex
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-28
+            exp_annotations:
+              summary: "An index of the database has been invalid for an hour"
+              description: "An interrupted concurrent index build left an index that queries do not use and that, if unique, does not enforce its uniqueness. Find it in pg_index and build it again.\n"
+              runbook: RB-A28-invalid-index.md
+
+  # A-28 stays quiet for a concurrent build of forty minutes.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_invalid_indexes'
+        values: '1x40 0x60'
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: HubtaskInvalidIndex
+        exp_alerts: []

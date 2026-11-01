@@ -98,6 +98,7 @@ type Metrics struct {
 	webhookBacklog    metric.Int64Gauge
 	mediaScanHeld     metric.Int64Gauge
 	oldestTransaction metric.Float64Gauge
+	invalidIndexes    metric.Int64Gauge
 	// The installation's deliveries to a purchase platform (UC-INS-14): settled attempts, and the
 	// dead letters waiting - alert A-21's number.
 	platformDeliveries  metric.Int64Counter
@@ -513,6 +514,14 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithUnit("s"),
 	); err != nil {
 		return fmt.Errorf("oldest transaction gauge: %w", err)
+	}
+	if m.invalidIndexes, err = meter.Int64Gauge(
+		namespace+"_db_invalid_indexes",
+		metric.WithDescription("How many of the schema's indexes PostgreSQL holds invalid: one an "+
+			"interrupted concurrent build left behind, maintained by every write and used by no query. "+
+			"Reported by the scheduler leader only, like the queue depth."),
+	); err != nil {
+		return fmt.Errorf("invalid indexes gauge: %w", err)
 	}
 	if m.platformDeliveries, err = meter.Int64Counter(
 		namespace+"_platform_deliveries_total",
@@ -1240,6 +1249,11 @@ func (m *Metrics) WebhookRetryBacklog(ctx context.Context, waiting int64) {
 // OldestTransaction publishes the age of the database's oldest open transaction.
 func (m *Metrics) OldestTransaction(ctx context.Context, seconds float64) {
 	m.oldestTransaction.Record(ctx, seconds)
+}
+
+// InvalidIndexes publishes how many indexes PostgreSQL holds invalid.
+func (m *Metrics) InvalidIndexes(ctx context.Context, count int64) {
+	m.invalidIndexes.Record(ctx, count)
 }
 
 // MediaScanHeldWorkspaces publishes how many workspaces hold uploads waiting for a scan.

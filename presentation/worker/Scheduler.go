@@ -53,6 +53,13 @@ type SchedulerSignals interface {
 	// OldestTransaction is the age of the database's oldest open transaction - alert A-25's
 	// number: vacuum cannot reclaim what changed after it began.
 	OldestTransaction(ctx context.Context, seconds float64)
+	// InvalidIndexes is how many indexes PostgreSQL holds invalid - alert A-28's number.
+	InvalidIndexes(ctx context.Context, count int64)
+}
+
+// InvalidIndexes answers how many indexes PostgreSQL holds invalid.
+type InvalidIndexes interface {
+	InvalidIndexCount(ctx context.Context) (int64, error)
 }
 
 // OldestTransactions answers the age of the database's oldest open transaction, in seconds.
@@ -170,6 +177,8 @@ type Scheduler struct {
 	Open OpenJobs
 	// Transactions answers the oldest open transaction's age. Optional, like Backlog.
 	Transactions OldestTransactions
+	// Indexes answers the indexes held invalid. Optional, like Backlog.
+	Indexes InvalidIndexes
 
 	// InstanceBackups fires the schedules that belong to no tenant. Optional: an installation
 	// without it simply never has one, which is the state every installation is in today.
@@ -306,6 +315,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.sampleRetryBacklog(ctx)
 	s.sampleHeldScans(ctx)
 	s.sampleOldestTransaction(ctx)
+	s.sampleInvalidIndexes(ctx)
 	s.samplePlatformDeadLetters(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
@@ -779,6 +789,29 @@ func (s Scheduler) sampleOldestTransaction(ctx context.Context) {
 		return
 	}
 	s.Signals.OldestTransaction(ctx, seconds)
+}
+
+// sampleInvalidIndexes publishes how many indexes are invalid (A-28): an interrupted concurrent
+// build leaves one that every write maintains, no query uses and, if unique, nothing enforces.
+func (s Scheduler) sampleInvalidIndexes(ctx context.Context) {
+	if s.Signals == nil || s.Indexes == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var count int64
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		count, err = s.Indexes.InvalidIndexCount(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "counting the invalid indexes failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.InvalidIndexes(ctx, count)
 }
 
 // sampleRetryBacklog publishes the webhook retries waiting out their backoff. The queue depth
