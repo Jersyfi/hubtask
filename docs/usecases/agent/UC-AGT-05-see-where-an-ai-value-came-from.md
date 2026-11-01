@@ -5,9 +5,9 @@ context: agent
 actors: [PE-member, PE-auditor, PE-integrator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: built
+state: verified
 tasks: []
-checked_by: [core/application/service/suggestion/Provenance_test.go, core/application/service/suggestion/Producing_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts, test/architecture/doorsalike_test.go]
+checked_by: [core/application/service/suggestion/Provenance_test.go, core/application/service/suggestion/Producing_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts, test/architecture/doorsalike_test.go, core/application/service/agent/Agent_test.go, core/application/service/privacy/Carried_test.go]
 ---
 
 # See where a value that came from AI came from

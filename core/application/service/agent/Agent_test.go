@@ -5,6 +5,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"testing"
@@ -523,7 +524,7 @@ func TestAChangedModelStopsItsAgentsUntilApprovedAgain(t *testing.T) {
 	}
 }
 
-// UC-AGT-04 checks 1-3: an agent asking for an evaluation goes live only after a run on its
+// UC-AGT-04 checks 1-4: an agent asking for an evaluation goes live only after a run on its
 // model reached its bar; the server scores the answers, and the agent answers its set itself.
 func TestAnAgentGoesLiveOnlyAfterPassingItsEvaluation(t *testing.T) {
 	f := newFixture()
@@ -546,6 +547,15 @@ func TestAnAgentGoesLiveOnlyAfterPassingItsEvaluation(t *testing.T) {
 	// The agent itself answers its set through the gate, before it is live.
 	itself := appshared.ActorContext{Kind: appshared.ActorAIAgent, TenantID: tenantID, AccountID: a.AccountID, Scopes: []string{scopeRead, scopeWrite}}
 	f.store.agents[a.ID] = func() domain.Agent { x := f.store.agents[a.ID]; x.Scopes = []string{scopeRead, scopeWrite}; return x }()
+	// UC-AGT-04 check 4: the agent itself reads its set before it is live, and so does an
+	// administrator.
+	list := ListAgentCases{Desk: f.desk}.Descriptor()
+	for _, reader := range []appshared.ActorContext{itself, person(admin)} {
+		set, err := (Gate{Desk: f.desk}).Wrap(nil)(list, list.Handler).Invoke(ctx, reader, usecase.Input{"agent_id": a.ID.String()})
+		if rows, _ := set["data"].([]usecase.Output); err != nil || len(rows) != 2 {
+			t.Fatalf("%s reads the set: %v %v", reader.Kind, set, err)
+		}
+	}
 	d := RecordAgentEvaluation{Desk: f.desk}.Descriptor()
 	handler := (Gate{Desk: f.desk}).Wrap(nil)(d, d.Handler)
 	answers := []any{map[string]any{"case_id": f.store.cases[0].ID.String(), "answer": map[string]any{"labels": []any{"hw"}}}}
@@ -713,5 +723,41 @@ func TestAModelIsRegisteredAsTheWorkspacesAIAllows(t *testing.T) {
 		"key": "own", "name": "Own", "source": "OWN", "model": "m1", "region": "SELF_HOSTED",
 	}); code(err) != "ai.source_not_allowed" {
 		t.Errorf("a source the workspace's AI does not allow: %v", err)
+	}
+}
+
+// entryReads answers the entry's own read: found, unless the entry is the hidden one.
+type entryReads struct {
+	hidden shared.ID
+	asked  []string
+}
+
+func (e *entryReads) Invoke(_ context.Context, name string, _ appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	e.asked = append(e.asked, name)
+	if name == getWorkItem && in.String("item_id") == e.hidden.String() {
+		return nil, shared.ErrNotFound
+	}
+	return usecase.Output{}, nil
+}
+
+// UC-AGT-05 check 2: an entry's provenance is read by whoever may read the entry - its own read
+// decides -, and one they may not read answers not found.
+func TestAnEntrysProvenanceIsReadByItsReaders(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	visible := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000009b1")
+	hidden := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000009b2")
+	reads := &entryReads{hidden: hidden}
+	f.desk.Catalogue = reads
+	f.store.marks = []domain.Mark{{ID: shared.MustParseID("01936f2a-7c1e-7000-8000-0000000009b3"), TargetType: "WORK_ITEM", TargetID: visible, Fields: []string{"labels"}, Model: "m1", AcceptedAt: noon}}
+	list := ListValueProvenance{Desk: f.desk}.Descriptor().Handler
+	reader := person(ana)
+	reader.Scopes = []string{"items:read"}
+	out, err := list.Invoke(ctx, reader, usecase.Input{"item_id": visible.String()})
+	if rows, _ := out["data"].([]usecase.Output); err != nil || len(rows) != 1 || reads.asked[0] != getWorkItem {
+		t.Fatalf("a reader of the entry read %v %v (asked %v)", out, err, reads.asked)
+	}
+	if _, err := list.Invoke(ctx, reader, usecase.Input{"item_id": hidden.String()}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("an entry the reader may not read answered %v", err)
 	}
 }
