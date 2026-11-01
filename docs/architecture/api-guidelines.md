@@ -416,6 +416,17 @@ sends such a field is answered with `Deprecation` (and `Sunset` where a day is s
 fails on a mark missing its day, version or replacement, and on a mark nothing can announce: only a
 top-level property of a schema a JSON request body references can be deprecated.
 
+**Two releases at once.** During a rolling update a client of one release can reach a server of
+the other. Every answer names the server's build in `X-Hubtask-Build` - the bundle's entry script,
+which the binary and the bundle share by construction (ADR-0028). A first-party client sends its
+own as `X-Hubtask-Client-Build`; a route the server does not know, asked by a client of another
+build, is answered `503` with `Retry-After: 1` and `route.build_mismatch` rather than `404`
+(`rest.BuildMarked`). Nothing ran, so the sync engine's transport retries it for every method, a
+bounded number of times. The webapp loads the newer release with one full page load at the next
+navigation once the API has named one other build on several answers in a row, at most once per
+build and tab. A client without the header, and a server of a release before this one, keep the
+plain `404`.
+
 Breaking changes are: removing or renaming a field, changing a type, adding a required field,
 removing an enum value from *requests*, changing semantics, changing a default, removing an error
 code. See [versioning-release.md](./versioning-release.md).

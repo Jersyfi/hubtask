@@ -143,6 +143,27 @@ type Handler struct {
 	// policy is the content security policy every answer carries, composed once at construction
 	// from the installation's media origin (ADR-0047), the way the entity tags are computed once.
 	policy string
+	// build is the bundle's entry script (Build), empty for a document without one.
+	build string
+}
+
+// buildHeader is rest.BuildHeader, written out because this adapter does not import that one.
+const buildHeader = "X-Hubtask-Build"
+
+var entryScript = regexp.MustCompile(`<script[^>]*type="module"[^>]*src="([^"]+)"`)
+
+// Build answers the bundle's build: the entry script its document loads. A client reads the same
+// value from the document it runs, so a server and a client compare builds without a second id
+// that could disagree (api-guidelines.md §8). Empty for the placeholder.
+func Build(files fs.FS) string {
+	document, err := fs.ReadFile(files, indexPath)
+	if err != nil {
+		return ""
+	}
+	if match := entryScript.FindSubmatch(document); match != nil {
+		return string(match[1])
+	}
+	return ""
 }
 
 // NewHandler reads the bundle once and computes an entity tag per file, and composes the policy
@@ -181,13 +202,19 @@ func NewHandler(
 	if err != nil {
 		return Handler{}, fmt.Errorf("webui: reading the bundle: %w", err)
 	}
-	return Handler{Files: files, SecurityHeaders: headers, etags: etags, policy: EmbeddableBy(PolicyFor(mediaOrigin), frameAncestors)}, nil
+	return Handler{
+		Files: files, SecurityHeaders: headers, etags: etags,
+		policy: EmbeddableBy(PolicyFor(mediaOrigin), frameAncestors), build: Build(files),
+	}, nil
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The policy is set before anything else, so that it is on the answer whatever happens below,
 	// including the 404 and the 405.
 	h.SecurityHeaders(w.Header(), h.policy)
+	if h.build != "" {
+		w.Header().Set(buildHeader, h.build)
+	}
 
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")

@@ -841,6 +841,7 @@
   "notifications.payload_malformed": "Diese Installation konnte ein Ereignis, das sie bekannt geben wollte, nicht lesen.",
   "notifications.job_without_tenant": "Diese Installation konnte keine Nachricht verschicken: Der Auftrag hat keinen Arbeitsbereich genannt.",
   "route.unknown": "Unter dieser Adresse gibt es nichts.",
+  "route.build_mismatch": "Hubtask wird gerade aktualisiert. Bitte versuche es gleich noch einmal.",
   "route.operation_not_available": "Diese Installation bietet diese Operation noch nicht an.",
   "dependency.unavailable": "Ein Dienst, den diese Funktion braucht, ist gerade nicht erreichbar. Alles andere funktioniert weiter.",
   "suggestions.job_without_tenant": "Dieser Vorschlagsauftrag nennt keinen Arbeitsbereich, darum ließ sich nichts für ihn lesen.",

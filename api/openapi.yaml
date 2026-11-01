@@ -18,6 +18,10 @@ info:
       * cursor pagination, `Idempotency-Key`, `ETag`/`If-Match`
       * actions as a suffix (`POST /items/{id}:complete`)
       * no display text, only codes and parameters
+      * every answer may carry `X-Hubtask-Build`, the server's build; a first-party client sends
+        its own as `X-Hubtask-Client-Build`, and a route unknown to a server of another build is
+        answered `503` with `Retry-After` and `detail_code` `route.build_mismatch` instead of
+        `404` - during a rolling update the next attempt may reach a server that knows it
   license:
     name: Apache-2.0
     identifier: Apache-2.0

@@ -4,7 +4,7 @@
     "title": "Hubtask API",
     "version": "0.1.0",
     "summary": "Task management with Hub / Collection / Task / Work Package / Activity",
-    "description": "The Hubtask API contract (API first). This file is the single source of truth: server\ninterfaces and client SDKs are generated from it.\n\nThe conventions:\n  * one major path `/api/v1`, additive changes without a version bump\n  * errors per RFC 9457 with a stable `code`\n  * cursor pagination, `Idempotency-Key`, `ETag`/`If-Match`\n  * actions as a suffix (`POST /items/{id}:complete`)\n  * no display text, only codes and parameters\n",
+    "description": "The Hubtask API contract (API first). This file is the single source of truth: server\ninterfaces and client SDKs are generated from it.\n\nThe conventions:\n  * one major path `/api/v1`, additive changes without a version bump\n  * errors per RFC 9457 with a stable `code`\n  * cursor pagination, `Idempotency-Key`, `ETag`/`If-Match`\n  * actions as a suffix (`POST /items/{id}:complete`)\n  * no display text, only codes and parameters\n  * every answer may carry `X-Hubtask-Build`, the server's build; a first-party client sends\n    its own as `X-Hubtask-Client-Build`, and a route unknown to a server of another build is\n    answered `503` with `Retry-After` and `detail_code` `route.build_mismatch` instead of\n    `404` - during a rolling update the next attempt may reach a server that knows it\n",
     "license": {
       "name": "Apache-2.0",
       "identifier": "Apache-2.0"

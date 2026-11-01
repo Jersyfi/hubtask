@@ -37,12 +37,12 @@ const (
 // corsAllowedHeaders is what a browser may send. Every entry is a header this API reads;
 // anything else is refused by the preflight rather than silently ignored.
 var corsAllowedHeaders = "Authorization, Content-Type, Accept, Accept-Language, " +
-	"Idempotency-Key, If-Match, If-None-Match, " + RequestIDHeader + ", " + TenantHeader
+	"Idempotency-Key, If-Match, If-None-Match, " + RequestIDHeader + ", " + TenantHeader + ", " + ClientBuildHeader
 
 // corsExposedHeaders is what a browser may read back. Without this list a cross-origin client
 // cannot see its own request ID, its rate limit budget, or an ETag it is expected to send back.
 var corsExposedHeaders = RequestIDHeader + ", ETag, Retry-After, " +
-	"RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Deprecation, Sunset"
+	"RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Deprecation, Sunset, " + BuildHeader
 
 // TenantHeader is the third source of tenant resolution (multi-tenancy.md §3). It never wins over
 // the token: a contradiction between the two is refused, not resolved.

@@ -343,3 +343,26 @@ func TestTheFrameSourcesWidenOnlyTheInterfacesFrameSource(t *testing.T) {
 		t.Errorf("the API's policy is %q", csp)
 	}
 }
+
+// The build is the bundle's entry script, the value a client reads from its own document, so the
+// two compare without a second build id that could disagree (api-guidelines.md §8).
+func TestTheBuildIsTheEntryScriptAndMarksEveryAnswer(t *testing.T) {
+	t.Parallel()
+	files := bundle()
+	files["index.html"] = &fstest.MapFile{Data: []byte(`<!DOCTYPE html><script type="module" crossorigin src="/assets/index-CBRxRnMw.js"></script>`)}
+	if got := webui.Build(files); got != "/assets/index-CBRxRnMw.js" {
+		t.Fatalf("Build = %q, want the entry script", got)
+	}
+	h, err := webui.NewHandler(files, rest.WriteSecurityHeaders, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	for _, path := range []string{"/", "/assets/index-CBRxRnMw.js", "/assets/missing-AAAAAAAA.js"} {
+		if got := get(t, h, path).Header().Get(rest.BuildHeader); got != "/assets/index-CBRxRnMw.js" {
+			t.Errorf("%s: %s = %q, want the build", path, rest.BuildHeader, got)
+		}
+	}
+	if got := webui.Build(bundle()); got != "" {
+		t.Errorf("a document without an entry script has build %q, want none", got)
+	}
+}

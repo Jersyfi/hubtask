@@ -4148,6 +4148,9 @@ func run() error {
 		// bundle embedded at link time, so it is the same version as the API by construction -
 		// there is no second artefact that could be a release behind.
 		var ui http.Handler
+		// The bundle's build, on every answer: during a rolling update a client and a pod can be of
+		// two releases, and an unknown route is then a retry, not a 404 (api-guidelines.md §8).
+		var build string
 		if cfg.UI.Enabled {
 			files, fsErr := webui.FS()
 			if fsErr != nil {
@@ -4165,6 +4168,7 @@ func run() error {
 				return fmt.Errorf("web interface: %w", uiErr)
 			}
 			ui = handler.FramingSources(cfg.UI.FrameSources)
+			build = webui.Build(files)
 			if webui.IsPlaceholder(files) {
 				// Worth saying once at startup rather than leaving somebody to discover it in a
 				// browser: this binary was built without a frontend build, so "/" answers the
@@ -4195,7 +4199,7 @@ func run() error {
 					API:      apiRoutes,
 					Reserved: []string{rest.APIBasePath + "/", mcp.Path, calendar.Prefix, calendar.WellKnown},
 					UI:       ui,
-					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Shedding{
+					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.BuildMarked{Build: build, Routes: apiRoutes, Next: rest.Shedding{
 						Routes: apiRoutes, Admit: admit, Signals: metrics,
 						Next: rest.Bounded{
 							MaxBodyBytes: cfg.Request.MaxBodyBytes,
@@ -4278,7 +4282,7 @@ func run() error {
 									},
 								},
 							},
-						}}},
+						}}}},
 				},
 				Metrics: metrics,
 				Tracer:  tracing.Tracer("rest"),
