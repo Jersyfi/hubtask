@@ -305,6 +305,13 @@ type Erasure interface {
 	// DeleteComments removes the person's comments named, and no others.
 	DeleteComments(ctx context.Context, accountID shared.ID, ids []shared.ID) (int, error)
 
+	// DeleteWritings removes what the person wrote outside entries, of one kind (a page or board
+	// comment, a check-in, a portfolio update, a page draft), named and no others. It answers the
+	// identifiers removed, which owe a journal entry and a tombstone, and how many were blanked
+	// instead: a page or board comment others replied to loses its words and its author and stays
+	// as a removed comment, because removing it would take the replies with it.
+	DeleteWritings(ctx context.Context, accountID shared.ID, kind ContributionKind, ids []shared.ID, at time.Time) ([]shared.ID, int, error)
+
 	// ReleaseAssignmentsOn hands the entries named back to nobody, where they are assigned to the
 	// person.
 	ReleaseAssignmentsOn(ctx context.Context, accountID shared.ID, itemIDs []shared.ID, at time.Time) (int, error)
@@ -317,6 +324,12 @@ const (
 	ContributedComment    ContributionKind = "COMMENT"
 	ContributedAssignment ContributionKind = "ASSIGNMENT"
 	ContributedEntry      ContributionKind = "ENTRY"
+
+	ContributedPageComment     ContributionKind = "PAGE_COMMENT"
+	ContributedBoardComment    ContributionKind = "WHITEBOARD_COMMENT"
+	ContributedCheckIn         ContributionKind = "GOAL_CHECK_IN"
+	ContributedPortfolioUpdate ContributionKind = "PORTFOLIO_UPDATE"
+	ContributedPageDraft       ContributionKind = "PAGE_DRAFT"
 )
 
 // Contribution is one row of the person's on an entry, and where that entry is.

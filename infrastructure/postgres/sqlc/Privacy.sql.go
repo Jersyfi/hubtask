@@ -127,6 +127,53 @@ func (q *Queries) AutomationsRunningAs(ctx context.Context, accountID pgtype.UUI
 	return count, err
 }
 
+const blankPageCommentsOf = `-- name: BlankPageCommentsOf :execrows
+UPDATE page_comment
+SET body = '', quote = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, $1), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = $2
+  AND id = ANY($3::uuid[])
+`
+
+type BlankPageCommentsOfParams struct {
+	At       pgtype.Timestamptz
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// What is left of the person's page comments named once the unanswered ones are gone: the words,
+// the quote and the author go, and the comment stays a removed one so its replies keep their thread.
+func (q *Queries) BlankPageCommentsOf(ctx context.Context, arg BlankPageCommentsOfParams) (int64, error) {
+	result, err := q.db.Exec(ctx, blankPageCommentsOf, arg.At, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const blankWhiteboardCommentsOf = `-- name: BlankWhiteboardCommentsOf :execrows
+UPDATE whiteboard_comment
+SET body = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, $1), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = $2
+  AND id = ANY($3::uuid[])
+`
+
+type BlankWhiteboardCommentsOfParams struct {
+	At       pgtype.Timestamptz
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// As BlankPageCommentsOf, for a board's comments.
+func (q *Queries) BlankWhiteboardCommentsOf(ctx context.Context, arg BlankWhiteboardCommentsOfParams) (int64, error) {
+	result, err := q.db.Exec(ctx, blankWhiteboardCommentsOf, arg.At, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const blockErasureKept = `-- name: BlockErasureKept :execrows
 UPDATE erasure_kept SET blocked_code = $1, blocked_params = $2
 WHERE tenant_id = current_tenant_id() AND request_id = $3 AND erased_at IS NULL
@@ -300,6 +347,39 @@ func (q *Queries) DeleteChatLinksOfAccount(ctx context.Context, accountID pgtype
 	return result.RowsAffected(), nil
 }
 
+const deleteCheckInsOf = `-- name: DeleteCheckInsOf :many
+DELETE FROM goal_check_in
+WHERE tenant_id = current_tenant_id() AND author_id = $1
+  AND id = ANY($2::uuid[])
+RETURNING id
+`
+
+type DeleteCheckInsOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// The person's goal check-ins a hold does not keep, by identifier.
+func (q *Queries) DeleteCheckInsOf(ctx context.Context, arg DeleteCheckInsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deleteCheckInsOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteCommentsOf = `-- name: DeleteCommentsOf :execrows
 DELETE FROM comment
 WHERE tenant_id = current_tenant_id() AND author_id = $1
@@ -429,6 +509,76 @@ func (q *Queries) DeleteNotificationsOfAccount(ctx context.Context, accountID pg
 	return result.RowsAffected(), nil
 }
 
+const deletePageCommentsOf = `-- name: DeletePageCommentsOf :many
+DELETE FROM page_comment pc
+WHERE pc.tenant_id = current_tenant_id() AND pc.author_id = $1
+  AND pc.id = ANY($2::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM page_comment r WHERE r.tenant_id = pc.tenant_id AND r.parent_id = pc.id)
+RETURNING pc.id
+`
+
+type DeletePageCommentsOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// The person's page comments a hold does not keep, by identifier, that nobody answered: a comment
+// with replies is blanked instead (BlankPageCommentsOf), because removing it would take the
+// replies of others with it by cascade.
+func (q *Queries) DeletePageCommentsOf(ctx context.Context, arg DeletePageCommentsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deletePageCommentsOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deletePageDraftsOf = `-- name: DeletePageDraftsOf :many
+DELETE FROM page_draft
+WHERE tenant_id = current_tenant_id() AND updated_by = $1
+  AND page_id = ANY($2::uuid[])
+RETURNING page_id
+`
+
+type DeletePageDraftsOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// The drafts the person edited last that a hold does not keep, by page. The published page stays.
+func (q *Queries) DeletePageDraftsOf(ctx context.Context, arg DeletePageDraftsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deletePageDraftsOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var page_id pgtype.UUID
+		if err := rows.Scan(&page_id); err != nil {
+			return nil, err
+		}
+		items = append(items, page_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deletePasskeysOfAccount = `-- name: DeletePasskeysOfAccount :execrows
 DELETE FROM webauthn_credential WHERE account_id = $1
 `
@@ -458,6 +608,39 @@ func (q *Queries) DeletePersonalRulesOfAccount(ctx context.Context, accountID pg
 	return result.RowsAffected(), nil
 }
 
+const deletePortfolioUpdatesOf = `-- name: DeletePortfolioUpdatesOf :many
+DELETE FROM portfolio_update
+WHERE tenant_id = current_tenant_id() AND author_id = $1
+  AND id = ANY($2::uuid[])
+RETURNING id
+`
+
+type DeletePortfolioUpdatesOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// The person's portfolio updates a hold does not keep, by identifier.
+func (q *Queries) DeletePortfolioUpdatesOf(ctx context.Context, arg DeletePortfolioUpdatesOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deletePortfolioUpdatesOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deletePrivateDashboardsOfAccount = `-- name: DeletePrivateDashboardsOfAccount :execrows
 DELETE FROM dashboard
 WHERE tenant_id = current_tenant_id() AND owner_id = $1 AND sharing = 'PRIVATE'
@@ -484,6 +667,41 @@ func (q *Queries) DeleteTimerOfAccount(ctx context.Context, accountID pgtype.UUI
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const deleteWhiteboardCommentsOf = `-- name: DeleteWhiteboardCommentsOf :many
+DELETE FROM whiteboard_comment bc
+WHERE bc.tenant_id = current_tenant_id() AND bc.author_id = $1
+  AND bc.id = ANY($2::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM whiteboard_comment r WHERE r.tenant_id = bc.tenant_id AND r.parent_id = bc.id)
+RETURNING bc.id
+`
+
+type DeleteWhiteboardCommentsOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// As DeletePageCommentsOf, for a board's comments.
+func (q *Queries) DeleteWhiteboardCommentsOf(ctx context.Context, arg DeleteWhiteboardCommentsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deleteWhiteboardCommentsOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const discardIntakeOf = `-- name: DiscardIntakeOf :execrows
@@ -566,6 +784,29 @@ SELECT 'ENTRY'::text, w.id, w.id, w.path, w.collection_id, col.parent_id, w.crea
 FROM work_item w
 JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
 WHERE w.tenant_id = current_tenant_id() AND w.created_by = $1
+UNION ALL
+SELECT 'PAGE_COMMENT'::text, pc.id, NULL::uuid, ''::text, NULL::uuid, p.hub_id, NULL::uuid
+FROM page_comment pc
+JOIN page p ON p.tenant_id = pc.tenant_id AND p.id = pc.page_id
+WHERE pc.tenant_id = current_tenant_id() AND pc.author_id = $1
+UNION ALL
+SELECT 'WHITEBOARD_COMMENT'::text, bc.id, NULL::uuid, ''::text, NULL::uuid, b.hub_id, NULL::uuid
+FROM whiteboard_comment bc
+JOIN whiteboard b ON b.tenant_id = bc.tenant_id AND b.id = bc.whiteboard_id
+WHERE bc.tenant_id = current_tenant_id() AND bc.author_id = $1
+UNION ALL
+SELECT 'GOAL_CHECK_IN'::text, gc.id, NULL::uuid, ''::text, NULL::uuid, NULL::uuid, NULL::uuid
+FROM goal_check_in gc
+WHERE gc.tenant_id = current_tenant_id() AND gc.author_id = $1
+UNION ALL
+SELECT 'PORTFOLIO_UPDATE'::text, pu.id, NULL::uuid, ''::text, NULL::uuid, NULL::uuid, NULL::uuid
+FROM portfolio_update pu
+WHERE pu.tenant_id = current_tenant_id() AND pu.author_id = $1
+UNION ALL
+SELECT 'PAGE_DRAFT'::text, d.page_id, NULL::uuid, ''::text, NULL::uuid, p.hub_id, NULL::uuid
+FROM page_draft d
+JOIN page p ON p.tenant_id = d.tenant_id AND p.id = d.page_id
+WHERE d.tenant_id = current_tenant_id() AND d.updated_by = $1
 `
 
 type ErasureContributionsRow struct {
@@ -580,7 +821,9 @@ type ErasureContributionsRow struct {
 
 // The person's rows that sit on an entry, with where the entry is: what a hold on the workspace, a
 // hub, a collection, an entry or another person is judged against. Their comments, the entries
-// assigned to them, the entries they created.
+// assigned to them, the entries they created - and what they wrote outside entries: page and board
+// comments (with the hub), goal check-ins and portfolio updates (in no hub), the drafts of pages
+// they edited last (the page's identifier, with the hub).
 func (q *Queries) ErasureContributions(ctx context.Context, accountID pgtype.UUID) ([]ErasureContributionsRow, error) {
 	rows, err := q.db.Query(ctx, erasureContributions, accountID)
 	if err != nil {

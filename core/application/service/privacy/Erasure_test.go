@@ -46,6 +46,25 @@ type erasureStore struct {
 	contributions  []repository.Contribution
 	commentIDsGone []shared.ID
 	releasedOn     []shared.ID
+	// writingsGone are the writings removed, by kind; blankedOf answers how many of a kind are
+	// blanked instead of removed.
+	writingsGone map[repository.ContributionKind][]shared.ID
+	blankedOf    map[repository.ContributionKind]int
+}
+
+func (e *erasureStore) DeleteWritings(
+	_ context.Context, _ shared.ID, kind repository.ContributionKind, ids []shared.ID, _ time.Time,
+) ([]shared.ID, int, error) {
+	if err := e.step("delete writings"); err != nil {
+		return nil, 0, err
+	}
+	if e.writingsGone == nil {
+		e.writingsGone = map[repository.ContributionKind][]shared.ID{}
+	}
+	blanked := min(e.blankedOf[kind], len(ids))
+	gone := ids[blanked:]
+	e.writingsGone[kind] = append(e.writingsGone[kind], gone...)
+	return gone, blanked, nil
 }
 
 func (e *erasureStore) DiscardIntake(context.Context, shared.ID) (int, error) {
@@ -854,5 +873,67 @@ func TestTheRestrictionOfAnAccountAHoldKeepsCannotBeLifted(t *testing.T) {
 		AccountID: subjectID, Restricted: true, Reason: "Art. 18",
 	}); err != nil {
 		t.Fatalf("restricting: %v", err)
+	}
+}
+
+// What the person wrote outside entries goes with a full deletion too - a page and a board comment,
+// a check-in, a portfolio update, a page draft - each removed row with its journal entry, a page
+// comment others answered blanked instead, and every one counted in the audit entry.
+func TestAFullDeletionTakesWhatThePersonWroteOutsideEntries(t *testing.T) {
+	h := newErasureHarness()
+	ids := map[repository.ContributionKind]shared.ID{
+		repository.ContributedPageComment:     shared.MustParseID("0192f000-0000-7000-8000-0000000007a1"),
+		repository.ContributedBoardComment:    shared.MustParseID("0192f000-0000-7000-8000-0000000007a2"),
+		repository.ContributedCheckIn:         shared.MustParseID("0192f000-0000-7000-8000-0000000007a3"),
+		repository.ContributedPortfolioUpdate: shared.MustParseID("0192f000-0000-7000-8000-0000000007a4"),
+		repository.ContributedPageDraft:       shared.MustParseID("0192f000-0000-7000-8000-0000000007a5"),
+	}
+	answered := shared.MustParseID("0192f000-0000-7000-8000-0000000007a6")
+	h.storage.contributions = append(h.storage.contributions,
+		repository.Contribution{Kind: repository.ContributedPageComment, ID: answered})
+	for kind, id := range ids {
+		h.storage.contributions = append(h.storage.contributions, repository.Contribution{Kind: kind, ID: id})
+	}
+	h.storage.blankedOf = map[repository.ContributionKind]int{repository.ContributedPageComment: 1}
+
+	erased, err := h.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+	if err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	if erased.Writings != 6 {
+		t.Errorf("writings %d, want the five removed and the one blanked", erased.Writings)
+	}
+	for kind := range ids {
+		if len(h.storage.writingsGone[kind]) != 1 && kind != repository.ContributedPageComment {
+			t.Errorf("%s: removed %v", kind, h.storage.writingsGone[kind])
+		}
+	}
+	entities := map[string]int{}
+	for _, removal := range h.removals.recorded {
+		entities[removal.Entity]++
+	}
+	for _, table := range []string{"page_comment", "whiteboard_comment", "goal_check_in", "portfolio_update", "page_draft"} {
+		if entities[table] != 1 {
+			t.Errorf("the journal holds %d rows of %s, want 1: %v", entities[table], table, entities)
+		}
+	}
+	entry := h.audit.entries[len(h.audit.entries)-1]
+	if got := entry.Changes["writings"].(map[string]any)["to"]; got != 6 {
+		t.Errorf("the audit entry counts %v writings, want 6", got)
+	}
+}
+
+// An anonymisation leaves what the person wrote outside entries, attributed to the former user.
+func TestAnAnonymisationLeavesWhatThePersonWroteOutsideEntries(t *testing.T) {
+	h := newErasureHarness()
+	h.storage.contributions = append(h.storage.contributions, repository.Contribution{
+		Kind: repository.ContributedCheckIn, ID: shared.MustParseID("0192f000-0000-7000-8000-0000000007b1"),
+	})
+	erased, err := h.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeAnonymize))
+	if err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	if erased.Writings != 0 || len(h.storage.writingsGone) != 0 {
+		t.Errorf("an anonymisation removed %v", h.storage.writingsGone)
 	}
 }

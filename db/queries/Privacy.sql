@@ -424,7 +424,9 @@ FOR UPDATE;
 -- name: ErasureContributions :many
 -- The person's rows that sit on an entry, with where the entry is: what a hold on the workspace, a
 -- hub, a collection, an entry or another person is judged against. Their comments, the entries
--- assigned to them, the entries they created.
+-- assigned to them, the entries they created - and what they wrote outside entries: page and board
+-- comments (with the hub), goal check-ins and portfolio updates (in no hub), the drafts of pages
+-- they edited last (the page's identifier, with the hub).
 SELECT 'COMMENT'::text AS kind, c.id, w.id AS item_id, w.path, w.collection_id,
        col.parent_id AS hub_id, w.created_by AS item_created_by
 FROM comment c
@@ -441,7 +443,30 @@ UNION ALL
 SELECT 'ENTRY'::text, w.id, w.id, w.path, w.collection_id, col.parent_id, w.created_by
 FROM work_item w
 JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
-WHERE w.tenant_id = current_tenant_id() AND w.created_by = sqlc.arg('account_id');
+WHERE w.tenant_id = current_tenant_id() AND w.created_by = sqlc.arg('account_id')
+UNION ALL
+SELECT 'PAGE_COMMENT'::text, pc.id, NULL::uuid, ''::text, NULL::uuid, p.hub_id, NULL::uuid
+FROM page_comment pc
+JOIN page p ON p.tenant_id = pc.tenant_id AND p.id = pc.page_id
+WHERE pc.tenant_id = current_tenant_id() AND pc.author_id = sqlc.arg('account_id')
+UNION ALL
+SELECT 'WHITEBOARD_COMMENT'::text, bc.id, NULL::uuid, ''::text, NULL::uuid, b.hub_id, NULL::uuid
+FROM whiteboard_comment bc
+JOIN whiteboard b ON b.tenant_id = bc.tenant_id AND b.id = bc.whiteboard_id
+WHERE bc.tenant_id = current_tenant_id() AND bc.author_id = sqlc.arg('account_id')
+UNION ALL
+SELECT 'GOAL_CHECK_IN'::text, gc.id, NULL::uuid, ''::text, NULL::uuid, NULL::uuid, NULL::uuid
+FROM goal_check_in gc
+WHERE gc.tenant_id = current_tenant_id() AND gc.author_id = sqlc.arg('account_id')
+UNION ALL
+SELECT 'PORTFOLIO_UPDATE'::text, pu.id, NULL::uuid, ''::text, NULL::uuid, NULL::uuid, NULL::uuid
+FROM portfolio_update pu
+WHERE pu.tenant_id = current_tenant_id() AND pu.author_id = sqlc.arg('account_id')
+UNION ALL
+SELECT 'PAGE_DRAFT'::text, d.page_id, NULL::uuid, ''::text, NULL::uuid, p.hub_id, NULL::uuid
+FROM page_draft d
+JOIN page p ON p.tenant_id = d.tenant_id AND p.id = d.page_id
+WHERE d.tenant_id = current_tenant_id() AND d.updated_by = sqlc.arg('account_id');
 
 -- name: DeleteCommentsOf :execrows
 -- The person's comments a hold does not keep, by identifier: the ones that were read, judged and
@@ -449,6 +474,64 @@ WHERE w.tenant_id = current_tenant_id() AND w.created_by = sqlc.arg('account_id'
 DELETE FROM comment
 WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
   AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: DeletePageCommentsOf :many
+-- The person's page comments a hold does not keep, by identifier, that nobody answered: a comment
+-- with replies is blanked instead (BlankPageCommentsOf), because removing it would take the
+-- replies of others with it by cascade.
+DELETE FROM page_comment pc
+WHERE pc.tenant_id = current_tenant_id() AND pc.author_id = sqlc.arg('author_id')
+  AND pc.id = ANY(sqlc.arg('ids')::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM page_comment r WHERE r.tenant_id = pc.tenant_id AND r.parent_id = pc.id)
+RETURNING pc.id;
+
+-- name: BlankPageCommentsOf :execrows
+-- What is left of the person's page comments named once the unanswered ones are gone: the words,
+-- the quote and the author go, and the comment stays a removed one so its replies keep their thread.
+UPDATE page_comment
+SET body = '', quote = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, sqlc.arg('at')), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: DeleteWhiteboardCommentsOf :many
+-- As DeletePageCommentsOf, for a board's comments.
+DELETE FROM whiteboard_comment bc
+WHERE bc.tenant_id = current_tenant_id() AND bc.author_id = sqlc.arg('author_id')
+  AND bc.id = ANY(sqlc.arg('ids')::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM whiteboard_comment r WHERE r.tenant_id = bc.tenant_id AND r.parent_id = bc.id)
+RETURNING bc.id;
+
+-- name: BlankWhiteboardCommentsOf :execrows
+-- As BlankPageCommentsOf, for a board's comments.
+UPDATE whiteboard_comment
+SET body = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, sqlc.arg('at')), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: DeleteCheckInsOf :many
+-- The person's goal check-ins a hold does not keep, by identifier.
+DELETE FROM goal_check_in
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[])
+RETURNING id;
+
+-- name: DeletePortfolioUpdatesOf :many
+-- The person's portfolio updates a hold does not keep, by identifier.
+DELETE FROM portfolio_update
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[])
+RETURNING id;
+
+-- name: DeletePageDraftsOf :many
+-- The drafts the person edited last that a hold does not keep, by page. The published page stays.
+DELETE FROM page_draft
+WHERE tenant_id = current_tenant_id() AND updated_by = sqlc.arg('author_id')
+  AND page_id = ANY(sqlc.arg('ids')::uuid[])
+RETURNING page_id;
 
 -- name: ClearAssignmentsOn :execrows
 -- The person's assignments a hold does not keep: the entry goes back to nobody.

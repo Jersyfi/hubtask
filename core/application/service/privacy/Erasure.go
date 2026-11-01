@@ -128,6 +128,9 @@ type Erased struct {
 	Time        int
 	Assignments int
 	Comments    int
+	// Writings are what the person wrote outside entries - page and board comments, check-ins,
+	// portfolio updates, page drafts - removed in a full deletion, or blanked where others replied.
+	Writings int
 	// Intake is what the person sent in by mail or captured into the jumble: removed in a full
 	// deletion, and stripped of the address and the account in the mode that keeps the workspace's
 	// content.
@@ -290,6 +293,12 @@ func (e Eraser) erase(
 		}
 		erased.Comments = removed
 
+		writings, err := e.removeWritings(ctx, subject, plan.DeleteWritings, now)
+		if err != nil {
+			return err
+		}
+		erased.Writings = writings
+
 		orphaned, err = e.Erasure.OrphanedMedia(ctx, subject)
 		if err != nil {
 			return err
@@ -411,6 +420,53 @@ func (e Eraser) removeComments(
 	return e.Erasure.DeleteComments(ctx, subject, ids)
 }
 
+// writingTables are the tables of what a person writes outside entries, in the words the journal
+// and the tombstone use, in the order they are removed.
+var writingTables = []struct {
+	kind  domain.RowKind
+	table string
+}{
+	{domain.RowPageComment, "page_comment"},
+	{domain.RowBoardComment, "whiteboard_comment"},
+	{domain.RowCheckIn, "goal_check_in"},
+	{domain.RowPortfolioUpdate, "portfolio_update"},
+	{domain.RowPageDraft, "page_draft"},
+}
+
+// removeWritings takes what the person wrote outside entries that the plan names, each removed row
+// with the journal entry and the tombstone it owes, so a restore does not bring it back. A blanked
+// comment keeps its row; a restore brings its words back, and the recovered case's re-application
+// blanks them again.
+func (e Eraser) removeWritings(
+	ctx context.Context, subject shared.ID, writings map[domain.RowKind][]shared.ID, now time.Time,
+) (int, error) {
+	total := 0
+	for _, of := range writingTables {
+		ids := writings[of.kind]
+		if len(ids) == 0 {
+			continue
+		}
+		gone, blanked, err := e.Erasure.DeleteWritings(
+			ctx, subject, repository.ContributionKind(of.kind), ids, now)
+		if err != nil {
+			return 0, err
+		}
+		if len(gone) > 0 {
+			removals := make([]lifecycle.Removal, 0, len(gone))
+			for _, id := range gone {
+				removals = append(removals, lifecycle.Removal{
+					Entity: of.table, EntityID: id, Reason: lifecycle.DeletedByErasure,
+				})
+			}
+			if err := e.Removals.Record(ctx, removals, now, now.Add(e.TombstoneWindow)); err != nil {
+				return 0, err
+			}
+		}
+		total += len(gone) + blanked
+	}
+	return total, nil
+}
+
 // finishAccount is the last step: the row goes, stays and loses everything of the person's, or -
 // under a hold on the person or the workspace - stays as it is and is restricted.
 func (e Eraser) finishAccount(
@@ -523,6 +579,7 @@ func (e Eraser) record(
 		{Field: "time", Classification: audit.Open, To: erased.Time},
 		{Field: "assignments", Classification: audit.Open, To: erased.Assignments},
 		{Field: "comments", Classification: audit.Open, To: erased.Comments},
+		{Field: "writings", Classification: audit.Open, To: erased.Writings},
 		{Field: "intake", Classification: audit.Open, To: erased.Intake},
 		{Field: "media", Classification: audit.Open, To: erased.Media},
 		{Field: "account", Classification: audit.Open, To: accountOutcome(erased)},

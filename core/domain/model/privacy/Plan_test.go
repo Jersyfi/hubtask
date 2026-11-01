@@ -176,3 +176,66 @@ func sameSet(got, want []shared.ID) bool {
 	}
 	return true
 }
+
+// What the person wrote outside entries - a page or a board comment, a check-in, a portfolio
+// update, a page draft - is theirs like an entry comment: a full deletion takes it unless a hold on
+// the workspace, the place's hub or the person keeps it, and anonymising leaves it.
+func TestAFullDeletionTakesWhatThePersonWroteOutsideEntries(t *testing.T) {
+	pageComment := shared.MustParseID("0192f000-0000-7000-8000-000000000301")
+	boardComment := shared.MustParseID("0192f000-0000-7000-8000-000000000302")
+	checkIn := shared.MustParseID("0192f000-0000-7000-8000-000000000303")
+	update := shared.MustParseID("0192f000-0000-7000-8000-000000000304")
+	draftPage := shared.MustParseID("0192f000-0000-7000-8000-000000000305")
+	writings := []privacy.Row{
+		{Kind: privacy.RowPageComment, ID: pageComment, HubID: heldHub},
+		{Kind: privacy.RowBoardComment, ID: boardComment, HubID: freeHub},
+		{Kind: privacy.RowCheckIn, ID: checkIn},
+		{Kind: privacy.RowPortfolioUpdate, ID: update},
+		{Kind: privacy.RowPageDraft, ID: draftPage, HubID: freeHub},
+	}
+	all := map[privacy.RowKind][]shared.ID{
+		privacy.RowPageComment: {pageComment}, privacy.RowBoardComment: {boardComment},
+		privacy.RowCheckIn: {checkIn}, privacy.RowPortfolioUpdate: {update},
+		privacy.RowPageDraft: {draftPage},
+	}
+	for name, tc := range map[string]struct {
+		mode  privacy.ErasureMode
+		holds lifecycle.Holds
+		want  map[privacy.RowKind][]shared.ID
+		kept  int
+	}{
+		"full deletion, no hold": {mode: privacy.ModeFullDelete, want: all},
+		"anonymise":              {mode: privacy.ModeAnonymize, want: map[privacy.RowKind][]shared.ID{}},
+		"a hold on the page's hub": {
+			mode: privacy.ModeFullDelete, holds: lifecycle.Holds{hubHold}, kept: 1,
+			want: map[privacy.RowKind][]shared.ID{
+				privacy.RowBoardComment: {boardComment}, privacy.RowCheckIn: {checkIn},
+				privacy.RowPortfolioUpdate: {update}, privacy.RowPageDraft: {draftPage},
+			},
+		},
+		"a hold on the person": {
+			mode: privacy.ModeFullDelete, holds: lifecycle.Holds{subjectHold}, kept: 5,
+			want: map[privacy.RowKind][]shared.ID{},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan := privacy.PlanErasure(privacy.PlanInput{
+				Subject: subject, Mode: tc.mode, Holds: tc.holds, Rows: writings,
+			})
+			got := plan.DeleteWritings
+			if got == nil {
+				got = map[privacy.RowKind][]shared.ID{}
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("deletes %v, want %v", got, tc.want)
+			}
+			kept := 0
+			for _, part := range plan.Kept {
+				kept += part.Comments
+			}
+			if kept != tc.kept {
+				t.Errorf("kept %d writings, want %d", kept, tc.kept)
+			}
+		})
+	}
+}

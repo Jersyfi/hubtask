@@ -20,7 +20,26 @@ const (
 	RowComment    RowKind = "COMMENT"
 	RowAssignment RowKind = "ASSIGNMENT"
 	RowEntry      RowKind = "ENTRY"
+
+	// What the person wrote outside entries: a comment on a page or a board, a goal's check-in, a
+	// portfolio's update, the draft of a page they edited last. Theirs like an entry comment, so a
+	// full deletion takes it unless a hold keeps it; HubID is the page's or the board's hub, and a
+	// check-in and an update sit in no hub. A page draft's ID is its page's.
+	RowPageComment     RowKind = "PAGE_COMMENT"
+	RowBoardComment    RowKind = "WHITEBOARD_COMMENT"
+	RowCheckIn         RowKind = "GOAL_CHECK_IN"
+	RowPortfolioUpdate RowKind = "PORTFOLIO_UPDATE"
+	RowPageDraft       RowKind = "PAGE_DRAFT"
 )
+
+// Writing reports whether the kind is something the person wrote outside entries.
+func (k RowKind) Writing() bool {
+	switch k {
+	case RowPageComment, RowBoardComment, RowCheckIn, RowPortfolioUpdate, RowPageDraft:
+		return true
+	}
+	return false
+}
 
 // Row is one of the person's rows on an entry, and where that entry is.
 type Row struct {
@@ -55,6 +74,9 @@ type Plan struct {
 	Account AccountFate
 	// DeleteComments are the comments a full deletion removes; the ones a hold keeps are not here.
 	DeleteComments []shared.ID
+	// DeleteWritings are what the person wrote outside entries that a full deletion removes, by
+	// kind; the ones a hold keeps are not here. They count as comments in Kept.
+	DeleteWritings map[RowKind][]shared.ID
 	// ReleaseOn are the entries whose assignment to the person goes.
 	ReleaseOn []shared.ID
 	// KeepIntake is the intake - matched by address, on no entry - kept by a hold on the workspace.
@@ -123,8 +145,19 @@ func PlanErasure(in PlanInput) Plan {
 	keptLocated := false
 	for _, row := range in.Rows {
 		hold, covered := in.Holds.Blocking(targetOf(row, in.Subject))
-		switch row.Kind {
-		case RowComment:
+		switch {
+		case row.Kind.Writing():
+			switch {
+			case covered && (in.Mode == ModeFullDelete || plan.Account == AccountKept):
+				part(hold).Comments++
+				keptLocated = true
+			case !covered && in.Mode == ModeFullDelete:
+				if plan.DeleteWritings == nil {
+					plan.DeleteWritings = map[RowKind][]shared.ID{}
+				}
+				plan.DeleteWritings[row.Kind] = append(plan.DeleteWritings[row.Kind], row.ID)
+			}
+		case row.Kind == RowComment:
 			switch {
 			case covered && (in.Mode == ModeFullDelete || plan.Account == AccountKept):
 				part(hold).Comments++
@@ -132,14 +165,14 @@ func PlanErasure(in PlanInput) Plan {
 			case !covered && in.Mode == ModeFullDelete:
 				plan.DeleteComments = append(plan.DeleteComments, row.ID)
 			}
-		case RowAssignment:
+		case row.Kind == RowAssignment:
 			if covered {
 				part(hold).Assignments++
 				keptLocated = true
 			} else {
 				plan.ReleaseOn = append(plan.ReleaseOn, row.ItemID)
 			}
-		case RowEntry:
+		case row.Kind == RowEntry:
 			if covered && plan.Account == AccountKept {
 				part(hold).Entries++
 			}
@@ -166,7 +199,7 @@ func (p Plan) Keeps() bool { return len(p.Kept) > 0 }
 // reaches it: an assignment and an entry belong to the entry's creator, a comment to the person.
 func targetOf(row Row, subject shared.ID) lifecycle.Target {
 	owner := row.ItemCreatedBy
-	if row.Kind == RowComment {
+	if row.Kind == RowComment || row.Kind.Writing() {
 		owner = subject
 	}
 	containers := make([]shared.ID, 0, 2)
