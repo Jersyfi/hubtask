@@ -1634,6 +1634,16 @@ func run() error {
 	registry.AddWarningSource(proxyTrust.Warnings)
 	// Connections refused at the workspace's or the process's stream cap (HUBTASK_STREAM_PER_*).
 	registry.AddWarningSource(streams.Warnings)
+	// The volumes this process writes, before they fill: on a Compose host the database's volume
+	// usually shares their filesystem, and nothing else warns there.
+	mediaPath := ""
+	if cfg.Storage.Kind != envport.StorageS3 {
+		mediaPath = cfg.Storage.LocalPath
+	}
+	registry.AddWarningSource(healthadapter.NewDiskSpace(
+		healthadapter.Volume{Name: "media", Path: mediaPath},
+		healthadapter.Volume{Name: "backups", Path: cfg.Backup.LocalRoot},
+	).Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses

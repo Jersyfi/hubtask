@@ -630,6 +630,7 @@ array; `config.backup_*` is about **the installation**.
 | `config.backup_unencrypted` | A target without encryption |
 | `config.backup_single_target` | Only one target a schedule writes to — a pointer to 3-2-1 |
 | `config.backup_coverage_unchecked` | The targets could not be counted (yet) — never read as "configured" |
+| `disk.low` | The local media or backup volume has under 15 % free (`warn`) or under 5 % (`critical`), measured per report; on a Compose host the database's volume usually shares that filesystem. Where object storage holds the media, only the backup volume is measured |
 | A-12 | No successful backup in 24 hours, **per target**, so a healthy target cannot hide a broken one; the metric is absent, not zero, for a target that never had one ([RB-A12](../../deploy/observability/runbooks/RB-A12-backup-stale.md)) |
 | A-20 | The system restore drill (§8.5) is older than 90 days — a ticket, not a page. Read from `HUBTASK_RESTORE_DRILL_RECORD_FILE`; the tenant-level `NEW_TENANT` trial does not write it. No `absent()` rule, because a Compose installation records nothing; where the chart owns the database, `HubtaskRestoreDrillNeverRan` fires on the absence ([RB-A20](../../deploy/observability/runbooks/RB-A20-restore-drill-stale.md)) |
 

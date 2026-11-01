@@ -2015,6 +2015,7 @@
   "stream.capacity_reached": "In den letzten zehn Minuten wurden Live-Verbindungen abgelehnt, weil der Arbeitsbereich ({per_tenant}) oder dieser Prozess ({per_process}) so viele hielt wie erlaubt; diese Clients warten ohne Live-Aktualisierungen. Erhöhe {tenant_variable} oder {process_variable} oder füge ein Replikat hinzu.",
   "config.frame_ancestor_invalid": "{variable} nimmt vollständige Origins wie https://portal.example.org, ohne Platzhalter. {value} ist keiner.",
   "config.frame_source_invalid": "{variable} nimmt vollständige https-Origins wie https://dashboards.example.org, ohne Platzhalter und ohne Pfad. {value} ist keiner.",
+  "disk.low": "Das Volume {volume} hat {free_percent} % frei ({free_mb} MB). Wenn die Platte voll ist, auf die diese Installation schreibt, nimmt die Datenbank keine Änderungen mehr an. Schaffe Platz oder vergrößere die Platte.",
   "queue.dead_letters": "{count} Hintergrund-Jobs haben alle Versuche aufgebraucht und warten auf einen Betreiber. Sieh sie unter Fehlgeschlagene Jobs an und starte sie erneut, sobald die Ursache behoben ist.",
   "config.backup_not_configured": "Kein Zeitplan schreibt in ein Sicherungsziel, darum wird nichts gesichert.",
   "config.backup_coverage_unchecked": "Die Sicherungsziele ließen sich nicht zählen, daher wurde nicht geprüft, ob diese Installation gesichert wird.",

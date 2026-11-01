@@ -207,6 +207,7 @@
   "stream.capacity_reached": "Live connections were refused in the last ten minutes because the workspace ({per_tenant}) or this process ({per_process}) held as many as allowed; those clients wait without live updates. Raise {tenant_variable} or {process_variable}, or add a replica.",
   "config.frame_ancestor_invalid": "{variable} takes complete origins such as https://portal.example.org, without a wildcard. {value} is not one.",
   "config.frame_source_invalid": "{variable} takes complete https origins such as https://dashboards.example.org, without a wildcard or a path. {value} is not one.",
+  "disk.low": "The {volume} volume has {free_percent} % free ({free_mb} MB). When the disk this installation writes fills up, the database stops accepting changes. Free space or enlarge the disk.",
   "queue.dead_letters": "{count} background jobs used up their attempts and wait for an operator. Look at them under Failed jobs, and run them again once the cause is fixed.",
   "config.backup_not_configured": "No schedule writes to a backup target, so nothing is being backed up.",
   "config.backup_coverage_unchecked": "The backup targets could not be counted, so whether this installation is backed up was not checked.",
