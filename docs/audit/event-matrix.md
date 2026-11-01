@@ -636,7 +636,6 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |
 | `instance.operators_read` | ListOperators | `instance` | INFO | When refused |
 | `instance.overview_read` | ReadInstanceOverview | `instance` | INFO | When refused |
-| `instance.quotas_near_read` | ListWorkspacesNearQuota | `instance` | INFO | When refused |
 | `instance.platform_deliveries_read` | ListPlatformDeliveries | `platform_subscription` | INFO | When refused |
 | `instance.platform_events_read` | ListPlatformEvents | `instance` | INFO | When refused |
 | `instance.platform_subscription_changed` | UpdatePlatformSubscription | `platform_subscription` | WARNING | Every time |
@@ -655,6 +654,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.provider_removed` | RemoveInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `instance.provider_withdrawal_cancelled` | CancelInstanceIdentityProviderWithdrawal | `identity_provider` | NOTICE | Every time |
 | `instance.provider_withdrawn` | WithdrawInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
+| `instance.quotas_near_read` | ListWorkspacesNearQuota | `instance` | INFO | When refused |
 | `instance.session_elevated` | ElevateSession | `session` | WARNING | Every time |
 | `instance.set_up` | SetUpInstallation | `tenant` | NOTICE | Every time |
 | `instance.settings_changed` | WriteInstanceSettings | `instance` | NOTICE | Every time |
