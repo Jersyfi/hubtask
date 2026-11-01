@@ -26,6 +26,8 @@ type holds struct {
 	active   map[mailservice.WatchTarget]int
 	most     map[mailservice.WatchTarget]int
 	calls    map[mailservice.WatchTarget]int
+	// first is when each target was first held.
+	first map[mailservice.WatchTarget]time.Time
 	// wanted is how many reads live; zero is as many as the targets.
 	wanted int64
 }
@@ -34,7 +36,7 @@ func newHolds(targets ...mailservice.WatchTarget) *holds {
 	return &holds{
 		targets: targets, scripted: map[mailservice.WatchTarget][]string{},
 		active: map[mailservice.WatchTarget]int{}, most: map[mailservice.WatchTarget]int{},
-		calls: map[mailservice.WatchTarget]int{},
+		calls: map[mailservice.WatchTarget]int{}, first: map[mailservice.WatchTarget]time.Time{},
 	}
 }
 
@@ -53,6 +55,9 @@ func (h *holds) Wanted(context.Context) (int64, error) {
 func (h *holds) Hold(ctx context.Context, target mailservice.WatchTarget, _ time.Duration) (string, error) {
 	h.mu.Lock()
 	h.calls[target]++
+	if _, ok := h.first[target]; !ok {
+		h.first[target] = time.Now()
+	}
 	h.active[target]++
 	h.most[target] = max(h.most[target], h.active[target])
 	var outcome string
@@ -131,6 +136,7 @@ func fastWatch(h *holds, l *leadership, signals *watchSignals) MailboxWatch {
 	return MailboxWatch{
 		Holds: h, Leadership: l, Signals: signals,
 		Rest: time.Millisecond, Backoff: time.Millisecond, Ceiling: 4 * time.Millisecond, Retry: time.Hour,
+		Pace: time.Millisecond,
 	}.withDefaults()
 }
 
@@ -302,5 +308,101 @@ func TestAStuckHoldDoesNotHoldUpTheWatch(t *testing.T) {
 	watch.tick(ctx, holders)
 	if took := time.Since(started); took > time.Second {
 		t.Errorf("a removed mailbox's stuck hold held up the tick for %s", took)
+	}
+}
+
+// unanswered is a lock whose questions fail while down is set: the database in a failover.
+type unanswered struct {
+	*leadership
+	mu   sync.Mutex
+	down bool
+}
+
+func (u *unanswered) fail(down bool) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.down = down
+}
+
+func (u *unanswered) Confirm(ctx context.Context) (bool, error) {
+	u.mu.Lock()
+	down := u.down
+	u.mu.Unlock()
+	if down {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed")
+	}
+	return u.leadership.Confirm(ctx)
+}
+
+// A lock that cannot be asked for a moment stops no hold: a failover of a second must not sign
+// every mailbox out and in again. Unknown for longer than a hold, the watch lets go.
+func TestALockThatCannotBeAskedStopsNoHold(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	h := newHolds(boxOne, boxTwo)
+	lease := &unanswered{leadership: &leadership{lock: &lock{}, name: "a"}}
+	watch := fastWatch(h, nil, &watchSignals{})
+	watch.Leadership = lease
+	held := map[mailservice.WatchTarget]*mailboxHolder{}
+	defer watch.stopAll(held)
+
+	watch.tick(ctx, held)
+	eventually(t, "both mailboxes held", func() bool {
+		_, one, _ := h.count(boxOne)
+		_, two, _ := h.count(boxTwo)
+		return one == 1 && two == 1
+	})
+
+	lease.fail(true)
+	watch.tick(ctx, held)
+	lease.fail(false)
+	watch.tick(ctx, held)
+	for _, target := range []mailservice.WatchTarget{boxOne, boxTwo} {
+		if calls, active, _ := h.count(target); calls != 1 || active != 1 {
+			t.Errorf("%v after one unanswered question: %d sign-ins, %d held; want 1 and 1", target, calls, active)
+		}
+	}
+
+	watch.Hold = time.Millisecond
+	lease.fail(true)
+	watch.tick(ctx, held)
+	time.Sleep(2 * time.Millisecond)
+	watch.tick(ctx, held)
+	if len(held) != 0 {
+		t.Errorf("a lock unknown for longer than a hold kept %d mailboxes", len(held))
+	}
+}
+
+// The sign-ins of one tick are spread a pace apart, so hundreds of mailboxes at one provider are
+// not signed in within the same second.
+func TestTheSignInsOfATickArePaced(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	boxThree := mailservice.WatchTarget{TenantID: "t3", MailboxID: "m3"}
+	h := newHolds(boxOne, boxTwo, boxThree)
+	watch := fastWatch(h, &leadership{lock: &lock{}, name: "a"}, &watchSignals{})
+	watch.Pace = 20 * time.Millisecond
+	held := map[mailservice.WatchTarget]*mailboxHolder{}
+	defer watch.stopAll(held)
+
+	watch.tick(ctx, held)
+	eventually(t, "all three held", func() bool {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return len(h.first) == 3
+	})
+	h.mu.Lock()
+	earliest, latest := h.first[boxOne], h.first[boxOne]
+	for _, at := range h.first {
+		if at.Before(earliest) {
+			earliest = at
+		}
+		if at.After(latest) {
+			latest = at
+		}
+	}
+	h.mu.Unlock()
+	if spread := latest.Sub(earliest); spread < watch.Pace {
+		t.Errorf("three sign-ins %s apart, want at least a pace (%s)", spread, watch.Pace)
 	}
 }

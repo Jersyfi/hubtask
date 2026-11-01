@@ -448,8 +448,11 @@ in PostgreSQL, and nothing else is required to run it.
 * **The mailbox watch** holds the connected IMAP mailboxes open (IDLE, RFC 2177) in exactly one
   `worker` process, by an advisory lock of its own beside the scheduler's: each mailbox in a
   long-lived hold under `concurrency.Go`, renewed every 25 minutes, retried with a backoff from
-  5 seconds to 5 minutes, a server without IDLE asked again after an hour, at most 1000 mailboxes
-  per installation. An arrival pulls the mailbox's `mail.mailbox_poll` forward by its dedupe key;
+  5 seconds to 5 minutes (each pause at a random point in its upper half), a server without IDLE
+  asked again after an hour, at most 1000 mailboxes per installation. A tick's sign-ins start
+  50 ms apart, so 1000 mailboxes take 50 seconds rather than one burst a provider throttles. A
+  lock that cannot be asked (a database failover) keeps the holds; only a lock known lost, or one
+  unknown for longer than a hold, lets them go. An arrival pulls the mailbox's `mail.mailbox_poll` forward by its dedupe key;
   the job's read every minute stays, so a failed hold, a lost lock or a stopped worker cost the
   delay and nothing else. The mailboxes to hold are the open `mail.mailbox_poll` jobs' keys, read
   from the job table, which has no tenant boundary; each mailbox is then loaded in its own

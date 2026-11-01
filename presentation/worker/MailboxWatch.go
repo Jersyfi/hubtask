@@ -6,6 +6,7 @@ package worker
 import (
 	"context"
 	"log/slog"
+	"math/rand/v2"
 	"time"
 
 	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
@@ -48,6 +49,10 @@ const (
 	// its cancellation is logged and left to its connection's deadline rather than stopping the
 	// loop, a lost lock or a shutdown for up to a hold.
 	mailboxWatchRelease = 10 * time.Second
+	// mailboxWatchPace is the gap between two sign-ins the watch starts: 1,000 mailboxes take
+	// 50 seconds rather than one, so a provider that hosts many of them is not asked for hundreds
+	// of logins at once - the burst it throttles the source address for, minute's read included.
+	mailboxWatchPace = 50 * time.Millisecond
 )
 
 // MailboxWatch holds the connected IMAP mailboxes open (IDLE) so mail reaches the desk in seconds
@@ -56,16 +61,21 @@ const (
 // does is an acceleration: a hold that fails, a lost lock or a stopped process leave the minute's
 // read, which never depends on it. Between a lost lock and the former holder's next tick both may
 // hold a mailbox; that costs a connection, never a message, since a wake is the read's dedupe key.
+// The same cost is why a lock that cannot be asked keeps the holds: a database failover of a
+// second must not drop every connection and sign them all in again; only a lock known lost, or
+// unknown for longer than a hold, lets go.
 type MailboxWatch struct {
 	Holds      MailboxHolds
 	Leadership queue.Leadership
 	Signals    MailboxWatchSignals
 	// SchemaBehind stands the watch by while the database lacks migrations this build needs.
 	SchemaBehind func(ctx context.Context) bool
-	// Tick, Hold, Limit, Rest, Retry, Backoff, Ceiling and Release default to the constants above;
-	// tests shorten them.
-	Tick, Hold, Rest, Retry, Backoff, Ceiling, Release time.Duration
-	Limit                                              int
+	// Tick, Hold, Limit, Rest, Retry, Backoff, Ceiling, Release and Pace default to the constants
+	// above; tests shorten them.
+	Tick, Hold, Rest, Retry, Backoff, Ceiling, Release, Pace time.Duration
+	Limit                                                    int
+	// unsure is shared by the copies withDefaults hands out: since when the lock could not be asked.
+	unsure *time.Time
 }
 
 type mailboxHolder struct {
@@ -104,7 +114,7 @@ func (m MailboxWatch) withDefaults() MailboxWatch {
 	}{
 		{&m.Tick, mailboxWatchTick}, {&m.Hold, mailboxWatchHold}, {&m.Rest, mailboxWatchRest},
 		{&m.Retry, mailboxWatchRetry}, {&m.Backoff, mailboxWatchBackoff}, {&m.Ceiling, mailboxWatchCeiling},
-		{&m.Release, mailboxWatchRelease},
+		{&m.Release, mailboxWatchRelease}, {&m.Pace, mailboxWatchPace},
 	}
 	for _, d := range defaults {
 		if *d.value <= 0 {
@@ -114,6 +124,9 @@ func (m MailboxWatch) withDefaults() MailboxWatch {
 	if m.Limit <= 0 {
 		m.Limit = mailboxWatchLimit
 	}
+	if m.unsure == nil {
+		m.unsure = new(time.Time)
+	}
 	return m
 }
 
@@ -121,7 +134,19 @@ func (m MailboxWatch) withDefaults() MailboxWatch {
 func (m MailboxWatch) tick(ctx context.Context, holders map[mailservice.WatchTarget]*mailboxHolder) {
 	bounded, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
-	if !m.leading(bounded) {
+	leading, known := m.leading(bounded)
+	if !known {
+		if m.unsure.IsZero() {
+			*m.unsure = time.Now()
+		}
+		if time.Since(*m.unsure) >= m.Hold {
+			m.stopAll(holders)
+		}
+		m.held(ctx, holders)
+		return
+	}
+	*m.unsure = time.Time{}
+	if !leading {
 		m.stopAll(holders)
 		m.held(ctx, holders)
 		return
@@ -151,6 +176,7 @@ func (m MailboxWatch) tick(ctx context.Context, holders map[mailservice.WatchTar
 	}
 	m.letGo(ctx, gone)
 	now := time.Now()
+	started := 0
 	for _, target := range targets {
 		if holder, ok := holders[target]; ok {
 			select {
@@ -162,15 +188,18 @@ func (m MailboxWatch) tick(ctx context.Context, holders map[mailservice.WatchTar
 				continue
 			}
 		}
-		holders[target] = m.start(ctx, target)
+		holders[target] = m.start(ctx, target, m.slot(started))
+		started++
 	}
 	m.held(ctx, holders)
 }
 
-func (m MailboxWatch) leading(ctx context.Context) bool {
+// leading answers whether this process holds the lock, and whether that is known: an error asking
+// is not an answer.
+func (m MailboxWatch) leading(ctx context.Context) (leading, known bool) {
 	if m.SchemaBehind != nil && m.SchemaBehind(ctx) {
 		_ = m.Leadership.Release(ctx)
-		return false
+		return false, true
 	}
 	leading, err := m.Leadership.Confirm(ctx)
 	if err == nil && !leading {
@@ -178,18 +207,34 @@ func (m MailboxWatch) leading(ctx context.Context) bool {
 	}
 	if err != nil {
 		slog.WarnContext(ctx, "the mailbox watch's lock could not be asked", slog.String("error", shared.AsError(err).Code))
-		return false
+		return false, false
 	}
-	return leading
+	return leading, true
 }
 
-// start holds one mailbox until its context ends or it cannot be held.
-func (m MailboxWatch) start(ctx context.Context, target mailservice.WatchTarget) *mailboxHolder {
+// slot is when the n-th sign-in of a tick starts: n paces on, at a random point within its pace.
+func (m MailboxWatch) slot(n int) time.Duration {
+	return time.Duration(n)*m.Pace + jitter(m.Pace)
+}
+
+// jitter is a random duration below d, so holds that failed together do not retry together.
+func jitter(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+	return rand.N(d)
+}
+
+// start holds one mailbox, after delay, until its context ends or it cannot be held.
+func (m MailboxWatch) start(ctx context.Context, target mailservice.WatchTarget, delay time.Duration) *mailboxHolder {
 	holdCtx, cancel := context.WithCancel(ctx)
 	holder := &mailboxHolder{cancel: cancel, done: make(chan struct{})}
 	concurrency.Go(holdCtx, "worker.mailbox_watch", func(ctx context.Context) {
 		defer close(holder.done)
 		defer func() { holder.endedAt = time.Now() }()
+		if !wait(ctx, delay) {
+			return
+		}
 		failures := 0
 		for ctx.Err() == nil {
 			outcome, err := m.Holds.Hold(ctx, target, m.Hold)
@@ -210,6 +255,7 @@ func (m MailboxWatch) start(ctx context.Context, target mailservice.WatchTarget)
 			default:
 				failures++
 				pause = m.backoff(failures)
+				pause = pause/2 + jitter(pause/2)
 				slog.WarnContext(ctx, "holding a mailbox failed", slog.String("error", shared.AsError(err).DetailCode),
 					slog.Int("failures", failures))
 			}
