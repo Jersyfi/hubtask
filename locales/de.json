@@ -2039,6 +2039,7 @@
   "config.egress_allowlist_missing": "Es ist keine Liste erlaubter Ziele für ausgehende Verbindungen eingerichtet. Im Mehrfachmodus sollten ausgehende Aufrufe auf bekannte Hosts beschränkt sein.",
   "config.egress_private_networks_allowed": "Ausgehende Aufrufe in private Netze sind erlaubt. Ein Webhook-Ziel kann Dienste in deinem Netz erreichen.",
   "config.smtp_without_tls": "SMTP zu {host} ist ohne TLS eingerichtet. Zugangsdaten gehen unverschlüsselt über die Leitung.",
+  "config.restore_drill_record_unreadable": "Der Nachweis der Wiederherstellungsprobe {path} ist nicht lesbar. Es ist keine Probe verzeichnet, darum meldet sich der Alarm über eine veraltete Probe nie.",
   "admin.tenant_not_found": "Diesen Workspace gibt es nicht.",
   "admin.operator_required": "Dieses Konto ist kein Betreiber dieser Installation.",
   "admin.operator_incomplete": "Nenne das Konto, das Betreiber werden soll.",

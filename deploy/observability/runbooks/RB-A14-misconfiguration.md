@@ -27,6 +27,10 @@ The codes and what they cost:
 * `config.base_url_missing` — links in mails and CloudEvents name the wrong origin.
 * `config.egress_allowlist_missing` / `config.egress_private_networks_allowed` — the outbound
   guard is wider than it should be (T-07).
+* `config.restore_drill_record_unreadable` — `HUBTASK_RESTORE_DRILL_RECORD_FILE` names a file the
+  process cannot read, or one in a directory that is not there (on Compose: a path no volume
+  mounts). The drill gauge stays absent and A-20 never fires. Point it into a mounted directory
+  (`backup-restore.md` §8.6).
 
 Fix the variable in the deployment's environment and restart; the counter is per-process and
 resets to the new startup's findings.

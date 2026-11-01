@@ -11,7 +11,9 @@ package environment
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -328,7 +330,34 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 			Params:   map[string]string{"host": cfg.Mail.Host},
 		})
 	}
+	if path := cfg.Backup.RestoreDrillRecordFile; path != "" && !restoreDrillRecordReachable(path) {
+		w = append(w, env.Warning{
+			Code:     "config.restore_drill_record_unreadable",
+			Severity: "warn",
+			Params:   map[string]string{"path": path},
+		})
+	}
 	return w
+}
+
+// restoreDrillRecordReachable is whether the record can be read once a drill writes it: a readable
+// file, or none yet in a directory that exists. An unreadable record would read as "no drill on
+// record" at every scrape, and A-20 would never fire (backup-restore.md §8.6).
+func restoreDrillRecordReachable(path string) bool {
+	info, err := os.Stat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		dir, err := os.Stat(filepath.Dir(path))
+		return err == nil && dir.IsDir()
+	}
+	if err != nil || info.IsDir() {
+		return false
+	}
+	file, err := os.Open(path) //nolint:gosec // G304: the path is configuration, and reading it is the point
+	if err != nil {
+		return false
+	}
+	_ = file.Close()
+	return true
 }
 
 // configError builds a startup error: category VALIDATION, the stable code config_invalid, and

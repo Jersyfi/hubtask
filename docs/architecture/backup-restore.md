@@ -540,12 +540,17 @@ major version — not what §8.5 gives:
 * **No protection against a deletion you copy** — a dump written over the previous one is a backup
   of the damage. Object lock on the target prevents that (B-3).
 * **Nothing has restored it.** The drill metric stays absent, so **A-20 never fires and never
-  reassures**. After a restore you checked yourself, write the record:
+  reassures**. After a restore you checked yourself, copy the record into the `restore-drill`
+  volume, where `HUBTASK_RESTORE_DRILL_RECORD_FILE` points by default (the container's root is
+  read-only; a volume is not):
 
   ```bash
-  date -u +%s > /var/lib/hubtask/restore-drill/last_success_unix
-  # compose.yaml: HUBTASK_RESTORE_DRILL_RECORD_FILE: /var/lib/hubtask/restore-drill/last_success_unix
+  date -u +%s > last_success_unix
+  docker compose cp last_success_unix app:/var/lib/hubtask/restore-drill/last_success_unix
   ```
+
+  A record path the process cannot read, or one in a directory no volume mounts, is warned at
+  start (`config.restore_drill_record_unreadable`, A-14) instead of reading as no drill for good.
 
 * **Tenant archives are a different promise**: they hold one workspace's content, not the
   installation's database.

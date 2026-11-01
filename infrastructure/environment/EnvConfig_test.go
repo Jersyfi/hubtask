@@ -990,3 +990,30 @@ func TestTheWorkspaceWallsDefaultByMode(t *testing.T) {
 		t.Errorf("single mode with a larger process cap: per tenant %d, %v", cfg.LoadShed.StreamsPerTenant, err)
 	}
 }
+
+// A restore-drill record named where the process cannot read it - a Compose path no volume
+// mounts - kept A-20 silent for good; it is said instead (A-14). A missing file in a directory
+// that exists is a drill not yet run, the honest absence, and says nothing.
+func TestAnUnreadableRestoreDrillRecordIsWarned(t *testing.T) {
+	withRequiredSecrets(t)
+	dir := t.TempDir()
+	cases := map[string]struct {
+		path string
+		want bool
+	}{
+		"not set":             {"", false},
+		"no drill yet":        {filepath.Join(dir, "last_success_unix"), false},
+		"directory unmounted": {filepath.Join(dir, "restore-drill", "last_success_unix"), true},
+		"a directory":         {dir, true},
+	}
+	for name, tc := range cases {
+		t.Setenv("HUBTASK_RESTORE_DRILL_RECORD_FILE", tc.path)
+		cfg, err := load(t)
+		if err != nil {
+			t.Fatalf("%s: load failed: %v", name, err)
+		}
+		if got := hasWarning(New("v", "c").Warnings(cfg), "config.restore_drill_record_unreadable"); got != tc.want {
+			t.Errorf("%s: warned %v, want %v", name, got, tc.want)
+		}
+	}
+}

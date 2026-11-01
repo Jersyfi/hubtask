@@ -156,13 +156,14 @@ services:
       # end-to-end session overrides it, because the AI provider it configures is a stub container
       # on its own compose network and has no public address to have.
       HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS: ${HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS:-false}
-      # Where a restore drill's last success is recorded. Two containers have no operator doing
-      # continuous archiving, so nothing writes this file by itself: an operator who has restored a
-      # dump and checked it writes the Unix timestamp into it, and the process then reports
-      # hubtask_restore_drill_last_success_timestamp_seconds - the gauge A-20 watches. Empty, and
-      # unset here, means the series stays absent, which is the honest state for an installation
-      # whose backups nobody has restored (backup-restore.md §8.6).
-      HUBTASK_RESTORE_DRILL_RECORD_FILE: ${HUBTASK_RESTORE_DRILL_RECORD_FILE:-}
+      # Where a restore drill's last success is recorded, in the restore-drill volume below - a
+      # path no volume mounts is one the read-only container can never read. Two containers have
+      # no operator doing continuous archiving, so nothing writes this file by itself: an operator
+      # who has restored a dump and checked it copies the Unix timestamp in (`docker compose cp`,
+      # backup-restore.md §8.6), and the process then reports
+      # hubtask_restore_drill_last_success_timestamp_seconds - the gauge A-20 watches. Until then
+      # the series stays absent, which is the honest state for backups nobody has restored.
+      HUBTASK_RESTORE_DRILL_RECORD_FILE: ${HUBTASK_RESTORE_DRILL_RECORD_FILE:-/var/lib/hubtask/restore-drill/last_success_unix}
       # Mail, object storage and the installation's AI switches, passed through for the reason the
       # keyring is: Compose hands a container only what this file names, so a line `.env.example`
       # offers and this file does not pass is a setting the operator makes and the process never
@@ -197,6 +198,7 @@ services:
     volumes:
       - media:/var/lib/hubtask/media
       - backups:/var/lib/hubtask/backups
+      - restore-drill:/var/lib/hubtask/restore-drill
     ports:
       - "${HUBTASK_PORT:-8080}:8080"
       # The operations port on loopback only. It carries the metrics and the health report, which
@@ -223,4 +225,5 @@ volumes:
   db-data:
   media:
   backups:
+  restore-drill:
   upgrade-dumps:
