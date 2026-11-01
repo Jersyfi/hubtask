@@ -1140,6 +1140,8 @@ warned of afresh. A switched-off provider is told nothing. The watch is the per-
 `identity.saml_certificate_watch`: seeded by the save of a SAML provider (and once by migration
 0340 for the workspaces that had one), it looks again at the next warning or after a day at the
 latest, and ends when the workspace has no SAML provider. The message links `/administration/sign-in`.
+The provider's answer carries that end as `saml_certificate_expires_at`; the sign-in settings and
+the installation's provider list draw it as a warning from 30 days before and as ended after.
 
 ---
 

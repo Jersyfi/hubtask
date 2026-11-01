@@ -38256,6 +38256,15 @@
             ],
             "description": "For a `SAML` provider: the certificates its assertions are signed with, PEM, one or two (a rollover). Public keys, so answered again. Null for every other kind.\n"
           },
+          "saml_certificate_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "readOnly": true,
+            "description": "For a `SAML` provider: when the last of its certificates ends. From then on every answer of the provider is refused, so nobody signs in through it until a new certificate is stored. Null for every other kind.\n"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"

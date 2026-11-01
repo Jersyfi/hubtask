@@ -17039,6 +17039,9 @@ type IdentityProvider struct {
 	// SamlCertificate For a `SAML` provider: the certificates its assertions are signed with, PEM, one or two (a rollover). Public keys, so answered again. Null for every other kind.
 	SamlCertificate *string `json:"saml_certificate,omitempty"`
 
+	// SamlCertificateExpiresAt For a `SAML` provider: when the last of its certificates ends. From then on every answer of the provider is refused, so nobody signs in through it until a new certificate is stored. Null for every other kind.
+	SamlCertificateExpiresAt *time.Time `json:"saml_certificate_expires_at,omitempty"`
+
 	// SamlSsoUrl For a `SAML` provider: its single sign-on address (HTTP-Redirect binding), https. Null for every other kind.
 	SamlSsoUrl *string `json:"saml_sso_url,omitempty"`
 

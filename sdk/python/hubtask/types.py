@@ -729,6 +729,7 @@ class IdentityProvider(TypedDict, total=False):
     newcomer_group_id: str | None
     saml_sso_url: str | None
     saml_certificate: str | None
+    saml_certificate_expires_at: str | None
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]

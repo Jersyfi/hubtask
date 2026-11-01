@@ -742,9 +742,14 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 		"newcomer_group_id": newcomerGroupValue(configured),
 		"saml_sso_url":      nil,
 		"saml_certificate":  nil,
+		// When nobody can sign in through the provider any more (identity.md §26.1).
+		"saml_certificate_expires_at": nil,
 	}
 	if configured.IsSAML() {
 		out["saml_sso_url"], out["saml_certificate"] = configured.SAMLSSOURL, configured.SAMLCertificate
+		if end, ok := domain.SAMLCertificatesEnd(configured.SAMLCertificate); ok {
+			out["saml_certificate_expires_at"] = end.UTC()
+		}
 	}
 	if !configured.WithdrawAt.IsZero() {
 		out["withdraw_at"] = configured.WithdrawAt.UTC()
