@@ -23,13 +23,13 @@ import (
 // types with it when it goes.
 
 var (
-	ehTenantA  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd01")
-	ehTenantB  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd02")
-	ehAccount  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd03")
-	ehHub      = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd04")
-	ehOtherHub = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd05")
-	ehList     = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd06")
-	ehItem     = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd07")
+	ehTenantA  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000eb01")
+	ehTenantB  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000eb02")
+	ehAccount  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000eb03")
+	ehHub      = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000eb04")
+	ehOtherHub = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000eb05")
+	ehList     = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000eb06")
+	ehItem     = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000eb07")
 )
 
 func TestAHubsOwnTypeStaysWithItsHub(t *testing.T) {

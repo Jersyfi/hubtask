@@ -119,8 +119,15 @@ func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 		if u, err := store.StatusUpdates(ctx, portfolio.ID, 10); err != nil || len(u) != 0 {
 			t.Errorf("the other workspace reads updates: %v %v", u, err)
 		}
-		if d, err := store.Dashboards(ctx, 10); err != nil || len(d) != 0 {
-			t.Errorf("the other workspace lists dashboards: %v %v", d, err)
+		// Tenant B holds dashboards of other tests; this one's is not among them.
+		boards, err := store.Dashboards(ctx, 100)
+		if err != nil {
+			t.Errorf("the other workspace's dashboards: %v", err)
+		}
+		for _, board := range boards {
+			if board.ID == dashboard.ID {
+				t.Errorf("the other workspace lists this one's dashboard: %+v", board)
+			}
 		}
 		return nil
 	}); err != nil {

@@ -40,7 +40,9 @@ func TestTheHoldersOfARoleAlongAPathAreFound(t *testing.T) {
 	if holders := roleHoldersAlong(ctx, t, tenantA, path, "OWNER"); !slices.Contains(holders, authorA) {
 		t.Errorf("the hub's OWNER through a group is missing: %v", holders)
 	}
-	if holders := roleHoldersAlong(ctx, t, tenantA, path, "ADMIN"); len(holders) != 1 || holders[0] != authorA {
+	// Other tests of this database make workspace administrators in tenant A too, so Anna is asked
+	// to be among them once rather than alone.
+	if holders := roleHoldersAlong(ctx, t, tenantA, path, "ADMIN"); holderCount(holders, authorA) != 1 {
 		t.Errorf("the workspace's ADMIN: %v, want Anna once", holders)
 	}
 	if holders := roleHoldersAlong(ctx, t, tenantA, path, "VIEWER"); slices.Contains(holders, authorA) {
@@ -83,7 +85,18 @@ func TestTheHoldersOfARoleInAnotherTenantAreInvisible(t *testing.T) {
 	if holders := roleHoldersAlong(ctx, t, tenantB, path, "ADMIN"); slices.Contains(holders, authorA) {
 		t.Errorf("tenant B read tenant A's ADMIN: %v", holders)
 	}
-	if holders := roleHoldersAlong(ctx, t, tenantB, path, "OWNER"); len(holders) != 1 || holders[0] != authorB {
+	if holders := roleHoldersAlong(ctx, t, tenantB, path, "OWNER"); holderCount(holders, authorB) != 1 || slices.Contains(holders, authorA) {
 		t.Errorf("tenant B's owners are %v, want its own", holders)
 	}
+}
+
+// holderCount is how often the account is among the holders.
+func holderCount(holders []shared.ID, account shared.ID) int {
+	count := 0
+	for _, holder := range holders {
+		if holder == account {
+			count++
+		}
+	}
+	return count
 }
