@@ -102,6 +102,7 @@ func body(t *testing.T, token, skillID, kind, intent string, slots map[string]st
 	return raw
 }
 
+// UC-WRK-35 check 7: a linked account adds as the person its token names.
 func TestASpokenThingIsAddedAndSaidBack(t *testing.T) {
 	handler, helper := alexa(domain.Settings{Enabled: true, SkillID: skill})
 	answer, err := handler.Handle(context.Background(), http.Header{},
@@ -122,6 +123,7 @@ func TestASpokenThingIsAddedAndSaidBack(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 7: only signed, fresh requests from a known skill are answered.
 func TestWhatIsNotAlexaOrNotOursIsRefused(t *testing.T) {
 	handler, _ := alexa(domain.Settings{Enabled: true, SkillID: skill})
 	if _, err := (Alexa{Verifier: verifier{err: shared.ErrUnauthenticated}}).Handle(context.Background(), http.Header{}, []byte(`{}`)); !errors.Is(err, shared.ErrUnauthenticated) {
@@ -137,6 +139,7 @@ func TestWhatIsNotAlexaOrNotOursIsRefused(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 1: switched off, Alexa says so; UC-WRK-35 check 7: an unlinked account is asked to link.
 func TestAnUnlinkedOrSwitchedOffWorkspaceSaysSo(t *testing.T) {
 	handler, _ := alexa(domain.Settings{Enabled: true, SkillID: skill})
 	unlinked, err := handler.Handle(context.Background(), http.Header{}, body(t, "", skill, "LaunchRequest", "", nil, now))
