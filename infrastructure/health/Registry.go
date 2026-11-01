@@ -113,7 +113,9 @@ func (r *Registry) Ready(ctx context.Context) (bool, string) {
 		if !p.Required() {
 			continue
 		}
-		if res := p.Check(ctx); res.Status != port.StatusOK {
+		// Down only: a required dependency that answers but is busy keeps the process ready,
+		// or an overload would take every pod out at once (ADR-0016).
+		if res := p.Check(ctx); res.Status == port.StatusDown {
 			return false, p.Name() + ":" + string(res.Status)
 		}
 	}
