@@ -8983,6 +8983,57 @@ func (e SprintEntryOutcome) Valid() bool {
 	}
 }
 
+// Defines values for StarterCollectionPreset.
+const (
+	StarterCollectionPresetFLOW        StarterCollectionPreset = "FLOW"
+	StarterCollectionPresetLIST        StarterCollectionPreset = "LIST"
+	StarterCollectionPresetLessThannil StarterCollectionPreset = "<nil>"
+	StarterCollectionPresetPROJECT     StarterCollectionPreset = "PROJECT"
+	StarterCollectionPresetTASKS       StarterCollectionPreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the StarterCollectionPreset enum.
+func (e StarterCollectionPreset) Valid() bool {
+	switch e {
+	case StarterCollectionPresetFLOW:
+		return true
+	case StarterCollectionPresetLIST:
+		return true
+	case StarterCollectionPresetLessThannil:
+		return true
+	case StarterCollectionPresetPROJECT:
+		return true
+	case StarterCollectionPresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StarterSetHubPreset.
+const (
+	StarterSetHubPresetFLOW    StarterSetHubPreset = "FLOW"
+	StarterSetHubPresetLIST    StarterSetHubPreset = "LIST"
+	StarterSetHubPresetPROJECT StarterSetHubPreset = "PROJECT"
+	StarterSetHubPresetTASKS   StarterSetHubPreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the StarterSetHubPreset enum.
+func (e StarterSetHubPreset) Valid() bool {
+	switch e {
+	case StarterSetHubPresetFLOW:
+		return true
+	case StarterSetHubPresetLIST:
+		return true
+	case StarterSetHubPresetPROJECT:
+		return true
+	case StarterSetHubPresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
@@ -23140,6 +23191,28 @@ type StartPasswordIssued struct {
 	StartPassword string `json:"start_password"`
 }
 
+// StarterCollection defines model for StarterCollection.
+type StarterCollection struct {
+	Name string `json:"name"`
+
+	// Preset Its own preset; none, or its hub's, follows the hub.
+	Preset *StarterCollectionPreset `json:"preset,omitempty"`
+}
+
+// StarterCollectionPreset Its own preset; none, or its hub's, follows the hub.
+type StarterCollectionPreset string
+
+// StarterSet defines model for StarterSet.
+type StarterSet struct {
+	// Collections The hub's collections, in their order.
+	Collections *[]StarterCollection `json:"collections,omitempty"`
+	HubName     string               `json:"hub_name"`
+	HubPreset   StarterSetHubPreset  `json:"hub_preset"`
+}
+
+// StarterSetHubPreset defines model for StarterSet.HubPreset.
+type StarterSetHubPreset string
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -28188,6 +28261,12 @@ type PreviewModuleReachParams struct {
 // PreviewModuleReachParamsSwitch defines parameters for PreviewModuleReach.
 type PreviewModuleReachParamsSwitch string
 
+// ApplyStarterParams defines parameters for ApplyStarter.
+type ApplyStarterParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -29570,6 +29649,9 @@ type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
 // SetModuleJSONRequestBody defines body for SetModule for application/json ContentType.
 type SetModuleJSONRequestBody = ModuleSwitch
+
+// ApplyStarterJSONRequestBody defines body for ApplyStarter for application/json ContentType.
+type ApplyStarterJSONRequestBody = StarterSet
 
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
@@ -32357,6 +32439,9 @@ type ServerInterface interface {
 	// PreviewModuleReach How many people switching a module off would leave without it
 	// (GET /tenant/modules/{module}/reach)
 	PreviewModuleReach(w http.ResponseWriter, r *http.Request, module Module, params PreviewModuleReachParams)
+	// ApplyStarter Answers the first start's question with its starter set
+	// (POST /tenant/starter:apply)
+	ApplyStarter(w http.ResponseWriter, r *http.Request, params ApplyStarterParams)
 	// CloseStarter Answers the first start's question for good
 	// (POST /tenant/starter:close)
 	CloseStarter(w http.ResponseWriter, r *http.Request)
@@ -57794,6 +57879,47 @@ func (siw *ServerInterfaceWrapper) PreviewModuleReach(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// ApplyStarter operation middleware
+func (siw *ServerInterfaceWrapper) ApplyStarter(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ApplyStarterParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplyStarter(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CloseStarter operation middleware
 func (siw *ServerInterfaceWrapper) CloseStarter(w http.ResponseWriter, r *http.Request) {
 
@@ -60800,6 +60926,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/directory/ldap", wrapper.ConfigureLdapDirectory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/directory/ldap:sync", wrapper.SyncLdapDirectory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:close", wrapper.CloseStarter)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:apply", wrapper.ApplyStarter)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/structure:preview", wrapper.PreviewWorkspaceStructure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/entry-types", wrapper.ListEntryTypes)

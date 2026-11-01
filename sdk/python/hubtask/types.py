@@ -3482,6 +3482,15 @@ class ContainerCreate(TypedDict, total=False):
     preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
     preset_id: str | None
 
+class StarterSet(TypedDict, total=False):
+    hub_name: Required[str]
+    hub_preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"]]
+    collections: list["StarterCollection"]
+
+class StarterCollection(TypedDict, total=False):
+    name: Required[str]
+    preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
+
 class ContainerUpdate(TypedDict, total=False):
     name: str
     description: str | None

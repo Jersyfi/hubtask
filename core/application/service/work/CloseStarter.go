@@ -24,9 +24,8 @@ const CloseStarterName = "CloseStarter"
 const StarterClosedAction audit.Action = "workspace.starter_closed"
 
 // Starter is the workspace's first start (UC-WRK-30 check 5): whom a client asks, once, what the
-// workspace is used for. The starter set itself is the client's - hubs and collections with
-// translated names, created through CreateContainer - because rule 8 keeps names out of the
-// backend; the server holds only that the question was asked.
+// workspace is used for. The set's names are the client's, translated, because rule 8 keeps names
+// out of the backend; ApplyStarter makes it and closes the question in one transaction.
 type Starter struct {
 	Starts     repository.Starter
 	Permits    access.Permitter
@@ -69,8 +68,7 @@ func (s Starter) StarterOffered(ctx context.Context, actor appshared.ActorContex
 	return pending, err
 }
 
-// CloseStarter answers the first start's question for good, answered or skipped alike. A client
-// closes it before creating the starter set, so an interruption never makes the set twice.
+// CloseStarter answers the first start's question for good: a skip. An answer is ApplyStarter.
 type CloseStarter struct{ Starter Starter }
 
 // Execute closes it.
@@ -85,7 +83,7 @@ func (h CloseStarter) Execute(ctx context.Context, actor appshared.ActorContext)
 			return err
 		}
 		now := s.Clock.Now()
-		if err := s.Starts.Close(ctx, now); err != nil {
+		if _, err := s.Starts.Close(ctx, now); err != nil {
 			return err
 		}
 		if !pending {

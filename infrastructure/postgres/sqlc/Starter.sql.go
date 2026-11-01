@@ -11,14 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const closeStarter = `-- name: CloseStarter :exec
+const closeStarter = `-- name: CloseStarter :execrows
 UPDATE tenant SET starter_answered_at = $1
 WHERE id = current_tenant_id() AND starter_answered_at IS NULL
 `
 
-func (q *Queries) CloseStarter(ctx context.Context, at pgtype.Timestamptz) error {
-	_, err := q.db.Exec(ctx, closeStarter, at)
-	return err
+// One row where this transaction closed it, none where it was closed already: the row lock makes a
+// second answer arriving at once wait, and then find it closed.
+func (q *Queries) CloseStarter(ctx context.Context, at pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, closeStarter, at)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const starterPending = `-- name: StarterPending :one

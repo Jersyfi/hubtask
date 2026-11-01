@@ -40,6 +40,7 @@ var restDoors = map[string]restDoor{
 	"aiTranslate":           {UseCase: "AiTranslate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"applyConfig":           {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"applyPlanSchedule":     {UseCase: "ApplyPlanSchedule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"applyStarter":          {UseCase: "ApplyStarter", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{id}", NullClears: false, Integers: []string(nil)},
 	"approveAgent":          {UseCase: "ApproveAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"approveTimesheet":      {UseCase: "ApproveTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"archiveContainer":      {UseCase: "ArchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -985,6 +986,12 @@ func (c *RestController) ApplyPlanSchedule(w http.ResponseWriter, r *http.Reques
 	var body openapi.ApplyPlanScheduleJSONRequestBody
 	var answer openapi.PlanMoves
 	c.door(w, r, restDoors["applyPlanSchedule"], usecase.Input{"plan_id": planId.String()}, nil, &body, &answer)
+}
+
+// ApplyStarter answers POST /tenant/starter:apply by the generated mapping.
+func (c *RestController) ApplyStarter(w http.ResponseWriter, r *http.Request, params openapi.ApplyStarterParams) {
+	var body openapi.ApplyStarterJSONRequestBody
+	c.door(w, r, restDoors["applyStarter"], usecase.Input{}, params, &body, answerBy(containerResponse))
 }
 
 // ApproveAgent answers POST /agents/{agentId}:approve by the generated mapping.

@@ -8989,6 +8989,57 @@ func (e SprintEntryOutcome) Valid() bool {
 	}
 }
 
+// Defines values for StarterCollectionPreset.
+const (
+	StarterCollectionPresetFLOW        StarterCollectionPreset = "FLOW"
+	StarterCollectionPresetLIST        StarterCollectionPreset = "LIST"
+	StarterCollectionPresetLessThannil StarterCollectionPreset = "<nil>"
+	StarterCollectionPresetPROJECT     StarterCollectionPreset = "PROJECT"
+	StarterCollectionPresetTASKS       StarterCollectionPreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the StarterCollectionPreset enum.
+func (e StarterCollectionPreset) Valid() bool {
+	switch e {
+	case StarterCollectionPresetFLOW:
+		return true
+	case StarterCollectionPresetLIST:
+		return true
+	case StarterCollectionPresetLessThannil:
+		return true
+	case StarterCollectionPresetPROJECT:
+		return true
+	case StarterCollectionPresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StarterSetHubPreset.
+const (
+	StarterSetHubPresetFLOW    StarterSetHubPreset = "FLOW"
+	StarterSetHubPresetLIST    StarterSetHubPreset = "LIST"
+	StarterSetHubPresetPROJECT StarterSetHubPreset = "PROJECT"
+	StarterSetHubPresetTASKS   StarterSetHubPreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the StarterSetHubPreset enum.
+func (e StarterSetHubPreset) Valid() bool {
+	switch e {
+	case StarterSetHubPresetFLOW:
+		return true
+	case StarterSetHubPresetLIST:
+		return true
+	case StarterSetHubPresetPROJECT:
+		return true
+	case StarterSetHubPresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
@@ -23146,6 +23197,28 @@ type StartPasswordIssued struct {
 	StartPassword string `json:"start_password"`
 }
 
+// StarterCollection defines model for StarterCollection.
+type StarterCollection struct {
+	Name string `json:"name"`
+
+	// Preset Its own preset; none, or its hub's, follows the hub.
+	Preset *StarterCollectionPreset `json:"preset,omitempty"`
+}
+
+// StarterCollectionPreset Its own preset; none, or its hub's, follows the hub.
+type StarterCollectionPreset string
+
+// StarterSet defines model for StarterSet.
+type StarterSet struct {
+	// Collections The hub's collections, in their order.
+	Collections *[]StarterCollection `json:"collections,omitempty"`
+	HubName     string               `json:"hub_name"`
+	HubPreset   StarterSetHubPreset  `json:"hub_preset"`
+}
+
+// StarterSetHubPreset defines model for StarterSet.HubPreset.
+type StarterSetHubPreset string
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -28194,6 +28267,12 @@ type PreviewModuleReachParams struct {
 // PreviewModuleReachParamsSwitch defines parameters for PreviewModuleReach.
 type PreviewModuleReachParamsSwitch string
 
+// ApplyStarterParams defines parameters for ApplyStarter.
+type ApplyStarterParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -29576,6 +29655,9 @@ type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
 // SetModuleJSONRequestBody defines body for SetModule for application/json ContentType.
 type SetModuleJSONRequestBody = ModuleSwitch
+
+// ApplyStarterJSONRequestBody defines body for ApplyStarter for application/json ContentType.
+type ApplyStarterJSONRequestBody = StarterSet
 
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
@@ -40258,9 +40340,27 @@ type ClientInterface interface {
 	// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
 	PreviewModuleReach(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ApplyStarterWithBody Answers the first start's question with its starter set
+	//
+	// Creates the starter set - a hub and its collections, each on its preset - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /tenant/starter:apply (the `ApplyStarter` operationId).
+	ApplyStarterWithBody(ctx context.Context, params *ApplyStarterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApplyStarter Answers the first start's question with its starter set
+	//
+	// Creates the starter set - a hub and its collections, each on its preset - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /tenant/starter:apply (the `ApplyStarter` operationId).
+	ApplyStarter(ctx context.Context, params *ApplyStarterParams, body ApplyStarterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CloseStarter Answers the first start's question for good
 	//
-	// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
+	// Records that the workspace's first start was skipped, so `starter_offered` is false from now on for everyone. An answer is `POST /tenant/starter:apply`, which closes it with the set. Needs the right to change the workspace's shape. Closing it again changes nothing.
 	//
 	// Corresponds with POST /tenant/starter:close (the `CloseStarter` operationId).
 	CloseStarter(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -62288,9 +62388,47 @@ func (c *Client) PreviewModuleReach(ctx context.Context, module Module, params *
 	return c.Client.Do(req)
 }
 
+// ApplyStarterWithBody Answers the first start's question with its starter set
+//
+// Creates the starter set - a hub and its collections, each on its preset - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /tenant/starter:apply (the `ApplyStarter` operationId).
+func (c *Client) ApplyStarterWithBody(ctx context.Context, params *ApplyStarterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyStarterRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ApplyStarter Answers the first start's question with its starter set
+//
+// Creates the starter set - a hub and its collections, each on its preset - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /tenant/starter:apply (the `ApplyStarter` operationId).
+func (c *Client) ApplyStarter(ctx context.Context, params *ApplyStarterParams, body ApplyStarterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyStarterRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // CloseStarter Answers the first start's question for good
 //
-// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
+// Records that the workspace's first start was skipped, so `starter_offered` is false from now on for everyone. An answer is `POST /tenant/starter:apply`, which closes it with the set. Needs the right to change the workspace's shape. Closing it again changes nothing.
 //
 // Corresponds with POST /tenant/starter:close (the `CloseStarter` operationId).
 func (c *Client) CloseStarter(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -99668,6 +99806,61 @@ func NewPreviewModuleReachRequest(server string, module Module, params *PreviewM
 	return req, nil
 }
 
+// NewApplyStarterRequest calls the generic ApplyStarter builder with application/json body
+func NewApplyStarterRequest(server string, params *ApplyStarterParams, body ApplyStarterJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewApplyStarterRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewApplyStarterRequestWithBody constructs an http.Request for the ApplyStarter method, with any body, and a specified content type
+func NewApplyStarterRequestWithBody(server string, params *ApplyStarterParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/starter:apply")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewCloseStarterRequest constructs an http.Request for the CloseStarter method
 func NewCloseStarterRequest(server string) (*http.Request, error) {
 	var err error
@@ -114089,9 +114282,27 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
 	PreviewModuleReachWithResponse(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*PreviewModuleReachResult, error)
 
+	// ApplyStarterWithBodyWithResponse Answers the first start's question with its starter set
+	//
+	// Creates the starter set - a hub and its collections, each on its preset - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/starter:apply (the `ApplyStarter` operationId).
+	ApplyStarterWithBodyWithResponse(ctx context.Context, params *ApplyStarterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyStarterResult, error)
+
+	// ApplyStarterWithResponse Answers the first start's question with its starter set
+	//
+	// Creates the starter set - a hub and its collections, each on its preset - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/starter:apply (the `ApplyStarter` operationId).
+	ApplyStarterWithResponse(ctx context.Context, params *ApplyStarterParams, body ApplyStarterJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyStarterResult, error)
+
 	// CloseStarterWithResponse Answers the first start's question for good
 	//
-	// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
+	// Records that the workspace's first start was skipped, so `starter_offered` is false from now on for everyone. An answer is `POST /tenant/starter:apply`, which closes it with the set. Needs the right to change the workspace's shape. Closing it again changes nothing.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -151659,6 +151870,61 @@ func (r PreviewModuleReachResult) ContentType() string {
 	return ""
 }
 
+// ApplyStarterResult201Headers the declared response headers of an HTTP 201 response for ApplyStarter
+type ApplyStarterResult201Headers struct {
+	ETag *string
+}
+
+type ApplyStarterResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Container
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *ApplyStarterResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r ApplyStarterResult) GetJSON201() *Container {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ApplyStarterResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ApplyStarterResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ApplyStarterResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ApplyStarterResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ApplyStarterResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CloseStarterResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -172738,9 +173004,39 @@ func (c *ClientWithResponses) PreviewModuleReachWithResponse(ctx context.Context
 	return ParsePreviewModuleReachResult(rsp)
 }
 
+// ApplyStarterWithBodyWithResponse Answers the first start's question with its starter set
+//
+// Creates the starter set - a hub and its collections, each on its preset - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/starter:apply (the `ApplyStarter` operationId).
+func (c *ClientWithResponses) ApplyStarterWithBodyWithResponse(ctx context.Context, params *ApplyStarterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyStarterResult, error) {
+	rsp, err := c.ApplyStarterWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyStarterResult(rsp)
+}
+
+// ApplyStarterWithResponse Answers the first start's question with its starter set
+//
+// Creates the starter set - a hub and its collections, each on its preset - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/starter:apply (the `ApplyStarter` operationId).
+func (c *ClientWithResponses) ApplyStarterWithResponse(ctx context.Context, params *ApplyStarterParams, body ApplyStarterJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyStarterResult, error) {
+	rsp, err := c.ApplyStarter(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyStarterResult(rsp)
+}
+
 // CloseStarterWithResponse Answers the first start's question for good
 //
-// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
+// Records that the workspace's first start was skipped, so `starter_offered` is false from now on for everyone. An answer is `POST /tenant/starter:apply`, which closes it with the set. Needs the right to change the workspace's shape. Closing it again changes nothing.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -200211,6 +200507,52 @@ func ParsePreviewModuleReachResult(rsp *http.Response) (*PreviewModuleReachResul
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseApplyStarterResult parses an HTTP response from a ApplyStarterWithResponse call
+func ParseApplyStarterResult(rsp *http.Response) (*ApplyStarterResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ApplyStarterResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Container
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers ApplyStarterResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil

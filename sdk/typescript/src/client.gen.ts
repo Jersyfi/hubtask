@@ -3122,6 +3122,11 @@ export class HubtaskClient {
     return this.call("POST", "/tenant/starter:close", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Answers the first start's question with its starter set */
+  applyStarter(body: NonNullable<operations["applyStarter"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["applyStarter"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/tenant/starter:apply", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** PATCH /tenant/structure */
   setWorkspaceStructure(body: NonNullable<operations["setWorkspaceStructure"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setWorkspaceStructure"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/tenant/structure", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

@@ -2255,6 +2255,25 @@ func run() error {
 			Jobs: jobs, IDs: ids, Signals: metrics,
 		},
 	}
+	createContainer := work.CreateContainer{
+		Containers:  containers,
+		Authorizer:  authorizer,
+		OwnHubs:     authorizer,
+		PrivateHubs: signInPolicyResolver,
+		Grants:      grants,
+		Events:      outbox,
+		Changes:     changes,
+		Audit:       auditSink,
+		UnitOfWork:  unitOfWork,
+		Clock:       clockadapter.System{},
+		IDs:         ids,
+		HLC:         hybrid,
+		Text:        forms,
+		Structure:   structures,
+		Buckets:     buckets,
+		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+		Renderer:    renderer,
+	}
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).
 		agentservice.Gate{Desk: agentDesk}.Wrap(
@@ -3105,25 +3124,7 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			Lag: cfg.Queue.TriggerPollLag,
 		}.Descriptor(),
-		work.CreateContainer{
-			Containers:  containers,
-			Authorizer:  authorizer,
-			OwnHubs:     authorizer,
-			PrivateHubs: signInPolicyResolver,
-			Grants:      grants,
-			Events:      outbox,
-			Changes:     changes,
-			Audit:       auditSink,
-			UnitOfWork:  unitOfWork,
-			Clock:       clockadapter.System{},
-			IDs:         ids,
-			HLC:         hybrid,
-			Text:        forms,
-			Structure:   structures,
-			Buckets:     buckets,
-			Workspaces:  postgres.NewWorkspaceSettingsRepository(),
-			Renderer:    renderer,
-		}.Descriptor(),
+		createContainer.Descriptor(),
 		work.CreateWorkItem{
 			Workflow:     workflowGate,
 			Gate:         entryGate,
@@ -3203,6 +3204,7 @@ func run() error {
 		work.ChangePreset{Desk: presetDesk}.Descriptor(),
 		work.WithdrawPreset{Desk: presetDesk}.Descriptor(),
 		work.CloseStarter{Starter: starter}.Descriptor(),
+		work.ApplyStarter{Starter: starter, Containers: createContainer}.Descriptor(),
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

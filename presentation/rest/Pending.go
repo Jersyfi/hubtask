@@ -1720,6 +1720,10 @@ func (pending) WithdrawInstallationPreset(
 
 func (pending) CloseStarter(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) ApplyStarter(w http.ResponseWriter, r *http.Request, _ openapi.ApplyStarterParams) {
+	notAvailable(w, r)
+}
+
 // AI where its subject is (UC-AI-04 checks 7 and 9).
 func (pending) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)

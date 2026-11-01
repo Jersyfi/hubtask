@@ -36,15 +36,16 @@ func (StarterRepository) Pending(ctx context.Context) (bool, error) {
 	return pending, nil
 }
 
-// Close records the answer.
-func (StarterRepository) Close(ctx context.Context, at time.Time) error {
+// Close records the answer, and reports whether this call recorded it.
+func (StarterRepository) Close(ctx context.Context, at time.Time) (bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
-	if err := queries.CloseStarter(ctx, timestampOf(at)); err != nil {
-		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+	closed, err := queries.CloseStarter(ctx, timestampOf(at))
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("closing the first start: %w", err))
 	}
-	return nil
+	return closed == 1, nil
 }

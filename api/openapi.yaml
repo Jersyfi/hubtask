@@ -16889,13 +16889,49 @@ paths:
       x-hubtask-rest: generated
       summary: Answers the first start's question for good
       description: >
-        Records that the workspace's first start was answered or skipped, so `starter_offered` is
-        false from now on for everyone. A client closes it before it creates the starter set, so an
-        interruption never makes the set twice. Needs the right to change the workspace's shape.
-        Closing it again changes nothing.
+        Records that the workspace's first start was skipped, so `starter_offered` is false from
+        now on for everyone. An answer is `POST /tenant/starter:apply`, which closes it with the set.
+        Needs the right to change the workspace's shape. Closing it again changes nothing.
       responses:
         "204":
           description: Closed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /tenant/starter:apply:
+    post:
+      tags: [meta]
+      operationId: applyStarter
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
+      x-hubtask-rest-location: /containers/{id}
+      summary: Answers the first start's question with its starter set
+      description: >
+        Creates the starter set - a hub and its collections, each on its preset - and closes the
+        first start, in one transaction: either all of it lands or nothing does. Sent with an
+        `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second
+        set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or
+        once the workspace holds anything somebody made. The names are the client's, in the reader's
+        language; everything made is an ordinary hub and collection. Needs the right to change the
+        workspace's shape. The answer is the hub.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StarterSet"
+      responses:
+        "201":
+          description: The set was made; the answer is its hub
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -32932,6 +32968,31 @@ components:
             A saved preset to start from instead - the workspace's, the installation's or the
             caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with
             `presets.both_named`.
+
+    StarterSet:
+      type: object
+      required: [hub_name, hub_preset]
+      properties:
+        hub_name: { type: string, minLength: 1, maxLength: 200 }
+        hub_preset:
+          type: string
+          enum: [LIST, TASKS, PROJECT, FLOW]
+        collections:
+          type: array
+          maxItems: 10
+          description: The hub's collections, in their order.
+          items:
+            $ref: "#/components/schemas/StarterCollection"
+
+    StarterCollection:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+          description: Its own preset; none, or its hub's, follows the hub.
 
     ContainerUpdate:
       type: object

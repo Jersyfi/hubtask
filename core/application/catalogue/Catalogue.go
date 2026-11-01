@@ -456,6 +456,7 @@ func Descriptors() []usecase.Descriptor {
 		work.ChangePreset{}.Descriptor(),
 		work.WithdrawPreset{}.Descriptor(),
 		work.CloseStarter{}.Descriptor(),
+		work.ApplyStarter{}.Descriptor(),
 		work.SetHubPrivacy{}.Descriptor(),
 		work.ListPrivateHubs{}.Descriptor(),
 		work.OpenPrivateHub{}.Descriptor(),

@@ -11,6 +11,8 @@ SELECT (t.starter_answered_at IS NULL
 FROM tenant t
 WHERE t.id = current_tenant_id();
 
--- name: CloseStarter :exec
+-- name: CloseStarter :execrows
+-- One row where this transaction closed it, none where it was closed already: the row lock makes a
+-- second answer arriving at once wait, and then find it closed.
 UPDATE tenant SET starter_answered_at = sqlc.arg('at')
 WHERE id = current_tenant_id() AND starter_answered_at IS NULL;

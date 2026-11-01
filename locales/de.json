@@ -2067,6 +2067,8 @@
   "cli.workspace_failed": "Der Arbeitsbereich konnte nicht geändert werden; er ist, wie er war.",
   "admin.operator_last": "Das ist der letzte Betreiber. Eine Installation ohne Betreiber kann niemand betreiben.",
   "admin.slug_taken": "Diese Subdomain gehört bereits einem Workspace. Wähle eine andere.",
+  "workspace.starter_closed": "Der erste Start wurde schon beantwortet, oder der Arbeitsbereich enthält bereits etwas. Es wurde nichts neu eingerichtet.",
+  "workspace.starter_collections_too_many": "Der erste Start legt höchstens zehn Sammlungen an.",
   "workspace.version_conflict": "Jemand anderes hat den Arbeitsbereich geändert. Lies ihn neu und versuche es noch einmal.",
   "workspace.admin_flag_contradicts_rule": "Diese Änderung sagt zweierlei darüber, wer einen zweiten Faktor braucht. Sende nur die Regel.",
   "workspace.week_start_invalid": "Eine Woche beginnt am Montag, Samstag oder Sonntag, nicht am {value}.",

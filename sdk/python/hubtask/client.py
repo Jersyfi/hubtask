@@ -2479,6 +2479,10 @@ class Client:
         """Answers the first start's question for good"""
         return self._call("POST", "/tenant/starter:close", {}, None, {}, None, "none", None, "void")
 
+    def apply_starter(self, body: "StarterSet", *, idempotency_key: str | None = None) -> "Container":
+        """Answers the first start's question with its starter set"""
+        return self._call("POST", "/tenant/starter:apply", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def set_workspace_structure(self, body: "WorkspaceStructureChange", *, if_match: str | None = None) -> "WorkspaceStructure":
         """PATCH /tenant/structure"""
         return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")

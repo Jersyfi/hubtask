@@ -1470,7 +1470,8 @@ type Starter interface {
 	Pending(ctx context.Context) (bool, error)
 
 	// Close records that the question was answered or skipped; closing it again changes nothing.
-	Close(ctx context.Context, at time.Time) error
+	// It reports whether this call closed it - false where it was closed already.
+	Close(ctx context.Context, at time.Time) (bool, error)
 }
 
 // Figures counts what a collection's figure is made of (UC-WRK-29): for each request, only what its
