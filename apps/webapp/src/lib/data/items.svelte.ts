@@ -16,7 +16,7 @@
  * assembles. The engine knows that a `POST` can be a read.
  */
 
-import { reachOf, type PageReach } from './paging.ts';
+import { columnCards, columnRequest, reachOf, type PageReach } from './paging.ts';
 import type {
   Assignment,
   AutoAssignOutcome,
@@ -118,6 +118,8 @@ function board(containerId: string, query: ItemsQuery): { path: string; body: un
     },
   };
 }
+
+const columnKey = (containerId: string, key: string | null) => `column:${containerId}:${key ?? ''}`;
 
 const rowsOf = (state: ResourceState<ItemQueryResult> | undefined): readonly WorkItem[] =>
   state?.status === 'ready' ? (state.data.data ?? []) : [];
@@ -226,7 +228,88 @@ class Items {
 
   /** Starts the board. **From `untrack`**, like every other subscription here. */
   openBoard(containerId: string, query: ItemsQuery = {}): () => void {
-    return this.#open(`board:${containerId}`, board(containerId, query));
+    const stop = this.#open(`board:${containerId}`, board(containerId, query));
+    return () => {
+      stop();
+      this.#closeColumns(containerId);
+    };
+  }
+
+  /**
+   * One column's cards: the board's first ones for it, and those its continuation read after them.
+   * A grouped read draws the first 50 of each column; the column's own read brings the rest.
+   */
+  columnCards(containerId: string, key: string | null): readonly WorkItem[] {
+    const first = this.boardGroups(containerId).find((group) => group.key === key)?.data ?? [];
+    const more = this.#columns[columnKey(containerId, key)];
+    return columnCards(first, more?.status === 'ready' ? (more.data.data ?? []) : []);
+  }
+
+  /** Whether a column has cards after the ones it draws. */
+  columnHasMore(containerId: string, key: string | null): boolean {
+    const more = this.#columns[columnKey(containerId, key)];
+    if (more) return more.status === 'ready' && reachOf(more.data).hasMore;
+    const group = this.boardGroups(containerId).find((each) => each.key === key);
+    return reachOf(group ? { data: group.data, page: group.page } : undefined).hasMore;
+  }
+
+  /**
+   * Reads a column's next cards. The first time, the column's own read is opened from the group's
+   * cursor; after that it pages like any list. A reload of either keeps what was read.
+   */
+  async loadMoreColumn(containerId: string, key: string | null): Promise<void> {
+    const at = columnKey(containerId, key);
+    const opened = this.#columnRequests[at];
+    if (opened) {
+      await engine.loadMore<ItemQueryResult>(opened);
+      return;
+    }
+    const boardRequest = this.#requests[`board:${containerId}`];
+    const cursor = this.boardGroups(containerId).find((group) => group.key === key)?.page?.next_cursor;
+    if (!boardRequest || !cursor) return;
+    const request = {
+      path: boardRequest.path,
+      body: columnRequest(boardRequest.body as Record<string, unknown>, key, cursor),
+    };
+    this.#columnRequests[at] = request;
+    await new Promise<void>((resolve, reject) => {
+      let arrived = false;
+      const stop = engine.subscribe<ItemQueryResult>(request, (next) => {
+        if (next.status === 'failed' && !arrived) {
+          // A column whose first continuation did not arrive is asked again from its group's
+          // cursor next time; a later reload that fails keeps what the column showed.
+          this.#stopColumn(at);
+          reject(next.error);
+          return;
+        }
+        if (next.status !== 'ready' && arrived) return;
+        this.#columns = { ...this.#columns, [at]: next };
+        if (next.status === 'ready') {
+          arrived = true;
+          resolve();
+        }
+      });
+      this.#columnStops[at] = stop;
+    });
+  }
+
+  /** Each opened column continuation, by board and key, and how to stop it. */
+  #columns = $state<Record<string, ResourceState<ItemQueryResult>>>({});
+  #columnRequests: Record<string, { path: string; body: unknown }> = {};
+  #columnStops: Record<string, () => void> = {};
+
+  #stopColumn(at: string): void {
+    this.#columnStops[at]?.();
+    delete this.#columnStops[at];
+    delete this.#columnRequests[at];
+    const { [at]: _gone, ...rest } = this.#columns;
+    this.#columns = rest;
+  }
+
+  #closeColumns(containerId: string): void {
+    for (const at of Object.keys(this.#columnRequests)) {
+      if (at.startsWith(`column:${containerId}:`)) this.#stopColumn(at);
+    }
   }
 
   /**

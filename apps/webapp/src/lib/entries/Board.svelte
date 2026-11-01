@@ -6,8 +6,8 @@
   //
   // It is not a list fetched and then sorted in the browser. `group_by` is what turns the read into
   // columns — "one group per distinct value, each with its own rows and its own cursor". A column
-  // is continued by asking for that group again with its cursor; the board does not ask yet, so it
-  // draws the first 50 cards of a column while its header counts them all.
+  // draws its first 50 cards and offers the rest: continuing it asks for that group again, its key
+  // as a filter and its cursor as the cursor (`items.loadMoreColumn`).
   //
   // **`BUCKET` is a `TASK` capability only.** Buckets apply to the entries directly in the
   // collection, so a board shows tasks; what a work package or an activity does on a board is
@@ -27,6 +27,7 @@
     IconButton,
     Icon,
     LabelChip,
+    LoadMore,
     Menu,
     Skeleton,
     ViewSwitcher,
@@ -295,7 +296,26 @@
     };
   });
   function cardsOf(bucketId: string | null): readonly WorkItem[] {
-    return groups.find((group) => group.key === bucketId)?.data ?? [];
+    void groups;
+    return items.columnCards(collectionId, bucketId);
+  }
+
+  /** The columns reading their next cards, and the ones whose next cards did not arrive. */
+  let columnsLoading = $state<Record<string, boolean>>({});
+  let columnsFailed = $state<Record<string, boolean>>({});
+
+  async function loadMoreOf(bucketId: string | null) {
+    const at = bucketId ?? 'none';
+    if (columnsLoading[at]) return;
+    columnsLoading = { ...columnsLoading, [at]: true };
+    columnsFailed = { ...columnsFailed, [at]: false };
+    try {
+      await items.loadMoreColumn(collectionId, bucketId);
+    } catch {
+      columnsFailed = { ...columnsFailed, [at]: true };
+    } finally {
+      columnsLoading = { ...columnsLoading, [at]: false };
+    }
   }
 
   function countOf(bucketId: string | null): number | null {
@@ -989,6 +1009,21 @@
                 {/if}
               </div>
             {/each}
+            <!-- A grouped read draws a column's first 50 cards; the rest are said and offered,
+                 never silently left out. -->
+            {#if items.columnHasMore(collectionId, bucketId)}
+              {@const total = countOf(bucketId)}
+              <LoadMore
+                label={total === null
+                  ? t('app.entries.load_more', { shown: String(cards.length) })
+                  : t('app.entries.load_more_of', { shown: String(cards.length), total: String(total) })}
+                busyLabel={t('app.entries.loading_more')}
+                hasMore
+                isBusy={columnsLoading[bucketId ?? 'none'] ?? false}
+                {...(columnsFailed[bucketId ?? 'none'] ? { failedLabel: t('app.entries.load_more_failed') } : {})}
+                onLoadMore={() => void loadMoreOf(bucketId)}
+              />
+            {/if}
             <!-- The column's own door to capture: pointed at this column, so an entry lands where it
                  is added (design-system.md §11.8). The same field as everywhere else. -->
             {#if mayCreate && !isReadOnly && isBucketBoard}
