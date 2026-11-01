@@ -118,3 +118,70 @@ func TestASAMLEntityIDIsKeptExactly(t *testing.T) {
 		t.Fatal("an issuer host was read as SAML")
 	}
 }
+
+// identity.md §26.1: the warning due is the smallest of 30, 7 and 1 days whose moment has come,
+// counted from the last certificate to end, and the next check is the next of those moments.
+func TestASAMLCertificateIsWarnedOfAt30And7And1Days(t *testing.T) {
+	end := samlNow.AddDate(0, 0, 40)
+	day := 24 * time.Hour
+	cases := []struct {
+		name string
+		now  time.Time
+		days int
+		next time.Time
+	}{
+		{name: "forty days out", now: samlNow, days: 0, next: end.Add(-30 * day)},
+		{name: "thirty days out", now: end.Add(-30 * day), days: 30, next: end.Add(-7 * day)},
+		{name: "ten days out", now: end.Add(-10 * day), days: 30, next: end.Add(-7 * day)},
+		{name: "six days out", now: end.Add(-6 * day), days: 7, next: end.Add(-day)},
+		{name: "an hour out", now: end.Add(-time.Hour), days: 1},
+		{name: "ended", now: end.Add(time.Hour), days: 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			days, next := identity.SAMLExpiryDue(end, tc.now)
+			if days != tc.days || !next.Equal(tc.next) {
+				t.Errorf("due %d next %v, want %d next %v", days, next, tc.days, tc.next)
+			}
+		})
+	}
+}
+
+// The end is the last certificate's: during a rollover the provider keeps working on the newer one.
+func TestASAMLRolloverEndsWithItsLastCertificate(t *testing.T) {
+	older := samlNow.AddDate(0, 0, 5)
+	newer := samlNow.AddDate(1, 0, 0)
+	pem := samlCertificate(t, samlNow.AddDate(-1, 0, 0), older) + samlCertificate(t, samlNow, newer)
+	end, ok := identity.SAMLCertificatesEnd(pem)
+	if !ok || !end.Equal(newer) {
+		t.Errorf("end %v (%v), want %v", end, ok, newer)
+	}
+	if _, ok := identity.SAMLCertificatesEnd("not a certificate"); ok {
+		t.Error("text that holds no certificate answered an end")
+	}
+}
+
+// A warning is owed once per stage and end: told 30 days, the 30-day stage owes nothing more; a
+// new certificate with another end is owed afresh; a disabled provider is owed nothing.
+func TestASAMLWarningIsOwedOncePerStageAndEnd(t *testing.T) {
+	end := samlNow.AddDate(0, 0, 10)
+	watch := identity.SAMLWatch{Enabled: true, Certificate: samlCertificate(t, samlNow.AddDate(-1, 0, 0), end)}
+	if days, _ := watch.Owed(samlNow); days != 30 {
+		t.Fatalf("owed %d, want 30", days)
+	}
+	watch.ToldFor, watch.ToldDays = end, 30
+	if days, next := watch.Owed(samlNow); days != 0 || !next.Equal(end.AddDate(0, 0, -7)) {
+		t.Errorf("told 30 days, still owed %d (next %v)", days, next)
+	}
+	if days, _ := watch.Owed(end.AddDate(0, 0, -6)); days != 7 {
+		t.Errorf("six days out owed %d, want 7", days)
+	}
+	watch.ToldFor = end.AddDate(0, 0, -100)
+	if days, _ := watch.Owed(samlNow); days != 30 {
+		t.Errorf("a warning for another end held back %d", days)
+	}
+	watch.Enabled = false
+	if days, _ := watch.Owed(samlNow); days != 0 {
+		t.Errorf("a disabled provider was owed %d", days)
+	}
+}

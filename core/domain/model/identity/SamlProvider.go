@@ -105,6 +105,43 @@ func SAMLCertificates(raw string, now time.Time) (string, []*x509.Certificate, e
 	return out.String(), certs, nil
 }
 
+// SAMLExpiryWarnings are the days before a SAML provider's certificates end at which its
+// workspace's administrators are told, largest first (identity.md §26.1): an ended certificate
+// refuses every answer, so nobody signs in through the provider any more.
+var SAMLExpiryWarnings = [...]int{30, 7, 1}
+
+// SAMLCertificatesEnd is when the last of the stored certificates ends - during a rollover the
+// provider keeps working on the newer one. False where the text holds no certificate.
+func SAMLCertificatesEnd(raw string) (time.Time, bool) {
+	var end time.Time
+	rest := []byte(strings.TrimSpace(raw))
+	for len(rest) > 0 {
+		block, remainder := pem.Decode(rest)
+		if block == nil || block.Type != samlCertificateBlock {
+			break
+		}
+		if cert, err := x509.ParseCertificate(block.Bytes); err == nil && cert.NotAfter.After(end) {
+			end = cert.NotAfter
+		}
+		rest = remainder
+	}
+	return end, !end.IsZero()
+}
+
+// SAMLExpiryDue answers the warning due at now for certificates ending at end - the smallest of
+// SAMLExpiryWarnings whose moment has come, 0 while none has - and the next such moment, zero
+// once none is left.
+func SAMLExpiryDue(end, now time.Time) (days int, next time.Time) {
+	for _, warning := range SAMLExpiryWarnings {
+		at := end.Add(-time.Duration(warning) * 24 * time.Hour)
+		if now.Before(at) {
+			return days, at
+		}
+		days = warning
+	}
+	return days, time.Time{}
+}
+
 // samlFields checks what only a SAML provider holds: required for one, refused for every other
 // kind, because a field nothing reads is somebody's belief that it did something.
 func samlFields(in NewIdentityProviderInput, kind ProviderKind) (string, string, error) {
@@ -145,3 +182,35 @@ func SAMLHandoffHash(code string) []byte {
 func SAMLHandoffMatches(held []byte, presented string) bool {
 	return len(held) == sha256.Size && subtle.ConstantTimeCompare(held, SAMLHandoffHash(presented)) == 1
 }
+
+// SAMLWatch is one SAML provider as its certificate watch reads it: what its administrators were
+// last told about the end - ToldDays of SAMLExpiryWarnings for the end ToldFor, zero for nothing.
+type SAMLWatch struct {
+	ProviderID  shared.ID
+	DisplayName string
+	Enabled     bool
+	Certificate string
+	ToldFor     time.Time
+	ToldDays    int
+}
+
+// Owed answers the warning to give at now, 0 for none, and when to look again (zero: no warning
+// is left for these certificates). A warning given for another end does not count - a new
+// certificate is warned of afresh; a disabled provider is told nothing, nobody signs in through it.
+func (w SAMLWatch) Owed(now time.Time) (days int, next time.Time) {
+	end, ok := w.CertificatesEnd()
+	if !ok {
+		return 0, time.Time{}
+	}
+	due, next := SAMLExpiryDue(end, now)
+	if !w.Enabled || due == 0 {
+		return 0, next
+	}
+	if w.ToldFor.Equal(end) && w.ToldDays != 0 && w.ToldDays <= due {
+		return 0, next
+	}
+	return due, next
+}
+
+// CertificatesEnd is when the provider's last certificate ends.
+func (w SAMLWatch) CertificatesEnd() (time.Time, bool) { return SAMLCertificatesEnd(w.Certificate) }
