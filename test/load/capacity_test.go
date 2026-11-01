@@ -194,7 +194,7 @@ func walk(t *testing.T, stack *stack, as tenant) []harness.LogError {
 	out := filepath.Join(t.TempDir(), "walk.json")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "node", "e2e/scalewalk.mjs", stack.baseURL, as.token, out,
+	cmd := exec.CommandContext(ctx, "node", "e2e/scalewalk.mjs", stack.baseURL, as.walkToken, out,
 		"/", "/hubs/"+as.hub, "/collections/"+as.collection)
 	cmd.Dir = filepath.Join(repositoryRoot(), "apps", "webapp")
 	output, err := cmd.CombinedOutput()

@@ -36,6 +36,7 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/Jersyfi/hubtask/core/application/catalogue"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -100,8 +101,10 @@ type stack struct {
 }
 
 type tenant struct {
-	id         string
-	token      string
+	id    string
+	token string
+	// walkToken is R3's: every scope a session carries, so the walk reads what the web app reads.
+	walkToken  string
 	collection string
 	// hub is the tenant's one hub, whose level of collections is read with their figures.
 	hub string
@@ -369,14 +372,29 @@ func generate(ctx context.Context, table string, tenants, items int) (string, er
 	return file.Name(), nil
 }
 
+// loadScopes are the measured runs' token's: automation:manage is here for the storm, which arms a
+// rule and a webhook subscription on the storming tenant; everything else in this package needs
+// only the first three.
+var loadScopes = []string{"items:read", "items:write", "containers:read", "automation:manage"}
+
+// scopeArray is a scope list as a SQL array literal. The scopes are the catalogue's own words, never
+// a request's, so quoting them is enough.
+func scopeArray(scopes []string) string {
+	quoted := make([]string, len(scopes))
+	for i, scope := range scopes {
+		quoted[i] = "'" + strings.ReplaceAll(scope, "'", "''") + "'"
+	}
+	return "ARRAY[" + strings.Join(quoted, ",") + "]"
+}
+
 // mintTokens gives the first few tenants a credential each. Several, because the load is spread
 // over them: one credential driving the whole run would meet the per-token budget rather than the
 // admission threshold, and would measure the rate limiter.
+//
+// Each tenant gets a second credential for R3's walk, carrying every scope a session carries: the
+// web app reads far more than the measured paths, and a walk under the load token sees only the
+// refusals of its other reads.
 func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, tenants int) ([]tenant, error) {
-	// automation:manage is here for the storm, which arms a rule and a webhook subscription on the
-	// storming tenant; everything else in this package needs only the first three.
-	const scopes = "'items:read','items:write','containers:read','automation:manage'"
-
 	credentialled := min(tenants, 8)
 	minted := make([]tenant, 0, credentialled)
 	hasher := security.NewTokenHasher(secret.New(installationSecret))
@@ -389,27 +407,35 @@ func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, te
 		if err != nil {
 			return nil, err
 		}
-		material := make([]byte, identity.TokenSecretBytes)
-		if _, err := rand.Read(material); err != nil {
-			return nil, err
+		mint := func(kind string, scopes []string) (string, error) {
+			material := make([]byte, identity.TokenSecretBytes)
+			if _, err := rand.Read(material); err != nil {
+				return "", err
+			}
+			token, err := identity.NewToken(parsed, material)
+			if err != nil {
+				return "", err
+			}
+			return token.Secret(), psql(ctx, container, fmt.Sprintf(
+				`INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
+				 VALUES ('%s', '%s', '%s', 'the load run', decode('%x', 'hex'), 'hbt_pat_',
+				         %s, now() + interval '2 hours')`,
+				derived(ctx, kind, rank), tenantID, accountID, hasher.Hash(token.Secret()), scopeArray(scopes),
+			))
 		}
-		token, err := identity.NewToken(parsed, material)
+		loadToken, err := mint("load-token", loadScopes)
 		if err != nil {
 			return nil, err
 		}
-
-		if err := psql(ctx, container, fmt.Sprintf(
-			`INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-			 VALUES ('%s', '%s', '%s', 'the load run', decode('%x', 'hex'), 'hbt_pat_',
-			         ARRAY[%s], now() + interval '2 hours')`,
-			derived(ctx, "load-token", rank), tenantID, accountID, hasher.Hash(token.Secret()), scopes,
-		)); err != nil {
+		walkToken, err := mint("walk-token", catalogue.SessionScopes())
+		if err != nil {
 			return nil, err
 		}
 
 		minted = append(minted, tenant{
 			id:         tenantID,
-			token:      token.Secret(),
+			token:      loadToken,
+			walkToken:  walkToken,
 			collection: derived(ctx, "collection", rank, 0),
 			hub:        derived(ctx, "hub", rank),
 		})
@@ -652,4 +678,18 @@ func writeEvidence(t *testing.T, name string, finding any) {
 		t.Fatalf("writing %s: %v", path, err)
 	}
 	t.Logf("the run is in %s", path)
+}
+
+// The walk's credential carries every scope a session does, so R3 sees what a person's web app
+// sees rather than the refusals of the load token's narrow set.
+func TestWalkTokenCarriesEverySessionScope(t *testing.T) {
+	array := scopeArray(catalogue.SessionScopes())
+	for _, scope := range catalogue.SessionScopes() {
+		if !strings.Contains(array, "'"+scope+"'") {
+			t.Errorf("the walk's scopes lack %s: %s", scope, array)
+		}
+	}
+	if got := scopeArray([]string{"a:b", "c'd"}); got != "ARRAY['a:b','c''d']" {
+		t.Errorf("scopeArray = %s", got)
+	}
 }
